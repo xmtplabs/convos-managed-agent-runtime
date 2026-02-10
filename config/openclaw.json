@@ -26,16 +26,31 @@
   "skills": {
     "entries": {
       "bankr": {
-        "apiKey": "",
-        "config": { "apiUrl": "https://api.bankr.bot" }
+        "enabled": true,
+        "config": {
+          "apiKey": "${BANKR_API_KEY}",
+          "apiUrl": "https://api.bankr.bot"
+        },
+        "env": {  
+          "BANKR_API_KEY": "${BANKR_API_KEY}"
+        }
       },
       "agentmail": {
-        "apiKey": ""
+        "enabled": true,
+        "apiKey": "${AGENTMAIL_API_KEY}",
+        "env": {
+          "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}"
+        }
       }
     }
   },
   "tools": {
-    "allow": [],
-    "deny": []
+    "profile": "full",
+    "deny": [],
+    "exec": {
+      "host": "gateway",
+      "security": "full",
+      "ask": "off"
+    }
   }
 }

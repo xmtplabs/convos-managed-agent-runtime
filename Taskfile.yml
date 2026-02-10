@@ -28,3 +28,8 @@ tasks:
     desc: Run skill-setup scripts only
     cmds:
       - ./scripts/skill-setup.sh
+
+  config:apply:
+    desc: Apply .env to openclaw.json (template → state dir)
+    cmds:
+      - ./scripts/apply-env-to-config.sh

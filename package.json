@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "start": "./scripts/entrypoint.sh",
+    "apply": "./scripts/apply-env-to-config.sh",
     "upgrade": "./scripts/upgrade-openclaw.sh",
     "dev": "PORT=18790 OPENCLAW_ENTRY=../openclaw/openclaw.mjs OPENCLAW_BUNDLED_PLUGINS_DIR=../openclaw/extensions OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh"
   },
