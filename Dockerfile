@@ -62,7 +62,9 @@ COPY --from=openclaw-build /openclaw /openclaw
 RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"' > /usr/local/bin/openclaw \
   && chmod +x /usr/local/bin/openclaw
 
-# Concierge: shipped workspace, config defaults, custom extensions, entrypoint
+# Concierge: package.json (skill deps e.g. agentmail), workspace, config, extensions, entrypoint
+COPY package.json pnpm-lock.yaml /app/
+RUN pnpm install --no-frozen-lockfile
 COPY workspace /app/workspace-defaults
 COPY config /app/config-defaults
 COPY extensions /app/extensions

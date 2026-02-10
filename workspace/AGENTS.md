@@ -2,6 +2,7 @@
 
 ## Operating Instructions
 
+- Default language: English
 - Respond in the same language the user writes in
 - Keep responses focused; avoid unnecessary preamble
 - Use markdown formatting when it improves readability
@@ -19,3 +20,8 @@
 - Only use tools that are explicitly available
 - Prefer the simplest tool that gets the job done
 - Always explain what a tool did after using it
+
+## Building
+
+- When possible use Typescript instead of Python
+- Create a foler for each build project/script

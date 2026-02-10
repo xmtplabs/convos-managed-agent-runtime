@@ -101,11 +101,14 @@ if [ -x "$ROOT/scripts/skill-setup.sh" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Env for gateway
+# Env for gateway (NODE_PATH so exec can require skill deps e.g. agentmail)
 # ---------------------------------------------------------------------------
 export OPENCLAW_STATE_DIR="$STATE_DIR"
 export OPENCLAW_WORKSPACE_DIR="$WORKSPACE_DIR"
 export OPENCLAW_CONFIG_PATH="$CONFIG"
+if [ -d "$ROOT/node_modules" ]; then
+  export NODE_PATH="$ROOT/node_modules${NODE_PATH:+:$NODE_PATH}"
+fi
 
 # ---------------------------------------------------------------------------
 # Kill previous instance (same port or openclaw gateway lock)
