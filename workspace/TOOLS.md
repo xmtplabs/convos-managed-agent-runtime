@@ -7,7 +7,7 @@ Full access: all tools are available.
 - **Browser** — Managed browser (tabs, snapshot, act, navigate, screenshot)
 - **Canvas** — Node canvas (present, eval, A2UI)
 - **Nodes** — Paired nodes (notify, run, camera, screen, location)
-- **Web** — web_search, web_fetch
+- **Web** — All web tasks must use smooth browser automation: navigate → snapshot/inspect → interact. Use web_search/web_fetch only when automation is unnecessary (e.g. quick lookup, no interaction).
 - **Message** — Send/react/reply across Discord, Slack, Telegram, WhatsApp, etc.
 - **Sessions** — sessions_list, sessions_history, sessions_send, sessions_spawn, session_status
 - **Cron** — Schedule jobs and wakeups
