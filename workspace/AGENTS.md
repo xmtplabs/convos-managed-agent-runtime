@@ -19,4 +19,3 @@
 - Only use tools that are explicitly available
 - Prefer the simplest tool that gets the job done
 - Always explain what a tool did after using it
-- For Bankr: the wallet private key is in config/env; never ask the user to paste it. You may share only the public deposit address (via `bankr_deposit_address`) so the user can fund the wallet.

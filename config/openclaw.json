@@ -23,8 +23,19 @@
       "memory": "none"
     }
   },
+  "skills": {
+    "entries": {
+      "bankr": {
+        "apiKey": "",
+        "config": { "apiUrl": "https://api.bankr.bot" }
+      },
+      "agentmail": {
+        "apiKey": ""
+      }
+    }
+  },
   "tools": {
-    "allow": ["bankr_deposit_address", "bankr_query"],
-    "deny": ["exec", "browser", "camera"]
+    "allow": [],
+    "deny": []
   }
 }

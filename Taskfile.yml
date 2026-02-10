@@ -28,8 +28,3 @@ tasks:
     desc: Run skill-setup scripts only
     cmds:
       - ./scripts/skill-setup.sh
-
-  derive-address:
-    desc: Derive ETH address from private key (arg or BANKR_WALLET_PRIVATE_KEY)
-    cmds:
-      - node scripts/derive-eth-address.mjs {{.CLI_ARGS}}

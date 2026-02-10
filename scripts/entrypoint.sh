@@ -4,10 +4,6 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 . "$ROOT/scripts/env-load.sh"
-if [ -x "$ROOT/scripts/skill-setup.sh" ]; then
-  "$ROOT/scripts/skill-setup.sh"
-  echo "[concierge] Ran skill setup"
-fi
 
 # Repo has config/ and workspace/; Docker image has config-defaults and workspace-defaults
 if [ -d "$ROOT/config-defaults" ]; then CONFIG_DEFAULTS="$ROOT/config-defaults"; else CONFIG_DEFAULTS="$ROOT/config"; fi
@@ -95,6 +91,14 @@ if [ -n "$OPENCLAW_CUSTOM_PLUGINS_DIR" ] && [ -d "$OPENCLAW_CUSTOM_PLUGINS_DIR" 
 fi
 
 echo "[concierge] Patched config: gateway.port=$PORT, gateway.bind=lan"
+
+# ---------------------------------------------------------------------------
+# Skill setup (merge .env keys into skills.entries, etc.)
+# ---------------------------------------------------------------------------
+if [ -x "$ROOT/scripts/skill-setup.sh" ]; then
+  ROOT="$ROOT" OPENCLAW_STATE_DIR="$STATE_DIR" "$ROOT/scripts/skill-setup.sh"
+  echo "[concierge] Ran skill setup"
+fi
 
 # ---------------------------------------------------------------------------
 # Env for gateway

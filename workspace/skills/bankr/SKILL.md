@@ -2,94 +2,53 @@
 name: bankr
 description: AI-powered crypto trading agent via natural language. Use when the user wants to trade crypto (buy/sell/swap tokens), check portfolio balances, view token prices, transfer crypto, manage NFTs, use leverage, bet on Polymarket, deploy tokens, set up automated trading strategies, submit raw transactions, execute calldata, or send transaction JSON. Supports Base, Ethereum, Polygon, Solana, and Unichain. Comprehensive capabilities include trading, portfolio management, market research, NFT operations, prediction markets, leverage trading, DeFi operations, automation, and arbitrary transaction submission.
 metadata:
-  {
-    "clawdbot": {
-      "emoji": "📺",
-      "homepage": "https://bankr.bot",
-      "requires": { "bins": ["curl", "jq"] },
-    },
-  }
+  { "openclaw": { "emoji": "📺", "homepage": "https://bankr.bot", "requires": { "bins": ["curl", "jq"] } } }
 ---
 
 # Bankr
 
 Execute crypto trading and DeFi operations using natural language through Bankr's AI agent API.
 
-## Agent behavior
-
-- The Bankr wallet **private key is already stored** in config (or env). Never ask the user to paste it or to share private keys.
-- If the user asks for "your bankr address", "check your address", "my address", or similar: **call `bankr_deposit_address`** and report the result. They mean the Concierge/Bankr wallet—do not say you have no wallet.
-- You may derive and share **only the public deposit address** from existing config so the user can fund the wallet. Use the `bankr_deposit_address` tool to get it, then tell the user "Your deposit address is 0x…".
-- If the user says they "added", "set", or "configured" `BANKR_WALLET_PRIVATE_KEY` (or similar), treat that as setup confirmation: say that Bankr is configured and offer to share their deposit address via `bankr_deposit_address`. Do not refuse or say you cannot accept keys—the key is in config, not in the chat.
-- For balance checks, trades, portfolio, prices, and any other Bankr request: use the `bankr_query` tool with the user's request as the `prompt` (e.g. "What is my ETH balance on Base?").
-- When the user says they **just sent** funds (USDC, ETH, etc.) and asks to **check**, **confirm**, or **see if it arrived**: use `bankr_query` with a balance/portfolio prompt (e.g. "What is my USDC balance?" or "What are my token balances?") and report the result. Do not say you cannot check—Bankr returns the wallet balances.
-
-### Deposit address
-
-When the user asks for **their** wallet address, **your** Bankr address, "check your bankr address", "my address", where to send funds, or whether they have a wallet: **always call `bankr_deposit_address`**. The user means the Bankr wallet that Concierge uses (stored in config). Do not answer that you have no wallet—use the tool and report the address or the error. If the tool returns an address, share that 0x address. If it returns an error (e.g. Bankr not configured), explain briefly and suggest setting `BANKR_API_KEY` and running skill-setup.
-
-### Check after user sends funds
-
-If the user says they just sent funds and asks "can you check" or "did it arrive", call `bankr_query` with e.g. "What are my token balances?" or "What is my USDC balance?" and tell them what the tool returned. Do not say you cannot check—Bankr returns the wallet balances.
-
 ## Quick Start
 
 ### First-Time Setup
 
-On first run (when `BANKR_API_KEY` is set and skill-setup runs), a wallet private key is generated and stored in config; fund that wallet's address to send from it.
+Configure via `skills.entries.bankr` in `~/.openclaw/openclaw.json` (or your config):
 
-There are two ways to get started:
-
-#### Option A: User provides an existing API key
-
-If the user already has a Bankr API key, they can provide it directly:
-
-```bash
-mkdir -p ~/.clawdbot/skills/bankr
-cat > ~/.clawdbot/skills/bankr/config.json << 'EOF'
-{
-  "apiKey": "bk_YOUR_KEY_HERE",
-  "apiUrl": "https://api.bankr.bot"
+```json
+"skills": {
+  "entries": {
+    "bankr": {
+      "apiKey": "bk_YOUR_KEY_HERE",
+      "config": { "apiUrl": "https://api.bankr.bot" }
+    }
+  }
 }
-EOF
 ```
 
-API keys can be created and managed at [bankr.bot/api](https://bankr.bot/api). The key must have **Agent API** access enabled.
+Or set `BANKR_API_KEY` (and optionally `BANKR_API_URL`) in env. For scripts, you can also create `workspace/skills/bankr/config.json` with `apiKey` and `apiUrl`.
 
-#### Option B: Create a new account (guided by Clawd)
-
-Clawd can walk the user through the full signup flow:
-
-1. **Sign up / Sign in** — User provides their email address. Bankr sends a one-time passcode (OTP) to that email. Creating a new account automatically provisions **EVM wallets** (Base, Ethereum, Polygon, Unichain) and a **Solana wallet** — no manual wallet setup needed.
-2. **Enter OTP** — User checks their email and provides the OTP code.
-3. **Generate API key** — Once authenticated, navigate to [bankr.bot/api](https://bankr.bot/api) to create an API key with **Agent API** access enabled.
-4. **Configure** — Save the key (starts with `bk_`) to config:
-
-```bash
-mkdir -p ~/.clawdbot/skills/bankr
-cat > ~/.clawdbot/skills/bankr/config.json << 'EOF'
-{
-  "apiKey": "bk_YOUR_KEY_HERE",
-  "apiUrl": "https://api.bankr.bot"
-}
-EOF
-```
+API keys: [bankr.bot/api](https://bankr.bot/api). Key must have **Agent API** access.
 
 #### Verify Setup
 
-Use the `bankr_query` tool with prompt "What is my balance?" (or ask the user to try a balance/portfolio request in chat).
+```bash
+BANKR_API_KEY=bk_... scripts/bankr.sh "What is my balance?"
+# or with config: scripts/bankr.sh "What is my balance?"
+```
 
 ## Core Usage
 
 ### Simple Query
 
-Use the `bankr_query` tool with the user's request as the prompt:
+For straightforward requests that complete quickly:
 
-- Balance: `bankr_query` with prompt "What is my ETH balance?" or "What is my ETH balance on Base?"
-- Prices: `bankr_query` with prompt "What's the price of Bitcoin?"
-- Portfolio: `bankr_query` with prompt "Show my portfolio"
+```bash
+scripts/bankr.sh "What is my ETH balance?"
+scripts/bankr.sh "What's the price of Bitcoin?"
+```
 
-The tool submits the prompt to Bankr, polls until done, and returns the result.
+The main script handles the full submit-poll-complete workflow automatically.
 
 ### Manual Job Control
 
@@ -117,6 +76,8 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - **DCA**: Dollar-cost averaging strategies
 - **TWAP**: Time-weighted average pricing
 
+**Reference**: [references/token-trading.md](references/token-trading.md)
+
 ### Portfolio Management
 
 - Check balances across all chains
@@ -124,6 +85,8 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - Track holdings by token or chain
 - Real-time price updates
 - Multi-chain aggregation
+
+**Reference**: [references/portfolio.md](references/portfolio.md)
 
 ### Market Research
 
@@ -134,12 +97,16 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - Trending tokens
 - Token comparisons
 
+**Reference**: [references/market-research.md](references/market-research.md)
+
 ### Transfers
 
 - Send to addresses, ENS, or social handles
 - Multi-chain support
 - Flexible amount formats
 - Social handle resolution (Twitter, Farcaster, Telegram)
+
+**Reference**: [references/transfers.md](references/transfers.md)
 
 ### NFT Operations
 
@@ -150,6 +117,8 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - Transfer NFTs
 - Mint from supported platforms
 
+**Reference**: [references/nft-operations.md](references/nft-operations.md)
+
 ### Polymarket Betting
 
 - Search prediction markets
@@ -158,12 +127,16 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - View positions
 - Redeem winnings
 
+**Reference**: [references/polymarket.md](references/polymarket.md)
+
 ### Leverage Trading
 
 - Long/short positions (up to 50x crypto, 100x forex/commodities)
 - Crypto, forex, and commodities
 - Stop loss and take profit
 - Position management via Avantis on Base
+
+**Reference**: [references/leverage-trading.md](references/leverage-trading.md)
 
 ### Token Deployment
 
@@ -176,6 +149,8 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - Optional vesting parameters (Solana)
 - Rate limits: 1/day standard, 10/day Bankr Club (gas sponsored within limits)
 
+**Reference**: [references/token-deployment.md](references/token-deployment.md)
+
 ### Automation
 
 - Limit orders
@@ -184,6 +159,8 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - TWAP (time-weighted average price)
 - Scheduled commands
 
+**Reference**: [references/automation.md](references/automation.md)
+
 ### Arbitrary Transactions
 
 - Submit raw EVM transactions with explicit calldata
@@ -191,15 +168,17 @@ scripts/bankr-cancel.sh "$JOB_ID"
 - Execute pre-built calldata from other tools
 - Value transfers with data
 
+**Reference**: [references/arbitrary-transaction.md](references/arbitrary-transaction.md)
+
 ## Supported Chains
 
-| Chain | Native Token | Best For | Gas Cost |
+| Chain    | Native Token | Best For                      | Gas Cost |
 | -------- | ------------ | ----------------------------- | -------- |
-| Base | ETH | Memecoins, general trading | Very Low |
-| Polygon | MATIC | Gaming, NFTs, frequent trades | Very Low |
-| Ethereum | ETH | Blue chips, high liquidity | High |
-| Solana | SOL | High-speed trading | Minimal |
-| Unichain | ETH | Newer L2 option | Very Low |
+| Base     | ETH          | Memecoins, general trading    | Very Low |
+| Polygon  | MATIC        | Gaming, NFTs, frequent trades | Very Low |
+| Ethereum | ETH          | Blue chips, high liquidity    | High     |
+| Solana   | SOL          | High-speed trading            | Minimal  |
+| Unichain | ETH          | Newer L2 option               | Very Low |
 
 ## Common Patterns
 
@@ -263,6 +242,10 @@ Bankr uses an asynchronous job-based API:
 2. **Poll** - Check status every 2 seconds
 3. **Complete** - Process results when done
 
+The `bankr.sh` wrapper handles this automatically. For details on the API structure, job states, polling strategy, and error handling, see:
+
+**Reference**: [references/api-workflow.md](references/api-workflow.md)
+
 ### Synchronous Endpoints
 
 For direct signing and transaction submission, Bankr also provides synchronous endpoints:
@@ -275,6 +258,8 @@ These endpoints return immediately (no polling required) and are ideal for:
 - Gasless approvals (sign EIP-712 permits)
 - Pre-built transactions (submit raw calldata)
 
+**Reference**: [references/sign-submit-api.md](references/sign-submit-api.md)
+
 ## Error Handling
 
 Common issues and fixes:
@@ -284,6 +269,10 @@ Common issues and fixes:
 - **Token not found** → Verify symbol and chain
 - **Transaction reverted** → Check parameters and balances
 - **Rate limiting** → Wait and retry
+
+For comprehensive error troubleshooting, setup instructions, and debugging steps, see:
+
+**Reference**: [references/error-handling.md](references/error-handling.md)
 
 ## Best Practices
 
@@ -302,6 +291,32 @@ Common issues and fixes:
 3. Consider gas costs (use Base/Polygon for small amounts)
 4. Start small, scale up after testing
 5. Use limit orders for better prices
+
+### Automation
+
+1. Test automation with small amounts first
+2. Review active orders regularly
+3. Set realistic price targets
+4. Always use stop loss for leverage
+5. Monitor execution and adjust as needed
+
+## Tips for Success
+
+### For New Users
+
+- Start with balance checks and price queries
+- Test with $5-10 trades first
+- Use Base for lower fees
+- Enable trading confirmations initially
+- Learn one feature at a time
+
+### For Experienced Users
+
+- Leverage automation for strategies
+- Use multiple chains for diversification
+- Combine DCA with stop losses
+- Explore advanced features (leverage, Polymarket)
+- Monitor gas costs across chains
 
 ## Prompt Examples by Category
 
@@ -363,9 +378,12 @@ Common issues and fixes:
 - "Launch a token called MOON on Solana"
 - "Launch a token called FROG and give fees to @0xDeployer"
 - "Deploy SpaceRocket with symbol ROCK"
+- "Launch BRAIN and route fees to 7xKXtg..."
 - "How much fees can I claim for MOON?"
-- "Claim my fees for MOON"
+- "Claim my fees for MOON" (works for creator or fee recipient)
 - "Show my Fee Key NFTs"
+- "Claim my fee NFT for ROCKET" (post-migration)
+- "Transfer fees for MOON to 7xKXtg..."
 
 **EVM (Clanker):**
 
@@ -378,12 +396,76 @@ Common issues and fixes:
 - "Execute this calldata on Base: {...}"
 - "Send raw transaction with this JSON: {...}"
 
+### Sign API (Synchronous)
+
+Direct message signing without AI processing:
+
+```bash
+# Sign a plain text message
+curl -X POST "https://api.bankr.bot/agent/sign" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"signatureType": "personal_sign", "message": "Hello, Bankr!"}'
+
+# Sign EIP-712 typed data (permits, orders)
+curl -X POST "https://api.bankr.bot/agent/sign" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"signatureType": "eth_signTypedData_v4", "typedData": {...}}'
+
+# Sign a transaction without broadcasting
+curl -X POST "https://api.bankr.bot/agent/sign" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"signatureType": "eth_signTransaction", "transaction": {"to": "0x...", "chainId": 8453}}'
+```
+
+### Submit API (Synchronous)
+
+Direct transaction submission without AI processing:
+
+```bash
+# Submit a raw transaction
+curl -X POST "https://api.bankr.bot/agent/submit" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transaction": {"to": "0x...", "chainId": 8453, "value": "1000000000000000000"},
+    "waitForConfirmation": true
+  }'
+```
+
+**Reference**: [references/sign-submit-api.md](references/sign-submit-api.md)
+
 ## Resources
 
 - **Agent API Reference**: https://www.notion.so/Agent-API-2e18e0f9661f80cb83ccfc046f8872e3
 - **API Key Management**: https://bankr.bot/api
 - **Terminal**: https://bankr.bot/terminal
 - **Twitter**: @bankr_bot
+
+## Troubleshooting
+
+### Scripts Not Working
+
+```bash
+# Ensure scripts are executable
+chmod +x workspace/skills/bankr/scripts/*.sh
+
+# Test connectivity
+curl -I https://api.bankr.bot
+```
+
+### API Errors
+
+See [references/error-handling.md](references/error-handling.md) for comprehensive troubleshooting.
+
+### Getting Help
+
+1. Check error message in response JSON
+2. Consult relevant reference document
+3. Verify configuration and connectivity
+4. Test with simple queries first
 
 ---
 
