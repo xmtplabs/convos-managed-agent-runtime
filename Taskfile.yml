@@ -1,0 +1,35 @@
+version: '3'
+
+vars:
+  DEV_ENV: "PORT=18790 OPENCLAW_ENTRY=../openclaw/openclaw.mjs OPENCLAW_BUNDLED_PLUGINS_DIR=../openclaw/extensions OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions"
+
+tasks:
+  default:
+    desc: Run gateway locally (dev env)
+    cmds:
+      - "{{.DEV_ENV}} ./scripts/entrypoint.sh"
+
+  local:
+    desc: Alias for default (run gateway locally)
+    cmds:
+      - task: default
+
+  upgrade-openclaw:
+    desc: Clone/update and build openclaw (scripts/upgrade-openclaw.sh)
+    cmds:
+      - ./scripts/upgrade-openclaw.sh
+
+  start:
+    desc: Run gateway (production-like)
+    cmds:
+      - ./scripts/entrypoint.sh
+
+  skill-setup:
+    desc: Run skill-setup scripts only
+    cmds:
+      - ./scripts/skill-setup.sh
+
+  derive-address:
+    desc: Derive ETH address from private key (arg or BANKR_WALLET_PRIVATE_KEY)
+    cmds:
+      - node scripts/derive-eth-address.mjs {{.CLI_ARGS}}

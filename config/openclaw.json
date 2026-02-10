@@ -1,0 +1,30 @@
+{
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "bind": "loopback",
+    "auth": {
+      "mode": "token"
+    },
+    "controlUi": {
+      "allowInsecureAuth": true
+    }
+  },
+  "agents": {
+    "defaults": {
+      "skipBootstrap": true,
+      "model": {
+        "primary": "openai/gpt-5.1-codex-mini"
+      }
+    }
+  },
+  "plugins": {
+    "slots": {
+      "memory": "none"
+    }
+  },
+  "tools": {
+    "allow": ["bankr_deposit_address", "bankr_query"],
+    "deny": ["exec", "browser", "camera"]
+  }
+}

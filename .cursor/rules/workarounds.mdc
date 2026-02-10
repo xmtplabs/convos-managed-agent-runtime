@@ -1,0 +1,39 @@
+# Convos-concierge workarounds
+
+Documented workarounds so future changes don't break them or duplicate logic.
+
+## Plugin paths must be absolute in config
+
+**Problem:** Writing relative paths (e.g. `./extensions`, `../openclaw/extensions`) into `plugins.load.paths` causes "plugin path not found" — OpenClaw resolves them relative to state/workspace dir (e.g. `~/.openclaw/workspace/extensions`), so the dirs don't exist.
+
+**Workaround:** In [scripts/entrypoint.sh](scripts/entrypoint.sh), resolve both `OPENCLAW_CUSTOM_PLUGINS_DIR` and `OPENCLAW_BUNDLED_PLUGINS_DIR` to absolute paths with `cd "$DIR" && pwd` before passing them to `jq`. The config then stores real paths and validation passes.
+
+## Memory slot: use "none" when memory-core is not present
+
+**Problem:** Default OpenClaw config can set `plugins.slots.memory` to `memory-core`. If that extension isn't shipped (e.g. convos-concierge Docker image, or minimal dev setup), config validation fails with "plugin not found: memory-core" (see openclaw/openclaw#8909).
+
+**Workaround:** In [config/openclaw.json](config/openclaw.json), set `plugins.slots.memory` to `"none"` so no memory plugin is required. Concierge seeds this default so validation never expects memory-core.
+
+## Custom extensions: additive loading
+
+**Intent:** Add convos (and other custom extensions under `extensions/`) **without** removing OpenClaw's bundled extensions.
+
+**Workaround:** Entrypoint adds only `OPENCLAW_CUSTOM_PLUGINS_DIR` (resolved to absolute) to `plugins.load.paths`. Do **not** add `OPENCLAW_BUNDLED_PLUGINS_DIR` — OpenClaw already discovers bundled plugins from its install path; adding the bundled dir again causes duplicate plugin id warnings for every bundled plugin.
+
+## Extension plugin id must match package/manifest
+
+**Problem:** If package.json `name` is e.g. `@scope/openclaw-plugin-convos`, OpenClaw derives id `openclaw-plugin-convos`. If openclaw.plugin.json or channel config says `convos`, you get "plugin id mismatch".
+
+**Workaround:** Use a single id everywhere: set package.json `"name": "convos"` and openclaw.plugin.json `"id": "convos"` (and channel id `convos`). No scoped name for the extension package in this repo.
+
+## Extension deps when loading from this repo (dev)
+
+**Problem:** Custom extensions live under `extensions/` and need their own node_modules (zod, @xmtp/agent-sdk, etc.). OpenClaw loads from that dir, so "Cannot find module 'zod'" if deps aren't installed there.
+
+**Workaround:** In entrypoint, when `OPENCLAW_CUSTOM_PLUGINS_DIR` is set, run `pnpm install` in each subdir that has a package.json before starting. Uses pnpm (not yarn) to avoid Yarn treating the subdir as part of the root workspace and failing.
+
+## openclaw dependency in extension (no workspace)
+
+**Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-concierge there is no OpenClaw workspace, so `workspace:*` fails on install.
+
+**Workaround:** In [extensions/convos/package.json](extensions/convos/package.json), use `"openclaw": "*"` so install works; at runtime OpenClaw's loader provides the plugin-sdk. In Docker, [Dockerfile](Dockerfile) sed replaces `"openclaw": "*"` (or `workspace:*`) with `"openclaw": "file:/openclaw"` so the image resolves openclaw from the built /openclaw copy.
