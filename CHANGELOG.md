@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Versioning: add `version` (1.0.0) and `engines.node` (>=22) to root package.json; keep workspace/.version (6) for Concierge Brain seed only; Docker writes OpenClaw ref+commit to /openclaw/openclaw-version.json; entrypoint logs Concierge and OpenClaw versions at startup.
+- Versioning: add `version` (1.0.0) and `engines.node` (>=22) to root package.json; keep workspace/.version (6) for agent Brain seed only; Docker writes OpenClaw ref+commit to /openclaw/openclaw-version.json; entrypoint logs agent and OpenClaw versions at startup.
 
 ## 2026-02-11
 

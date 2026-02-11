@@ -34,4 +34,4 @@ for (const [key, value] of Object.entries(env)) {
 }
 
 fs.writeFileSync(outputPath, template, "utf8");
-console.log("[concierge] Applied env to config → " + outputPath);
+console.log("[agent] Applied env to config → " + outputPath);

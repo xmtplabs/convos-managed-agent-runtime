@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 . "$ROOT/scripts/env-load.sh"
 
-# Artifact paths: tenant overlay (config) and Concierge Brain (workspace) seeds.
+# Artifact paths: tenant overlay (config) and agent Brain (workspace) seeds.
 # Docker image may use config-defaults / workspace-defaults; repo uses config/ and workspace/.
 if [ -d "$ROOT/config-defaults" ]; then CONFIG_DEFAULTS="$ROOT/config-defaults"; else CONFIG_DEFAULTS="$ROOT/config"; fi
 if [ -d "$ROOT/workspace-defaults" ]; then WORKSPACE_DEFAULTS="$ROOT/workspace-defaults"; else WORKSPACE_DEFAULTS="$ROOT/workspace"; fi
@@ -22,32 +22,32 @@ ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)
 mkdir -p "$STATE_DIR"
 if [ ! -f "$CONFIG" ]; then
   cp "$CONFIG_DEFAULTS/openclaw.json" "$CONFIG"
-  echo "[concierge] Tenant overlay: seeded config from $CONFIG_DEFAULTS → $CONFIG"
+  echo "[agent] Tenant overlay: seeded config from $CONFIG_DEFAULTS → $CONFIG"
 else
-  echo "[concierge] Tenant overlay: config already exists at $CONFIG (kept)"
+  echo "[agent] Tenant overlay: config already exists at $CONFIG (kept)"
 fi
 
 # ---------------------------------------------------------------------------
-# Concierge Brain: seed workspace (AGENTS.md, SOUL.md, TOOLS.md, skills) by version
+# agent Brain: seed workspace (AGENTS.md, SOUL.md, TOOLS.md, skills) by version
 # ---------------------------------------------------------------------------
 mkdir -p "$WORKSPACE_DIR"
 PACK_SHIPPED_VER=$(cat "$WORKSPACE_DEFAULTS/.version" 2>/dev/null || echo 0)
 PACK_DEPLOYED_VER=$(cat "$WORKSPACE_DIR/.version" 2>/dev/null || echo 0)
 
 if [ ! -f "$WORKSPACE_DIR/SOUL.md" ]; then
-  echo "[concierge] Concierge Brain: first run, seeding workspace from $WORKSPACE_DEFAULTS → $WORKSPACE_DIR"
+  echo "[agent] agent Brain: first run, seeding workspace from $WORKSPACE_DEFAULTS → $WORKSPACE_DIR"
   cp -r "$WORKSPACE_DEFAULTS/." "$WORKSPACE_DIR/"
 else
   if [ "$PACK_SHIPPED_VER" -gt "$PACK_DEPLOYED_VER" ] 2>/dev/null; then
-    echo "[concierge] Concierge Brain: v$PACK_DEPLOYED_VER → v$PACK_SHIPPED_VER, updating behavior files"
+    echo "[agent] agent Brain: v$PACK_DEPLOYED_VER → v$PACK_SHIPPED_VER, updating behavior files"
     for f in SOUL.md AGENTS.md IDENTITY.md TOOLS.md; do
       [ -f "$WORKSPACE_DEFAULTS/$f" ] && cp "$WORKSPACE_DEFAULTS/$f" "$WORKSPACE_DIR/$f"
     done
     [ -d "$WORKSPACE_DEFAULTS/skills" ] && cp -r "$WORKSPACE_DEFAULTS/skills" "$WORKSPACE_DIR/"
     [ -f "$WORKSPACE_DEFAULTS/.version" ] && cp "$WORKSPACE_DEFAULTS/.version" "$WORKSPACE_DIR/.version"
-    echo "[concierge] Concierge Brain: updated SOUL.md AGENTS.md IDENTITY.md TOOLS.md and skills/"
+    echo "[agent] agent Brain: updated SOUL.md AGENTS.md IDENTITY.md TOOLS.md and skills/"
   else
-    echo "[concierge] Concierge Brain: workspace up to date (v$PACK_DEPLOYED_VER)"
+    echo "[agent] agent Brain: workspace up to date (v$PACK_DEPLOYED_VER)"
   fi
 fi
 
@@ -56,19 +56,19 @@ fi
 # ---------------------------------------------------------------------------
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
   TOKEN="$OPENCLAW_GATEWAY_TOKEN"
-  echo "[concierge] Token from OPENCLAW_GATEWAY_TOKEN"
+  echo "[agent] Token from OPENCLAW_GATEWAY_TOKEN"
 elif [ -n "$OPENCLAW_ENTRY" ]; then
   TOKEN="test"
-  echo "[concierge] Token: test (dev)"
+  echo "[agent] Token: test (dev)"
 elif [ -f "$STATE_DIR/gateway.token" ]; then
   TOKEN=$(cat "$STATE_DIR/gateway.token")
-  echo "[concierge] Token from gateway.token"
+  echo "[agent] Token from gateway.token"
 else
   TOKEN=$(openssl rand -hex 32)
   mkdir -p "$STATE_DIR"
   echo "$TOKEN" > "$STATE_DIR/gateway.token"
   chmod 600 "$STATE_DIR/gateway.token"
-  echo "[concierge] Token generated"
+  echo "[agent] Token generated"
 fi
 export OPENCLAW_GATEWAY_TOKEN="$TOKEN"
 export SETUP_password="${SETUP_password:-test}"
@@ -90,17 +90,17 @@ if [ -n "$OPENCLAW_CUSTOM_PLUGINS_DIR" ] && [ -d "$OPENCLAW_CUSTOM_PLUGINS_DIR" 
   jq --arg d "$RUNTIME_PLUGINS_ABS" \
     '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = (([$d] + (.paths // [])))))' \
     "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-  echo "[concierge] Runtime: plugins path $RUNTIME_PLUGINS_ABS"
+  echo "[agent] Runtime: plugins path $RUNTIME_PLUGINS_ABS"
 fi
 
-echo "[concierge] Runtime: gateway.port=$PORT, gateway.bind=lan"
+echo "[agent] Runtime: gateway.port=$PORT, gateway.bind=lan"
 
 # ---------------------------------------------------------------------------
 # Skill setup (merge .env keys into skills.entries, etc.)
 # ---------------------------------------------------------------------------
 if [ -x "$ROOT/scripts/skill-setup.sh" ]; then
   ROOT="$ROOT" OPENCLAW_STATE_DIR="$STATE_DIR" "$ROOT/scripts/skill-setup.sh"
-  echo "[concierge] Ran skill setup"
+  echo "[agent] Ran skill setup"
 fi
 
 # ---------------------------------------------------------------------------
@@ -119,12 +119,12 @@ fi
 $ENTRY gateway stop 2>/dev/null || true
 PID=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
 if [ -n "$PID" ]; then
-  echo "[concierge] Killing previous process on port $PORT (pid $PID)"
+  echo "[agent] Killing previous process on port $PORT (pid $PID)"
   kill -9 $PID 2>/dev/null || true
 fi
 
-CONCIERGE_VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
-echo "[concierge] Concierge v$CONCIERGE_VER"
-echo "[concierge] Runtime: starting gateway port=$PORT state_dir=$STATE_DIR"
-echo "[concierge] Open (with token): http://127.0.0.1:$PORT/setup/chat?session=main&token=$TOKEN"
+agent_VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
+echo "[agent] agent v$agent_VER"
+echo "[agent] Runtime: starting gateway port=$PORT state_dir=$STATE_DIR"
+echo "[agent] Open (with token): http://127.0.0.1:$PORT/setup/chat?session=main&token=$TOKEN"
 exec $ENTRY gateway run --bind 0.0.0.0 --port "$PORT" --auth token --token "$TOKEN"

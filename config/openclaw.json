@@ -12,7 +12,7 @@
   },
   "agents": {
     "defaults": {
-      "workspace": "/Users/fabrizioguespe/DevRel/openclaw-logistics/convos-concierge/workspace",
+      "workspace": "/Users/fabrizioguespe/DevRel/openclaw-logistics/convos-agent/workspace",
       "skipBootstrap": true,
       "model": {
         "primary": "openai/gpt-5.1-codex-mini"

@@ -21,4 +21,4 @@ cd "$CLAW_DIR"
 pnpm install --no-frozen-lockfile
 pnpm build
 pnpm ui:install && pnpm ui:build
-echo "[openclaw] Done. Run pnpm dev:local from convos-concierge."
+echo "[openclaw] Done. Run pnpm dev:local from convos-agent."

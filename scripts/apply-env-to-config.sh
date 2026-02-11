@@ -30,9 +30,9 @@ if [ -n "$SOURCE_SKILLS" ]; then
     name="$(basename "$d")"
     if [ ! -d "$WORKSPACE_DIR/skills/$name" ]; then
       cp -r "$d" "$WORKSPACE_DIR/skills/"
-      echo "[concierge] Skills: copied $name → $WORKSPACE_DIR/skills/"
+      echo "[agent] Skills: copied $name → $WORKSPACE_DIR/skills/"
     else
-      echo "[concierge] Skills: skipped $name (already present)"
+      echo "[agent] Skills: skipped $name (already present)"
     fi
   done
 fi

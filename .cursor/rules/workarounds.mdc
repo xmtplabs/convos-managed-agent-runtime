@@ -1,4 +1,4 @@
-# Convos-concierge workarounds
+# Convos-agent workarounds
 
 Documented workarounds so future changes don't break them or duplicate logic.
 
@@ -10,9 +10,9 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 ## Memory slot: use "none" when memory-core is not present
 
-**Problem:** Default OpenClaw config can set `plugins.slots.memory` to `memory-core`. If that extension isn't shipped (e.g. convos-concierge Docker image, or minimal dev setup), config validation fails with "plugin not found: memory-core" (see openclaw/openclaw#8909).
+**Problem:** Default OpenClaw config can set `plugins.slots.memory` to `memory-core`. If that extension isn't shipped (e.g. convos-agent Docker image, or minimal dev setup), config validation fails with "plugin not found: memory-core" (see openclaw/openclaw#8909).
 
-**Workaround:** In [config/openclaw.json](config/openclaw.json), set `plugins.slots.memory` to `"none"` so no memory plugin is required. Concierge seeds this default so validation never expects memory-core.
+**Workaround:** In [config/openclaw.json](config/openclaw.json), set `plugins.slots.memory` to `"none"` so no memory plugin is required. agent seeds this default so validation never expects memory-core.
 
 ## Custom extensions: additive loading
 
@@ -34,6 +34,6 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 ## openclaw dependency in extension (no workspace)
 
-**Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-concierge there is no OpenClaw workspace, so `workspace:*` fails on install.
+**Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-agent there is no OpenClaw workspace, so `workspace:*` fails on install.
 
 **Workaround:** In [extensions/convos/package.json](extensions/convos/package.json), use `"openclaw": "*"` so install works; at runtime OpenClaw's loader provides the plugin-sdk. In Docker, [Dockerfile](Dockerfile) sed replaces `"openclaw": "*"` (or `workspace:*`) with `"openclaw": "file:/openclaw"` so the image resolves openclaw from the built /openclaw copy.
