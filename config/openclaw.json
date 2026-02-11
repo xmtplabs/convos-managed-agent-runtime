@@ -44,6 +44,11 @@
       }
     }
   },
+  "channels": {
+    "convos": {
+      "XMTP_ENV": "dev"
+    }
+  },
   "tools": {
     "profile": "full",
     "deny": [],

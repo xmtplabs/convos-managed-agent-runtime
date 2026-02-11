@@ -24,8 +24,8 @@ export const ConvosConfigSchema = z.object({
   /** Hex-encoded XMTP private key (auto-generated on first run). */
   privateKey: z.string().optional(),
 
-  /** XMTP environment: production (default) or dev. */
-  env: z.enum(["production", "dev"]).optional(),
+  /** XMTP environment: dev (default) or production. */
+  XMTP_ENV: z.enum(["production", "dev"]).optional(),
 
   /** Enable debug logging for this account. */
   debug: z.boolean().optional(),

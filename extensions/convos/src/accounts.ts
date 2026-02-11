@@ -1,5 +1,5 @@
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
-import type { ConvosConfig } from "./config-types.js";
+import { XMTP_ENV_DEFAULT, type ConvosConfig } from "./config-types.js";
 
 export type CoreConfig = {
   channels?: {
@@ -52,7 +52,7 @@ export function resolveConvosAccount(params: {
     name: base.name?.trim() || undefined,
     configured,
     privateKey: base.privateKey,
-    env: base.env ?? "production",
+    env: base.XMTP_ENV ?? XMTP_ENV_DEFAULT,
     debug: base.debug ?? false,
     ownerConversationId: base.ownerConversationId,
     config: base,

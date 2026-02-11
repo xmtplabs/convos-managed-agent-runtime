@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import type { ConvosSDKClient } from "./src/sdk-client.js";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
+import { XMTP_ENV_DEFAULT } from "./src/config-types.js";
 import { convosPlugin } from "./src/channel.js";
 import { registerConvosCommands } from "./src/convos-commands.js";
 import { getConvosRuntime, setConvosRuntime, setConvosSetupActive } from "./src/runtime.js";
@@ -145,7 +146,7 @@ async function handleSetup(params: {
   setupResult = {
     privateKey: result.privateKey,
     conversationId: result.conversationId,
-    env: params.env ?? "production",
+    env: params.env ?? XMTP_ENV_DEFAULT,
     accountId: params.accountId,
     inboxId: result.inboxId,
   };
@@ -229,7 +230,7 @@ async function handleComplete() {
         ...existingConvos,
         privateKey: setupResult.privateKey,
         ownerConversationId: setupResult.conversationId,
-        env: setupResult.env,
+        XMTP_ENV: setupResult.env,
         enabled: true,
         ...(setupResult.inboxId ? { inboxId: setupResult.inboxId } : {}),
         ...(allowFrom.length > 0 ? { allowFrom } : {}),

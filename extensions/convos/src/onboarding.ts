@@ -233,7 +233,7 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
               ...(next.channels as CoreConfig["channels"])?.convos,
               enabled: true,
               privateKey: client.getPrivateKey(),
-              env: account.env,
+              XMTP_ENV: account.env,
             },
           },
         };
@@ -251,7 +251,7 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
             ...(next.channels as CoreConfig["channels"])?.convos,
             enabled: true,
             privateKey: client.getPrivateKey(),
-            env: account.env,
+            XMTP_ENV: account.env,
             ownerConversationId: result.conversationId,
           },
         },

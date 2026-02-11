@@ -16,6 +16,7 @@ import {
 } from "./accounts.js";
 import { convosMessageActions } from "./actions.js";
 import { convosChannelConfigSchema } from "./config-schema.js";
+import { XMTP_ENV_DEFAULT } from "./config-types.js";
 import { resolveConvosDbPath } from "./lib/convos-client.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
 import { convosOutbound, getClientForAccount, setClientForAccount } from "./outbound.js";
@@ -87,7 +88,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         cfg: cfg as CoreConfig,
         sectionKey: "convos",
         accountId,
-        clearBaseFields: ["name", "privateKey", "env", "debug", "ownerConversationId"],
+        clearBaseFields: ["name", "privateKey", "XMTP_ENV", "debug", "ownerConversationId"],
       }),
     isConfigured: (account) => account.configured,
     describeAccount: (account) => ({
@@ -202,7 +203,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       }),
     buildChannelSummary: ({ snapshot }) => ({
       configured: snapshot.configured ?? false,
-      env: snapshot.env ?? "production",
+      env: snapshot.env ?? XMTP_ENV_DEFAULT,
       running: snapshot.running ?? false,
       lastStartAt: snapshot.lastStartAt ?? null,
       lastStopAt: snapshot.lastStopAt ?? null,

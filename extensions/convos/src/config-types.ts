@@ -4,6 +4,9 @@
  * for the extension to avoid cross-package imports.
  */
 
+/** Default XMTP environment when not explicitly configured. */
+export const XMTP_ENV_DEFAULT: "production" | "dev" = "dev";
+
 export type ConvosReactionLevel = "off" | "ack" | "minimal" | "extensive";
 export type DmPolicy = "pairing" | "allowlist" | "open" | "disabled";
 export type GroupPolicy = "open" | "disabled" | "allowlist";
@@ -15,8 +18,8 @@ export type ConvosAccountConfig = {
   enabled?: boolean;
   /** Hex-encoded XMTP private key (auto-generated on first run). */
   privateKey?: string;
-  /** XMTP environment: production (default) or dev. */
-  env?: "production" | "dev";
+  /** XMTP environment: dev (default) or production. */
+  XMTP_ENV?: "production" | "dev";
   /** Enable debug logging for this account. */
   debug?: boolean;
   /** Sender access policy (default: pairing). Controls who can message the agent in groups. */

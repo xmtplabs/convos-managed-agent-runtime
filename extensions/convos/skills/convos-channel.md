@@ -152,7 +152,7 @@ Common scenarios:
 
 - **Invalid invite**: The invite may be expired or revoked
 - **Join pending**: Some joins require approval from the conversation creator
-- **Connection issues**: Check network, try `env: "dev"` for testing
+- **Connection issues**: Check network, try `XMTP_ENV: "dev"` for testing
 
 ## Configuration Reference
 
@@ -162,7 +162,7 @@ Common scenarios:
     "convos": {
       "enabled": true,
       "privateKey": "0x...",
-      "env": "production",
+      "XMTP_ENV": "dev",
       "ownerConversationId": "abc123...",
       "dmPolicy": "pairing"
     }
@@ -173,6 +173,6 @@ Common scenarios:
 Key fields:
 
 - `privateKey`: XMTP identity key (hex, auto-generated on first run)
-- `env`: XMTP environment (production/dev)
+- `XMTP_ENV`: XMTP environment (dev/production, defaults to dev)
 - `ownerConversationId`: The conversation for operator communication
 - `dmPolicy`: Sender access policy (pairing/allowlist/open/disabled). Controls who can message the agent in group conversations.

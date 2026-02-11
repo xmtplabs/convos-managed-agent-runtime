@@ -16,6 +16,7 @@ import type {
   MessageInfo,
 } from "./types.js";
 import { createSigner, createUser } from "./lib/identity.js";
+import { XMTP_ENV_DEFAULT } from "./config-types.js";
 
 export interface ConvosSDKClientOptions {
   /** Hex-encoded private key (generated if not provided) */
@@ -112,7 +113,7 @@ export class ConvosSDKClient {
       }
     }
 
-    const resolvedEnv = options.env ?? "production";
+    const resolvedEnv = options.env ?? XMTP_ENV_DEFAULT;
     const signer = createSigner(user);
 
     // Build Agent options with explicit dbPath when provided.
