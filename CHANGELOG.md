@@ -6,6 +6,7 @@
 
 ## 2026-02-11
 
+- Landing: footer copy updated to "Convos Agent. Your Personal AI."
 - Landing: show "SPIN UP AGENT" button first; QR code appears only after click instead of auto-fetch on load
 
 - d007be9 Enable convos plugin and pin pnpm version
