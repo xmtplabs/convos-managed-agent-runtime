@@ -5,7 +5,6 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "start": "./scripts/apply-env-to-config.sh && ./scripts/entrypoint.sh",
-    "apply": "./scripts/apply-env-to-config.sh",
     "upgrade": "./scripts/upgrade-openclaw.sh",
     "dev": "OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh"
   },
