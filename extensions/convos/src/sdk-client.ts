@@ -1,6 +1,5 @@
 /**
- * SDK client for Convos using convos-node-sdk
- * Replaces the daemon HTTP client with direct SDK integration
+ * Runtime client: Convos/XMTP SDK wrapper (convos-node-sdk). Message send/listen, conversations, reactions.
  */
 
 import { Agent, encodeText, type MessageContext } from "@xmtp/agent-sdk";

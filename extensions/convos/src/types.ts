@@ -1,5 +1,5 @@
 /**
- * Types for Convos SDK client
+ * Config-types/contracts: Convos SDK client and API result types.
  */
 
 export interface ConversationInfo {

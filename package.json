@@ -1,5 +1,5 @@
 {
-  "name": "convos-concierge",
+  "name": "convos-concierge-runtime",
   "private": true,
   "scripts": {
     "start": "./scripts/entrypoint.sh",

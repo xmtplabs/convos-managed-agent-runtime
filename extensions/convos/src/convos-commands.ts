@@ -1,3 +1,6 @@
+/**
+ * Commands: CLI/slash commands for Convos (invite, join).
+ */
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import {
   resolveConvosAccount,

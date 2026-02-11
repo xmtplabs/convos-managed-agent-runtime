@@ -1,7 +1,6 @@
 /**
- * Convos channel configuration types
- * These mirror the types in src/config/types.convos.ts but are self-contained
- * for the extension to avoid cross-package imports.
+ * Config-types/contracts: Convos channel configuration types.
+ * Self-contained for the extension (no cross-package imports). Used by config-schema and accounts.
  */
 
 /** Default XMTP environment when not explicitly configured. */

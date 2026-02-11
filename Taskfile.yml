@@ -1,3 +1,5 @@
+# Concierge runtime: gateway + tenant overlay + Concierge Brain seed.
+# default/start = full boot (entrypoint seeds config + workspace, then runs gateway).
 version: '3'
 
 vars:
@@ -5,7 +7,7 @@ vars:
 
 tasks:
   default:
-    desc: Run gateway locally (dev env)
+    desc: Run gateway locally (runtime + pack seed, dev env)
     cmds:
       - "{{.DEV_ENV}} ./scripts/entrypoint.sh"
 
@@ -15,21 +17,21 @@ tasks:
       - task: default
 
   upgrade-openclaw:
-    desc: Clone/update and build openclaw (scripts/upgrade-openclaw.sh)
+    desc: Clone/update and build openclaw runtime (scripts/upgrade-openclaw.sh)
     cmds:
       - ./scripts/upgrade-openclaw.sh
 
   start:
-    desc: Run gateway (production-like)
+    desc: Run gateway (runtime + pack seed, production-like)
     cmds:
       - ./scripts/entrypoint.sh
 
   skill-setup:
-    desc: Run skill-setup scripts only
+    desc: Run skill-setup scripts only (Concierge Brain skills)
     cmds:
       - ./scripts/skill-setup.sh
 
   config:apply:
-    desc: Apply .env to openclaw.json (template → state dir)
+    desc: Apply .env to openclaw.json (tenant overlay template → state dir)
     cmds:
       - ./scripts/apply-env-to-config.sh

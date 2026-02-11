@@ -1,3 +1,6 @@
+/**
+ * Config/account resolution: list and resolve Convos accounts from OpenClaw config.
+ */
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
 import { XMTP_ENV_DEFAULT, type ConvosConfig } from "./config-types.js";
 

@@ -1,3 +1,7 @@
+/**
+ * Outbound/actions: Message tool actions (send, react) for Convos.
+ * Dispatches to the running SDK client per account.
+ */
 import type { ChannelMessageActionAdapter, ChannelMessageActionName } from "openclaw/plugin-sdk";
 import { jsonResult, readStringParam, readReactionParams } from "openclaw/plugin-sdk";
 import { listConvosAccountIds, resolveConvosAccount, type CoreConfig } from "./accounts.js";

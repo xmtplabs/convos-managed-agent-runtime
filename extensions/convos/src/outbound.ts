@@ -1,3 +1,6 @@
+/**
+ * Outbound: Convos send-text/send-media adapter and per-account client registry.
+ */
 import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk";
 import type { ConvosSDKClient } from "./sdk-client.js";
 import { resolveConvosAccount, type CoreConfig } from "./accounts.js";

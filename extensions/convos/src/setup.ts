@@ -1,6 +1,6 @@
 /**
- * Convos setup - creates XMTP identity and conversation, returns invite URL.
- * Config is NOT written here; the caller persists config after join is confirmed.
+ * Setup: Create XMTP identity and owner conversation, return invite URL.
+ * Does not write config; caller persists after join is confirmed.
  */
 
 import type { InviteContext } from "convos-node-sdk";

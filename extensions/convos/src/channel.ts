@@ -1,3 +1,7 @@
+/**
+ * Routing + inbound: Convos channel plugin definition, message routing, and reply delivery.
+ * Handles inbound pipeline (route -> session -> envelope -> dispatch) and gateway start/stop.
+ */
 import {
   DEFAULT_ACCOUNT_ID,
   deleteAccountFromConfigSection,
@@ -28,7 +32,8 @@ type RuntimeLogger = {
   error: (msg: string) => void;
 };
 
-const meta = {
+/** Channel plugin metadata for CLI/UI (runtime artifact label). */
+const convosChannelMeta = {
   id: "convos",
   label: "Convos",
   selectionLabel: "Convos (Join via url)",
@@ -54,7 +59,7 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   id: "convos",
-  meta,
+  meta: convosChannelMeta,
   capabilities: {
     chatTypes: ["group"],
     reactions: true,
@@ -366,7 +371,8 @@ function isGroupAllowed(params: {
 }
 
 /**
- * Handle inbound messages from SDK - dispatches to the reply pipeline
+ * Inbound pipeline: route -> session store path -> envelope -> record session -> dispatch reply.
+ * Group policy is enforced first; owner conversation always allowed.
  */
 async function handleInboundMessage(
   account: ResolvedConvosAccount,

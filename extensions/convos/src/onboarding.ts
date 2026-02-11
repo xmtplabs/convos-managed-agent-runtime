@@ -1,3 +1,6 @@
+/**
+ * Onboarding: Convos configure flow (invite link, join, verify client, DM policy).
+ */
 import {
   type ChannelOnboardingAdapter,
   type ChannelOnboardingDmPolicy,

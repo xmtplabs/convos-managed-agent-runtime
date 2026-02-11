@@ -16,5 +16,8 @@ Full access: all tools are available.
 
 ## Skills
 
+- **smooth-browser** — Browser for AI agents to carry out any task on the web
 - **agentmail** — Send and receive emails via the AgentMail API
 - **bankr** — Crypto operations via Bankr API
+- **exa search**: browse the web, get real time information, and more
+

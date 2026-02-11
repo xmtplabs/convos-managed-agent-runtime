@@ -1,5 +1,5 @@
 /**
- * Convos/XMTP DB path resolution and writability checks.
+ * Runtime: Convos/XMTP DB path resolution and writability checks (stateDir-based).
  */
 
 import fs from "node:fs";

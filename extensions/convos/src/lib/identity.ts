@@ -1,5 +1,5 @@
 /**
- * Convos/XMTP identity helpers (re-exports from @xmtp/agent-sdk).
+ * Runtime: XMTP identity helpers (re-exports from @xmtp/agent-sdk).
  */
 
 import { createUser, createSigner } from "@xmtp/agent-sdk";

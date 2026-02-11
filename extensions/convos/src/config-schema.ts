@@ -1,6 +1,5 @@
 /**
- * Convos channel configuration schema
- * Used for Control UI form generation
+ * Config-types/contracts: Convos channel config Zod schema and JSON Schema for Control UI.
  */
 
 import { MarkdownConfigSchema, buildChannelConfigSchema } from "openclaw/plugin-sdk";
