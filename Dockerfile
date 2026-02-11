@@ -52,12 +52,14 @@ COPY landing /app/landing
 COPY scripts ./scripts
 RUN chmod +x /app/scripts/entrypoint.sh
 
-# Install extension deps (HUSKY=0 skips husky prepare scripts from GitHub deps)
+# Install extension deps
+# HUSKY=0 skips husky prepare scripts from GitHub deps
+# NODE_ENV must be unset so pnpm runs prepare/build scripts for git-hosted deps
 ENV HUSKY=0
 RUN set -eux; \
   for f in /app/extensions/*/package.json; do \
     [ -f "$f" ] || continue; \
-    (cd "$(dirname "$f")" && pnpm install); \
+    (cd "$(dirname "$f")" && NODE_ENV=development pnpm install); \
   done
 
 ENV OPENCLAW_CUSTOM_PLUGINS_DIR=/app/extensions

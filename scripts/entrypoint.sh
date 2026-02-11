@@ -11,7 +11,7 @@ if [ -d "$ROOT/config-defaults" ]; then CONFIG_DEFAULTS="$ROOT/config-defaults";
 if [ -d "$ROOT/workspace-defaults" ]; then WORKSPACE_DEFAULTS="$ROOT/workspace-defaults"; else WORKSPACE_DEFAULTS="$ROOT/workspace"; fi
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-8080}}"
-STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+STATE_DIR="${OPENCLAW_STATE_DIR:-${RAILWAY_VOLUME_MOUNT_PATH:-$HOME/.openclaw}}"
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$STATE_DIR/workspace}"
 CONFIG="$STATE_DIR/openclaw.json"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
