@@ -80,7 +80,7 @@ To invite someone to a conversation:
 client.getInvite(conversationId) → { inviteSlug }
 ```
 
-The invite URL format is: `https://convos.app/join/<slug>`
+The invite URL format is: `https://convos.app/join/<slug>`. For all supported formats and regex patterns (e.g. for clipboard detection in the Convos app), see [INVITE_URLS.md](../INVITE_URLS.md).
 
 Invites are:
 

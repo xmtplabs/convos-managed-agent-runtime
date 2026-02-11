@@ -100,7 +100,6 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
       configured,
       statusLines: [
         `Convos: ${configured ? "configured" : "needs setup"}`,
-        `Environment: ${account.env}`,
         ownerConversation ? `Owner conversation: ${ownerConversation.slice(0, 8)}...` : "",
       ].filter(Boolean),
       selectionHint: configured ? "ready" : "paste invite link",

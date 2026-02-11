@@ -9,6 +9,29 @@ import {
 } from "./accounts.js";
 import { getClientForAccount } from "./outbound.js";
 
+export type CreateInviteResult = { inviteUrl: string };
+
+/**
+ * Create a new Convos conversation and return the invite URL.
+ * Shared by /invite command and POST /convos/invite HTTP route.
+ */
+export async function createInvite(
+  cfg: CoreConfig,
+  options?: { accountId?: string | null; name?: string },
+): Promise<CreateInviteResult> {
+  const accountId = options?.accountId ?? resolveDefaultConvosAccountId(cfg);
+  const account = resolveConvosAccount({ cfg, accountId });
+  if (!account.configured) {
+    throw new Error("Convos is not configured. Run openclaw configure and set up Convos.");
+  }
+  const client = getClientForAccount(account.accountId);
+  if (!client) {
+    throw new Error("Convos is not running. Start the gateway with Convos enabled.");
+  }
+  const result = await client.createConversation(options?.name);
+  return { inviteUrl: result.inviteUrl };
+}
+
 export function registerConvosCommands(api: OpenClawPluginApi): void {
   api.registerCommand({
     name: "invite",
@@ -17,19 +40,13 @@ export function registerConvosCommands(api: OpenClawPluginApi): void {
     requireAuth: true,
     handler: async (ctx) => {
       const cfg = ctx.config as CoreConfig;
-      const account = resolveConvosAccount({
-        cfg,
-        accountId: resolveDefaultConvosAccountId(cfg),
-      });
-      if (!account.configured) {
-        return { text: "Convos is not configured. Run openclaw configure and set up Convos." };
+      try {
+        const result = await createInvite(cfg, { name: ctx.args?.trim() || undefined });
+        return { text: `Invite link:\n${result.inviteUrl}` };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { text: msg };
       }
-      const client = getClientForAccount(account.accountId);
-      if (!client) {
-        return { text: "Convos is not running. Start the gateway with Convos enabled." };
-      }
-      const result = await client.createConversation(ctx.args?.trim() || undefined);
-      return { text: `Invite link:\n${result.inviteUrl}` };
     },
   });
 
