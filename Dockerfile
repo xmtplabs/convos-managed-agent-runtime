@@ -26,6 +26,7 @@ ARG OPENCLAW_CACHE_BUST=1
 ARG OPENCLAW_GIT_REPO=https://github.com/openclaw/openclaw.git
 ARG OPENCLAW_GIT_REF=main
 RUN git clone --depth 1 --branch "${OPENCLAW_GIT_REF}" "${OPENCLAW_GIT_REPO}" .
+RUN cd /openclaw && printf '%s\n' "{\"ref\":\"${OPENCLAW_GIT_REF}\",\"commit\":\"$(git rev-parse HEAD)\"}" > /openclaw/openclaw-version.json
 
 # Patch: relax version requirements for packages that may reference unpublished versions.
 # Apply to all extension package.json files to handle workspace protocol (workspace:*).
@@ -68,6 +69,7 @@ RUN pnpm install --no-frozen-lockfile
 COPY workspace /app/workspace-defaults
 COPY config /app/config-defaults
 COPY extensions /app/extensions
+COPY landing /app/landing
 COPY scripts ./scripts
 RUN chmod +x /app/scripts/entrypoint.sh
 

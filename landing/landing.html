@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f5">
+  <title>Convos Concierge. Your Personal AI Assistant.</title>
+  <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <link rel="manifest" href="/convos/landing-manifest.json">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: #f5f5f5;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 1.25rem;
+      max-width: 320px;
+      width: 100%;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .card-header .icon { flex-shrink: 0; }
+    .qr-wrap {
+      position: relative;
+      aspect-ratio: 1;
+      max-width: 260px;
+      margin: 0 auto;
+    }
+    a.qr-wrap { color: inherit; text-decoration: none; }
+    .qr-wrap img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .qr-wrap .icon-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 10%;
+      height: 10%;
+      background: #fff;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr-wrap .icon-center svg { width: 80%; height: 80%; }
+    #qr-placeholder {
+      aspect-ratio: 1;
+      background: #f0f0f0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    #get-code {
+      background: none;
+      border: none;
+      color: #111;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0;
+    }
+    #get-code:hover { opacity: 0.8; }
+    .footer {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+    }
+    .footer a {
+      color: #111;
+      text-decoration: none;
+    }
+    .footer a:hover { text-decoration: underline; }
+    .error { color: #c00; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span>CONVOS CODE</span>
+      <span class="icon" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 0L8.5 5.5L14 7L8.5 8.5L7 14L5.5 8.5L0 7L5.5 5.5L7 0Z" fill="currentColor"/>
+        </svg>
+      </span>
+      <span>SCAN TO JOIN</span>
+    </div>
+    <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener" style="display: none;">
+      <img id="qr-img" src="" width="240" height="240" alt="QR code">
+      <div class="icon-center" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        </svg>
+      </div>
+    </a>
+    <div id="qr-placeholder">
+      <span id="placeholder-text">Loading…</span>
+      <button type="button" id="get-code" style="display: none;">Get code</button>
+    </div>
+    <div id="error" class="error" role="alert"></div>
+  </div>
+
+  <footer class="footer">
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M7 0L8.5 5.5L14 7L8.5 8.5L7 14L5.5 8.5L0 7L5.5 5.5L7 0Z" fill="currentColor"/>
+    </svg>
+    <span>Convos AI. Your Personal AI Assistant.</span>
+  </footer>
+
+  <script>
+    (function () {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/convos/sw.js", { scope: "/convos/" }).catch(function () {});
+      }
+
+      var qrWrap = document.getElementById("qr-wrap");
+      var qrImg = document.getElementById("qr-img");
+      var placeholder = document.getElementById("qr-placeholder");
+      var placeholderText = document.getElementById("placeholder-text");
+      var getCodeBtn = document.getElementById("get-code");
+      var errorEl = document.getElementById("error");
+      function showError(msg) {
+        errorEl.textContent = msg || "";
+        errorEl.style.display = msg ? "block" : "none";
+      }
+
+      function showRetry() {
+        placeholderText.style.display = "none";
+        getCodeBtn.style.display = "inline";
+        getCodeBtn.textContent = "Get code";
+      }
+
+      function fetchInvite() {
+        showError("");
+        placeholderText.textContent = "Loading…";
+        placeholderText.style.display = "inline";
+        getCodeBtn.style.display = "none";
+        qrWrap.style.display = "none";
+        placeholder.style.display = "flex";
+
+        fetch("/convos/invite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        })
+          .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+          .then(function (_) {
+            var ok = _.ok;
+            var data = _.data;
+            if (!ok) {
+              showError(data.error || "Could not create invite.");
+              showRetry();
+              return;
+            }
+            var inviteUrl = data.inviteUrl;
+            if (!inviteUrl) {
+              showError("No invite URL returned.");
+              showRetry();
+              return;
+            }
+            var qrData = inviteUrl;
+            var qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(qrData);
+            qrImg.src = qrSrc;
+            qrImg.alt = "QR code";
+            qrWrap.href = inviteUrl;
+            placeholder.style.display = "none";
+            qrWrap.style.display = "block";
+          })
+          .catch(function () {
+            showError("Could not create invite. Try again.");
+            showRetry();
+          });
+      }
+
+      getCodeBtn.addEventListener("click", function () {
+        fetchInvite();
+      });
+
+      fetchInvite();
+    })();
+  </script>
+</body>
+</html>

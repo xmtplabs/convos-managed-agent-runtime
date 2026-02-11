@@ -8,7 +8,7 @@ import type { ConvosSDKClient } from "./src/sdk-client.js";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
 import { XMTP_ENV_DEFAULT } from "./src/config-types.js";
 import { convosPlugin } from "./src/channel.js";
-import { registerConvosCommands } from "./src/convos-commands.js";
+import { createInvite, registerConvosCommands } from "./src/convos-commands.js";
 import { getConvosRuntime, setConvosRuntime, setConvosSetupActive } from "./src/runtime.js";
 import { resolveConvosDbPath } from "./src/sdk-client.js";
 import { setupConvosWithInvite } from "./src/setup.js";
@@ -437,6 +437,96 @@ const plugin = {
           await cleanupSetupAgent();
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
         }
+      },
+    });
+
+    // ---- Landing PWA (invite button → QR + deeplink) ----
+
+    const landingDir = path.resolve(__dirname, "..", "..", "landing");
+    function serveFile(
+      res: ServerResponse,
+      filePath: string,
+      contentType: string,
+      cacheControl?: string,
+    ) {
+      try {
+        const body = fs.readFileSync(filePath);
+        res.statusCode = 200;
+        res.setHeader("Content-Type", contentType);
+        if (cacheControl) res.setHeader("Cache-Control", cacheControl);
+        res.end(body);
+      } catch {
+        res.statusCode = 404;
+        res.end();
+      }
+    }
+
+    api.registerHttpRoute({
+      path: "/convos/invite",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        try {
+          const runtime = getConvosRuntime();
+          const cfg = runtime.config.loadConfig() as CoreConfig;
+          const body = await readJsonBody(req);
+          const name = typeof body.name === "string" ? body.name : undefined;
+          const result = await createInvite(cfg, { name });
+          jsonResponse(res, 200, result);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          jsonResponse(res, 500, { error: msg });
+        }
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/landing",
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8");
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/landing-manifest.json",
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        serveFile(
+          res,
+          path.join(landingDir, "landing-manifest.json"),
+          "application/manifest+json",
+        );
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/sw.js",
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        serveFile(res, path.join(landingDir, "sw.js"), "application/javascript", "max-age=0");
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/icon-192.png",
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        serveFile(res, path.join(landingDir, "icon-192.png"), "image/png");
       },
     });
   },
