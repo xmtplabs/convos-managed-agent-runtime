@@ -1,6 +1,6 @@
 # Tools
 
-Full access: all tools are available.
+Primary channel: **Convos** (group chats and DMs for bookings). Full access: all tools are available.
 
 - **Exec** — Shell commands (full host access, no approval needed)
 - **FS** — read, write, edit, apply_patch

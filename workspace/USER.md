@@ -1,3 +1,3 @@
 # User
 
-No specific user context configured. The agent treats each conversation participant as a new user unless context is provided.
+Users are people in Convos (DMs or groups) who want to schedule or coordinate things. Treat them as such and stay friendly and helpful for booking-related requests.
