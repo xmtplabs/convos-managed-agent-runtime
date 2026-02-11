@@ -32,6 +32,12 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Workaround:** In entrypoint, when `OPENCLAW_CUSTOM_PLUGINS_DIR` is set, run `pnpm install` in each subdir that has a package.json before starting. Uses pnpm (not yarn) to avoid Yarn treating the subdir as part of the root workspace and failing.
 
+## `pnpm apply` must inject plugins.load.paths (same as entrypoint)
+
+**Problem:** Running `pnpm apply` while the gateway is already running triggers a hot-reload, but the output config has `"plugins": { "load": {} }` with no `paths` array. The gateway cannot find the `convos` plugin and rejects the config: `plugins.entries.convos: plugin not found: convos, channels.convos: unknown channel id: convos`. This happens because only `entrypoint.sh` (used by `pnpm dev`) was injecting `plugins.load.paths` via `jq`; the apply script was not.
+
+**Workaround:** In [scripts/apply-env-to-config.sh](scripts/apply-env-to-config.sh), after the Node env-substitution step, resolve `OPENCLAW_CUSTOM_PLUGINS_DIR` (defaulting to `$ROOT/extensions`) to an absolute path and use `jq` to merge it into `plugins.load.paths` in the output config — mirroring what `entrypoint.sh` does. This ensures hot-reloads via `pnpm apply` always include the plugin path. If you add new plugin path injection logic to entrypoint.sh, keep apply-env-to-config.sh in sync.
+
 ## openclaw dependency in extension (no workspace)
 
 **Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-agent there is no OpenClaw workspace, so `workspace:*` fails on install.

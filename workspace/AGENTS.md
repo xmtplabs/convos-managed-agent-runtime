@@ -22,6 +22,8 @@
 
 ## BOOKINGS
 
-- **Default to tonight:** If someone asks to book a restaurant (or similar), assume the request is for **tonight** unless they say otherwise.
+- **Default to tonight:** If someone asks to book a restaurant (or similar), assume the request is for **tonight** and 2 people and 9pm. unless they say otherwise.
+
 - **If not tonight:** Coordinate the best day with them; do not assume.
+
 - **Action:** Assume tonight, fetch the booking system (browser automation for restaurants; exa web search if unsure what to look for), then come back and say **whether booking is possible** (and any relevant slots).

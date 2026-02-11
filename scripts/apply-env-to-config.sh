@@ -21,6 +21,16 @@ CONFIG_OUTPUT="${CONFIG_OUTPUT:-$CONFIG}"
 export TEMPLATE_PATH ENV_FILE CONFIG_OUTPUT
 node "$ROOT/scripts/apply-env-to-config.cjs"
 
+# Inject custom plugins path into the output config (mirrors entrypoint.sh)
+PLUGINS_DIR="${OPENCLAW_CUSTOM_PLUGINS_DIR:-$ROOT/extensions}"
+if [ -d "$PLUGINS_DIR" ]; then
+  PLUGINS_ABS="$(cd "$PLUGINS_DIR" && pwd)"
+  jq --arg d "$PLUGINS_ABS" \
+    '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = (([$d] + (.paths // [])))))' \
+    "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
+  echo "[agent] Plugins path: $PLUGINS_ABS"
+fi
+
 # Seed skills into clawdbot workspace (only when missing)
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$STATE_DIR/workspace}"
 if [ -d "$ROOT/workspace/skills" ]; then
