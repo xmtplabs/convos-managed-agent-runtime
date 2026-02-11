@@ -23,8 +23,11 @@
     "slots": {
       "memory": "none"
     },
-    "load": {
-      "paths": ["extensions"]
+    "load": {},
+    "entries": {
+      "convos": {
+        "enabled": true
+      }
     }
   },
   "skills": {
