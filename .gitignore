@@ -3,8 +3,18 @@ node_modules
 .yarn
 npm-debug.log*
 
-# Local env
+# Local env — never commit secrets
 .env
+.env.*
+!.env.example
+
+# XMTP local databases (contain keys/messages)
+xmtp-*.db3
+xmtp-*.db3-shm
+xmtp-*.db3-wal
+
+# OpenClaw local state
+.clawhub/
 
 # Build artifacts
 /dist

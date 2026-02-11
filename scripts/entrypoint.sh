@@ -14,15 +14,17 @@ PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-8080}}"
 STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$STATE_DIR/workspace}"
 CONFIG="$STATE_DIR/openclaw.json"
-ENTRY="${OPENCLAW_ENTRY:-/openclaw/dist/entry.js}"
+ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
 
 # ---------------------------------------------------------------------------
 # Tenant overlay: seed openclaw.json (credentials, identity, channel routing)
 # ---------------------------------------------------------------------------
 mkdir -p "$STATE_DIR"
-if [ -n "$OPENCLAW_ENTRY" ] || [ ! -f "$CONFIG" ]; then
+if [ ! -f "$CONFIG" ]; then
   cp "$CONFIG_DEFAULTS/openclaw.json" "$CONFIG"
   echo "[concierge] Tenant overlay: seeded config from $CONFIG_DEFAULTS → $CONFIG"
+else
+  echo "[concierge] Tenant overlay: config already exists at $CONFIG (kept)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -114,21 +116,15 @@ fi
 # ---------------------------------------------------------------------------
 # Kill previous instance (same port or openclaw gateway lock)
 # ---------------------------------------------------------------------------
-if command -v node >/dev/null 2>&1 && [ -n "$ENTRY" ] && [ -r "$ENTRY" ]; then
-  node "$ENTRY" gateway stop 2>/dev/null || true
-fi
+$ENTRY gateway stop 2>/dev/null || true
 PID=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
 if [ -n "$PID" ]; then
   echo "[concierge] Killing previous process on port $PORT (pid $PID)"
   kill -9 $PID 2>/dev/null || true
 fi
 
-if [ -n "$OPENCLAW_ENTRY" ] && [ ! -r "$ENTRY" ]; then
-  echo "[concierge] OpenClaw not found at $ENTRY. Run: pnpm run upgrade:openclaw"
-  exit 1
-fi
+CONCIERGE_VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
+echo "[concierge] Concierge v$CONCIERGE_VER"
 echo "[concierge] Runtime: starting gateway port=$PORT state_dir=$STATE_DIR"
-if [ -n "$OPENCLAW_ENTRY" ]; then
-  echo "[concierge] Open (with token): http://127.0.0.1:$PORT/setup/chat?session=main&token=$TOKEN"
-fi
-exec node "$ENTRY" gateway run --bind 0.0.0.0 --port "$PORT" --auth token --token "$TOKEN"
+echo "[concierge] Open (with token): http://127.0.0.1:$PORT/setup/chat?session=main&token=$TOKEN"
+exec $ENTRY gateway run --bind 0.0.0.0 --port "$PORT" --auth token --token "$TOKEN"
