@@ -79,15 +79,16 @@
       color: #666;
     }
     #get-code {
-      background: none;
+      background: #111;
       border: none;
-      color: #111;
-      text-decoration: underline;
+      color: #fff;
       cursor: pointer;
-      font-size: 0.85rem;
-      padding: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
     }
-    #get-code:hover { opacity: 0.8; }
+    #get-code:hover { opacity: 0.9; }
     .footer {
       position: absolute;
       bottom: 1.5rem;
@@ -128,8 +129,8 @@
       </div>
     </a>
     <div id="qr-placeholder">
-      <span id="placeholder-text">Loading…</span>
-      <button type="button" id="get-code" style="display: none;">Get code</button>
+      <span id="placeholder-text" style="display: none;">Loading…</span>
+      <button type="button" id="get-code">SPIN UP AGENT</button>
     </div>
     <div id="error" class="error" role="alert"></div>
   </div>
@@ -209,8 +210,6 @@
       getCodeBtn.addEventListener("click", function () {
         fetchInvite();
       });
-
-      fetchInvite();
     })();
   </script>
 </body>

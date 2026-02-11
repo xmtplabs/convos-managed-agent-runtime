@@ -6,6 +6,8 @@
 
 ## 2026-02-11
 
+- Landing: show "SPIN UP AGENT" button first; QR code appears only after click instead of auto-fetch on load
+
 - d007be9 Enable convos plugin and pin pnpm version
 - 9e15c17 convos extension updates, exa-search & smooth-browser skills, config and scripts
 - 1c1cd4a feat(convos): rename env config key to XMTP_ENV, default to dev
