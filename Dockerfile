@@ -52,7 +52,8 @@ COPY landing /app/landing
 COPY scripts ./scripts
 RUN chmod +x /app/scripts/entrypoint.sh
 
-# Install extension deps
+# Install extension deps (HUSKY=0 skips husky prepare scripts from GitHub deps)
+ENV HUSKY=0
 RUN set -eux; \
   for f in /app/extensions/*/package.json; do \
     [ -f "$f" ] || continue; \
