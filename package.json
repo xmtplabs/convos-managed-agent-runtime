@@ -4,10 +4,10 @@
   "private": true,
   "engines": { "node": ">=22" },
   "scripts": {
-    "start": "./scripts/entrypoint.sh",
+    "start": "./scripts/apply-env-to-config.sh && ./scripts/entrypoint.sh",
     "apply": "./scripts/apply-env-to-config.sh",
     "upgrade": "./scripts/upgrade-openclaw.sh",
-    "dev": "PORT=18790 OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh"
+    "dev": "OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh"
   },
   "dependencies": { "agentmail": "latest", "openclaw": "latest" },
   "devDependencies": { "ethers": "^6.13.4" },
