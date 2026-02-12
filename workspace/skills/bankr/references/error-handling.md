@@ -15,7 +15,7 @@ Resolve Bankr API errors and common issues.
 Visit https://bankr.bot/api to create a new API key
 
 **2. Configure**
-Set `BANKR_API_KEY` in `.env`. Run `task skill-setup` or `pnpm dev` to merge into openclaw.json.
+Set `BANKR_API_KEY` in `.env`. Run `pnpm skill-setup` or `pnpm dev` to merge into openclaw.json.
 
 **3. Verify**
 ```bash
