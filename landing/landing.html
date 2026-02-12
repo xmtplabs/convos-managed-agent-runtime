@@ -103,7 +103,23 @@
     }
     .mode-join-btn:hover,
     .mode-create button:hover,
-    #join-btn:hover { border-color: #999; }
+    #join-btn:hover,
+    #join-open-link:hover { border-color: #999; }
+    #join-open-link {
+      display: inline-block;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+      width: 100%;
+      background: none;
+      border: 1px solid #ccc;
+      color: #333;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
     #invite-input {
       width: 100%;
       font-size: 0.9rem;
@@ -139,18 +155,15 @@
     }
     .footer a:hover { text-decoration: underline; }
     .error { color: #c00; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+    .success { color: #080; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+    .gateway-tip { font-size: 0.75rem; color: #888; margin-top: 0.5rem; text-align: center; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="card-header">
-      <span>Convos</span>
-      <span class="icon" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M7 0L8.5 5.5L14 7L8.5 8.5L7 14L5.5 8.5L0 7L5.5 5.5L7 0Z" fill="currentColor"/>
-        </svg>
-      </span>
-      <span>Agent</span>
+      <span>Convos AGENT</span>
+      <span>{DEV}</span>
     </div>
     <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener" style="display: none;">
       <img id="qr-img" src="" width="240" height="240" alt="QR code">
@@ -169,7 +182,7 @@
     </a>
     <div id="qr-placeholder">
       <div class="screen screen-modes" id="screen-modes">
-        <button type="button" class="mode-join-btn" id="mode-join-btn">Add agent to existing Convos</button>
+        <button type="button" class="mode-join-btn" id="mode-join-btn">Add to existing Convo</button>
         <div class="divider" aria-hidden="true">— or —</div>
         <div class="mode-create">
           <button type="button" id="create-btn">Create new agent</button>
@@ -178,6 +191,8 @@
       <div class="screen screen-join" id="screen-join" style="display: none;">
         <input id="invite-input" type="text" placeholder="Paste invite link" autocomplete="off" />
         <button type="button" id="join-btn">Join</button>
+        <a id="join-open-link" class="join-open-link" href="#" target="_blank" rel="noopener" style="display: none;">Open in Convos</a>
+        <p id="gateway-tip" class="gateway-tip" style="display: none;"></p>
       </div>
       <span id="placeholder-text" style="display: none;">Loading…</span>
     </div>
@@ -208,9 +223,33 @@
       var modeJoinBtn = document.getElementById("mode-join-btn");
       var inviteInput = document.getElementById("invite-input");
       var errorEl = document.getElementById("error");
+      var gatewayTip = document.getElementById("gateway-tip");
+      var joinOpenLink = document.getElementById("join-open-link");
+
+      function isGatewayOrigin() {
+        var h = window.location.hostname;
+        return h === "localhost" || h === "127.0.0.1";
+      }
+
+      function showGatewayTipIfNeeded() {
+        if (!gatewayTip) return;
+        if (isGatewayOrigin()) {
+          gatewayTip.style.display = "none";
+          return;
+        }
+        gatewayTip.textContent = "Join only works when this page is opened from your OpenClaw gateway. Open http://localhost:18789/convos/landing (or your gateway URL + /convos/landing), then paste the invite and click Join.";
+        gatewayTip.style.display = "block";
+      }
 
       function showError(msg) {
         errorEl.textContent = msg || "";
+        errorEl.className = "error";
+        errorEl.style.display = msg ? "block" : "none";
+      }
+
+      function showSuccess(msg) {
+        errorEl.textContent = msg || "";
+        errorEl.className = "success";
         errorEl.style.display = msg ? "block" : "none";
       }
 
@@ -229,6 +268,9 @@
 
       modeJoinBtn.addEventListener("click", function () {
         showError("");
+        showGatewayTipIfNeeded();
+        if (joinOpenLink) { joinOpenLink.style.display = "none"; }
+        if (joinBtn) { joinBtn.style.display = "block"; }
         screenModes.style.display = "none";
         screenJoin.style.display = "flex";
       });
@@ -284,7 +326,34 @@
           return;
         }
         showError("");
-        window.open(url, "_blank");
+        joinBtn.disabled = true;
+        joinBtn.textContent = "Joining…";
+        fetch("/convos/join", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invite: url }),
+        })
+          .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+          .then(function (_) {
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Join";
+            if (_.ok) {
+              var status = _.data.status;
+              showSuccess(status === "joined" ? "Joined." : "Join request sent. Waiting for approval.");
+              if (joinOpenLink && url) {
+                joinOpenLink.href = url;
+                joinOpenLink.style.display = "block";
+                joinBtn.style.display = "none";
+              }
+            } else {
+              showError(_.data.error || "Join failed.");
+            }
+          })
+          .catch(function () {
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Join";
+            showError("Could not reach the OpenClaw gateway. Open this page from the same host that runs your agent (e.g. gateway URL + /convos/landing).");
+          });
       });
 
       createBtn.addEventListener("click", function () {

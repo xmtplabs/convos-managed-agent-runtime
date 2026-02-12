@@ -32,7 +32,7 @@ const INVITE_URL_PATTERNS = [
   /^https?:\/\/(?:[a-z0-9-]+\.)*convos\.(?:app|org)\/.*[?&]i=(.+)$/i,
 ];
 
-function extractInviteSlug(input: string): string {
+export function extractInviteSlug(input: string): string {
   const trimmed = input.trim();
   for (const pattern of INVITE_URL_PATTERNS) {
     const match = trimmed.match(pattern);

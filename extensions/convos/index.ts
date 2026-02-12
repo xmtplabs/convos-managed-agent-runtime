@@ -3,14 +3,19 @@ import type { OpenClawConfig, OpenClawPluginApi } from "openclaw/plugin-sdk";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
-import type { ConvosSDKClient } from "./src/sdk-client.js";
-import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
+import { ConvosSDKClient, resolveConvosDbPath } from "./src/sdk-client.js";
+import {
+  resolveConvosAccount,
+  resolveDefaultConvosAccountId,
+  type CoreConfig,
+} from "./src/accounts.js";
 import { XMTP_ENV_DEFAULT } from "./src/config-types.js";
 import { convosPlugin } from "./src/channel.js";
 import { createInvite, registerConvosCommands } from "./src/convos-commands.js";
 import { getConvosRuntime, setConvosRuntime, setConvosSetupActive } from "./src/runtime.js";
-import { saveIdentity } from "./src/lib/identity-store.js";
-import { resolveConvosDbPath } from "./src/sdk-client.js";
+import { loadIdentity, saveIdentity } from "./src/lib/identity-store.js";
+import { getClientForAccount } from "./src/outbound.js";
+import { extractInviteSlug } from "./src/onboarding.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
 // Module-level state for setup agent (accepts join requests during setup flow)
@@ -467,6 +472,74 @@ const plugin = {
           const name = typeof body.name === "string" ? body.name : undefined;
           const result = await createInvite(cfg, { name });
           jsonResponse(res, 200, result);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          jsonResponse(res, 500, { error: msg });
+        }
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/join",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        try {
+          const body = await readJsonBody(req);
+          const rawInvite = typeof body.invite === "string" ? body.invite.trim() : "";
+          if (!rawInvite) {
+            jsonResponse(res, 400, { error: "Invite URL or slug required." });
+            return;
+          }
+          const invite = extractInviteSlug(rawInvite);
+          if (!invite) {
+            jsonResponse(res, 400, { error: "Invalid invite URL or slug." });
+            return;
+          }
+          const runtime = getConvosRuntime();
+          const cfg = runtime.config.loadConfig() as CoreConfig;
+          const accountId = resolveDefaultConvosAccountId(cfg);
+          const account = resolveConvosAccount({ cfg, accountId });
+          if (!account.configured) {
+            jsonResponse(res, 400, { error: "Convos is not configured. Set up Convos first." });
+            return;
+          }
+          const stateDir = runtime.state.resolveStateDir();
+          const privateKey =
+            account.privateKey ?? loadIdentity(stateDir, account.accountId)?.privateKey;
+          if (!privateKey) {
+            jsonResponse(res, 400, { error: "Convos is not configured. Set up Convos first." });
+            return;
+          }
+          let result: { status: "joined" | "waiting_for_acceptance"; conversationId: string | null };
+          const client = getClientForAccount(account.accountId);
+          if (client) {
+            result = await client.joinConversation(invite);
+          } else {
+            const dbPath = resolveConvosDbPath({
+              stateDir,
+              env: account.env,
+              accountId: account.accountId,
+              privateKey,
+            });
+            const oneOff = await ConvosSDKClient.create({
+              privateKey,
+              env: account.env,
+              dbPath,
+              debug: account.debug,
+            });
+            try {
+              result = await oneOff.joinConversation(invite);
+            } finally {
+              await oneOff.stop();
+            }
+          }
+          jsonResponse(res, 200, {
+            status: result.status,
+            conversationId: result.conversationId,
+          });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           jsonResponse(res, 500, { error: msg });

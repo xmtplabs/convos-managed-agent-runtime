@@ -7,6 +7,7 @@ import {
   resolveDefaultConvosAccountId,
   type CoreConfig,
 } from "./accounts.js";
+import { extractInviteSlug } from "./onboarding.js";
 import { getClientForAccount } from "./outbound.js";
 
 export type CreateInviteResult = { inviteUrl: string };
@@ -68,12 +69,16 @@ export function registerConvosCommands(api: OpenClawPluginApi): void {
       if (!client) {
         return { text: "Convos is not running. Start the gateway with Convos enabled." };
       }
-      const trimmed = ctx.args?.trim();
-      if (!trimmed) {
+      const raw = ctx.args?.trim();
+      if (!raw) {
         return { text: "Usage: /join <invite-url>" };
       }
+      const invite = extractInviteSlug(raw);
+      if (!invite) {
+        return { text: "Invalid invite URL or slug." };
+      }
       try {
-        const result = await client.joinConversation(trimmed);
+        const result = await client.joinConversation(invite);
         if (result.conversationId) {
           return { text: `Joined conversation ${result.conversationId.slice(0, 8)}...` };
         }
