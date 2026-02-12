@@ -76,8 +76,8 @@ export SETUP_password="${SETUP_password:-test}"
 # ---------------------------------------------------------------------------
 # Runtime: patch tenant config (port, bind, token) and load runtime plugin path
 # ---------------------------------------------------------------------------
-jq --arg port "$PORT" --arg token "$TOKEN" \
-  '.gateway.port = ($port | tonumber) | .gateway.bind = "lan" | .gateway.auth = ((.gateway.auth // {}) | .mode = "token" | .token = $token)' \
+jq --arg port "$PORT" --arg token "$TOKEN" --arg workspace "$WORKSPACE_DIR" \
+  '.gateway.port = ($port | tonumber) | .gateway.bind = "lan" | .gateway.auth = ((.gateway.auth // {}) | .mode = "token" | .token = $token) | .agents.defaults.workspace = $workspace' \
   "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
 
 # Runtime artifact: custom plugins dir (extensions/convos); bundled plugins from OpenClaw install.
