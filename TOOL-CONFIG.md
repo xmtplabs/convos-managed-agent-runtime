@@ -12,7 +12,7 @@ Global (tools section)
 main-agent (Concierge)
   inherits: full profile
   no tool overrides      -- delegates to subagents for skills
-  can spawn: browser-automation-subagent, email-subagent, crypto-subagent
+  can spawn: browser-automation-subagent, email-subagent
 
 browser-automation-subagent (Web Automation)
   profile: coding        -- fs, runtime, exec, sessions
@@ -22,11 +22,6 @@ email-subagent (Email Agent)
   profile: messaging     -- messaging tools only
   deny: smooth-browser
   uses agentmail via exec (script-based skill, no alsoAllow needed)
-
-crypto-subagent (Crypto Agent)
-  profile: minimal
-  deny: smooth-browser
-  uses bankr via exec (script-based skill, no alsoAllow needed)
 ```
 
 ## Registered vs script-based skills
@@ -34,8 +29,7 @@ crypto-subagent (Crypto Agent)
 | Skill | Type | Has `_meta.json` | How it's used | In `alsoAllow`? |
 |---|---|---|---|---|
 | `smooth-browser` | Registered tool | Yes | Dedicated tool API | Yes — must be in `alsoAllow` |
-| `agentmail` | Script-based | No | `exec` runs `node workspace/skills/agentmail/scripts/*.mjs` | No — would trigger "unknown entries" warning |
-| `bankr` | Script-based | No | `exec` runs `workspace/skills/bankr/scripts/*.sh` | No — would trigger "unknown entries" warning |
+| `agentmail` | Script-based | No | `exec` runs `node skills/agentmail/scripts/*.mjs` | No — would trigger "unknown entries" warning |
 
 **Key rule:** Only put skill names in `alsoAllow`/`deny` if the skill has a `_meta.json` in its workspace directory. Script-based skills work through `exec` and need no tool-level config.
 
@@ -46,7 +40,6 @@ crypto-subagent (Crypto Agent)
 | `full` | All core tools (fs, runtime, exec, sessions, web, etc.) | main-agent |
 | `coding` | fs, runtime, exec, sessions | browser-automation-subagent |
 | `messaging` | Messaging/email tools only | email-subagent |
-| `minimal` | Minimal tool set | crypto-subagent |
 
 ## Global deny: `group:ui`
 

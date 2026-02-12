@@ -44,6 +44,7 @@ else
       [ -f "$WORKSPACE_DEFAULTS/$f" ] && cp "$WORKSPACE_DEFAULTS/$f" "$WORKSPACE_DIR/$f"
     done
     [ -d "$WORKSPACE_DEFAULTS/skills" ] && cp -r "$WORKSPACE_DEFAULTS/skills" "$WORKSPACE_DIR/"
+    [ -d "$WORKSPACE_DEFAULTS/memory" ] && mkdir -p "$WORKSPACE_DIR/memory" && [ -f "$WORKSPACE_DEFAULTS/memory/.gitkeep" ] && cp "$WORKSPACE_DEFAULTS/memory/.gitkeep" "$WORKSPACE_DIR/memory/"
     [ -f "$WORKSPACE_DEFAULTS/.version" ] && cp "$WORKSPACE_DEFAULTS/.version" "$WORKSPACE_DIR/.version"
     echo "[agent] agent Brain: updated SOUL.md AGENTS.md IDENTITY.md TOOLS.md and skills/"
   else

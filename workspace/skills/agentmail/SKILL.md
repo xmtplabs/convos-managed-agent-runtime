@@ -10,7 +10,15 @@ description: |
 
 ## How to use
 
-IMPORTANT: Always use the pre-built scripts below. Do NOT import or use the agentmail SDK directly. Do NOT install agentmail as a dependency. Just run the scripts with `node`.
+IMPORTANT: Always use the pre-built scripts below. Do NOT import or use the agentmail SDK directly. Just run the scripts with `node`.
+
+Installation
+
+```bash
+npm install agentmail
+```
+
+# Setup
 
 All scripts require `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID` in the environment (loaded from `.env`).
 
@@ -19,7 +27,7 @@ All scripts require `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID` in the environm
 Use when the user wants to send an email (optionally with one attachment):
 
 ```bash
-node workspace/skills/agentmail/scripts/send-email.mjs \
+node skills/agentmail/scripts/send-email.mjs \
   --to <recipient@email.com> \
   --subject "Subject line" \
   --text "Plain text body" \
@@ -32,7 +40,7 @@ node workspace/skills/agentmail/scripts/send-email.mjs \
 Use when the user wants an ICS calendar invite sent by email:
 
 ```bash
-node workspace/skills/agentmail/scripts/send-calendar-email.mjs \
+node skills/agentmail/scripts/send-calendar-email.mjs \
   --to <recipient@email.com> \
   --ics /path/to/file.ics \
   [--subject "Event name"]
@@ -46,7 +54,7 @@ Use to list **new/unread emails** and **threads that need a reply**. Output is J
 - **Replies to act on:** use `--threads` (unreplied threads per [AgentMail API](https://skills.sh/agentmail-to/agentmail-skills/agentmail)).
 
 ```bash
-node workspace/skills/agentmail/scripts/poll-inbox.mjs \
+node skills/agentmail/scripts/poll-inbox.mjs \
   [--limit 20] \
   [--labels unread] \
   [--threads]
@@ -55,11 +63,11 @@ node workspace/skills/agentmail/scripts/poll-inbox.mjs \
 Example: check new mail and unreplied threads in one run:
 
 ```bash
-node workspace/skills/agentmail/scripts/poll-inbox.mjs --limit 20 --labels unread --threads
+node skills/agentmail/scripts/poll-inbox.mjs --limit 20 --labels unread --threads
 ```
 
 Same via alias:
 
 ```bash
-node workspace/skills/agentmail/scripts/check-inbox.mjs --labels unread --threads
+node skills/agentmail/scripts/check-inbox.mjs --labels unread --threads
 ```

@@ -8,6 +8,7 @@
 - Remove Taskfile; add pnpm skill-setup, update bankr doc.
 - Workspace and config: docs, rules, workspace path (~/.openclaw/workspace), agentmail scripts, dev gateway on 18789, remove tui script.
 - AGENTS.md optimized for group restaurant booking; apply-env and Railway deploy fixes; Tilt core MD files for Convos group chat bookings.
+- Remove bankr skill and crypto-subagent.
 
 ## 2026-02-11
 
