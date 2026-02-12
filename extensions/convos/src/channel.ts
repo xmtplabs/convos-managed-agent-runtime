@@ -527,12 +527,17 @@ async function deliverConvosReply(params: {
  */
 async function stopClient(accountId: string, log?: RuntimeLogger) {
   const client = getClientForAccount(accountId);
-  if (client) {
-    try {
-      await client.stop();
-    } catch (err) {
-      log?.error(`[${accountId}] Error stopping client: ${String(err)}`);
-    }
+  if (!client) {
+    log?.info(`[${accountId}] stopClient: no client to stop`);
+    return;
+  }
+  log?.info(`[${accountId}] stopClient: calling client.stop()...`);
+  try {
+    await client.stop();
+    log?.info(`[${accountId}] stopClient: client.stop() done`);
+  } catch (err) {
+    log?.error(`[${accountId}] Error stopping client: ${String(err)}`);
+  } finally {
     setClientForAccount(accountId, null);
   }
 }

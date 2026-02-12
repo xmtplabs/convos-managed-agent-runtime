@@ -3,7 +3,7 @@ name: smooth-browser
 description: |
   Browser automation for interactive web tasks.
   USE WHEN: Navigating websites, filling forms, logging in, booking, multi-step scraping, interacting with web apps.
-  DON'T USE WHEN: Simple content fetch or search queries (use exa-search), an API exists for the task.
+  DON'T USE WHEN: Simple content fetch or search queries (use web_search / web_fetch), an API exists for the task.
   INPUTS: Natural language task, optional URL/metadata. OUTPUTS: Task results, extracted data, files.
 ---
 

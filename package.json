@@ -8,6 +8,7 @@
     "start": "./scripts/apply-env-to-config.sh && ./scripts/entrypoint.sh",
     "upgrade": "./scripts/upgrade-openclaw.sh",
     "apply": "./scripts/apply-env-to-config.sh",
+    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
     "dev": "OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh"
   },
   "dependencies": { "agentmail": "latest", "openclaw": "latest" },

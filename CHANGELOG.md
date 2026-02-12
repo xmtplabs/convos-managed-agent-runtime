@@ -1,17 +1,19 @@
 # Changelog
 
-## Unreleased
 
-- Versioning: add `version` (1.0.0) and `engines.node` (>=22) to root package.json; keep workspace/.version (6) for agent Brain seed only; Docker writes OpenClaw ref+commit to /openclaw/openclaw-version.json; entrypoint logs agent and OpenClaw versions at startup.
+## 2026-02-12
+
+- Landing: two-screen flow — first screen shows "Add agent to existing Convos" and "Create new agent" with divider; second screen (join) has paste input and Join button only.
+- Landing: QR center icon 50% smaller; loading state centered; Join button styled like mode buttons; Back button removed.
+- Remove Taskfile; add pnpm skill-setup, update bankr doc.
+- Workspace and config: docs, rules, workspace path (~/.openclaw/workspace), agentmail scripts, dev gateway on 18789, remove tui script.
+- AGENTS.md optimized for group restaurant booking; apply-env and Railway deploy fixes; Tilt core MD files for Convos group chat bookings.
 
 ## 2026-02-11
 
 - Landing: footer copy updated to "Convos Agent. Your Personal AI."
-- Landing: show "SPIN UP AGENT" button first; QR code appears only after click instead of auto-fetch on load
-
-- d007be9 Enable convos plugin and pin pnpm version
-- 9e15c17 convos extension updates, exa-search & smooth-browser skills, config and scripts
-- 1c1cd4a feat(convos): rename env config key to XMTP_ENV, default to dev
+- Landing: show "SPIN UP AGENT" button first; QR code appears only after click instead of auto-fetch on load.
+- Convos: enable plugin and pin pnpm version; extension updates, smooth-browser skill; env config key XMTP_ENV, default dev.
 
 ## 2026-02-10
 

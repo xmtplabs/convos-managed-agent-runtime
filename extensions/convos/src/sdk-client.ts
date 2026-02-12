@@ -214,15 +214,10 @@ export class ConvosSDKClient {
     if (!this.running) return;
     this.running = false;
 
-    if (this.debug) {
-      console.log("[convos-sdk] Stopping agent...");
-    }
-
+    console.log("[convos-sdk] Stopping agent...");
+    const t0 = Date.now();
     await this.agent.stop();
-
-    if (this.debug) {
-      console.log("[convos-sdk] Agent stopped");
-    }
+    console.log(`[convos-sdk] Agent stopped in ${Date.now() - t0}ms`);
   }
 
   /**

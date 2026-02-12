@@ -18,7 +18,7 @@
         "primary": "${OPENCLAW_PRIMARY_MODEL}"
       },
       "subagents": {
-        "model": "openai/gpt-5.1-codex",
+        "model": "${OPENCLAW_PRIMARY_MODEL}",
         "thinking": "medium",
         "maxConcurrent": 4,
         "archiveAfterMinutes": 30
@@ -30,23 +30,32 @@
         "default": true,
         "name": "Concierge",
         "subagents": {
-          "allowAgents": ["browser-automation-subagent", "email-agent", "exa-search"]
+          "allowAgents": [
+            "browser-automation-subagent",
+            "email-subagent",
+            "crypto-subagent"
+          ]
         }
       },
       {
         "id": "browser-automation-subagent",
         "name": "Web Automation",
         "tools": {
-          "allow": ["smooth-browser"],
-          "deny": ["agentmail", "exa-search"]
+          "allow": ["smooth-browser"]
         }
       },
       {
-        "id": "email-agent",
+        "id": "email-subagent",
         "name": "Email Agent",
         "tools": {
-          "allow": ["agentmail"],
-          "deny": ["smooth-browser", "exa-search"]
+          "deny": ["smooth-browser"]
+        }
+      },
+      {
+        "id": "crypto-subagent",
+        "name": "Crypto Agent",
+        "tools": {
+          "deny": ["smooth-browser"]
         }
       }
     ]
@@ -70,7 +79,7 @@
           "apiKey": "${BANKR_API_KEY}",
           "apiUrl": "https://api.bankr.bot"
         },
-        "env": {  
+        "env": {
           "BANKR_API_KEY": "${BANKR_API_KEY}"
         }
       },
@@ -80,13 +89,6 @@
         "env": {
           "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}",
           "AGENTMAIL_INBOX_ID": "convos@agentmail.to"
-        }
-      },
-      "exa-search": {
-        "enabled": true,
-        "apiKey": "${EXA_SEARCH_API_KEY}",
-        "env": {
-          "EXA_SEARCH_API_KEY": "${EXA_SEARCH_API_KEY}"
         }
       },
       "smooth-browser": {
@@ -105,16 +107,18 @@
     }
   },
   "tools": {
-    "profile": "full",
-    "deny": ["web_search", "web_fetch", "browser"],
+    "deny": [],
     "exec": {
       "host": "gateway",
       "security": "full",
       "ask": "off"
     },
-    "subagents": {
-      "tools": {
-        "deny": ["web_search", "web_fetch", "browser"]
+    "web": {
+      "search": {
+        "provider": "brave",
+        "maxResults": 5,
+        "timeoutSeconds": 30,
+        "apiKey": "${BRAVE_API_KEY}"
       }
     }
   }

@@ -38,6 +38,26 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Workaround:** In [scripts/apply-env-to-config.sh](scripts/apply-env-to-config.sh), after the Node env-substitution step, resolve `OPENCLAW_CUSTOM_PLUGINS_DIR` (defaulting to `$ROOT/extensions`) to an absolute path and use `jq` to merge it into `plugins.load.paths` in the output config — mirroring what `entrypoint.sh` does. This ensures hot-reloads via `pnpm apply` always include the plugin path. If you add new plugin path injection logic to entrypoint.sh, keep apply-env-to-config.sh in sync.
 
+## Registered vs script-based skills: only use `alsoAllow` for registered tools
+
+**Problem:** There are two kinds of skills:
+- **Registered skills** have a `_meta.json` in their workspace dir (e.g. `smooth-browser`). These are recognized by OpenClaw's tool system and can be referenced in `alsoAllow`/`deny`.
+- **Script-based skills** have only `scripts/` and `SKILL.md` (e.g. `agentmail`, `bankr`). These are invoked via `exec` (running shell/node scripts). They are **not** registered as named tools — putting them in `alsoAllow` or `deny` triggers "unknown entries" warnings or is silently ignored.
+
+Using `tools.allow` (not `alsoAllow`) for any skill name makes it "unknown" and causes OpenClaw to ignore the **entire** allowlist, exposing all core tools to the agent.
+
+**Workaround:** In [config/openclaw.json](config/openclaw.json):
+
+1. **`alsoAllow` only for registered skills** — only put skill names in `tools.alsoAllow` if the skill has a `_meta.json` (e.g. `smooth-browser`). Never use `tools.allow` for skill names.
+2. **Script-based skills need no tool config** — `agentmail` and `bankr` work via `exec`. The agent's profile must include `exec` access; no `alsoAllow` entry is needed. Env vars are injected via `skills.entries.*.env`.
+3. **Global `group:ui` deny** — `tools.deny: ["group:ui"]` blocks the native `browser` and `canvas` tools globally. We only use `smooth-browser` for web automation.
+4. **Per-agent profiles** — restrict subagent tool access with `tools.profile`:
+   - `main-agent`: inherits global `full` profile (orchestrator needs everything)
+   - `browser-automation-subagent`: `"coding"` profile (fs, runtime, exec, sessions)
+   - `email-subagent`: `"messaging"` profile (messaging tools only)
+   - `crypto-subagent`: `"minimal"` profile
+5. **Deny only registered tools** — `smooth-browser` can be denied on agents that shouldn't use it. Don't deny script-based skill names (no effect).
+
 ## openclaw dependency in extension (no workspace)
 
 **Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-agent there is no OpenClaw workspace, so `workspace:*` fails on install.

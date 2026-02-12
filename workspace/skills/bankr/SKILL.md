@@ -3,7 +3,7 @@ name: bankr
 description: |
   Crypto trading, portfolio, DeFi, NFTs, and blockchain transactions via Bankr API.
   USE WHEN: Trading/swapping/buying/selling crypto, checking balances or prices, transferring tokens, NFT ops, leverage, Polymarket bets, deploying tokens, raw transactions.
-  DON'T USE WHEN: Non-crypto topics. Traditional banking or fiat. Stock trading. Just researching crypto news (use exa-search first).
+  DON'T USE WHEN: Non-crypto topics. Traditional banking or fiat. Stock trading. Just researching crypto news (use web_search first).
   INPUTS: Natural language crypto commands. OUTPUTS: Transaction hashes, balances, prices, job status. CHAINS: Base, Ethereum, Polygon, Solana, Unichain.
 metadata:
   { "openclaw": { "emoji": "📺", "homepage": "https://bankr.bot", "requires": { "bins": ["curl", "jq"] } } }

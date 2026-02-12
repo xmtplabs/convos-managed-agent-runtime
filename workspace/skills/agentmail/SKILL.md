@@ -1,312 +1,65 @@
 ---
 name: agentmail
 description: |
-  Email and calendar invites via AgentMail API.
-  USE WHEN: Sending emails, calendar invites (ICS), managing inboxes, attachments, drafts.
+  Email and calendar invites via AgentMail.
+  USE WHEN: Sending emails, calendar invites (ICS), polling inbox.
   DON'T USE WHEN: User hasn't provided an email address. Task is just creating an ICS file without sending it (use fs tools).
-  INPUTS: Recipient email, subject, content, optional ICS path. OUTPUTS: Sent confirmation. REQUIRES: AGENTMAIL_API_KEY, AGENTMAIL_INBOX_ID.
+  INPUTS: Recipient email, subject, content, optional ICS path. OUTPUTS: Sent confirmation.
+  REQUIRES: AGENTMAIL_API_KEY, AGENTMAIL_INBOX_ID env vars (already configured in .env).
 ---
 
-## Sending calendar invites (ICS by email)
+## How to use
 
-When the user wants a calendar invite sent by email (e.g. "via agent mail", "email me the invite", "send to fguespe@gmail.com"), use **exec** from the repo root:
+IMPORTANT: Always use the pre-built scripts below. Do NOT import or use the agentmail SDK directly. Do NOT install agentmail as a dependency. Just run the scripts with `node`.
 
-```bash
-node scripts/send-calendar-email.mjs --to <recipient@email.com> --ics /path/to/file.ics [--subject "Event name"]
-```
+All scripts require `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID` in the environment (loaded from `.env`).
 
-Requires AGENTMAIL_API_KEY and AGENTMAIL_INBOX_ID in the environment. Do not say you cannot send email—this script sends the ICS as an attachment via AgentMail.
+### Send plain email
 
----
-
-# AgentMail SDK
-
-AgentMail is an API-first email platform for AI agents. Install the SDK and initialize the client.
-
-## Installation
+Use when the user wants to send an email (optionally with one attachment):
 
 ```bash
-# TypeScript/Node
-npm install agentmail
-
-# Python
-pip install agentmail
+node workspace/skills/agentmail/scripts/send-email.mjs \
+  --to <recipient@email.com> \
+  --subject "Subject line" \
+  --text "Plain text body" \
+  [--html "<p>HTML body</p>"] \
+  [--attach /path/to/file]
 ```
 
-## Setup
+### Send calendar invite (ICS by email)
 
-```typescript
-import { AgentMailClient } from "agentmail";
-const client = new AgentMailClient({ apiKey: "YOUR_API_KEY" });
+Use when the user wants an ICS calendar invite sent by email:
+
+```bash
+node workspace/skills/agentmail/scripts/send-calendar-email.mjs \
+  --to <recipient@email.com> \
+  --ics /path/to/file.ics \
+  [--subject "Event name"]
 ```
 
-```python
-from agentmail import AgentMail
-client = AgentMail(api_key="YOUR_API_KEY")
+### Poll / check inbox (new emails and replies)
+
+Use to list **new/unread emails** and **threads that need a reply**. Output is JSON: `{ messages, threads }`. Prefer this script; do not use other check-inbox scripts from other skills.
+
+- **New emails:** use `--labels unread`.
+- **Replies to act on:** use `--threads` (unreplied threads per [AgentMail API](https://skills.sh/agentmail-to/agentmail-skills/agentmail)).
+
+```bash
+node workspace/skills/agentmail/scripts/poll-inbox.mjs \
+  [--limit 20] \
+  [--labels unread] \
+  [--threads]
 ```
 
-## Inboxes
+Example: check new mail and unreplied threads in one run:
 
-Create scalable inboxes on-demand. Each inbox has a unique email address.
-
-```typescript
-// Create inbox (auto-generated address)
-const autoInbox = await client.inboxes.create();
-
-// Create with custom username and domain
-const customInbox = await client.inboxes.create({
-  username: "support",
-  domain: "yourdomain.com",
-});
-
-// List, get, delete
-const inboxes = await client.inboxes.list();
-const fetchedInbox = await client.inboxes.get({
-  inboxId: "inbox@agentmail.to",
-});
-await client.inboxes.delete({ inboxId: "inbox@agentmail.to" });
+```bash
+node workspace/skills/agentmail/scripts/poll-inbox.mjs --limit 20 --labels unread --threads
 ```
 
-```python
-# Create inbox (auto-generated address)
-inbox = client.inboxes.create()
+Same via alias:
 
-# Create with custom username and domain
-inbox = client.inboxes.create(username="support", domain="yourdomain.com")
-
-# List, get, delete
-inboxes = client.inboxes.list()
-inbox = client.inboxes.get(inbox_id="inbox@agentmail.to")
-client.inboxes.delete(inbox_id="inbox@agentmail.to")
+```bash
+node workspace/skills/agentmail/scripts/check-inbox.mjs --labels unread --threads
 ```
-
-## Messages
-
-Always send both `text` and `html` for best deliverability.
-
-```typescript
-// Send message
-await client.inboxes.messages.send({
-  inboxId: "agent@agentmail.to",
-  to: "recipient@example.com",
-  subject: "Hello",
-  text: "Plain text version",
-  html: "<p>HTML version</p>",
-  labels: ["outreach"],
-});
-
-// Reply to message
-await client.inboxes.messages.reply({
-  inboxId: "agent@agentmail.to",
-  messageId: "msg_123",
-  text: "Thanks for your email!",
-});
-
-// List and get messages
-const messages = await client.inboxes.messages.list({
-  inboxId: "agent@agentmail.to",
-});
-const message = await client.inboxes.messages.get({
-  inboxId: "agent@agentmail.to",
-  messageId: "msg_123",
-});
-
-// Update labels
-await client.inboxes.messages.update({
-  inboxId: "agent@agentmail.to",
-  messageId: "msg_123",
-  addLabels: ["replied"],
-  removeLabels: ["unreplied"],
-});
-```
-
-```python
-# Send message
-client.inboxes.messages.send(
-    inbox_id="agent@agentmail.to",
-    to="recipient@example.com",
-    subject="Hello",
-    text="Plain text version",
-    html="<p>HTML version</p>",
-    labels=["outreach"]
-)
-
-# Reply to message
-client.inboxes.messages.reply(
-    inbox_id="agent@agentmail.to",
-    message_id="msg_123",
-    text="Thanks for your email!"
-)
-
-# List and get messages
-messages = client.inboxes.messages.list(inbox_id="agent@agentmail.to")
-message = client.inboxes.messages.get(inbox_id="agent@agentmail.to", message_id="msg_123")
-
-# Update labels
-client.inboxes.messages.update(
-    inbox_id="agent@agentmail.to",
-    message_id="msg_123",
-    add_labels=["replied"],
-    remove_labels=["unreplied"]
-)
-```
-
-## Threads
-
-Threads group related messages in a conversation.
-
-```typescript
-// List threads (with optional label filter)
-const threads = await client.inboxes.threads.list({
-  inboxId: "agent@agentmail.to",
-  labels: ["unreplied"],
-});
-
-// Get thread details
-const thread = await client.inboxes.threads.get({
-  inboxId: "agent@agentmail.to",
-  threadId: "thd_123",
-});
-
-// Org-wide thread listing
-const allThreads = await client.threads.list();
-```
-
-```python
-# List threads (with optional label filter)
-threads = client.inboxes.threads.list(inbox_id="agent@agentmail.to", labels=["unreplied"])
-
-# Get thread details
-thread = client.inboxes.threads.get(inbox_id="agent@agentmail.to", thread_id="thd_123")
-
-# Org-wide thread listing
-all_threads = client.threads.list()
-```
-
-## Attachments
-
-Send attachments with Base64 encoding. Retrieve from messages or threads.
-
-```typescript
-// Send with attachment
-const content = Buffer.from(fileBytes).toString("base64");
-await client.inboxes.messages.send({
-  inboxId: "agent@agentmail.to",
-  to: "recipient@example.com",
-  subject: "Report",
-  text: "See attached.",
-  attachments: [
-    { content, filename: "report.pdf", contentType: "application/pdf" },
-  ],
-});
-
-// Get attachment
-const fileData = await client.inboxes.messages.getAttachment({
-  inboxId: "agent@agentmail.to",
-  messageId: "msg_123",
-  attachmentId: "att_456",
-});
-```
-
-```python
-import base64
-
-# Send with attachment
-content = base64.b64encode(file_bytes).decode()
-client.inboxes.messages.send(
-    inbox_id="agent@agentmail.to",
-    to="recipient@example.com",
-    subject="Report",
-    text="See attached.",
-    attachments=[{"content": content, "filename": "report.pdf", "content_type": "application/pdf"}]
-)
-
-# Get attachment
-file_data = client.inboxes.messages.get_attachment(
-    inbox_id="agent@agentmail.to",
-    message_id="msg_123",
-    attachment_id="att_456"
-)
-```
-
-## Drafts
-
-Create drafts for human-in-the-loop approval before sending.
-
-```typescript
-// Create draft
-const draft = await client.inboxes.drafts.create({
-  inboxId: "agent@agentmail.to",
-  to: "recipient@example.com",
-  subject: "Pending approval",
-  text: "Draft content",
-});
-
-// Send draft (converts to message)
-await client.inboxes.drafts.send({
-  inboxId: "agent@agentmail.to",
-  draftId: draft.draftId,
-});
-```
-
-```python
-# Create draft
-draft = client.inboxes.drafts.create(
-    inbox_id="agent@agentmail.to",
-    to="recipient@example.com",
-    subject="Pending approval",
-    text="Draft content"
-)
-
-# Send draft (converts to message)
-client.inboxes.drafts.send(inbox_id="agent@agentmail.to", draft_id=draft.draft_id)
-```
-
-## Pods
-
-Multi-tenant isolation for SaaS platforms. Each customer gets isolated inboxes.
-
-```typescript
-// Create pod for a customer
-const pod = await client.pods.create({ clientId: "customer_123" });
-
-// Create inbox within pod
-const inbox = await client.inboxes.create({ podId: pod.podId });
-
-// List resources scoped to pod
-const inboxes = await client.inboxes.list({ podId: pod.podId });
-```
-
-```python
-# Create pod for a customer
-pod = client.pods.create(client_id="customer_123")
-
-# Create inbox within pod
-inbox = client.inboxes.create(pod_id=pod.pod_id)
-
-# List resources scoped to pod
-inboxes = client.inboxes.list(pod_id=pod.pod_id)
-```
-
-## Idempotency
-
-Use `clientId` for safe retries on create operations.
-
-```typescript
-const inbox = await client.inboxes.create({
-  clientId: "unique-idempotency-key",
-});
-// Retrying with same clientId returns the original inbox, not a duplicate
-```
-
-```python
-inbox = client.inboxes.create(client_id="unique-idempotency-key")
-# Retrying with same client_id returns the original inbox, not a duplicate
-```
-
-## Real-Time Events
-
-For real-time notifications, see the reference files:
-
-- [webhooks.md](references/webhooks.md) - HTTP-based notifications (requires public URL)
-- [websockets.md](references/websockets.md) - Persistent connection (no public URL needed)
