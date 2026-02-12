@@ -15,26 +15,26 @@
       "workspace": "~/.openclaw/workspace",
       "skipBootstrap": true,
       "model": {
-        "primary": "openai/gpt-5.1-codex"
+        "primary": "${OPENCLAW_PRIMARY_MODEL}"
       },
       "subagents": {
-        "model": "anthropic/claude-opus-4-6",
-        "thinking": "low",
+        "model": "openai/gpt-5.1-codex",
+        "thinking": "medium",
         "maxConcurrent": 4,
         "archiveAfterMinutes": 30
       }
     },
     "list": [
       {
-        "id": "main",
+        "id": "main-agent",
         "default": true,
         "name": "Concierge",
         "subagents": {
-          "allowAgents": ["browser", "email"]
+          "allowAgents": ["browser-automation-subagent", "email-agent", "exa-search"]
         }
       },
       {
-        "id": "browser",
+        "id": "browser-automation-subagent",
         "name": "Web Automation",
         "tools": {
           "allow": ["smooth-browser"],
@@ -42,7 +42,7 @@
         }
       },
       {
-        "id": "email",
+        "id": "email-agent",
         "name": "Email Agent",
         "tools": {
           "allow": ["agentmail"],
@@ -106,7 +106,7 @@
   },
   "tools": {
     "profile": "full",
-    "deny": ["web_search"],
+    "deny": ["web_search", "web_fetch", "browser"],
     "exec": {
       "host": "gateway",
       "security": "full",
@@ -114,7 +114,7 @@
     },
     "subagents": {
       "tools": {
-        "deny": ["smooth-browser", "agentmail"]
+        "deny": ["web_search", "web_fetch", "browser"]
       }
     }
   }
