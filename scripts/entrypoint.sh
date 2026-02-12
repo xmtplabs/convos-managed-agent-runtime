@@ -10,7 +10,7 @@ cd "$ROOT"
 if [ -d "$ROOT/config-defaults" ]; then CONFIG_DEFAULTS="$ROOT/config-defaults"; else CONFIG_DEFAULTS="$ROOT/config"; fi
 if [ -d "$ROOT/workspace-defaults" ]; then WORKSPACE_DEFAULTS="$ROOT/workspace-defaults"; else WORKSPACE_DEFAULTS="$ROOT/workspace"; fi
 
-PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-8080}}"
+PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 STATE_DIR="${OPENCLAW_STATE_DIR:-${RAILWAY_VOLUME_MOUNT_PATH:-$HOME/.openclaw}}"
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$STATE_DIR/workspace}"
 CONFIG="$STATE_DIR/openclaw.json"
