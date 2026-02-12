@@ -4,6 +4,10 @@
 set -e
 
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+echo ""
+echo "apply  env → config"
+echo "────────────────────"
 . "$ROOT/scripts/env-load.sh"
 
 # Top-level paths (align with entrypoint: config-defaults in Docker, Railway volume)
@@ -28,7 +32,7 @@ if [ -d "$PLUGINS_DIR" ]; then
   jq --arg d "$PLUGINS_ABS" \
     '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = (([$d] + (.paths // [])))))' \
     "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
-  echo "[agent] Plugins path: $PLUGINS_ABS"
+  echo "  plugins path → $PLUGINS_ABS"
 fi
 
 # Seed skills into clawdbot workspace (only when missing)
@@ -42,14 +46,19 @@ else
 fi
 if [ -n "$SOURCE_SKILLS" ]; then
   mkdir -p "$WORKSPACE_DIR/skills"
+  copied=""
+  skipped=""
   for d in "$SOURCE_SKILLS"/*; do
     [ -d "$d" ] || continue
     name="$(basename "$d")"
     if [ ! -d "$WORKSPACE_DIR/skills/$name" ]; then
       cp -r "$d" "$WORKSPACE_DIR/skills/"
-      echo "[agent] Skills: copied $name → $WORKSPACE_DIR/skills/"
+      copied="${copied:+$copied, }$name"
     else
-      echo "[agent] Skills: skipped $name (already present)"
+      skipped="${skipped:+$skipped, }$name"
     fi
   done
+  [ -n "$copied" ] && echo "  skills copied  → $copied"
+  [ -n "$skipped" ] && echo "  skills ok     → $skipped (already present)"
 fi
+echo ""
