@@ -1,6 +1,10 @@
 ---
 name: smooth-browser
-description: PREFERRED BROWSER - Browser for AI agents to carry out any task on the web. Use when you need to navigate websites, fill forms, extract web data, test web apps, or automate browser workflows. Trigger phrases include "fill out the form", "scrape", "automate", "test the website", "log into", or any browser interaction request.
+description: |
+  Browser automation for interactive web tasks.
+  USE WHEN: Navigating websites, filling forms, logging in, booking, multi-step scraping, interacting with web apps.
+  DON'T USE WHEN: Simple content fetch or search queries (use exa-search), an API exists for the task.
+  INPUTS: Natural language task, optional URL/metadata. OUTPUTS: Task results, extracted data, files.
 ---
 
 # Smooth Browser

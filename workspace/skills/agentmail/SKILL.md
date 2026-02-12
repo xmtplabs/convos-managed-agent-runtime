@@ -1,6 +1,10 @@
 ---
 name: agentmail
-description: Give AI agents their own email inboxes using the AgentMail API. Use when building email agents, sending/receiving emails programmatically, managing inboxes, handling attachments, organizing with labels, creating drafts for human approval, or setting up real-time notifications via webhooks/websockets. Supports multi-tenant isolation with pods.
+description: |
+  Email and calendar invites via AgentMail API.
+  USE WHEN: Sending emails, calendar invites (ICS), managing inboxes, attachments, drafts.
+  DON'T USE WHEN: User hasn't provided an email address. Task is just creating an ICS file without sending it (use fs tools).
+  INPUTS: Recipient email, subject, content, optional ICS path. OUTPUTS: Sent confirmation. REQUIRES: AGENTMAIL_API_KEY, AGENTMAIL_INBOX_ID.
 ---
 
 ## Sending calendar invites (ICS by email)

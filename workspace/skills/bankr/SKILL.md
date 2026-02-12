@@ -1,6 +1,10 @@
 ---
 name: bankr
-description: AI-powered crypto trading agent via natural language. Use when the user wants to trade crypto (buy/sell/swap tokens), check portfolio balances, view token prices, transfer crypto, manage NFTs, use leverage, bet on Polymarket, deploy tokens, set up automated trading strategies, submit raw transactions, execute calldata, or send transaction JSON. Supports Base, Ethereum, Polygon, Solana, and Unichain. Comprehensive capabilities include trading, portfolio management, market research, NFT operations, prediction markets, leverage trading, DeFi operations, automation, and arbitrary transaction submission.
+description: |
+  Crypto trading, portfolio, DeFi, NFTs, and blockchain transactions via Bankr API.
+  USE WHEN: Trading/swapping/buying/selling crypto, checking balances or prices, transferring tokens, NFT ops, leverage, Polymarket bets, deploying tokens, raw transactions.
+  DON'T USE WHEN: Non-crypto topics. Traditional banking or fiat. Stock trading. Just researching crypto news (use exa-search first).
+  INPUTS: Natural language crypto commands. OUTPUTS: Transaction hashes, balances, prices, job status. CHAINS: Base, Ethereum, Polygon, Solana, Unichain.
 metadata:
   { "openclaw": { "emoji": "📺", "homepage": "https://bankr.bot", "requires": { "bins": ["curl", "jq"] } } }
 ---
