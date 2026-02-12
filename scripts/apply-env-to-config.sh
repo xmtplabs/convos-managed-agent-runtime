@@ -61,4 +61,36 @@ if [ -n "$SOURCE_SKILLS" ]; then
   [ -n "$copied" ] && echo "  skills copied  → $copied"
   [ -n "$skipped" ] && echo "  skills ok     → $skipped (already present)"
 fi
+
+# Repo workspace path (for both copy and config)
+if [ -d "$ROOT/workspace-defaults" ]; then
+  REPO_WORKSPACE="$(cd "$ROOT/workspace-defaults" && pwd)"
+elif [ -d "$ROOT/workspace" ]; then
+  REPO_WORKSPACE="$(cd "$ROOT/workspace" && pwd)"
+else
+  REPO_WORKSPACE=""
+fi
+
+# Copy bootstrap .md files from repo workspace into state workspace
+if [ -n "$REPO_WORKSPACE" ]; then
+  mkdir -p "$WORKSPACE_DIR"
+  md_copied=""
+  for f in AGENTS.md SOUL.md USER.md IDENTITY.md TOOLS.md HEARTBEAT.md BOOT.md BOOTSTRAP.md; do
+    if [ -f "$REPO_WORKSPACE/$f" ]; then
+      cp "$REPO_WORKSPACE/$f" "$WORKSPACE_DIR/$f"
+      md_copied="${md_copied:+$md_copied, }$f"
+    fi
+  done
+  [ -n "$md_copied" ] && echo "  bootstrap .md → $md_copied"
+fi
+
+# Point config at repo workspace so OpenClaw loads those .md files
+use_repo="${OPENCLAW_USE_REPO_WORKSPACE:-1}"
+if [ "$use_repo" = "1" ] || [ "$use_repo" = "true" ] || [ "$use_repo" = "yes" ]; then
+  if [ -d "$REPO_WORKSPACE" ]; then
+    jq --arg w "$REPO_WORKSPACE" '.agents.defaults.workspace = $w' \
+      "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
+    echo "  workspace     → $REPO_WORKSPACE"
+  fi
+fi
 echo ""
