@@ -12,10 +12,10 @@
   },
   "agents": {
     "defaults": {
-      "workspace": "/Users/fabrizioguespe/DevRel/openclaw-logistics/convos-agent/workspace",
+      "workspace": "~/.openclaw/workspace",
       "skipBootstrap": true,
       "model": {
-        "primary":"openai-codex/gpt-5.3-codex"
+        "primary":"openai/gpt-5.1-codex"
       }
     }
   },
@@ -46,7 +46,22 @@
         "enabled": true,
         "apiKey": "${AGENTMAIL_API_KEY}",
         "env": {
-          "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}"
+          "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}",
+          "AGENTMAIL_INBOX_ID": "convos@agentmail.to"
+        }
+      },
+      "exa-search": {
+        "enabled": true,
+        "apiKey": "${EXA_SEARCH_API_KEY}",
+        "env": {
+          "EXA_SEARCH_API_KEY": "${EXA_SEARCH_API_KEY}"
+        }
+      },
+      "smooth-browser": {
+        "enabled": true,
+        "apiKey": "${SMOOTH_BROWSER_API_KEY}",
+        "env": {
+          "SMOOTH_BROWSER_API_KEY": "${SMOOTH_BROWSER_API_KEY}"
         }
       }
     }
@@ -54,14 +69,12 @@
   "channels": {
     "convos": {
       "XMTP_ENV": "dev",
-      "enabled": true,
-      "privateKey": "0xd75f1a4b1af24022c5a38d8ece7351efc5236138c30460b63ca332f5389148ea",
-      "ownerConversationId": "1,120,29,37,136,148,32,117,169,77,159,166,44,172,5,47,121,97,174,233,38,193,104,222,176,150,166,162,33,200,199,53,113,72,120,137,31,171,45,91,111,252,29,85,137,85,213,38,128,73,134,106,17,165,103,121,146,179,68,147,140,65,126"
+      "enabled": true
     }
   },
   "tools": {
     "profile": "full",
-    "deny": [],
+    "deny": ["browser", "web_search"],
     "exec": {
       "host": "gateway",
       "security": "full",

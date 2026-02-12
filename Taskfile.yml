@@ -3,7 +3,7 @@
 version: '3'
 
 vars:
-  DEV_ENV: "PORT=18790 OPENCLAW_ENTRY=../openclaw/openclaw.mjs OPENCLAW_BUNDLED_PLUGINS_DIR=../openclaw/extensions OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions"
+  DEV_ENV: "OPENCLAW_ENTRY=../openclaw/openclaw.mjs OPENCLAW_BUNDLED_PLUGINS_DIR=../openclaw/extensions OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions"
 
 tasks:
   default:

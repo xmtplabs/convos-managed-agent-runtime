@@ -3,6 +3,18 @@ name: agentmail
 description: Give AI agents their own email inboxes using the AgentMail API. Use when building email agents, sending/receiving emails programmatically, managing inboxes, handling attachments, organizing with labels, creating drafts for human approval, or setting up real-time notifications via webhooks/websockets. Supports multi-tenant isolation with pods.
 ---
 
+## Sending calendar invites (ICS by email)
+
+When the user wants a calendar invite sent by email (e.g. "via agent mail", "email me the invite", "send to fguespe@gmail.com"), use **exec** from the repo root:
+
+```bash
+node scripts/send-calendar-email.mjs --to <recipient@email.com> --ics /path/to/file.ics [--subject "Event name"]
+```
+
+Requires AGENTMAIL_API_KEY and AGENTMAIL_INBOX_ID in the environment. Do not say you cannot send email—this script sends the ICS as an attachment via AgentMail.
+
+---
+
 # AgentMail SDK
 
 AgentMail is an API-first email platform for AI agents. Install the SDK and initialize the client.

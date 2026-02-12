@@ -1,23 +1,20 @@
 # Tools
 
-Primary channel: **Convos** (group chats and DMs for bookings). Full access: all tools are available.
+Primary channel: **Convos** (chat app for group chats). Full access: all tools are available.
 
+- **Browser** — Via smooth-browser skill only (Smooth CLI; no local Chrome required). OpenClaw browser tool is disabled.
+- **Email** — You **can** send emails via the AgentMail API. To email a calendar invite (ICS): use **exec** from repo root: `node scripts/send-calendar-email.mjs --to <email> --ics <path-to-ics> [--subject "Event name"]`. Requires AGENTMAIL_API_KEY and AGENTMAIL_INBOX_ID in env. Do not say you cannot send email.
+- **Crypto** — Crypto operations via Bankr API
+- **Web Search**: browse the web, get real time information, and more via exa-search skill
 - **Exec** — Shell commands (full host access, no approval needed)
 - **FS** — read, write, edit, apply_patch
-- **Browser** — Managed browser (tabs, snapshot, act, navigate, screenshot)
+- **Browser** — Via smooth-browser skill only (Smooth CLI; no local Chrome required). OpenClaw browser tool is disabled.
 - **Canvas** — Node canvas (present, eval, A2UI)
 - **Nodes** — Paired nodes (notify, run, camera, screen, location)
-- **Web** — All web tasks must use smooth browser automation: navigate → snapshot/inspect → interact. Use web_search/web_fetch only when automation is unnecessary (e.g. quick lookup, no interaction).
-- **Message** — Send/react/reply across Discord, Slack, Telegram, WhatsApp, etc.
+- **Web** — Search via exa-search skill only (web_search disabled). Automation via smooth-browser; web_fetch for fetch-only. No Brave API key required.
+- **Message** — Send/react/reply across Convos only.
 - **Sessions** — sessions_list, sessions_history, sessions_send, sessions_spawn, session_status
 - **Cron** — Schedule jobs and wakeups
 - **Gateway** — config, restart, update
-- **Image** — Analyze images with the image model
-
-## Skills
-
-- **smooth-browser** — Browser for AI agents to carry out any task on the web
-- **agentmail** — Send and receive emails via the AgentMail API
-- **bankr** — Crypto operations via Bankr API
-- **exa search**: browse the web, get real time information, and more
-
+- **Image** — Analyze images with the openai model
+- **Scripts**: Only create scripts in the workspace/scripts directory.
