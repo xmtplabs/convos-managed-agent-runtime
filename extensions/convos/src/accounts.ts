@@ -46,8 +46,8 @@ export function resolveConvosAccount(params: {
   const base = params.cfg.channels?.convos ?? {};
   const enabled = base.enabled !== false;
 
-  // Convos is "configured" if we have a private key (identity established)
-  const configured = Boolean(base.privateKey);
+  // Identity is created on first start (config or state-dir); no key required in config
+  const configured = enabled;
 
   return {
     accountId,

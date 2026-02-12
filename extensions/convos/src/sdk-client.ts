@@ -294,7 +294,7 @@ export class ConvosSDKClient {
 
     // Always log invite details for diagnostics
     console.log(`[convos-sdk] Created invite: url=${invite.url}`);
-    console.log(`[convos-sdk] Invite slug length: ${invite.slug.length}`);
+    //console.log(`[convos-sdk] Invite slug length: ${invite.slug.length}`);
     console.log(`[convos-sdk] Agent inboxId: ${this.agent.client.inboxId}`);
 
     return {

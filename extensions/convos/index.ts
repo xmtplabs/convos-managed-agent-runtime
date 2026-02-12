@@ -1,6 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { OpenClawConfig, OpenClawPluginApi } from "openclaw/plugin-sdk";
-import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
@@ -10,6 +9,7 @@ import { XMTP_ENV_DEFAULT } from "./src/config-types.js";
 import { convosPlugin } from "./src/channel.js";
 import { createInvite, registerConvosCommands } from "./src/convos-commands.js";
 import { getConvosRuntime, setConvosRuntime, setConvosSetupActive } from "./src/runtime.js";
+import { saveIdentity } from "./src/lib/identity-store.js";
 import { resolveConvosDbPath } from "./src/sdk-client.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
@@ -219,8 +219,12 @@ async function handleComplete() {
       ? [...existingAllowFrom, joinerInboxId]
       : existingAllowFrom;
 
-  const existingXmtp = (existingChannels?.xmtp ?? {}) as Record<string, unknown>;
-  const dbEncryptionKey = randomBytes(32).toString("hex");
+  const accountId = setupResult.accountId ?? "default";
+  const stateDir = runtime.state.resolveStateDir();
+  saveIdentity(stateDir, accountId, {
+    privateKey: setupResult.privateKey,
+    ...(setupResult.inboxId ? { inboxId: setupResult.inboxId } : {}),
+  });
 
   const updatedCfg = {
     ...cfg,
@@ -228,7 +232,6 @@ async function handleComplete() {
       ...existingChannels,
       convos: {
         ...existingConvos,
-        privateKey: setupResult.privateKey,
         ownerConversationId: setupResult.conversationId,
         XMTP_ENV: setupResult.env,
         enabled: true,
@@ -238,22 +241,11 @@ async function handleComplete() {
           | string
           | undefined,
       },
-      xmtp: {
-        ...existingXmtp,
-        walletKey: setupResult.privateKey,
-        dbEncryptionKey,
-        env: setupResult.env,
-        enabled: true,
-        ...(allowFrom.length > 0 ? { allowFrom } : {}),
-      },
     },
   };
 
   await runtime.config.writeConfigFile(updatedCfg);
-  console.log("[convos-setup] Config saved successfully (Convos + XMTP)");
-  console.log(
-    "[convos-setup] Written: convos.privateKey, convos.ownerConversationId, convos.allowFrom, xmtp.walletKey, xmtp.dbEncryptionKey",
-  );
+  console.log("[convos-setup] Config saved (identity in state dir; convos.ownerConversationId, allowFrom in config)");
 
   const saved = { ...setupResult };
   setupResult = null;
@@ -520,13 +512,13 @@ const plugin = {
     });
 
     api.registerHttpRoute({
-      path: "/convos/icon-192.png",
+      path: "/convos/icon.svg",
       handler: async (req, res) => {
         if (req.method !== "GET") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
         }
-        serveFile(res, path.join(landingDir, "icon-192.png"), "image/png");
+        serveFile(res, path.join(landingDir, "icon.svg"), "image/png");
       },
     });
   },

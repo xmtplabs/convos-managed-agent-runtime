@@ -15,9 +15,41 @@
       "workspace": "~/.openclaw/workspace",
       "skipBootstrap": true,
       "model": {
-        "primary":"openai/gpt-5.1-codex"
+        "primary": "openai/gpt-5.1-codex"
+      },
+      "subagents": {
+        "model": "anthropic/claude-opus-4-6",
+        "thinking": "low",
+        "maxConcurrent": 4,
+        "archiveAfterMinutes": 30
       }
-    }
+    },
+    "list": [
+      {
+        "id": "main",
+        "default": true,
+        "name": "Concierge",
+        "subagents": {
+          "allowAgents": ["browser", "email"]
+        }
+      },
+      {
+        "id": "browser",
+        "name": "Web Automation",
+        "tools": {
+          "allow": ["smooth-browser"],
+          "deny": ["agentmail", "exa-search"]
+        }
+      },
+      {
+        "id": "email",
+        "name": "Email Agent",
+        "tools": {
+          "allow": ["agentmail"],
+          "deny": ["smooth-browser", "exa-search"]
+        }
+      }
+    ]
   },
   "plugins": {
     "slots": {
@@ -74,11 +106,16 @@
   },
   "tools": {
     "profile": "full",
-    "deny": ["browser", "web_search"],
+    "deny": ["web_search"],
     "exec": {
       "host": "gateway",
       "security": "full",
       "ask": "off"
+    },
+    "subagents": {
+      "tools": {
+        "deny": ["smooth-browser", "agentmail"]
+      }
     }
   }
 }

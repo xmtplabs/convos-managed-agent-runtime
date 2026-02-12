@@ -59,27 +59,38 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 10%;
-      height: 10%;
+      width: 9%;
+      height: 9%;
       background: #fff;
       border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .qr-wrap .icon-center svg { width: 80%; height: 80%; }
+    .qr-wrap .icon-center svg { width: 100%; height: 100%; }
     #qr-placeholder {
       aspect-ratio: 1;
-      background: #f0f0f0;
+      background: white;
       border-radius: 8px;
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      align-items: stretch;
       justify-content: center;
+      gap: 0.75rem;
       font-size: 0.85rem;
       color: #666;
+      padding: 1rem;
     }
-    #get-code {
-      display: block;
+    #qr-placeholder.loading {
+      justify-content: center;
+      align-items: center;
+    }
+    .screen { display: flex; flex-direction: column; align-items: stretch; }
+    .screen-modes { gap: 0.75rem; }
+    .screen-join { gap: 0.5rem; }
+    .mode-join-btn,
+    .mode-create button,
+    #join-btn {
       width: 100%;
       background: none;
       border: 1px solid #ccc;
@@ -88,9 +99,29 @@
       font-size: 0.9rem;
       padding: 0.5rem 1rem;
       border-radius: 6px;
-      margin-top: 0.75rem;
+      text-align: center;
     }
-    #get-code:hover { border-color: #999; }
+    .mode-join-btn:hover,
+    .mode-create button:hover,
+    #join-btn:hover { border-color: #999; }
+    #invite-input {
+      width: 100%;
+      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      color: #333;
+    }
+    #invite-input:focus {
+      outline: none;
+      border-color: #666;
+    }
+    .divider {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #888;
+    }
+    .mode-create { margin: 0; }
     .footer {
       position: absolute;
       bottom: 1.5rem;
@@ -113,27 +144,43 @@
 <body>
   <div class="card">
     <div class="card-header">
-      <span>CONVOS CODE</span>
+      <span>Convos</span>
       <span class="icon" aria-hidden="true">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M7 0L8.5 5.5L14 7L8.5 8.5L7 14L5.5 8.5L0 7L5.5 5.5L7 0Z" fill="currentColor"/>
         </svg>
       </span>
-      <span>SCAN TO JOIN</span>
+      <span>Agent</span>
     </div>
     <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener" style="display: none;">
       <img id="qr-img" src="" width="240" height="240" alt="QR code">
       <div class="icon-center" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <style>.s0{fill:#000}.s1{fill:#fff}.s2{fill:none;stroke:#000;stroke-width:7.2}</style>
+          <path fill-rule="evenodd" class="s0" d="m24 0h72c13.25 0 24 10.75 24 24v72c0 13.25-10.75 24-24 24h-72c-13.25 0-24-10.75-24-24v-72c0-13.25 10.75-24 24-24z"/>
+          <path fill-rule="evenodd" class="s1" d="m60 30c16.57 0 30 13.43 30 30 0 16.57-13.43 30-30 30-16.57 0-30-13.43-30-30 0-16.57 13.43-30 30-30z"/>
+          <path class="s2" d="m40 60h40"/>
+          <path class="s2" d="m50 60h40"/>
+          <path class="s2" d="m60 40v40"/>
+          <path class="s2" d="m45.9 45.86l28.28 28.28"/>
+          <path class="s2" d="m45.9 74.14l28.28-28.28"/>
         </svg>
       </div>
     </a>
     <div id="qr-placeholder">
+      <div class="screen screen-modes" id="screen-modes">
+        <button type="button" class="mode-join-btn" id="mode-join-btn">Add agent to existing Convos</button>
+        <div class="divider" aria-hidden="true">— or —</div>
+        <div class="mode-create">
+          <button type="button" id="create-btn">Create new agent</button>
+        </div>
+      </div>
+      <div class="screen screen-join" id="screen-join" style="display: none;">
+        <input id="invite-input" type="text" placeholder="Paste invite link" autocomplete="off" />
+        <button type="button" id="join-btn">Join</button>
+      </div>
       <span id="placeholder-text" style="display: none;">Loading…</span>
     </div>
-    <button type="button" id="get-code">SPIN UP AGENT</button>
     <div id="error" class="error" role="alert"></div>
   </div>
 
@@ -141,7 +188,7 @@
     <svg width="12" height="12" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M7 0L8.5 5.5L14 7L8.5 8.5L7 14L5.5 8.5L0 7L5.5 5.5L7 0Z" fill="currentColor"/>
     </svg>
-    <span>Convos Agent. Your Personal AI.</span>
+    <span>Booking Assistant. Smart group chat bookings.</span>
   </footer>
 
   <script>
@@ -154,26 +201,44 @@
       var qrImg = document.getElementById("qr-img");
       var placeholder = document.getElementById("qr-placeholder");
       var placeholderText = document.getElementById("placeholder-text");
-      var getCodeBtn = document.getElementById("get-code");
+      var screenModes = document.getElementById("screen-modes");
+      var screenJoin = document.getElementById("screen-join");
+      var joinBtn = document.getElementById("join-btn");
+      var createBtn = document.getElementById("create-btn");
+      var modeJoinBtn = document.getElementById("mode-join-btn");
+      var inviteInput = document.getElementById("invite-input");
       var errorEl = document.getElementById("error");
+
       function showError(msg) {
         errorEl.textContent = msg || "";
         errorEl.style.display = msg ? "block" : "none";
       }
 
-      function showRetry() {
+      function showTwoModes() {
         placeholderText.style.display = "none";
-        getCodeBtn.style.display = "inline";
-        getCodeBtn.textContent = "Get code";
+        screenJoin.style.display = "none";
+        screenModes.style.display = "flex";
       }
+
+      function showLoading() {
+        screenModes.style.display = "none";
+        screenJoin.style.display = "none";
+        placeholderText.textContent = "Loading…";
+        placeholderText.style.display = "inline";
+      }
+
+      modeJoinBtn.addEventListener("click", function () {
+        showError("");
+        screenModes.style.display = "none";
+        screenJoin.style.display = "flex";
+      });
 
       function fetchInvite() {
         showError("");
-        placeholderText.textContent = "Loading…";
-        placeholderText.style.display = "inline";
-        getCodeBtn.style.display = "none";
+        showLoading();
         qrWrap.style.display = "none";
         placeholder.style.display = "flex";
+        placeholder.classList.add("loading");
 
         fetch("/convos/invite", {
           method: "POST",
@@ -186,30 +251,43 @@
             var data = _.data;
             if (!ok) {
               showError(data.error || "Could not create invite.");
-              showRetry();
+              showTwoModes();
+              placeholder.classList.remove("loading");
               return;
             }
             var inviteUrl = data.inviteUrl;
             if (!inviteUrl) {
               showError("No invite URL returned.");
-              showRetry();
+              showTwoModes();
+              placeholder.classList.remove("loading");
               return;
             }
-            var qrData = inviteUrl;
-            var qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(qrData);
+            var qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(inviteUrl);
             qrImg.src = qrSrc;
             qrImg.alt = "QR code";
             qrWrap.href = inviteUrl;
             placeholder.style.display = "none";
             qrWrap.style.display = "block";
+            placeholder.classList.remove("loading");
           })
           .catch(function () {
             showError("Could not create invite. Try again.");
-            showRetry();
+            showTwoModes();
+            placeholder.classList.remove("loading");
           });
       }
 
-      getCodeBtn.addEventListener("click", function () {
+      joinBtn.addEventListener("click", function () {
+        var url = (inviteInput.value || "").trim();
+        if (!url) {
+          showError("Paste an invite link first.");
+          return;
+        }
+        showError("");
+        window.open(url, "_blank");
+      });
+
+      createBtn.addEventListener("click", function () {
         fetchInvite();
       });
     })();

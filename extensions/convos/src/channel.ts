@@ -22,6 +22,8 @@ import { convosMessageActions } from "./actions.js";
 import { convosChannelConfigSchema } from "./config-schema.js";
 import { XMTP_ENV_DEFAULT } from "./config-types.js";
 import { resolveConvosDbPath } from "./lib/convos-client.js";
+import { createUser } from "./lib/identity.js";
+import { loadIdentity, saveIdentity } from "./lib/identity-store.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
 import { convosOutbound, getClientForAccount, setClientForAccount } from "./outbound.js";
 import { getConvosRuntime, isConvosSetupActive } from "./runtime.js";
@@ -55,6 +57,26 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
     normalized = normalized.slice("convos:".length).trim();
   }
   return normalized || undefined;
+}
+
+/** Resolve private key from config, state-dir identity file, or generate and persist. */
+async function getOrCreateConvosPrivateKey(
+  runtime: PluginRuntime,
+  account: ResolvedConvosAccount,
+  log?: RuntimeLogger,
+): Promise<string> {
+  if (account.privateKey) {
+    return account.privateKey;
+  }
+  const stateDir = runtime.state.resolveStateDir();
+  const stored = loadIdentity(stateDir, account.accountId);
+  if (stored?.privateKey) {
+    return stored.privateKey;
+  }
+  const user = createUser();
+  saveIdentity(stateDir, account.accountId, { privateKey: user.key });
+  log?.info(`[${account.accountId}] Created new XMTP identity (state dir)`);
+  return user.key;
 }
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
@@ -216,49 +238,19 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       probe: snapshot.probe,
       lastProbeAt: snapshot.lastProbeAt ?? null,
     }),
-    probeAccount: async ({ account, timeoutMs }) => {
-      // Skip probes while a setup/reset session is active — the old identity
-      // is being replaced and probing it burns XMTP installation slots.
+    probeAccount: async ({ account }) => {
       if (isConvosSetupActive()) {
         return { ok: true };
       }
 
-      if (!account.privateKey) {
-        return {
-          ok: false,
-          error: "Not configured: no private key. Run 'openclaw configure' to set up Convos.",
-        };
-      }
-
-      // Reuse running client if already started — avoids redundant create/start/stop
       const existing = getClientForAccount(account.accountId);
       if (existing?.isRunning()) {
         return { ok: true };
       }
 
-      try {
-        const limit = timeoutMs ?? 10000;
-        const tempClient = await Promise.race([
-          ConvosSDKClient.create({
-            privateKey: account.privateKey,
-            env: account.env,
-            dbPath: null,
-            debug: account.debug,
-          }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Probe timed out")), limit),
-          ),
-        ]);
-
-        await tempClient.stop();
-
-        return { ok: true };
-      } catch (err) {
-        return {
-          ok: false,
-          error: err instanceof Error ? err.message : String(err),
-        };
-      }
+      // Do not create a temp client and start() here: it publishes identity and causes
+      // "Multiple create operations detected" when startAccount then starts the real client.
+      return { ok: true };
     },
     buildAccountSnapshot: ({ account, runtime, probe }) => ({
       accountId: account.accountId,
@@ -279,11 +271,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       const { account, abortSignal, setStatus, log } = ctx;
       const runtime = getConvosRuntime();
 
-      if (!account.privateKey) {
-        throw new Error(
-          "Convos not configured: no private key. Run 'openclaw configure' to set up Convos.",
-        );
-      }
+      const privateKey = await getOrCreateConvosPrivateKey(runtime, account, log);
 
       setStatus({
         accountId: account.accountId,
@@ -292,22 +280,19 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 
       log?.info(`[${account.accountId}] starting Convos provider (env: ${account.env})`);
 
-      // Compute a deterministic dbPath under the OpenClaw state directory so
-      // the XMTP local DB survives restarts but rotates when the key changes.
       const stateDir = runtime.state.resolveStateDir();
       const dbPath = resolveConvosDbPath({
         stateDir,
         env: account.env,
         accountId: account.accountId,
-        privateKey: account.privateKey,
+        privateKey,
       });
       log?.info(
         `[${account.accountId}] XMTP stateDir: ${stateDir}, cwd: ${process.cwd()}, dbPath: ${dbPath}`,
       );
 
-      // Create SDK client with message handling
       const client = await ConvosSDKClient.create({
-        privateKey: account.privateKey,
+        privateKey,
         env: account.env,
         dbPath,
         debug: account.debug,
