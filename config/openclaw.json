@@ -38,7 +38,6 @@
   "agents": {
     "defaults": {
       "workspace": "~/.openclaw/workspace",
-      "skipBootstrap": true,
       "model": {
         "primary": "${OPENCLAW_PRIMARY_MODEL}"
       },
@@ -85,7 +84,6 @@
       {
         "id": "browser-automation-subagent",
         "name": "Web Automation",
-        "skipBootstrap": false,
         "tools": {
           "allow": [
             "browser"
