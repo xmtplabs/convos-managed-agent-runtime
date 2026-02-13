@@ -3,20 +3,30 @@
     "mode": "local",
     "port": 18789,
     "bind": "loopback",
-    "auth": {
-      "mode": "token"
-    },
-    "controlUi": {
-      "allowInsecureAuth": true
-    }
+    "auth": { "mode": "token" },
+    "controlUi": { "allowInsecureAuth": true }
+  },
+  "browser" : {
+      "enabled": true, 
+      "remoteCdpTimeoutMs": 1500, 
+      "remoteCdpHandshakeTimeoutMs": 3000,
+      "defaultProfile": "openclaw",
+      "color": "#FF4500",
+      "headless": false,
+      "noSandbox": true,
+      "attachOnly": false,
+      "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "profiles": {
+        "openclaw": { "cdpPort": 18800, "color": "#FF4500" },
+        "work": { "cdpPort": 18801, "color": "#0066CC" },
+        "remote": { "cdpUrl": "http://10.0.0.42:9222", "color": "#00AA00" }
+      }
   },
   "agents": {
     "defaults": {
       "workspace": "~/.openclaw/workspace",
       "skipBootstrap": true,
-      "model": {
-        "primary": "${OPENCLAW_PRIMARY_MODEL}"
-      },
+      "model": { "primary": "${OPENCLAW_PRIMARY_MODEL}" },
       "subagents": {
         "model": "${OPENCLAW_PRIMARY_MODEL}",
         "thinking": "medium",
@@ -29,43 +39,20 @@
         "id": "main-agent",
         "default": true,
         "name": "Concierge",
-        "subagents": {
-          "allowAgents": [
-            "browser-automation-subagent",
-            "email-subagent"
-          ]
-        }
+        "subagents": { "allowAgents": ["browser-automation-subagent", "email-subagent"] }
       },
       {
         "id": "browser-automation-subagent",
         "name": "Web Automation",
-        "tools": {
-          "allow": [
-            "smooth-browser"
-          ]
-        }
+        "tools": { "allow": ["browser"] }
       },
-      {
-        "id": "email-subagent",
-        "name": "Email Agent",
-        "tools": {
-          "deny": [
-            "smooth-browser"
-          ]
-        }
-      }
+      { "id": "email-subagent", "name": "Email Agent" }
     ]
   },
   "plugins": {
-    "slots": {
-      "memory": "none"
-    },
+    "slots": { "memory": "none" },
     "load": {},
-    "entries": {
-      "convos": {
-        "enabled": true
-      }
-    }
+    "entries": { "convos": { "enabled": true } }
   },
   "skills": {
     "entries": {
@@ -76,29 +63,15 @@
           "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}",
           "AGENTMAIL_INBOX_ID": "convos@agentmail.to"
         }
-      },
-      "smooth-browser": {
-        "enabled": true,
-        "apiKey": "${SMOOTH_BROWSER_API_KEY}",
-        "env": {
-          "SMOOTH_BROWSER_API_KEY": "${SMOOTH_BROWSER_API_KEY}"
-        }
       }
     }
   },
   "channels": {
-    "convos": {
-      "XMTP_ENV": "dev",
-      "enabled": true
-    }
+    "convos": { "XMTP_ENV": "dev", "enabled": true }
   },
   "tools": {
     "deny": [],
-    "exec": {
-      "host": "gateway",
-      "security": "full",
-      "ask": "off"
-    },
+    "exec": { "host": "gateway", "security": "full", "ask": "off" },
     "web": {
       "search": {
         "provider": "brave",

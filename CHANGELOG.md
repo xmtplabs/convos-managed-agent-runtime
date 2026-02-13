@@ -1,6 +1,13 @@
 # Changelog
 
 
+## 2026-02-13
+
+- Cursor workarounds and config/openclaw.json updates.
+- apply-env script changes (scripts/apply-env-to-config.sh and .cjs).
+- Remove smooth-browser skill and TOOL-CONFIG.md.
+- Add workspace bootstrap files (AGENTS, SOUL, TOOLS, memory, etc.).
+
 ## 2026-02-12
 
 - Landing: two-screen flow — first screen shows "Add agent to existing Convos" and "Create new agent" with divider; second screen (join) has paste input and Join button only.

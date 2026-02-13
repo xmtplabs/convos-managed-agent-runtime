@@ -11,6 +11,12 @@ if (!templatePath || !outputPath) {
 }
 
 let template = fs.readFileSync(templatePath, "utf8");
+try {
+  JSON.parse(template);
+} catch (err) {
+  console.error("[apply-env-to-config] Template is invalid JSON:", err.message);
+  process.exit(1);
+}
 const env = {};
 
 if (envPath && fs.existsSync(envPath)) {
@@ -31,6 +37,13 @@ for (const [key, value] of Object.entries(env)) {
   const escaped = JSON.stringify(value).slice(1, -1);
   const pattern = new RegExp("\\$\\{" + key + "\\}", "g");
   template = template.replace(pattern, escaped);
+}
+
+try {
+  JSON.parse(template);
+} catch (err) {
+  console.error("[apply-env-to-config] Invalid JSON after env substitution:", err.message);
+  process.exit(1);
 }
 
 fs.writeFileSync(outputPath, template, "utf8");
