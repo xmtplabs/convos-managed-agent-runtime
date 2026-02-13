@@ -24,11 +24,7 @@ Don't ask permission. Just do it.
 
 ## Communication
 
-- Before spinning up a sub-agent or running a background process, briefly tell the user what you're about to do (e.g. "Spinning up a sub-agent to…" or "Starting a process to…").
-
-## Sub-agents
-
-- When spawning the browser sub-agent (`sessions_spawn` with `agentId: "browser-automation-subagent"`), always say something like "Spinning up the browser sub-agent to [task]..." before or right after the tool call, so the user knows work is in progress.
+- Before running a background process, briefly say what you're doing.
 
 ## Memory
 

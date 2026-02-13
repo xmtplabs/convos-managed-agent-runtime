@@ -35,7 +35,7 @@ if [ -f "$CONFIG_OUTPUT" ]; then
   _ws=$(jq -r '.agents.defaults.workspace // "unset"' "$CONFIG_OUTPUT")
   _subs=$(jq -r '[.agents.list[]? | "\(.id)(\(.workspace // "inherit"))"] | join(", ")' "$CONFIG_OUTPUT")
   echo "  🔍 verify      → skipBootstrap=$_skip workspace=$_ws"
-  echo "  🔍 subagents   → $_subs"
+  echo "  🔍 agents      → $_subs"
 fi
 
 # Inject custom plugins path into the output config (mirrors entrypoint.sh)

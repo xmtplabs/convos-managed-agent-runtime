@@ -3,6 +3,7 @@
 
 ## 2026-02-13
 
+- Remove sub-agents; main agent has full tools (web_search, web_fetch, browser, agentmail).
 - Convos: add `/convos/form` and `/convos/form/` routes serving `landing/form.html` (test form page).
 - Dockerfile: install Chromium + deps for browser automation; set CHROMIUM_PATH; CMD to `pnpm start`; chmod apply-env script.
 - apply-env scripts: inject `browser.executablePath` and `browser.headless=true` from CHROMIUM_PATH into config.

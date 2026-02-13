@@ -50,6 +50,7 @@ else
       [ -f "$WORKSPACE_DEFAULTS/$f" ] && cp "$WORKSPACE_DEFAULTS/$f" "$WORKSPACE_DIR/$f"
     done
     [ -d "$WORKSPACE_DEFAULTS/skills" ] && cp -r "$WORKSPACE_DEFAULTS/skills" "$WORKSPACE_DIR/"
+    [ -d "$WORKSPACE_DEFAULTS/scripts" ] && mkdir -p "$WORKSPACE_DIR/scripts" && cp -r "$WORKSPACE_DEFAULTS/scripts/"* "$WORKSPACE_DIR/scripts/" 2>/dev/null || true
     [ -d "$WORKSPACE_DEFAULTS/memory" ] && mkdir -p "$WORKSPACE_DIR/memory" && [ -f "$WORKSPACE_DEFAULTS/memory/.gitkeep" ] && cp "$WORKSPACE_DEFAULTS/memory/.gitkeep" "$WORKSPACE_DIR/memory/"
     echo "$PACK_SHIPPED_VER" > "$WORKSPACE_DIR/.deployed-version"
     echo "[agent] agent Brain: updated SOUL.md AGENTS.md IDENTITY.md TOOLS.md and skills/"
@@ -89,7 +90,7 @@ _skip=$(jq -r '.agents.defaults.skipBootstrap // "unset"' "$CONFIG")
 _ws=$(jq -r '.agents.defaults.workspace // "unset"' "$CONFIG")
 _subs=$(jq -r '[.agents.list[]? | "\(.id)(\(.workspace // "inherit"))"] | join(", ")' "$CONFIG")
 echo "[agent] Config verify: skipBootstrap=$_skip workspace=$_ws"
-echo "[agent] Config verify: subagents=$_subs"
+echo "[agent] Config verify: agents=$_subs"
 
 # Runtime artifact: custom plugins dir (extensions/convos); bundled plugins from OpenClaw install.
 RUNTIME_PLUGINS_ABS=""

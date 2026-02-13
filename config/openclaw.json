@@ -59,62 +59,13 @@
         "openrouter/openai/gpt-4o": {},
         "openrouter/openai/gpt-4o-mini": {},
         "openrouter/mistralai/mistral-large-2411": {}
-      },
-      "subagents": {
-        "model": "${OPENCLAW_PRIMARY_MODEL}",
-        "thinking": "medium",
-        "maxConcurrent": 4,
-        "archiveAfterMinutes": 30
       }
     },
     "list": [
       {
-        "id": "main-agent",
+        "id": "main",
         "default": true,
-        "name": "Convos Agent",
-        "tools": {
-          "deny": [
-            "web_search",
-            "web_fetch",
-            "browser",
-            "agentmail"
-          ]
-        },
-        "subagents": {
-          "allowAgents": [
-            "browser-automation-subagent",
-            "email-subagent",
-            "search-subagent"
-          ]
-        }
-      },
-      {
-        "id": "search-subagent",
-        "name": "Web Search",
-        "tools": {
-          "allow": [
-            "web_search",
-            "web_fetch"
-          ]
-        }
-      },
-      {
-        "id": "browser-automation-subagent",
-        "name": "Web Automation",
-        "tools": {
-          "allow": [
-            "browser"
-          ]
-        }
-      },
-      {
-        "id": "email-subagent",
-        "name": "Email Agent",
-        "tools": {
-          "allow": [
-            "agentmail"
-          ]
-        }
+        "name": "Convos Agent"
       }
     ]
   },
