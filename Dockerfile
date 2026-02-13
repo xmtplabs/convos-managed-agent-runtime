@@ -54,7 +54,7 @@ COPY config /app/config-defaults
 COPY extensions /app/extensions
 COPY landing /app/landing
 COPY scripts ./scripts
-RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/apply-env-to-config.sh
+RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/apply-env-to-config.sh /app/scripts/openrouter-ensure-key.sh
 
 # Install extension deps
 # HUSKY=0 skips husky prepare scripts from GitHub deps

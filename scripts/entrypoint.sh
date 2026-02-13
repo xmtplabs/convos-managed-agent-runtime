@@ -97,6 +97,13 @@ fi
 echo "[agent] Runtime: gateway.port=$PORT, gateway.bind=lan"
 
 # ---------------------------------------------------------------------------
+# OpenRouter: create or reuse per-deployment API key (if OPENROUTER_MANAGEMENT_KEY set)
+# ---------------------------------------------------------------------------
+if [ -x "$ROOT/scripts/openrouter-ensure-key.sh" ]; then
+  eval "$(STATE_DIR="$STATE_DIR" OPENCLAW_STATE_DIR="$STATE_DIR" "$ROOT/scripts/openrouter-ensure-key.sh")"
+fi
+
+# ---------------------------------------------------------------------------
 # Skill setup (merge .env keys into skills.entries, etc.)
 # ---------------------------------------------------------------------------
 if [ -x "$ROOT/scripts/skill-setup.sh" ]; then
