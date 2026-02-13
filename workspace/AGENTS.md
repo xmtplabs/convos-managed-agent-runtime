@@ -22,7 +22,7 @@ Don't ask permission. Just do it.
 
 ## Communication
 
-- Before calling `sessions_spawn` or running a background process (e.g. via exec), briefly tell the user what you're about to do (e.g. "Spinning up a sub-agent to…" or "Starting a process to…").
+- Before spinning up a sub-agent or running a background process, briefly tell the user what you're about to do (e.g. "Spinning up a sub-agent to…" or "Starting a process to…").
 
 ## Memory
 
@@ -48,7 +48,7 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - **Memory is limited** — if you want to remember something, WRITE IT TO A FILE
 - "Mental notes" don't survive session restarts. Files do.
 - When someone says "remember this" → update `memory/YYYY-MM-DD.md` or relevant file
-- When you learn a lesson → update AGENTS.md, TOOLS.md, or the relevant skill
+- When you learn a lesson → update AGENTS.md or TOOLS.md as appropriate
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
 
