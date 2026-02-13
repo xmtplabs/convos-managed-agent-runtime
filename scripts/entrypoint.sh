@@ -31,21 +31,27 @@ fi
 # agent Brain: seed workspace (AGENTS.md, SOUL.md, TOOLS.md, skills) by version
 # ---------------------------------------------------------------------------
 mkdir -p "$WORKSPACE_DIR"
-PACK_SHIPPED_VER=$(cat "$WORKSPACE_DEFAULTS/.version" 2>/dev/null || echo 0)
-PACK_DEPLOYED_VER=$(cat "$WORKSPACE_DIR/.version" 2>/dev/null || echo 0)
+PACK_SHIPPED_VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "0.0.0")
+PACK_DEPLOYED_VER=$(cat "$WORKSPACE_DIR/.deployed-version" 2>/dev/null || echo "0.0.0")
+NEED_UPGRADE=false
+if [ "$PACK_SHIPPED_VER" != "$PACK_DEPLOYED_VER" ]; then
+  HIGHER=$(printf '%s\n%s' "$PACK_SHIPPED_VER" "$PACK_DEPLOYED_VER" | sort -V | tail -1)
+  [ "$HIGHER" = "$PACK_SHIPPED_VER" ] && NEED_UPGRADE=true
+fi
 
 if [ ! -f "$WORKSPACE_DIR/SOUL.md" ]; then
   echo "[agent] agent Brain: first run, seeding workspace from $WORKSPACE_DEFAULTS → $WORKSPACE_DIR"
   cp -r "$WORKSPACE_DEFAULTS/." "$WORKSPACE_DIR/"
+  echo "$PACK_SHIPPED_VER" > "$WORKSPACE_DIR/.deployed-version"
 else
-  if [ "$PACK_SHIPPED_VER" -gt "$PACK_DEPLOYED_VER" ] 2>/dev/null; then
+  if [ "$NEED_UPGRADE" = true ]; then
     echo "[agent] agent Brain: v$PACK_DEPLOYED_VER → v$PACK_SHIPPED_VER, updating behavior files"
     for f in SOUL.md AGENTS.md IDENTITY.md TOOLS.md; do
       [ -f "$WORKSPACE_DEFAULTS/$f" ] && cp "$WORKSPACE_DEFAULTS/$f" "$WORKSPACE_DIR/$f"
     done
     [ -d "$WORKSPACE_DEFAULTS/skills" ] && cp -r "$WORKSPACE_DEFAULTS/skills" "$WORKSPACE_DIR/"
     [ -d "$WORKSPACE_DEFAULTS/memory" ] && mkdir -p "$WORKSPACE_DIR/memory" && [ -f "$WORKSPACE_DEFAULTS/memory/.gitkeep" ] && cp "$WORKSPACE_DEFAULTS/memory/.gitkeep" "$WORKSPACE_DIR/memory/"
-    [ -f "$WORKSPACE_DEFAULTS/.version" ] && cp "$WORKSPACE_DEFAULTS/.version" "$WORKSPACE_DIR/.version"
+    echo "$PACK_SHIPPED_VER" > "$WORKSPACE_DIR/.deployed-version"
     echo "[agent] agent Brain: updated SOUL.md AGENTS.md IDENTITY.md TOOLS.md and skills/"
   else
     echo "[agent] agent Brain: workspace up to date (v$PACK_DEPLOYED_VER)"
@@ -128,7 +134,13 @@ if [ -n "$PID" ]; then
   kill -9 $PID 2>/dev/null || true
 fi
 
+# ---------------------------------------------------------------------------
+# Inject runtime version into agent context (AGENTS.md)
+# ---------------------------------------------------------------------------
 agent_VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
+if [ -f "$WORKSPACE_DIR/AGENTS.md" ]; then
+  sed "s/{{VERSION}}/$agent_VER/g" "$WORKSPACE_DIR/AGENTS.md" > "$WORKSPACE_DIR/AGENTS.md.tmp" && mv "$WORKSPACE_DIR/AGENTS.md.tmp" "$WORKSPACE_DIR/AGENTS.md"
+fi
 echo "[agent] agent v$agent_VER"
 echo "[agent] Runtime: starting gateway port=$PORT state_dir=$STATE_DIR"
 echo "[agent] Open (with token): http://127.0.0.1:$PORT/setup/chat?session=main&token=$TOKEN"

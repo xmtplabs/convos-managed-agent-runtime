@@ -5,6 +5,8 @@ read_when:
   - Bootstrapping a workspace manually
 ---
 
+**Runtime:** v{{VERSION}}
+
 # AGENTS.md - Your Workspace
 
 This folder is home. Treat it that way.

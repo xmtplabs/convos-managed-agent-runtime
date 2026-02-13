@@ -8,6 +8,8 @@ ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 echo ""
 echo "  🧠 Uploading brain"
 echo "  ═══════════════════"
+VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
+echo "  📌 version     → v$VER"
 . "$ROOT/scripts/env-load.sh"
 
 # Top-level paths (align with entrypoint: config-defaults in Docker, Railway volume)
@@ -73,14 +75,17 @@ fi
 # Copy bootstrap .md files from repo workspace into state workspace
 if [ -n "$REPO_WORKSPACE" ]; then
   mkdir -p "$WORKSPACE_DIR"
-  md_copied=""
-  for f in AGENTS.md SOUL.md USER.md IDENTITY.md TOOLS.md HEARTBEAT.md BOOT.md BOOTSTRAP.md; do
-    if [ -f "$REPO_WORKSPACE/$f" ]; then
-      cp "$REPO_WORKSPACE/$f" "$WORKSPACE_DIR/$f"
-      md_copied="${md_copied:+$md_copied, }$f"
+  first=1
+  for f in "$REPO_WORKSPACE"/*.md; do
+    [ -f "$f" ] || continue
+    fname=$(basename "$f")
+    cp "$f" "$WORKSPACE_DIR/$fname"
+    if [ "$first" = 1 ]; then
+      echo "  📄 bootstrap   →"
+      first=0
     fi
+    echo "      $fname"
   done
-  [ -n "$md_copied" ] && echo "  📄 bootstrap   → $md_copied"
 fi
 
 # Point config at repo workspace so OpenClaw loads those .md files
