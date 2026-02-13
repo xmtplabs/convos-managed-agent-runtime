@@ -99,6 +99,15 @@ if [ -n "$REPO_WORKSPACE" ]; then
   done
 fi
 
+# Inject version into AGENTS.md (state workspace and repo workspace when use_repo)
+_agents_list="$WORKSPACE_DIR/AGENTS.md"
+[ -n "$REPO_WORKSPACE" ] && _agents_list="$_agents_list $REPO_WORKSPACE/AGENTS.md"
+for ag in $_agents_list; do
+  [ -f "$ag" ] || continue
+  sed "s/{{VERSION}}/$VER/g" "$ag" > "$ag.tmp" && mv "$ag.tmp" "$ag"
+done
+[ -f "$WORKSPACE_DIR/AGENTS.md" ] || [ -f "${REPO_WORKSPACE:-}/AGENTS.md" ] && echo "  📌 AGENTS.md    → {{VERSION}} → v$VER"
+
 # Point config at repo workspace so OpenClaw loads those .md files
 use_repo="${OPENCLAW_USE_REPO_WORKSPACE:-1}"
 if [ "$use_repo" = "1" ] || [ "$use_repo" = "true" ] || [ "$use_repo" = "yes" ]; then

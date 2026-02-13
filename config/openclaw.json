@@ -65,7 +65,8 @@
         "tools": {
           "deny": [
             "web_search",
-            "web_fetch"
+            "web_fetch",
+            "browser"
           ]
         },
         "subagents": {

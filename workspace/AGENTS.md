@@ -5,7 +5,7 @@ read_when:
   - Bootstrapping a workspace manually
 ---
 
-**Runtime:** v{{VERSION}}
+**Convos Agent runtime:** v0.0.1
 
 # AGENTS.md - Your Workspace
 
@@ -26,20 +26,9 @@ Don't ask permission. Just do it.
 
 - Before spinning up a sub-agent or running a background process, briefly tell the user what you're about to do (e.g. "Spinning up a sub-agent to…" or "Starting a process to…").
 
-## Browser
+## Sub-agents
 
-- When starting browser automation (e.g. before spawning the browser sub-agent or opening a page), tell the user you're starting (e.g. "Starting browser automation…" or "Opening the page…").
-- **CRITICAL: When spawning the browser sub-agent, you MUST include these exact instructions in the task prompt:**
-
-  > BROWSER RULES (non-negotiable):
-  > - EVERY browser tool call MUST include `target: "host"`. Without it → "Sandbox browser is unavailable".
-  > - `navigate` MUST include `targetUrl` with the full URL. Without it → "targetUrl required".
-  > - `act` MUST include `ref` from a prior `snapshot`. Without it → "ref is required".
-  > - `act:evaluate` must be a single expression (no semicolons).
-  > - `snapshot` only needs `target: "host"`.
-  > - NEVER call the browser tool without `target: "host"`.
-
-  Copy the rules block above verbatim into every browser sub-agent task. The sub-agent does NOT have access to TOOLS.md and will fail without these instructions.
+- When spawning the browser sub-agent (`sessions_spawn` with `agentId: "browser-automation-subagent"`), always say something like "Spinning up the browser sub-agent to [task]..." before or right after the tool call, so the user knows work is in progress.
 
 ## Memory
 
