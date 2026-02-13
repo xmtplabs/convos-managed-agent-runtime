@@ -41,21 +41,21 @@ Documented workarounds so future changes don't break them or duplicate logic.
 ## Registered vs script-based skills: only use `alsoAllow` for registered tools
 
 **Problem:** There are two kinds of skills:
-- **Registered skills** have a `_meta.json` in their workspace dir (e.g. `smooth-browser`). These are recognized by OpenClaw's tool system and can be referenced in `alsoAllow`/`deny`.
+- **Registered skills** have a `_meta.json` in their workspace dir. These are recognized by OpenClaw's tool system and can be referenced in `alsoAllow`/`deny`.
 - **Script-based skills** have only `scripts/` and `SKILL.md` (e.g. `agentmail`). These are invoked via `exec` (running shell/node scripts). They are **not** registered as named tools — putting them in `alsoAllow` or `deny` triggers "unknown entries" warnings or is silently ignored.
 
-Using `tools.allow` (not `alsoAllow`) for any skill name makes it "unknown" and causes OpenClaw to ignore the **entire** allowlist, exposing all core tools to the agent.
+Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes it "unknown" and can cause OpenClaw to ignore the allowlist. Use `tools.allow` only for core tool names (e.g. `browser`).
 
 **Workaround:** In [config/openclaw.json](config/openclaw.json):
 
-1. **`alsoAllow` only for registered skills** — only put skill names in `tools.alsoAllow` if the skill has a `_meta.json` (e.g. `smooth-browser`). Never use `tools.allow` for skill names.
+1. **`alsoAllow` only for registered skills** — only put skill names in `tools.alsoAllow` if the skill has a `_meta.json`. Never use `tools.allow` for skill names (use it for core tools like `browser`).
 2. **Script-based skills need no tool config** — `agentmail` works via `exec`. The agent's profile must include `exec` access; no `alsoAllow` entry is needed. Env vars are injected via `skills.entries.*.env`.
-3. **Global `group:ui` deny** — `tools.deny: ["group:ui"]` blocks the native `browser` and `canvas` tools globally. We only use `smooth-browser` for web automation.
-4. **Per-agent profiles** — restrict subagent tool access with `tools.profile`:
+3. **Browser** — Web automation uses the native OpenClaw `browser` tool. `browser-automation-subagent` has `tools.allow: ["browser"]`. 
+4. **Per-agent config** — restrict subagent tool access:
    - `main-agent`: inherits global `full` profile (orchestrator needs everything)
-   - `browser-automation-subagent`: `"coding"` profile (fs, runtime, exec, sessions)
+   - `browser-automation-subagent`: `tools.allow: ["browser"]` only
    - `email-subagent`: `"messaging"` profile (messaging tools only)
-5. **Deny only registered tools** — `smooth-browser` can be denied on agents that shouldn't use it. Don't deny script-based skill names (no effect).
+5. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
 
 ## Skill script paths: use workspace-relative paths (no leading `workspace/`)
 

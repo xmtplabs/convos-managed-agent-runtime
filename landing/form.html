@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f5">
+  <title>Test form – Convos</title>
+  <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: #f5f5f5;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 1.25rem;
+      max-width: 320px;
+      width: 100%;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .form-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-bottom: 0.75rem;
+    }
+    .form-row label {
+      font-size: 0.8rem;
+      color: #666;
+    }
+    .form-input,
+    .form-select {
+      width: 100%;
+      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      color: #333;
+    }
+    .form-input:focus,
+    .form-select:focus {
+      outline: none;
+      border-color: #666;
+    }
+    .form-select {
+      cursor: pointer;
+      background: #fff;
+    }
+    .form-submit {
+      width: 100%;
+      background: none;
+      border: 1px solid #ccc;
+      color: #333;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+    .form-submit:hover { border-color: #999; }
+    .error { color: #c00; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+    .success { color: #080; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span>Test form</span>
+    </div>
+    <form id="test-form">
+      <div class="form-row">
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" class="form-input" placeholder="Your name" autocomplete="name" required>
+      </div>
+      <div class="form-row">
+        <label for="number">Number</label>
+        <input id="number" name="number" type="tel" class="form-input" placeholder="Phone number" autocomplete="tel" required>
+      </div>
+      <div class="form-row">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" class="form-input" placeholder="you@example.com" autocomplete="email" required>
+      </div>
+      <div class="form-row">
+        <label for="slot">Time slot</label>
+        <select id="slot" name="slot" class="form-select" required>
+          <option value="">Choose a time</option>
+          <option value="09:00">9:00</option>
+          <option value="10:00">10:00</option>
+          <option value="11:00">11:00</option>
+          <option value="12:00">12:00</option>
+        </select>
+      </div>
+      <button type="submit" class="form-submit" id="submit-btn">Submit</button>
+    </form>
+    <div id="message" role="alert"></div>
+  </div>
+
+  <script>
+    (function () {
+      var form = document.getElementById("test-form");
+      var messageEl = document.getElementById("message");
+      var submitBtn = document.getElementById("submit-btn");
+
+      function showMessage(text, isError) {
+        messageEl.textContent = text || "";
+        messageEl.className = isError ? "error" : "success";
+        messageEl.style.display = text ? "block" : "none";
+      }
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        showMessage("");
+
+        var name = (document.getElementById("name").value || "").trim();
+        var number = (document.getElementById("number").value || "").trim();
+        var email = (document.getElementById("email").value || "").trim();
+        var slot = (document.getElementById("slot").value || "").trim();
+
+        if (!name) {
+          showMessage("Please enter your name.", true);
+          return;
+        }
+        if (!number) {
+          showMessage("Please enter your number.", true);
+          return;
+        }
+        if (!email) {
+          showMessage("Please enter your email.", true);
+          return;
+        }
+        if (!slot) {
+          showMessage("Please choose a time slot.", true);
+          return;
+        }
+
+        showMessage("Submitted.");
+      });
+    })();
+  </script>
+</body>
+</html>

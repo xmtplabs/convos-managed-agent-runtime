@@ -35,7 +35,13 @@ if [ -d "$PLUGINS_DIR" ]; then
   echo "  plugins path → $PLUGINS_ABS"
 fi
 
-# Seed skills into clawdbot workspace (only when missing)
+if [ -n "$CHROMIUM_PATH" ]; then
+  jq --arg p "$CHROMIUM_PATH" '.browser.executablePath = $p | .browser.headless = true' \
+    "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
+  echo "  browser       → executablePath=$CHROMIUM_PATH headless=true"
+fi
+
+# Replace workspace skills with repo skills (full replace, no merge)
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$STATE_DIR/workspace}"
 if [ -d "$ROOT/workspace/skills" ]; then
   SOURCE_SKILLS="$ROOT/workspace/skills"
@@ -45,21 +51,14 @@ else
   SOURCE_SKILLS=""
 fi
 if [ -n "$SOURCE_SKILLS" ]; then
+  rm -rf "$WORKSPACE_DIR/skills"
   mkdir -p "$WORKSPACE_DIR/skills"
-  copied=""
-  skipped=""
   for d in "$SOURCE_SKILLS"/*; do
     [ -d "$d" ] || continue
-    name="$(basename "$d")"
-    if [ ! -d "$WORKSPACE_DIR/skills/$name" ]; then
-      cp -r "$d" "$WORKSPACE_DIR/skills/"
-      copied="${copied:+$copied, }$name"
-    else
-      skipped="${skipped:+$skipped, }$name"
-    fi
+    cp -r "$d" "$WORKSPACE_DIR/skills/"
   done
-  [ -n "$copied" ] && echo "  skills copied  → $copied"
-  [ -n "$skipped" ] && echo "  skills ok     → $skipped (already present)"
+  names="$(ls -1 "$WORKSPACE_DIR/skills" 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
+  [ -n "$names" ] && echo "  skills         → $names (replaced)"
 fi
 
 # Repo workspace path (for both copy and config)
