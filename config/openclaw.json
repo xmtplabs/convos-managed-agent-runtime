@@ -85,6 +85,7 @@
       {
         "id": "browser-automation-subagent",
         "name": "Web Automation",
+        "skipBootstrap": false,
         "tools": {
           "allow": [
             "browser"
