@@ -30,7 +30,7 @@ if [ -f "$KEYFILE" ]; then
 fi
 
 name="${OPENROUTER_KEY_NAME_PREFIX:-convos}-${RAILWAY_REPLICA_ID:-$HOSTNAME}-$(date +%s)"
-limit="${OPENROUTER_KEY_LIMIT:-10}"
+limit="${OPENROUTER_KEY_LIMIT:-20}"
 limit_reset="${OPENROUTER_KEY_LIMIT_RESET:-monthly}"
 
 payload=$(jq -n --arg name "$name" --arg limit "$limit" --arg limit_reset "$limit_reset" \

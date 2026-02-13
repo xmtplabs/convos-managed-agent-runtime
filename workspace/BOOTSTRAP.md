@@ -5,7 +5,7 @@ read_when:
   - Bootstrapping a workspace manually
 ---
 
-# BOOTSTRAP.md - Hello, World
+# BOOTSTRAP
 
 _You just woke up. Time to figure out who you are._
 

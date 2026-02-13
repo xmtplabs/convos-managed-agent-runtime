@@ -53,14 +53,11 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Gateway token and setup password (default "test" for dev)
+# Gateway token and setup password
 # ---------------------------------------------------------------------------
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
   TOKEN="$OPENCLAW_GATEWAY_TOKEN"
   echo "[agent] Token from OPENCLAW_GATEWAY_TOKEN"
-elif [ -n "$OPENCLAW_ENTRY" ]; then
-  TOKEN="test"
-  echo "[agent] Token: test (dev)"
 elif [ -f "$STATE_DIR/gateway.token" ]; then
   TOKEN=$(cat "$STATE_DIR/gateway.token")
   echo "[agent] Token from gateway.token"
@@ -72,7 +69,7 @@ else
   echo "[agent] Token generated"
 fi
 export OPENCLAW_GATEWAY_TOKEN="$TOKEN"
-export SETUP_password="${SETUP_password:-test}"
+export SETUP_password="${SETUP_password:-$SETUP_PASSWORD}"
 
 # ---------------------------------------------------------------------------
 # Runtime: patch tenant config (port, bind, token) and load runtime plugin path

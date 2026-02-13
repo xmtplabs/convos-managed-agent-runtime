@@ -12,7 +12,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **Exec** — Shell commands (full host access, no approval needed)
 - **FS** — read, write, edit, apply_patch
 - **Browser** — Managed Chrome (profile `openclaw`). Use the `browser` tool with profile `openclaw`; start via the tool if needed. Never ask the user to attach the OpenClaw extension or open a tab. https://docs.openclaw.ai/tools/browser
-- **web_search** — Brave search provider; returns results.
+- **web_search** — Perplexity search provider; returns results.
 - **web_fetch** — Plain HTTP GET; extracts readable content (HTML → markdown/text). Does not execute JavaScript.
 - **Cron** — Schedule jobs and wakeups
 - **Email** — Send and receive emails via the AgentMail skill

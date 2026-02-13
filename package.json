@@ -4,6 +4,7 @@
   "private": true,
   "engines": { "node": ">=22" },
   "scripts": {
+    "keys": "./scripts/keys.sh",
     "skill-setup": "./scripts/skill-setup.sh",
     "start": "./scripts/apply-env-to-config.sh && ./scripts/entrypoint.sh",
     "upgrade": "./scripts/upgrade-openclaw.sh",
