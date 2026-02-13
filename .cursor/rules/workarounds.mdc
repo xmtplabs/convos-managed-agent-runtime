@@ -63,7 +63,7 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 
 **Workaround:** In all skill docs and examples use paths relative to workspace root (e.g. `skills/agentmail/scripts/...`). Never use `workspace/skills/...`.
 
-## agentmail (and other skill deps) require NODE_PATH when running via exec
+## agentmail (and other skill deps) require workspace node_modules
 
 **Problem:** The agentmail scripts `import "agentmail"`. The `agentmail` package lives in the **repo** `node_modules` (convos-concierge root), not inside the workspace. When the gateway runs `exec` with cwd = workspace, Node’s module resolution doesn’t see the repo’s node_modules, so `ERR_MODULE_NOT_FOUND` for `agentmail`.
 

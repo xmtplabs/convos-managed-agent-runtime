@@ -49,6 +49,7 @@ WORKDIR /app
 # Install all deps (openclaw now comes from npm via package.json)
 COPY package.json pnpm-lock.yaml /app/
 RUN pnpm install --no-frozen-lockfile
+ENV NODE_PATH=/app/node_modules
 
 COPY workspace /app/workspace-defaults
 COPY config /app/config-defaults

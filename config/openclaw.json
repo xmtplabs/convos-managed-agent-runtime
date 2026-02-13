@@ -75,7 +75,9 @@
         "tools": {
           "deny": [
             "web_search",
-            "web_fetch"
+            "web_fetch",
+            "browser",
+            "agentmail"
           ]
         },
         "subagents": {
@@ -107,7 +109,12 @@
       },
       {
         "id": "email-subagent",
-        "name": "Email Agent"
+        "name": "Email Agent",
+        "tools": {
+          "allow": [
+            "agentmail"
+          ]
+        }
       }
     ]
   },
