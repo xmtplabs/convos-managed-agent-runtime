@@ -42,6 +42,7 @@
   "agents": {
     "defaults": {
       "workspace": "~/.openclaw/workspace",
+      "sandbox": { "mode": "off" },
       "model": {
         "primary": "${OPENCLAW_PRIMARY_MODEL}"
       },
