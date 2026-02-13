@@ -28,8 +28,18 @@ Don't ask permission. Just do it.
 
 ## Browser
 
-- When calling the sub-agent's browser tool: always pass `target: "host"`. For `navigate`, pass `targetUrl`. For `act`, pass `ref` from a prior snapshot. For `act:evaluate`, use a single expression (no semicolons). See TOOLS.md for the full checklist.
 - When starting browser automation (e.g. before spawning the browser sub-agent or opening a page), tell the user you're starting (e.g. "Starting browser automation…" or "Opening the page…").
+- **CRITICAL: When spawning the browser sub-agent, you MUST include these exact instructions in the task prompt:**
+
+  > BROWSER RULES (non-negotiable):
+  > - EVERY browser tool call MUST include `target: "host"`. Without it → "Sandbox browser is unavailable".
+  > - `navigate` MUST include `targetUrl` with the full URL. Without it → "targetUrl required".
+  > - `act` MUST include `ref` from a prior `snapshot`. Without it → "ref is required".
+  > - `act:evaluate` must be a single expression (no semicolons).
+  > - `snapshot` only needs `target: "host"`.
+  > - NEVER call the browser tool without `target: "host"`.
+
+  Copy the rules block above verbatim into every browser sub-agent task. The sub-agent does NOT have access to TOOLS.md and will fail without these instructions.
 
 ## Memory
 
