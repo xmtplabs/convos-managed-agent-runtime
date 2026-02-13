@@ -39,12 +39,29 @@ for (const [key, value] of Object.entries(env)) {
   template = template.replace(pattern, escaped);
 }
 
+let config;
 try {
-  JSON.parse(template);
+  config = JSON.parse(template);
 } catch (err) {
   console.error("[apply-env-to-config] Invalid JSON after env substitution:", err.message);
   process.exit(1);
 }
 
-fs.writeFileSync(outputPath, template, "utf8");
+// Coerce string "true"/"false" to boolean for known boolean keys (env substitution is always string)
+const booleanPaths = ["browser.headless"];
+for (const dotPath of booleanPaths) {
+  const parts = dotPath.split(".");
+  let o = config;
+  for (let i = 0; i < parts.length - 1 && o != null; i++) o = o[parts[i]];
+  const key = parts[parts.length - 1];
+  if (o != null && key in o) {
+    const raw = o[key];
+    if (typeof raw === "string") {
+      const v = raw.toLowerCase();
+      o[key] = v === "true";
+    }
+  }
+}
+
+fs.writeFileSync(outputPath, JSON.stringify(config, null, 0), "utf8");
 console.log("  config written → " + outputPath);

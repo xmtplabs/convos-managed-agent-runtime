@@ -12,7 +12,7 @@
       "remoteCdpHandshakeTimeoutMs": 3000,
       "defaultProfile": "openclaw",
       "color": "#FF4500",
-      "headless": false,
+      "headless": "${HEADLESS}",
       "noSandbox": true,
       "attachOnly": false,
       "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",

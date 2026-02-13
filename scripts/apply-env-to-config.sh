@@ -35,6 +35,12 @@ if [ -d "$PLUGINS_DIR" ]; then
   echo "  plugins path → $PLUGINS_ABS"
 fi
 
+if [ -n "$CHROMIUM_PATH" ]; then
+  jq --arg p "$CHROMIUM_PATH" '.browser.executablePath = $p | .browser.headless = true' \
+    "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
+  echo "  browser       → executablePath=$CHROMIUM_PATH headless=true"
+fi
+
 # Replace workspace skills with repo skills (full replace, no merge)
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$STATE_DIR/workspace}"
 if [ -d "$ROOT/workspace/skills" ]; then

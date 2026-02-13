@@ -35,6 +35,10 @@ RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
     jq \
+    chromium \
+    fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
+    libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
+    libxkbcommon0 libxrandr2 xdg-utils \
   && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -50,7 +54,7 @@ COPY config /app/config-defaults
 COPY extensions /app/extensions
 COPY landing /app/landing
 COPY scripts ./scripts
-RUN chmod +x /app/scripts/entrypoint.sh
+RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/apply-env-to-config.sh
 
 # Install extension deps
 # HUSKY=0 skips husky prepare scripts from GitHub deps
@@ -62,8 +66,9 @@ RUN set -eux; \
     (cd "$(dirname "$f")" && NODE_ENV=development pnpm install); \
   done
 
+ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_CUSTOM_PLUGINS_DIR=/app/extensions
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080
-CMD ["./scripts/entrypoint.sh"]
+CMD ["pnpm", "start"]
