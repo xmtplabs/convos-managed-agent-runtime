@@ -9,11 +9,6 @@ ENV_FILE="$ROOT/.env"
 # Load .env so OPENROUTER_MANAGEMENT_KEY or OPENROUTER_API_KEY from file are available
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
 
-if [ ! -f "$ENV_FILE" ] && [ -f "$ROOT/env.example" ]; then
-  cp "$ROOT/env.example" "$ENV_FILE"
-  echo "[keys] Created .env from env.example"
-fi
-
 # Provision 2 random keys for gateway and setup
 gateway_token=$(openssl rand -hex 32)
 setup_password=$(openssl rand -hex 16)
