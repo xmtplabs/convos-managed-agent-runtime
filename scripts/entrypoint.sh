@@ -84,6 +84,13 @@ jq --arg port "$PORT" --arg token "$TOKEN" --arg workspace "$WORKSPACE_DIR" \
   '.gateway.port = ($port | tonumber) | .gateway.bind = "lan" | .gateway.auth = ((.gateway.auth // {}) | .mode = "token" | .token = $token) | .agents.defaults.workspace = $workspace' \
   "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
 
+# Verify final config state
+_skip=$(jq -r '.agents.defaults.skipBootstrap // "unset"' "$CONFIG")
+_ws=$(jq -r '.agents.defaults.workspace // "unset"' "$CONFIG")
+_subs=$(jq -r '[.agents.list[]? | "\(.id)(\(.workspace // "inherit"))"] | join(", ")' "$CONFIG")
+echo "[agent] Config verify: skipBootstrap=$_skip workspace=$_ws"
+echo "[agent] Config verify: subagents=$_subs"
+
 # Runtime artifact: custom plugins dir (extensions/convos); bundled plugins from OpenClaw install.
 RUNTIME_PLUGINS_ABS=""
 if [ -n "$OPENCLAW_CUSTOM_PLUGINS_DIR" ] && [ -d "$OPENCLAW_CUSTOM_PLUGINS_DIR" ]; then

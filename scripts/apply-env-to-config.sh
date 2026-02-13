@@ -25,7 +25,18 @@ ENV_FILE="${ENV_FILE:-$ROOT/.env}"
 CONFIG_OUTPUT="${CONFIG_OUTPUT:-$CONFIG}"
 
 export TEMPLATE_PATH ENV_FILE CONFIG_OUTPUT
+echo "  📋 template    → $TEMPLATE_PATH"
+echo "  📋 output      → $CONFIG_OUTPUT ($([ -f "$CONFIG_OUTPUT" ] && echo 'overwriting' || echo 'new'))"
 node "$ROOT/scripts/apply-env-to-config.cjs"
+
+# Log key config values for deploy verification
+if [ -f "$CONFIG_OUTPUT" ]; then
+  _skip=$(jq -r '.agents.defaults.skipBootstrap // "unset"' "$CONFIG_OUTPUT")
+  _ws=$(jq -r '.agents.defaults.workspace // "unset"' "$CONFIG_OUTPUT")
+  _subs=$(jq -r '[.agents.list[]? | "\(.id)(\(.workspace // "inherit"))"] | join(", ")' "$CONFIG_OUTPUT")
+  echo "  🔍 verify      → skipBootstrap=$_skip workspace=$_ws"
+  echo "  🔍 subagents   → $_subs"
+fi
 
 # Inject custom plugins path into the output config (mirrors entrypoint.sh)
 PLUGINS_DIR="${OPENCLAW_CUSTOM_PLUGINS_DIR:-$ROOT/extensions}"
