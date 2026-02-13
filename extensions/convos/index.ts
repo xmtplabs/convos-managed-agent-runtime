@@ -559,6 +559,28 @@ const plugin = {
     });
 
     api.registerHttpRoute({
+      path: "/convos/form",
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        serveFile(res, path.join(landingDir, "form.html"), "text/html; charset=utf-8");
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/form/",
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        serveFile(res, path.join(landingDir, "form.html"), "text/html; charset=utf-8");
+      },
+    });
+
+    api.registerHttpRoute({
       path: "/convos/landing-manifest.json",
       handler: async (req, res) => {
         if (req.method !== "GET") {

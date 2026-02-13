@@ -1,6 +1,15 @@
 # Changelog
 
 
+## 2026-02-13
+
+- Convos: add `/convos/form` and `/convos/form/` routes serving `landing/form.html` (test form page).
+- Dockerfile: install Chromium + deps for browser automation; set CHROMIUM_PATH; CMD to `pnpm start`; chmod apply-env script.
+- apply-env scripts: inject `browser.executablePath` and `browser.headless=true` from CHROMIUM_PATH into config.
+- Cursor workarounds and config/openclaw.json updates.
+- Remove smooth-browser skill and TOOL-CONFIG.md.
+- Add workspace bootstrap files (AGENTS, SOUL, TOOLS, memory, etc.).
+
 ## 2026-02-12
 
 - Landing: two-screen flow — first screen shows "Add agent to existing Convos" and "Create new agent" with divider; second screen (join) has paste input and Join button only.

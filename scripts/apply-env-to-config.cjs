@@ -11,6 +11,12 @@ if (!templatePath || !outputPath) {
 }
 
 let template = fs.readFileSync(templatePath, "utf8");
+try {
+  JSON.parse(template);
+} catch (err) {
+  console.error("[apply-env-to-config] Template is invalid JSON:", err.message);
+  process.exit(1);
+}
 const env = {};
 
 if (envPath && fs.existsSync(envPath)) {
@@ -33,5 +39,29 @@ for (const [key, value] of Object.entries(env)) {
   template = template.replace(pattern, escaped);
 }
 
-fs.writeFileSync(outputPath, template, "utf8");
+let config;
+try {
+  config = JSON.parse(template);
+} catch (err) {
+  console.error("[apply-env-to-config] Invalid JSON after env substitution:", err.message);
+  process.exit(1);
+}
+
+// Coerce string "true"/"false" to boolean for known boolean keys (env substitution is always string)
+const booleanPaths = ["browser.headless"];
+for (const dotPath of booleanPaths) {
+  const parts = dotPath.split(".");
+  let o = config;
+  for (let i = 0; i < parts.length - 1 && o != null; i++) o = o[parts[i]];
+  const key = parts[parts.length - 1];
+  if (o != null && key in o) {
+    const raw = o[key];
+    if (typeof raw === "string") {
+      const v = raw.toLowerCase();
+      o[key] = v === "true";
+    }
+  }
+}
+
+fs.writeFileSync(outputPath, JSON.stringify(config, null, 0), "utf8");
 console.log("  config written → " + outputPath);
