@@ -75,7 +75,6 @@
       {
         "id": "search-subagent",
         "name": "Web Search",
-        "workspace": "~/.openclaw/workspace",
         "tools": {
           "allow": [
             "web_search",
@@ -86,7 +85,6 @@
       {
         "id": "browser-automation-subagent",
         "name": "Web Automation",
-        "workspace": "~/.openclaw/workspace",
         "tools": {
           "allow": [
             "browser"
@@ -95,8 +93,7 @@
       },
       {
         "id": "email-subagent",
-        "name": "Email Agent",
-        "workspace": "~/.openclaw/workspace"
+        "name": "Email Agent"
       }
     ]
   },

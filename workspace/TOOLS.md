@@ -13,15 +13,17 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **FS** — read, write, edit, apply_patch
 - **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab. https://docs.openclaw.ai/tools/browser
 
-  > **Browser tool — REQUIRED PARAMS (read before every call):**
+  > **⚠️ CRITICAL — Browser tool REQUIRED PARAMS (MUST read before EVERY call):**
   >
-  > 1. **Every call**: pass `target: "host"`.
-  > 2. **`navigate`**: pass `targetUrl` with the full URL. Omitting → "targetUrl required".
-  > 3. **`act`**: pass `ref` (the element ref string from a prior `snapshot`). Omitting → "ref is required". Always `snapshot` first, pick the ref, then `act`.
-  > 4. **`act:evaluate`**: pass a **single expression** (no semicolons, no multi-statement blocks). Return a value: `document.title` ✓ — `const x = 1; return x` ✗.
-  > 5. **`snapshot`**: no extra params needed beyond `target`.
+  > **EVERY browser tool call MUST include `target: "host"`.** Without it the call WILL fail with "Sandbox browser is unavailable".
   >
-  > Never invoke the browser tool with missing required fields.
+  > 1. **Every call**: `target: "host"` — MANDATORY, no exceptions.
+  > 2. **`navigate`**: `target: "host"` AND `targetUrl` with the full URL. Omitting targetUrl → "targetUrl required".
+  > 3. **`act`**: `target: "host"` AND `ref` (the element ref string from a prior `snapshot`). Omitting ref → "ref is required". Always `snapshot` first, pick the ref, then `act`.
+  > 4. **`act:evaluate`**: `target: "host"` AND a **single expression** (no semicolons, no multi-statement blocks). Return a value: `document.title` ✓ — `const x = 1; return x` ✗.
+  > 5. **`snapshot`**: `target: "host"` — no extra params needed beyond target.
+  >
+  > **NEVER invoke the browser tool without `target: "host"`. NEVER omit `targetUrl` from navigate. These cause immediate failures.**
 
 - **Web Search** — You do NOT have direct `web_search` or `web_fetch`. Spawn `search-subagent` instead.
 - **Cron** — Schedule jobs and wakeups
