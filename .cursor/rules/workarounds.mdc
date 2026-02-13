@@ -74,3 +74,13 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 **Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-agent there is no OpenClaw workspace, so `workspace:*` fails on install.
 
 **Workaround:** In [extensions/convos/package.json](extensions/convos/package.json), use `"openclaw": "*"` so install works; at runtime OpenClaw's loader provides the plugin-sdk. In Docker, [Dockerfile](Dockerfile) sed replaces `"openclaw": "*"` (or `workspace:*`) with `"openclaw": "file:/openclaw"` so the image resolves openclaw from the built /openclaw copy.
+
+## Browser on Railway / headless (target + targetUrl)
+
+**Problem:** On Railway (or when `CHROMIUM_PATH` is set / headless), the browser tool can fail with "Sandbox browser is unavailable", "targetUrl required", or "Can't reach the OpenClaw browser control service (Error: fields are required)". The model or browser subagent may call the browser tool with incomplete params.
+
+**Workaround (instructions):** In [workspace/TOOLS.md](workspace/TOOLS.md), a callout under the Browser bullet instructs: in headless/cloud use `target: "host"`; for action `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`). Do not remove or shorten this callout — it fixes "targetUrl required" and "fields are required" errors (see [.cursor/plans/browser_failures_on_railway.plan.md](.cursor/plans/browser_failures_on_railway.plan.md)).
+
+**Workaround (subagent workspace):** Non-main agents default to `~/.openclaw/workspace-<agentId>`. With `skipBootstrap: true`, that dir has no AGENTS.md/TOOLS.md, so the browser subagent never sees the required-params instructions. In [config/openclaw.json](config/openclaw.json), set `"workspace": "~/.openclaw/workspace"` on all subagents so they share the main workspace and inherit the browser callout. Do not remove this — without it, subagents get empty workspaces and ignore browser param rules.
+
+**Workaround (CDP timeouts):** Chrome cold-start can exceed the default CDP timeout, causing "tab not found". In [config/openclaw.json](config/openclaw.json), `remoteCdpTimeoutMs` is set to `5000` and `remoteCdpHandshakeTimeoutMs` to `8000` (up from 1500/3000). Do not lower these — they prevent race conditions when Chrome is starting up.

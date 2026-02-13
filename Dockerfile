@@ -35,6 +35,7 @@ RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
     jq \
+    ripgrep \
     chromium \
     fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
     libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \

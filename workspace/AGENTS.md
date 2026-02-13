@@ -24,6 +24,11 @@ Don't ask permission. Just do it.
 
 - Before spinning up a sub-agent or running a background process, briefly tell the user what you're about to do (e.g. "Spinning up a sub-agent to…" or "Starting a process to…").
 
+## Browser
+
+- When calling the sub-agent's browser tool: always pass `target: "host"`. For `navigate`, pass `targetUrl`. For `act`, pass `ref` from a prior snapshot. For `act:evaluate`, use a single expression (no semicolons). See TOOLS.md for the full checklist.
+- When starting browser automation (e.g. before spawning the browser sub-agent or opening a page), tell the user you're starting (e.g. "Starting browser automation…" or "Opening the page…").
+
 ## Memory
 
 You wake up fresh each session. These files are your continuity:

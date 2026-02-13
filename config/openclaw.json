@@ -12,8 +12,8 @@
   },
   "browser": {
     "enabled": true,
-    "remoteCdpTimeoutMs": 1500,
-    "remoteCdpHandshakeTimeoutMs": 3000,
+    "remoteCdpTimeoutMs": 5000,
+    "remoteCdpHandshakeTimeoutMs": 8000,
     "defaultProfile": "openclaw",
     "color": "#FF4500",
     "headless": "${HEADLESS}",
@@ -75,6 +75,7 @@
       {
         "id": "search-subagent",
         "name": "Web Search",
+        "workspace": "~/.openclaw/workspace",
         "tools": {
           "allow": [
             "web_search",
@@ -85,6 +86,7 @@
       {
         "id": "browser-automation-subagent",
         "name": "Web Automation",
+        "workspace": "~/.openclaw/workspace",
         "tools": {
           "allow": [
             "browser"
@@ -93,7 +95,8 @@
       },
       {
         "id": "email-subagent",
-        "name": "Email Agent"
+        "name": "Email Agent",
+        "workspace": "~/.openclaw/workspace"
       }
     ]
   },
