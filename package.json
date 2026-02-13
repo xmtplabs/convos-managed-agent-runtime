@@ -1,6 +1,6 @@
 {
-  "name": "convos-agent-runtime",
-  "version": "1.0.0",
+  "name": "convos-managed-agent-runtime",
+  "version": "0.0.1",
   "private": true,
   "engines": { "node": ">=22" },
   "scripts": {
