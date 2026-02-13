@@ -10,6 +10,10 @@
       "allowInsecureAuth": true
     }
   },
+  "logging": {
+    "consoleLevel": "debug",
+    "consoleStyle": "pretty"
+  },
   "browser": {
     "enabled": true,
     "remoteCdpTimeoutMs": 5000,
