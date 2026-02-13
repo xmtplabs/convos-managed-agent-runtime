@@ -3,30 +3,63 @@
     "mode": "local",
     "port": 18789,
     "bind": "loopback",
-    "auth": { "mode": "token" },
-    "controlUi": { "allowInsecureAuth": true }
+    "auth": {
+      "mode": "token"
+    },
+    "controlUi": {
+      "allowInsecureAuth": true
+    }
   },
-  "browser" : {
-      "enabled": true, 
-      "remoteCdpTimeoutMs": 1500, 
-      "remoteCdpHandshakeTimeoutMs": 3000,
-      "defaultProfile": "openclaw",
-      "color": "#FF4500",
-      "headless": "${HEADLESS}",
-      "noSandbox": true,
-      "attachOnly": false,
-      "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-      "profiles": {
-        "openclaw": { "cdpPort": 18800, "color": "#FF4500" },
-        "work": { "cdpPort": 18801, "color": "#0066CC" },
-        "remote": { "cdpUrl": "http://10.0.0.42:9222", "color": "#00AA00" }
+  "logging": {
+    "consoleLevel": "debug",
+    "consoleStyle": "pretty"
+  },
+  "browser": {
+    "enabled": true,
+    "remoteCdpTimeoutMs": 5000,
+    "remoteCdpHandshakeTimeoutMs": 8000,
+    "defaultProfile": "openclaw",
+    "color": "#FF4500",
+    "headless": "${HEADLESS}",
+    "noSandbox": true,
+    "attachOnly": false,
+    "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "profiles": {
+      "openclaw": {
+        "cdpPort": 18800,
+        "color": "#FF4500"
+      },
+      "work": {
+        "cdpPort": 18801,
+        "color": "#0066CC"
+      },
+      "remote": {
+        "cdpUrl": "http://10.0.0.42:9222",
+        "color": "#00AA00"
       }
+    }
   },
   "agents": {
     "defaults": {
       "workspace": "~/.openclaw/workspace",
-      "skipBootstrap": true,
-      "model": { "primary": "${OPENCLAW_PRIMARY_MODEL}" },
+      "sandbox": { "mode": "off" },
+      "model": {
+        "primary": "${OPENCLAW_PRIMARY_MODEL}"
+      },
+      "models": {
+        "openrouter/openai/gpt-5.1-codex-mini": {},
+        "openrouter/perplexity/sonar": {},
+        "openrouter/openai/gpt-5.2-codex": {},
+        "openrouter/anthropic/claude-sonnet-4": {},
+        "openrouter/anthropic/claude-opus-4": {},
+        "openrouter/google/gemini-2.0-flash-exp": {},
+        "openrouter/meta-llama/llama-3.3-70b-instruct": {},
+        "openrouter/deepseek/deepseek-r1": {},
+        "openrouter/qwen/qwen-2.5-72b-instruct": {},
+        "openrouter/openai/gpt-4o": {},
+        "openrouter/openai/gpt-4o-mini": {},
+        "openrouter/mistralai/mistral-large-2411": {}
+      },
       "subagents": {
         "model": "${OPENCLAW_PRIMARY_MODEL}",
         "thinking": "medium",
@@ -38,21 +71,63 @@
       {
         "id": "main-agent",
         "default": true,
-        "name": "Concierge",
-        "subagents": { "allowAgents": ["browser-automation-subagent", "email-subagent"] }
+        "name": "Convos Agent",
+        "tools": {
+          "deny": [
+            "web_search",
+            "web_fetch",
+            "browser",
+            "agentmail"
+          ]
+        },
+        "subagents": {
+          "allowAgents": [
+            "browser-automation-subagent",
+            "email-subagent",
+            "search-subagent"
+          ]
+        }
+      },
+      {
+        "id": "search-subagent",
+        "name": "Web Search",
+        "tools": {
+          "allow": [
+            "web_search",
+            "web_fetch"
+          ]
+        }
       },
       {
         "id": "browser-automation-subagent",
         "name": "Web Automation",
-        "tools": { "allow": ["browser"] }
+        "tools": {
+          "allow": [
+            "browser"
+          ]
+        }
       },
-      { "id": "email-subagent", "name": "Email Agent" }
+      {
+        "id": "email-subagent",
+        "name": "Email Agent",
+        "tools": {
+          "allow": [
+            "agentmail"
+          ]
+        }
+      }
     ]
   },
   "plugins": {
-    "slots": { "memory": "none" },
+    "slots": {
+      "memory": "none"
+    },
     "load": {},
-    "entries": { "convos": { "enabled": true } }
+    "entries": {
+      "convos": {
+        "enabled": true
+      }
+    }
   },
   "skills": {
     "entries": {
@@ -67,17 +142,151 @@
     }
   },
   "channels": {
-    "convos": { "XMTP_ENV": "dev", "enabled": true }
+    "convos": {
+      "XMTP_ENV": "dev",
+      "enabled": true
+    }
   },
   "tools": {
     "deny": [],
-    "exec": { "host": "gateway", "security": "full", "ask": "off" },
+    "exec": {
+      "host": "gateway",
+      "security": "full",
+      "ask": "off"
+    },
     "web": {
       "search": {
-        "provider": "brave",
+        "apiKey": "${OPENROUTER_API_KEY}",
+        "provider": "perplexity",
         "maxResults": 5,
         "timeoutSeconds": 30,
-        "apiKey": "${BRAVE_API_KEY}"
+        "perplexity": {
+          "apiKey": "${OPENROUTER_API_KEY}",
+          "baseUrl": "https://openrouter.ai/api/v1",
+          "model": "perplexity/sonar"
+        }
+      }
+    }
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "openrouter": {
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "apiKey": "${OPENROUTER_API_KEY}",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "openrouter/openai/gpt-5.1-codex-mini",
+            "name": "GPT-5.1 Codex Mini",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 200000
+          },
+          {
+            "id": "openrouter/perplexity/sonar",
+            "name": "Perplexity Sonar",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 128000
+          },
+          {
+            "id": "openrouter/openai/gpt-5.2-codex",
+            "name": "GPT-5.2 Codex",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 200000
+          },
+          {
+            "id": "openrouter/anthropic/claude-sonnet-4",
+            "name": "Claude Sonnet 4",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 200000
+          },
+          {
+            "id": "openrouter/anthropic/claude-opus-4",
+            "name": "Claude Opus 4",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 200000
+          },
+          {
+            "id": "openrouter/google/gemini-2.0-flash-exp",
+            "name": "Gemini 2.0 Flash",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 1048576
+          },
+          {
+            "id": "openrouter/meta-llama/llama-3.3-70b-instruct",
+            "name": "Llama 3.3 70B",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 128000
+          },
+          {
+            "id": "openrouter/deepseek/deepseek-r1",
+            "name": "DeepSeek R1",
+            "reasoning": true,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 64000
+          },
+          {
+            "id": "openrouter/qwen/qwen-2.5-72b-instruct",
+            "name": "Qwen 2.5 72B",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 128000
+          },
+          {
+            "id": "openrouter/openai/gpt-4o",
+            "name": "GPT-4o",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 128000
+          },
+          {
+            "id": "openrouter/openai/gpt-4o-mini",
+            "name": "GPT-4o Mini",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 128000
+          },
+          {
+            "id": "openrouter/mistralai/mistral-large-2411",
+            "name": "Mistral Large",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 128000
+          }
+        ]
       }
     }
   }

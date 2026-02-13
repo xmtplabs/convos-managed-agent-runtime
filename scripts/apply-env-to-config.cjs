@@ -64,4 +64,4 @@ for (const dotPath of booleanPaths) {
 }
 
 fs.writeFileSync(outputPath, JSON.stringify(config, null, 0), "utf8");
-console.log("  config written → " + outputPath);
+console.log("  ⚙️  config      → " + outputPath);

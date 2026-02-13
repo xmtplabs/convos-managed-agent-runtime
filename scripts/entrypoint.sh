@@ -31,21 +31,27 @@ fi
 # agent Brain: seed workspace (AGENTS.md, SOUL.md, TOOLS.md, skills) by version
 # ---------------------------------------------------------------------------
 mkdir -p "$WORKSPACE_DIR"
-PACK_SHIPPED_VER=$(cat "$WORKSPACE_DEFAULTS/.version" 2>/dev/null || echo 0)
-PACK_DEPLOYED_VER=$(cat "$WORKSPACE_DIR/.version" 2>/dev/null || echo 0)
+PACK_SHIPPED_VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "0.0.0")
+PACK_DEPLOYED_VER=$(cat "$WORKSPACE_DIR/.deployed-version" 2>/dev/null || echo "0.0.0")
+NEED_UPGRADE=false
+if [ "$PACK_SHIPPED_VER" != "$PACK_DEPLOYED_VER" ]; then
+  HIGHER=$(printf '%s\n%s' "$PACK_SHIPPED_VER" "$PACK_DEPLOYED_VER" | sort -V | tail -1)
+  [ "$HIGHER" = "$PACK_SHIPPED_VER" ] && NEED_UPGRADE=true
+fi
 
 if [ ! -f "$WORKSPACE_DIR/SOUL.md" ]; then
   echo "[agent] agent Brain: first run, seeding workspace from $WORKSPACE_DEFAULTS → $WORKSPACE_DIR"
   cp -r "$WORKSPACE_DEFAULTS/." "$WORKSPACE_DIR/"
+  echo "$PACK_SHIPPED_VER" > "$WORKSPACE_DIR/.deployed-version"
 else
-  if [ "$PACK_SHIPPED_VER" -gt "$PACK_DEPLOYED_VER" ] 2>/dev/null; then
+  if [ "$NEED_UPGRADE" = true ]; then
     echo "[agent] agent Brain: v$PACK_DEPLOYED_VER → v$PACK_SHIPPED_VER, updating behavior files"
     for f in SOUL.md AGENTS.md IDENTITY.md TOOLS.md; do
       [ -f "$WORKSPACE_DEFAULTS/$f" ] && cp "$WORKSPACE_DEFAULTS/$f" "$WORKSPACE_DIR/$f"
     done
     [ -d "$WORKSPACE_DEFAULTS/skills" ] && cp -r "$WORKSPACE_DEFAULTS/skills" "$WORKSPACE_DIR/"
     [ -d "$WORKSPACE_DEFAULTS/memory" ] && mkdir -p "$WORKSPACE_DIR/memory" && [ -f "$WORKSPACE_DEFAULTS/memory/.gitkeep" ] && cp "$WORKSPACE_DEFAULTS/memory/.gitkeep" "$WORKSPACE_DIR/memory/"
-    [ -f "$WORKSPACE_DEFAULTS/.version" ] && cp "$WORKSPACE_DEFAULTS/.version" "$WORKSPACE_DIR/.version"
+    echo "$PACK_SHIPPED_VER" > "$WORKSPACE_DIR/.deployed-version"
     echo "[agent] agent Brain: updated SOUL.md AGENTS.md IDENTITY.md TOOLS.md and skills/"
   else
     echo "[agent] agent Brain: workspace up to date (v$PACK_DEPLOYED_VER)"
@@ -53,14 +59,11 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Gateway token and setup password (default "test" for dev)
+# Gateway token and setup password
 # ---------------------------------------------------------------------------
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
   TOKEN="$OPENCLAW_GATEWAY_TOKEN"
   echo "[agent] Token from OPENCLAW_GATEWAY_TOKEN"
-elif [ -n "$OPENCLAW_ENTRY" ]; then
-  TOKEN="test"
-  echo "[agent] Token: test (dev)"
 elif [ -f "$STATE_DIR/gateway.token" ]; then
   TOKEN=$(cat "$STATE_DIR/gateway.token")
   echo "[agent] Token from gateway.token"
@@ -72,7 +75,7 @@ else
   echo "[agent] Token generated"
 fi
 export OPENCLAW_GATEWAY_TOKEN="$TOKEN"
-export SETUP_password="${SETUP_password:-test}"
+export SETUP_password="${SETUP_password:-$SETUP_PASSWORD}"
 
 # ---------------------------------------------------------------------------
 # Runtime: patch tenant config (port, bind, token) and load runtime plugin path
@@ -80,6 +83,13 @@ export SETUP_password="${SETUP_password:-test}"
 jq --arg port "$PORT" --arg token "$TOKEN" --arg workspace "$WORKSPACE_DIR" \
   '.gateway.port = ($port | tonumber) | .gateway.bind = "lan" | .gateway.auth = ((.gateway.auth // {}) | .mode = "token" | .token = $token) | .agents.defaults.workspace = $workspace' \
   "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+
+# Verify final config state
+_skip=$(jq -r '.agents.defaults.skipBootstrap // "unset"' "$CONFIG")
+_ws=$(jq -r '.agents.defaults.workspace // "unset"' "$CONFIG")
+_subs=$(jq -r '[.agents.list[]? | "\(.id)(\(.workspace // "inherit"))"] | join(", ")' "$CONFIG")
+echo "[agent] Config verify: skipBootstrap=$_skip workspace=$_ws"
+echo "[agent] Config verify: subagents=$_subs"
 
 # Runtime artifact: custom plugins dir (extensions/convos); bundled plugins from OpenClaw install.
 RUNTIME_PLUGINS_ABS=""
@@ -95,6 +105,13 @@ if [ -n "$OPENCLAW_CUSTOM_PLUGINS_DIR" ] && [ -d "$OPENCLAW_CUSTOM_PLUGINS_DIR" 
 fi
 
 echo "[agent] Runtime: gateway.port=$PORT, gateway.bind=lan"
+
+# ---------------------------------------------------------------------------
+# OpenRouter: create or reuse per-deployment API key (if OPENROUTER_MANAGEMENT_KEY set)
+# ---------------------------------------------------------------------------
+if [ -x "$ROOT/scripts/openrouter-ensure-key.sh" ]; then
+  eval "$(STATE_DIR="$STATE_DIR" OPENCLAW_STATE_DIR="$STATE_DIR" "$ROOT/scripts/openrouter-ensure-key.sh")"
+fi
 
 # ---------------------------------------------------------------------------
 # Skill setup (merge .env keys into skills.entries, etc.)
@@ -124,7 +141,13 @@ if [ -n "$PID" ]; then
   kill -9 $PID 2>/dev/null || true
 fi
 
+# ---------------------------------------------------------------------------
+# Inject runtime version into agent context (AGENTS.md)
+# ---------------------------------------------------------------------------
 agent_VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
+if [ -f "$WORKSPACE_DIR/AGENTS.md" ]; then
+  sed "s/{{VERSION}}/$agent_VER/g" "$WORKSPACE_DIR/AGENTS.md" > "$WORKSPACE_DIR/AGENTS.md.tmp" && mv "$WORKSPACE_DIR/AGENTS.md.tmp" "$WORKSPACE_DIR/AGENTS.md"
+fi
 echo "[agent] agent v$agent_VER"
 echo "[agent] Runtime: starting gateway port=$PORT state_dir=$STATE_DIR"
 echo "[agent] Open (with token): http://127.0.0.1:$PORT/setup/chat?session=main&token=$TOKEN"

@@ -1,9 +1,10 @@
 {
-  "name": "convos-agent-runtime",
-  "version": "1.0.0",
+  "name": "convos-managed-agent-runtime",
+  "version": "0.0.1",
   "private": true,
   "engines": { "node": ">=22" },
   "scripts": {
+    "keys": "./scripts/keys.sh",
     "skill-setup": "./scripts/skill-setup.sh",
     "start": "./scripts/apply-env-to-config.sh && ./scripts/entrypoint.sh",
     "upgrade": "./scripts/upgrade-openclaw.sh",

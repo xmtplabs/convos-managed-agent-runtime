@@ -81,6 +81,13 @@
     .form-submit:hover { border-color: #999; }
     .error { color: #c00; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
     .success { color: #080; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+    .confirmation-code {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      margin-top: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -122,8 +129,22 @@
       var messageEl = document.getElementById("message");
       var submitBtn = document.getElementById("submit-btn");
 
-      function showMessage(text, isError) {
-        messageEl.textContent = text || "";
+      function randomConfirmationCode() {
+        return String(Math.floor(10000 + Math.random() * 90000));
+      }
+
+      function showMessage(text, isError, confirmationCode) {
+        messageEl.innerHTML = "";
+        if (text) {
+          messageEl.appendChild(document.createTextNode(text));
+          if (confirmationCode) {
+            var codeEl = document.createElement("span");
+            codeEl.className = "confirmation-code";
+            codeEl.setAttribute("data-confirmation-code", confirmationCode);
+            codeEl.textContent = "Confirmation code: " + confirmationCode;
+            messageEl.appendChild(codeEl);
+          }
+        }
         messageEl.className = isError ? "error" : "success";
         messageEl.style.display = text ? "block" : "none";
       }
@@ -154,7 +175,8 @@
           return;
         }
 
-        showMessage("Submitted.");
+        var code = randomConfirmationCode();
+        showMessage("Submitted.", false, code);
       });
     })();
   </script>

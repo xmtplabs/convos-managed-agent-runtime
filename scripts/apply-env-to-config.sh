@@ -6,8 +6,10 @@ set -e
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 echo ""
-echo "apply  env → config"
-echo "────────────────────"
+echo "  🧠 Uploading brain"
+echo "  ═══════════════════"
+VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
+echo "  📌 version     → v$VER"
 . "$ROOT/scripts/env-load.sh"
 
 # Top-level paths (align with entrypoint: config-defaults in Docker, Railway volume)
@@ -23,7 +25,18 @@ ENV_FILE="${ENV_FILE:-$ROOT/.env}"
 CONFIG_OUTPUT="${CONFIG_OUTPUT:-$CONFIG}"
 
 export TEMPLATE_PATH ENV_FILE CONFIG_OUTPUT
+echo "  📋 template    → $TEMPLATE_PATH"
+echo "  📋 output      → $CONFIG_OUTPUT ($([ -f "$CONFIG_OUTPUT" ] && echo 'overwriting' || echo 'new'))"
 node "$ROOT/scripts/apply-env-to-config.cjs"
+
+# Log key config values for deploy verification
+if [ -f "$CONFIG_OUTPUT" ]; then
+  _skip=$(jq -r '.agents.defaults.skipBootstrap // "unset"' "$CONFIG_OUTPUT")
+  _ws=$(jq -r '.agents.defaults.workspace // "unset"' "$CONFIG_OUTPUT")
+  _subs=$(jq -r '[.agents.list[]? | "\(.id)(\(.workspace // "inherit"))"] | join(", ")' "$CONFIG_OUTPUT")
+  echo "  🔍 verify      → skipBootstrap=$_skip workspace=$_ws"
+  echo "  🔍 subagents   → $_subs"
+fi
 
 # Inject custom plugins path into the output config (mirrors entrypoint.sh)
 PLUGINS_DIR="${OPENCLAW_CUSTOM_PLUGINS_DIR:-$ROOT/extensions}"
@@ -32,13 +45,13 @@ if [ -d "$PLUGINS_DIR" ]; then
   jq --arg d "$PLUGINS_ABS" \
     '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = (([$d] + (.paths // [])))))' \
     "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
-  echo "  plugins path → $PLUGINS_ABS"
+  echo "  🔌 plugins     → $PLUGINS_ABS"
 fi
 
 if [ -n "$CHROMIUM_PATH" ]; then
   jq --arg p "$CHROMIUM_PATH" '.browser.executablePath = $p | .browser.headless = true' \
     "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
-  echo "  browser       → executablePath=$CHROMIUM_PATH headless=true"
+  echo "  🌐 browser     → executablePath=$CHROMIUM_PATH headless=true"
 fi
 
 # Replace workspace skills with repo skills (full replace, no merge)
@@ -58,7 +71,7 @@ if [ -n "$SOURCE_SKILLS" ]; then
     cp -r "$d" "$WORKSPACE_DIR/skills/"
   done
   names="$(ls -1 "$WORKSPACE_DIR/skills" 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
-  [ -n "$names" ] && echo "  skills         → $names (replaced)"
+  [ -n "$names" ] && echo "  🎯 skills      → $names (replaced)"
 fi
 
 # Repo workspace path (for both copy and config)
@@ -73,15 +86,27 @@ fi
 # Copy bootstrap .md files from repo workspace into state workspace
 if [ -n "$REPO_WORKSPACE" ]; then
   mkdir -p "$WORKSPACE_DIR"
-  md_copied=""
-  for f in AGENTS.md SOUL.md USER.md IDENTITY.md TOOLS.md HEARTBEAT.md BOOT.md BOOTSTRAP.md; do
-    if [ -f "$REPO_WORKSPACE/$f" ]; then
-      cp "$REPO_WORKSPACE/$f" "$WORKSPACE_DIR/$f"
-      md_copied="${md_copied:+$md_copied, }$f"
+  first=1
+  for f in "$REPO_WORKSPACE"/*.md; do
+    [ -f "$f" ] || continue
+    fname=$(basename "$f")
+    cp "$f" "$WORKSPACE_DIR/$fname"
+    if [ "$first" = 1 ]; then
+      echo "  📄 bootstrap   →"
+      first=0
     fi
+    echo "      $fname"
   done
-  [ -n "$md_copied" ] && echo "  bootstrap .md → $md_copied"
 fi
+
+# Inject version into AGENTS.md (state workspace and repo workspace when use_repo)
+_agents_list="$WORKSPACE_DIR/AGENTS.md"
+[ -n "$REPO_WORKSPACE" ] && _agents_list="$_agents_list $REPO_WORKSPACE/AGENTS.md"
+for ag in $_agents_list; do
+  [ -f "$ag" ] || continue
+  sed "s/{{VERSION}}/$VER/g" "$ag" > "$ag.tmp" && mv "$ag.tmp" "$ag"
+done
+[ -f "$WORKSPACE_DIR/AGENTS.md" ] || [ -f "${REPO_WORKSPACE:-}/AGENTS.md" ] && echo "  📌 AGENTS.md    → {{VERSION}} → v$VER"
 
 # Point config at repo workspace so OpenClaw loads those .md files
 use_repo="${OPENCLAW_USE_REPO_WORKSPACE:-1}"
@@ -89,7 +114,8 @@ if [ "$use_repo" = "1" ] || [ "$use_repo" = "true" ] || [ "$use_repo" = "yes" ];
   if [ -d "$REPO_WORKSPACE" ]; then
     jq --arg w "$REPO_WORKSPACE" '.agents.defaults.workspace = $w' \
       "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
-    echo "  workspace     → $REPO_WORKSPACE"
+    echo "  📂 workspace   → $REPO_WORKSPACE"
   fi
 fi
+echo "  ✨ done"
 echo ""

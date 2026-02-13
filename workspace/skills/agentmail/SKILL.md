@@ -12,11 +12,7 @@ description: |
 
 IMPORTANT: Always use the pre-built scripts below. Do NOT import or use the agentmail SDK directly. Just run the scripts with `node`.
 
-Installation
-
-```bash
-npm install agentmail
-```
+**Runtime:** `agentmail` is installed at app root (not in the workspace). Start the gateway via the project entrypoint (e.g. `pnpm dev` or `./scripts/entrypoint.sh`), or set `NODE_PATH` to the app's `node_modules`, so `node skills/agentmail/scripts/...` can resolve the package.
 
 # Setup
 
