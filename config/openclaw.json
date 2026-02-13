@@ -135,6 +135,7 @@
     },
     "web": {
       "search": {
+        "apiKey": "${OPENROUTER_API_KEY}",
         "provider": "perplexity",
         "maxResults": 5,
         "timeoutSeconds": 30,
