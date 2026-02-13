@@ -13,5 +13,5 @@ if [ -f "$ROOT/.env" ]; then
   [ -n "$_save_setup" ] && export SETUP_PASSWORD="$_save_setup"
   unset _save_token _save_setup
   count="$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ROOT/.env" 2>/dev/null || echo 0)"
-  echo "  .env loaded ($count vars)"
+  echo "  📦 .env loaded ($count vars)"
 fi

@@ -6,8 +6,8 @@ set -e
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 echo ""
-echo "apply  env → config"
-echo "────────────────────"
+echo "  🧠 Uploading brain"
+echo "  ═══════════════════"
 . "$ROOT/scripts/env-load.sh"
 
 # Top-level paths (align with entrypoint: config-defaults in Docker, Railway volume)
@@ -32,13 +32,13 @@ if [ -d "$PLUGINS_DIR" ]; then
   jq --arg d "$PLUGINS_ABS" \
     '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = (([$d] + (.paths // [])))))' \
     "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
-  echo "  plugins path → $PLUGINS_ABS"
+  echo "  🔌 plugins     → $PLUGINS_ABS"
 fi
 
 if [ -n "$CHROMIUM_PATH" ]; then
   jq --arg p "$CHROMIUM_PATH" '.browser.executablePath = $p | .browser.headless = true' \
     "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
-  echo "  browser       → executablePath=$CHROMIUM_PATH headless=true"
+  echo "  🌐 browser     → executablePath=$CHROMIUM_PATH headless=true"
 fi
 
 # Replace workspace skills with repo skills (full replace, no merge)
@@ -58,7 +58,7 @@ if [ -n "$SOURCE_SKILLS" ]; then
     cp -r "$d" "$WORKSPACE_DIR/skills/"
   done
   names="$(ls -1 "$WORKSPACE_DIR/skills" 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
-  [ -n "$names" ] && echo "  skills         → $names (replaced)"
+  [ -n "$names" ] && echo "  🎯 skills      → $names (replaced)"
 fi
 
 # Repo workspace path (for both copy and config)
@@ -80,7 +80,7 @@ if [ -n "$REPO_WORKSPACE" ]; then
       md_copied="${md_copied:+$md_copied, }$f"
     fi
   done
-  [ -n "$md_copied" ] && echo "  bootstrap .md → $md_copied"
+  [ -n "$md_copied" ] && echo "  📄 bootstrap   → $md_copied"
 fi
 
 # Point config at repo workspace so OpenClaw loads those .md files
@@ -89,7 +89,8 @@ if [ "$use_repo" = "1" ] || [ "$use_repo" = "true" ] || [ "$use_repo" = "yes" ];
   if [ -d "$REPO_WORKSPACE" ]; then
     jq --arg w "$REPO_WORKSPACE" '.agents.defaults.workspace = $w' \
       "$CONFIG_OUTPUT" > "$CONFIG_OUTPUT.tmp" && mv "$CONFIG_OUTPUT.tmp" "$CONFIG_OUTPUT"
-    echo "  workspace     → $REPO_WORKSPACE"
+    echo "  📂 workspace   → $REPO_WORKSPACE"
   fi
 fi
+echo "  ✨ done"
 echo ""
