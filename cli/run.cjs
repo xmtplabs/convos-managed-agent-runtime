@@ -8,7 +8,7 @@ function runScript(scriptName, envOverrides = {}) {
   const env = { ...getEnv(), ...envOverrides };
   const out = spawnSync("sh", [scriptPath], {
     cwd: root,
-    env: { ...process.env, ...env },
+    env,
     stdio: "inherit",
   });
   if (out.status !== 0) {

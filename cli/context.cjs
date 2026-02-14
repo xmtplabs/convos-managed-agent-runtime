@@ -4,33 +4,31 @@ const os = require("os");
 const root = path.resolve(__dirname, "..");
 require("dotenv").config({ path: path.join(root, ".env") });
 
+const stateDir =
+  process.env.OPENCLAW_STATE_DIR ||
+  process.env.RAILWAY_VOLUME_MOUNT_PATH ||
+  path.join(os.homedir(), ".openclaw");
+const configPath = path.join(stateDir, "openclaw.json");
+const workspaceDir =
+  process.env.OPENCLAW_WORKSPACE_DIR || path.join(stateDir, "workspace");
+
 function getRoot() {
   return root;
 }
 
 function getStateDir() {
-  return (
-    process.env.OPENCLAW_STATE_DIR ||
-    process.env.RAILWAY_VOLUME_MOUNT_PATH ||
-    path.join(os.homedir(), ".openclaw")
-  );
+  return stateDir;
 }
 
 function getConfigPath() {
-  return path.join(getStateDir(), "openclaw.json");
+  return configPath;
 }
 
 function getWorkspaceDir() {
-  return (
-    process.env.OPENCLAW_WORKSPACE_DIR ||
-    path.join(getStateDir(), "workspace")
-  );
+  return workspaceDir;
 }
 
 function getEnv() {
-  const stateDir = getStateDir();
-  const workspaceDir = getWorkspaceDir();
-  const configPath = getConfigPath();
   return {
     ...process.env,
     ROOT: root,

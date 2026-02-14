@@ -1,46 +1,42 @@
 #!/usr/bin/env node
 const { Command } = require("commander");
 const { runScript } = require("./run.cjs");
+const { runCheck } = require("./check-paths.cjs");
 
 const program = new Command();
 
 program
   .name("convos")
-  .description("Local CLI for convos-concierge: keys, config, gateway, upgrade")
+  .description("Local CLI for convos-concierge: key-provision, apply-config, gateway run")
   .version(require("../package.json").version);
 
 program
-  .command("keys")
+  .command("check")
+  .description("Log root, workspace, state dir, config and openclaw paths")
+  .action(runCheck);
+
+program
+  .command("key-provision")
   .description("Generate OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD; create or reuse OpenRouter key and write .env")
   .action(() => runScript("keys.sh"));
 
 program
-  .command("apply")
+  .command("apply-config")
   .description("Apply .env to config template, copy skills and workspace bootstrap files")
   .action(() => runScript("apply-config.sh"));
 
 program
-  .command("gateway")
+  .command("gateway run")
   .description("Start the gateway")
   .action(() => runScript("gateway.sh"));
 
 program
   .command("start")
-  .description("Apply config then start the gateway (apply + gateway)")
+  .description("Apply config then start the gateway (apply-config + gateway run)")
   .action(() => {
     runScript("apply-config.sh");
     runScript("gateway.sh");
   });
-
-program
-  .command("dev")
-  .description("Start gateway (uses ./extensions from repo root)")
-  .action(() => runScript("gateway.sh"));
-
-program
-  .command("upgrade")
-  .description("Clone or pull openclaw repo and build (for local openclaw development)")
-  .action(() => runScript("upgrade-openclaw.sh"));
 
 if (process.argv.length <= 2) {
   program.outputHelp();
