@@ -13,5 +13,12 @@ for subdir in workspace skills extensions landing; do
     rm -rf "${STATE_DIR:?}/$subdir"/*
     cp -r "$RUNTIME_DIR/$subdir/"* "$STATE_DIR/$subdir/" 2>/dev/null || true
   fi
-  echo "  $subdir → $STATE_DIR/$subdir"
+  case "$subdir" in
+    workspace)  emoji="📁" ;;
+    skills)      emoji="🎯" ;;
+    extensions)  emoji="🔌" ;;
+    landing)     emoji="🌐" ;;
+    *)           emoji="" ;;
+  esac
+  echo "  $emoji $subdir → $STATE_DIR/$subdir"
 done
