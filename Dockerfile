@@ -57,12 +57,11 @@ COPY skills /app/skills
 COPY extensions /app/extensions
 COPY landing /app/landing
 COPY cli ./cli
-COPY scripts ./scripts
-RUN chmod +x /app/cli/scripts/*.sh /app/scripts/*.sh
+RUN chmod +x /app/cli/scripts/*.sh
 
 # Install extension/skill deps in state dir (/app)
 ENV HUSKY=0
-RUN OPENCLAW_STATE_DIR=/app NODE_ENV=development /app/scripts/install-state-deps.sh
+RUN OPENCLAW_STATE_DIR=/app NODE_ENV=development pnpm run install-state-deps
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_PUBLIC_PORT=8080
