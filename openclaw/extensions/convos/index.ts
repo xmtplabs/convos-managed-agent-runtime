@@ -554,7 +554,18 @@ const plugin = {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
         }
-        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8");
+        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/landing/",
+      handler: async (req, res) => {
+        if (req.method !== "GET") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
       },
     });
 

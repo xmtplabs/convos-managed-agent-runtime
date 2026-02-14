@@ -1,5 +1,6 @@
 # Node
 node_modules
+extensions/*/node_modules
 .yarn
 npm-debug.log*
 

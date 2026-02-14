@@ -1,5 +1,5 @@
 #!/bin/sh
-# 1. Replace workspace files. 2. Replace skills folder. 3. Substitute .env into JSON and write config.
+# 1. Sync workspace, skills, extensions, landing. 2. Copy config template to state dir (OpenClaw substitutes ${VAR} at load from env).
 set -e
 
 . "$(dirname "$0")/lib/init.sh"
@@ -9,16 +9,11 @@ echo ""
 echo "  🧠 Uploading brain"
 echo "  ═══════════════════"
 
-. "$ROOT/cli/scripts/lib/sync-workspace.sh"
-. "$ROOT/cli/scripts/lib/sync-skills.sh"
+. "$ROOT/cli/scripts/lib/sync-openclaw.sh"
 
-export TEMPLATE_PATH="$ROOT/openclaw.json"
-export ENV_FILE="$ROOT/.env"
-export CONFIG_OUTPUT="$CONFIG"
-node "$ROOT/cli/scripts/apply-config.cjs"
-
-. "$ROOT/cli/scripts/lib/config-inject-extensions.sh"
-[ -d "$ROOT/extensions" ] && echo "  🔌 extensions  → $(cd "$ROOT/extensions" && pwd)"
+mkdir -p "$STATE_DIR"
+cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
+echo "  ⚙️  config      → $CONFIG"
 
 echo "  ✨ done"
 echo ""
