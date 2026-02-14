@@ -30,7 +30,7 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** Custom extensions live under `extensions/` and need their own node_modules (zod, @xmtp/agent-sdk, etc.). OpenClaw loads from that dir, so "Cannot find module 'zod'" if deps aren't installed there.
 
-**Workaround:** In entrypoint, when `OPENCLAW_CUSTOM_PLUGINS_DIR` is set, run `pnpm install` in each subdir that has a package.json before starting. Uses pnpm (not yarn) to avoid Yarn treating the subdir as part of the root workspace and failing.
+**Workaround:** [scripts/install-extension-deps.sh](scripts/install-extension-deps.sh) runs `pnpm install` (or `npm install`) in each extension subdir that has a package.json. It is invoked by **entrypoint.sh** before starting the gateway and by root **postinstall**, so no manual step is required. Uses pnpm when available to avoid Yarn treating the subdir as part of the root workspace and failing.
 
 ## `pnpm apply` must inject plugins.load.paths (same as entrypoint)
 

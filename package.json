@@ -10,7 +10,8 @@
     "upgrade": "./scripts/upgrade-openclaw.sh",
     "apply": "./scripts/apply-env-to-config.sh",
     "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
-    "dev": "OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh"
+    "dev": "OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh",
+    "postinstall": "sh ./scripts/install-extension-deps.sh"
   },
   "dependencies": { "agentmail": "latest", "openclaw": "latest" },
   "devDependencies": { "ethers": "^6.13.4" },
