@@ -224,7 +224,7 @@
     (function () {
       (function setEnvBadge() {
         var h = window.location.hostname;
-        var isStaging = h === "localhost" || h === "127.0.0.1" || h === "[::1]";
+        var isStaging = h === "localhost" || h === "127.0.0.1" || h === "[::1]" || /\.ngrok(-free)?\.(app|io)/i.test(h);
         var el = document.getElementById("env-badge");
         if (!el) return;
         el.textContent = isStaging ? "Staging" : "Production";
