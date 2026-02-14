@@ -22,7 +22,7 @@ program
 
 program
   .command("apply-config")
-  .description("Apply .env to config template, copy skills and workspace bootstrap files")
+  .description("Sync workspace/skills/extensions and copy config template to state dir")
   .action(() => runScript("apply-config.sh"));
 
 program
