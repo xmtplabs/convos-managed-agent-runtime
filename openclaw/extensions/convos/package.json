@@ -9,6 +9,11 @@
     "ethers": "^6.13.4",
     "zod": "^4.3.6"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "convos-node-sdk"
+    ]
+  },
   "devDependencies": {
     "openclaw": "*"
   },
