@@ -11,7 +11,7 @@
     "gateway": "pnpm run cli -- gateway run",
     "start": "pnpm run cli -- start",
     "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
-    "install-state-deps": "sh ./scripts/install-state-deps.sh"
+    "install-state-deps": "pnpm run cli -- install-state-deps"
   },
   "dependencies": { "openclaw": "latest" },
   "devDependencies": { "commander": "^12.0.0", "dotenv": "^16.4.5", "ethers": "^6.13.4" },
