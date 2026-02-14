@@ -14,6 +14,6 @@
     "postinstall": "sh ./scripts/install-extension-deps.sh"
   },
   "dependencies": { "agentmail": "latest", "openclaw": "latest" },
-  "devDependencies": { "ethers": "^6.13.4" },
+  "devDependencies": { "commander": "^12.0.0", "dotenv": "^16.4.5", "ethers": "^6.13.4" },
   "packageManager": "pnpm@8.7.5+sha1.735d4d0e6fc66c4d2d64b269b08e5995b19230ca"
 }
