@@ -7,7 +7,7 @@ cd "$ROOT"
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
-co
+
 _PATH=""
 [ -d "$STATE_DIR/node_modules" ] && _PATH="$STATE_DIR/node_modules"
 [ -d "$ROOT/node_modules" ] && _PATH="${_PATH:+$_PATH:}$ROOT/node_modules"
