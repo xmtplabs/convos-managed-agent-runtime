@@ -1,7 +1,7 @@
 #!/bin/sh
-# Source this so env vars load in the caller's shell: . scripts/env-load.sh
-# Ensures .env exists, then sources it. Existing env vars are not overwritten (e.g. Railway secrets).
-ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+# Source this so env vars load in the caller's shell: . cli/scripts/env-load.sh
+# ROOT = repo root (parent of cli/).
+ROOT="${ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"
 if [ -f "$ROOT/.env" ]; then
   _save_token="$OPENCLAW_GATEWAY_TOKEN"

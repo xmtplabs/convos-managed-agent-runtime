@@ -1,15 +1,12 @@
 #!/bin/sh
 # Write OPENROUTER_API_KEY + random OPENCLAW_GATEWAY_TOKEN and SETUP_PASSWORD to repo .env.
-# OpenRouter: create via API if OPENROUTER_MANAGEMENT_KEY set; else use existing OPENROUTER_API_KEY.
 set -e
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 ENV_FILE="$ROOT/.env"
 
-# Load .env so OPENROUTER_MANAGEMENT_KEY or OPENROUTER_API_KEY from file are available
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
 
-# Provision 2 random keys for gateway and setup
 gateway_token=$(openssl rand -hex 32)
 setup_password=$(openssl rand -hex 16)
 echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN and SETUP_PASSWORD"

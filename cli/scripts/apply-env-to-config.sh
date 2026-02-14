@@ -1,18 +1,16 @@
 #!/bin/sh
-# Substitute .env vars into config template and write to OpenClaw config.
-# Then copy repo skills into clawdbot workspace (copy-missing-only).
+# Substitute .env vars into config template, copy skills and workspace bootstrap.
 set -e
 
-ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 echo ""
 echo "  🧠 Uploading brain"
 echo "  ═══════════════════"
 VER=$(jq -r .version "$ROOT/package.json" 2>/dev/null || echo "?")
 echo "  📌 version     → v$VER"
-. "$ROOT/scripts/env-load.sh"
+. "$ROOT/cli/scripts/env-load.sh"
 
-# Top-level paths (align with entrypoint: config-defaults in Docker, Railway volume)
 STATE_DIR="${OPENCLAW_STATE_DIR:-${RAILWAY_VOLUME_MOUNT_PATH:-$HOME/.openclaw}}"
 if [ -d "$ROOT/config-defaults" ]; then
   CONFIG_DEFAULTS="${CONFIG_DEFAULTS:-$ROOT/config-defaults}"
@@ -27,9 +25,8 @@ CONFIG_OUTPUT="${CONFIG_OUTPUT:-$CONFIG}"
 export TEMPLATE_PATH ENV_FILE CONFIG_OUTPUT
 echo "  📋 template    → $TEMPLATE_PATH"
 echo "  📋 output      → $CONFIG_OUTPUT ($([ -f "$CONFIG_OUTPUT" ] && echo 'overwriting' || echo 'new'))"
-node "$ROOT/scripts/apply-env-to-config.cjs"
+node "$ROOT/cli/scripts/apply-env-to-config.cjs"
 
-# Log key config values for deploy verification
 if [ -f "$CONFIG_OUTPUT" ]; then
   _skip=$(jq -r '.agents.defaults.skipBootstrap // "unset"' "$CONFIG_OUTPUT")
   _ws=$(jq -r '.agents.defaults.workspace // "unset"' "$CONFIG_OUTPUT")
@@ -38,7 +35,6 @@ if [ -f "$CONFIG_OUTPUT" ]; then
   echo "  🔍 agents      → $_subs"
 fi
 
-# Inject custom plugins path into the output config (mirrors entrypoint.sh)
 PLUGINS_DIR="${OPENCLAW_CUSTOM_PLUGINS_DIR:-$ROOT/extensions}"
 if [ -d "$PLUGINS_DIR" ]; then
   PLUGINS_ABS="$(cd "$PLUGINS_DIR" && pwd)"
@@ -54,9 +50,11 @@ if [ -n "$CHROMIUM_PATH" ]; then
   echo "  🌐 browser     → executablePath=$CHROMIUM_PATH headless=true"
 fi
 
-# Replace workspace skills with repo skills (full replace, no merge)
 WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$STATE_DIR/workspace}"
-if [ -d "$ROOT/workspace/skills" ]; then
+SKILLS_DIR="${OPENCLAW_SKILLS_DIR:-$STATE_DIR/skills}"
+if [ -d "$ROOT/skills" ]; then
+  SOURCE_SKILLS="$ROOT/skills"
+elif [ -d "$ROOT/workspace/skills" ]; then
   SOURCE_SKILLS="$ROOT/workspace/skills"
 elif [ -d "$ROOT/workspace-defaults/skills" ]; then
   SOURCE_SKILLS="$ROOT/workspace-defaults/skills"
@@ -64,17 +62,16 @@ else
   SOURCE_SKILLS=""
 fi
 if [ -n "$SOURCE_SKILLS" ]; then
-  rm -rf "$WORKSPACE_DIR/skills"
-  mkdir -p "$WORKSPACE_DIR/skills"
+  rm -rf "$SKILLS_DIR"
+  mkdir -p "$SKILLS_DIR"
   for d in "$SOURCE_SKILLS"/*; do
     [ -d "$d" ] || continue
-    cp -r "$d" "$WORKSPACE_DIR/skills/"
+    cp -r "$d" "$SKILLS_DIR/"
   done
-  names="$(ls -1 "$WORKSPACE_DIR/skills" 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
+  names="$(ls -1 "$SKILLS_DIR" 2>/dev/null | tr '\n' ',' | sed 's/,$//')"
   [ -n "$names" ] && echo "  🎯 skills      → $names (replaced)"
 fi
 
-# Repo workspace path (for both copy and config)
 if [ -d "$ROOT/workspace-defaults" ]; then
   REPO_WORKSPACE="$(cd "$ROOT/workspace-defaults" && pwd)"
 elif [ -d "$ROOT/workspace" ]; then
@@ -83,7 +80,6 @@ else
   REPO_WORKSPACE=""
 fi
 
-# Copy bootstrap .md files from repo workspace into state workspace
 if [ -n "$REPO_WORKSPACE" ]; then
   mkdir -p "$WORKSPACE_DIR"
   first=1
@@ -99,7 +95,6 @@ if [ -n "$REPO_WORKSPACE" ]; then
   done
 fi
 
-# Inject version into AGENTS.md (state workspace and repo workspace when use_repo)
 _agents_list="$WORKSPACE_DIR/AGENTS.md"
 [ -n "$REPO_WORKSPACE" ] && _agents_list="$_agents_list $REPO_WORKSPACE/AGENTS.md"
 for ag in $_agents_list; do
@@ -108,7 +103,6 @@ for ag in $_agents_list; do
 done
 [ -f "$WORKSPACE_DIR/AGENTS.md" ] || [ -f "${REPO_WORKSPACE:-}/AGENTS.md" ] && echo "  📌 AGENTS.md    → {{VERSION}} → v$VER"
 
-# Point config at repo workspace so OpenClaw loads those .md files
 use_repo="${OPENCLAW_USE_REPO_WORKSPACE:-1}"
 if [ "$use_repo" = "1" ] || [ "$use_repo" = "true" ] || [ "$use_repo" = "yes" ]; then
   if [ -d "$REPO_WORKSPACE" ]; then

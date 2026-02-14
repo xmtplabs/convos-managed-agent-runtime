@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CLAW_DIR="$ROOT/../openclaw"
 OPENCLAW_REPO="https://github.com/openclaw/openclaw.git"
 OPENCLAW_BRANCH="main"

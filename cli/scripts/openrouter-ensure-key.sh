@@ -1,14 +1,12 @@
 #!/bin/sh
-# If OPENROUTER_MANAGEMENT_KEY is set, ensure OPENROUTER_API_KEY is set for this deployment:
-# reuse existing key from STATE_DIR/openrouter.key, or create one via OpenRouter API and persist it.
-# Outputs a single line: export OPENROUTER_API_KEY='...' for eval by the caller. No key in logs.
+# If OPENROUTER_MANAGEMENT_KEY is set, ensure OPENROUTER_API_KEY is set for this deployment.
+# Outputs: export OPENROUTER_API_KEY='...' for eval by the caller.
 set -e
 
 STATE_DIR="${OPENCLAW_STATE_DIR:-$STATE_DIR}"
 KEYFILE="${STATE_DIR}/openrouter.key"
 
 if [ -n "$OPENROUTER_API_KEY" ]; then
-  # Already set (e.g. env); pass through
   printf "export OPENROUTER_API_KEY='%s'\n" "$(echo "$OPENROUTER_API_KEY" | sed "s/'/'\\\\''/g")"
   exit 0
 fi

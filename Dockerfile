@@ -52,11 +52,16 @@ RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
 COPY workspace /app/workspace-defaults
+COPY skills /app/skills
 COPY config /app/config-defaults
 COPY extensions /app/extensions
 COPY landing /app/landing
-COPY scripts ./scripts
-RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/apply-env-to-config.sh /app/scripts/openrouter-ensure-key.sh
+COPY cli ./cli
+RUN chmod +x /app/cli/scripts/*.sh
+
+# State-dir seed: agentmail in state dir so skill scripts resolve from anywhere (no NODE_PATH)
+COPY config/state-dir-package.json /app/state-seed/package.json
+RUN cd /app/state-seed && pnpm install --no-frozen-lockfile && rm -f package-lock.yaml pnpm-lock.yaml
 
 # Install extension deps
 # HUSKY=0 skips husky prepare scripts from GitHub deps
