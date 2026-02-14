@@ -35,6 +35,7 @@ RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
     jq \
+    ripgrep \
     chromium \
     fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
     libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
@@ -48,13 +49,15 @@ WORKDIR /app
 # Install all deps (openclaw now comes from npm via package.json)
 COPY package.json pnpm-lock.yaml /app/
 RUN pnpm install --no-frozen-lockfile
+ENV NODE_PATH=/app/node_modules
 
-COPY workspace /app/workspace-defaults
-COPY config /app/config-defaults
+COPY openclaw.json /app/openclaw.json
+COPY workspace /app/workspace
+COPY skills /app/skills
 COPY extensions /app/extensions
 COPY landing /app/landing
-COPY scripts ./scripts
-RUN chmod +x /app/scripts/entrypoint.sh /app/scripts/apply-env-to-config.sh
+COPY cli ./cli
+RUN chmod +x /app/cli/scripts/*.sh
 
 # Install extension deps
 # HUSKY=0 skips husky prepare scripts from GitHub deps
@@ -67,7 +70,6 @@ RUN set -eux; \
   done
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
-ENV OPENCLAW_CUSTOM_PLUGINS_DIR=/app/extensions
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080

@@ -2,25 +2,25 @@
 
 Documented workarounds so future changes don't break them or duplicate logic.
 
-## Plugin paths must be absolute in config
+## Extension paths must be absolute in config
 
 **Problem:** Writing relative paths (e.g. `./extensions`, `../openclaw/extensions`) into `plugins.load.paths` causes "plugin path not found" — OpenClaw resolves them relative to state/workspace dir (e.g. `~/.openclaw/workspace/extensions`), so the dirs don't exist.
 
-**Workaround:** In [scripts/entrypoint.sh](scripts/entrypoint.sh), resolve both `OPENCLAW_CUSTOM_PLUGINS_DIR` and `OPENCLAW_BUNDLED_PLUGINS_DIR` to absolute paths with `cd "$DIR" && pwd` before passing them to `jq`. The config then stores real paths and validation passes.
+**Workaround:** In [scripts/gateway.sh](scripts/gateway.sh) (and apply-config), resolve `$ROOT/extensions` to an absolute path with `cd "$ROOT/extensions" && pwd` before passing to `jq`. The config then stores a real path and validation passes. No path env vars; state is always `ROOT/.openclaw`.
 
 ## Memory slot: use "none" when memory-core is not present
 
 **Problem:** Default OpenClaw config can set `plugins.slots.memory` to `memory-core`. If that extension isn't shipped (e.g. convos-agent Docker image, or minimal dev setup), config validation fails with "plugin not found: memory-core" (see openclaw/openclaw#8909).
 
-**Workaround:** In [config/openclaw.json](config/openclaw.json), set `plugins.slots.memory` to `"none"` so no memory plugin is required. agent seeds this default so validation never expects memory-core.
+**Workaround:** In [openclaw.json](openclaw.json) at repo root, set `plugins.slots.memory` to `"none"` so no memory extension is required. Entrypoint seeds from this file into `ROOT/.openclaw/openclaw.json`.
 
 ## Custom extensions: additive loading
 
 **Intent:** Add convos (and other custom extensions under `extensions/`) **without** removing OpenClaw's bundled extensions.
 
-**Workaround:** Entrypoint adds only `OPENCLAW_CUSTOM_PLUGINS_DIR` (resolved to absolute) to `plugins.load.paths`. Do **not** add `OPENCLAW_BUNDLED_PLUGINS_DIR` — OpenClaw already discovers bundled plugins from its install path; adding the bundled dir again causes duplicate plugin id warnings for every bundled plugin.
+**Workaround:** Gateway and apply-config.sh add only `$ROOT/extensions` (resolved to absolute) to `plugins.load.paths`. OpenClaw already discovers bundled extensions from its install path; do not add the bundled dir again (duplicate extension id warnings).
 
-## Extension plugin id must match package/manifest
+## Extension id must match package/manifest
 
 **Problem:** If package.json `name` is e.g. `@scope/openclaw-plugin-convos`, OpenClaw derives id `openclaw-plugin-convos`. If openclaw.plugin.json or channel config says `convos`, you get "plugin id mismatch".
 
@@ -30,13 +30,13 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** Custom extensions live under `extensions/` and need their own node_modules (zod, @xmtp/agent-sdk, etc.). OpenClaw loads from that dir, so "Cannot find module 'zod'" if deps aren't installed there.
 
-**Workaround:** In entrypoint, when `OPENCLAW_CUSTOM_PLUGINS_DIR` is set, run `pnpm install` in each subdir that has a package.json before starting. Uses pnpm (not yarn) to avoid Yarn treating the subdir as part of the root workspace and failing.
+**Workaround:** In gateway (or before starting), when `$ROOT/extensions` exists, run `pnpm install` in each subdir that has a package.json. Uses pnpm (not yarn) to avoid Yarn treating the subdir as part of the root workspace and failing.
 
-## `pnpm apply` must inject plugins.load.paths (same as entrypoint)
+## `pnpm apply` must inject plugins.load.paths (same as gateway)
 
-**Problem:** Running `pnpm apply` while the gateway is already running triggers a hot-reload, but the output config has `"plugins": { "load": {} }` with no `paths` array. The gateway cannot find the `convos` plugin and rejects the config: `plugins.entries.convos: plugin not found: convos, channels.convos: unknown channel id: convos`. This happens because only `entrypoint.sh` (used by `pnpm dev`) was injecting `plugins.load.paths` via `jq`; the apply script was not.
+**Problem:** Running `pnpm apply` while the gateway is already running triggers a hot-reload, but the output config can lack `plugins.load.paths`. The gateway cannot find the `convos` extension and rejects the config.
 
-**Workaround:** In [scripts/apply-env-to-config.sh](scripts/apply-env-to-config.sh), after the Node env-substitution step, resolve `OPENCLAW_CUSTOM_PLUGINS_DIR` (defaulting to `$ROOT/extensions`) to an absolute path and use `jq` to merge it into `plugins.load.paths` in the output config — mirroring what `entrypoint.sh` does. This ensures hot-reloads via `pnpm apply` always include the plugin path. If you add new plugin path injection logic to entrypoint.sh, keep apply-env-to-config.sh in sync.
+**Workaround:** In [scripts/apply-config.sh](scripts/apply-config.sh), after step 3 (env substitution), inject `$ROOT/extensions` (resolved to absolute) into `plugins.load.paths` in `ROOT/.openclaw/openclaw.json` via `jq` — same as gateway. This ensures hot-reloads via `pnpm apply` include the extension path. State is always `ROOT/.openclaw`; no path env vars.
 
 ## Registered vs script-based skills: only use `alsoAllow` for registered tools
 
@@ -46,31 +46,43 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes it "unknown" and can cause OpenClaw to ignore the allowlist. Use `tools.allow` only for core tool names (e.g. `browser`).
 
-**Workaround:** In [config/openclaw.json](config/openclaw.json):
+**Workaround:** In [openclaw.json](openclaw.json) (repo root):
 
 1. **`alsoAllow` only for registered skills** — only put skill names in `tools.alsoAllow` if the skill has a `_meta.json`. Never use `tools.allow` for skill names (use it for core tools like `browser`).
 2. **Script-based skills need no tool config** — `agentmail` works via `exec`. The agent's profile must include `exec` access; no `alsoAllow` entry is needed. Env vars are injected via `skills.entries.*.env`.
-3. **Browser** — Web automation uses the native OpenClaw `browser` tool. `browser-automation-subagent` has `tools.allow: ["browser"]`. 
-4. **Per-agent config** — restrict subagent tool access:
-   - `main-agent`: inherits global `full` profile (orchestrator needs everything)
-   - `browser-automation-subagent`: `tools.allow: ["browser"]` only
-   - `email-subagent`: `"messaging"` profile (messaging tools only)
-5. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
+3. **Main agent has full tool access** — browser, agentmail, web_search, web_fetch; no per-agent allow/deny for those.
+4. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
 
-## Skill script paths: use workspace-relative paths (no leading `workspace/`)
+## Skill script paths: repo root `skills/` and `$OPENCLAW_ROOT`
 
-**Problem:** The agent's exec cwd is the **workspace root** (e.g. `~/.openclaw/workspace`). The entrypoint seeds that dir with the **contents** of repo `workspace/` (so layout is `AGENTS.md`, `skills/`, etc.). There is no `workspace/` subfolder inside the seeded dir. If SKILL.md tells the agent to run `node workspace/skills/agentmail/scripts/send-email.mjs`, the path resolves to `.../workspace/workspace/skills/...` → MODULE_NOT_FOUND.
+**Problem:** The agent's exec cwd is the **workspace root** (`ROOT/.openclaw/workspace`). Repo skills at `ROOT/skills` are copied to `ROOT/.openclaw/skills` by gateway and apply-config. If SKILL.md used `workspace/skills/...` the path would resolve incorrectly → MODULE_NOT_FOUND.
 
-**Workaround:** In all skill docs and examples use paths relative to workspace root (e.g. `skills/agentmail/scripts/...`). Never use `workspace/skills/...`.
+**Workaround:** Use `$OPENCLAW_ROOT` (set by gateway) for script paths when invoking from agent: `node $OPENCLAW_ROOT/skills/agentmail/scripts/...`. From state dir `ROOT/.openclaw` you can run `node skills/agentmail/scripts/...` — agentmail resolves from state dir's node_modules (see below).
 
-## agentmail (and other skill deps) require NODE_PATH when running via exec
+## agentmail: available from state dir (out of the box)
 
-**Problem:** The agentmail scripts `import "agentmail"`. The `agentmail` package lives in the **repo** `node_modules` (convos-concierge root), not inside the workspace. When the gateway runs `exec` with cwd = workspace, Node’s module resolution doesn’t see the repo’s node_modules, so `ERR_MODULE_NOT_FOUND` for `agentmail`.
+**Problem:** The agentmail scripts `import "agentmail"`. Node resolves modules by walking up from the script path; skills live under state dir `ROOT/.openclaw/skills`, so state dir must have `node_modules/agentmail`.
 
-**Workaround:** Start the gateway via [scripts/entrypoint.sh](scripts/entrypoint.sh), which sets `NODE_PATH="$ROOT/node_modules"` so exec’d Node processes inherit it and resolve `agentmail`. If you run `openclaw gateway` directly (e.g. from another terminal), set `NODE_PATH` to the repo root’s node_modules or agentmail scripts will fail.
+**Workaround:** In Docker, `NODE_PATH=/app/node_modules` resolves agentmail. Locally, ensure state dir `ROOT/.openclaw` has agentmail (e.g. copy a state-dir package.json and run `pnpm install` there) if you run skill scripts manually without NODE_PATH.
 
 ## openclaw dependency in extension (no workspace)
 
 **Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-agent there is no OpenClaw workspace, so `workspace:*` fails on install.
 
 **Workaround:** In [extensions/convos/package.json](extensions/convos/package.json), use `"openclaw": "*"` so install works; at runtime OpenClaw's loader provides the plugin-sdk. In Docker, [Dockerfile](Dockerfile) sed replaces `"openclaw": "*"` (or `workspace:*`) with `"openclaw": "file:/openclaw"` so the image resolves openclaw from the built /openclaw copy.
+
+## Browser on Railway / headless (target + targetUrl)
+
+**Problem:** On Railway (or when `CHROMIUM_PATH` is set / headless), the browser tool can fail with "Sandbox browser is unavailable", "targetUrl required", or "Can't reach the OpenClaw browser control service (Error: fields are required)". The model may call the browser tool with incomplete params.
+
+**Workaround (instructions):** In [workspace/TOOLS.md](workspace/TOOLS.md), a callout under the Browser bullet instructs: in headless/cloud use `target: "host"`; for action `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`). Do not remove or shorten this callout — it fixes "targetUrl required" and "fields are required" errors (see [.cursor/plans/browser_failures_on_railway.plan.md](.cursor/plans/browser_failures_on_railway.plan.md)).
+
+**Workaround (CDP timeouts):** Chrome cold-start can exceed the default CDP timeout, causing "tab not found". In [openclaw.json](openclaw.json), `remoteCdpTimeoutMs` is set to `5000` and `remoteCdpHandshakeTimeoutMs` to `8000` (up from 1500/3000). Do not lower these — they prevent race conditions when Chrome is starting up.
+
+## Control UI / webchat: replies only after refresh
+
+**Problem:** In the Control UI (webchat), agent replies sometimes do not appear until the page is refreshed. The gateway run completes (logs show `run_completed`, `run done`), but the client does not receive or render the reply over the live connection.
+
+**Workaround:** Refresh the page to load the latest session state and see the reply. This is a known limitation in the OpenClaw core webchat/Control UI delivery path (gateway → WebSocket → client); fixing it requires changes in the main OpenClaw repo, not in this extension repo.
+
+**Config:** [openclaw.json](openclaw.json) sets `agents.defaults.blockStreamingDefault: "on"` so the gateway sends reply blocks as they are ready; some clients may need this to update the UI. If the issue persists, the fix must be in core (session key resolution, WebSocket event delivery, or Control UI subscription).

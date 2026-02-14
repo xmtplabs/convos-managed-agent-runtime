@@ -1,17 +1,18 @@
 {
-  "name": "convos-agent-runtime",
-  "version": "1.0.0",
+  "name": "convos-managed-agent-runtime",
+  "version": "0.0.1",
   "private": true,
   "engines": { "node": ">=22" },
   "scripts": {
-    "skill-setup": "./scripts/skill-setup.sh",
-    "start": "./scripts/apply-env-to-config.sh && ./scripts/entrypoint.sh",
-    "upgrade": "./scripts/upgrade-openclaw.sh",
-    "apply": "./scripts/apply-env-to-config.sh",
-    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
-    "dev": "OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions ./scripts/entrypoint.sh"
+    "cli": "node cli/index.cjs",
+    "check": "pnpm run cli -- check",
+    "key-provision": "pnpm run cli -- key-provision",
+    "apply-config": "pnpm run cli -- apply-config",
+    "gateway": "pnpm run cli -- gateway run",
+    "start": "pnpm run cli -- start",
+    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app"
   },
   "dependencies": { "agentmail": "latest", "openclaw": "latest" },
-  "devDependencies": { "ethers": "^6.13.4" },
+  "devDependencies": { "commander": "^12.0.0", "dotenv": "^16.4.5", "ethers": "^6.13.4" },
   "packageManager": "pnpm@8.7.5+sha1.735d4d0e6fc66c4d2d64b269b08e5995b19230ca"
 }
