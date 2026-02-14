@@ -53,11 +53,11 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 3. **Main agent has full tool access** — browser, agentmail, web_search, web_fetch; no per-agent allow/deny for those.
 4. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
 
-## Skill script paths: repo root `skills/` and `$OPENCLAW_ROOT`
+## Skill script paths: use `$OPENCLAW_STATE_DIR`, never bare `skills/`
 
-**Problem:** The agent's exec cwd is the **workspace root** (`ROOT/.openclaw/workspace`). Repo skills at `ROOT/skills` are copied to `ROOT/.openclaw/skills` by gateway and apply-config. If SKILL.md used `workspace/skills/...` the path would resolve incorrectly → MODULE_NOT_FOUND.
+**Problem:** The agent's exec cwd is the **workspace root**. Skills are synced to the state dir (`ROOT/.openclaw/skills` or `~/.openclaw/skills`), not under repo/workspace root. Running `node skills/agentmail/scripts/...` resolves to repo/skills/... → MODULE_NOT_FOUND.
 
-**Workaround:** Use `$OPENCLAW_ROOT` (set by gateway) for script paths when invoking from agent: `node $OPENCLAW_ROOT/skills/agentmail/scripts/...`. From state dir `ROOT/.openclaw` you can run `node skills/agentmail/scripts/...` — agentmail resolves from state dir's node_modules (see below).
+**Workaround:** Use `$OPENCLAW_STATE_DIR` (set by gateway when started via scripts/gateway.sh or .env) for script paths: `node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/<script>.mjs ...`. Never use `$OPENCLAW_ROOT/skills/...` (repo root has no top-level skills/) or bare `skills/...`. SKILL.md and TOOLS.md state this so the agent gets the right path.
 
 ## agentmail: installed in state dir
 

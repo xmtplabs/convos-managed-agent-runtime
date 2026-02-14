@@ -1,8 +1,10 @@
 {
   "name": "convos-managed-agent-runtime",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "cli": "node cli/index.cjs",
     "check": "pnpm run cli -- check",
@@ -11,9 +13,15 @@
     "gateway": "pnpm run cli -- gateway run",
     "start": "pnpm run cli -- start",
     "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
-    "install-state-deps": "sh ./scripts/install-state-deps.sh"
+    "install-state-deps": "pnpm run cli -- install-state-deps"
   },
-  "dependencies": { "openclaw": "latest" },
-  "devDependencies": { "commander": "^12.0.0", "dotenv": "^16.4.5", "ethers": "^6.13.4" },
+  "dependencies": {
+    "openclaw": "latest",
+    "commander": "^12.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "ethers": "^6.13.4"
+  },
   "packageManager": "pnpm@8.7.5+sha1.735d4d0e6fc66c4d2d64b269b08e5995b19230ca"
 }

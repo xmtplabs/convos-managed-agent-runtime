@@ -22,7 +22,7 @@ program
 
 program
   .command("apply-config")
-  .description("Apply .env to config template, copy skills and workspace bootstrap files")
+  .description("Sync workspace/skills/extensions and copy config template to state dir")
   .action(() => runScript("apply-config.sh"));
 
 program
@@ -37,9 +37,10 @@ program
 
 program
   .command("start")
-  .description("Apply config then start the gateway (apply-config + gateway run)")
+  .description("Apply config, install extension deps, then start the gateway")
   .action(() => {
     runScript("apply-config.sh");
+    runScript("install-state-deps.sh");
     runScript("gateway.sh");
   });
 

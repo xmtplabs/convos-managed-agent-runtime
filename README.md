@@ -1,62 +1,114 @@
 # convos-managed-agent-runtime
 
-Managed runtime that runs the **OpenClaw** gateway with a **Convos (XMTP)** channel plugin and a single main agent. Thin wrapper: config + entrypoint + one custom extension.
+OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config.
 
-## Core stack
+## Stack
 
-- **OpenClaw** (`openclaw` npm) — gateway, agents, sessions, tools.
-- **Convos extension** — OpenClaw plugin adding the **Convós** channel (XMTP-based, E2E encrypted).
-- **Agentmail** — optional skill dependency (email) used from the workspace.
+- **OpenClaw** — gateway, agents, sessions, tools
+- **Convos extension** — XMTP channel plugin (DMs, groups)
 
-## Repo layout
+## Architecture
 
-| Area | Purpose |
-|------|--------|
-| **`config/`** | Default `openclaw.json` template (gateway, agents, channels, models). Env vars like `${OPENCLAW_PRIMARY_MODEL}` are applied at runtime. |
-| **`workspace/`** | Agent “brain”: `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOT.md`, plus **`workspace/skills/`** (e.g. agentmail). Seeded/copied into the runtime workspace by entrypoint and apply script. |
-| **`extensions/convos/`** | The only custom plugin: Convos channel + setup/reset RPC and slash commands. |
-| **`scripts/`** | Bootstrap: env load, config apply, entrypoint, upgrade, skill-setup, OpenRouter key, install-state-deps. |
-| **`cli/`** | Optional CLI/helpers (e.g. `sync-extensions.sh`). |
-| **`landing/`** | Static landing/form HTML. |
+**Convos extension** — Plugin that registers the XMTP channel with OpenClaw. Handles DMs and groups, message send/receive, and session routing. Lives under `openclaw/extensions/convos`; synced into `~/.openclaw/extensions` at apply time. No core OpenClaw changes.
 
-## Runtime flow (entrypoint)
+**Agentmail skill** — Skill that teaches the agent to send email and calendar invites (and poll inbox) via AgentMail scripts. Requires `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID`. Scripts live in the skill dir; agent invokes them with `exec` (e.g. `send-email.mjs`, `poll-inbox.mjs`).
 
-1. **Env** — `scripts/env-load.sh` (e.g. `.env`).
-2. **Tenant overlay** — If missing, copy `config/openclaw.json` → `OPENCLAW_STATE_DIR/openclaw.json`.
-3. **Agent brain** — Ensure workspace dir exists; on first run or version bump, copy/update `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `workspace/skills/` from repo into that workspace; write `.deployed-version`.
-4. **Gateway token** — From `OPENCLAW_GATEWAY_TOKEN`, or `gateway.token` file, or generate and persist.
-5. **Config patch** — jq: set `gateway.port`, `gateway.bind=lan`, auth token, `agents.defaults.workspace`.
-6. **Plugins** — Inject `plugins.load.paths` so OpenClaw loads `extensions/`. Run `install-state-deps` to install extension/skill deps in the state dir.
-7. **OpenRouter** — Optional: `openrouter-ensure-key.sh` for per-deploy API key.
-8. **Skill setup** — `skill-setup.sh` (e.g. merge env into `skills.entries`).
-9. **Start** — `openclaw gateway run` on the chosen port with token auth.
+**Browser automation** — OpenClaw’s built-in browser tool. Locally, config can set `browser.executablePath` (e.g. Chrome). In Docker/Railway, image sets `CHROMIUM_PATH` and installs Chromium + deps; use `target: "host"` and pass `targetUrl` for headless. Workspace TOOLS.md guides when to use browser vs web_search vs agentmail.
 
-`apply-env-to-config.sh` (and `.cjs`) does env→config substitution, plugin path injection, optional Chromium path, and can sync workspace bootstrap + skills from repo and set `agents.defaults.workspace` to the repo workspace when `OPENCLAW_USE_REPO_WORKSPACE` is set.
+**Positioning workflow (1pool)** — Infra deploys a current OpenClaw branch, runs provisioning scripts (extensions, workspace files, provider keys), then runs the live agent. Mermaid below.
 
-## Convos extension (`extensions/convos/`)
+```mermaid
+flowchart LR
+  subgraph 1pool["1pool infrastructure"]
+    A[deploy up-to-date<br/>openclaw branch]
+    B[run scripts: provision<br/>extension, workspace files]
+    C[provision provider keys]
+    D[live agent]
+    A --> B --> C --> D
+  end
+```
 
-- **Plugin entry:** `index.ts` — registers channel, gateway methods, and setup lifecycle.
-- **Channel:** `src/channel.ts` — Convos as OpenClaw channel plugin: routing, inbound pipeline, outbound delivery, capabilities (groups, reactions; no threads/media), onboarding adapter.
-- **XMTP/Convos:** `sdk-client.ts`, `outbound.ts`, `lib/convos-client.ts`, `lib/identity.ts`, `lib/identity-store.ts` — client lifecycle, send/receive, identity and DB path.
-- **Config & accounts:** `accounts.ts`, `config-schema.ts`, `config-types.ts` — `channels.convos.accounts`, resolve account, default account.
-- **Setup:** `setup.ts`, `onboarding.ts` — invite-based setup, join flow; `index.ts` holds setup agent and gateway methods: `convos.setup`, `convos.setup.status`, `convos.setup.complete`, `convos.setup.cancel`, `convos.reset`.
-- **Commands:** `convos-commands.ts` — slash commands (e.g. invite creation) registered with OpenClaw.
-- **Actions:** `actions.ts` — Convos message actions (e.g. react).
+1pool infrastructure (positioning workflow):
 
-**No core OpenClaw code is modified;** everything lives in the plugin.
+1. **Deploy** — Up-to-date branch of OpenClaw (e.g. npm `openclaw` or build from repo).
+2. **Provision** — Scripts sync extension(s), workspace files, skills, landing into state dir; apply-config writes config from template + env.
+3. **Keys** — key-provision (or env) sets gateway token, wallet, OpenRouter/AgentMail/etc. keys.
+4. **Live agent** — Gateway starts; Convos connects XMTP; agent runs with full tools (browser, agentmail, web_search, etc.).
 
-## Agent model
+## Layout
 
-- Single main agent (`agents.list`: one default, id e.g. `main-agent`) with workspace and tool policy (e.g. deny `web_search`, `web_fetch`, `browser`, `agentmail` as configured).
-- Optional subagents in config; routing is channel/account-based.
-- Models: OpenRouter-backed; primary and list come from config (env-substituted).
+Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at apply time:
 
-## Deployment / Docker
+| Path | Contents |
+|------|----------|
+| `openclaw/workspace` | AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md |
+| `openclaw/skills` | agentmail (email skill) |
+| `openclaw/extensions` | convos (XMTP channel plugin) |
+| `openclaw/landing` | landing.html, form.html, sw.js, manifest, icon |
+| `openclaw/openclaw.json` | Config template (env-substituted → `~/.openclaw/openclaw.json`) |
+| `cli/` | apply-config, gateway, install-state-deps scripts |
 
-- **Dockerfile** — Builds an image that can use `config-defaults` / `workspace-defaults` instead of `config/` and `workspace/` for tenant-specific or image-default content.
-- **State:** `OPENCLAW_STATE_DIR` (or e.g. `RAILWAY_VOLUME_MOUNT_PATH`) holds config, workspace copy, gateway token, and Convos/XMTP state (identity, DB).
-- **Port:** `OPENCLAW_PUBLIC_PORT` or `PORT` (default 18789); gateway bound to `0.0.0.0` in entrypoint.
+## Repo structure
 
----
+```
+.
+├── cli/
+│   ├── index.cjs              # CLI entry (key-provision, apply-config, gateway, start)
+│   ├── run.cjs, check-paths.cjs, context.cjs
+│   └── scripts/
+│       ├── apply-config.sh    # Sync openclaw/ → state dir, copy config
+│       ├── gateway.sh         # Start OpenClaw gateway
+│       ├── install-state-deps.sh
+│       ├── keys.sh            # key-provision
+│       ├── openrouter-ensure-key.sh
+│       └── lib/               # init, env-load, sync-openclaw, config-inject-extensions
+├── openclaw/
+│   ├── openclaw.json          # Config template (env vars substituted at load)
+│   ├── workspace/             # → ~/.openclaw/workspace
+│   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md
+│   │   └── memory/
+│   ├── skills/
+│   │   └── agentmail/         # SKILL.md, scripts/*.mjs, references/
+│   ├── extensions/
+│   │   └── convos/            # XMTP channel plugin
+│   │       ├── index.ts, openclaw.plugin.json, package.json
+│   │       └── src/           # channel, accounts, actions, sdk-client, outbound, …
+│   └── landing/               # landing.html, form.html, sw.js, manifest, icon
+├── package.json, pnpm-lock.yaml
+├── Dockerfile, railway.toml
+├── .env.example
+└── README.md, CHANGELOG.md, CLAUDE.md
+```
 
-**TL;DR:** OpenClaw gateway + one Convos (XMTP) channel plugin; config and agent brain are managed by scripts and optional Docker; no changes to OpenClaw core.
+## Environment
+
+Copy `.env.example` to `.env` and fill in values. Required for gateway + agentmail:
+
+| Variable | Purpose |
+|----------|---------|
+| `OPENCLAW_PRIMARY_MODEL` | Default model (e.g. `openrouter/openai/gpt-5.1-codex-mini`) |
+| `OPENCLAW_GATEWAY_TOKEN` | Gateway auth (CLI + Control UI) |
+| `OPENCLAW_STATE_DIR` | State dir (default `~/.openclaw`). Set so exec/agentmail scripts resolve; gateway.sh exports it. |
+| `OPENROUTER_API_KEY` | OpenRouter (and often model auth) |
+| `AGENTMAIL_API_KEY`, `AGENTMAIL_INBOX_ID` | AgentMail skill (send email, calendar invites, poll inbox) |
+| `WALLET_KEY` | XMTP/Convos wallet (key-provision can generate) |
+| `XMTP_ENV` | `dev` or `production` |
+
+Optional: `OPENROUTER_MANAGEMENT_KEY`, `SETUP_PASSWORD`.
+
+## Usage
+
+```bash
+pnpm run key-provision      # Generate keys, write .env
+pnpm run apply-config       # Sync openclaw/ → state dir, apply .env to config
+pnpm run install-state-deps # Install extension/skill deps
+pnpm run gateway            # Start the gateway
+pnpm start                  # apply-config + gateway
+```
+
+## Flow
+
+1. **apply-config** — Syncs `openclaw/workspace`, `skills`, `extensions`, `landing` into `OPENCLAW_STATE_DIR`, substitutes `.env` into `openclaw.json`
+2. **gateway** — Runs OpenClaw with `OPENCLAW_CONFIG_PATH` and injected plugin paths
+
+No core OpenClaw changes. Convos lives entirely in the plugin.

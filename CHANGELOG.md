@@ -2,6 +2,9 @@
 
 ## 2026-02-14
 
+- Agentmail: require `$OPENCLAW_STATE_DIR/skills/agentmail/scripts/...` in SKILL.md, TOOLS.md, workarounds (never bare `skills/...` — exec cwd is workspace, avoids MODULE_NOT_FOUND).
+- README: add Environment section (vars from .env.example).
+- gateway.sh: keep only required exports (OPENCLAW_STATE_DIR, OPENCLAW_CONFIG_PATH, OPENCLAW_WORKSPACE_DIR).
 - CLI: rename apply-env-to-config → apply-config, entrypoint → gateway; add `pnpm gateway`.
 - CLI: move bootstrap into lib (init.sh, env-load.sh, paths.sh, sync-workspace, sync-skills, config-inject-extensions); entry-point scripts only at top level.
 - Single path: only `OPENCLAW_STATE_DIR`; config and workspace paths derived from it.

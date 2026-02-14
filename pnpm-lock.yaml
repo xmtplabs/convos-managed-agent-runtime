@@ -5,17 +5,17 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  openclaw:
-    specifier: latest
-    version: 2026.2.13(@napi-rs/canvas@0.1.91)(@types/express@5.0.6)(hono@4.11.9)(node-llama-cpp@3.15.1)(signal-polyfill@0.2.2)
-
-devDependencies:
   commander:
     specifier: ^12.0.0
     version: 12.1.0
   dotenv:
     specifier: ^16.4.5
     version: 16.6.1
+  openclaw:
+    specifier: latest
+    version: 2026.2.13(@napi-rs/canvas@0.1.91)(@types/express@5.0.6)(hono@4.11.9)(node-llama-cpp@3.15.1)(signal-polyfill@0.2.2)
+
+devDependencies:
   ethers:
     specifier: ^6.13.4
     version: 6.16.0
@@ -3159,7 +3159,7 @@ packages:
   /commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
-    dev: true
+    dev: false
 
   /commander@14.0.3:
     resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
@@ -3329,7 +3329,7 @@ packages:
   /dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
     engines: {node: '>=12'}
-    dev: true
+    dev: false
 
   /dotenv@17.3.1:
     resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
