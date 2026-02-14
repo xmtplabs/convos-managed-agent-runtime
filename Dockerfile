@@ -30,7 +30,7 @@ COPY cli ./cli
 RUN chmod +x /app/cli/scripts/*.sh
 
 # CLI needs commander/dotenv (devDependencies); install before install-state-deps
-RUN pnpm install --no-frozen-lockfile --include=dev
+RUN pnpm install --include=dev
 
 # Install extension/skill deps in state dir (/app)
 ENV HUSKY=0
