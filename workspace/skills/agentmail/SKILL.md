@@ -10,9 +10,7 @@ description: |
 
 ## How to use
 
-IMPORTANT: Always use the pre-built scripts below. Do NOT import or use the agentmail SDK directly. Just run the scripts with `node`.
-
-**Runtime:** `agentmail` is installed at app root (not in the workspace). Start the gateway via the project entrypoint (e.g. `pnpm dev` or `./scripts/entrypoint.sh`), or set `NODE_PATH` to the app's `node_modules`, so `node skills/agentmail/scripts/...` can resolve the package.
+IMPORTANT: Always use the pre-built scripts below. Do NOT import or use the agentmail SDK directly. Run them via `sh scripts/run-node.sh` so NODE_PATH is set (required on Railway / Docker).
 
 # Setup
 
@@ -23,7 +21,7 @@ All scripts require `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID` in the environm
 Use when the user wants to send an email (optionally with one attachment):
 
 ```bash
-node skills/agentmail/scripts/send-email.mjs \
+sh scripts/run-node.sh skills/agentmail/scripts/send-email.mjs \
   --to <recipient@email.com> \
   --subject "Subject line" \
   --text "Plain text body" \
@@ -36,7 +34,7 @@ node skills/agentmail/scripts/send-email.mjs \
 Use when the user wants an ICS calendar invite sent by email:
 
 ```bash
-node skills/agentmail/scripts/send-calendar-email.mjs \
+sh scripts/run-node.sh skills/agentmail/scripts/send-calendar-email.mjs \
   --to <recipient@email.com> \
   --ics /path/to/file.ics \
   [--subject "Event name"]
@@ -50,7 +48,7 @@ Use to list **new/unread emails** and **threads that need a reply**. Output is J
 - **Replies to act on:** use `--threads` (unreplied threads per [AgentMail API](https://skills.sh/agentmail-to/agentmail-skills/agentmail)).
 
 ```bash
-node skills/agentmail/scripts/poll-inbox.mjs \
+sh scripts/run-node.sh skills/agentmail/scripts/poll-inbox.mjs \
   [--limit 20] \
   [--labels unread] \
   [--threads]
@@ -59,11 +57,11 @@ node skills/agentmail/scripts/poll-inbox.mjs \
 Example: check new mail and unreplied threads in one run:
 
 ```bash
-node skills/agentmail/scripts/poll-inbox.mjs --limit 20 --labels unread --threads
+sh scripts/run-node.sh skills/agentmail/scripts/poll-inbox.mjs --limit 20 --labels unread --threads
 ```
 
 Same via alias:
 
 ```bash
-node skills/agentmail/scripts/check-inbox.mjs --labels unread --threads
+sh scripts/run-node.sh skills/agentmail/scripts/check-inbox.mjs --labels unread --threads
 ```
