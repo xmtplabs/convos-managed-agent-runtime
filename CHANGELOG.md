@@ -1,8 +1,18 @@
 # Changelog
 
+## 2026-02-14
+
+- CLI: rename apply-env-to-config → apply-config, entrypoint → gateway; add `pnpm gateway`.
+- CLI: move bootstrap into lib (init.sh, env-load.sh, paths.sh, sync-workspace, sync-skills, config-inject-extensions); entry-point scripts only at top level.
+- Single path: only `OPENCLAW_STATE_DIR`; config and workspace paths derived from it.
+- Remove skill-setup (no-op); remove from CLI and package.json.
+- Config at repo root (`openclaw.json`); Dockerfile copies openclaw.json, workspace, skills (no config-defaults).
+- Workarounds and .gitignore updated; add `.openclaw/` to .gitignore.
+- Workspace: trim bootstrap files (AGENTS, SOUL, HEARTBEAT, BOOTSTRAP, BOOT, IDENTITY); remove redundancy.
 
 ## 2026-02-13
 
+- Remove sub-agents; main agent has full tools (web_search, web_fetch, browser, agentmail).
 - Convos: add `/convos/form` and `/convos/form/` routes serving `landing/form.html` (test form page).
 - Dockerfile: install Chromium + deps for browser automation; set CHROMIUM_PATH; CMD to `pnpm start`; chmod apply-env script.
 - apply-env scripts: inject `browser.executablePath` and `browser.headless=true` from CHROMIUM_PATH into config.
@@ -23,7 +33,7 @@
 
 - Landing: footer copy updated to "Convos Agent. Your Personal AI."
 - Landing: show "SPIN UP AGENT" button first; QR code appears only after click instead of auto-fetch on load.
-- Convos: enable plugin and pin pnpm version; extension updates, smooth-browser skill; env config key XMTP_ENV, default dev.
+- Convos: enable extension and pin pnpm version; extension updates, smooth-browser skill; env config key XMTP_ENV, default dev.
 
 ## 2026-02-10
 

@@ -1,4 +1,4 @@
-/**
+ /**
  * Routing + inbound: Convos channel plugin definition, message routing, and reply delivery.
  * Handles inbound pipeline (route -> session -> envelope -> dispatch) and gateway start/stop.
  */
@@ -455,6 +455,17 @@ async function handleInboundMessage(
     channel: "convos",
     accountId: account.accountId,
   });
+
+  // Early ack: heart reaction so the user sees we received the message
+  const client = getClientForAccount(account.accountId);
+  const reactionsOff = account.config.reactionLevel === "off" || account.config.actions?.reactions === false;
+  if (client && !reactionsOff) {
+    try {
+      await client.react(msg.conversationId, msg.messageId, "❤️");
+    } catch (err) {
+      log?.error(`[${account.accountId}] Failed to send ack reaction: ${String(err)}`);
+    }
+  }
 
   // Dispatch to the reply pipeline with buffered block dispatcher
   await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
