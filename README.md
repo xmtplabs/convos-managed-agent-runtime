@@ -80,6 +80,22 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 └── README.md, CHANGELOG.md, CLAUDE.md
 ```
 
+## Environment
+
+Copy `.env.example` to `.env` and fill in values. Required for gateway + agentmail:
+
+| Variable | Purpose |
+|----------|---------|
+| `OPENCLAW_PRIMARY_MODEL` | Default model (e.g. `openrouter/openai/gpt-5.1-codex-mini`) |
+| `OPENCLAW_GATEWAY_TOKEN` | Gateway auth (CLI + Control UI) |
+| `OPENCLAW_STATE_DIR` | State dir (default `~/.openclaw`). Set so exec/agentmail scripts resolve; gateway.sh exports it. |
+| `OPENROUTER_API_KEY` | OpenRouter (and often model auth) |
+| `AGENTMAIL_API_KEY`, `AGENTMAIL_INBOX_ID` | AgentMail skill (send email, calendar invites, poll inbox) |
+| `WALLET_KEY` | XMTP/Convos wallet (key-provision can generate) |
+| `XMTP_ENV` | `dev` or `production` |
+
+Optional: `OPENROUTER_MANAGEMENT_KEY`, `SETUP_PASSWORD`.
+
 ## Usage
 
 ```bash
