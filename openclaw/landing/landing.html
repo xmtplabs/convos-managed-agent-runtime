@@ -157,13 +157,27 @@
     .error { color: #c00; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
     .success { color: #080; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
     .gateway-tip { font-size: 0.75rem; color: #888; margin-top: 0.5rem; text-align: center; }
+    .env-badge {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      z-index: 100;
+    }
+    .env-badge--production { background: #22c55e; color: #fff; }
+    .env-badge--staging { background: #f59e0b; color: #1f2937; }
   </style>
 </head>
 <body>
+  <div id="env-badge" class="env-badge" aria-hidden="true"></div>
   <div class="card">
     <div class="card-header">
       <span>Convos AGENT</span>
-      <span>{DEV}</span>
     </div>
     <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener" style="display: none;">
       <img id="qr-img" src="" width="240" height="240" alt="QR code">
@@ -208,6 +222,14 @@
 
   <script>
     (function () {
+      (function setEnvBadge() {
+        var h = window.location.hostname;
+        var isStaging = h === "localhost" || h === "127.0.0.1";
+        var el = document.getElementById("env-badge");
+        if (!el) return;
+        el.textContent = isStaging ? "Staging" : "Production";
+        el.className = "env-badge env-badge--" + (isStaging ? "staging" : "production");
+      })();
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/convos/sw.js", { scope: "/convos/" }).catch(function () {});
       }
