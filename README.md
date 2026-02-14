@@ -15,7 +15,7 @@ Managed runtime that runs the **OpenClaw** gateway with a **Convos (XMTP)** chan
 | **`config/`** | Default `openclaw.json` template (gateway, agents, channels, models). Env vars like `${OPENCLAW_PRIMARY_MODEL}` are applied at runtime. |
 | **`workspace/`** | Agent “brain”: `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOT.md`, plus **`workspace/skills/`** (e.g. agentmail). Seeded/copied into the runtime workspace by entrypoint and apply script. |
 | **`extensions/convos/`** | The only custom plugin: Convos channel + setup/reset RPC and slash commands. |
-| **`scripts/`** | Bootstrap: env load, config apply, entrypoint, upgrade, skill-setup, OpenRouter key, extension deps. |
+| **`scripts/`** | Bootstrap: env load, config apply, entrypoint, upgrade, skill-setup, OpenRouter key, install-state-deps. |
 | **`cli/`** | Optional CLI/helpers (e.g. `sync-extensions.sh`). |
 | **`landing/`** | Static landing/form HTML. |
 
@@ -26,7 +26,7 @@ Managed runtime that runs the **OpenClaw** gateway with a **Convos (XMTP)** chan
 3. **Agent brain** — Ensure workspace dir exists; on first run or version bump, copy/update `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `workspace/skills/` from repo into that workspace; write `.deployed-version`.
 4. **Gateway token** — From `OPENCLAW_GATEWAY_TOKEN`, or `gateway.token` file, or generate and persist.
 5. **Config patch** — jq: set `gateway.port`, `gateway.bind=lan`, auth token, `agents.defaults.workspace`.
-6. **Plugins** — Run `install-extension-deps.sh` if present; inject `plugins.load.paths` so OpenClaw loads `extensions/` (e.g. `OPENCLAW_CUSTOM_PLUGINS_DIR` or `$ROOT/extensions`).
+6. **Plugins** — Inject `plugins.load.paths` so OpenClaw loads `extensions/`. Run `install-state-deps` to install extension/skill deps in the state dir.
 7. **OpenRouter** — Optional: `openrouter-ensure-key.sh` for per-deploy API key.
 8. **Skill setup** — `skill-setup.sh` (e.g. merge env into `skills.entries`).
 9. **Start** — `openclaw gateway run` on the chosen port with token auth.

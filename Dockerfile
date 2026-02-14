@@ -57,17 +57,12 @@ COPY skills /app/skills
 COPY extensions /app/extensions
 COPY landing /app/landing
 COPY cli ./cli
-RUN chmod +x /app/cli/scripts/*.sh
+COPY scripts ./scripts
+RUN chmod +x /app/cli/scripts/*.sh /app/scripts/*.sh
 
-# Install extension deps
-# HUSKY=0 skips husky prepare scripts from GitHub deps
-# NODE_ENV must be unset so pnpm runs prepare/build scripts for git-hosted deps
+# Install extension/skill deps in state dir (/app)
 ENV HUSKY=0
-RUN set -eux; \
-  for f in /app/extensions/*/package.json; do \
-    [ -f "$f" ] || continue; \
-    (cd "$(dirname "$f")" && NODE_ENV=development pnpm install); \
-  done
+RUN OPENCLAW_STATE_DIR=/app NODE_ENV=development /app/scripts/install-state-deps.sh
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_PUBLIC_PORT=8080

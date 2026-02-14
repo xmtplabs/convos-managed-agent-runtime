@@ -17,13 +17,18 @@ program
 
 program
   .command("key-provision")
-  .description("Generate OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD; create or reuse OpenRouter key and write .env")
+  .description("Generate OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, WALLET_PRIVATE_KEY; create or reuse OpenRouter key and write .env")
   .action(() => runScript("keys.sh"));
 
 program
   .command("apply-config")
   .description("Apply .env to config template, copy skills and workspace bootstrap files")
   .action(() => runScript("apply-config.sh"));
+
+program
+  .command("install-state-deps")
+  .description("Install extension and skill deps in OPENCLAW_STATE_DIR")
+  .action(() => runScript("install-state-deps.sh"));
 
 program
   .command("gateway run")

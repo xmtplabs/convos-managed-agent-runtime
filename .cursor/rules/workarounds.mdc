@@ -26,11 +26,11 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Workaround:** Use a single id everywhere: set package.json `"name": "convos"` and openclaw.plugin.json `"id": "convos"` (and channel id `convos`). No scoped name for the extension package in this repo.
 
-## Extension deps when loading from this repo (dev)
+## Extension/skill deps in OPENCLAW_STATE_DIR
 
-**Problem:** Custom extensions live under `extensions/` and need their own node_modules (zod, @xmtp/agent-sdk, etc.). OpenClaw loads from that dir, so "Cannot find module 'zod'" if deps aren't installed there.
+**Problem:** Custom extensions and skills (e.g. agentmail) need node_modules. OpenClaw loads extensions from the state dir; skill scripts resolve packages from state dir's node_modules.
 
-**Workaround:** [scripts/install-extension-deps.sh](scripts/install-extension-deps.sh) runs `pnpm install` (or `npm install`) in each extension subdir that has a package.json. It is invoked by **entrypoint.sh** before starting the gateway and by root **postinstall**, so no manual step is required. Uses pnpm when available to avoid Yarn treating the subdir as part of the root workspace and failing.
+**Workaround:** Run `pnpm run install-state-deps` (or `pnpm run cli -- install-state-deps`) after `apply-config`. [scripts/install-state-deps.sh](scripts/install-state-deps.sh) installs deps in `$OPENCLAW_STATE_DIR/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
 
 ## `pnpm apply` must inject plugins.load.paths (same as gateway)
 
@@ -59,11 +59,11 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 
 **Workaround:** Use `$OPENCLAW_ROOT` (set by gateway) for script paths when invoking from agent: `node $OPENCLAW_ROOT/skills/agentmail/scripts/...`. From state dir `ROOT/.openclaw` you can run `node skills/agentmail/scripts/...` — agentmail resolves from state dir's node_modules (see below).
 
-## agentmail: available from state dir (out of the box)
+## agentmail: installed in state dir
 
-**Problem:** The agentmail scripts `import "agentmail"`. Node resolves modules by walking up from the script path; skills live under state dir `ROOT/.openclaw/skills`, so state dir must have `node_modules/agentmail`.
+**Problem:** The agentmail scripts `import "agentmail"`. Skills live under state dir; state dir must have `node_modules/agentmail`.
 
-**Workaround:** In Docker, `NODE_PATH=/app/node_modules` resolves agentmail. Locally, ensure state dir `ROOT/.openclaw` has agentmail (e.g. copy a state-dir package.json and run `pnpm install` there) if you run skill scripts manually without NODE_PATH.
+**Workaround:** Run `install-state-deps` — it adds agentmail to `$OPENCLAW_STATE_DIR/package.json` and runs `pnpm install` there when `skills/agentmail` exists. Set `NODE_PATH=$OPENCLAW_STATE_DIR/node_modules` so skill scripts resolve it.
 
 ## openclaw dependency in extension (no workspace)
 
