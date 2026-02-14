@@ -4,10 +4,11 @@
 
 - CLI: rename apply-env-to-config → apply-config, entrypoint → gateway; add `pnpm gateway`.
 - CLI: move bootstrap into lib (init.sh, env-load.sh, paths.sh, sync-workspace, sync-skills, config-inject-extensions); entry-point scripts only at top level.
-- Single path convention: state under `ROOT/.openclaw`; no path env vars (OPENCLAW_STATE_DIR, etc.).
+- Single path: only `OPENCLAW_STATE_DIR`; config and workspace paths derived from it.
 - Remove skill-setup (no-op); remove from CLI and package.json.
 - Config at repo root (`openclaw.json`); Dockerfile copies openclaw.json, workspace, skills (no config-defaults).
 - Workarounds and .gitignore updated; add `.openclaw/` to .gitignore.
+- Workspace: trim bootstrap files (AGENTS, SOUL, HEARTBEAT, BOOTSTRAP, BOOT, IDENTITY); remove redundancy.
 
 ## 2026-02-13
 
