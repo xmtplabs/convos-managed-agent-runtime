@@ -37,9 +37,10 @@ program
 
 program
   .command("start")
-  .description("Apply config then start the gateway (apply-config + gateway run)")
+  .description("Apply config, install extension deps, then start the gateway")
   .action(() => {
     runScript("apply-config.sh");
+    runScript("install-state-deps.sh");
     runScript("gateway.sh");
   });
 
