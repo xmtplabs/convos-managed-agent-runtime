@@ -34,8 +34,10 @@ RUN chmod +x /app/cli/scripts/*.sh
 RUN OPENCLAW_STATE_DIR=/app pnpm run cli -- apply-config
 
 # Install extension/skill deps in state dir (/app)
+# husky must be globally available so git-hosted packages with a "prepare": "husky"
+# script don't fail; HUSKY=0 makes it exit immediately without installing hooks.
 ENV HUSKY=0
-RUN OPENCLAW_STATE_DIR=/app pnpm run install-state-deps
+RUN npm install -g husky && OPENCLAW_STATE_DIR=/app pnpm run install-state-deps
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_PUBLIC_PORT=8080
