@@ -9,11 +9,9 @@ echo ""
 echo "  🧠 Uploading brain"
 echo "  ═══════════════════"
 
-. "$ROOT/cli/scripts/lib/sync-workspace.sh"
-. "$ROOT/cli/scripts/lib/sync-skills.sh"
-. "$ROOT/cli/scripts/lib/sync-extensions.sh"
+. "$ROOT/cli/scripts/lib/sync-openclaw.sh"
 
-export TEMPLATE_PATH="$ROOT/openclaw.json"
+export TEMPLATE_PATH="$RUNTIME_DIR/openclaw.json"
 export ENV_FILE="$ROOT/.env"
 export CONFIG_OUTPUT="$CONFIG"
 node "$ROOT/cli/scripts/apply-config.cjs"
