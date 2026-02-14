@@ -1,6 +1,3 @@
-/**
- * Onboarding: Convos configure flow (invite link, join, verify client, DM policy).
- */
 import {
   type ChannelOnboardingAdapter,
   type ChannelOnboardingDmPolicy,
@@ -8,39 +5,21 @@ import {
 } from "openclaw/plugin-sdk";
 import type { DmPolicy } from "./config-types.js";
 import { resolveConvosAccount, listConvosAccountIds, type CoreConfig } from "./accounts.js";
-import { resolveConvosDbPath } from "./lib/convos-client.js";
-import { getClientForAccount } from "./outbound.js";
-import { getConvosRuntime } from "./runtime.js";
-import { ConvosSDKClient } from "./sdk-client.js";
+import { ConvosInstance } from "./sdk-client.js";
 
 const channel = "convos" as const;
 
-type ConvosOnboardingAdapter = ChannelOnboardingAdapter & {
-  verifyClient?: (params: {
-    cfg: OpenClawConfig;
-    prompter: { note: (body: string, title?: string) => Promise<void> };
-  }) => Promise<void>;
-};
-
 // Convos invite URLs can be:
 // - Full URL: https://convos.app/join/SLUG or convos://join/SLUG
-// - V2 URL: https://*.convos.org/...?i=PAYLOAD or https://convos.app/...?i=PAYLOAD
-// - Raw slug: base64-encoded string with asterisks for iMessage compatibility
-const INVITE_URL_PATTERNS = [
-  /^https?:\/\/convos\.app\/join\/(.+)$/i,
-  /^convos:\/\/join\/(.+)$/i,
-  /^https?:\/\/(?:[a-z0-9-]+\.)*convos\.(?:app|org)\/.*[?&]i=(.+)$/i,
-];
+// - Just the slug: a base64-encoded string with asterisks for iMessage compatibility
+const INVITE_URL_PATTERNS = [/^https?:\/\/convos\.app\/join\/(.+)$/i, /^convos:\/\/join\/(.+)$/i];
 
-export function extractInviteSlug(input: string): string {
+function extractInviteSlug(input: string): string {
   const trimmed = input.trim();
   for (const pattern of INVITE_URL_PATTERNS) {
     const match = trimmed.match(pattern);
     if (match) {
-      const slug = match[1];
-      // ?i= pattern may capture trailing query params; strip after first &
-      const end = slug.indexOf("&");
-      return end === -1 ? slug : slug.slice(0, end);
+      return match[1];
     }
   }
   // Assume it's a raw slug
@@ -52,7 +31,6 @@ function isValidInviteInput(input: string): boolean {
   if (!trimmed) {
     return false;
   }
-  // Check if it's a URL or a slug (base64-ish with asterisks)
   for (const pattern of INVITE_URL_PATTERNS) {
     if (pattern.test(trimmed)) {
       return true;
@@ -84,7 +62,7 @@ const dmPolicy: ChannelOnboardingDmPolicy = {
   setPolicy: (cfg, policy) => setConvosDmPolicy(cfg, policy),
 };
 
-export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
+export const convosOnboardingAdapter: ChannelOnboardingAdapter = {
   channel,
 
   getStatus: async ({ cfg }) => {
@@ -93,77 +71,31 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
     );
     const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
     const ownerConversation = (cfg.channels as CoreConfig["channels"])?.convos?.ownerConversationId;
-    console.log(`[convos-onboarding] getStatus: configured=${configured} env=${account.env}`);
 
     return {
       channel,
       configured,
       statusLines: [
         `Convos: ${configured ? "configured" : "needs setup"}`,
+        `Environment: ${account.env}`,
         ownerConversation ? `Owner conversation: ${ownerConversation.slice(0, 8)}...` : "",
       ].filter(Boolean),
       selectionHint: configured ? "ready" : "paste invite link",
-      quickstartScore: 0, // Requires manual invite flow
+      quickstartScore: 0,
     };
   },
 
-  configure: async (ctx) => {
-    const { cfg, prompter } = ctx;
-    const createNewIdentity = (ctx as { createNewIdentity?: boolean }).createNewIdentity;
+  configure: async ({ cfg, prompter }) => {
     let next = cfg;
     const account = resolveConvosAccount({ cfg: next as CoreConfig });
-    console.log(`[convos-onboarding] configure: start (createNewIdentity=${!!createNewIdentity})`);
 
-    // Check for existing configuration (skip when creating new identity)
-    if (account.privateKey && account.ownerConversationId && !createNewIdentity) {
-      const action = await prompter.select({
-        message: "Convos already configured.",
-        options: [
-          { value: "generate" as const, label: "Generate new one" },
-          { value: "check" as const, label: "Check our current one" },
-          { value: "skip" as const, label: "Skip" },
-        ],
-        initialValue: "skip",
+    // Check for existing configuration
+    if (account.ownerConversationId) {
+      const keep = await prompter.confirm({
+        message: `Convos already configured (conversation: ${account.ownerConversationId.slice(0, 12)}...). Keep it?`,
+        initialValue: true,
       });
-      console.log(`[convos-onboarding] already configured, action=${action}`);
-      if (action === "check") {
-        const existing = getClientForAccount(account.accountId);
-        if (existing?.isRunning()) {
-          await prompter.note(
-            `Convos client verified (already running).\n\nInbox ID: ${existing.getInboxId()}`,
-            "Verify client",
-          );
-          return { cfg: next };
-        }
-        const runtime = getConvosRuntime();
-        const stateDir = runtime.state.resolveStateDir();
-        const dbPath = resolveConvosDbPath({
-          stateDir,
-          env: account.env,
-          accountId: account.accountId,
-          privateKey: account.privateKey,
-        });
-        const client = await ConvosSDKClient.create({
-          privateKey: account.privateKey,
-          env: account.env,
-          dbPath,
-          debug: account.debug,
-        });
-        try {
-          await client.start();
-          const inboxId = client.getInboxId();
-          await prompter.note(`Convos client verified.\n\nInbox ID: ${inboxId}`, "Verify client");
-        } catch (err) {
-          await prompter.note(
-            `Client verification failed: ${err instanceof Error ? err.message : String(err)}`,
-            "Verify client",
-          );
-        } finally {
-          await client.stop();
-        }
-        return { cfg: next };
-      }
-      if (action === "skip") {
+      if (keep) {
         return { cfg: next };
       }
     }
@@ -188,7 +120,7 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
     // Prompt for invite link
     const inviteInput = await prompter.text({
       message: "Paste Convos invite link or slug",
-      placeholder: "https://convos.app/join/... or https://...convos.org/v2?i=... or raw slug",
+      placeholder: "https://convos.app/join/... or raw slug",
       validate: (value) => {
         const raw = String(value ?? "").trim();
         if (!raw) {
@@ -202,49 +134,45 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
     });
 
     const inviteSlug = extractInviteSlug(String(inviteInput));
-    console.log(`[convos-onboarding] invite received, slug length=${inviteSlug.length}`);
 
-    // Join the conversation using SDK client
+    // Join the conversation via CLI
     await prompter.note("Creating XMTP identity and joining conversation...", "Convos");
 
-    let client: ConvosSDKClient | undefined;
     try {
-      // Create a new SDK client (will generate a new private key)
-      client = await ConvosSDKClient.create({
-        env: account.env,
-        debug: account.debug,
-      });
+      const { instance, status, conversationId, identityId } = await ConvosInstance.join(
+        account.env,
+        inviteSlug,
+        { profileName: "OpenClaw" },
+      );
 
-      const result = await client.joinConversation(inviteSlug);
-
-      if (!result.conversationId) {
-        console.log(`[convos-onboarding] join result: status=${result.status}`);
+      if (!conversationId) {
         await prompter.note(
-          result.status === "waiting_for_acceptance"
+          status === "waiting_for_acceptance"
             ? "Join request sent. The conversation owner needs to approve your request in the Convos iOS app."
             : "Failed to join conversation. The invite may be invalid or expired.",
           "Convos",
         );
 
-        // Still save the private key so we can retry later
-        next = {
-          ...next,
-          channels: {
-            ...next.channels,
-            convos: {
-              ...(next.channels as CoreConfig["channels"])?.convos,
-              enabled: true,
-              privateKey: client.getPrivateKey(),
-              XMTP_ENV: account.env,
+        // Save identityId so we can retry later with the same identity
+        if (identityId) {
+          next = {
+            ...next,
+            channels: {
+              ...next.channels,
+              convos: {
+                ...(next.channels as CoreConfig["channels"])?.convos,
+                enabled: true,
+                identityId,
+                env: account.env,
+              },
             },
-          },
-        };
+          };
+        }
 
         return { cfg: next };
       }
 
-      // Save privateKey and ownerConversationId
-      console.log(`[convos-onboarding] join result: conversationId=${result.conversationId}`);
+      // Save identityId and ownerConversationId
       next = {
         ...next,
         channels: {
@@ -252,19 +180,18 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
           convos: {
             ...(next.channels as CoreConfig["channels"])?.convos,
             enabled: true,
-            privateKey: client.getPrivateKey(),
-            XMTP_ENV: account.env,
-            ownerConversationId: result.conversationId,
+            identityId: instance?.identityId ?? identityId,
+            env: account.env,
+            ownerConversationId: conversationId,
           },
         },
       };
-      console.log("[convos-onboarding] config updated: ownerConversationId set");
 
       await prompter.note(
         [
           "Successfully joined conversation!",
           "",
-          `Conversation ID: ${result.conversationId}`,
+          `Conversation ID: ${conversationId}`,
           "",
           "This is now your owner channel. OpenClaw will:",
           "- Send status updates here",
@@ -274,17 +201,10 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
         "Convos Connected",
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.log(`[convos-onboarding] configure error: ${msg}`);
       await prompter.note(
-        `Failed to join: ${msg}`,
+        `Failed to join: ${err instanceof Error ? err.message : String(err)}`,
         "Convos Error",
       );
-    } finally {
-      // Stop the temporary client
-      if (client) {
-        await client.stop();
-      }
     }
 
     return { cfg: next };
@@ -302,46 +222,4 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
       },
     },
   }),
-
-  verifyClient: async ({ cfg, prompter }) => {
-    const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
-    if (!account.privateKey) {
-      await prompter.note("Convos not configured. Run configure first.", "Verify client");
-      return;
-    }
-    const existing = getClientForAccount(account.accountId);
-    if (existing?.isRunning()) {
-      await prompter.note(
-        `Convos client verified (already running).\n\nInbox ID: ${existing.getInboxId()}`,
-        "Verify client",
-      );
-      return;
-    }
-    const runtime = getConvosRuntime();
-    const stateDir = runtime.state.resolveStateDir();
-    const dbPath = resolveConvosDbPath({
-      stateDir,
-      env: account.env,
-      accountId: account.accountId,
-      privateKey: account.privateKey,
-    });
-    const client = await ConvosSDKClient.create({
-      privateKey: account.privateKey,
-      env: account.env,
-      dbPath,
-      debug: account.debug,
-    });
-    try {
-      await client.start();
-      const inboxId = client.getInboxId();
-      await prompter.note(`Convos client verified.\n\nInbox ID: ${inboxId}`, "Verify client");
-    } catch (err) {
-      await prompter.note(
-        `Client verification failed: ${err instanceof Error ? err.message : String(err)}`,
-        "Verify client",
-      );
-    } finally {
-      await client.stop();
-    }
-  },
 };
