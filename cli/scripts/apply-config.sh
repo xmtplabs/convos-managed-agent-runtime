@@ -11,14 +11,12 @@ echo "  ═══════════════════"
 
 . "$ROOT/cli/scripts/lib/sync-workspace.sh"
 . "$ROOT/cli/scripts/lib/sync-skills.sh"
+. "$ROOT/cli/scripts/lib/sync-extensions.sh"
 
 export TEMPLATE_PATH="$ROOT/openclaw.json"
 export ENV_FILE="$ROOT/.env"
 export CONFIG_OUTPUT="$CONFIG"
 node "$ROOT/cli/scripts/apply-config.cjs"
-
-. "$ROOT/cli/scripts/lib/config-inject-extensions.sh"
-[ -d "$ROOT/extensions" ] && echo "  🔌 extensions  → $(cd "$ROOT/extensions" && pwd)"
 
 echo "  ✨ done"
 echo ""
