@@ -5,13 +5,12 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "cli": "node cli/index.cjs",
-    "keys": "node cli/index.cjs keys",
-    "start": "node cli/index.cjs start",
-    "upgrade": "node cli/index.cjs upgrade",
-    "apply": "node cli/index.cjs apply",
-    "gateway": "node cli/index.cjs gateway",
-    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
-    "dev": "node cli/index.cjs dev"
+    "check": "pnpm run cli -- check",
+    "key-provision": "pnpm run cli -- key-provision",
+    "apply-config": "pnpm run cli -- apply-config",
+    "gateway": "pnpm run cli -- gateway run",
+    "start": "pnpm run cli -- start",
+    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app"
   },
   "dependencies": { "agentmail": "latest", "openclaw": "latest" },
   "devDependencies": { "commander": "^12.0.0", "dotenv": "^16.4.5", "ethers": "^6.13.4" },

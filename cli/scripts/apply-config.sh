@@ -17,8 +17,8 @@ export ENV_FILE="$ROOT/.env"
 export CONFIG_OUTPUT="$CONFIG"
 node "$ROOT/cli/scripts/apply-config.cjs"
 
-. "$ROOT/cli/scripts/lib/config-inject-plugins.sh"
-[ -d "$ROOT/extensions" ] && echo "  🔌 plugins     → $(cd "$ROOT/extensions" && pwd)"
+. "$ROOT/cli/scripts/lib/config-inject-extensions.sh"
+[ -d "$ROOT/extensions" ] && echo "  🔌 extensions  → $(cd "$ROOT/extensions" && pwd)"
 
 echo "  ✨ done"
 echo ""

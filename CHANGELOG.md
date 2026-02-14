@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-02-14
+
+- CLI: rename apply-env-to-config → apply-config, entrypoint → gateway; add `pnpm gateway`.
+- CLI: move bootstrap into lib (init.sh, env-load.sh, paths.sh, sync-workspace, sync-skills, config-inject-extensions); entry-point scripts only at top level.
+- Single path convention: state under `ROOT/.openclaw`; no path env vars (OPENCLAW_STATE_DIR, etc.).
+- Remove skill-setup (no-op); remove from CLI and package.json.
+- Config at repo root (`openclaw.json`); Dockerfile copies openclaw.json, workspace, skills (no config-defaults).
+- Workarounds and .gitignore updated; add `.openclaw/` to .gitignore.
 
 ## 2026-02-13
 
@@ -24,7 +32,7 @@
 
 - Landing: footer copy updated to "Convos Agent. Your Personal AI."
 - Landing: show "SPIN UP AGENT" button first; QR code appears only after click instead of auto-fetch on load.
-- Convos: enable plugin and pin pnpm version; extension updates, smooth-browser skill; env config key XMTP_ENV, default dev.
+- Convos: enable extension and pin pnpm version; extension updates, smooth-browser skill; env config key XMTP_ENV, default dev.
 
 ## 2026-02-10
 

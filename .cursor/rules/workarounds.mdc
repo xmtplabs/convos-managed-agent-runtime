@@ -2,7 +2,7 @@
 
 Documented workarounds so future changes don't break them or duplicate logic.
 
-## Plugin paths must be absolute in config
+## Extension paths must be absolute in config
 
 **Problem:** Writing relative paths (e.g. `./extensions`, `../openclaw/extensions`) into `plugins.load.paths` causes "plugin path not found" — OpenClaw resolves them relative to state/workspace dir (e.g. `~/.openclaw/workspace/extensions`), so the dirs don't exist.
 
@@ -12,15 +12,15 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** Default OpenClaw config can set `plugins.slots.memory` to `memory-core`. If that extension isn't shipped (e.g. convos-agent Docker image, or minimal dev setup), config validation fails with "plugin not found: memory-core" (see openclaw/openclaw#8909).
 
-**Workaround:** In [openclaw.json](openclaw.json) at repo root, set `plugins.slots.memory` to `"none"` so no memory plugin is required. Entrypoint seeds from this file into `ROOT/.openclaw/openclaw.json`.
+**Workaround:** In [openclaw.json](openclaw.json) at repo root, set `plugins.slots.memory` to `"none"` so no memory extension is required. Entrypoint seeds from this file into `ROOT/.openclaw/openclaw.json`.
 
 ## Custom extensions: additive loading
 
 **Intent:** Add convos (and other custom extensions under `extensions/`) **without** removing OpenClaw's bundled extensions.
 
-**Workaround:** Gateway and apply-config.sh add only `$ROOT/extensions` (resolved to absolute) to `plugins.load.paths`. OpenClaw already discovers bundled plugins from its install path; do not add the bundled dir again (duplicate plugin id warnings).
+**Workaround:** Gateway and apply-config.sh add only `$ROOT/extensions` (resolved to absolute) to `plugins.load.paths`. OpenClaw already discovers bundled extensions from its install path; do not add the bundled dir again (duplicate extension id warnings).
 
-## Extension plugin id must match package/manifest
+## Extension id must match package/manifest
 
 **Problem:** If package.json `name` is e.g. `@scope/openclaw-plugin-convos`, OpenClaw derives id `openclaw-plugin-convos`. If openclaw.plugin.json or channel config says `convos`, you get "plugin id mismatch".
 
@@ -34,9 +34,9 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 ## `pnpm apply` must inject plugins.load.paths (same as gateway)
 
-**Problem:** Running `pnpm apply` while the gateway is already running triggers a hot-reload, but the output config can lack `plugins.load.paths`. The gateway cannot find the `convos` plugin and rejects the config.
+**Problem:** Running `pnpm apply` while the gateway is already running triggers a hot-reload, but the output config can lack `plugins.load.paths`. The gateway cannot find the `convos` extension and rejects the config.
 
-**Workaround:** In [scripts/apply-config.sh](scripts/apply-config.sh), after step 3 (env substitution), inject `$ROOT/extensions` (resolved to absolute) into `plugins.load.paths` in `ROOT/.openclaw/openclaw.json` via `jq` — same as gateway. This ensures hot-reloads via `pnpm apply` include the plugin path. State is always `ROOT/.openclaw`; no path env vars.
+**Workaround:** In [scripts/apply-config.sh](scripts/apply-config.sh), after step 3 (env substitution), inject `$ROOT/extensions` (resolved to absolute) into `plugins.load.paths` in `ROOT/.openclaw/openclaw.json` via `jq` — same as gateway. This ensures hot-reloads via `pnpm apply` include the extension path. State is always `ROOT/.openclaw`; no path env vars.
 
 ## Registered vs script-based skills: only use `alsoAllow` for registered tools
 

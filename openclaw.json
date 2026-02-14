@@ -63,7 +63,7 @@
         "apiKey": "${AGENTMAIL_API_KEY}",
         "env": {
           "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}",
-          "AGENTMAIL_INBOX_ID": "convos@agentmail.to"
+          "AGENTMAIL_INBOX_ID": "${AGENTMAIL_INBOX_ID}"
         }
       }
     }
@@ -93,6 +93,11 @@
           "model": "perplexity/sonar"
         }
       }
+    }
+  },
+  "plugins": {
+    "slots": {
+      "memory": "none"
     }
   },
   "models": {
