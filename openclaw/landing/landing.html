@@ -174,7 +174,7 @@
   </style>
 </head>
 <body>
-  <div id="env-badge" class="env-badge" aria-hidden="true"></div>
+  <div id="env-badge" class="env-badge env-badge--staging" aria-hidden="true">Staging</div>
   <div class="card">
     <div class="card-header">
       <span>Convos AGENT</span>
@@ -224,7 +224,7 @@
     (function () {
       (function setEnvBadge() {
         var h = window.location.hostname;
-        var isStaging = h === "localhost" || h === "127.0.0.1";
+        var isStaging = h === "localhost" || h === "127.0.0.1" || h === "[::1]";
         var el = document.getElementById("env-badge");
         if (!el) return;
         el.textContent = isStaging ? "Staging" : "Production";

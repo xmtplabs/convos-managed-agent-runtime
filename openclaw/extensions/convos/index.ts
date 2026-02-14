@@ -554,7 +554,7 @@ const plugin = {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
         }
-        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8");
+        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
       },
     });
 
@@ -565,7 +565,7 @@ const plugin = {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
         }
-        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8");
+        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
       },
     });
 
