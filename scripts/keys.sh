@@ -9,10 +9,11 @@ ENV_FILE="$ROOT/.env"
 # Load .env so OPENROUTER_MANAGEMENT_KEY or OPENROUTER_API_KEY from file are available
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
 
-# Provision 2 random keys for gateway and setup
+# Provision random keys for gateway, setup, and wallet
 gateway_token=$(openssl rand -hex 32)
 setup_password=$(openssl rand -hex 16)
-echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN and SETUP_PASSWORD"
+wallet_private_key="0x$(openssl rand -hex 32)"
+echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, WALLET_PRIVATE_KEY"
 
 key=""
 if [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
@@ -42,10 +43,11 @@ fi
 
 touch "$ENV_FILE"
 tmp=$(mktemp)
-grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' > "$tmp" || true
+grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' | grep -v '^WALLET_PRIVATE_KEY=' > "$tmp" || true
 echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
 echo "SETUP_PASSWORD=$setup_password" >> "$tmp"
+echo "WALLET_PRIVATE_KEY=$wallet_private_key" >> "$tmp"
 if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
 mv "$tmp" "$ENV_FILE"
-echo "[keys] Gateway token + setup password written to .env"
+echo "[keys] Gateway token, setup password, wallet private key written to .env"
 if [ -n "$key" ]; then echo "[keys] OpenRouter key written to .env"; fi

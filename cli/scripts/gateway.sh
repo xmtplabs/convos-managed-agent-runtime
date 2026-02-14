@@ -12,7 +12,11 @@ export OPENCLAW_STATE_DIR="$STATE_DIR"
 export OPENCLAW_CONFIG_PATH="$CONFIG"
 export OPENCLAW_WORKSPACE_DIR="$WORKSPACE_DIR"
 export OPENCLAW_ROOT="$ROOT"
-[ -d "$ROOT/node_modules" ] && export NODE_PATH="$ROOT/node_modules${NODE_PATH:+:$NODE_PATH}"
+_PATH=""
+[ -d "$STATE_DIR/node_modules" ] && _PATH="$STATE_DIR/node_modules"
+[ -d "$ROOT/node_modules" ] && _PATH="${_PATH:+$_PATH:}$ROOT/node_modules"
+[ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
+unset _PATH
 
 $ENTRY gateway stop 2>/dev/null || true
 PID=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true

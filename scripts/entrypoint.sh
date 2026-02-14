@@ -92,11 +92,7 @@ echo "[agent] Config verify: skipBootstrap=$_skip workspace=$_ws"
 echo "[agent] Config verify: subagents=$_subs"
 
 # Runtime artifact: custom plugins dir (extensions/convos); bundled plugins from OpenClaw install.
-# Ensure extension node_modules exist before OpenClaw loads plugins.
-if [ -x "$ROOT/scripts/install-extension-deps.sh" ]; then
-  ROOT="$ROOT" OPENCLAW_CUSTOM_PLUGINS_DIR="${OPENCLAW_CUSTOM_PLUGINS_DIR:-$ROOT/extensions}" "$ROOT/scripts/install-extension-deps.sh"
-fi
-
+OPENCLAW_CUSTOM_PLUGINS_DIR="${OPENCLAW_CUSTOM_PLUGINS_DIR:-$ROOT/extensions}"
 RUNTIME_PLUGINS_ABS=""
 if [ -n "$OPENCLAW_CUSTOM_PLUGINS_DIR" ] && [ -d "$OPENCLAW_CUSTOM_PLUGINS_DIR" ]; then
   RUNTIME_PLUGINS_ABS="$(cd "$OPENCLAW_CUSTOM_PLUGINS_DIR" && pwd)"
@@ -129,9 +125,11 @@ fi
 export OPENCLAW_STATE_DIR="$STATE_DIR"
 export OPENCLAW_WORKSPACE_DIR="$WORKSPACE_DIR"
 export OPENCLAW_CONFIG_PATH="$CONFIG"
-if [ -d "$ROOT/node_modules" ]; then
-  export NODE_PATH="$ROOT/node_modules${NODE_PATH:+:$NODE_PATH}"
-fi
+_PATH=""
+[ -d "$STATE_DIR/node_modules" ] && _PATH="$STATE_DIR/node_modules"
+[ -d "$ROOT/node_modules" ] && _PATH="${_PATH:+$_PATH:}$ROOT/node_modules"
+[ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
+unset _PATH
 
 # ---------------------------------------------------------------------------
 # Kill previous instance (same port or openclaw gateway lock)

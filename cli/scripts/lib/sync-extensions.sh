@@ -5,7 +5,7 @@ set -e
 if [ -d "$ROOT/extensions" ]; then
   mkdir -p "$EXTENSIONS_DIR"
   if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete "$ROOT/extensions/" "$EXTENSIONS_DIR/"
+    rsync -a --delete --exclude=node_modules "$ROOT/extensions/" "$EXTENSIONS_DIR/"
   else
     rm -rf "${EXTENSIONS_DIR:?}"/*
     cp -r "$ROOT/extensions/"* "$EXTENSIONS_DIR/"
