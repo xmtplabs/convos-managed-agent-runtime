@@ -29,6 +29,9 @@ COPY openclaw/landing /app/landing
 COPY cli ./cli
 RUN chmod +x /app/cli/scripts/*.sh
 
+# CLI needs commander/dotenv (devDependencies); install before install-state-deps
+RUN pnpm install --no-frozen-lockfile --include=dev
+
 # Install extension/skill deps in state dir (/app)
 ENV HUSKY=0
 RUN OPENCLAW_STATE_DIR=/app NODE_ENV=development pnpm run install-state-deps
