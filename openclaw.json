@@ -28,14 +28,6 @@
       "openclaw": {
         "cdpPort": 18800,
         "color": "#FF4500"
-      },
-      "work": {
-        "cdpPort": 18801,
-        "color": "#0066CC"
-      },
-      "remote": {
-        "cdpUrl": "http://10.0.0.42:9222",
-        "color": "#00AA00"
       }
     }
   },
@@ -43,6 +35,8 @@
     "defaults": {
       "workspace": "~/.openclaw/workspace",
       "sandbox": { "mode": "off" },
+      "blockStreamingDefault": "on",
+    
       "model": {
         "primary": "${OPENCLAW_PRIMARY_MODEL}"
       },
@@ -59,24 +53,6 @@
         "openrouter/openai/gpt-4o": {},
         "openrouter/openai/gpt-4o-mini": {},
         "openrouter/mistralai/mistral-large-2411": {}
-      }
-    },
-    "list": [
-      {
-        "id": "main",
-        "default": true,
-        "name": "Convos Agent"
-      }
-    ]
-  },
-  "plugins": {
-    "slots": {
-      "memory": "none"
-    },
-    "load": {},
-    "entries": {
-      "convos": {
-        "enabled": true
       }
     }
   },

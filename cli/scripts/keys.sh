@@ -2,7 +2,7 @@
 # Write OPENROUTER_API_KEY + random OPENCLAW_GATEWAY_TOKEN and SETUP_PASSWORD to repo .env.
 set -e
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$(dirname "$0")/lib/init.sh"
 ENV_FILE="$ROOT/.env"
 
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi

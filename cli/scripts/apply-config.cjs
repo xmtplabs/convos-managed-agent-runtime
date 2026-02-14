@@ -6,7 +6,7 @@ const envPath = process.env.ENV_FILE || process.argv[3];
 const outputPath = process.env.CONFIG_OUTPUT || process.argv[4];
 
 if (!templatePath || !outputPath) {
-  console.error("[apply-env-to-config] TEMPLATE_PATH and CONFIG_OUTPUT (or argv[2] and argv[4]) required");
+  console.error("[apply-config] TEMPLATE_PATH and CONFIG_OUTPUT (or argv[2] and argv[4]) required");
   process.exit(1);
 }
 
@@ -14,7 +14,7 @@ let template = fs.readFileSync(templatePath, "utf8");
 try {
   JSON.parse(template);
 } catch (err) {
-  console.error("[apply-env-to-config] Template is invalid JSON:", err.message);
+  console.error("[apply-config] Template is invalid JSON:", err.message);
   process.exit(1);
 }
 const env = {};
@@ -43,7 +43,7 @@ let config;
 try {
   config = JSON.parse(template);
 } catch (err) {
-  console.error("[apply-env-to-config] Invalid JSON after env substitution:", err.message);
+  console.error("[apply-config] Invalid JSON after env substitution:", err.message);
   process.exit(1);
 }
 

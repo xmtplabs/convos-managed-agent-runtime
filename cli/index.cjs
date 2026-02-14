@@ -17,36 +17,30 @@ program
 program
   .command("apply")
   .description("Apply .env to config template, copy skills and workspace bootstrap files")
-  .action(() => runScript("apply-env-to-config.sh"));
+  .action(() => runScript("apply-config.sh"));
+
+program
+  .command("gateway")
+  .description("Start the gateway")
+  .action(() => runScript("gateway.sh"));
 
 program
   .command("start")
-  .description("Apply config then start the gateway (apply + entrypoint)")
+  .description("Apply config then start the gateway (apply + gateway)")
   .action(() => {
-    runScript("apply-env-to-config.sh");
-    runScript("entrypoint.sh");
+    runScript("apply-config.sh");
+    runScript("gateway.sh");
   });
 
 program
   .command("dev")
-  .description("Start gateway with local extensions (OPENCLAW_CUSTOM_PLUGINS_DIR=./extensions)")
-  .action(() => {
-    const path = require("path");
-    const { getRoot } = require("./context.cjs");
-    runScript("entrypoint.sh", {
-      OPENCLAW_CUSTOM_PLUGINS_DIR: path.join(getRoot(), "extensions"),
-    });
-  });
+  .description("Start gateway (uses ./extensions from repo root)")
+  .action(() => runScript("gateway.sh"));
 
 program
   .command("upgrade")
   .description("Clone or pull openclaw repo and build (for local openclaw development)")
   .action(() => runScript("upgrade-openclaw.sh"));
-
-program
-  .command("skill-setup")
-  .description("Merge .env keys into skills.entries and related config")
-  .action(() => runScript("skill-setup.sh"));
 
 if (process.argv.length <= 2) {
   program.outputHelp();

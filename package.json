@@ -6,10 +6,10 @@
   "scripts": {
     "cli": "node cli/index.cjs",
     "keys": "node cli/index.cjs keys",
-    "skill-setup": "node cli/index.cjs skill-setup",
     "start": "node cli/index.cjs start",
     "upgrade": "node cli/index.cjs upgrade",
     "apply": "node cli/index.cjs apply",
+    "gateway": "node cli/index.cjs gateway",
     "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
     "dev": "node cli/index.cjs dev"
   },

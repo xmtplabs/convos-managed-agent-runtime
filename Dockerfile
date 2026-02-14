@@ -51,17 +51,13 @@ COPY package.json pnpm-lock.yaml /app/
 RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
-COPY workspace /app/workspace-defaults
+COPY openclaw.json /app/openclaw.json
+COPY workspace /app/workspace
 COPY skills /app/skills
-COPY config /app/config-defaults
 COPY extensions /app/extensions
 COPY landing /app/landing
 COPY cli ./cli
 RUN chmod +x /app/cli/scripts/*.sh
-
-# State-dir seed: agentmail in state dir so skill scripts resolve from anywhere (no NODE_PATH)
-COPY config/state-dir-package.json /app/state-seed/package.json
-RUN cd /app/state-seed && pnpm install --no-frozen-lockfile && rm -f package-lock.yaml pnpm-lock.yaml
 
 # Install extension deps
 # HUSKY=0 skips husky prepare scripts from GitHub deps
@@ -74,7 +70,6 @@ RUN set -eux; \
   done
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
-ENV OPENCLAW_CUSTOM_PLUGINS_DIR=/app/extensions
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080

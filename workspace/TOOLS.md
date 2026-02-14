@@ -11,20 +11,8 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 - **Exec** — Shell commands (full host access, no approval needed)
 - **FS** — read, write, edit, apply_patch
-- **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab. https://docs.openclaw.ai/tools/browser
-
-  > **⚠️ CRITICAL — Browser tool REQUIRED PARAMS (MUST read before EVERY call):**
-  >
-  > **EVERY browser tool call MUST include `target: "host"`.** Without it the call WILL fail with "Sandbox browser is unavailable".
-  >
-  > 1. **Every call**: `target: "host"` — MANDATORY, no exceptions.
-  > 2. **`navigate`**: `target: "host"` AND `targetUrl` with the full URL. Omitting targetUrl → "targetUrl required".
-  > 3. **`act`**: `target: "host"` AND `ref` (the element ref string from a prior `snapshot`). Omitting ref → "ref is required". Always `snapshot` first, pick the ref, then `act`.
-  > 4. **`act:evaluate`**: `target: "host"` AND a **single expression** (no semicolons, no multi-statement blocks). Return a value: `document.title` ✓ — `const x = 1; return x` ✗.
-  > 5. **`snapshot`**: `target: "host"` — no extra params needed beyond target.
-  >
-  > **NEVER invoke the browser tool without `target: "host"`. NEVER omit `targetUrl` from navigate. These cause immediate failures.**
-
+- **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab.
+  - _Headless/cloud (Railway, CHROMIUM_PATH): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`). 
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
 - **Email** — Send and receive emails via the AgentMail skill
