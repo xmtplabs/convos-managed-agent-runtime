@@ -92,12 +92,14 @@ echo "[agent] Config verify: skipBootstrap=$_skip workspace=$_ws"
 echo "[agent] Config verify: subagents=$_subs"
 
 # Runtime artifact: custom plugins dir (extensions/convos); bundled plugins from OpenClaw install.
+# Ensure extension node_modules exist before OpenClaw loads plugins.
+if [ -x "$ROOT/scripts/install-extension-deps.sh" ]; then
+  ROOT="$ROOT" OPENCLAW_CUSTOM_PLUGINS_DIR="${OPENCLAW_CUSTOM_PLUGINS_DIR:-$ROOT/extensions}" "$ROOT/scripts/install-extension-deps.sh"
+fi
+
 RUNTIME_PLUGINS_ABS=""
 if [ -n "$OPENCLAW_CUSTOM_PLUGINS_DIR" ] && [ -d "$OPENCLAW_CUSTOM_PLUGINS_DIR" ]; then
   RUNTIME_PLUGINS_ABS="$(cd "$OPENCLAW_CUSTOM_PLUGINS_DIR" && pwd)"
-  for ext in "$RUNTIME_PLUGINS_ABS"/*/; do
-    [ -f "${ext}package.json" ] && (cd "$ext" && pnpm install 2>/dev/null || true)
-  done
   jq --arg d "$RUNTIME_PLUGINS_ABS" \
     '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = (([$d] + (.paths // [])))))' \
     "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
