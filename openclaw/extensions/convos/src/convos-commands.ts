@@ -18,7 +18,7 @@ export type CreateInviteResult = { inviteUrl: string };
  */
 export async function createInvite(
   cfg: CoreConfig,
-  options?: { accountId?: string | null; name?: string },
+  options?: { accountId?: string | null; name?: string; templateSlug?: string },
 ): Promise<CreateInviteResult> {
   const accountId = options?.accountId ?? resolveDefaultConvosAccountId(cfg);
   const account = resolveConvosAccount({ cfg, accountId });

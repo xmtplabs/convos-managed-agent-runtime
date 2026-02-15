@@ -1,0 +1,16 @@
+{
+  "templates": [
+    {
+      "slug": "trip-traveler",
+      "name": "Trip Traveler",
+      "emoji": "✈️",
+      "description": "Plan trips, bookings, itineraries"
+    },
+    {
+      "slug": "restaurant-booker",
+      "name": "Restaurant Booker",
+      "emoji": "🍽️",
+      "description": "Find and book restaurants"
+    }
+  ]
+}

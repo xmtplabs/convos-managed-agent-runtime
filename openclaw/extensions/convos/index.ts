@@ -449,7 +449,8 @@ const plugin = {
           const cfg = runtime.config.loadConfig() as CoreConfig;
           const body = await readJsonBody(req);
           const name = typeof body.name === "string" ? body.name : undefined;
-          const result = await createInvite(cfg, { name });
+          const templateSlug = typeof body.templateSlug === "string" ? body.templateSlug : undefined;
+          const result = await createInvite(cfg, { name, templateSlug });
           jsonResponse(res, 200, result);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);

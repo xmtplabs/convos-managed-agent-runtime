@@ -21,9 +21,34 @@ function serveFile(
   }
 }
 
+function jsonResponse(res: ServerResponse, status: number, body: unknown) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(body));
+}
+
 export default function register(api: OpenClawPluginApi) {
   const formDir = path.resolve(__dirname, "form");
   const agentsDir = path.resolve(__dirname, "agents");
+  const templatesPath = path.resolve(__dirname, "templates.json");
+
+  api.registerHttpRoute({
+    path: "/web-tools/templates",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      try {
+        const raw = fs.readFileSync(templatesPath, "utf-8");
+        const data = JSON.parse(raw) as { templates: Array<{ slug: string; name: string; emoji?: string; description?: string }> };
+        jsonResponse(res, 200, { templates: data.templates ?? [] });
+      } catch {
+        jsonResponse(res, 200, { templates: [] });
+      }
+    },
+  });
 
   api.registerHttpRoute({
     path: "/web-tools/form",

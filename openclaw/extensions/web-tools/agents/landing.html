@@ -132,12 +132,30 @@
       outline: none;
       border-color: #666;
     }
+    #template-select {
+      width: 100%;
+      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      color: #333;
+      background: #fff;
+    }
+    #template-select:focus {
+      outline: none;
+      border-color: #666;
+    }
+    .template-label {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
     .divider {
       text-align: center;
       font-size: 0.8rem;
       color: #888;
     }
-    .mode-create { margin: 0; }
+    .mode-create { margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
     .footer {
       position: absolute;
       bottom: 1.5rem;
@@ -213,6 +231,10 @@
         <button type="button" class="mode-join-btn" id="mode-join-btn">Add to existing Convo</button>
         <div class="divider" aria-hidden="true">— or —</div>
         <div class="mode-create">
+          <label class="template-label" for="template-select">Agent type (optional)</label>
+          <select id="template-select" aria-label="Choose agent type">
+            <option value="">General</option>
+          </select>
           <button type="button" id="create-btn">Create new agent</button>
         </div>
       </div>
@@ -284,6 +306,26 @@
       var errorEl = document.getElementById("error");
       var gatewayTip = document.getElementById("gateway-tip");
       var joinOpenLink = document.getElementById("join-open-link");
+      var templateSelect = document.getElementById("template-select");
+
+      function loadTemplates() {
+        if (!templateSelect) return;
+        fetch("/web-tools/templates")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var list = data.templates;
+            if (!Array.isArray(list) || list.length === 0) return;
+            for (var i = 0; i < list.length; i++) {
+              var t = list[i];
+              var opt = document.createElement("option");
+              opt.value = t.slug || "";
+              opt.textContent = (t.emoji ? t.emoji + " " : "") + (t.name || t.slug || "");
+              templateSelect.appendChild(opt);
+            }
+          })
+          .catch(function () {});
+      }
+      loadTemplates();
 
       function isGatewayOrigin() {
         var h = window.location.hostname;
@@ -341,10 +383,13 @@
         placeholder.style.display = "flex";
         placeholder.classList.add("loading");
 
+        var templateSlug = templateSelect && templateSelect.value ? templateSelect.value.trim() : "";
+        var body = {};
+        if (templateSlug) body.templateSlug = templateSlug;
         fetch("/convos/invite", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
+          body: JSON.stringify(body),
         })
           .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
           .then(function (_) {
