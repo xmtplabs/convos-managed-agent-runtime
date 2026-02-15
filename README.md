@@ -7,21 +7,15 @@ OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config.
 flowchart LR
   subgraph 1pool["1pool infrastructure"]
     A[deploy up-to-date<br/>openclaw branch]
-    B[run scripts: provision<br/>extension, workspace files]
-    C[provision provider keys]
-    D[live agent]
-    A --> B --> C --> D
+    B[provision extension, workspace files]
+    C[installs extension/skill deps]
+    D[provision provider keys]
+    E[live agent]
+    A --> B --> C --> D --> E
   end
 ```
 
 Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at apply time:
-
-| Path | Contents |
-|------|----------|
-| `openclaw/workspace` | AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md, form/, skills/ (agentmail) |
-| `openclaw/extensions` | convos (XMTP), web-tools (form at /web-tools/form) |
-| `openclaw/openclaw.json` | Config template (env-substituted → `~/.openclaw/openclaw.json`) |
-| `cli/` | apply-config, gateway, install-state-deps scripts |
 
 ## Repo structure
 
@@ -45,11 +39,11 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 │   │   ├── form/              # form.html (served at /web-tools/form)
 │   │   └── skills/            # agentmail (SKILL.md, scripts/*.mjs)
 │   ├── extensions/
-│   │   ├── convos/            # XMTP channel plugin (landing at /convos/landing)
-│   │   │   ├── landing/       # landing.html, sw.js, manifest, icon
+│   │   ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
 │   │   │   ├── index.ts, openclaw.plugin.json, package.json
 │   │   │   └── src/
-│   │   └── web-tools/         # workspace-based web tools (form at /web-tools/form)
+│   │   └── web-tools/         # workspace-based web tools (form at /web-tools/form, agents at /web-tools/agents)
+│   │       ├── agents/        # landing.html, sw.js, manifest, icon (calls convos APIs for join/invite)
 │   │       └── index.ts, openclaw.plugin.json, package.json
 ├── package.json, pnpm-lock.yaml
 ├── Dockerfile, railway.toml
@@ -96,10 +90,3 @@ pnpm run install-state-deps # Install extension/skill deps
 pnpm run gateway            # Start the gateway
 pnpm start                  # apply-config + install-state-deps + gateway
 ```
-
-## Flow
-
-1. **apply-config** — Syncs `openclaw/workspace` (includes skills), `extensions` into `OPENCLAW_STATE_DIR`, copies config template. When `OPENCLAW_STATE_DIR` or `PORT` is set (Docker/Railway), patches gateway port/bind and `agents.defaults.workspace` so web-tools form resolves correctly.
-2. **gateway** — Runs OpenClaw with `OPENCLAW_CONFIG_PATH` and injected plugin paths
-
-No core OpenClaw changes. Convos lives entirely in the plugin.
