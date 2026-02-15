@@ -7,6 +7,9 @@
     "@convos/cli": "github:xmtplabs/convos-cli",
     "zod": "^4.3.6"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@convos/cli"]
+  },
   "openclaw": {
     "extensions": [
       "./index.ts"
