@@ -439,7 +439,7 @@ const plugin = {
 
     // ---- Landing PWA (invite button → QR + deeplink) ----
 
-    const landingDir = path.resolve(__dirname, "..", "..", "landing");
+    const landingDir = path.resolve(__dirname, "landing");
     function serveFile(
       res: ServerResponse,
       filePath: string,
@@ -566,28 +566,6 @@ const plugin = {
           return;
         }
         serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
-      },
-    });
-
-    api.registerHttpRoute({
-      path: "/convos/form",
-      handler: async (req, res) => {
-        if (req.method !== "GET") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        serveFile(res, path.join(landingDir, "form.html"), "text/html; charset=utf-8");
-      },
-    });
-
-    api.registerHttpRoute({
-      path: "/convos/form/",
-      handler: async (req, res) => {
-        if (req.method !== "GET") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        serveFile(res, path.join(landingDir, "form.html"), "text/html; charset=utf-8");
       },
     });
 

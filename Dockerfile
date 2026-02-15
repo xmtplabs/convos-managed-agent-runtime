@@ -26,7 +26,6 @@ COPY openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY openclaw/workspace /app/openclaw/workspace
 COPY openclaw/skills /app/openclaw/skills
 COPY openclaw/extensions /app/openclaw/extensions
-COPY openclaw/landing /app/openclaw/landing
 COPY cli ./cli
 RUN chmod +x /app/cli/scripts/*.sh
 

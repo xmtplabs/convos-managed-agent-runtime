@@ -31,7 +31,7 @@ flowchart LR
 1pool infrastructure (positioning workflow):
 
 1. **Deploy** — Up-to-date branch of OpenClaw (e.g. npm `openclaw` or build from repo).
-2. **Provision** — Scripts sync extension(s), workspace files, skills, landing into state dir; apply-config writes config from template + env.
+2. **Provision** — Scripts sync extension(s), workspace files, skills into state dir; apply-config writes config from template + env.
 3. **Keys** — key-provision (or env) sets gateway token, wallet, OpenRouter/AgentMail/etc. keys.
 4. **Live agent** — Gateway starts; Convos connects XMTP; agent runs with full tools (browser, agentmail, web_search, etc.).
 
@@ -41,10 +41,9 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 
 | Path | Contents |
 |------|----------|
-| `openclaw/workspace` | AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md |
+| `openclaw/workspace` | AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md, form/ |
 | `openclaw/skills` | agentmail (email skill) |
-| `openclaw/extensions` | convos (XMTP channel plugin) |
-| `openclaw/landing` | landing.html, form.html, sw.js, manifest, icon |
+| `openclaw/extensions` | convos (XMTP), web-tools (form at /web-tools/form) |
 | `openclaw/openclaw.json` | Config template (env-substituted → `~/.openclaw/openclaw.json`) |
 | `cli/` | apply-config, gateway, install-state-deps scripts |
 
@@ -66,14 +65,17 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 │   ├── openclaw.json          # Config template (env vars substituted at load)
 │   ├── workspace/             # → ~/.openclaw/workspace
 │   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md
-│   │   └── memory/
+│   │   ├── memory/
+│   │   └── form/              # form.html (served at /web-tools/form)
 │   ├── skills/
 │   │   └── agentmail/         # SKILL.md, scripts/*.mjs, references/
 │   ├── extensions/
-│   │   └── convos/            # XMTP channel plugin
-│   │       ├── index.ts, openclaw.plugin.json, package.json
-│   │       └── src/           # channel, accounts, actions, sdk-client, outbound, …
-│   └── landing/               # landing.html, form.html, sw.js, manifest, icon
+│   │   ├── convos/            # XMTP channel plugin (landing at /convos/landing)
+│   │   │   ├── landing/       # landing.html, sw.js, manifest, icon
+│   │   │   ├── index.ts, openclaw.plugin.json, package.json
+│   │   │   └── src/
+│   │   └── web-tools/         # workspace-based web tools (form at /web-tools/form)
+│   │       └── index.ts, openclaw.plugin.json, package.json
 ├── package.json, pnpm-lock.yaml
 ├── Dockerfile, railway.toml
 ├── .env.example
@@ -108,7 +110,7 @@ pnpm start                  # apply-config + gateway
 
 ## Flow
 
-1. **apply-config** — Syncs `openclaw/workspace`, `skills`, `extensions`, `landing` into `OPENCLAW_STATE_DIR`, substitutes `.env` into `openclaw.json`
+1. **apply-config** — Syncs `openclaw/workspace`, `skills`, `extensions` into `OPENCLAW_STATE_DIR`, substitutes `.env` into `openclaw.json`
 2. **gateway** — Runs OpenClaw with `OPENCLAW_CONFIG_PATH` and injected plugin paths
 
 No core OpenClaw changes. Convos lives entirely in the plugin.

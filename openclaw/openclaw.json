@@ -99,9 +99,8 @@
     }
   },
   "plugins": {
-    "slots": {
-      "memory": "none"
-    }
+    "slots": { "memory": "none" },
+    "entries": { "web-tools": { "enabled": true } }
   },
   "models": {
     "mode": "merge",
