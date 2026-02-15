@@ -87,6 +87,24 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 
 **Workaround:** Keep model entries as `{ "id": "...", "name": "..." }` only in the repo file. Avoid formatting `openclaw/openclaw.json` with a formatter that applies schema defaults. If you edit config in Control UI, don’t copy the state-dir `openclaw.json` back into the repo — run `pnpm apply` so the repo template is copied to state instead. If the full entries reappear, strip them again (id/name only).
 
+## Landing page routes: extension must register them explicitly
+
+**Problem:** After replacing the convos extension, `/convos/landing` serves the OpenClaw Control UI instead of the landing page. The gateway's SPA catch-all handles any path that doesn't match a registered HTTP route.
+
+**Workaround:** The convos extension registers explicit HTTP routes for `/convos/landing`, `/convos/landing/`, `/convos/form`, `/convos/form/`, `/convos/landing-manifest.json`, `/convos/sw.js`, and `/convos/icon.svg` in [extensions/convos/index.ts](extensions/convos/index.ts). These serve static files from the `landing/` directory (resolved via `import.meta.url` two levels up). If these routes are removed, the gateway falls back to the Control UI SPA.
+
+## Landing page endpoints: use /convos/conversation and { inviteUrl }
+
+**Problem:** The old extension had `/convos/invite` and `/convos/join` (with `{ invite }` field). The new CLI-based extension uses `/convos/conversation` and `/convos/join` (with `{ inviteUrl }` field).
+
+**Workaround:** The landing page JS in [landing/landing.html](landing/landing.html) calls `POST /convos/conversation` (not `/convos/invite`) and sends `{ inviteUrl: url }` (not `{ invite: url }`). If the landing page is updated, keep these endpoint/field names in sync with the extension's HTTP routes.
+
+## Railway port/bind: patched at deploy time, not in config
+
+**Problem:** Railway requires `port: 8080` and `bind: "lan"` (0.0.0.0). But setting `bind: "lan"` in `openclaw.json` triggers gateway auth on all requests locally, redirecting unauthenticated pages (like the landing) to the Control UI login. Valid bind values are `loopback`, `lan`, `tailnet` (not `all`).
+
+**Workaround:** Keep `openclaw.json` at defaults (`port: 18789`, `bind: "loopback"`). [scripts/apply-config.sh](scripts/apply-config.sh) patches the config with `jq` when `PORT` env var is set and differs from 18789 — sets `gateway.port` to `$PORT` and `gateway.bind` to `"lan"`. The [Dockerfile](Dockerfile) sets `PORT=8080`, so Railway deployments get the right values automatically.
+
 ## Control UI / webchat: replies only after refresh
 
 **Problem:** In the Control UI (webchat), agent replies sometimes do not appear until the page is refreshed. The gateway run completes (logs show `run_completed`, `run done`), but the client does not receive or render the reply over the live connection.

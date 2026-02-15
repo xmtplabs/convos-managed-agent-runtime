@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-02-15
+
+- Convos: replace SDK-based extension (`@xmtp/agent-sdk` + `convos-node-sdk`) with CLI-based implementation (`@convos/cli`). All XMTP operations now shell out to the `convos` binary.
+- Convos: remove `devDependencies` with `workspace:*` reference (breaks Railway install outside pnpm workspace).
+- Convos: add `@convos/cli` to `pnpm.onlyBuiltDependencies` (pnpm v10 blocks build scripts for git-hosted deps by default).
+- Landing: update JS to call `/convos/conversation` (was `/convos/invite`) and send `{ inviteUrl }` (was `{ invite }`) to match new extension API.
+- Landing: re-add static file serving routes (`/convos/landing`, `/convos/form`, manifest, sw, icon) in extension — without them the gateway SPA catch-all serves the Control UI.
+- Deploy: `apply-config.sh` patches `gateway.port` and `gateway.bind=lan` when `PORT` env var is set (Railway sets `PORT=8080`); `openclaw.json` stays at defaults (18789/loopback) for local dev.
+- Config: strip OpenRouter model entries to `id`/`name` only (remove schema defaults that get re-added by formatters).
+- Docs: add README, POOL-MANAGER, SMOKE-TEST for new CLI architecture; clear outdated RAILWAY-MIGRATION.
+
 ## 2026-02-14
 
 - Landing: treat ngrok hostnames (e.g. *.ngrok.app) as staging for env badge.
