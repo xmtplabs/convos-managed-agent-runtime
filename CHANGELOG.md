@@ -2,6 +2,7 @@
 
 ## 2026-02-14
 
+- Landing: treat ngrok hostnames (e.g. *.ngrok.app) as staging for env badge.
 - Agentmail: require `$OPENCLAW_STATE_DIR/skills/agentmail/scripts/...` in SKILL.md, TOOLS.md, workarounds (never bare `skills/...` — exec cwd is workspace, avoids MODULE_NOT_FOUND).
 - README: add Environment section (vars from .env.example).
 - gateway.sh: keep only required exports (OPENCLAW_STATE_DIR, OPENCLAW_CONFIG_PATH, OPENCLAW_WORKSPACE_DIR).
