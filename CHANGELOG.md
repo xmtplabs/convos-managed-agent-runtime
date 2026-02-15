@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-02-15
+
+- Revert convos extension from CLI-based (@convos/cli) back to SDK-based (@xmtp/agent-sdk + convos-node-sdk).
+- apply-config.sh: patch gateway port/bind at deploy time when PORT env var is set (Railway).
+- apply-config.sh: merge repo template with existing state config, preserving convos runtime values across restarts.
+- Landing: update title to "convos managed agent runtime", center header, add env section with staging/main switch link.
+
 ## 2026-02-14
 
 - Landing: treat ngrok hostnames (e.g. *.ngrok.app) as staging for env badge.
