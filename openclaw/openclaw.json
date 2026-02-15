@@ -1,8 +1,8 @@
 {
   "gateway": {
     "mode": "local",
-    "port": 18789,
-    "bind": "loopback",
+    "port": 8080,
+    "bind": "all",
     "auth": {
       "mode": "token"
     },
