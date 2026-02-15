@@ -1,8 +1,5 @@
-/**
- * Config/account resolution: list and resolve Convos accounts from OpenClaw config.
- */
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
-import { XMTP_ENV_DEFAULT, type ConvosConfig } from "./config-types.js";
+import type { ConvosConfig } from "./config-types.js";
 
 export type CoreConfig = {
   channels?: {
@@ -16,8 +13,8 @@ export type ResolvedConvosAccount = {
   enabled: boolean;
   name?: string;
   configured: boolean;
-  /** Hex-encoded XMTP private key (undefined until first run) */
-  privateKey?: string;
+  /** CLI-managed identity ID (stored in ~/.convos/identities/) */
+  identityId?: string;
   /** XMTP environment */
   env: "production" | "dev";
   debug: boolean;
@@ -46,16 +43,16 @@ export function resolveConvosAccount(params: {
   const base = params.cfg.channels?.convos ?? {};
   const enabled = base.enabled !== false;
 
-  // Identity is created on first start (config or state-dir); no key required in config
-  const configured = enabled;
+  // Convos is "configured" if we have an owner conversation (identity + conversation established)
+  const configured = Boolean(base.ownerConversationId);
 
   return {
     accountId,
     enabled,
     name: base.name?.trim() || undefined,
     configured,
-    privateKey: base.privateKey,
-    env: base.XMTP_ENV ?? XMTP_ENV_DEFAULT,
+    identityId: base.identityId,
+    env: base.env ?? "production",
     debug: base.debug ?? false,
     ownerConversationId: base.ownerConversationId,
     config: base,

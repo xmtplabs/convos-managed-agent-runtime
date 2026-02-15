@@ -1,12 +1,7 @@
-/**
- * Runtime-state: OpenClaw plugin runtime reference and setup lock.
- * Owned by the Convos runtime artifact; used by channel, outbound, and gateway start/stop.
- */
 import type { PluginRuntime } from "openclaw/plugin-sdk";
 
 let runtime: PluginRuntime | null = null;
 
-/** Set once at plugin register; used by channel, outbound, and gateway. */
 export function setConvosRuntime(next: PluginRuntime) {
   runtime = next;
 }
@@ -18,7 +13,8 @@ export function getConvosRuntime(): PluginRuntime {
   return runtime;
 }
 
-/** When true, probes are skipped to avoid burning XMTP installation slots during setup/reset. */
+// Setup-active flag: when true, probes should be skipped to avoid
+// hitting the XMTP "10/10 installations" limit with the old identity.
 let setupActive = false;
 
 export function isConvosSetupActive(): boolean {
