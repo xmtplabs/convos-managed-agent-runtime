@@ -7,7 +7,7 @@
   <title>convos managed agent runtime</title>
   <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
-  <link rel="manifest" href="/convos/landing-manifest.json">
+  <link rel="manifest" href="/web-tools/agents/manifest.json">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -191,7 +191,7 @@
   <div id="env-badge" class="env-badge env-badge--staging" aria-hidden="true">Staging</div>
   <div class="card">
     <div class="card-header">
-      <span>convos managed agent runtime</span>
+      <span>convos agents</span>
     </div>
     <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener" style="display: none;">
       <img id="qr-img" src="" width="240" height="240" alt="QR code">
@@ -257,18 +257,18 @@
         var linkSwitch = document.getElementById("link-switch");
         if (linkSwitch) {
           if (env === "staging") {
-            linkSwitch.href = "https://convos-agent-dev.up.railway.app/convos/landing";
+            linkSwitch.href = "https://convos-agent-dev.up.railway.app/web-tools/agents";
             linkSwitch.textContent = "Switch to main";
             linkSwitch.style.display = "";
           } else {
-            linkSwitch.href = "https://3b63484a39c2.ngrok.app/convos/landing";
+            linkSwitch.href = "https://3b63484a39c2.ngrok.app/web-tools/agents";
             linkSwitch.textContent = "Switch to staging";
             linkSwitch.style.display = "";
           }
         }
       })();
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/convos/sw.js", { scope: "/convos/" }).catch(function () {});
+        navigator.serviceWorker.register("/web-tools/agents/sw.js", { scope: "/web-tools/agents/" }).catch(function () {});
       }
 
       var qrWrap = document.getElementById("qr-wrap");
@@ -296,7 +296,7 @@
           gatewayTip.style.display = "none";
           return;
         }
-        gatewayTip.textContent = "Join only works when this page is opened from your OpenClaw gateway. Open http://localhost:18789/convos/landing (or your gateway URL + /convos/landing), then paste the invite and click Join.";
+        gatewayTip.textContent = "Join only works when this page is opened from your OpenClaw gateway. Open http://localhost:18789/web-tools/agents (or your gateway URL + /web-tools/agents), then paste the invite and click Join.";
         gatewayTip.style.display = "block";
       }
 
@@ -411,7 +411,7 @@
           .catch(function () {
             joinBtn.disabled = false;
             joinBtn.textContent = "Join";
-            showError("Could not reach the OpenClaw gateway. Open this page from the same host that runs your agent (e.g. gateway URL + /convos/landing).");
+            showError("Could not reach the OpenClaw gateway. Open this page from the same host that runs your agent (e.g. gateway URL + /web-tools/agents).");
           });
       });
 
