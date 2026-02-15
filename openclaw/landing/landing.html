@@ -304,7 +304,7 @@
         placeholder.style.display = "flex";
         placeholder.classList.add("loading");
 
-        fetch("/convos/invite", {
+        fetch("/convos/conversation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
@@ -353,7 +353,7 @@
         fetch("/convos/join", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ invite: url }),
+          body: JSON.stringify({ inviteUrl: url }),
         })
           .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
           .then(function (_) {
