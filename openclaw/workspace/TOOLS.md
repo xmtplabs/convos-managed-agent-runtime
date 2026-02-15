@@ -15,7 +15,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
   - _Headless/cloud (Railway, CHROMIUM_PATH): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`). 
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
-- **Email** — Send and receive emails via the AgentMail skill. Always run agentmail scripts as `node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/<script>.mjs ...` (never `skills/...` from repo/workspace root — exec cwd is workspace, that path does not exist).
+- **Email** — Send and receive emails via the AgentMail skill. Run agentmail scripts as `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`
 
 # Examples
 

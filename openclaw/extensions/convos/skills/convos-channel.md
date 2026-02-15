@@ -10,18 +10,26 @@ read_when:
 
 # Convos Channel Guide
 
-Convos provides E2E encrypted messaging via XMTP using the `convos` CLI binary. This guide explains how OpenClaw can use Convos to communicate with users.
+Convos provides E2E encrypted messaging via XMTP using the convos-node-sdk. This guide explains how OpenClaw can use Convos to communicate with users.
 
 ## Architecture Overview
 
-### CLI-Based Implementation
+### SDK-Based Implementation
 
-OpenClaw shells out to the `convos` CLI binary for all XMTP operations:
+OpenClaw uses convos-node-sdk directly (no external daemon required):
 
-- One process = one conversation (no pool, no routing)
-- Long-lived child processes for streaming and join-request processing
-- One-shot commands for send, react, lock, explode, etc.
-- Identity management handled by the CLI (`~/.convos/identities/`)
+- Runs in-process within the gateway
+- Cross-platform (macOS, Linux, Windows)
+- Private keys stored in config file
+
+### Per-Conversation Identity
+
+Each Convos conversation has its own unique XMTP inbox identity. This means:
+
+- No single identity is reused across conversations
+- Cross-conversation correlation/tracking is impossible
+- Each conversation is cryptographically isolated
+- Compromising one conversation doesn't affect others
 
 ### Owner Channel
 
@@ -29,49 +37,68 @@ When OpenClaw is connected to Convos, there's a special "owner conversation" whe
 
 The owner conversation ID is stored in `channels.convos.ownerConversationId`.
 
+## Slash commands
+
+When the gateway is running, operators can use these commands from any channel (e.g. Convos, Telegram):
+
+| Command   | Args          | Description                                                                                 |
+| --------- | ------------- | ------------------------------------------------------------------------------------------- |
+| `/invite` | Optional name | Create a new Convos conversation and get an invite link. Reply with the URL to share.       |
+| `/join`   | Required URL  | Join a Convos conversation via invite URL. Use the full invite link (e.g. from Convos app). |
+
+Both commands require authorization. If Convos is not configured or not running, the command replies with a short error message.
+
 ## Conversation Operations
+
+### Listing Conversations
+
+Use the SDK client to list available conversations:
+
+```
+client.listConversations() → [{ id, displayName, memberCount, ... }]
+```
 
 ### Creating New Conversations
 
-Via HTTP route `POST /convos/conversation`:
+OpenClaw can create new conversations for specific purposes:
 
-```json
-{ "name": "My Conversation" }
+```
+client.createConversation(name?) → { conversationId, inviteSlug }
 ```
 
-Returns `{ conversationId, inviteUrl, inviteSlug }`.
+Use cases:
 
-### Joining Conversations
+- Creating a dedicated conversation for a project/topic
+- Separating concerns (work vs personal vs alerts)
+- Onboarding new users with fresh conversations
 
-Via HTTP route `POST /convos/join`:
+### Generating Invites
 
-```json
-{ "inviteUrl": "https://convos.app/join/<slug>" }
+To invite someone to a conversation:
+
 ```
+client.getInvite(conversationId) → { inviteSlug }
+```
+
+The invite URL format is: `https://convos.app/join/<slug>`. For all supported formats and regex patterns (e.g. for clipboard detection in the Convos app), see [INVITE_URLS.md](../INVITE_URLS.md).
+
+Invites are:
+
+- Cryptographically signed by the conversation creator
+- Revocable by updating the conversation's invite tag
+- Optionally time-limited or single-use
 
 ### Sending Messages
 
-Via message action `send` with `message` param, or HTTP route `POST /convos/conversation/send`:
-
-```json
-{ "message": "Hello!" }
+```
+client.sendMessage(conversationId, message) → { success }
 ```
 
 ### Adding Reactions
 
-Via message action `react` with `messageId` and `emoji` params.
-
-### Locking Conversations
-
-Via HTTP route `POST /convos/lock`:
-
-```json
-{ "unlock": false }
 ```
-
-### Destroying Conversations
-
-Via HTTP route `POST /convos/explode` (irreversible).
+client.react(conversationId, messageId, emoji, remove?) → { success, action }
+```
 
 ## Communication Guidelines
 
@@ -84,13 +111,40 @@ The owner conversation (`ownerConversationId`) is your primary communication cha
 - Reporting errors or issues
 - Asking clarifying questions
 
+### Creating Purpose-Specific Conversations
+
+When the operator asks you to communicate with others or manage different topics:
+
+1. Create a new conversation with a descriptive name
+2. Generate an invite link
+3. Share the invite with the intended recipients
+4. Use that conversation for its designated purpose
+
+Example workflow:
+
+```
+"I need you to coordinate with my team on Project X"
+
+1. Create conversation: client.createConversation("Project X Coordination")
+2. Get invite: client.getInvite(newConversationId)
+3. Reply: "I've created a conversation for Project X.
+   Share this invite link with your team: https://convos.app/join/..."
+4. Use that conversation for all Project X discussions
+```
+
+### Privacy Considerations
+
+- Each conversation has an isolated identity - users in one conversation cannot link you to another
+- Display names and avatars are per-conversation (no global profile)
+- The owner can configure different personas in different conversations
+
 ## Message Targeting
 
 When sending messages via Convos:
 
-- Messages are sent to the single bound conversation
-- The conversation ID is set during setup/onboarding
-- To send: use action `send` with `message` param
+- Target by conversation ID (32-char hex): `a3aa5c564c072b6be8478409d72aa091`
+- The ID is returned when creating or listing conversations
+- To reply in the owner channel, use the `ownerConversationId` from config
 
 ## Error Handling
 
@@ -98,8 +152,7 @@ Common scenarios:
 
 - **Invalid invite**: The invite may be expired or revoked
 - **Join pending**: Some joins require approval from the conversation creator
-- **Connection issues**: Check network, try `env: "dev"` for testing
-- **Instance already bound**: Returns 409 — terminate process and provision a new one
+- **Connection issues**: Check network, try `XMTP_ENV: "dev"` for testing
 
 ## Configuration Reference
 
@@ -108,8 +161,8 @@ Common scenarios:
   "channels": {
     "convos": {
       "enabled": true,
-      "identityId": "cli-managed-id",
-      "env": "production",
+      "privateKey": "0x...",
+      "XMTP_ENV": "dev",
       "ownerConversationId": "abc123...",
       "dmPolicy": "pairing"
     }
@@ -119,7 +172,7 @@ Common scenarios:
 
 Key fields:
 
-- `identityId`: CLI-managed identity reference (stored in `~/.convos/identities/`)
-- `env`: XMTP environment (production/dev)
+- `privateKey`: XMTP identity key (hex, auto-generated on first run)
+- `XMTP_ENV`: XMTP environment (dev/production, defaults to dev)
 - `ownerConversationId`: The conversation for operator communication
-- `dmPolicy`: Sender access policy (pairing/allowlist/open/disabled)
+- `dmPolicy`: Sender access policy (pairing/allowlist/open/disabled). Controls who can message the agent in group conversations.

@@ -13,7 +13,7 @@ function runCheck() {
   const stateDir = getStateDir();
   const workspaceDir = getWorkspaceDir();
   const configPath = getConfigPath();
-  const skillsDir = path.join(stateDir, "skills");
+  const skillsDir = path.join(workspaceDir, "skills");
 
   const env = {
     OPENCLAW_STATE_DIR: process.env.OPENCLAW_STATE_DIR,

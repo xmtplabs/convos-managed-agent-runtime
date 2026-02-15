@@ -24,13 +24,11 @@ ENV NODE_PATH=/app/node_modules
 # RUNTIME_DIR=$ROOT/openclaw in paths.sh — apply-config syncs from here to STATE_DIR (/app)
 COPY openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY openclaw/workspace /app/openclaw/workspace
-COPY openclaw/skills /app/openclaw/skills
 COPY openclaw/extensions /app/openclaw/extensions
-COPY openclaw/landing /app/openclaw/landing
 COPY cli ./cli
 RUN chmod +x /app/cli/scripts/*.sh
 
-# Sync templates to state dir so install-state-deps sees extensions/skills
+# Sync templates to state dir so install-state-deps sees extensions and workspace/skills
 RUN OPENCLAW_STATE_DIR=/app pnpm run cli -- apply-config
 
 # Install extension/skill deps in state dir (/app)
@@ -40,6 +38,7 @@ ENV HUSKY=0
 RUN npm install -g husky && OPENCLAW_STATE_DIR=/app pnpm run install-state-deps
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV OPENCLAW_STATE_DIR=/app
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080

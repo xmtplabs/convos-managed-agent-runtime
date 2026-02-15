@@ -1,8 +1,13 @@
+ /**
+ * Routing + inbound: Convos channel plugin definition, message routing, and reply delivery.
+ * Handles inbound pipeline (route -> session -> envelope -> dispatch) and gateway start/stop.
+ */
 import {
   DEFAULT_ACCOUNT_ID,
   deleteAccountFromConfigSection,
   setAccountEnabledInConfigSection,
   type ChannelPlugin,
+  type OpenClawConfig,
   type PluginRuntime,
   type ReplyPayload,
 } from "openclaw/plugin-sdk";
@@ -15,21 +20,25 @@ import {
 } from "./accounts.js";
 import { convosMessageActions } from "./actions.js";
 import { convosChannelConfigSchema } from "./config-schema.js";
+import { XMTP_ENV_DEFAULT } from "./config-types.js";
+import { resolveConvosDbPath } from "./lib/convos-client.js";
+import { createUser } from "./lib/identity.js";
+import { loadIdentity, saveIdentity } from "./lib/identity-store.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
-import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound.js";
-import { getConvosRuntime } from "./runtime.js";
-import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
+import { convosOutbound, getClientForAccount, setClientForAccount } from "./outbound.js";
+import { getConvosRuntime, isConvosSetupActive } from "./runtime.js";
+import { ConvosSDKClient, type InboundMessage } from "./sdk-client.js";
 
 type RuntimeLogger = {
   info: (msg: string) => void;
   error: (msg: string) => void;
-  warn?: (msg: string) => void;
 };
 
-const meta = {
+/** Channel plugin metadata for CLI/UI (runtime artifact label). */
+const convosChannelMeta = {
   id: "convos",
   label: "Convos",
-  selectionLabel: "Convos (XMTP)",
+  selectionLabel: "Convos (Join via url)",
   docsPath: "/channels/convos",
   docsLabel: "convos",
   blurb: "E2E encrypted messaging via XMTP",
@@ -50,9 +59,29 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
   return normalized || undefined;
 }
 
+/** Resolve private key from config, state-dir identity file, or generate and persist. */
+async function getOrCreateConvosPrivateKey(
+  runtime: PluginRuntime,
+  account: ResolvedConvosAccount,
+  log?: RuntimeLogger,
+): Promise<string> {
+  if (account.privateKey) {
+    return account.privateKey;
+  }
+  const stateDir = runtime.state.resolveStateDir();
+  const stored = loadIdentity(stateDir, account.accountId);
+  if (stored?.privateKey) {
+    return stored.privateKey;
+  }
+  const user = createUser();
+  saveIdentity(stateDir, account.accountId, { privateKey: user.key });
+  log?.info(`[${account.accountId}] Created new XMTP identity (state dir)`);
+  return user.key;
+}
+
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   id: "convos",
-  meta,
+  meta: convosChannelMeta,
   capabilities: {
     chatTypes: ["group"],
     reactions: true,
@@ -65,8 +94,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   actions: convosMessageActions,
   agentPrompt: {
     messageToolHints: () => [
-      "- To send a Convos message: use `action=send` with `message`.",
-      "- For reactions: use `action=react` with `messageId` and `emoji`.",
+      "- Convos targets are conversation IDs (UUIDs). Use `to=<conversationId>` for `action=send`.",
+      "- For reactions, use `action=react` with `conversationId`, `messageId`, and `emoji`.",
     ],
   },
   config: {
@@ -86,7 +115,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         cfg: cfg as CoreConfig,
         sectionKey: "convos",
         accountId,
-        clearBaseFields: ["name", "identityId", "env", "debug", "ownerConversationId"],
+        clearBaseFields: ["name", "privateKey", "XMTP_ENV", "debug", "ownerConversationId"],
       }),
     isConfigured: (account) => account.configured,
     describeAccount: (account) => ({
@@ -109,21 +138,24 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     idLabel: "inbox ID",
     normalizeAllowEntry: (entry) => {
       const trimmed = entry.trim();
-      if (!trimmed) {
-        return trimmed;
-      }
+      if (!trimmed) return trimmed;
+      // Remove convos: prefix if present for storage
       if (trimmed.toLowerCase().startsWith("convos:")) {
         return trimmed.slice("convos:".length).trim();
       }
       return trimmed;
     },
-    notifyApproval: async ({ id }) => {
-      const inst = getConvosInstance();
-      if (!inst) {
+    notifyApproval: async ({ cfg, id, runtime }) => {
+      const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
+      const client = getClientForAccount(account.accountId);
+      if (!client || !account.ownerConversationId) {
         return;
       }
       try {
-        await inst.sendMessage(`Device paired successfully (inbox: ${id.slice(0, 12)}...)`);
+        await client.sendMessage(
+          account.ownerConversationId,
+          `✅ Device paired successfully (inbox: ${id.slice(0, 12)}...)`,
+        );
       } catch {
         // Ignore notification errors
       }
@@ -149,18 +181,27 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   },
   directory: {
     self: async () => null,
-    listPeers: async () => [],
-    listGroups: async ({ query }) => {
-      const inst = getConvosInstance();
-      if (!inst) {
+    listPeers: async () => [], // Convos doesn't have a user directory
+    listGroups: async ({ cfg, accountId, query, limit }) => {
+      const account = resolveConvosAccount({ cfg: cfg as CoreConfig, accountId });
+      const client = getClientForAccount(account.accountId);
+      if (!client) {
         return [];
       }
-      const name = inst.label ?? inst.conversationId.slice(0, 8);
-      const q = query?.trim().toLowerCase() ?? "";
-      if (q && !name.toLowerCase().includes(q)) {
+      try {
+        const conversations = await client.listConversations();
+        const q = query?.trim().toLowerCase() ?? "";
+        return conversations
+          .filter((conv) => !q || conv.displayName.toLowerCase().includes(q))
+          .slice(0, limit ?? 50)
+          .map((conv) => ({
+            kind: "group" as const,
+            id: conv.id,
+            name: conv.displayName,
+          }));
+      } catch {
         return [];
       }
-      return [{ kind: "group" as const, id: inst.conversationId, name }];
     },
   },
   outbound: convosOutbound,
@@ -189,7 +230,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       }),
     buildChannelSummary: ({ snapshot }) => ({
       configured: snapshot.configured ?? false,
-      env: snapshot.env ?? "production",
+      env: snapshot.env ?? XMTP_ENV_DEFAULT,
       running: snapshot.running ?? false,
       lastStartAt: snapshot.lastStartAt ?? null,
       lastStopAt: snapshot.lastStopAt ?? null,
@@ -198,20 +239,18 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       lastProbeAt: snapshot.lastProbeAt ?? null,
     }),
     probeAccount: async ({ account }) => {
-      if (!account.ownerConversationId) {
-        return {
-          ok: false,
-          error: "Not configured. Run 'openclaw configure' to set up Convos.",
-        };
-      }
-      const inst = getConvosInstance();
-      if (inst?.isRunning()) {
+      if (isConvosSetupActive()) {
         return { ok: true };
       }
-      return {
-        ok: false,
-        error: "Convos instance not running. Restart the gateway.",
-      };
+
+      const existing = getClientForAccount(account.accountId);
+      if (existing?.isRunning()) {
+        return { ok: true };
+      }
+
+      // Do not create a temp client and start() here: it publishes identity and causes
+      // "Multiple create operations detected" when startAccount then starts the real client.
+      return { ok: true };
     },
     buildAccountSnapshot: ({ account, runtime, probe }) => ({
       accountId: account.accountId,
@@ -232,9 +271,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       const { account, abortSignal, setStatus, log } = ctx;
       const runtime = getConvosRuntime();
 
-      if (!account.ownerConversationId) {
-        throw new Error("Convos not configured. Run 'openclaw configure' to set up.");
-      }
+      const privateKey = await getOrCreateConvosPrivateKey(runtime, account, log);
 
       setStatus({
         accountId: account.accountId,
@@ -243,35 +280,49 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 
       log?.info(`[${account.accountId}] starting Convos provider (env: ${account.env})`);
 
-      // Restore instance from config — the CLI manages identities on disk
-      const inst = ConvosInstance.fromExisting(
-        account.ownerConversationId,
-        account.identityId ?? "",
-        account.env,
-        {
-          debug: account.debug,
-          onMessage: (msg: InboundMessage) => {
-            handleInboundMessage(account, msg, runtime, log).catch((err) => {
-              log?.error(`[${account.accountId}] Message handling failed: ${String(err)}`);
-            });
-          },
-          onJoinAccepted: (info) => {
-            log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}`);
-          },
-        },
-      );
-
-      setConvosInstance(inst);
-      await inst.start();
-
+      const stateDir = runtime.state.resolveStateDir();
+      const dbPath = resolveConvosDbPath({
+        stateDir,
+        env: account.env,
+        accountId: account.accountId,
+        privateKey,
+      });
       log?.info(
-        `[${account.accountId}] Convos provider started (conversation: ${inst.conversationId.slice(0, 12)}...)`,
+        `[${account.accountId}] XMTP stateDir: ${stateDir}, cwd: ${process.cwd()}, dbPath: ${dbPath}`,
       );
 
-      // Block until abort signal fires
+      const client = await ConvosSDKClient.create({
+        privateKey,
+        env: account.env,
+        dbPath,
+        debug: account.debug,
+        onMessage: (msg: InboundMessage) => {
+          // Handle async message processing with error logging
+          handleInboundMessage(account, msg, runtime, log).catch((err) => {
+            log?.error(`[${account.accountId}] Message handling failed: ${String(err)}`);
+          });
+        },
+        onInvite: async (inviteCtx) => {
+          // Auto-accept invites for now
+          // TODO: Add policy-based handling
+          log?.info(`[${account.accountId}] Auto-accepting invite request`);
+          await inviteCtx.accept();
+        },
+      });
+
+      // Store client for outbound use
+      setClientForAccount(account.accountId, client);
+
+      // Start listening for messages
+      await client.start();
+
+      log?.info(`[${account.accountId}] Convos provider started`);
+
+      // Block until abort signal fires (gateway expects startAccount to stay
+      // alive for the channel's lifetime; returning early marks it stopped).
       await new Promise<void>((resolve) => {
         const onAbort = () => {
-          void stopInstance(account.accountId, log).finally(resolve);
+          stopClient(account.accountId, log).finally(resolve);
         };
         if (abortSignal?.aborted) {
           onAbort();
@@ -283,13 +334,30 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     stopAccount: async (ctx) => {
       const { account, log } = ctx;
       log?.info(`[${account.accountId}] stopping Convos provider`);
-      await stopInstance(account.accountId, log);
+      await stopClient(account.accountId, log);
     },
   },
 };
 
+/** Check whether a group conversation is allowed by the current policy. */
+function isGroupAllowed(params: {
+  account: ResolvedConvosAccount;
+  conversationId: string;
+}): boolean {
+  const { account, conversationId } = params;
+  const policy = account.config.groupPolicy ?? "open";
+  if (policy === "open") return true;
+  if (policy === "disabled") return false;
+
+  // policy === "allowlist"
+  const groups = account.config.groups ?? [];
+  if (groups.includes("*")) return true;
+  return groups.includes(conversationId);
+}
+
 /**
- * Handle inbound messages from CLI stream — dispatches to the reply pipeline
+ * Inbound pipeline: route -> session store path -> envelope -> record session -> dispatch reply.
+ * Group policy is enforced first; owner conversation always allowed.
  */
 async function handleInboundMessage(
   account: ResolvedConvosAccount,
@@ -303,17 +371,22 @@ async function handleInboundMessage(
     );
   }
 
-  // Safety assertion: in 1:1, all messages should be from our conversation
-  if (msg.conversationId !== getConvosInstance()?.conversationId) {
-    log?.warn?.(
-      `[${account.accountId}] Message from unexpected conversation: ${msg.conversationId}`,
-    );
+  // Enforce group policy before doing any work.
+  // Owner conversation always passes so you can't lock yourself out.
+  const isOwnerConversation = msg.conversationId === account.ownerConversationId;
+  if (!isOwnerConversation && !isGroupAllowed({ account, conversationId: msg.conversationId })) {
+    if (account.debug) {
+      log?.info(
+        `[${account.accountId}] Dropped message from disallowed group ${msg.conversationId.slice(0, 12)}`,
+      );
+    }
     return;
   }
 
-  const cfg = runtime.config.loadConfig();
+  const cfg = runtime.config.loadConfig() as OpenClawConfig;
   const rawBody = msg.content;
 
+  // Resolve agent route to get session key for conversation tracking
   const route = runtime.channel.routing.resolveAgentRoute({
     cfg,
     channel: "convos",
@@ -324,15 +397,18 @@ async function handleInboundMessage(
     },
   });
 
+  // Get store path for session recording
   const storePath = runtime.channel.session.resolveStorePath(cfg.session?.store, {
     agentId: route.agentId,
   });
 
+  // Get previous timestamp for envelope formatting
   const previousTimestamp = runtime.channel.session.readSessionUpdatedAt({
     storePath,
     sessionKey: route.sessionKey,
   });
 
+  // Format the agent envelope (adds channel/timestamp context)
   const envelopeOptions = runtime.channel.reply.resolveEnvelopeFormatOptions(cfg);
   const body = runtime.channel.reply.formatAgentEnvelope({
     channel: "Convos",
@@ -343,6 +419,7 @@ async function handleInboundMessage(
     body: rawBody,
   });
 
+  // Build the finalized inbound context with all required fields
   const ctxPayload = runtime.channel.reply.finalizeInboundContext({
     Body: body,
     RawBody: rawBody,
@@ -362,6 +439,7 @@ async function handleInboundMessage(
     OriginatingTo: `convos:${msg.conversationId}`,
   });
 
+  // Record the inbound session for conversation history
   await runtime.channel.session.recordInboundSession({
     storePath,
     sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
@@ -371,12 +449,14 @@ async function handleInboundMessage(
     },
   });
 
+  // Resolve markdown table mode for reply formatting
   const tableMode = runtime.channel.text.resolveMarkdownTableMode({
     cfg,
     channel: "convos",
     accountId: account.accountId,
   });
 
+  // Dispatch to the reply pipeline with buffered block dispatcher
   await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
     ctx: ctxPayload,
     cfg,
@@ -384,6 +464,7 @@ async function handleInboundMessage(
       deliver: async (payload: ReplyPayload) => {
         await deliverConvosReply({
           payload,
+          conversationId: msg.conversationId,
           accountId: account.accountId,
           runtime,
           log,
@@ -398,26 +479,30 @@ async function handleInboundMessage(
 }
 
 /**
- * Deliver a reply to the Convos conversation
+ * Deliver a reply to a Convos conversation
  */
 async function deliverConvosReply(params: {
   payload: ReplyPayload;
+  conversationId: string;
   accountId: string;
   runtime: PluginRuntime;
   log?: RuntimeLogger;
   tableMode?: "off" | "plain" | "markdown" | "bullets" | "code";
 }): Promise<void> {
-  const { payload, accountId, runtime, log, tableMode = "code" } = params;
+  const { payload, conversationId, accountId, runtime, log, tableMode = "code" } = params;
 
-  const inst = getConvosInstance();
-  if (!inst) {
-    throw new Error("Convos instance not available");
+  const client = getClientForAccount(accountId);
+  if (!client) {
+    throw new Error("Convos client not available");
   }
 
+  // Convert markdown tables if needed
   const text = runtime.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
 
   if (text) {
-    const cfg = runtime.config.loadConfig();
+    // Chunk the text if needed (Convos/XMTP has message size limits).
+    // Use the markdown-aware chunker to avoid breaking code blocks/tables.
+    const cfg = runtime.config.loadConfig() as OpenClawConfig;
     const chunkLimit = runtime.channel.text.resolveTextChunkLimit({
       cfg,
       channel: "convos",
@@ -428,9 +513,9 @@ async function deliverConvosReply(params: {
 
     for (const chunk of chunks) {
       try {
-        await inst.sendMessage(chunk);
+        await client.sendMessage(conversationId, chunk);
       } catch (err) {
-        log?.error(`[${accountId}] Send failed: ${String(err)}`);
+        log?.error(`[${accountId}] Failed to send message: ${String(err)}`);
         throw err;
       }
     }
@@ -438,50 +523,21 @@ async function deliverConvosReply(params: {
 }
 
 /**
- * Create a fully-wired ConvosInstance and start it.
- * Used by HTTP routes to start message handling immediately after creating/joining.
+ * Stop SDK client for an account
  */
-export async function startWiredInstance(params: {
-  conversationId: string;
-  identityId: string;
-  env: "production" | "dev";
-  debug?: boolean;
-  /** If set, rename the conversation profile when a joiner is accepted. */
-  name?: string;
-}): Promise<void> {
-  const runtime = getConvosRuntime();
-  const cfg = runtime.config.loadConfig();
-  const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
-
-  const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
-    debug: params.debug ?? account.debug,
-    onMessage: (msg: InboundMessage) => {
-      handleInboundMessage(account, msg, runtime).catch((err) => {
-        console.error(`[convos] Message handling failed: ${String(err)}`);
-      });
-    },
-    onJoinAccepted: (info) => {
-      console.log(`[convos] Join accepted: ${info.joinerInboxId}`);
-      if (params.name) {
-        inst.rename(params.name).catch((err) => {
-          console.error(`[convos] Rename after join failed: ${String(err)}`);
-        });
-      }
-    },
-  });
-
-  setConvosInstance(inst);
-  await inst.start();
-}
-
-async function stopInstance(accountId: string, log?: RuntimeLogger) {
-  const inst = getConvosInstance();
-  if (inst) {
-    try {
-      await inst.stop();
-    } catch (err) {
-      log?.error(`[${accountId}] Error stopping instance: ${String(err)}`);
-    }
-    setConvosInstance(null);
+async function stopClient(accountId: string, log?: RuntimeLogger) {
+  const client = getClientForAccount(accountId);
+  if (!client) {
+    log?.info(`[${accountId}] stopClient: no client to stop`);
+    return;
+  }
+  log?.info(`[${accountId}] stopClient: calling client.stop()...`);
+  try {
+    await client.stop();
+    log?.info(`[${accountId}] stopClient: client.stop() done`);
+  } catch (err) {
+    log?.error(`[${accountId}] Error stopping client: ${String(err)}`);
+  } finally {
+    setClientForAccount(accountId, null);
   }
 }

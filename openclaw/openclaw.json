@@ -1,8 +1,8 @@
 {
   "gateway": {
     "mode": "local",
-    "port": 8080,
-    "bind": "lan",
+    "port": 18789,
+    "bind": "loopback",
     "auth": {
       "mode": "token"
     },
@@ -70,7 +70,10 @@
   },
   "channels": {
     "convos": {
-      "XMTP_ENV": "dev",
+      "XMTP_ENV": "${XMTP_ENV}",
+      "env": {
+        "XMTP_ENV": "${XMTP_ENV}"
+      },
       "enabled": true
     }
   },
@@ -96,9 +99,8 @@
     }
   },
   "plugins": {
-    "slots": {
-      "memory": "none"
-    }
+    "slots": { "memory": "none" },
+    "entries": { "web-tools": { "enabled": true } }
   },
   "models": {
     "mode": "merge",

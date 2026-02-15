@@ -53,17 +53,17 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 3. **Main agent has full tool access** — browser, agentmail, web_search, web_fetch; no per-agent allow/deny for those.
 4. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
 
-## Skill script paths: use `$OPENCLAW_STATE_DIR`, never bare `skills/`
+## Skill script paths: use explicit state dir path
 
-**Problem:** The agent's exec cwd is the **workspace root**. Skills are synced to the state dir (`ROOT/.openclaw/skills` or `~/.openclaw/skills`), not under repo/workspace root. Running `node skills/agentmail/scripts/...` resolves to repo/skills/... → MODULE_NOT_FOUND.
+**Context:** Skills are provisioned under workspace (`workspace/skills/`). OPENCLAW_STATE_DIR is set by the gateway.
 
-**Workaround:** Use `$OPENCLAW_STATE_DIR` (set by gateway when started via scripts/gateway.sh or .env) for script paths: `node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/<script>.mjs ...`. Never use `$OPENCLAW_ROOT/skills/...` (repo root has no top-level skills/) or bare `skills/...`. SKILL.md and TOOLS.md state this so the agent gets the right path.
+**Workaround:** Run `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`. SKILL.md and TOOLS.md state this so the agent gets the right path.
 
 ## agentmail: installed in state dir
 
 **Problem:** The agentmail scripts `import "agentmail"`. Skills live under state dir; state dir must have `node_modules/agentmail`.
 
-**Workaround:** Run `install-state-deps` — it adds agentmail to `$OPENCLAW_STATE_DIR/package.json` and runs `pnpm install` there when `skills/agentmail` exists. Set `NODE_PATH=$OPENCLAW_STATE_DIR/node_modules` so skill scripts resolve it.
+**Workaround:** Run `install-state-deps` — it adds agentmail to `$OPENCLAW_STATE_DIR/package.json` and runs `pnpm install` there when `workspace/skills/agentmail` exists (SKILLS_DIR = WORKSPACE_DIR/skills). Set `NODE_PATH=$OPENCLAW_STATE_DIR/node_modules` so skill scripts resolve it.
 
 ## openclaw dependency in extension (no workspace)
 
@@ -78,14 +78,6 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 **Workaround (instructions):** In [workspace/TOOLS.md](workspace/TOOLS.md), a callout under the Browser bullet instructs: in headless/cloud use `target: "host"`; for action `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`). Do not remove or shorten this callout — it fixes "targetUrl required" and "fields are required" errors (see [.cursor/plans/browser_failures_on_railway.plan.md](.cursor/plans/browser_failures_on_railway.plan.md)).
 
 **Workaround (CDP timeouts):** Chrome cold-start can exceed the default CDP timeout, causing "tab not found". In [openclaw.json](openclaw.json), `remoteCdpTimeoutMs` is set to `5000` and `remoteCdpHandshakeTimeoutMs` to `8000` (up from 1500/3000). Do not lower these — they prevent race conditions when Chrome is starting up.
-
-## models.providers.*.models: full schema keeps getting re-added
-
-**Problem:** We keep `models.providers.openrouter.models` minimal (only `id` and `name` per entry). The full shape (`reasoning`, `input`, `cost`, `contextWindow`) keeps reappearing in [openclaw/openclaw.json](openclaw/openclaw.json).
-
-**Cause:** (1) OpenClaw’s config schema (or Control UI when you save config) normalizes and writes back defaults. (2) In the editor, “Format Document” / JSON schema defaults can insert those properties on save.
-
-**Workaround:** Keep model entries as `{ "id": "...", "name": "..." }` only in the repo file. Avoid formatting `openclaw/openclaw.json` with a formatter that applies schema defaults. If you edit config in Control UI, don’t copy the state-dir `openclaw.json` back into the repo — run `pnpm apply` so the repo template is copied to state instead. If the full entries reappear, strip them again (id/name only).
 
 ## Control UI / webchat: replies only after refresh
 

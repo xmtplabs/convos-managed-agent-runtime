@@ -1,0 +1,4 @@
+{
+  "id": "web-tools",
+  "configSchema": { "type": "object", "additionalProperties": false }
+}

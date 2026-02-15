@@ -1,8 +1,8 @@
 #!/bin/sh
-# Mirror openclaw/ subdirs into state dir. Same logic for workspace, skills, extensions, landing.
+# Mirror openclaw/ subdirs into state dir. Skills are inside workspace.
 # Source after init.sh (RUNTIME_DIR, STATE_DIR set).
 set -e
-for subdir in workspace skills extensions landing; do
+for subdir in workspace extensions; do
   [ -d "$RUNTIME_DIR/$subdir" ] || continue
   mkdir -p "$STATE_DIR/$subdir"
   if command -v rsync >/dev/null 2>&1; then
@@ -15,9 +15,7 @@ for subdir in workspace skills extensions landing; do
   fi
   case "$subdir" in
     workspace)  emoji="📁" ;;
-    skills)      emoji="🎯" ;;
     extensions)  emoji="🔌" ;;
-    landing)     emoji="🌐" ;;
     *)           emoji="" ;;
   esac
   echo "  $emoji $subdir → $STATE_DIR/$subdir"
