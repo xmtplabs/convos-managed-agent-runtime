@@ -70,7 +70,7 @@
   },
   "channels": {
     "convos": {
-      "XMTP_ENV": "dev",
+      "env": "dev",
       "enabled": true
     }
   },
