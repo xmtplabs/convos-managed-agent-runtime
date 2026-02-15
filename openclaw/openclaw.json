@@ -2,7 +2,7 @@
   "gateway": {
     "mode": "local",
     "port": 8080,
-    "bind": "all",
+    "bind": "lan",
     "auth": {
       "mode": "token"
     },
