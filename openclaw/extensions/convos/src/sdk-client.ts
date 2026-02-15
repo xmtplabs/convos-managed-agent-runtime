@@ -96,6 +96,7 @@ export class ConvosInstance {
   private streamChild: ChildProcess | null = null;
   private running = false;
   private restartCounts = new Map<string, number>();
+  private selfInboxId: string | null = null;
   private onMessage?: (msg: InboundMessage) => void;
   private onJoinAccepted?: (info: { joinerInboxId: string }) => void;
   private debug: boolean;
@@ -316,6 +317,9 @@ export class ConvosInstance {
     this.running = true;
     this.restartCounts.clear();
 
+    // Resolve our own inbox ID so we can filter self-sent messages
+    await this.resolveSelfInboxId();
+
     this.startStreamChild();
     this.startJoinRequestsChild();
 
@@ -401,6 +405,28 @@ export class ConvosInstance {
   /** True when the XMTP message stream child process is alive. */
   isStreaming(): boolean {
     return this.running && this.streamChild !== null && this.streamChild.exitCode === null;
+  }
+
+  /** Resolve the agent's own inbox ID for self-message filtering. */
+  private async resolveSelfInboxId(): Promise<void> {
+    // The identityId from the CLI is typically the inbox ID
+    if (this.identityId) {
+      this.selfInboxId = this.identityId;
+      if (this.debug) {
+        console.log(`[convos] selfInboxId set from identityId: ${this.selfInboxId}`);
+      }
+      return;
+    }
+    // Fallback: try to get it from the CLI
+    try {
+      const data = await this.execJson<{ inboxId?: string; identityId?: string }>(["identity", "whoami"]);
+      this.selfInboxId = data.inboxId ?? data.identityId ?? null;
+      if (this.debug) {
+        console.log(`[convos] selfInboxId resolved from CLI: ${this.selfInboxId}`);
+      }
+    } catch {
+      console.warn("[convos] Could not resolve selfInboxId — self-message filtering disabled");
+    }
   }
 
   get envName(): "production" | "dev" {
@@ -490,6 +516,17 @@ export class ConvosInstance {
     rl.on("line", (line) => {
       try {
         const data = JSON.parse(line);
+        // Skip messages from self to prevent echo loops
+        if (
+          this.selfInboxId &&
+          typeof data.senderInboxId === "string" &&
+          data.senderInboxId === this.selfInboxId
+        ) {
+          if (this.debug) {
+            console.log(`[convos:${label}] skipping self-sent message`);
+          }
+          return;
+        }
         handler(data);
       } catch {
         // Non-JSON line (e.g. human-readable output) — skip
