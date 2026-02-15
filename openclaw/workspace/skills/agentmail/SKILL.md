@@ -10,11 +10,9 @@ description: |
 
 ## How to use
 
-**Path rule:** Exec cwd is the workspace; there is no `skills/` at repo or workspace root. Skills live in the OpenClaw state dir. Always run:
+**Path rule:** Skills live under workspace. Use explicit path (OPENCLAW_STATE_DIR is set by the gateway):
 
-`node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/<script>.mjs ...`
-
-Never use a bare path like `skills/agentmail/scripts/...` — it will resolve to the wrong place and fail with MODULE_NOT_FOUND. The gateway sets `OPENCLAW_STATE_DIR` when started via `scripts/gateway.sh` (or from .env).
+`node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`
 
 # Setup
 
@@ -25,7 +23,7 @@ All scripts require `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID` in the environm
 Use when the user wants to send an email (optionally with one attachment):
 
 ```bash
-node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/send-email.mjs \
+node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-email.mjs \
   --to <recipient@email.com> \
   --subject "Subject line" \
   --text "Plain text body" \
@@ -38,7 +36,7 @@ node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/send-email.mjs \
 Use when the user wants an ICS calendar invite sent by email:
 
 ```bash
-node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/send-calendar-email.mjs \
+node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-calendar-email.mjs \
   --to <recipient@email.com> \
   --ics /path/to/file.ics \
   [--subject "Event name"]
@@ -52,7 +50,7 @@ Use to list **new/unread emails** and **threads that need a reply**. Output is J
 - **Replies to act on:** use `--threads` (unreplied threads per [AgentMail API](https://skills.sh/agentmail-to/agentmail-skills/agentmail)).
 
 ```bash
-node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/poll-inbox.mjs \
+node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/poll-inbox.mjs \
   [--limit 20] \
   [--labels unread] \
   [--threads]
@@ -61,11 +59,11 @@ node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/poll-inbox.mjs \
 Example: check new mail and unreplied threads in one run:
 
 ```bash
-node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/poll-inbox.mjs --limit 20 --labels unread --threads
+node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/poll-inbox.mjs --limit 20 --labels unread --threads
 ```
 
 Same via alias:
 
 ```bash
-node $OPENCLAW_STATE_DIR/skills/agentmail/scripts/check-inbox.mjs --labels unread --threads
+node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/check-inbox.mjs --labels unread --threads
 ```

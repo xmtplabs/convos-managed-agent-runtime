@@ -31,7 +31,7 @@ flowchart LR
 1pool infrastructure (positioning workflow):
 
 1. **Deploy** — Up-to-date branch of OpenClaw (e.g. npm `openclaw` or build from repo).
-2. **Provision** — Scripts sync extension(s), workspace files, skills into state dir; apply-config writes config from template + env.
+2. **Provision** — Scripts sync extension(s) and workspace (includes skills) into state dir; apply-config writes config from template + env.
 3. **Keys** — key-provision (or env) sets gateway token, wallet, OpenRouter/AgentMail/etc. keys.
 4. **Live agent** — Gateway starts; Convos connects XMTP; agent runs with full tools (browser, agentmail, web_search, etc.).
 
@@ -41,8 +41,7 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 
 | Path | Contents |
 |------|----------|
-| `openclaw/workspace` | AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md, form/ |
-| `openclaw/skills` | agentmail (email skill) |
+| `openclaw/workspace` | AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md, form/, skills/ (agentmail) |
 | `openclaw/extensions` | convos (XMTP), web-tools (form at /web-tools/form) |
 | `openclaw/openclaw.json` | Config template (env-substituted → `~/.openclaw/openclaw.json`) |
 | `cli/` | apply-config, gateway, install-state-deps scripts |
@@ -66,9 +65,8 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 │   ├── workspace/             # → ~/.openclaw/workspace
 │   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md
 │   │   ├── memory/
-│   │   └── form/              # form.html (served at /web-tools/form)
-│   ├── skills/
-│   │   └── agentmail/         # SKILL.md, scripts/*.mjs, references/
+│   │   ├── form/              # form.html (served at /web-tools/form)
+│   │   └── skills/            # agentmail (SKILL.md, scripts/*.mjs)
 │   ├── extensions/
 │   │   ├── convos/            # XMTP channel plugin (landing at /convos/landing)
 │   │   │   ├── landing/       # landing.html, sw.js, manifest, icon
@@ -110,7 +108,7 @@ pnpm start                  # apply-config + gateway
 
 ## Flow
 
-1. **apply-config** — Syncs `openclaw/workspace`, `skills`, `extensions` into `OPENCLAW_STATE_DIR`, substitutes `.env` into `openclaw.json`
+1. **apply-config** — Syncs `openclaw/workspace` (includes skills), `extensions` into `OPENCLAW_STATE_DIR`, substitutes `.env` into `openclaw.json`
 2. **gateway** — Runs OpenClaw with `OPENCLAW_CONFIG_PATH` and injected plugin paths
 
 No core OpenClaw changes. Convos lives entirely in the plugin.

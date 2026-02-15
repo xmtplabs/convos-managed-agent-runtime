@@ -1,5 +1,5 @@
 #!/bin/sh
-# 1. Sync workspace, skills, extensions, landing. 2. Copy config template to state dir (OpenClaw substitutes ${VAR} at load from env).
+# 1. Sync workspace (includes skills), extensions. 2. Copy config template to state dir (OpenClaw substitutes ${VAR} at load from env).
 set -e
 
 . "$(dirname "$0")/lib/init.sh"

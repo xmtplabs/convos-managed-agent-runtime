@@ -4,6 +4,6 @@
 RUNTIME_DIR="$ROOT/openclaw"
 STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 WORKSPACE_DIR="$STATE_DIR/workspace"
-SKILLS_DIR="$STATE_DIR/skills"
+SKILLS_DIR="$WORKSPACE_DIR/skills"
 EXTENSIONS_DIR="$STATE_DIR/extensions"
 CONFIG="$STATE_DIR/openclaw.json"
