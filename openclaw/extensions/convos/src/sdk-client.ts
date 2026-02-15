@@ -99,6 +99,8 @@ export class ConvosInstance {
   private selfInboxId: string | null = null;
   /** Message IDs we sent — used to filter self-echoes from the stream. */
   private sentMessageIds = new Set<string>();
+  /** Text currently being sent — catches echoes that arrive before sendMessage returns. */
+  private pendingSendTexts = new Set<string>();
   private onMessage?: (msg: InboundMessage) => void;
   private onJoinAccepted?: (info: { joinerInboxId: string }) => void;
   private debug: boolean;
@@ -437,23 +439,28 @@ export class ConvosInstance {
   // ==== Operations (all shell out to CLI) ====
 
   async sendMessage(text: string): Promise<{ success: boolean; messageId?: string }> {
-    const data = await this.execJson<{ success: boolean; messageId?: string }>([
-      "conversation",
-      "send-text",
-      this.conversationId,
-      "--text",
-      text,
-    ]);
-    // Track sent message IDs so the stream can filter self-echoes
-    if (data.messageId) {
-      this.sentMessageIds.add(data.messageId);
-      // Cap the set size to avoid unbounded growth
-      if (this.sentMessageIds.size > 200) {
-        const first = this.sentMessageIds.values().next().value;
-        if (first) this.sentMessageIds.delete(first);
+    // Pre-register the text so the stream filter catches the echo even if it
+    // arrives before execJson returns (the XMTP broadcast is faster than CLI stdout).
+    this.pendingSendTexts.add(text);
+    try {
+      const data = await this.execJson<{ success: boolean; messageId?: string }>([
+        "conversation",
+        "send-text",
+        this.conversationId,
+        "--text",
+        text,
+      ]);
+      if (data.messageId) {
+        this.sentMessageIds.add(data.messageId);
+        if (this.sentMessageIds.size > 200) {
+          const first = this.sentMessageIds.values().next().value;
+          if (first) this.sentMessageIds.delete(first);
+        }
       }
+      return data;
+    } finally {
+      this.pendingSendTexts.delete(text);
     }
-    return data;
   }
 
   async react(
@@ -526,16 +533,29 @@ export class ConvosInstance {
     rl.on("line", (line) => {
       try {
         const data = JSON.parse(line);
-        // Skip messages from self to prevent echo loops.
-        // Check 1: match by sent message ID (most reliable)
+        const msgContent = typeof data.content === "string" ? data.content : "";
         const msgId = typeof data.id === "string" ? data.id : undefined;
+        const senderInboxId = typeof data.senderInboxId === "string" ? data.senderInboxId : "";
+
+        // --- Self-echo filter (3 layers to handle race conditions) ---
+
+        // Check 1: pending send text (catches echoes that arrive before sendMessage returns)
+        if (msgContent && this.pendingSendTexts.has(msgContent)) {
+          if (!this.selfInboxId && senderInboxId) {
+            this.selfInboxId = senderInboxId;
+            console.log(`[convos] learned selfInboxId from pending echo: ${this.selfInboxId}`);
+          }
+          if (this.debug) {
+            console.log(`[convos:${label}] skipping self-sent message (by pending text)`);
+          }
+          return;
+        }
+
+        // Check 2: sent message ID (catches echoes that arrive after sendMessage returns)
         if (msgId && this.sentMessageIds.has(msgId)) {
-          // Learn our inbox ID from the echo so future filtering is faster
-          if (!this.selfInboxId && typeof data.senderInboxId === "string") {
-            this.selfInboxId = data.senderInboxId;
-            if (this.debug) {
-              console.log(`[convos] learned selfInboxId from echo: ${this.selfInboxId}`);
-            }
+          if (!this.selfInboxId && senderInboxId) {
+            this.selfInboxId = senderInboxId;
+            console.log(`[convos] learned selfInboxId from messageId echo: ${this.selfInboxId}`);
           }
           this.sentMessageIds.delete(msgId);
           if (this.debug) {
@@ -543,17 +563,15 @@ export class ConvosInstance {
           }
           return;
         }
-        // Check 2: match by inbox ID (learned from previous echoes)
-        if (
-          this.selfInboxId &&
-          typeof data.senderInboxId === "string" &&
-          data.senderInboxId === this.selfInboxId
-        ) {
+
+        // Check 3: learned inbox ID (catches all self-messages after first echo)
+        if (this.selfInboxId && senderInboxId === this.selfInboxId) {
           if (this.debug) {
             console.log(`[convos:${label}] skipping self-sent message (by inboxId)`);
           }
           return;
         }
+
         handler(data);
       } catch {
         // Non-JSON line (e.g. human-readable output) — skip

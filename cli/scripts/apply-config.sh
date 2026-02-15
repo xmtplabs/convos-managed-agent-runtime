@@ -12,7 +12,20 @@ echo "  ═══════════════════"
 . "$ROOT/cli/scripts/lib/sync-openclaw.sh"
 
 mkdir -p "$STATE_DIR"
-cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
+
+# Merge repo template into state config, preserving runtime values (e.g.
+# channels.convos.identityId, ownerConversationId written during setup).
+if [ -f "$CONFIG" ] && command -v jq >/dev/null 2>&1; then
+  _CONVOS_RUNTIME=$(jq '.channels.convos // empty' "$CONFIG" 2>/dev/null || true)
+  cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
+  if [ -n "$_CONVOS_RUNTIME" ]; then
+    jq --argjson cr "$_CONVOS_RUNTIME" '.channels.convos = (.channels.convos // {} | . * $cr)' "$CONFIG" > "$CONFIG.tmp" \
+      && mv "$CONFIG.tmp" "$CONFIG"
+  fi
+  unset _CONVOS_RUNTIME
+else
+  cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
+fi
 
 # Patch gateway port/bind when running in a container (Railway sets PORT=8080)
 _PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-}}"
