@@ -2,6 +2,8 @@
 
 ## 2026-02-15
 
+- Railway: patch `agents.defaults.workspace` to `$STATE_DIR/workspace` when OPENCLAW_STATE_DIR is set so web-tools form resolves correctly (was using ~/.openclaw/workspace).
+- Dockerfile: set OPENCLAW_STATE_DIR=/app at runtime so gateway and apply-config use /app for state.
 - Skills: provision inside workspace (`workspace/skills/`). OpenClaw discovers at `<workspace>/skills`. Agentmail script paths use workspace-relative `skills/agentmail/scripts/...`.
 - Revert convos extension from CLI-based (@convos/cli) back to SDK-based (@xmtp/agent-sdk + convos-node-sdk).
 - apply-config.sh: patch gateway port/bind at deploy time when PORT env var is set (Railway).

@@ -38,6 +38,7 @@ ENV HUSKY=0
 RUN npm install -g husky && OPENCLAW_STATE_DIR=/app pnpm run install-state-deps
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV OPENCLAW_STATE_DIR=/app
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080
