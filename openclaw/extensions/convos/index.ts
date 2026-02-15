@@ -733,6 +733,72 @@ const plugin = {
         }
       },
     });
+
+    // ---- Landing page static file routes ----
+
+    const landingDir = path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "..",
+      "..",
+      "landing",
+    );
+
+    function serveFile(
+      res: ServerResponse,
+      filePath: string,
+      contentType: string,
+      cacheControl?: string,
+    ) {
+      try {
+        const body = fs.readFileSync(filePath);
+        res.statusCode = 200;
+        res.setHeader("Content-Type", contentType);
+        if (cacheControl) res.setHeader("Cache-Control", cacheControl);
+        res.end(body);
+      } catch {
+        res.statusCode = 404;
+        res.end();
+      }
+    }
+
+    for (const p of ["/convos/landing", "/convos/landing/"]) {
+      api.registerHttpRoute({
+        path: p,
+        handler: async (_req, res) => {
+          serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
+        },
+      });
+    }
+
+    for (const p of ["/convos/form", "/convos/form/"]) {
+      api.registerHttpRoute({
+        path: p,
+        handler: async (_req, res) => {
+          serveFile(res, path.join(landingDir, "form.html"), "text/html; charset=utf-8");
+        },
+      });
+    }
+
+    api.registerHttpRoute({
+      path: "/convos/landing-manifest.json",
+      handler: async (_req, res) => {
+        serveFile(res, path.join(landingDir, "landing-manifest.json"), "application/manifest+json");
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/sw.js",
+      handler: async (_req, res) => {
+        serveFile(res, path.join(landingDir, "sw.js"), "application/javascript", "max-age=0");
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/icon.svg",
+      handler: async (_req, res) => {
+        serveFile(res, path.join(landingDir, "icon.svg"), "image/svg+xml");
+      },
+    });
   },
 };
 
