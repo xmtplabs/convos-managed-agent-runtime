@@ -1,8 +1,10 @@
 /**
- * Convos channel configuration types
- * These mirror the types in src/config/types.convos.ts but are self-contained
- * for the extension to avoid cross-package imports.
+ * Config-types/contracts: Convos channel configuration types.
+ * Self-contained for the extension (no cross-package imports). Used by config-schema and accounts.
  */
+
+/** Default XMTP environment when not explicitly configured. */
+export const XMTP_ENV_DEFAULT: "production" | "dev" = "dev";
 
 export type ConvosReactionLevel = "off" | "ack" | "minimal" | "extensive";
 export type DmPolicy = "pairing" | "allowlist" | "open" | "disabled";
@@ -13,10 +15,10 @@ export type ConvosAccountConfig = {
   name?: string;
   /** If false, do not start this Convos account. Default: true. */
   enabled?: boolean;
-  /** CLI-managed identity ID (stored in ~/.convos/identities/). */
-  identityId?: string;
-  /** XMTP environment: production (default) or dev. */
-  env?: "production" | "dev";
+  /** Hex-encoded XMTP private key (auto-generated on first run). */
+  privateKey?: string;
+  /** XMTP environment: dev (default) or production. */
+  XMTP_ENV?: "production" | "dev";
   /** Enable debug logging for this account. */
   debug?: boolean;
   /** Sender access policy (default: pairing). Controls who can message the agent in groups. */
@@ -46,6 +48,8 @@ export type ConvosAccountConfig = {
   reactionLevel?: ConvosReactionLevel;
   /** The conversation ID where OpenClaw communicates with its owner. */
   ownerConversationId?: string;
+  /** XMTP public address (inbox ID) for display. */
+  inboxId?: string;
 };
 
 export type ConvosConfig = {

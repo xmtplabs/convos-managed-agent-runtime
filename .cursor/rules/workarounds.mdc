@@ -79,14 +79,6 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 
 **Workaround (CDP timeouts):** Chrome cold-start can exceed the default CDP timeout, causing "tab not found". In [openclaw.json](openclaw.json), `remoteCdpTimeoutMs` is set to `5000` and `remoteCdpHandshakeTimeoutMs` to `8000` (up from 1500/3000). Do not lower these — they prevent race conditions when Chrome is starting up.
 
-## models.providers.*.models: full schema keeps getting re-added
-
-**Problem:** We keep `models.providers.openrouter.models` minimal (only `id` and `name` per entry). The full shape (`reasoning`, `input`, `cost`, `contextWindow`) keeps reappearing in [openclaw/openclaw.json](openclaw/openclaw.json).
-
-**Cause:** (1) OpenClaw’s config schema (or Control UI when you save config) normalizes and writes back defaults. (2) In the editor, “Format Document” / JSON schema defaults can insert those properties on save.
-
-**Workaround:** Keep model entries as `{ "id": "...", "name": "..." }` only in the repo file. Avoid formatting `openclaw/openclaw.json` with a formatter that applies schema defaults. If you edit config in Control UI, don’t copy the state-dir `openclaw.json` back into the repo — run `pnpm apply` so the repo template is copied to state instead. If the full entries reappear, strip them again (id/name only).
-
 ## Control UI / webchat: replies only after refresh
 
 **Problem:** In the Control UI (webchat), agent replies sometimes do not appear until the page is refreshed. The gateway run completes (logs show `run_completed`, `run done`), but the client does not receive or render the reply over the live connection.

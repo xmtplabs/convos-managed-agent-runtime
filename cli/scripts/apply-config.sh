@@ -13,6 +13,16 @@ echo "  ═══════════════════"
 
 mkdir -p "$STATE_DIR"
 cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
+
+# Patch gateway port/bind when running in a container (Railway sets PORT=8080)
+_PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-}}"
+if [ -n "$_PORT" ] && [ "$_PORT" != "18789" ] && command -v jq >/dev/null 2>&1; then
+  jq --argjson p "$_PORT" '.gateway.port = $p | .gateway.bind = "lan"' "$CONFIG" > "$CONFIG.tmp" \
+    && mv "$CONFIG.tmp" "$CONFIG"
+  echo "  🔧 gateway      → port $_PORT, bind lan"
+fi
+unset _PORT
+
 echo "  ⚙️  config      → $CONFIG"
 
 echo "  ✨ done"

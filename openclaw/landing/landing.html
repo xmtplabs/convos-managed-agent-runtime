@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f5f5f5">
-  <title>Convos Agent</title>
+  <title>convos managed agent runtime</title>
   <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
   <link rel="manifest" href="/convos/landing-manifest.json">
@@ -33,7 +33,7 @@
     .card-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       margin-bottom: 1rem;
       font-size: 0.7rem;
       font-weight: 600;
@@ -171,13 +171,27 @@
     }
     .env-badge--production { background: #22c55e; color: #fff; }
     .env-badge--staging { background: #f59e0b; color: #1f2937; }
+    .card-env {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+      font-size: 0.8rem;
+      color: #666;
+      text-align: center;
+    }
+    .card-env a {
+      color: #111;
+      text-decoration: none;
+    }
+    .card-env a:hover { text-decoration: underline; }
+    .card-env .env-links { margin-top: 0.35rem; }
   </style>
 </head>
 <body>
   <div id="env-badge" class="env-badge env-badge--staging" aria-hidden="true">Staging</div>
   <div class="card">
     <div class="card-header">
-      <span>Convos AGENT</span>
+      <span>convos managed agent runtime</span>
     </div>
     <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener" style="display: none;">
       <img id="qr-img" src="" width="240" height="240" alt="QR code">
@@ -211,6 +225,12 @@
       <span id="placeholder-text" style="display: none;">Loading…</span>
     </div>
     <div id="error" class="error" role="alert"></div>
+    <div id="card-env" class="card-env">
+      <span id="card-env-text">You are in staging.</span>
+      <div class="env-links" id="env-links">
+        <a id="link-switch" href="#" target="_blank" rel="noopener" style="display: none;">Switch to Railway</a>
+      </div>
+    </div>
   </div>
 
   <footer class="footer">
@@ -222,13 +242,30 @@
 
   <script>
     (function () {
-      (function setEnvBadge() {
+      (function setEnvBadgeAndCardEnv() {
         var h = window.location.hostname;
-        var isStaging = h === "localhost" || h === "127.0.0.1" || h === "[::1]" || /\.ngrok(-free)?\.(app|io)/i.test(h);
+        var isMain = /railway\.app$/i.test(h);
+        var isStaging = !isMain && (h === "localhost" || h === "127.0.0.1" || h === "[::1]" || /\.ngrok(-free)?\.(app|io)/i.test(h));
+        var env = isMain ? "main" : (isStaging ? "staging" : "main");
         var el = document.getElementById("env-badge");
-        if (!el) return;
-        el.textContent = isStaging ? "Staging" : "Production";
-        el.className = "env-badge env-badge--" + (isStaging ? "staging" : "production");
+        if (el) {
+          el.textContent = env;
+          el.className = "env-badge env-badge--" + (env === "main" ? "production" : "staging");
+        }
+        var cardEnvText = document.getElementById("card-env-text");
+        if (cardEnvText) cardEnvText.textContent = "You are in " + env + ".";
+        var linkSwitch = document.getElementById("link-switch");
+        if (linkSwitch) {
+          if (env === "staging") {
+            linkSwitch.href = "https://convos-agent-dev.up.railway.app/convos/landing";
+            linkSwitch.textContent = "Switch to main";
+            linkSwitch.style.display = "";
+          } else {
+            linkSwitch.href = "https://3b63484a39c2.ngrok.app/convos/landing";
+            linkSwitch.textContent = "Switch to staging";
+            linkSwitch.style.display = "";
+          }
+        }
       })();
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/convos/sw.js", { scope: "/convos/" }).catch(function () {});
