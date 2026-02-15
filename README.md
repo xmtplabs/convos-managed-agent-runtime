@@ -36,13 +36,13 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 │   ├── workspace/             # → ~/.openclaw/workspace
 │   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md
 │   │   ├── memory/
-│   │   ├── form/              # form.html (served at /web-tools/form)
 │   │   └── skills/            # agentmail (SKILL.md, scripts/*.mjs)
 │   ├── extensions/
 │   │   ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
 │   │   │   ├── index.ts, openclaw.plugin.json, package.json
 │   │   │   └── src/
-│   │   └── web-tools/         # workspace-based web tools (form at /web-tools/form, agents at /web-tools/agents)
+│   │   └── web-tools/         # form at /web-tools/form, agents at /web-tools/agents
+│   │       ├── form/          # form.html
 │   │       ├── agents/        # landing.html, sw.js, manifest, icon (calls convos APIs for join/invite)
 │   │       └── index.ts, openclaw.plugin.json, package.json
 ├── package.json, pnpm-lock.yaml

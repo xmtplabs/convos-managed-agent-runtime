@@ -28,15 +28,15 @@ File provisioning structure
 │   ├── openclaw.json          # Config template (env vars substituted at load)
 │   ├── workspace/             # → ~/.openclaw/workspace (or $OPENCLAW_STATE_DIR/workspace)
 │   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md
-│   │   ├── form/              # form.html (served at /web-tools/form)
 │   │   └── skills/
 │   │       └── agentmail/     # SKILL.md, scripts
 │   └── extensions/
 │       ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
 │       │   ├── index.ts, openclaw.plugin.json, package.json
 │       │   └── src/           # channel, accounts, actions, sdk-client, outbound, …
-│       └── web-tools/         # form at /web-tools/form, agents at /web-tools/agents (agents page calls convos APIs)
-│           ├── agents/        # landing.html, sw.js, manifest, icon
+│       └── web-tools/         # form at /web-tools/form, agents at /web-tools/agents
+│           ├── form/          # form.html
+│           ├── agents/        # landing.html, sw.js, manifest, icon (calls convos APIs)
 │           └── index.ts, openclaw.plugin.json, package.json
 ```
 
