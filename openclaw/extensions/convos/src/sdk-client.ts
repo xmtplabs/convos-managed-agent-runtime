@@ -97,6 +97,8 @@ export class ConvosInstance {
   private running = false;
   private restartCounts = new Map<string, number>();
   private selfInboxId: string | null = null;
+  /** Message IDs we sent — used to filter self-echoes from the stream. */
+  private sentMessageIds = new Set<string>();
   private onMessage?: (msg: InboundMessage) => void;
   private onJoinAccepted?: (info: { joinerInboxId: string }) => void;
   private debug: boolean;
@@ -407,25 +409,24 @@ export class ConvosInstance {
     return this.running && this.streamChild !== null && this.streamChild.exitCode === null;
   }
 
-  /** Resolve the agent's own inbox ID for self-message filtering. */
+  /** Resolve the agent's own inbox ID for self-message filtering.
+   *  identityId (32 hex) != inboxId (64 hex), so we try the CLI first.
+   *  If that fails, selfInboxId will be learned from the first sent echo. */
   private async resolveSelfInboxId(): Promise<void> {
-    // The identityId from the CLI is typically the inbox ID
-    if (this.identityId) {
-      this.selfInboxId = this.identityId;
-      if (this.debug) {
-        console.log(`[convos] selfInboxId set from identityId: ${this.selfInboxId}`);
-      }
-      return;
-    }
-    // Fallback: try to get it from the CLI
     try {
-      const data = await this.execJson<{ inboxId?: string; identityId?: string }>(["identity", "whoami"]);
-      this.selfInboxId = data.inboxId ?? data.identityId ?? null;
-      if (this.debug) {
-        console.log(`[convos] selfInboxId resolved from CLI: ${this.selfInboxId}`);
+      const data = await this.execJson<{ inboxId?: string }>(["identity", "whoami"]);
+      if (data.inboxId) {
+        this.selfInboxId = data.inboxId;
+        if (this.debug) {
+          console.log(`[convos] selfInboxId resolved from CLI: ${this.selfInboxId}`);
+        }
+        return;
       }
     } catch {
-      console.warn("[convos] Could not resolve selfInboxId — self-message filtering disabled");
+      // CLI command may not exist — selfInboxId will be learned from first sent echo
+    }
+    if (this.debug) {
+      console.log("[convos] selfInboxId not resolved at start — will learn from first sent echo");
     }
   }
 
@@ -443,6 +444,15 @@ export class ConvosInstance {
       "--text",
       text,
     ]);
+    // Track sent message IDs so the stream can filter self-echoes
+    if (data.messageId) {
+      this.sentMessageIds.add(data.messageId);
+      // Cap the set size to avoid unbounded growth
+      if (this.sentMessageIds.size > 200) {
+        const first = this.sentMessageIds.values().next().value;
+        if (first) this.sentMessageIds.delete(first);
+      }
+    }
     return data;
   }
 
@@ -516,14 +526,31 @@ export class ConvosInstance {
     rl.on("line", (line) => {
       try {
         const data = JSON.parse(line);
-        // Skip messages from self to prevent echo loops
+        // Skip messages from self to prevent echo loops.
+        // Check 1: match by sent message ID (most reliable)
+        const msgId = typeof data.id === "string" ? data.id : undefined;
+        if (msgId && this.sentMessageIds.has(msgId)) {
+          // Learn our inbox ID from the echo so future filtering is faster
+          if (!this.selfInboxId && typeof data.senderInboxId === "string") {
+            this.selfInboxId = data.senderInboxId;
+            if (this.debug) {
+              console.log(`[convos] learned selfInboxId from echo: ${this.selfInboxId}`);
+            }
+          }
+          this.sentMessageIds.delete(msgId);
+          if (this.debug) {
+            console.log(`[convos:${label}] skipping self-sent message (by messageId)`);
+          }
+          return;
+        }
+        // Check 2: match by inbox ID (learned from previous echoes)
         if (
           this.selfInboxId &&
           typeof data.senderInboxId === "string" &&
           data.senderInboxId === this.selfInboxId
         ) {
           if (this.debug) {
-            console.log(`[convos:${label}] skipping self-sent message`);
+            console.log(`[convos:${label}] skipping self-sent message (by inboxId)`);
           }
           return;
         }
