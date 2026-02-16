@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-02-16
+
+- Telnyx integration: add `telnyx-cli` skill to workspace with SMS support. Auto-provision US phone number + messaging profile during `key-provision` via Telnyx API.
+- AgentMail inbox provisioning: `key-provision` now creates a unique inbox (`convos-<hex>@agentmail.to`) per agent instead of sharing a hardcoded address.
+- Bankr integration: register `bankr` skill in openclaw.json with `BANKR_API_KEY` env var.
+- Idempotent provisioning: `key-provision` skips all variables that already exist in `.env` (gateway token, setup password, wallet key, OpenRouter key, inbox, phone number).
+- `pnpm start` now runs `key-provision` first, so all keys/services are provisioned before the gateway starts.
+- `install-state-deps`: install `@telnyx/api-cli` globally when telnyx-cli skill is present.
+
 ## 2026-02-15
 
 - Landing moved from convos to web-tools: agents page now at `/web-tools/agents` (still uses convos `/convos/invite` and `/convos/join`). Convos extension no longer serves static landing assets.

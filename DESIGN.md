@@ -29,7 +29,8 @@ File provisioning structure
 │   ├── workspace/             # → ~/.openclaw/workspace (or $OPENCLAW_STATE_DIR/workspace)
 │   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md
 │   │   └── skills/
-│   │       └── agentmail/     # SKILL.md, scripts
+│   │       ├── agentmail/     # SKILL.md, scripts
+│   │       └── telnyx-cli/    # SKILL.md, config, setup, test
 │   └── extensions/
 │       ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
 │       │   ├── index.ts, openclaw.plugin.json, package.json
@@ -123,8 +124,8 @@ Here's the current skills table:
 | **File handling** | Read/create PDFs, docs, spreadsheets | Internal (container-local) | No | No. Runs locally. | ❌ |
 | **Image processing** | Analyze, resize, extract text from images | Internal (container-local) | No | Yes, model provider | ⏳ |
 | **Voice & audio** | Transcription, TTS, voice notes | TBD | No | Yes, model provider | ❌ |
-| **Payments** | Send, request, split bills | TBD | No | TBD | ❌ |
-| **Phone number** | Numbers on demand, calls, SMS | TBD | No | Yes, provider | ❌ |
+| **Payments** | Send, request, split bills | Bankr | No | Yes, Bankr API | ✅ |
+| **SMS** | Send/receive SMS, manage phone numbers | Telnyx (telnyx-cli) | No | Yes, Telnyx API | ✅ |
 | LLM call | Agents responses | Sonet, Claude? all via openrouter | We see the cost of each call but not the content |  |  |
 
 ### Convos channel extension
@@ -163,15 +164,15 @@ Each agent runs as a containerized Railway service with ephemeral filesystem, lo
 
 ### Agentmail (email)
 
-Each agent gets a scoped email address provisioned automatically. Used for sending calendar invites, confirmations, and transactional email. Each group to have its email. Currently all use same inbox `group-*@agentmail.to`
+Each agent gets a unique scoped email address provisioned automatically via the AgentMail API. Inbox created during `key-provision` with username `convos-<hex>@agentmail.to`. Used for sending calendar invites, confirmations, and transactional email.
 
-### Phone numbers (TBD)
+### Telnyx (SMS)
 
-Per-agent or per-group phone numbers for calls and SMS. Provider TBD (Twilio, Vonage). Each group could have its own number.
+Each agent gets a US phone number purchased automatically via the Telnyx API during `key-provision`. A messaging profile with US whitelisted destinations is created, then a number is ordered and assigned. The agent uses the `telnyx-cli` skill (`@telnyx/api-cli`) to send/receive SMS.
 
-### Crypto wallet (TBD)
+### Bankr (crypto)
 
-Per-agent or per-group wallet for payments and credit top-ups. Chain and token support TBD.
+Per-agent crypto wallet for payments. API key provided manually (`BANKR_API_KEY`).
 
 ---
 
