@@ -108,29 +108,50 @@ if [ -n "$TELNYX_API_KEY" ]; then
       echo "[keys] Failed to find available Telnyx number: $search_resp" >&2
     else
       echo "[keys] Found available number: $avail_number"
-      # Create a messaging profile
-      profile_resp=$(curl -s -X POST "https://api.telnyx.com/v2/messaging_profiles" \
+      # Purchase the number first (no profile yet)
+      order_resp=$(curl -s -X POST "https://api.telnyx.com/v2/number_orders" \
         -H "Authorization: Bearer $TELNYX_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "$(jq -n --arg name "convos-$(openssl rand -hex 4)-sms" \
-          '{name: $name, whitelisted_destinations: ["US"]}')")
-      telnyx_profile=$(echo "$profile_resp" | jq -r '.data.id // empty')
-      if [ -z "$telnyx_profile" ]; then
-        echo "[keys] Failed to create messaging profile: $profile_resp" >&2
+        -d "$(jq -n --arg num "$avail_number" \
+          '{phone_numbers: [{phone_number: $num}]}')")
+      ordered_number=$(echo "$order_resp" | jq -r '.data.phone_numbers[0].phone_number // empty')
+      if [ -z "$ordered_number" ]; then
+        echo "[keys] Failed to purchase number: $order_resp" >&2
       else
-        echo "[keys] Created messaging profile: $telnyx_profile"
-        # Purchase the number
-        order_resp=$(curl -s -X POST "https://api.telnyx.com/v2/number_orders" \
-          -H "Authorization: Bearer $TELNYX_API_KEY" \
-          -H "Content-Type: application/json" \
-          -d "$(jq -n --arg num "$avail_number" --arg pid "$telnyx_profile" \
-            '{phone_numbers: [{phone_number: $num}], messaging_profile_id: $pid}')")
-        ordered_number=$(echo "$order_resp" | jq -r '.data.phone_numbers[0].phone_number // empty')
-        if [ -z "$ordered_number" ]; then
-          echo "[keys] Failed to purchase number: $order_resp" >&2
+        telnyx_phone="$ordered_number"
+        echo "[keys] Purchased Telnyx number: $telnyx_phone"
+        # Reuse existing messaging profile (env → API lookup → create)
+        if [ -n "$TELNYX_MESSAGING_PROFILE_ID" ]; then
+          telnyx_profile="$TELNYX_MESSAGING_PROFILE_ID"
+          echo "[keys] Reusing messaging profile from env: $telnyx_profile"
         else
-          telnyx_phone="$ordered_number"
-          echo "[keys] Purchased Telnyx number: $telnyx_phone"
+          existing_profile=$(curl -s -X GET "https://api.telnyx.com/v2/messaging_profiles?page[size]=1" \
+            -H "Authorization: Bearer $TELNYX_API_KEY" \
+            -H "Content-Type: application/json" | jq -r '.data[0].id // empty')
+          if [ -n "$existing_profile" ]; then
+            telnyx_profile="$existing_profile"
+            echo "[keys] Reusing existing messaging profile from account: $telnyx_profile"
+          else
+            profile_resp=$(curl -s -X POST "https://api.telnyx.com/v2/messaging_profiles" \
+              -H "Authorization: Bearer $TELNYX_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"convos-sms","whitelisted_destinations":["US"]}')
+            telnyx_profile=$(echo "$profile_resp" | jq -r '.data.id // empty')
+            if [ -z "$telnyx_profile" ]; then
+              echo "[keys] Failed to create messaging profile: $profile_resp" >&2
+            else
+              echo "[keys] Created messaging profile: $telnyx_profile"
+            fi
+          fi
+        fi
+        # Assign the number to the messaging profile
+        if [ -n "$telnyx_profile" ]; then
+          curl -s -X PATCH "https://api.telnyx.com/v2/phone_numbers/$telnyx_phone" \
+            -H "Authorization: Bearer $TELNYX_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg pid "$telnyx_profile" \
+              '{messaging_profile_id: $pid}')" > /dev/null
+          echo "[keys] Assigned $telnyx_phone to messaging profile $telnyx_profile"
         fi
       fi
     fi
