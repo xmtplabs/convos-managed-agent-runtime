@@ -30,18 +30,29 @@ if command -v jq >/dev/null 2>&1; then
     echo "  🔧 plugins.load.paths → $STATE_DIR/extensions"
   fi
   # --- Browser detection ---
-  # Auto-detect Chrome on Mac when CHROMIUM_PATH is not explicitly set
-  if [ -z "${CHROMIUM_PATH:-}" ] && [ "$(uname -s)" = "Darwin" ]; then
-    for _candidate in \
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-      "/Applications/Chromium.app/Contents/MacOS/Chromium"; do
+  # Auto-detect Chrome/Chromium when CHROMIUM_PATH is not explicitly set
+  if [ -z "${CHROMIUM_PATH:-}" ]; then
+    if [ "$(uname -s)" = "Darwin" ]; then
+      _candidates="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+/Applications/Chromium.app/Contents/MacOS/Chromium"
+    else
+      _candidates="$(command -v google-chrome-stable 2>/dev/null || true)
+$(command -v google-chrome 2>/dev/null || true)
+$(command -v chromium-browser 2>/dev/null || true)
+$(command -v chromium 2>/dev/null || true)"
+    fi
+    IFS='
+'
+    for _candidate in $_candidates; do
+      [ -z "$_candidate" ] && continue
       if [ -x "$_candidate" ]; then
         CHROMIUM_PATH="$_candidate"
         break
       fi
     done
+    unset IFS _candidates
     if [ -z "${CHROMIUM_PATH:-}" ]; then
-      echo "  ⚠️  browser      → no Chrome or Chromium found in /Applications"
+      echo "  ⚠️  browser      → no Chrome or Chromium found"
     fi
   fi
 

@@ -24,6 +24,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
       - name: Write .env
         run: |
           cat > .env <<'DOTENV'
