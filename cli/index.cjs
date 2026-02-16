@@ -47,7 +47,7 @@ program
 
 program
   .command("prompt-qa")
-  .description("QA: run one agent prompt to verify email, SMS, and BTC search. Gateway must be running.")
+  .description("QA: run one agent prompt to verify email, SMS, BTC search, and USDC balance. Gateway must be running.")
   .action(() => runScript("prompt-qa.sh"));
 
 program

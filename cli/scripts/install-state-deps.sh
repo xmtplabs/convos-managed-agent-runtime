@@ -36,4 +36,10 @@ if [ -d "$SKILLS_DIR/telnyx-cli" ]; then
   pnpm install -g @telnyx/api-cli || npm install -g @telnyx/api-cli || true
 fi
 
+# bankr: install @bankr/cli globally (for bankr prompt, balance, etc.)
+if [ -d "$SKILLS_DIR/bankr" ]; then
+  echo "  Installing @bankr/cli globally"
+  pnpm install -g @bankr/cli || npm install -g @bankr/cli || true
+fi
+
 echo "  install-state-deps done"

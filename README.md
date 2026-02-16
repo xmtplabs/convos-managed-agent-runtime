@@ -36,6 +36,9 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 │   ├── workspace/             # → ~/.openclaw/workspace
 │   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, BOOTSTRAP.md, MEMORY.md, USER.md
 │   │   └── skills/            # agentmail, telnyx-cli, bankr
+│   │       ├── agentmail/     # SKILL.md, scripts
+│   │       ├── telnyx-cli/    # SKILL.md, config, setup, test
+│   │       └── bankr/         # SKILL.md, config, setup, test
 │   ├── extensions/
 │   │   ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
 │   │   │   ├── index.ts, openclaw.plugin.json, package.json

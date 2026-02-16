@@ -31,6 +31,7 @@ File provisioning structure
 │   │   └── skills/
 │   │       ├── agentmail/     # SKILL.md, scripts
 │   │       └── telnyx-cli/    # SKILL.md, config, setup, test
+│   │       └── bankr/         # SKILL.md, config, setup, test
 │   └── extensions/
 │       ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
 │       │   ├── index.ts, openclaw.plugin.json, package.json
