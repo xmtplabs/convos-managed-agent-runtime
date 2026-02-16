@@ -12,6 +12,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **Exec** — Shell commands (full host access, no approval needed)
 - **FS** — read, write, edit, apply_patch
 - **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab.
+  - **Workflow**: `navigate` to the URL, then `snapshot` to get the page state with element refs, then `act` with `ref` (e.g. `ref: "e123"`) to interact. Never use `selector` — it is not supported.
   - _Headless/cloud (Railway, CHROMIUM_PATH): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`).
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
