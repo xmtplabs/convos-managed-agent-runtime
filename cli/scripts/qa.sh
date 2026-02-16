@@ -15,26 +15,32 @@ _PATH=""
 unset _PATH
 
 SUITE="${QA_SUITE:-all}"
+FAILED=""
 
 run_suite() {
   local suite="$1"
-  local msg session_id
+  local msg expect
 
   case "$suite" in
     email)
       msg='Send a random short email to fguespe@gmail.com. Reply: Email sent.'
+      expect='Email sent'
       ;;
     sms)
       msg='Send a random short SMS to +16154376139. Reply: SMS sent.'
+      expect='SMS sent'
       ;;
     bankr)
       msg='Check my USDC balance. Reply: USDC: <balance>.'
+      expect='USDC:'
       ;;
     search)
       msg='Search the current BTC price. Reply: BTC: $X.'
+      expect='BTC:'
       ;;
     browser)
       msg='Open https://convos-managed-dev-production.up.railway.app/web-tools/form, fill the form with test data (name, number, email, time slot), and submit it. After submission a confirmation code appears on the page. Reply with: Form submitted. Confirmation code: <the code>'
+      expect='Confirmation code:'
       ;;
     *)
       echo "Unknown suite: $suite" >&2
@@ -43,15 +49,35 @@ run_suite() {
       ;;
   esac
 
-  session_id="qa-${suite}-$(date +%s)"
+  local session_id="qa-${suite}-$(date +%s)"
   echo "=== QA suite: $suite ==="
-  $ENTRY agent -m "$msg" --agent main --session-id "$session_id"
+
+  local output
+  output=$($ENTRY agent -m "$msg" --agent main --session-id "$session_id" 2>&1) || true
+  echo "$output"
+
+  if echo "$output" | grep -qi "$expect"; then
+    echo "--- PASS: $suite ---"
+  else
+    echo "--- FAIL: $suite (expected '$expect' in output) ---" >&2
+    FAILED="${FAILED} ${suite}"
+  fi
 }
 
 if [ "$SUITE" = "all" ]; then
   for s in email sms bankr search browser; do
     run_suite "$s"
   done
+  if [ -n "$FAILED" ]; then
+    echo ""
+    echo "=== FAILED suites:$FAILED ===" >&2
+    exit 1
+  fi
+  echo ""
+  echo "=== All suites passed ==="
 else
   run_suite "$SUITE"
+  if [ -n "$FAILED" ]; then
+    exit 1
+  fi
 fi
