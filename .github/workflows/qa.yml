@@ -69,6 +69,9 @@ jobs:
       - name: Add global bins to PATH
         run: echo "$(pnpm bin -g)" >> "$GITHUB_PATH"
 
+      - name: Check browser status
+        run: openclaw browser status
+
       - name: Start gateway
         run: |
           pnpm run gateway &
