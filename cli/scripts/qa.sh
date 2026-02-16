@@ -39,13 +39,7 @@ run_suite() {
       expect='BTC:'
       ;;
     browser)
-      msg='Use the browser tool to fill and submit a form. Follow these exact steps:
-1. Call browser with request="navigate" and targetUrl="https://convos-agent-main.up.railway.app/web-tools/form"
-2. Call browser with request="snapshot" to get the page elements and their ref IDs
-3. For each form field, call browser with request="act", action="fill", ref="<ref from snapshot>", value="<test data>"
-4. Call browser with request="act", action="click", ref="<submit button ref>" to submit
-5. Call browser with request="snapshot" to read the confirmation code
-Reply with: Form submitted. Confirmation code: <the code from the page>'
+      msg='Open https://convos-agent-main.up.railway.app/web-tools/form, fill the form with test data (name, number, email, time slot), and submit it. After submission a confirmation code appears on the page. Reply with: Form submitted. Confirmation code: <the code>'
       expect='Confirmation code:'
       ;;
     *)
