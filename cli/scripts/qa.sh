@@ -14,14 +14,6 @@ _PATH=""
 [ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
 unset _PATH
 
-echo "=== Resetting sessions ==="
-AGENTS_DIR="${STATE_DIR}/agents"
-if [ -d "$AGENTS_DIR" ]; then
-  for _a in "$AGENTS_DIR"/*/; do
-    [ -d "${_a}sessions" ] && rm -rf "${_a}sessions" && echo "  rm ${_a}sessions"
-  done
-fi
-
 SUITE="${QA_SUITE:-all}"
 FAILED=""
 
