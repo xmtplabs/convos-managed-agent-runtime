@@ -61,7 +61,7 @@ jobs:
       - name: Apply config
         run: pnpm run apply-config
 
-      - name: Install revertee deps
+      - name: Install revertewhe deps
         run: pnpm run install-state-deps
         env:
           HUSKY: "0"
@@ -88,18 +88,7 @@ jobs:
           sleep 15
 
       - name: QA browser
-        run: |
-          for attempt in 1 2 3; do
-            echo "=== Browser attempt $attempt/3 ==="
-            pnpm run reset-sessions || true
-            if timeout 180 pnpm run cli -- qa browser; then
-              exit 0
-            fi
-            echo "Attempt $attempt failed, waiting 15s before retry..."
-            sleep 15
-          done
-          echo "Browser QA failed after 3 attempts"
-          exit 1
+        run: timeout 120 pnpm run cli -- qa browser
 
       - name: QA email
         run: timeout 120 pnpm run cli -- qa email
