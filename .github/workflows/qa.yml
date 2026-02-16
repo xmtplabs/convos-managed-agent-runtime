@@ -55,6 +55,9 @@ jobs:
           echo "CHROMIUM_PATH=$CHROME" >> .env
           echo "Using browser: $CHROME"
 
+      - name: Check browser status
+        run: openclaw browser status
+
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
