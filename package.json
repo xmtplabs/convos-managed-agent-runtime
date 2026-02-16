@@ -16,9 +16,9 @@
     "install-state-deps": "pnpm run cli -- install-state-deps"
   },
   "dependencies": {
-    "openclaw": "latest",
     "commander": "^12.0.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "openclaw": "^2026.2.15"
   },
   "devDependencies": {
     "ethers": "^6.13.4"

@@ -45,6 +45,16 @@ program
     runScript("gateway.sh");
   });
 
+program
+  .command("prompt-qa")
+  .description("QA: run one agent prompt to verify email, SMS, and BTC search. Gateway must be running.")
+  .action(() => runScript("prompt-qa.sh"));
+
+program
+  .command("prompt-qa-browser")
+  .description("QA: run one agent prompt to verify browser (form fill + submit). Gateway must be running.")
+  .action(() => runScript("prompt-qa-browser.sh"));
+
 if (process.argv.length <= 2) {
   program.outputHelp();
   process.exit(0);
