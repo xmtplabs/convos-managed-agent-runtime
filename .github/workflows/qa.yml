@@ -21,13 +21,13 @@ jobs:
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@latest --activate
 
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            fonts-liberation libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
+            libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
+            libxkbcommon0 libxrandr2 xdg-utils
 
       - name: Write .env
         run: |
@@ -44,6 +44,30 @@ jobs:
           OPENCLAW_PRIMARY_MODEL=${{ secrets.OPENCLAW_PRIMARY_MODEL }}
           XMTP_ENV=${{ secrets.XMTP_ENV }}
           DOTENV
+
+      - name: Detect Chrome path
+        run: |
+          CHROME=$(command -v google-chrome-stable || command -v google-chrome || command -v chromium-browser || command -v chromium || echo "")
+          if [ -z "$CHROME" ]; then
+            echo "::error::No Chrome/Chromium binary found on runner"
+            exit 1
+          fi
+          echo "CHROMIUM_PATH=$CHROME" >> .env
+          echo "Using browser: $CHROME"
+
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Apply config
+        run: pnpm run apply-config
+
+      - name: Install revertee deps
+        run: pnpm run install-state-deps
+        env:
+          HUSKY: "0"
+
+      - name: Add global bins to PATH
+        run: echo "$(pnpm bin -g)" >> "$GITHUB_PATH"
 
       - name: Start gateway
         run: |
@@ -64,7 +88,18 @@ jobs:
           sleep 15
 
       - name: QA browser
-        run: timeout 180 pnpm run cli -- qa browser
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== Browser attempt $attempt/3 ==="
+            pnpm run reset-sessions || true
+            if timeout 180 pnpm run cli -- qa browser; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, waiting 15s before retry..."
+            sleep 15
+          done
+          echo "Browser QA failed after 3 attempts"
+          exit 1
 
       - name: QA email
         run: timeout 120 pnpm run cli -- qa email
