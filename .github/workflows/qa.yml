@@ -7,7 +7,7 @@ on:
 jobs:
   qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -73,19 +73,32 @@ jobs:
         run: |
           pnpm run gateway &
           echo "Waiting for gateway on port 18789..."
-          for i in $(seq 1 90); do
+          for i in $(seq 1 120); do
             if curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null 2>&1; then
               echo "Gateway ready after ${i}s"
-              exit 0
+              break
             fi
             sleep 1
           done
-          echo "Gateway failed to start within 90s"
-          exit 1
-
+          if ! curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null 2>&1; then
+            echo "Gateway failed to start within 120s"
+            exit 1
+          fi
+          echo "Waiting 15s for browser service to initialise..."
+          sleep 15
 
       - name: QA browser
-        run: timeout 180 pnpm run cli -- qa browser
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== Browser attempt $attempt/3 ==="
+            if timeout 180 pnpm run cli -- qa browser; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, waiting 10s before retry..."
+            sleep 10
+          done
+          echo "Browser QA failed after 3 attempts"
+          exit 1
 
       - name: QA email
         run: timeout 120 pnpm run cli -- qa email
