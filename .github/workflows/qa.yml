@@ -24,10 +24,6 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          if ! command -v chromium-browser >/dev/null 2>&1; then
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-              chromium-browser
-          fi
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             fonts-liberation libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
             libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
@@ -47,8 +43,17 @@ jobs:
           PRIVATE_WALLET_KEY=${{ secrets.PRIVATE_WALLET_KEY }}
           OPENCLAW_PRIMARY_MODEL=${{ secrets.OPENCLAW_PRIMARY_MODEL }}
           XMTP_ENV=${{ secrets.XMTP_ENV }}
-          CHROMIUM_PATH=${{ secrets.CHROMIUM_PATH }}
           DOTENV
+
+      - name: Detect Chrome path
+        run: |
+          CHROME=$(command -v google-chrome-stable || command -v google-chrome || command -v chromium-browser || command -v chromium || echo "")
+          if [ -z "$CHROME" ]; then
+            echo "::error::No Chrome/Chromium binary found on runner"
+            exit 1
+          fi
+          echo "CHROMIUM_PATH=$CHROME" >> .env
+          echo "Using browser: $CHROME"
 
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
