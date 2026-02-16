@@ -63,14 +63,14 @@ jobs:
         run: |
           pnpm run gateway &
           echo "Waiting for gateway on port 18789..."
-          for i in $(seq 1 30); do
-            if curl -s http://localhost:18789 > /dev/null 2>&1; then
-              echo "Gateway ready"
+          for i in $(seq 1 90); do
+            if curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null 2>&1; then
+              echo "Gateway ready after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "Gateway failed to start within 30s"
+          echo "Gateway failed to start within 90s"
           exit 1
 
       - name: Run prompt-qa
