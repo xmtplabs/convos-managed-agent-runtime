@@ -7,13 +7,35 @@ ENV_FILE="$ROOT/.env"
 
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
 
-gateway_token=$(openssl rand -hex 32)
-setup_password=$(openssl rand -hex 16)
-private_wallet_key="0x$(openssl rand -hex 32)"
-echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, PRIVATE_WALLET_KEY"
+if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+  gateway_token="$OPENCLAW_GATEWAY_TOKEN"
+  echo "[keys] Using existing OPENCLAW_GATEWAY_TOKEN from env"
+else
+  gateway_token=$(openssl rand -hex 32)
+  echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN"
+fi
+
+if [ -n "$SETUP_PASSWORD" ]; then
+  setup_password="$SETUP_PASSWORD"
+  echo "[keys] Using existing SETUP_PASSWORD from env"
+else
+  setup_password=$(openssl rand -hex 16)
+  echo "[keys] Generated random SETUP_PASSWORD"
+fi
+
+if [ -n "$PRIVATE_WALLET_KEY" ]; then
+  private_wallet_key="$PRIVATE_WALLET_KEY"
+  echo "[keys] Using existing PRIVATE_WALLET_KEY from env"
+else
+  private_wallet_key="0x$(openssl rand -hex 32)"
+  echo "[keys] Generated random PRIVATE_WALLET_KEY"
+fi
 
 key=""
-if [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
+if [ -n "$OPENROUTER_API_KEY" ]; then
+  key="$OPENROUTER_API_KEY"
+  echo "[keys] Using existing OPENROUTER_API_KEY from env"
+elif [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
   name="convos-local-$(date +%s)"
   limit="${OPENROUTER_KEY_LIMIT:-20}"
   limit_reset="${OPENROUTER_KEY_LIMIT_RESET:-monthly}"
@@ -31,11 +53,8 @@ if [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
     exit 1
   fi
   echo "[keys] Created OpenRouter key via API"
-elif [ -n "$OPENROUTER_API_KEY" ]; then
-  key="$OPENROUTER_API_KEY"
-  echo "[keys] Using existing OPENROUTER_API_KEY from env"
 else
-  echo "[keys] No OpenRouter key: set OPENROUTER_MANAGEMENT_KEY or OPENROUTER_API_KEY and re-run to add it; writing gateway token + setup password only"
+  echo "[keys] No OpenRouter key: set OPENROUTER_API_KEY or OPENROUTER_MANAGEMENT_KEY and re-run to add it"
 fi
 
 agentmail_inbox=""
