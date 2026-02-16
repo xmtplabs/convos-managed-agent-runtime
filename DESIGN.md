@@ -163,7 +163,7 @@ Each agent runs as a containerized Railway service with ephemeral filesystem, lo
 
 ### Agentmail (email)
 
-Each agent gets a scoped email address provisioned automatically. Used for sending calendar invites, confirmations, and transactional email. Each group to have its email. Currently all use same inbox `convos@agentmail.to`
+Each agent gets a scoped email address provisioned automatically. Used for sending calendar invites, confirmations, and transactional email. Each group to have its email. Currently all use same inbox `group-*@agentmail.to`
 
 ### Phone numbers (TBD)
 

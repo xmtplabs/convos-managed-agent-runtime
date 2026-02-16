@@ -72,6 +72,15 @@
         "env": {
           "BANKR_API_KEY": "${BANKR_API_KEY}"
         }
+      },
+      "telnyx-cli": {
+        "enabled": true,
+        "apiKey": "${TELNYX_API_KEY}",
+        "env": {
+          "TELNYX_API_KEY": "${TELNYX_API_KEY}",
+          "TELNYX_PHONE_NUMBER": "${TELNYX_PHONE_NUMBER}",
+          "TELNYX_MESSAGING_PROFILE_ID": "${TELNYX_MESSAGING_PROFILE_ID}"
+        }
       }
     }
   },

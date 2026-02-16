@@ -30,4 +30,10 @@ if [ -d "$SKILLS_DIR/agentmail" ]; then
   (cd "$STATE_DIR" && pnpm install --no-frozen-lockfile) || true
 fi
 
+# telnyx-cli: install @telnyx/api-cli globally
+if [ -d "$SKILLS_DIR/telnyx-cli" ]; then
+  echo "  Installing @telnyx/api-cli globally"
+  pnpm install -g @telnyx/api-cli || npm install -g @telnyx/api-cli || true
+fi
+
 echo "  install-state-deps done"
