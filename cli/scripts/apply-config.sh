@@ -29,10 +29,37 @@ if command -v jq >/dev/null 2>&1; then
     jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     echo "  🔧 plugins.load.paths → $STATE_DIR/extensions"
   fi
-  # Inject Chromium executable path for containerised browser automation
+  # --- Browser detection ---
+  # Auto-detect Chrome on Mac when CHROMIUM_PATH is not explicitly set
+  if [ -z "${CHROMIUM_PATH:-}" ] && [ "$(uname -s)" = "Darwin" ]; then
+    for _candidate in \
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      "/Applications/Chromium.app/Contents/MacOS/Chromium"; do
+      if [ -x "$_candidate" ]; then
+        CHROMIUM_PATH="$_candidate"
+        break
+      fi
+    done
+    if [ -z "${CHROMIUM_PATH:-}" ]; then
+      echo "  ⚠️  browser      → no Chrome or Chromium found in /Applications"
+    fi
+  fi
+
+  # Inject browser config — platform-aware defaults
   if [ -n "${CHROMIUM_PATH:-}" ]; then
-    jq --arg p "$CHROMIUM_PATH" '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = true' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-    echo "  🔧 browser      → $CHROMIUM_PATH (headless, no-sandbox)"
+    if [ "$(uname -s)" = "Darwin" ]; then
+      # Mac: headed mode, sandbox enabled
+      jq --arg p "$CHROMIUM_PATH" \
+        '.browser.executablePath = $p | .browser.headless = false | .browser.noSandbox = false' \
+        "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+      echo "  🔧 browser      → $CHROMIUM_PATH (headed, sandbox)"
+    else
+      # CI / container: headless, no-sandbox
+      jq --arg p "$CHROMIUM_PATH" \
+        '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = true' \
+        "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+      echo "  🔧 browser      → $CHROMIUM_PATH (headless, no-sandbox)"
+    fi
   fi
 fi
 unset _PORT
