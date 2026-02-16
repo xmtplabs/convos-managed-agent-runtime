@@ -34,8 +34,7 @@ Each `openclaw/` subdir syncs into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`) at a
 ├── openclaw/
 │   ├── openclaw.json          # Config template (env vars substituted at load)
 │   ├── workspace/             # → ~/.openclaw/workspace
-│   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, USER.md
-│   │   ├── memory/
+│   │   ├── AGENTS.md, SOUL.md, TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOT.md, BOOTSTRAP.md, MEMORY.md, USER.md
 │   │   └── skills/            # agentmail, telnyx-cli, bankr
 │   ├── extensions/
 │   │   ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
