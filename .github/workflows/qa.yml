@@ -21,6 +21,9 @@ jobs:
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@latest --activate
 
+      - name: Install dependencies
+        run: pnpm install
+
       - name: Write .env
         run: |
           cat > .env <<'DOTENV'
