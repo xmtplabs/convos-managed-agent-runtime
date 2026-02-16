@@ -1,0 +1,4 @@
+{
+  "id": "prompt-store",
+  "configSchema": { "type": "object", "additionalProperties": false }
+}

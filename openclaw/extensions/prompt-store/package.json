@@ -1,0 +1,8 @@
+{
+  "name": "prompt-store",
+  "version": "1.0.0",
+  "description": "Browse and deploy agent prompts from a curated store",
+  "type": "module",
+  "devDependencies": { "openclaw": "*" },
+  "openclaw": { "extensions": ["./index.ts"] }
+}

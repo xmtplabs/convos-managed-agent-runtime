@@ -450,7 +450,110 @@ const plugin = {
           const body = await readJsonBody(req);
           const name = typeof body.name === "string" ? body.name : undefined;
           const result = await createInvite(cfg, { name });
-          jsonResponse(res, 200, result);
+          jsonResponse(res, 200, { inviteUrl: result.inviteUrl, conversationId: result.conversationId });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          jsonResponse(res, 500, { error: msg });
+        }
+      },
+    });
+
+    api.registerHttpRoute({
+      path: "/convos/create-identity-and-join",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        try {
+          const body = await readJsonBody(req);
+          const rawInvite = typeof body.invite === "string" ? body.invite.trim() : "";
+          const profileName = typeof body.name === "string" ? body.name.trim() : "";
+          const accountId = typeof body.accountId === "string" ? body.accountId.trim() : "";
+          if (!rawInvite) {
+            jsonResponse(res, 400, { error: "Invite URL or slug required." });
+            return;
+          }
+          if (!accountId) {
+            jsonResponse(res, 400, { error: "accountId is required." });
+            return;
+          }
+          const invite = extractInviteSlug(rawInvite);
+          if (!invite) {
+            jsonResponse(res, 400, { error: "Invalid invite URL or slug." });
+            return;
+          }
+
+          const runtime = getConvosRuntime();
+          const cfg = runtime.config.loadConfig() as CoreConfig;
+          const baseConvos = cfg.channels?.convos ?? {};
+          const env = (baseConvos.XMTP_ENV ?? XMTP_ENV_DEFAULT) as "production" | "dev";
+
+          // Create SDK client with a brand-new identity.
+          // Use persistent DB path so join state is preserved for the runtime client.
+          const stateDir = runtime.state.resolveStateDir();
+          const client = await ConvosSDKClient.create({
+            env,
+            dbPath: null, // initial create — key not known yet
+            debug: true,
+          });
+          const privateKey = client.getPrivateKey();
+          // Now stop and recreate with persistent path
+          await client.stop();
+          const dbPath = resolveConvosDbPath({
+            stateDir,
+            env,
+            accountId,
+            privateKey,
+          });
+          const persistentClient = await ConvosSDKClient.create({
+            privateKey,
+            env,
+            dbPath,
+            debug: true,
+          });
+          await persistentClient.start();
+
+          try {
+            const joinResult = await persistentClient.joinConversation(invite);
+            if (!joinResult.conversationId) {
+              jsonResponse(res, 400, {
+                error: "Could not resolve conversation ID. Join may be pending approval.",
+              });
+              return;
+            }
+
+            // Set the agent's display name on the conversation.
+            // The newly-joined group may not appear in the local DB immediately,
+            // so retry sync + setConversationProfile with a short delay.
+            if (profileName) {
+              let profileSet = false;
+              for (let attempt = 1; attempt <= 5 && !profileSet; attempt++) {
+                try {
+                  await persistentClient.syncConversations();
+                  await persistentClient.setConversationProfile(joinResult.conversationId!, { name: profileName });
+                  profileSet = true;
+                  console.log(`[convos] Set profile name "${profileName}" (attempt ${attempt})`);
+                } catch {
+                  console.log(`[convos] Profile set attempt ${attempt}/5 failed, retrying in 2s...`);
+                  await new Promise((r) => setTimeout(r, 2000));
+                }
+              }
+              if (!profileSet) {
+                console.warn(`[convos] Could not set profile name "${profileName}" after 5 attempts`);
+              }
+            }
+
+            const inboxId = persistentClient.getInboxId();
+
+            jsonResponse(res, 200, {
+              privateKey,
+              conversationId: joinResult.conversationId,
+              inboxId,
+            });
+          } finally {
+            await persistentClient.stop();
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           jsonResponse(res, 500, { error: msg });

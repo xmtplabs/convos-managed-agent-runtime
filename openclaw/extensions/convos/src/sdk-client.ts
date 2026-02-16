@@ -248,6 +248,31 @@ export class ConvosSDKClient {
   }
 
   /**
+   * Sync conversations from the XMTP network into the local DB.
+   */
+  async syncConversations(): Promise<void> {
+    await this.agent.client.conversations.sync();
+  }
+
+  /**
+   * Set the agent's profile (display name / image) on a conversation.
+   */
+  async setConversationProfile(
+    conversationId: string,
+    options: { name?: string; image?: string },
+  ): Promise<void> {
+    const conversation = await this.agent.client.conversations.getConversationById(conversationId);
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${conversationId}`);
+    }
+    const group = this.convos.group(conversation);
+    await group.setConversationProfile(options);
+    if (this.debug) {
+      console.log(`[convos-sdk] Set conversation profile on ${conversationId.slice(0, 12)}: ${JSON.stringify(options)}`);
+    }
+  }
+
+  /**
    * List all conversations
    */
   async listConversations(): Promise<ConversationInfo[]> {

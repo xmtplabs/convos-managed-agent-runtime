@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt Store</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: #f5f5f5;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 1.25rem;
+      max-width: 340px;
+      width: 100%;
+      min-height: 300px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 0.35rem;
+      color: #444;
+    }
+    select, input[type="text"] {
+      width: 100%;
+      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      color: #333;
+      background: #fff;
+    }
+    select { appearance: auto; }
+    select:focus, input[type="text"]:focus { outline: none; border-color: #666; }
+    .template-desc {
+      font-size: 0.8rem;
+      color: #666;
+      margin-top: 0.35rem;
+      min-height: 1.2em;
+    }
+    .field-group { margin-top: 0.75rem; }
+    .create-btn {
+      width: 100%;
+      background: none;
+      border: 1px solid #ccc;
+      color: #333;
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      margin-top: 0.75rem;
+    }
+    .create-btn:hover { border-color: #999; }
+    .create-btn:disabled { opacity: 0.5; cursor: default; }
+    .result-info {
+      font-size: 0.85rem;
+      color: #333;
+      text-align: center;
+      margin-top: 1.5rem;
+      line-height: 1.5;
+    }
+    .result-info code {
+      background: #f0f0f0;
+      padding: 0.1em 0.3em;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+    .members-list {
+      margin-top: 1rem;
+      padding: 0;
+      list-style: none;
+      font-size: 0.8rem;
+    }
+    .members-list li {
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #f0f0f0;
+      color: #555;
+    }
+    .members-list li:last-child { border-bottom: none; }
+    .members-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #999;
+      margin-top: 1rem;
+      margin-bottom: 0.25rem;
+      text-align: center;
+    }
+    .error { color: #c00; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+    .success { color: #080; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; }
+    .loading-text { font-size: 0.85rem; color: #666; text-align: center; margin-top: 0.75rem; }
+    .footer {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <span>prompt store</span>
+    </div>
+
+    <div id="form-section">
+      <label for="template-select">Choose a template</label>
+      <select id="template-select" disabled>
+        <option value="">Loading templates...</option>
+      </select>
+      <div id="template-desc" class="template-desc"></div>
+
+      <div class="field-group">
+        <label for="name-input">Agent name</label>
+        <input id="name-input" type="text" placeholder="e.g. Chef, Scout, Planner..." autocomplete="off" />
+      </div>
+
+      <div class="field-group">
+        <label for="invite-input">Paste conversation invite URL</label>
+        <input id="invite-input" type="text" placeholder="https://converse.xyz/invite/..." autocomplete="off" />
+      </div>
+
+      <button type="button" class="create-btn" id="create-btn" disabled>Create Agent</button>
+    </div>
+
+    <div id="loading-section" class="loading-text" style="display: none;">Creating identity &amp; joining conversation...</div>
+
+    <div id="result-section" style="display: none;">
+      <div id="result-info" class="result-info"></div>
+      <button type="button" class="create-btn" id="create-another-btn">Create Another</button>
+    </div>
+
+    <div id="message" class="error" role="alert"></div>
+  </div>
+
+  <footer class="footer">
+    <span>Prompt Store</span>
+  </footer>
+
+  <script>
+    (function () {
+      var selectEl = document.getElementById("template-select");
+      var descEl = document.getElementById("template-desc");
+      var createBtn = document.getElementById("create-btn");
+      var nameInput = document.getElementById("name-input");
+      var inviteInput = document.getElementById("invite-input");
+      var formSection = document.getElementById("form-section");
+      var loadingSection = document.getElementById("loading-section");
+      var resultSection = document.getElementById("result-section");
+      var resultInfo = document.getElementById("result-info");
+      var messageEl = document.getElementById("message");
+      var createAnotherBtn = document.getElementById("create-another-btn");
+
+      var templates = [];
+
+      function showMessage(msg, isError) {
+        messageEl.textContent = msg || "";
+        messageEl.className = isError ? "error" : "success";
+        messageEl.style.display = msg ? "block" : "none";
+      }
+
+      function showForm() {
+        formSection.style.display = "block";
+        loadingSection.style.display = "none";
+        resultSection.style.display = "none";
+        showMessage("");
+      }
+
+      function showLoading() {
+        formSection.style.display = "none";
+        loadingSection.style.display = "block";
+        resultSection.style.display = "none";
+        showMessage("");
+      }
+
+      function showResult(agentId, agentName, members) {
+        formSection.style.display = "none";
+        loadingSection.style.display = "none";
+        resultSection.style.display = "block";
+        var label = agentName ? "<strong>" + agentName + "</strong> (<code>" + agentId + "</code>)" : "<code>" + agentId + "</code>";
+        var html = label + " created with its own identity and joined the conversation.";
+        if (members && members.length > 0) {
+          html += '<div class="members-label">Agents in this conversation</div>';
+          html += '<ul class="members-list">';
+          for (var i = 0; i < members.length; i++) {
+            var m = members[i];
+            var mLabel = m.name ? "<strong>" + m.name + "</strong> <code>" + m.agentId + "</code>" : "<code>" + m.agentId + "</code>";
+            html += "<li>" + mLabel + "</li>";
+          }
+          html += "</ul>";
+        }
+        resultInfo.innerHTML = html;
+      }
+
+      // Load templates
+      fetch("/prompt-store/templates")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          templates = data.templates || [];
+          selectEl.innerHTML = "";
+          if (templates.length === 0) {
+            selectEl.innerHTML = '<option value="">No templates available</option>';
+            return;
+          }
+          for (var i = 0; i < templates.length; i++) {
+            var t = templates[i];
+            var opt = document.createElement("option");
+            opt.value = t.slug;
+            opt.textContent = (t.emoji ? t.emoji + " " : "") + t.name;
+            selectEl.appendChild(opt);
+          }
+          selectEl.disabled = false;
+          createBtn.disabled = false;
+          updateDescription();
+        })
+        .catch(function () {
+          selectEl.innerHTML = '<option value="">Failed to load templates</option>';
+        });
+
+      function updateDescription() {
+        var slug = selectEl.value;
+        var t = templates.find(function (tpl) { return tpl.slug === slug; });
+        descEl.textContent = t ? t.description : "";
+      }
+
+      selectEl.addEventListener("change", updateDescription);
+
+      createBtn.addEventListener("click", function () {
+        var slug = selectEl.value;
+        var agentName = (nameInput.value || "").trim();
+        var invite = (inviteInput.value || "").trim();
+        if (!slug) {
+          showMessage("Select a template first.", true);
+          return;
+        }
+        if (!invite) {
+          showMessage("Paste a conversation invite URL.", true);
+          return;
+        }
+        showLoading();
+
+        fetch("/prompt-store/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateSlug: slug, name: agentName, inviteUrl: invite }),
+        })
+          .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+          .then(function (_) {
+            if (!_.ok) {
+              showForm();
+              showMessage(_.data.error || "Failed to create agent.", true);
+              return;
+            }
+            showResult(_.data.agentId, _.data.name, _.data.members);
+          })
+          .catch(function () {
+            showForm();
+            showMessage("Could not reach the gateway. Make sure the gateway is running.", true);
+          });
+      });
+
+      createAnotherBtn.addEventListener("click", function () {
+        nameInput.value = "";
+        inviteInput.value = "";
+        showForm();
+      });
+    })();
+  </script>
+</body>
+</html>

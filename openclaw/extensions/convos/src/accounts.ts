@@ -26,8 +26,15 @@ export type ResolvedConvosAccount = {
   config: ConvosConfig;
 };
 
-export function listConvosAccountIds(_cfg: CoreConfig): string[] {
-  return [DEFAULT_ACCOUNT_ID];
+export function listConvosAccountIds(cfg: CoreConfig): string[] {
+  const ids: string[] = [DEFAULT_ACCOUNT_ID];
+  const accounts = cfg.channels?.convos?.accounts;
+  if (accounts && typeof accounts === "object") {
+    for (const id of Object.keys(accounts)) {
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids;
 }
 
 export function resolveDefaultConvosAccountId(cfg: CoreConfig): string {
@@ -44,7 +51,9 @@ export function resolveConvosAccount(params: {
 }): ResolvedConvosAccount {
   const accountId = normalizeAccountId(params.accountId);
   const base = params.cfg.channels?.convos ?? {};
-  const enabled = base.enabled !== false;
+  const perAccount = base.accounts?.[accountId] ?? {};
+  const merged = { ...base, ...perAccount }; // per-account overrides base
+  const enabled = merged.enabled !== false;
 
   // Identity is created on first start (config or state-dir); no key required in config
   const configured = enabled;
@@ -52,13 +61,13 @@ export function resolveConvosAccount(params: {
   return {
     accountId,
     enabled,
-    name: base.name?.trim() || undefined,
+    name: merged.name?.trim() || undefined,
     configured,
-    privateKey: base.privateKey,
-    env: base.XMTP_ENV ?? XMTP_ENV_DEFAULT,
-    debug: base.debug ?? false,
-    ownerConversationId: base.ownerConversationId,
-    config: base,
+    privateKey: merged.privateKey,
+    env: merged.XMTP_ENV ?? XMTP_ENV_DEFAULT,
+    debug: merged.debug ?? false,
+    ownerConversationId: merged.ownerConversationId,
+    config: merged,
   };
 }
 

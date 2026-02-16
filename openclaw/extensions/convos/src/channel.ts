@@ -34,6 +34,9 @@ type RuntimeLogger = {
   error: (msg: string) => void;
 };
 
+/** Track (accountId:groupId) combos where profile name has been set. */
+const profileSetCache = new Set<string>();
+
 /** Channel plugin metadata for CLI/UI (runtime artifact label). */
 const convosChannelMeta = {
   id: "convos",
@@ -316,6 +319,31 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       // Start listening for messages
       await client.start();
 
+      // Set display name on all groups if account has a name configured.
+      // Retry with sync since the group may not be in the local DB yet.
+      if (account.name) {
+        const groups = (account.config.groups ?? []).filter((g: string) => g !== "*");
+        for (const groupId of groups) {
+          let set = false;
+          for (let attempt = 1; attempt <= 5 && !set; attempt++) {
+            try {
+              await client.syncConversations();
+              await client.setConversationProfile(groupId, { name: account.name });
+              set = true;
+              profileSetCache.add(`${account.accountId}:${groupId}`);
+              log?.info(`[${account.accountId}] Set profile name "${account.name}" on ${groupId.slice(0, 12)} (attempt ${attempt})`);
+            } catch {
+              if (attempt < 5) {
+                await new Promise((r) => setTimeout(r, 2000));
+              }
+            }
+          }
+          if (!set) {
+            log?.error(`[${account.accountId}] Could not set profile name on ${groupId.slice(0, 12)} after 5 attempts`);
+          }
+        }
+      }
+
       log?.info(`[${account.accountId}] Convos provider started`);
 
       // Block until abort signal fires (gateway expects startAccount to stay
@@ -369,6 +397,51 @@ async function handleInboundMessage(
     log?.info(
       `[${account.accountId}] Inbound message from ${msg.senderId}: ${msg.content.slice(0, 50)}`,
     );
+  }
+
+  // --- Self-echo guard: drop messages sent by this account's own XMTP identity ---
+  const ownClient = getClientForAccount(account.accountId);
+  if (ownClient) {
+    const ownInboxId = ownClient.getInboxId();
+    if (msg.senderId === ownInboxId) {
+      if (account.debug) {
+        log?.info(`[${account.accountId}] Dropped own echo (inboxId=${ownInboxId.slice(0, 12)})`);
+      }
+      return;
+    }
+  }
+
+  // --- Lazy profile-name set: first inbound message guarantees group is synced ---
+  if (account.name) {
+    const cacheKey = `${account.accountId}:${msg.conversationId}`;
+    if (!profileSetCache.has(cacheKey)) {
+      const client = getClientForAccount(account.accountId);
+      if (client) {
+        try {
+          await client.setConversationProfile(msg.conversationId, { name: account.name });
+          profileSetCache.add(cacheKey);
+          log?.info(`[${account.accountId}] Lazy-set profile name "${account.name}" on ${msg.conversationId.slice(0, 12)}`);
+        } catch (err) {
+          if (account.debug) {
+            log?.info(`[${account.accountId}] Lazy profile set failed: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+      }
+    }
+  }
+
+  // --- Name-gating: if this account has a configured name, only respond when mentioned ---
+  if (account.name) {
+    const lowerContent = msg.content.toLowerCase();
+    const lowerName = account.name.toLowerCase();
+    if (!lowerContent.includes(lowerName)) {
+      if (account.debug) {
+        log?.info(
+          `[${account.accountId}] Dropped message — name "${account.name}" not mentioned`,
+        );
+      }
+      return;
+    }
   }
 
   // Enforce group policy before doing any work.

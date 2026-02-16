@@ -10,7 +10,7 @@ import {
 import { extractInviteSlug } from "./onboarding.js";
 import { getClientForAccount } from "./outbound.js";
 
-export type CreateInviteResult = { inviteUrl: string };
+export type CreateInviteResult = { inviteUrl: string; conversationId: string };
 
 /**
  * Create a new Convos conversation and return the invite URL.
@@ -30,7 +30,7 @@ export async function createInvite(
     throw new Error("Convos is not running. Start the gateway with Convos enabled.");
   }
   const result = await client.createConversation(options?.name);
-  return { inviteUrl: result.inviteUrl };
+  return { inviteUrl: result.inviteUrl, conversationId: result.conversationId };
 }
 
 export function registerConvosCommands(api: OpenClawPluginApi): void {
