@@ -24,8 +24,11 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
+          if ! command -v chromium-browser >/dev/null 2>&1; then
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+              chromium-browser
+          fi
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            chromium-browser \
             fonts-liberation libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
             libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
             libxkbcommon0 libxrandr2 xdg-utils
