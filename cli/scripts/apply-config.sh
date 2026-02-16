@@ -45,16 +45,14 @@ if command -v jq >/dev/null 2>&1; then
     fi
   fi
 
-  # Inject browser config — platform-aware defaults
+  # Inject browser config — always headless, sandbox off only in containers
   if [ -n "${CHROMIUM_PATH:-}" ]; then
     if [ "$(uname -s)" = "Darwin" ]; then
-      # Mac: headed mode, sandbox enabled
       jq --arg p "$CHROMIUM_PATH" \
-        '.browser.executablePath = $p | .browser.headless = false | .browser.noSandbox = false' \
+        '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = false' \
         "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-      echo "  🔧 browser      → $CHROMIUM_PATH (headed, sandbox)"
+      echo "  🔧 browser      → $CHROMIUM_PATH (headless, sandbox)"
     else
-      # CI / container: headless, no-sandbox
       jq --arg p "$CHROMIUM_PATH" \
         '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = true' \
         "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
