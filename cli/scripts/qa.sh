@@ -15,58 +15,60 @@ _PATH=""
 unset _PATH
 
 FAILED=""
+QA_TMP=$(mktemp)
 
 pass() { echo "  [PASS] $1"; }
 fail() { echo "  [FAIL] $1 -- $2" >&2; FAILED="${FAILED} $1"; }
+
+# run CMD... -- streams live, captures to $QA_TMP for checking
+run() { "$@" 2>&1 | tee "$QA_TMP" || true; }
 
 # --- Email (agentmail script) ---
 echo ""
 echo "=== QA: email ==="
 echo "  > node send-email.mjs --to fabri@xmtp.com"
-out=$(node "$STATE_DIR/workspace/skills/agentmail/scripts/send-email.mjs" \
-  --to "fabri@xmtp.com" --subject "QA $(date +%s)" --text "Smoke test" 2>&1) || true
-echo "  < $out"
-if echo "$out" | grep -qi "Sent to"; then
+run node "$STATE_DIR/workspace/skills/agentmail/scripts/send-email.mjs" \
+  --to "fabri@xmtp.com" --subject "QA $(date +%s)" --text "Smoke test"
+if grep -qi "Sent to" "$QA_TMP"; then
   pass "email"
 else
-  fail "email" "$out"
+  fail "email" "$(cat "$QA_TMP")"
 fi
 
 # --- SMS (telnyx CLI) ---
 echo ""
 echo "=== QA: sms ==="
 echo "  > telnyx message send --from $TELNYX_PHONE_NUMBER --to +16154376139"
-out=$(telnyx message send --from "$TELNYX_PHONE_NUMBER" --to "+16154376139" --text "QA $(date +%s)" 2>&1) || true
-echo "  < $out"
-if echo "$out" | grep -qi "queued\|sent\|delivered\|id"; then
+run telnyx message send --from "$TELNYX_PHONE_NUMBER" --to "+16154376139" --text "QA $(date +%s)"
+if grep -qi "queued\|sent\|delivered\|id" "$QA_TMP"; then
   pass "sms"
 else
-  fail "sms" "$out"
+  fail "sms" "$(cat "$QA_TMP")"
 fi
 
 # --- Bankr ---
 echo ""
 echo "=== QA: bankr ==="
 echo "  > bankr prompt 'Check my USDC balance'"
-out=$(bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>' 2>&1) || true
-echo "  < $out"
-if echo "$out" | grep -qi "USDC\|balance\|0x"; then
+run bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>'
+if grep -qi "USDC\|balance\|0x" "$QA_TMP"; then
   pass "bankr"
 else
-  fail "bankr" "$out"
+  fail "bankr" "$(cat "$QA_TMP")"
 fi
 
 # --- Browser ---
 echo ""
 echo "=== QA: browser ==="
 echo "  > openclaw browser open https://example.com"
-out=$($ENTRY browser open "https://example.com" 2>&1) || true
-echo "  < $out"
-if echo "$out" | grep -qi "opened\|tab\|target\|navigate\|ok\|success"; then
+run $ENTRY browser open "https://example.com"
+if grep -qi "opened\|tab\|target\|navigate\|ok\|success" "$QA_TMP"; then
   pass "browser"
 else
-  fail "browser" "$out"
+  fail "browser" "$(cat "$QA_TMP")"
 fi
+
+rm -f "$QA_TMP"
 
 # --- Summary ---
 echo ""
