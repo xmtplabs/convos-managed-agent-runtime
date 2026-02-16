@@ -112,7 +112,8 @@ if [ -n "$TELNYX_API_KEY" ]; then
       profile_resp=$(curl -s -X POST "https://api.telnyx.com/v2/messaging_profiles" \
         -H "Authorization: Bearer $TELNYX_API_KEY" \
         -H "Content-Type: application/json" \
-        -d '{"name":"convos-agent-sms","whitelisted_destinations":["US"]}')
+        -d "$(jq -n --arg name "convos-$(openssl rand -hex 4)-sms" \
+          '{name: $name, whitelisted_destinations: ["US"]}')")
       telnyx_profile=$(echo "$profile_resp" | jq -r '.data.id // empty')
       if [ -z "$telnyx_profile" ]; then
         echo "[keys] Failed to create messaging profile: $profile_resp" >&2
