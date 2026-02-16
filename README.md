@@ -74,8 +74,10 @@ XMTP_ENV=dev
 AGENTMAIL_API_KEY=
 AGENTMAIL_INBOX_ID=
 
-# XMTP/Convos wallet; key-provision can generate
-WALLET_KEY=
+# Crypto wallet
+PRIVATE_WALLET_KEY=
+BANKR_API_KEY=
+
 # State dir (default ~/.openclaw); Docker sets /app
 OPENCLAW_STATE_DIR=
 ```

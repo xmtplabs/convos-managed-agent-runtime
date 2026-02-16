@@ -65,6 +65,13 @@
           "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}",
           "AGENTMAIL_INBOX_ID": "${AGENTMAIL_INBOX_ID}"
         }
+      },
+      "bankr": {
+        "enabled": true,
+        "apiKey": "${BANKR_API_KEY}",
+        "env": {
+          "BANKR_API_KEY": "${BANKR_API_KEY}"
+        }
       }
     }
   },

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Write OPENROUTER_API_KEY + random OPENCLAW_GATEWAY_TOKEN and SETUP_PASSWORD to repo .env.
+# Write OPENROUTER_API_KEY, BANKR_API_KEY (if set), random OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, and PRIVATE_WALLET_KEY to repo .env.
 set -e
 
 . "$(dirname "$0")/lib/init.sh"
@@ -9,7 +9,8 @@ if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; f
 
 gateway_token=$(openssl rand -hex 32)
 setup_password=$(openssl rand -hex 16)
-echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN and SETUP_PASSWORD"
+private_wallet_key="0x$(openssl rand -hex 32)"
+echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, PRIVATE_WALLET_KEY"
 
 key=""
 if [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
@@ -37,12 +38,23 @@ else
   echo "[keys] No OpenRouter key: set OPENROUTER_MANAGEMENT_KEY or OPENROUTER_API_KEY and re-run to add it; writing gateway token + setup password only"
 fi
 
+bankr_key=""
+if [ -n "$BANKR_API_KEY" ]; then
+  bankr_key="$BANKR_API_KEY"
+  echo "[keys] Using existing BANKR_API_KEY from env"
+else
+  echo "[keys] No Bankr key: set BANKR_API_KEY (bk_...) and re-run to add it"
+fi
+
 touch "$ENV_FILE"
 tmp=$(mktemp)
-grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' > "$tmp" || true
+grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' | grep -v '^PRIVATE_WALLET_KEY=' > "$tmp" || true
 echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
 echo "SETUP_PASSWORD=$setup_password" >> "$tmp"
+echo "PRIVATE_WALLET_KEY=$private_wallet_key" >> "$tmp"
 if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
+if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
 mv "$tmp" "$ENV_FILE"
-echo "[keys] Gateway token + setup password written to .env"
+echo "[keys] Gateway token, setup password, private wallet key written to .env"
 if [ -n "$key" ]; then echo "[keys] OpenRouter key written to .env"; fi
+if [ -n "$bankr_key" ]; then echo "[keys] Bankr key written to .env"; fi
