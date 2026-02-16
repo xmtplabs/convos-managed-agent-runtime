@@ -74,8 +74,17 @@ jobs:
           echo "Gateway failed to start within 90s"
           exit 1
 
-      - name: Run prompt-qa
-        run: timeout 180 pnpm run cli -- prompt-qa
+      - name: QA email
+        run: timeout 120 pnpm run cli -- qa email
 
-      - name: Run prompt-qa-browser
-        run: timeout 180 pnpm run cli -- prompt-qa-browser
+      - name: QA sms
+        run: timeout 120 pnpm run cli -- qa sms
+
+      - name: QA bankr
+        run: timeout 120 pnpm run cli -- qa bankr
+
+      - name: QA search
+        run: timeout 120 pnpm run cli -- qa search
+
+      - name: QA browser
+        run: timeout 120 pnpm run cli -- qa browser

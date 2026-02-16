@@ -46,14 +46,9 @@ program
   });
 
 program
-  .command("prompt-qa")
-  .description("QA: run one agent prompt to verify email, SMS, BTC search, and USDC balance. Gateway must be running.")
-  .action(() => runScript("prompt-qa.sh"));
-
-program
-  .command("prompt-qa-browser")
-  .description("QA: run one agent prompt to verify browser (form fill + submit). Gateway must be running.")
-  .action(() => runScript("prompt-qa-browser.sh"));
+  .command("qa [suite]")
+  .description("Run QA smoke test. Suites: email, sms, bankr, search, browser, all (default)")
+  .action((suite) => runScript("qa.sh", { QA_SUITE: suite || "all" }));
 
 if (process.argv.length <= 2) {
   program.outputHelp();
