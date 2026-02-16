@@ -75,17 +75,5 @@ jobs:
           echo "Waiting 15s for browser service to initialise..."
           sleep 15
 
-      - name: QA browser
-        run: npx openclaw browser open "https://example.com" 2>&1
-
-      - name: QA email
-        run: timeout 120 pnpm run cli -- qa email
-
-      - name: QA sms
-        run: timeout 120 pnpm run cli -- qa sms
-
-      - name: QA bankr
-        run: timeout 120 pnpm run cli -- qa bankr
-
-      - name: QA search
-        run: timeout 120 pnpm run cli -- qa search
+      - name: QA smoke tests
+        run: timeout 120 pnpm run cli -- qa
