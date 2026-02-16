@@ -14,7 +14,7 @@ _PATH=""
 [ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
 unset _PATH
 
-MSG='Open https://convos-managed-dev-production.up.railway.app/web-tools/form, fill the form with test data (name, number, email, time slot), and submit it. Reply with: Form submitted.'
+MSG='Open https://convos-managed-dev-production.up.railway.app/web-tools/form, fill the form with test data (name, number, email, time slot), and submit it. After submission a confirmation code appears on the page. Reply with: Form submitted. Confirmation code: <the code>'
 
 SESSION_ID="prompt-qa-browser-$(date +%s)"
-exec $ENTRY agent -m "$MSG" --channel convos --agent main --session-id "$SESSION_ID"
+exec $ENTRY agent -m "$MSG" --agent main --session-id "$SESSION_ID"
