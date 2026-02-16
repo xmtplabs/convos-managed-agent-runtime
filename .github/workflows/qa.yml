@@ -45,16 +45,6 @@ jobs:
           XMTP_ENV=${{ secrets.XMTP_ENV }}
           DOTENV
 
-      - name: Detect Chrome path
-        run: |
-          CHROME=$(command -v google-chrome-stable || command -v google-chrome || command -v chromium-browser || command -v chromium || echo "")
-          if [ -z "$CHROME" ]; then
-            echo "::error::No Chrome/Chromium binary found on runner"
-            exit 1
-          fi
-          echo "CHROMIUM_PATH=$CHROME" >> .env
-          echo "Using browser: $CHROME"
-
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
@@ -63,8 +53,6 @@ jobs:
 
       - name: Install state deps
         run: pnpm run install-state-deps
-        env:
-          HUSKY: "0"
 
       - name: Add global bins to PATH
         run: echo "$(pnpm bin -g)" >> "$GITHUB_PATH"
