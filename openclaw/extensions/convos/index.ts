@@ -261,9 +261,18 @@ async function handleComplete() {
 
 // --- HTTP helpers ---
 
+const MAX_BODY_BYTES = 64 * 1024; // 64 KB
+
 async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
-  for await (const chunk of req) chunks.push(chunk as Buffer);
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += (chunk as Buffer).length;
+    if (totalBytes > MAX_BODY_BYTES) {
+      throw Object.assign(new Error("Request body too large"), { statusCode: 413 });
+    }
+    chunks.push(chunk as Buffer);
+  }
   const raw = Buffer.concat(chunks).toString();
   if (!raw.trim()) return {};
   return JSON.parse(raw) as Record<string, unknown>;
@@ -273,6 +282,63 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
   res.end(JSON.stringify(body));
+}
+
+// --- Auth middleware ---
+
+function requireAuth(req: IncomingMessage, res: ServerResponse): boolean {
+  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (!token) return true; // No token configured — skip auth (local dev)
+
+  const auth = req.headers.authorization;
+  if (auth === `Bearer ${token}`) return true;
+
+  jsonResponse(res, 401, { error: "Unauthorized" });
+  return false;
+}
+
+// --- Rate limiting ---
+
+const RATE_WINDOW_MS = 60_000; // 1 minute
+const RATE_MAX_REQUESTS = 30; // per window per IP
+
+const rateBuckets = new Map<string, number[]>();
+
+// Periodic cleanup so the map doesn't grow unbounded
+setInterval(() => {
+  const cutoff = Date.now() - RATE_WINDOW_MS;
+  for (const [key, timestamps] of rateBuckets) {
+    const filtered = timestamps.filter((t) => t > cutoff);
+    if (filtered.length === 0) rateBuckets.delete(key);
+    else rateBuckets.set(key, filtered);
+  }
+}, RATE_WINDOW_MS).unref();
+
+function checkRateLimit(req: IncomingMessage, res: ServerResponse): boolean {
+  const ip =
+    (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+    req.socket.remoteAddress ||
+    "unknown";
+  const now = Date.now();
+  const cutoff = now - RATE_WINDOW_MS;
+
+  let timestamps = rateBuckets.get(ip);
+  if (!timestamps) {
+    timestamps = [];
+    rateBuckets.set(ip, timestamps);
+  }
+
+  // Prune expired entries
+  while (timestamps.length > 0 && timestamps[0] <= cutoff) timestamps.shift();
+
+  if (timestamps.length >= RATE_MAX_REQUESTS) {
+    res.setHeader("Retry-After", String(Math.ceil(RATE_WINDOW_MS / 1000)));
+    jsonResponse(res, 429, { error: "Too many requests" });
+    return false;
+  }
+
+  timestamps.push(now);
+  return true;
 }
 
 // --- Plugin ---
@@ -354,6 +420,8 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/setup",
       handler: async (req, res) => {
+        if (!requireAuth(req, res)) return;
+        if (!checkRateLimit(req, res)) return;
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
@@ -367,7 +435,12 @@ const plugin = {
             force: body.force === true,
           });
           jsonResponse(res, 200, result);
-        } catch (err) {
+        } catch (err: unknown) {
+          const e = err as { statusCode?: number; message?: string };
+          if (e.statusCode === 413) {
+            jsonResponse(res, 413, { error: "Request body too large" });
+            return;
+          }
           await cleanupSetupAgent();
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
         }
@@ -377,6 +450,8 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/setup/status",
       handler: async (req, res) => {
+        if (!requireAuth(req, res)) return;
+        if (!checkRateLimit(req, res)) return;
         if (req.method !== "GET") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
@@ -388,6 +463,8 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/setup/complete",
       handler: async (req, res) => {
+        if (!requireAuth(req, res)) return;
+        if (!checkRateLimit(req, res)) return;
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
@@ -404,6 +481,8 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/setup/cancel",
       handler: async (req, res) => {
+        if (!requireAuth(req, res)) return;
+        if (!checkRateLimit(req, res)) return;
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
@@ -416,6 +495,8 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/reset",
       handler: async (req, res) => {
+        if (!requireAuth(req, res)) return;
+        if (!checkRateLimit(req, res)) return;
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
@@ -430,7 +511,12 @@ const plugin = {
             deleteDb: body.deleteDb === true,
           });
           jsonResponse(res, 200, result);
-        } catch (err) {
+        } catch (err: unknown) {
+          const e = err as { statusCode?: number; message?: string };
+          if (e.statusCode === 413) {
+            jsonResponse(res, 413, { error: "Request body too large" });
+            return;
+          }
           await cleanupSetupAgent();
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
         }
@@ -440,6 +526,8 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/invite",
       handler: async (req, res) => {
+        if (!requireAuth(req, res)) return;
+        if (!checkRateLimit(req, res)) return;
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
@@ -451,7 +539,12 @@ const plugin = {
           const name = typeof body.name === "string" ? body.name : undefined;
           const result = await createInvite(cfg, { name });
           jsonResponse(res, 200, result);
-        } catch (err) {
+        } catch (err: unknown) {
+          const e = err as { statusCode?: number; message?: string };
+          if (e.statusCode === 413) {
+            jsonResponse(res, 413, { error: "Request body too large" });
+            return;
+          }
           const msg = err instanceof Error ? err.message : String(err);
           jsonResponse(res, 500, { error: msg });
         }
@@ -461,6 +554,8 @@ const plugin = {
     api.registerHttpRoute({
       path: "/convos/join",
       handler: async (req, res) => {
+        if (!requireAuth(req, res)) return;
+        if (!checkRateLimit(req, res)) return;
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
           return;
@@ -519,7 +614,12 @@ const plugin = {
             status: result.status,
             conversationId: result.conversationId,
           });
-        } catch (err) {
+        } catch (err: unknown) {
+          const e = err as { statusCode?: number; message?: string };
+          if (e.statusCode === 413) {
+            jsonResponse(res, 413, { error: "Request body too large" });
+            return;
+          }
           const msg = err instanceof Error ? err.message : String(err);
           jsonResponse(res, 500, { error: msg });
         }
