@@ -61,7 +61,7 @@ jobs:
       - name: Apply config
         run: pnpm run apply-config
 
-      - name: Install revertewhe deps
+      - name: Install state deps
         run: pnpm run install-state-deps
         env:
           HUSKY: "0"
