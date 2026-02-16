@@ -1,7 +1,7 @@
 name: QA Smoke Tests
 
 on:
-  merge_group:
+  pull_request:
     branches: [main, staging]
 
 jobs:
