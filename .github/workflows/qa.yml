@@ -36,6 +36,7 @@ jobs:
           AGENTMAIL_API_KEY=${{ secrets.AGENTMAIL_API_KEY }}
           AGENTMAIL_INBOX_ID=${{ secrets.AGENTMAIL_INBOX_ID }}
           BANKR_API_KEY=${{ secrets.BANKR_API_KEY }}
+          TELNYX_API_KEY=${{ secrets.TELNYX_API_KEY }}
           TELNYX_PHONE_NUMBER=${{ secrets.TELNYX_PHONE_NUMBER }}
           TELNYX_MESSAGING_PROFILE_ID=${{ secrets.TELNYX_MESSAGING_PROFILE_ID }}
           OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}

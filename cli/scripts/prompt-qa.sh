@@ -1,5 +1,5 @@
 #!/bin/sh
-# Prompt QA: send one prompt to the agent to verify email, SMS, form, and search work.
+# Prompt QA: send one prompt to the agent to verify email, SMS, BTC search, and USDC balance.
 # Requires gateway running (e.g. after pnpm start). Uses openclaw agent -m "...".
 set -e
 
@@ -14,8 +14,8 @@ _PATH=""
 [ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
 unset _PATH
 
-MSG='Do these three things and reply with one success line each: 1) Send a random short email to fguespe@gmail.com. 2) Send a random short SMS to +16154376139. 3) Search the current BTC price and state it. Reply with: Email sent. SMS sent. BTC: $X.'
+MSG='Do these four things and reply with one success line each: 1) Send a random short email to fguespe@gmail.com. 2) Send a random short SMS to +16154376139. 3) Search the current BTC price and state it. 4) Check my USDC balance. Reply with: Email sent. SMS sent. BTC: $X. USDC: <balance>.'
 
 # Fresh session per run to avoid context overflow from existing history
 SESSION_ID="prompt-qa-$(date +%s)"
-exec $ENTRY agent -m "$MSG" --channel convos --agent main --session-id "$SESSION_ID"
+exec $ENTRY agent -m "$MSG" --agent main --session-id "$SESSION_ID"
