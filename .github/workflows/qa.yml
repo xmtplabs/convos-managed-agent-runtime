@@ -83,8 +83,6 @@ jobs:
           echo "Gateway failed to start within 90s"
           exit 1
 
-      - name: Reset sessions
-        run: pnpm run reset-sessions
 
       - name: QA browser
         run: timeout 180 pnpm run cli -- qa browser
