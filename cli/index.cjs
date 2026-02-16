@@ -46,6 +46,11 @@ program
   });
 
 program
+  .command("reset-sessions")
+  .description("Clear all accumulated session state so the agent starts fresh")
+  .action(() => runScript("reset-sessions.sh"));
+
+program
   .command("qa [suite]")
   .description("Run QA smoke test. Suites: email, sms, bankr, search, browser, all (default)")
   .action((suite) => runScript("qa.sh", { QA_SUITE: suite || "all" }));

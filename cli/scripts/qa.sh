@@ -14,6 +14,9 @@ _PATH=""
 [ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
 unset _PATH
 
+echo "=== Resetting sessions ==="
+$ENTRY reset --scope sessions --non-interactive --yes || true
+
 SUITE="${QA_SUITE:-all}"
 FAILED=""
 

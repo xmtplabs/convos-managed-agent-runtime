@@ -13,7 +13,8 @@
     "gateway": "pnpm run cli -- gateway run",
     "start": "pnpm run cli -- start",
     "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
-    "install-state-deps": "pnpm run cli -- install-state-deps"
+    "install-state-deps": "pnpm run cli -- install-state-deps",
+    "reset-sessions": "pnpm run cli -- reset-sessions"
   },
   "dependencies": {
     "commander": "^12.0.0",

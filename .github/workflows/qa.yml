@@ -70,7 +70,7 @@ jobs:
         run: echo "$(pnpm bin -g)" >> "$GITHUB_PATH"
 
       - name: Check browser status
-        run: openclaw browser status
+        run: npx openclaw browser status
 
       - name: Start gateway
         run: |
@@ -85,6 +85,9 @@ jobs:
           done
           echo "Gateway failed to start within 90s"
           exit 1
+
+      - name: Reset sessions
+        run: pnpm run reset-sessions
 
       - name: QA browser
         run: timeout 180 pnpm run cli -- qa browser
