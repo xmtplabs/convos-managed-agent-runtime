@@ -437,27 +437,6 @@ const plugin = {
       },
     });
 
-    // ---- Landing PWA (invite button → QR + deeplink) ----
-
-    const landingDir = path.resolve(__dirname, "landing");
-    function serveFile(
-      res: ServerResponse,
-      filePath: string,
-      contentType: string,
-      cacheControl?: string,
-    ) {
-      try {
-        const body = fs.readFileSync(filePath);
-        res.statusCode = 200;
-        res.setHeader("Content-Type", contentType);
-        if (cacheControl) res.setHeader("Cache-Control", cacheControl);
-        res.end(body);
-      } catch {
-        res.statusCode = 404;
-        res.end();
-      }
-    }
-
     api.registerHttpRoute({
       path: "/convos/invite",
       handler: async (req, res) => {
@@ -544,65 +523,6 @@ const plugin = {
           const msg = err instanceof Error ? err.message : String(err);
           jsonResponse(res, 500, { error: msg });
         }
-      },
-    });
-
-    api.registerHttpRoute({
-      path: "/convos/landing",
-      handler: async (req, res) => {
-        if (req.method !== "GET") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
-      },
-    });
-
-    api.registerHttpRoute({
-      path: "/convos/landing/",
-      handler: async (req, res) => {
-        if (req.method !== "GET") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        serveFile(res, path.join(landingDir, "landing.html"), "text/html; charset=utf-8", "no-store");
-      },
-    });
-
-    api.registerHttpRoute({
-      path: "/convos/landing-manifest.json",
-      handler: async (req, res) => {
-        if (req.method !== "GET") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        serveFile(
-          res,
-          path.join(landingDir, "landing-manifest.json"),
-          "application/manifest+json",
-        );
-      },
-    });
-
-    api.registerHttpRoute({
-      path: "/convos/sw.js",
-      handler: async (req, res) => {
-        if (req.method !== "GET") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        serveFile(res, path.join(landingDir, "sw.js"), "application/javascript", "max-age=0");
-      },
-    });
-
-    api.registerHttpRoute({
-      path: "/convos/icon.svg",
-      handler: async (req, res) => {
-        if (req.method !== "GET") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        serveFile(res, path.join(landingDir, "icon.svg"), "image/png");
       },
     });
   },

@@ -2,6 +2,8 @@
 
 ## 2026-02-15
 
+- Landing moved from convos to web-tools: agents page now at `/web-tools/agents` (still uses convos `/convos/invite` and `/convos/join`). Convos extension no longer serves static landing assets.
+- Form moved from workspace to web-tools extension: `form/form.html` now lives in `extensions/web-tools/form/`, served at `/web-tools/form` (no workspace dependency).
 - Railway: patch `agents.defaults.workspace` to `$STATE_DIR/workspace` when OPENCLAW_STATE_DIR is set so web-tools form resolves correctly (was using ~/.openclaw/workspace).
 - Dockerfile: set OPENCLAW_STATE_DIR=/app at runtime so gateway and apply-config use /app for state.
 - Skills: provision inside workspace (`workspace/skills/`). OpenClaw discovers at `<workspace>/skills`. Agentmail script paths use workspace-relative `skills/agentmail/scripts/...`.
