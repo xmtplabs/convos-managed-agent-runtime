@@ -14,14 +14,26 @@ _PATH=""
 [ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
 unset _PATH
 
-$ENTRY gateway stop 2>/dev/null || true
-PID=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
-if [ -n "$PID" ]; then
-  kill -9 $PID 2>/dev/null || true
-fi
+CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
+RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
 
-# --- Pre-start debug summary ---
-CDP_PORT=18800
+# --- Clean up any previous gateway processes ---
+$ENTRY gateway stop 2>/dev/null || true
+# Kill stale openclaw processes by name so Bonjour registrations are released
+pkill -9 -f "openclaw-gateway" 2>/dev/null || true
+pkill -9 -f "openclaw gateway" 2>/dev/null || true
+# Force-kill anything still holding the ports (lsof can return multiple PIDs)
+lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+# Remove stale lock/pid files and let ports + Bonjour registrations clear
+rm -f "$STATE_DIR/gateway.pid" "$STATE_DIR/gateway.lock" 2>/dev/null || true
+sleep 2
+# Second pass — kill anything that respawned during the wait
+lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+sleep 1
 echo ""
 echo "  🚀 Starting gateway"
 echo "  ═══════════════════"
@@ -34,13 +46,19 @@ else
   echo "  ✅ port $PORT    → available (gateway)"
 fi
 
+_relay_busy=$(lsof -ti "tcp:$RELAY_PORT" 2>/dev/null) || true
+if [ -n "$_relay_busy" ]; then
+  echo "  ⚠️  port $RELAY_PORT   → in use (pid $_relay_busy) — browser relay may conflict"
+else
+  echo "  ✅ port $RELAY_PORT   → available (browser relay)"
+fi
 _cdp_busy=$(lsof -ti "tcp:$CDP_PORT" 2>/dev/null) || true
 if [ -n "$_cdp_busy" ]; then
   echo "  ⚠️  port $CDP_PORT   → in use (pid $_cdp_busy) — browser CDP may conflict"
 else
   echo "  ✅ port $CDP_PORT   → available (browser CDP)"
 fi
-unset _gw_busy _cdp_busy
+unset _gw_busy _relay_busy _cdp_busy
 
 # Chrome path (read from the patched config)
 if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then

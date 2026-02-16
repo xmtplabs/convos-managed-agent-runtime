@@ -11,9 +11,24 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 - **Exec** — Shell commands (full host access, no approval needed)
 - **FS** — read, write, edit, apply_patch
-- **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab.
-  - **Workflow**: `navigate` to the URL, then `snapshot` to get the page state with element refs, then `act` with `ref` (e.g. `ref: "e123"`) to interact. Never use `selector` — it is not supported.
-  - _Headless/cloud (Railway, CHROMIUM_PATH): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`).
+- **Browser** — Managed Chrome (profile `openclaw`). Never ask the user to attach the extension or open a tab.
+  - **REQUIRED workflow** — follow these steps exactly, every time:
+    1. **Navigate**: call `browser` with `request: "navigate"` and `targetUrl: "<full URL>"`. You MUST include both `request` and `targetUrl`.
+    2. **Snapshot**: call `browser` with `request: "snapshot"`. This returns the page state with element `ref` IDs (e.g. `"e123"`).
+    3. **Act**: call `browser` with `request: "act"`, `action: "click"` (or `"fill"`), and `ref: "<element ref>"`. For fill, also include `value: "<text>"`. You MUST include `ref` — never use `selector`.
+    4. Repeat snapshot → act for each interaction (fill fields, click buttons, etc.).
+  - **CRITICAL**: Every browser tool call MUST include the `request` parameter. Valid values: `"navigate"`, `"snapshot"`, `"act"`.
+  - **CRITICAL**: `navigate` MUST include `targetUrl` with the full URL (e.g. `"https://example.com"`).
+  - **CRITICAL**: `act` MUST include `ref` from a previous snapshot. Never guess refs — always snapshot first.
+  - **Example — fill and submit a form**:
+    ```
+    Step 1: browser({ request: "navigate", targetUrl: "https://example.com/form" })
+    Step 2: browser({ request: "snapshot" })  → returns refs like e12, e13, e14
+    Step 3: browser({ request: "act", action: "fill", ref: "e12", value: "John" })
+    Step 4: browser({ request: "act", action: "fill", ref: "e13", value: "john@email.com" })
+    Step 5: browser({ request: "act", action: "click", ref: "e14" })  → submit button
+    Step 6: browser({ request: "snapshot" })  → read confirmation
+    ```
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
 - **Email (AgentMail)** — Send and receive emails, calendar invites, poll inbox. MUST use for ANY email task. Run scripts as `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`
