@@ -39,7 +39,7 @@ run_suite() {
       expect='BTC:'
       ;;
     browser)
-      msg='Open https://convos-managed-dev-production.up.railway.app/web-tools/form, fill the form with test data (name, number, email, time slot), and submit it. After submission a confirmation code appears on the page. Reply with: Form submitted. Confirmation code: <the code>'
+      msg='Open https://convos-agent-main.up.railway.app/web-tools/form, fill the form with test data (name, number, email, time slot), and submit it. After submission a confirmation code appears on the page. Reply with: Form submitted. Confirmation code: <the code>'
       expect='Confirmation code:'
       ;;
     *)
