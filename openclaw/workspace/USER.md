@@ -1,12 +1,17 @@
 ---
-summary: "User profile record"
+title: "USER — Who You're Helping"
+summary: "Human (main session) or group + members (Convos); update as you go"
 read_when:
-  - Bootstrapping a workspace manually
+  - Every session (see AGENTS.md)
 ---
 
-# USER.md - About Your Human
+# USER — Who You're Helping
 
-_Learn about the person you're helping. Update this as you go._
+_Learn who you're helping. Update this as you go._
+
+## Main session (direct chat)
+
+When it's your human one-on-one:
 
 - **Name:**
 - **What to call them:**
@@ -14,6 +19,14 @@ _Learn about the person you're helping. Update this as you go._
 - **Timezone:**
 - **Notes:**
 
+## Convos (group)
+
+When it's a group chat, track the group and who's in it:
+
+- **Group:** _(name or purpose, e.g. "Dinner crew", "Project Alpha")_
+- **Members:** _(who's in the thread; add nicknames/quirk if the group vibes with it)_
+- **Decisions / open questions:** _(e.g. who said yes/no, pending RSVPs, chosen time/place)_
+
 ## Context
 
-_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_
+_(What they care about, projects, what annoys them, what makes them laugh. For groups: dynamics, who drives decisions, who's quiet. Build over time.)_
