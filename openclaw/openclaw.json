@@ -14,6 +14,12 @@
     "consoleLevel": "debug",
     "consoleStyle": "pretty"
   },
+
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
+  },
   "browser": {
     "enabled": true,
     "remoteCdpTimeoutMs": 5000,
