@@ -23,7 +23,7 @@ let setupAgent: ConvosSDKClient | null = null;
 let setupJoinState = { joined: false, joinerInboxId: null as string | null };
 let setupCleanupTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Deferred config: stored after setup, written on convos.setup.complete
+// Deferred config: stored after setup, written on convos-sdk.setup.complete
 let setupResult: {
   privateKey: string;
   conversationId: string;
@@ -79,7 +79,7 @@ function deleteOldDbFiles(accountId?: string, env?: "production" | "dev") {
 
     // Delete the hash directory (parent of xmtp.db file)
     const hashDir = path.dirname(dbPath);
-    const safePrefix = path.join(stateDir, "convos", "xmtp");
+    const safePrefix = path.join(stateDir, "convos-sdk", "xmtp");
     if (!hashDir.startsWith(safePrefix)) {
       console.error(`[convos-reset] Refusing to delete path outside safe prefix: ${hashDir}`);
       return;
@@ -180,7 +180,7 @@ function handleStatus() {
     };
   }
   const cfg = getConvosRuntime().config.loadConfig() as OpenClawConfig;
-  const convos = (cfg?.channels as Record<string, unknown>)?.["convos"] as
+  const convos = (cfg?.channels as Record<string, unknown>)?.["convos-sdk"] as
     | Record<string, unknown>
     | undefined;
   return {
@@ -202,7 +202,7 @@ async function handleCancel() {
 
 async function handleComplete() {
   if (!setupResult) {
-    throw new Error("No active setup to complete. Run convos.setup first.");
+    throw new Error("No active setup to complete. Run convos-sdk.setup first.");
   }
 
   const runtime = getConvosRuntime();
@@ -211,7 +211,7 @@ async function handleComplete() {
   const existingChannels = (cfg as Record<string, unknown>).channels as
     | Record<string, unknown>
     | undefined;
-  const existingConvos = (existingChannels?.convos ?? {}) as Record<string, unknown>;
+  const existingConvos = (existingChannels?.["convos-sdk"] ?? {}) as Record<string, unknown>;
 
   // Auto-add the joiner's inbox ID to allowFrom so the operator can
   // message the agent immediately after setup (no pairing prompt).
@@ -235,7 +235,7 @@ async function handleComplete() {
     ...cfg,
     channels: {
       ...existingChannels,
-      convos: {
+      "convos-sdk": {
         ...existingConvos,
         ownerConversationId: setupResult.conversationId,
         XMTP_ENV: setupResult.env,
@@ -250,7 +250,7 @@ async function handleComplete() {
   };
 
   await runtime.config.writeConfigFile(updatedCfg);
-  console.log("[convos-setup] Config saved (identity in state dir; convos.ownerConversationId, allowFrom in config)");
+  console.log("[convos-sdk-setup] Config saved (identity in state dir; convos-sdk.ownerConversationId, allowFrom in config)");
 
   const saved = { ...setupResult };
   setupResult = null;
@@ -278,7 +278,7 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown) {
 // --- Plugin ---
 
 const plugin = {
-  id: "convos",
+  id: "convos-sdk",
   name: "Convos",
   description: "E2E encrypted messaging via XMTP",
   configSchema: emptyPluginConfigSchema(),
@@ -289,7 +289,7 @@ const plugin = {
 
     // ---- WebSocket gateway methods (for Control UI) ----
 
-    api.registerGatewayMethod("convos.setup", async ({ params, respond }) => {
+    api.registerGatewayMethod("convos-sdk.setup", async ({ params, respond }) => {
       try {
         const p = params as Record<string, unknown>;
         const result = await handleSetup({
@@ -308,11 +308,11 @@ const plugin = {
       }
     });
 
-    api.registerGatewayMethod("convos.setup.status", async ({ respond }) => {
+    api.registerGatewayMethod("convos-sdk.setup.status", async ({ respond }) => {
       respond(true, handleStatus(), undefined);
     });
 
-    api.registerGatewayMethod("convos.setup.complete", async ({ respond }) => {
+    api.registerGatewayMethod("convos-sdk.setup.complete", async ({ respond }) => {
       try {
         const result = await handleComplete();
         respond(true, result, undefined);
@@ -324,12 +324,12 @@ const plugin = {
       }
     });
 
-    api.registerGatewayMethod("convos.setup.cancel", async ({ respond }) => {
+    api.registerGatewayMethod("convos-sdk.setup.cancel", async ({ respond }) => {
       const result = await handleCancel();
       respond(true, result, undefined);
     });
 
-    api.registerGatewayMethod("convos.reset", async ({ params, respond }) => {
+    api.registerGatewayMethod("convos-sdk.reset", async ({ params, respond }) => {
       try {
         const p = params as Record<string, unknown>;
         const result = await handleSetup({
@@ -352,7 +352,7 @@ const plugin = {
     // ---- HTTP routes (for Railway template and other HTTP clients) ----
 
     api.registerHttpRoute({
-      path: "/convos/setup",
+      path: "/convos-sdk/setup",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -375,7 +375,7 @@ const plugin = {
     });
 
     api.registerHttpRoute({
-      path: "/convos/setup/status",
+      path: "/convos-sdk/setup/status",
       handler: async (req, res) => {
         if (req.method !== "GET") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -386,7 +386,7 @@ const plugin = {
     });
 
     api.registerHttpRoute({
-      path: "/convos/setup/complete",
+      path: "/convos-sdk/setup/complete",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -402,7 +402,7 @@ const plugin = {
     });
 
     api.registerHttpRoute({
-      path: "/convos/setup/cancel",
+      path: "/convos-sdk/setup/cancel",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -414,7 +414,7 @@ const plugin = {
     });
 
     api.registerHttpRoute({
-      path: "/convos/reset",
+      path: "/convos-sdk/reset",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -438,7 +438,7 @@ const plugin = {
     });
 
     api.registerHttpRoute({
-      path: "/convos/invite",
+      path: "/convos-sdk/invite",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -459,7 +459,7 @@ const plugin = {
     });
 
     api.registerHttpRoute({
-      path: "/convos/join",
+      path: "/convos-sdk/join",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });

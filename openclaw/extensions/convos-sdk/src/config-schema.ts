@@ -8,7 +8,7 @@ import { z } from "zod";
 const allowFromEntry = z.union([z.string(), z.number()]);
 
 /**
- * Zod schema for channels.convos.* configuration
+ * Zod schema for channels.convos-sdk.* configuration
  */
 export const ConvosConfigSchema = z.object({
   /** Account name (optional display name) */

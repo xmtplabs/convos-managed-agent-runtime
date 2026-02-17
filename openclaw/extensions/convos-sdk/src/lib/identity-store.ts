@@ -8,7 +8,7 @@ import path from "node:path";
 const IDENTITY_FILENAME = "identity.json";
 
 export function getIdentityFilePath(stateDir: string, accountId: string): string {
-  return path.join(stateDir, "convos", accountId, IDENTITY_FILENAME);
+  return path.join(stateDir, "convos-sdk", accountId, IDENTITY_FILENAME);
 }
 
 export type IdentityPayload = {
@@ -39,7 +39,7 @@ export function saveIdentity(
   accountId: string,
   payload: IdentityPayload,
 ): void {
-  const dir = path.join(stateDir, "convos", accountId);
+  const dir = path.join(stateDir, "convos-sdk", accountId);
   fs.mkdirSync(dir, { recursive: true });
   const filePath = path.join(dir, IDENTITY_FILENAME);
   fs.writeFileSync(filePath, JSON.stringify(payload, null, 0), "utf8");

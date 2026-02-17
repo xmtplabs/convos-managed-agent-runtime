@@ -13,7 +13,7 @@ import { getClientForAccount } from "./outbound.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosSDKClient } from "./sdk-client.js";
 
-const channel = "convos" as const;
+const channel = "convos-sdk" as const;
 
 type ConvosOnboardingAdapter = ChannelOnboardingAdapter & {
   verifyClient?: (params: {
@@ -67,8 +67,8 @@ function setConvosDmPolicy(cfg: OpenClawConfig, dmPolicy: DmPolicy): OpenClawCon
     ...cfg,
     channels: {
       ...cfg.channels,
-      convos: {
-        ...(cfg.channels as CoreConfig["channels"])?.convos,
+      "convos-sdk": {
+        ...(cfg.channels as CoreConfig["channels"])?.["convos-sdk"],
         dmPolicy,
       },
     },
@@ -78,9 +78,9 @@ function setConvosDmPolicy(cfg: OpenClawConfig, dmPolicy: DmPolicy): OpenClawCon
 const dmPolicy: ChannelOnboardingDmPolicy = {
   label: "Convos",
   channel,
-  policyKey: "channels.convos.dmPolicy",
-  allowFromKey: "channels.convos.allowFrom",
-  getCurrent: (cfg) => (cfg.channels as CoreConfig["channels"])?.convos?.dmPolicy ?? "pairing",
+  policyKey: "channels.convos-sdk.dmPolicy",
+  allowFromKey: "channels.convos-sdk.allowFrom",
+  getCurrent: (cfg) => (cfg.channels as CoreConfig["channels"])?.["convos-sdk"]?.dmPolicy ?? "pairing",
   setPolicy: (cfg, policy) => setConvosDmPolicy(cfg, policy),
 };
 
@@ -92,7 +92,7 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
       (accountId) => resolveConvosAccount({ cfg: cfg as CoreConfig, accountId }).configured,
     );
     const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
-    const ownerConversation = (cfg.channels as CoreConfig["channels"])?.convos?.ownerConversationId;
+    const ownerConversation = (cfg.channels as CoreConfig["channels"])?.["convos-sdk"]?.ownerConversationId;
     console.log(`[convos-onboarding] getStatus: configured=${configured} env=${account.env}`);
 
     return {
@@ -231,8 +231,8 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
           ...next,
           channels: {
             ...next.channels,
-            convos: {
-              ...(next.channels as CoreConfig["channels"])?.convos,
+            "convos-sdk": {
+              ...(next.channels as CoreConfig["channels"])?.["convos-sdk"],
               enabled: true,
               privateKey: client.getPrivateKey(),
               XMTP_ENV: account.env,
@@ -249,8 +249,8 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
         ...next,
         channels: {
           ...next.channels,
-          convos: {
-            ...(next.channels as CoreConfig["channels"])?.convos,
+          "convos-sdk": {
+            ...(next.channels as CoreConfig["channels"])?.["convos-sdk"],
             enabled: true,
             privateKey: client.getPrivateKey(),
             XMTP_ENV: account.env,
@@ -296,8 +296,8 @@ export const convosOnboardingAdapter: ConvosOnboardingAdapter = {
     ...cfg,
     channels: {
       ...cfg.channels,
-      convos: {
-        ...(cfg.channels as CoreConfig["channels"])?.convos,
+      "convos-sdk": {
+        ...(cfg.channels as CoreConfig["channels"])?.["convos-sdk"],
         enabled: false,
       },
     },

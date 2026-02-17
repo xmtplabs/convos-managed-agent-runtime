@@ -46,8 +46,8 @@ export const convosOutbound: ChannelOutboundAdapter = {
     }
     const result = await client.sendMessage(to, text);
     return {
-      channel: "convos",
-      messageId: result.messageId ?? `convos-${Date.now()}`,
+      channel: "convos-sdk",
+      messageId: result.messageId ?? `convos-sdk-${Date.now()}`,
     };
   },
 

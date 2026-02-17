@@ -36,11 +36,11 @@ type RuntimeLogger = {
 
 /** Channel plugin metadata for CLI/UI (runtime artifact label). */
 const convosChannelMeta = {
-  id: "convos",
+  id: "convos-sdk",
   label: "Convos",
   selectionLabel: "Convos (Join via url)",
-  docsPath: "/channels/convos",
-  docsLabel: "convos",
+  docsPath: "/channels/convos-sdk",
+  docsLabel: "convos-sdk",
   blurb: "E2E encrypted messaging via XMTP",
   systemImage: "lock.shield.fill",
   order: 75,
@@ -53,8 +53,8 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
     return undefined;
   }
   const lowered = normalized.toLowerCase();
-  if (lowered.startsWith("convos:")) {
-    normalized = normalized.slice("convos:".length).trim();
+  if (lowered.startsWith("convos-sdk:")) {
+    normalized = normalized.slice("convos-sdk:".length).trim();
   }
   return normalized || undefined;
 }
@@ -80,7 +80,7 @@ async function getOrCreateConvosPrivateKey(
 }
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
-  id: "convos",
+  id: "convos-sdk",
   meta: convosChannelMeta,
   capabilities: {
     chatTypes: ["group"],
@@ -88,7 +88,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     threads: false,
     media: false,
   },
-  reload: { configPrefixes: ["channels.convos"] },
+  reload: { configPrefixes: ["channels.convos-sdk"] },
   configSchema: convosChannelConfigSchema,
   onboarding: convosOnboardingAdapter,
   actions: convosMessageActions,
@@ -105,7 +105,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     setAccountEnabled: ({ cfg, accountId, enabled }) =>
       setAccountEnabledInConfigSection({
         cfg: cfg as CoreConfig,
-        sectionKey: "convos",
+        sectionKey: "convos-sdk",
         accountId,
         enabled,
         allowTopLevel: true,
@@ -113,7 +113,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     deleteAccount: ({ cfg, accountId }) =>
       deleteAccountFromConfigSection({
         cfg: cfg as CoreConfig,
-        sectionKey: "convos",
+        sectionKey: "convos-sdk",
         accountId,
         clearBaseFields: ["name", "privateKey", "XMTP_ENV", "debug", "ownerConversationId"],
       }),
@@ -130,8 +130,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     resolveDmPolicy: ({ account }) => ({
       policy: account.config.dmPolicy ?? "pairing",
       allowFrom: account.config.allowFrom ?? [],
-      policyPath: "channels.convos.dmPolicy",
-      allowFromPath: "channels.convos.allowFrom",
+      policyPath: "channels.convos-sdk.dmPolicy",
+      allowFromPath: "channels.convos-sdk.allowFrom",
     }),
   },
   pairing: {
@@ -140,8 +140,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       const trimmed = entry.trim();
       if (!trimmed) return trimmed;
       // Remove convos: prefix if present for storage
-      if (trimmed.toLowerCase().startsWith("convos:")) {
-        return trimmed.slice("convos:".length).trim();
+      if (trimmed.toLowerCase().startsWith("convos-sdk:")) {
+        return trimmed.slice("convos-sdk:".length).trim();
       }
       return trimmed;
     },
@@ -221,7 +221,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         }
         return [
           {
-            channel: "convos",
+            channel: "convos-sdk",
             accountId: account.accountId,
             kind: "runtime",
             message: `Channel error: ${lastError}`,
@@ -389,7 +389,7 @@ async function handleInboundMessage(
   // Resolve agent route to get session key for conversation tracking
   const route = runtime.channel.routing.resolveAgentRoute({
     cfg,
-    channel: "convos",
+    channel: "convos-sdk",
     accountId: account.accountId,
     peer: {
       kind: "group",
@@ -424,19 +424,19 @@ async function handleInboundMessage(
     Body: body,
     RawBody: rawBody,
     CommandBody: rawBody,
-    From: `convos:${msg.senderId}`,
-    To: `convos:${msg.conversationId}`,
+    From: `convos-sdk:${msg.senderId}`,
+    To: `convos-sdk:${msg.conversationId}`,
     SessionKey: route.sessionKey,
     AccountId: route.accountId,
     ChatType: "group",
     ConversationLabel: msg.conversationId.slice(0, 12),
     SenderName: msg.senderName || undefined,
     SenderId: msg.senderId,
-    Provider: "convos",
-    Surface: "convos",
+    Provider: "convos-sdk",
+    Surface: "convos-sdk",
     MessageSid: msg.messageId,
-    OriginatingChannel: "convos",
-    OriginatingTo: `convos:${msg.conversationId}`,
+    OriginatingChannel: "convos-sdk",
+    OriginatingTo: `convos-sdk:${msg.conversationId}`,
   });
 
   // Record the inbound session for conversation history
@@ -452,7 +452,7 @@ async function handleInboundMessage(
   // Resolve markdown table mode for reply formatting
   const tableMode = runtime.channel.text.resolveMarkdownTableMode({
     cfg,
-    channel: "convos",
+    channel: "convos-sdk",
     accountId: account.accountId,
   });
 
@@ -505,7 +505,7 @@ async function deliverConvosReply(params: {
     const cfg = runtime.config.loadConfig() as OpenClawConfig;
     const chunkLimit = runtime.channel.text.resolveTextChunkLimit({
       cfg,
-      channel: "convos",
+      channel: "convos-sdk",
       accountId,
     });
 
