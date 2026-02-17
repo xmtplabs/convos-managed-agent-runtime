@@ -249,12 +249,15 @@ async function handleComplete() {
     },
   };
 
-  await runtime.config.writeConfigFile(updatedCfg);
-  console.log("[convos-sdk-setup] Config saved (identity in state dir; convos-sdk.ownerConversationId, allowFrom in config)");
-
+  // Stop the setup agent BEFORE writing config. Writing config triggers a
+  // hot reload that creates a new channel client using the same XMTP DB —
+  // if the setup agent still holds the DB open, Agent.create() hangs.
   const saved = { ...setupResult };
   setupResult = null;
   await cleanupSetupAgent();
+
+  await runtime.config.writeConfigFile(updatedCfg);
+  console.log("[convos-sdk-setup] Config saved (identity in state dir; convos-sdk.ownerConversationId, allowFrom in config)");
 
   return { saved: true, conversationId: saved.conversationId };
 }
