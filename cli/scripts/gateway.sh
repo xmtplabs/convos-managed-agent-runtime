@@ -8,11 +8,7 @@ cd "$ROOT"
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
 
-_PATH=""
-[ -d "$STATE_DIR/node_modules" ] && _PATH="$STATE_DIR/node_modules"
-[ -d "$ROOT/node_modules" ] && _PATH="${_PATH:+$_PATH:}$ROOT/node_modules"
-[ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
-unset _PATH
+. "$ROOT/cli/scripts/lib/node-path.sh"
 
 CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
 RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"

@@ -8,11 +8,7 @@ cd "$ROOT"
 . "$ROOT/cli/scripts/lib/env-load.sh"
 
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
-_PATH=""
-[ -d "$STATE_DIR/node_modules" ] && _PATH="$STATE_DIR/node_modules"
-[ -d "$ROOT/node_modules" ] && _PATH="${_PATH:+$_PATH:}$ROOT/node_modules"
-[ -n "$_PATH" ] && export NODE_PATH="$_PATH${NODE_PATH:+:$NODE_PATH}"
-unset _PATH
+. "$ROOT/cli/scripts/lib/node-path.sh"
 
 FAILED=""
 QA_TMP=$(mktemp)
