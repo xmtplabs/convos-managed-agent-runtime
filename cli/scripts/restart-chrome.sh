@@ -23,7 +23,7 @@ if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
   HEADLESS=$(jq -r '.browser.headless // true' "$STATE_DIR/openclaw.json")
   NO_SANDBOX=$(jq -r '.browser.noSandbox // false' "$STATE_DIR/openclaw.json")
 else
-  CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  CHROME_PATH="${CHROMIUM_PATH:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
   HEADLESS=true
   NO_SANDBOX=false
 fi

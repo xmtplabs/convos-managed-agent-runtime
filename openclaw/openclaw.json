@@ -27,7 +27,7 @@
     "defaultProfile": "openclaw",
     "color": "#FF4500",
     "headless": true,
-    "noSandbox": false,
+    "noSandbox": true,
     "attachOnly": false,
     "executablePath": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "profiles": {

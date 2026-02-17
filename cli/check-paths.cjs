@@ -17,7 +17,6 @@ function runCheck() {
 
   const env = {
     OPENCLAW_STATE_DIR: process.env.OPENCLAW_STATE_DIR,
-    RAILWAY_VOLUME_MOUNT_PATH: process.env.RAILWAY_VOLUME_MOUNT_PATH,
   };
 
   console.log("\n  convos paths");

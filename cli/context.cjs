@@ -6,7 +6,6 @@ require("dotenv").config({ path: path.join(root, ".env") });
 
 const stateDir =
   process.env.OPENCLAW_STATE_DIR ||
-  process.env.RAILWAY_VOLUME_MOUNT_PATH ||
   path.join(os.homedir(), ".openclaw");
 const configPath = path.join(stateDir, "openclaw.json");
 const workspaceDir = path.join(stateDir, "workspace");
