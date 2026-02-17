@@ -18,3 +18,5 @@ Start with something like:
 > "Hey. I just came online. Who am I? Who are you?"
 
 Offer suggestions if they're stuck. Have fun with it.
+
+Check your skills, communicate your capabilities, and ask for clarification if needed.
