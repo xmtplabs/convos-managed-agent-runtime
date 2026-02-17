@@ -28,6 +28,7 @@ COPY openclaw/extensions /app/openclaw/extensions
 COPY cli ./cli
 RUN chmod +x /app/cli/scripts/*.sh
 
+# IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
 ENV OPENCLAW_STATE_DIR=/app
 
 # husky must be globally available so git-hosted packages with a "prepare": "husky"

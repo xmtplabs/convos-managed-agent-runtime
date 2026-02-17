@@ -27,7 +27,7 @@ if [ -f "$KEYFILE" ]; then
   exit 0
 fi
 
-name="${OPENROUTER_KEY_NAME_PREFIX:-convos}-${RAILWAY_REPLICA_ID:-$HOSTNAME}-$(date +%s)"
+name="${OPENROUTER_KEY_NAME_PREFIX:-convos}-${HOSTNAME}-$(date +%s)"
 limit="${OPENROUTER_KEY_LIMIT:-20}"
 limit_reset="${OPENROUTER_KEY_LIMIT_RESET:-monthly}"
 
