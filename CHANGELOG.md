@@ -2,6 +2,8 @@
 
 ## 2026-02-16
 
+- Landing: fix staging/main switch link (staging pointed to dev, now points to main).
+- QA: add QA.md with test commands for email, SMS, bankr, search, browser.
 - Telnyx integration: add `telnyx-cli` skill to workspace with SMS support. Auto-provision US phone number + messaging profile during `key-provision` via Telnyx API.
 - AgentMail inbox provisioning: `key-provision` now creates a unique inbox (`convos-<hex>@agentmail.to`) per agent instead of sharing a hardcoded address.
 - Bankr integration: register `bankr` skill in openclaw.json with `BANKR_API_KEY` env var.
