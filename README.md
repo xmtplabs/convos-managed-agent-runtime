@@ -5,7 +5,7 @@ OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config.
 
 ```mermaid
 flowchart LR
-  subgraph 1pool["1pool infrastructure"]
+  subgraph pool["pool infrastructure"]
     A[deploy up-to-date<br/>openclaw branch]
     B[provision extension, workspace files]
     C[installs extension/skill deps]

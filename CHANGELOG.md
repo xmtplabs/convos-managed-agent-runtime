@@ -2,6 +2,7 @@
 
 ## 2026-02-16
 
+- README: fix mermaid subgraph id (no leading digit) for pool diagram.
 - CLI: rename `start` → `init`, `apply-config` → `apply`; add unified `reset <sessions|chrome>`; document `pnpm cli <cmd>`; README/DESIGN aligned with CLI help; Docker/QA use `pnpm cli apply` and `pnpm cli init`.
 - Landing: fix staging/main switch link (staging pointed to dev, now points to main).
 - QA: add QA.md with test commands for email, SMS, bankr, search, browser.
