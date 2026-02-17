@@ -29,46 +29,12 @@ if command -v jq >/dev/null 2>&1; then
     jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     echo "  🔧 plugins.load.paths → $STATE_DIR/extensions"
   fi
-  # --- Browser detection ---
-  # Auto-detect Chrome/Chromium when CHROMIUM_PATH is not explicitly set
-  if [ -z "${CHROMIUM_PATH:-}" ]; then
-    if [ "$(uname -s)" = "Darwin" ]; then
-      _candidates="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome
-/Applications/Chromium.app/Contents/MacOS/Chromium"
-    else
-      _candidates="$(command -v google-chrome-stable 2>/dev/null || true)
-$(command -v google-chrome 2>/dev/null || true)
-$(command -v chromium-browser 2>/dev/null || true)
-$(command -v chromium 2>/dev/null || true)"
-    fi
-    IFS='
-'
-    for _candidate in $_candidates; do
-      [ -z "$_candidate" ] && continue
-      if [ -x "$_candidate" ]; then
-        CHROMIUM_PATH="$_candidate"
-        break
-      fi
-    done
-    unset IFS _candidates
-    if [ -z "${CHROMIUM_PATH:-}" ]; then
-      echo "  ⚠️  browser      → no Chrome or Chromium found"
-    fi
-  fi
-
-  # Inject browser config — always headless, sandbox off only in containers
+  # Inject browser config when CHROMIUM_PATH is set (Docker sets it; macOS/Linux set in env)
   if [ -n "${CHROMIUM_PATH:-}" ]; then
-    if [ "$(uname -s)" = "Darwin" ]; then
-      jq --arg p "$CHROMIUM_PATH" \
-        '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = false' \
-        "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-      echo "  🔧 browser      → $CHROMIUM_PATH (headless, sandbox)"
-    else
-      jq --arg p "$CHROMIUM_PATH" \
-        '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = true' \
-        "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-      echo "  🔧 browser      → $CHROMIUM_PATH (headless, no-sandbox)"
-    fi
+    jq --arg p "$CHROMIUM_PATH" \
+      '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = true' \
+      "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    echo "  🔧 browser      → $CHROMIUM_PATH (headless, no-sandbox)"
   fi
 fi
 unset _PORT
