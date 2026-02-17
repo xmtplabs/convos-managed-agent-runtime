@@ -493,10 +493,24 @@ const plugin = {
             return;
           }
           let result: { status: "joined" | "waiting_for_acceptance"; conversationId: string | null };
-          const client = getClientForAccount(account.accountId);
+
+          // Wait for the channel client to become available. After setup/complete
+          // saves config, a hot reload restarts the channel asynchronously. If we
+          // create a one-off client here we risk DB lock contention with the
+          // restarting channel client, so poll briefly first.
+          let client = getClientForAccount(account.accountId);
+          if (!client) {
+            for (let i = 0; i < 10; i++) {
+              await new Promise((r) => setTimeout(r, 500));
+              client = getClientForAccount(account.accountId);
+              if (client) break;
+            }
+          }
+
           if (client) {
             result = await client.joinConversation(invite);
           } else {
+            // Channel client still unavailable after waiting — fall back to one-off
             const dbPath = resolveConvosDbPath({
               stateDir,
               env: account.env,
@@ -510,6 +524,7 @@ const plugin = {
               debug: account.debug,
             });
             try {
+              await oneOff.start();
               result = await oneOff.joinConversation(invite);
             } finally {
               await oneOff.stop();
