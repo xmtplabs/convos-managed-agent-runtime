@@ -122,7 +122,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const { instructions } = body;
+    const { agentName, instructions } = body;
+    if (!agentName || typeof agentName !== "string") {
+      json(res, 400, { error: "agentName (string) is required" });
+      return;
+    }
     if (!instructions || typeof instructions !== "string") {
       json(res, 400, { error: "instructions (string) is required" });
       return;
@@ -135,7 +139,6 @@ const server = http.createServer(async (req, res) => {
       const agentsPath = path.join(workspaceDir, "AGENTS.md");
       const existing = fs.existsSync(agentsPath) ? fs.readFileSync(agentsPath, "utf8") : "";
       fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
-      const agentName = process.env.AGENT_NAME || "agent";
       console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
       json(res, 200, { ok: true });
