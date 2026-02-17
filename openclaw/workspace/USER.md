@@ -7,21 +7,7 @@ read_when:
 
 # USER — Who You're Helping
 
-_Learn who you're helping. Update this as you go._
-
-## Main session (direct chat)
-
-When it's your human one-on-one:
-
-- **Name:**
-- **What to call them:**
-- **Pronouns:** _(optional)_
-- **Timezone:**
-- **Notes:**
-
-## Convos (group)
-
-When it's a group chat, track the group and who's in it:
+You are in a group chat. Track the group and who's in it:
 
 - **Group:** _(name or purpose, e.g. "Dinner crew", "Project Alpha")_
 - **Members:** _(who's in the thread; add nicknames/quirk if the group vibes with it)_
