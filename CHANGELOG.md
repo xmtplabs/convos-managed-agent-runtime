@@ -12,6 +12,7 @@
 - Idempotent provisioning: `key-provision` skips all variables that already exist in `.env` (gateway token, setup password, wallet key, OpenRouter key, inbox, phone number).
 - `pnpm start` now runs `key-provision` first, so all keys/services are provisioned before the gateway starts.
 - `install-deps`: install `@telnyx/api-cli` globally when telnyx-cli skill is present.
+- Dockerfile: remove build-time apply; only run init at CMD. Set OPENCLAW_STATE_DIR=/app earlier.
 
 ## 2026-02-15
 
