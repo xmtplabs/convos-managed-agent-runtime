@@ -7,9 +7,7 @@
  *
  * Serves (on public PORT):
  *   GET  /pool/health    → { ready: boolean }
- *   POST /pool/provision → write INSTRUCTIONS.md, return { ok: true }
- *
- * No channel-specific logic. No convos imports.
+ *   POST /pool/provision → write AGENTS.md, return { ok: true }
  */
 
 const http = require("node:http");
@@ -135,12 +133,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      // Write INSTRUCTIONS.md to workspace
+      // Write custom instructions to AGENTS.md
       const stateDir = getStateDir();
       const workspaceDir = path.join(stateDir, "workspace");
       fs.mkdirSync(workspaceDir, { recursive: true });
-      fs.writeFileSync(path.join(workspaceDir, "INSTRUCTIONS.md"), instructions);
-      console.log(`[pool-server] Wrote INSTRUCTIONS.md for "${agentName}"`);
+      const agentsPath = path.join(workspaceDir, "AGENTS.md");
+      const existing = fs.existsSync(agentsPath) ? fs.readFileSync(agentsPath, "utf8") : "";
+      fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
+      console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
       json(res, 200, { ok: true });
     } catch (err) {
