@@ -5,10 +5,6 @@ set -e
 for subdir in workspace extensions; do
   [ -d "$RUNTIME_DIR/$subdir" ] || continue
   mkdir -p "$STATE_DIR/$subdir"
-  # Migration: remove obsolete convos dir (renamed to convos-sdk); prevents module resolution picking old node_modules
-  if [ "$subdir" = "extensions" ] && [ -d "$STATE_DIR/extensions/convos" ]; then
-    rm -rf "$STATE_DIR/extensions/convos"
-  fi
   if command -v rsync >/dev/null 2>&1; then
     excl=""
     [ "$subdir" = "extensions" ] && excl="--exclude=node_modules"
