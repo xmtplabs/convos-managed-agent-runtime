@@ -18,7 +18,7 @@ export function keyHash8(privateKey: string): string {
  * Build a deterministic dbPath file under the OpenClaw state directory.
  * Agent.create() expects a **file** path (SQLite DB), not a directory.
  *
- *   <stateDir>/convos/xmtp/<env>/<accountId>/<keyHash8>/xmtp.db
+ *   <stateDir>/convos-sdk/xmtp/<env>/<accountId>/<keyHash8>/xmtp.db
  */
 export function resolveConvosDbPath(params: {
   stateDir: string;
@@ -27,7 +27,7 @@ export function resolveConvosDbPath(params: {
   privateKey: string;
 }): string {
   const hash = keyHash8(params.privateKey);
-  const dir = path.join(params.stateDir, "convos", "xmtp", params.env, params.accountId, hash);
+  const dir = path.join(params.stateDir, "convos-sdk", "xmtp", params.env, params.accountId, hash);
   return path.join(dir, "xmtp.db");
 }
 

@@ -45,4 +45,4 @@ function extractInviteSlug(input) {
 3. Show UX: "Join conversation from clipboard?" → Join uses the extracted slug with your existing join flow; Dismiss ignores.
 4. Read clipboard only when the app is opened or brought to foreground (not in background).
 
-Source: `extensions/convos/src/onboarding.ts` (INVITE_URL_PATTERNS, extractInviteSlug).
+Source: `extensions/convos-sdk/src/onboarding.ts` (INVITE_URL_PATTERNS, extractInviteSlug).

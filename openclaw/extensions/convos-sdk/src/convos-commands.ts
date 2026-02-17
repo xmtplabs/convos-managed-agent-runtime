@@ -14,7 +14,7 @@ export type CreateInviteResult = { inviteUrl: string };
 
 /**
  * Create a new Convos conversation and return the invite URL.
- * Shared by /invite command and POST /convos/invite HTTP route.
+ * Shared by /invite command and POST /convos-sdk/invite HTTP route.
  */
 export async function createInvite(
   cfg: CoreConfig,

@@ -6,7 +6,7 @@ import { XMTP_ENV_DEFAULT, type ConvosConfig } from "./config-types.js";
 
 export type CoreConfig = {
   channels?: {
-    convos?: ConvosConfig;
+    "convos-sdk"?: ConvosConfig;
   };
   [key: string]: unknown;
 };
@@ -43,7 +43,7 @@ export function resolveConvosAccount(params: {
   accountId?: string | null;
 }): ResolvedConvosAccount {
   const accountId = normalizeAccountId(params.accountId);
-  const base = params.cfg.channels?.convos ?? {};
+  const base = params.cfg.channels?.["convos-sdk"] ?? {};
   const enabled = base.enabled !== false;
 
   // Identity is created on first start (config or state-dir); no key required in config

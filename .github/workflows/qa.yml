@@ -21,7 +21,7 @@ jobs:
           node-version: 22
 
       - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@latest --activate
+        run: corepack enable
 
       - name: Install system deps
         run: |
@@ -50,12 +50,6 @@ jobs:
 
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
-
-      - name: Apply config
-        run: pnpm cli apply
-
-      - name: Install state deps
-        run: pnpm cli install-deps
 
       - name: Add global bins to PATH
         run: echo "$(pnpm bin -g)" >> "$GITHUB_PATH"

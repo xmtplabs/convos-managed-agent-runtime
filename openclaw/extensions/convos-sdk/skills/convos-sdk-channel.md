@@ -1,5 +1,5 @@
 ---
-name: convos-channel
+name: convos-sdk-channel
 description: How to use Convos for E2E encrypted messaging via XMTP
 read_when:
   - Working with Convos channel
@@ -35,7 +35,7 @@ Each Convos conversation has its own unique XMTP inbox identity. This means:
 
 When OpenClaw is connected to Convos, there's a special "owner conversation" where you communicate with OpenClaw's operator. This conversation is set during onboarding when the owner pastes an invite link.
 
-The owner conversation ID is stored in `channels.convos.ownerConversationId`.
+The owner conversation ID is stored in `channels.convos-sdk.ownerConversationId`.
 
 ## Slash commands
 
@@ -159,7 +159,7 @@ Common scenarios:
 ```json
 {
   "channels": {
-    "convos": {
+    "convos-sdk": {
       "enabled": true,
       "privateKey": "0x...",
       "XMTP_ENV": "dev",
