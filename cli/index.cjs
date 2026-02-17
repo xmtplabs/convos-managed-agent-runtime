@@ -7,7 +7,7 @@ const program = new Command();
 
 program
   .name("convos")
-  .description("Local CLI for convos-concierge: key-provision, apply-config, gateway run")
+  .description("Local CLI: check, key-provision, apply, install-deps, gateway run, init, reset, qa")
   .version(require("../package.json").version);
 
 program
@@ -21,14 +21,14 @@ program
   .action(() => runScript("keys.sh"));
 
 program
-  .command("apply-config")
+  .command("apply")
   .description("Sync workspace/skills/extensions and copy config template to state dir")
   .action(() => runScript("apply-config.sh"));
 
 program
-  .command("install-state-deps")
+  .command("install-deps")
   .description("Install extension and skill deps in OPENCLAW_STATE_DIR")
-  .action(() => runScript("install-state-deps.sh"));
+  .action(() => runScript("install-deps.sh"));
 
 program
   .command("gateway run")
@@ -36,19 +36,27 @@ program
   .action(() => runScript("gateway.sh"));
 
 program
-  .command("start")
+  .command("init")
   .description("Provision keys (if missing), apply config, install deps, then start the gateway")
   .action(() => {
     runScript("keys.sh");
     runScript("apply-config.sh");
-    runScript("install-state-deps.sh");
+    runScript("install-deps.sh");
     runScript("gateway.sh");
   });
 
 program
-  .command("reset-sessions")
-  .description("Clear all accumulated session state so the agent starts fresh")
-  .action(() => runScript("reset-sessions.sh"));
+  .command("reset <target>")
+  .description("Reset state. Target: sessions (clear session state), chrome (restart browser)")
+  .action((target) => {
+    const t = target.toLowerCase();
+    if (t === "sessions") runScript("reset-sessions.sh");
+    else if (t === "chrome") runScript("restart-chrome.sh");
+    else {
+      console.error("Unknown reset target: %s. Use: sessions | chrome", target);
+      process.exit(1);
+    }
+  });
 
 program
   .command("qa [suite]")
