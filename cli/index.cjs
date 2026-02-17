@@ -6,7 +6,7 @@ const { runCheck } = require("./check-paths.cjs");
 const program = new Command();
 
 program
-  .name("convos")
+  .name("runtime")
   .description("Local CLI: check, key-provision, apply, install-deps, gateway run, init, reset, qa")
   .version(require("../package.json").version);
 

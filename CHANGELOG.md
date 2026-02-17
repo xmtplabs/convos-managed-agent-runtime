@@ -2,6 +2,7 @@
 
 ## 2026-02-17
 
+- CLI: rename program name from convos to runtime; remove convos→convos-sdk migration from sync-openclaw.
 - Extract NODE_PATH setup into `cli/scripts/lib/node-path.sh`; gateway.sh and qa.sh source it. Document plugin "Cannot find module" workaround in workarounds.mdc.
 - **Breaking:** Rename convos extension to convos-sdk. Directory `openclaw/extensions/convos/` → `openclaw/extensions/convos-sdk/`. Plugin and channel id `convos` → `convos-sdk`. Config `channels.convos` → `channels.convos-sdk`. HTTP paths `/convos/*` → `/convos-sdk/*`. Gateway methods `convos.setup` etc. → `convos-sdk.setup` etc. State dir paths `stateDir/convos/` → `stateDir/convos-sdk/`. Migrate config and re-run setup if upgrading.
 
