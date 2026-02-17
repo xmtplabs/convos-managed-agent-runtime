@@ -2,6 +2,8 @@
 
 ## 2026-02-16
 
+- README: fix mermaid subgraph id (no leading digit) for pool diagram.
+- CLI: rename `start` → `init`, `apply-config` → `apply`; add unified `reset <sessions|chrome>`; document `pnpm cli <cmd>`; README/DESIGN aligned with CLI help; Docker/QA use `pnpm cli apply` and `pnpm cli init`.
 - Landing: fix staging/main switch link (staging pointed to dev, now points to main).
 - QA: add QA.md with test commands for email, SMS, bankr, search, browser.
 - Telnyx integration: add `telnyx-cli` skill to workspace with SMS support. Auto-provision US phone number + messaging profile during `key-provision` via Telnyx API.
@@ -9,7 +11,7 @@
 - Bankr integration: register `bankr` skill in openclaw.json with `BANKR_API_KEY` env var.
 - Idempotent provisioning: `key-provision` skips all variables that already exist in `.env` (gateway token, setup password, wallet key, OpenRouter key, inbox, phone number).
 - `pnpm start` now runs `key-provision` first, so all keys/services are provisioned before the gateway starts.
-- `install-state-deps`: install `@telnyx/api-cli` globally when telnyx-cli skill is present.
+- `install-deps`: install `@telnyx/api-cli` globally when telnyx-cli skill is present.
 
 ## 2026-02-15
 

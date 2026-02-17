@@ -42,7 +42,7 @@ File provisioning structure
 │           └── index.ts, openclaw.plugin.json, package.json
 ```
 
-At deploy (Docker/Railway): apply-config patches `agents.defaults.workspace` to `$STATE_DIR/workspace` when `OPENCLAW_STATE_DIR` is set so web-tools and skills resolve correctly.
+At deploy (Docker/Railway): `pnpm cli apply` patches `agents.defaults.workspace` to `$STATE_DIR/workspace` when `OPENCLAW_STATE_DIR` is set so web-tools and skills resolve correctly.
 
 **How it works:**
 
@@ -165,11 +165,11 @@ Each agent runs as a containerized Railway service with ephemeral filesystem, lo
 
 ### Agentmail (email)
 
-Each agent gets a unique scoped email address provisioned automatically via the AgentMail API. Inbox created during `key-provision` with username `convos-<hex>@agentmail.to`. Used for sending calendar invites, confirmations, and transactional email.
+Each agent gets a unique scoped email address provisioned automatically via the AgentMail API. Inbox created during `pnpm cli key-provision` with username `convos-<hex>@agentmail.to`. Used for sending calendar invites, confirmations, and transactional email.
 
 ### Telnyx (SMS)
 
-Each agent gets a US phone number purchased automatically via the Telnyx API during `key-provision`. A messaging profile with US whitelisted destinations is created, then a number is ordered and assigned. The agent uses the `telnyx-cli` skill (`@telnyx/api-cli`) to send/receive SMS.
+Each agent gets a US phone number purchased automatically via the Telnyx API during `pnpm cli key-provision`. A messaging profile with US whitelisted destinations is created, then a number is ordered and assigned. The agent uses the `telnyx-cli` skill (`@telnyx/api-cli`) to send/receive SMS.
 
 ### Bankr (crypto)
 

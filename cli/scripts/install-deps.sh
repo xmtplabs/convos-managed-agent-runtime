@@ -58,4 +58,4 @@ if [ -d "$SKILLS_DIR/bankr" ]; then
   fi
 fi
 
-echo "  install-state-deps done"
+echo "  install-deps done"

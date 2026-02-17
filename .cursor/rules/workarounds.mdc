@@ -6,7 +6,7 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** Default OpenClaw config can set `plugins.slots.memory` to `memory-core`. If that extension isn't shipped (e.g. convos-agent Docker image, or minimal dev setup), config validation fails with "plugin not found: memory-core" (see openclaw/openclaw#8909).
 
-**Workaround:** In [openclaw/openclaw.json](openclaw/openclaw.json), set `plugins.slots.memory` to `"none"` so no memory extension is required. apply-config syncs this file into the state dir.
+**Workaround:** In [openclaw/openclaw.json](openclaw/openclaw.json), set `plugins.slots.memory` to `"none"` so no memory extension is required. `pnpm cli apply` syncs this file into the state dir.
 
 ## Extension id must match package/manifest
 
@@ -18,7 +18,7 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** Custom extensions and skills (e.g. agentmail) need node_modules. OpenClaw loads extensions from the state dir; skill scripts resolve packages from state dir's node_modules.
 
-**Workaround:** Run `pnpm run install-state-deps` (or `pnpm run cli -- install-state-deps`) after `apply-config`. [cli/scripts/install-state-deps.sh](cli/scripts/install-state-deps.sh) installs deps in `$OPENCLAW_STATE_DIR/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
+**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) installs deps in `$OPENCLAW_STATE_DIR/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
 
 ## Registered vs script-based skills: only use `alsoAllow` for registered tools
 
@@ -45,7 +45,7 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 
 **Problem:** The agentmail scripts `import "agentmail"`. Skills live under state dir; state dir must have `node_modules/agentmail`.
 
-**Workaround:** Run `install-state-deps` — it adds agentmail to `$OPENCLAW_STATE_DIR/package.json` and runs `pnpm install` there when `workspace/skills/agentmail` exists (SKILLS_DIR = WORKSPACE_DIR/skills). Set `NODE_PATH=$OPENCLAW_STATE_DIR/node_modules` so skill scripts resolve it.
+**Workaround:** Run `install-deps` — it adds agentmail to `$OPENCLAW_STATE_DIR/package.json` and runs `pnpm install` there when `workspace/skills/agentmail` exists (SKILLS_DIR = WORKSPACE_DIR/skills). Set `NODE_PATH=$OPENCLAW_STATE_DIR/node_modules` so skill scripts resolve it.
 
 ## openclaw dependency in extension (no workspace)
 
