@@ -22,26 +22,35 @@ const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN;
 const ROOT = path.resolve(__dirname, "..");
 
 let gatewayReady = false;
+let restarting = false;
+let gatewayChild = null;
 
-// --- Start gateway on internal port ---
+// --- Gateway lifecycle ---
 
-const child = spawn("pnpm", ["start"], {
-  cwd: ROOT,
-  stdio: "inherit",
-  env: {
-    ...process.env,
-    PORT: String(INTERNAL_PORT),
-    OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
-  },
-});
+function spawnGateway(extraEnv = {}) {
+  gatewayReady = false;
 
-child.on("exit", (code) => {
-  console.error(`[pool-server] Gateway exited with code ${code}`);
-  process.exit(code ?? 1);
-});
+  const child = spawn("sh", ["cli/scripts/gateway.sh"], {
+    cwd: ROOT,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      ...extraEnv,
+      PORT: String(INTERNAL_PORT),
+      OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
+      OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+    },
+  });
 
-// Poll gateway until deployed (same as qa.yml)
+  child.on("exit", (code) => {
+    console.error(`[pool-server] Gateway exited with code ${code}`);
+    if (!restarting) process.exit(code ?? 1);
+  });
+
+  gatewayChild = child;
+  return child;
+}
+
 async function pollGateway() {
   const url = `http://localhost:${INTERNAL_PORT}/__openclaw__/canvas/`;
   for (let i = 1; i <= 120; i++) {
@@ -59,6 +68,24 @@ async function pollGateway() {
   process.exit(1);
 }
 
+// Initial start uses pnpm start (full init chain) for first boot
+const initialChild = spawn("pnpm", ["start"], {
+  cwd: ROOT,
+  stdio: "inherit",
+  env: {
+    ...process.env,
+    PORT: String(INTERNAL_PORT),
+    OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
+    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+  },
+});
+
+initialChild.on("exit", (code) => {
+  console.error(`[pool-server] Gateway exited with code ${code}`);
+  if (!restarting) process.exit(code ?? 1);
+});
+
+gatewayChild = initialChild;
 pollGateway();
 
 // --- Helpers ---
@@ -153,6 +180,51 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/pool/health") {
     if (!checkAuth(req, res)) return;
     json(res, 200, { ready: gatewayReady });
+    return;
+  }
+
+  // POST /pool/restart-gateway
+  if (req.method === "POST" && req.url === "/pool/restart-gateway") {
+    if (!checkAuth(req, res)) return;
+
+    let body;
+    try {
+      body = await readBody(req);
+    } catch {
+      json(res, 400, { error: "Invalid JSON body" });
+      return;
+    }
+
+    const extraEnv = body.env || {};
+
+    // Merge env overrides into process.env so the new child inherits them
+    Object.assign(process.env, extraEnv);
+
+    try {
+      restarting = true;
+      if (gatewayChild) {
+        console.log("[pool-server] Killing current gateway for restart...");
+        gatewayChild.kill("SIGTERM");
+        // Wait for the child to exit before respawning
+        await new Promise((resolve) => {
+          const onExit = () => resolve();
+          gatewayChild.once("exit", onExit);
+          // If already dead, resolve immediately
+          if (gatewayChild.exitCode !== null) resolve();
+        });
+      }
+      restarting = false;
+
+      console.log("[pool-server] Spawning new gateway...");
+      spawnGateway(extraEnv);
+      await pollGateway();
+
+      json(res, 200, { ok: true });
+    } catch (err) {
+      restarting = false;
+      console.error("[pool-server] restart-gateway failed:", err);
+      json(res, 500, { error: err.message || "Restart failed" });
+    }
     return;
   }
 
