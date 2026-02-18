@@ -1,4 +1,4 @@
-# convos-managed-agent-runtime
+# Convos railway agents toolkit
 
 OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config. Pre-warmed instances are provisioned via a pool; users claim an agent and it’s live in seconds.
 
