@@ -18,7 +18,7 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** Custom extensions and skills (e.g. agentmail) need node_modules. OpenClaw loads extensions from the state dir; skill scripts resolve packages from state dir's node_modules.
 
-**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) installs deps in `$OPENCLAW_STATE_DIR/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
+**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) installs deps in `$noth/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
 
 ## Plugin "Cannot find module" / extension deps resolution
 
@@ -40,6 +40,10 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 2. **Script-based skills need no tool config** — `agentmail` works via `exec`. The agent's profile must include `exec` access; no `alsoAllow` entry is needed. Env vars are injected via `skills.entries.*.env`.
 3. **Main agent has full tool access** — browser, agentmail, web_search, web_fetch; no per-agent allow/deny for those.
 4. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
+
+## CAUTON:
+
+    PRIVATE_WALLET_KEY does othing to do witgh Convos!
 
 ## Skill script paths: use explicit state dir path
 
