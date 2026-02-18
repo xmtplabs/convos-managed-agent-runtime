@@ -19,7 +19,6 @@ const { getStateDir } = require("./context.cjs");
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
-const AUTH_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const ROOT = path.resolve(__dirname, "..");
 
@@ -40,7 +39,7 @@ function spawnGateway(extraEnv = {}) {
       ...extraEnv,
       PORT: String(INTERNAL_PORT),
       OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-      OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || "",
+      OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
     },
   });
 
@@ -78,7 +77,7 @@ const initialChild = spawn("pnpm", ["start"], {
     ...process.env,
     PORT: String(INTERNAL_PORT),
     OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || "",
+    OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
   },
 });
 
@@ -114,11 +113,10 @@ function readBody(req) {
 }
 
 function checkAuth(req, res) {
-  if (!AUTH_TOKEN && !POOL_API_KEY) return true;
+  if (!POOL_API_KEY) return true;
   const header = req.headers.authorization || "";
   const match = header.match(/^Bearer\s+(.+)$/i);
-  const token = match?.[1];
-  if (token && (token === AUTH_TOKEN || token === POOL_API_KEY)) return true;
+  if (match?.[1] === POOL_API_KEY) return true;
   json(res, 401, { error: "Unauthorized" });
   return false;
 }
