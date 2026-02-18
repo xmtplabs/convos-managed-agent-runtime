@@ -8,12 +8,7 @@
   "scripts": {
     "cli": "node cli/index.cjs",
     "start": "pnpm cli init",
-    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
-    "pool": "node pool/src/index.js",
-    "pool:dev": "node --env-file=pool/.env --watch pool/src/index.js",
-    "pool:test": "node --env-file=pool/.env --test pool/src/**/*.test.js",
-    "pool:db:migrate": "node --env-file=pool/.env pool/src/db/migrate.js",
-    "pool:install": "cd pool && pnpm install"
+    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app"
   },
   "dependencies": {
     "commander": "^12.0.0",
