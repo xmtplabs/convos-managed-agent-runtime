@@ -19,7 +19,7 @@ const { getStateDir } = require("./context.cjs");
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
-const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN;
+const AUTH_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const ROOT = path.resolve(__dirname, "..");
 
@@ -40,7 +40,7 @@ function spawnGateway(extraEnv = {}) {
       ...extraEnv,
       PORT: String(INTERNAL_PORT),
       OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-      OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+      OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || "",
     },
   });
 
@@ -78,7 +78,7 @@ const initialChild = spawn("pnpm", ["start"], {
     ...process.env,
     PORT: String(INTERNAL_PORT),
     OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || "",
   },
 });
 

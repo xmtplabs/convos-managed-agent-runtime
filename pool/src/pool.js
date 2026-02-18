@@ -50,7 +50,6 @@ export async function createInstance() {
 
   const vars = { ...instanceEnvVars() };
   if (vars.OPENCLAW_GATEWAY_TOKEN === undefined) vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
-  vars.GATEWAY_AUTH_TOKEN = vars.OPENCLAW_GATEWAY_TOKEN; // entrypoint reads this
   if (vars.SETUP_PASSWORD === undefined) vars.SETUP_PASSWORD = generateSetupPassword();
   const { key: openRouterKey, hash: openRouterKeyHash } = await resolveOpenRouterApiKey(id);
   if (openRouterKey) vars.OPENROUTER_API_KEY = openRouterKey;
