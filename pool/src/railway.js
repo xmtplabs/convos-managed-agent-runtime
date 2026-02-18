@@ -201,6 +201,26 @@ export async function createVolume(serviceId, mountPath = "/data") {
   return data.volumeCreate;
 }
 
+export async function redeployService(serviceId) {
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
+  const data = await gql(
+    `query($id: String!) {
+      service(id: $id) {
+        deployments(first: 1) { edges { node { id } } }
+      }
+    }`,
+    { id: serviceId }
+  );
+  const latestDeploy = data.service?.deployments?.edges?.[0]?.node;
+  if (!latestDeploy) throw new Error("No deployment found to redeploy");
+  await gql(
+    `mutation($id: String!, $environmentId: String!) {
+      deploymentRedeploy(id: $id, environmentId: $environmentId)
+    }`,
+    { id: latestDeploy.id, environmentId }
+  );
+}
+
 export async function deleteService(serviceId) {
   await gql(
     `mutation($id: String!) {

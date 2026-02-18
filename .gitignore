@@ -8,6 +8,7 @@ npm-debug.log*
 # Local env — never commit secrets
 .env
 .env.*
+!.env.example
 
 # XMTP local databases (contain keys/messages)
 xmtp-*.db3

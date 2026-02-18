@@ -60,6 +60,16 @@ export async function createInstance() {
   const hasVolume = await ensureVolume(serviceId);
   if (!hasVolume) console.warn(`[pool]   Volume creation failed for ${serviceId}, will retry in tick`);
 
+  // Redeploy so the volume mount takes effect (the initial deploy started before volume was attached)
+  if (hasVolume) {
+    try {
+      await railway.redeployService(serviceId);
+      console.log(`[pool]   Redeployed to activate volume mount`);
+    } catch (err) {
+      console.warn(`[pool]   Redeploy after volume failed: ${err.message}`);
+    }
+  }
+
   const domain = await railway.createDomain(serviceId);
   const url = `https://${domain}`;
   console.log(`[pool]   Domain: ${url}`);
