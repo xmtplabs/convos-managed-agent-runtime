@@ -2,6 +2,7 @@
 
 OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config.
 
+See `docs/` for design, QA, changelog, pool, and workarounds.
 
 ```mermaid
 flowchart LR

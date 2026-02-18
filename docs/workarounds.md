@@ -1,0 +1,80 @@
+# Convos-agent workarounds
+
+Documented workarounds so future changes don't break them or duplicate logic.
+
+## Memory slot: use "none" when memory-core is not present
+
+**Problem:** Default OpenClaw config can set `plugins.slots.memory` to `memory-core`. If that extension isn't shipped (e.g. convos-agent Docker image, or minimal dev setup), config validation fails with "plugin not found: memory-core" (see openclaw/openclaw#8909).
+
+**Workaround:** In [openclaw/openclaw.json](openclaw/openclaw.json), set `plugins.slots.memory` to `"none"` so no memory extension is required. `pnpm cli apply` syncs this file into the state dir.
+
+## Extension id must match package/manifest
+
+**Problem:** If package.json `name` is e.g. `@scope/openclaw-plugin-convos`, OpenClaw derives id `openclaw-plugin-convos`. If openclaw.plugin.json or channel config says `convos`, you get "plugin id mismatch".
+
+**Workaround:** Use a single id everywhere: set package.json `"name": "@openclaw/convos"` and openclaw.plugin.json `"id": "convos"` (and channel id `convos`). No scoped name for the extension package in this repo.
+
+## Extension/skill deps in OPENCLAW_STATE_DIR
+
+**Problem:** Custom extensions and skills (e.g. agentmail) need node_modules. OpenClaw loads extensions from the state dir; skill scripts resolve packages from state dir's node_modules.
+
+**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) installs deps in `$OPENCLAW_STATE_DIR/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
+
+## Plugin "Cannot find module" / extension deps resolution
+
+**Problem:** Plugins (e.g. convos) that depend on npm packages (e.g. `@convos/cli`) fail at load with `Cannot find module '@convos/cli'` or `ERR_PACKAGE_PATH_NOT_EXPORTED`. OpenClaw's jiti loader resolves `require()` from Node's default search path; extension code lives under `STATE_DIR/extensions/*` and their `node_modules` are in each extension dir, which Node does not search by default.
+
+**Workaround:** Set `NODE_PATH` before starting the gateway so Node can resolve extension deps. [cli/scripts/lib/node-path.sh](cli/scripts/lib/node-path.sh) builds it from: `STATE_DIR/node_modules`, `ROOT/node_modules`, and each extension root (so `require` finds `extension/node_modules/...`). [gateway.sh](cli/scripts/gateway.sh) and [qa.sh](cli/scripts/qa.sh) source this helper. Do not remove or bypass NODE_PATH setup — plugins will fail without it.
+
+## Registered vs script-based skills: only use `alsoAllow` for registered tools
+
+**Problem:** There are two kinds of skills:
+- **Registered skills** have a `_meta.json` in their workspace dir. These are recognized by OpenClaw's tool system and can be referenced in `alsoAllow`/`deny`.
+- **Script-based skills** have only `scripts/` and `SKILL.md` (e.g. `agentmail`). These are invoked via `exec` (running shell/node scripts). They are **not** registered as named tools — putting them in `alsoAllow` or `deny` triggers "unknown entries" warnings or is silently ignored.
+
+Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes it "unknown" and can cause OpenClaw to ignore the allowlist. Use `tools.allow` only for core tool names (e.g. `browser`).
+
+**Workaround:** In [openclaw/openclaw.json](openclaw/openclaw.json):
+
+1. **`alsoAllow` only for registered skills** — only put skill names in `tools.alsoAllow` if the skill has a `_meta.json`. Never use `tools.allow` for skill names (use it for core tools like `browser`).
+2. **Script-based skills need no tool config** — `agentmail` works via `exec`. The agent's profile must include `exec` access; no `alsoAllow` entry is needed. Env vars are injected via `skills.entries.*.env`.
+3. **Main agent has full tool access** — browser, agentmail, web_search, web_fetch; no per-agent allow/deny for those.
+4. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
+
+## CAUTON:
+
+    PRIVATE_WALLET_KEY does othing to do witgh Convos!
+
+## Skill script paths: use explicit state dir path
+
+**Context:** Skills are provisioned under workspace (`openclaw/workspace/skills/`). OPENCLAW_STATE_DIR is set by the gateway.
+
+**Workaround:** Run `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`. SKILL.md and TOOLS.md state this so the agent gets the right path.
+
+## agentmail: installed in state dir
+
+**Problem:** The agentmail scripts `import "agentmail"`. Skills live under state dir; state dir must have `node_modules/agentmail`.
+
+**Workaround:** Run `install-deps` — it adds agentmail to `$OPENCLAW_STATE_DIR/package.json` and runs `pnpm install` there when `workspace/skills/agentmail` exists (SKILLS_DIR = WORKSPACE_DIR/skills). Set `NODE_PATH=$OPENCLAW_STATE_DIR/node_modules` so skill scripts resolve it.
+
+## openclaw dependency in extension (no workspace)
+
+**Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-agent there is no OpenClaw workspace, so `workspace:*` fails on install.
+
+**Workaround:** In [openclaw/extensions/convos/package.json](openclaw/extensions/convos/package.json), use `"openclaw": "workspace:*"` so install works; at runtime OpenClaw's loader provides the plugin-sdk. In Docker, [Dockerfile](Dockerfile) sed replaces `"openclaw": "workspace:*"` with `"openclaw": "file:/openclaw"` so the image resolves openclaw from the built /openclaw copy.
+
+## Browser on Railway / headless (target + targetUrl)
+
+**Problem:** On Railway (or when `CHROMIUM_PATH` is set / headless), the browser tool can fail with "Sandbox browser is unavailable", "targetUrl required", or "Can't reach the OpenClaw browser control service (Error: fields are required)". The model may call the browser tool with incomplete params.
+
+**Workaround (instructions):** In [openclaw/workspace/TOOLS.md](openclaw/workspace/TOOLS.md), a callout under the Browser bullet instructs: in headless/cloud use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`). Do not remove or shorten this callout — it fixes "targetUrl required" and "fields are required" errors.
+
+**Workaround (CDP timeouts):** Chrome cold-start can exceed the default CDP timeout, causing "tab not found". In [openclaw/openclaw.json](openclaw/openclaw.json), `remoteCdpTimeoutMs` is set to `5000` and `remoteCdpHandshakeTimeoutMs` to `8000` (up from 1500/3000). Do not lower these — they prevent race conditions when Chrome is starting up.
+
+## Control UI / webchat: replies only after refresh
+
+**Problem:** In the Control UI (webchat), agent replies sometimes do not appear until the page is refreshed. The gateway run completes (logs show `run_completed`, `run done`), but the client does not receive or render the reply over the live connection.
+
+**Workaround:** Refresh the page to load the latest session state and see the reply. This is a known limitation in the OpenClaw core webchat/Control UI delivery path (gateway → WebSocket → client); fixing it requires changes in the main OpenClaw repo, not in this extension repo.
+
+**Config:** [openclaw/openclaw.json](openclaw/openclaw.json) sets `agents.defaults.blockStreamingDefault: "on"` so the gateway sends reply blocks as they are ready; some clients may need this to update the UI. If the issue persists, the fix must be in core (session key resolution, WebSocket event delivery, or Control UI subscription).
