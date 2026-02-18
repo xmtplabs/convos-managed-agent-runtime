@@ -65,6 +65,21 @@ async function handleSetup(params: {
   await cleanupSetupInstance();
   if (params.force) {
     clearConvosCredentials();
+    // Also clear stale identity from config (legacy writes)
+    try {
+      const runtime = getConvosRuntime();
+      const cfg = runtime.config.loadConfig() as Record<string, unknown>;
+      const channels = (cfg.channels ?? {}) as Record<string, unknown>;
+      const convos = { ...(channels.convos ?? {}) as Record<string, unknown> };
+      delete convos.identityId;
+      delete convos.ownerConversationId;
+      await runtime.config.writeConfigFile({
+        ...cfg,
+        channels: { ...channels, convos },
+      });
+    } catch {
+      // Config cleanup is best-effort
+    }
   }
   setupJoinState = { joined: false, joinerInboxId: null };
   cachedSetupResponse = null;
