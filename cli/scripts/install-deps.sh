@@ -54,13 +54,26 @@ if [ -d "$SKILLS_DIR/bankr" ]; then
   fi
 fi
 
-# convos: install @convos/cli globally (for convos conversation commands)
+# convos: add @convos/cli to state dir package.json and install
 if [ -d "$EXTENSIONS_DIR/convos" ]; then
-  if command -v convos >/dev/null 2>&1; then
+  pkg="$STATE_DIR/package.json"
+  if [ ! -f "$pkg" ]; then
+    echo '{"name":"openclaw-state","private":true,"dependencies":{}}' > "$pkg"
+  fi
+  if ! grep -q '"@convos/cli"' "$pkg" 2>/dev/null; then
+    echo "  Adding @convos/cli to state dir"
+    node -e "
+      const p=require('$pkg');
+      p.dependencies=p.dependencies||{};
+      p.dependencies['@convos/cli']=p.dependencies['@convos/cli']||'github:xmtplabs/convos-cli';
+      require('fs').writeFileSync('$pkg', JSON.stringify(p,null,2));
+    "
+  fi
+  if [ -d "$STATE_DIR/node_modules/@convos/cli" ]; then
     echo "  Skipping @convos/cli (already installed)"
   else
-    echo "  Installing @convos/cli globally"
-    pnpm install -g github:xmtplabs/convos-cli || npm install -g github:xmtplabs/convos-cli || true
+    echo "  Installing @convos/cli in state dir"
+    (cd "$STATE_DIR" && pnpm install --no-frozen-lockfile) || true
   fi
 fi
 

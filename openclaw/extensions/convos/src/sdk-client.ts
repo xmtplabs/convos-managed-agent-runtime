@@ -9,6 +9,7 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -71,7 +72,22 @@ function resolveConvosBin(): string {
     // fileURLToPath may fail for non-file: URLs
   }
 
-  // Fallback: assume `convos` is on PATH (installed globally by install-deps.sh)
+  // Strategy 3: check OPENCLAW_STATE_DIR (install-deps.sh installs @convos/cli there)
+  {
+    const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+    const candidates = [
+      path.join(stateDir, "node_modules", "@convos", "cli", "bin", "run.js"),
+      path.join(stateDir, "extensions", "convos", "node_modules", "@convos", "cli", "bin", "run.js"),
+    ];
+    for (const binPath of candidates) {
+      if (existsSync(binPath)) {
+        cachedBinPath = binPath;
+        return binPath;
+      }
+    }
+  }
+
+  // Fallback: assume `convos` is on PATH
   cachedBinPath = "convos";
   return "convos";
 }
