@@ -293,26 +293,44 @@ export async function tick() {
 // Provisioning flow lives in provision.js (convos-sdk setup/join orchestration).
 export { provision } from "./provision.js";
 
-// Drain unclaimed instances (idle, starting, dead — anything not claimed/crashed).
+// Drain unclaimed instances only (idle, starting, dead — never claimed/crashed).
 export async function drainPool(count) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed"]);
-  const unclaimed = cache
+  const isUnclaimed = (i) => !CLAIMED_STATUSES.has(i.status) && !cache.isBeingClaimed(i.serviceId);
+  let unclaimed = cache
     .getAll()
-    .filter((i) => !CLAIMED_STATUSES.has(i.status) && !cache.isBeingClaimed(i.serviceId))
+    .filter(isUnclaimed)
     .slice(0, count);
+  if (unclaimed.length === 0) return [];
+
+  // Re-filter right before drain in case status changed (e.g. claim completed).
+  unclaimed = unclaimed.filter(isUnclaimed);
   if (unclaimed.length === 0) return [];
 
   const ids = unclaimed.map((i) => i.id);
   console.log(`[pool] Draining ${unclaimed.length} unclaimed instance(s): ${ids.join(", ")}`);
   const volumeMap = await fetchAllVolumesByService();
+  console.log(`[pool] Triggered delete for ${unclaimed.length} instance(s): ${ids.join(", ")}`);
+  // Only destroy if still unclaimed (may have been claimed during volume fetch).
   const settled = await Promise.allSettled(
-    unclaimed.map((inst) => destroyInstance(inst, volumeMap))
+    unclaimed.map((inst) => {
+      if (!isUnclaimed(inst)) {
+        console.log(`[pool]   Skipping ${inst.id} (no longer unclaimed)`);
+        return Promise.resolve({ skipped: true });
+      }
+      return destroyInstance(inst, volumeMap);
+    })
   );
 
   const results = [];
   let failed = 0;
+  let skipped = 0;
   unclaimed.forEach((inst, i) => {
     const s = settled[i];
+    if (s.status === "fulfilled" && s.value?.skipped) {
+      skipped++;
+      return;
+    }
     if (s.status === "fulfilled") {
       results.push(inst.id);
       console.log(`[pool]   Drained ${inst.id}`);
@@ -321,6 +339,7 @@ export async function drainPool(count) {
       console.error(`[pool]   Failed to drain ${inst.id}:`, s.reason?.message ?? s.reason);
     }
   });
+  if (skipped > 0) console.log(`[pool]   Skipped ${skipped} (no longer unclaimed)`);
   console.log(`[pool] Drain complete: ${results.length} drained, ${failed} failed`);
   return results;
 }
