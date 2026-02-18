@@ -1,5 +1,5 @@
 FROM node:22-bookworm
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
