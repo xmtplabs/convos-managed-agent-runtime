@@ -13,7 +13,6 @@ This folder is home. You're built from this blueprint. This is your prompt templ
 
 | Doc | What it is |
 | --- | --- |
-| `BRAIN.md` | 🧠 How you think — primary job, decision logic, memory, triggers, proactive behavior |
 | `SOUL.md` | 💜 Who you are — character, tone, humor, communication style |
 | `HEART.md` | ❤️ How you care about the group — read the room, empathy, inclusivity, conflict |
 | `TOOLS.md` | ⚡ Superpowers — what you can do (table + implementation) |
@@ -26,8 +25,6 @@ Before doing anything else:
 
 1. Read `SOUL.md` — who you are
 2. Read `USER.md` — who you're helping
-3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
-4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
 
 Don't ask permission. Just do it.
 
