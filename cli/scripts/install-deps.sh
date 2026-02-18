@@ -5,10 +5,11 @@ export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 . "$(dirname "$0")/lib/init.sh"
 
 # Extensions: pnpm install in each dir with package.json (always run to fix stale/partial installs)
+# --ignore-scripts avoids prepack failures for git-hosted deps like @convos/cli
 for ext in "$EXTENSIONS_DIR"/*; do
   [ -d "$ext" ] && [ -f "$ext/package.json" ] || continue
   echo "  Installing deps: $ext"
-  (cd "$ext" && pnpm install --no-frozen-lockfile) || true
+  (cd "$ext" && pnpm install --no-frozen-lockfile --ignore-scripts) || true
 done
 
 # agentmail: add to state dir package.json and install
@@ -51,29 +52,6 @@ if [ -d "$SKILLS_DIR/bankr" ]; then
   else
     echo "  Installing @bankr/cli globally"
     pnpm install -g @bankr/cli || npm install -g @bankr/cli || true
-  fi
-fi
-
-# convos: add @convos/cli to state dir package.json and install
-if [ -d "$EXTENSIONS_DIR/convos" ]; then
-  pkg="$STATE_DIR/package.json"
-  if [ ! -f "$pkg" ]; then
-    echo '{"name":"openclaw-state","private":true,"dependencies":{}}' > "$pkg"
-  fi
-  if ! grep -q '"@convos/cli"' "$pkg" 2>/dev/null; then
-    echo "  Adding @convos/cli to state dir"
-    node -e "
-      const p=require('$pkg');
-      p.dependencies=p.dependencies||{};
-      p.dependencies['@convos/cli']=p.dependencies['@convos/cli']||'github:xmtplabs/convos-cli';
-      require('fs').writeFileSync('$pkg', JSON.stringify(p,null,2));
-    "
-  fi
-  if [ -d "$STATE_DIR/node_modules/@convos/cli" ]; then
-    echo "  Skipping @convos/cli (already installed)"
-  else
-    echo "  Installing @convos/cli in state dir"
-    (cd "$STATE_DIR" && pnpm install --no-frozen-lockfile) || true
   fi
 fi
 

@@ -72,18 +72,14 @@ function resolveConvosBin(): string {
     // fileURLToPath may fail for non-file: URLs
   }
 
-  // Strategy 3: check OPENCLAW_STATE_DIR (install-deps.sh installs @convos/cli there)
+  // Strategy 3: check OPENCLAW_STATE_DIR/extensions/convos/node_modules
+  // install-deps.sh runs pnpm install in the state dir copy of each extension
   {
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
-    const candidates = [
-      path.join(stateDir, "node_modules", "@convos", "cli", "bin", "run.js"),
-      path.join(stateDir, "extensions", "convos", "node_modules", "@convos", "cli", "bin", "run.js"),
-    ];
-    for (const binPath of candidates) {
-      if (existsSync(binPath)) {
-        cachedBinPath = binPath;
-        return binPath;
-      }
+    const binPath = path.join(stateDir, "extensions", "convos", "node_modules", "@convos", "cli", "bin", "run.js");
+    if (existsSync(binPath)) {
+      cachedBinPath = binPath;
+      return binPath;
     }
   }
 
