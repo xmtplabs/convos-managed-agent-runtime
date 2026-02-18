@@ -293,12 +293,16 @@ export async function tick() {
 // Provisioning flow lives in provision.js (convos-sdk setup/join orchestration).
 export { provision } from "./provision.js";
 
-// Drain idle instances.
+// Drain unclaimed instances (idle, starting, dead — anything not claimed/crashed).
 export async function drainPool(count) {
-  const idle = cache.getByStatus("idle").slice(0, count);
-  console.log(`[pool] Draining ${idle.length} idle instance(s)...`);
+  const CLAIMED_STATUSES = new Set(["claimed", "crashed"]);
+  const unclaimed = cache
+    .getAll()
+    .filter((i) => !CLAIMED_STATUSES.has(i.status) && !cache.isBeingClaimed(i.serviceId))
+    .slice(0, count);
+  console.log(`[pool] Draining ${unclaimed.length} unclaimed instance(s)...`);
   const results = [];
-  for (const inst of idle) {
+  for (const inst of unclaimed) {
     try {
       await destroyInstance(inst);
       results.push(inst.id);

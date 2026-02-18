@@ -671,7 +671,7 @@ app.get("/", (_req, res) => {
       <div class="pool-bar-right">
         <input id="replenish-count" type="number" min="1" max="20" value="1" />
         <button class="pool-btn" id="replenish-btn">+ Add</button>
-        <button class="pool-btn danger" id="drain-btn">Drain</button>
+        <button class="pool-btn danger" id="drain-btn">Drain Unclaimed</button>
       </div>
     </div>
 
@@ -999,12 +999,12 @@ app.get("/", (_req, res) => {
       }finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
     };
 
-    // Drain — remove idle instances from the pool
+    // Drain — remove unclaimed instances from the pool
     var drainBtn=document.getElementById('drain-btn');
     drainBtn.onclick=async function(){
       var n=parseInt(replenishCount.value)||3;
       var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Drain '+n+' idle instance(s) from the pool?';
+        'Drain up to '+n+' unclaimed instance(s) from the pool?';
       if(!confirm(drainMsg))return;
       drainBtn.disabled=true;drainBtn.textContent='Draining...';
       try{
@@ -1016,7 +1016,7 @@ app.get("/", (_req, res) => {
         refreshStatus();
       }catch(err){
         alert('Failed to drain pool: '+err.message);
-      }finally{drainBtn.disabled=false;drainBtn.textContent='Drain';}
+      }finally{drainBtn.disabled=false;drainBtn.textContent='Drain Unclaimed';}
     };
 
     // Initial load + polling
@@ -1105,7 +1105,7 @@ app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
   }
 });
 
-// Drain idle instances from the pool
+// Drain unclaimed instances from the pool
 app.post("/api/pool/drain", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 1, 20);
