@@ -280,13 +280,39 @@ export class ConvosInstance {
       env,
       options,
     });
-    const data = await tmp.execJson<{
+
+    let data: {
       status: string;
       conversationId?: string;
       identityId: string;
       tag?: string;
       name?: string;
-    }>(args);
+    };
+
+    try {
+      data = await tmp.execJson<typeof data>(args);
+    } catch (err) {
+      // Handle "Already joined this conversation" from the CLI.
+      // The error stderr contains Identity and Conversation IDs we can extract.
+      const msg = err instanceof Error ? (err as Error & { stderr?: string }).stderr ?? err.message : String(err);
+      const alreadyJoined = /Already joined this conversation/i.test(msg);
+      if (alreadyJoined) {
+        const identityMatch = msg.match(/Identity:\s*([a-f0-9]+)/);
+        const conversationMatch = msg.match(/Conversation:\s*([a-f0-9]+)/);
+        if (identityMatch && conversationMatch) {
+          const identityId = identityMatch[1];
+          const conversationId = conversationMatch[1];
+          const instance = new ConvosInstance({
+            conversationId,
+            identityId,
+            env,
+            options,
+          });
+          return { instance, status: "joined", conversationId, identityId };
+        }
+      }
+      throw err;
+    }
 
     if (data.status === "joined" && data.conversationId) {
       const instance = new ConvosInstance({

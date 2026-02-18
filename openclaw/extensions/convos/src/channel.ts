@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
   DEFAULT_ACCOUNT_ID,
   deleteAccountFromConfigSection,
@@ -466,6 +468,26 @@ export async function startWiredInstance(params: {
   const runtime = getConvosRuntime();
   const cfg = runtime.config.loadConfig();
   const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
+
+  // Clear all previous session state so the agent starts fresh for this conversation.
+  const route = runtime.channel.routing.resolveAgentRoute({
+    cfg,
+    channel: "convos",
+    accountId: account.accountId,
+    peer: { kind: "group", id: params.conversationId },
+  });
+  const storePath = runtime.channel.session.resolveStorePath(cfg.session?.store, {
+    agentId: route.agentId,
+  });
+  const sessionsDir = path.dirname(storePath);
+  if (fs.existsSync(sessionsDir)) {
+    try {
+      fs.rmSync(sessionsDir, { recursive: true, force: true });
+      console.log(`[convos] Cleared session state: ${sessionsDir}`);
+    } catch (err) {
+      console.error(`[convos] Failed to clear sessions: ${String(err)}`);
+    }
+  }
 
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,
