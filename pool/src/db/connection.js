@@ -1,6 +1,16 @@
 import pg from "pg";
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
+
+// Prevent unhandled 'error' from crashing the process on idle connection drops
+pool.on("error", (err) => {
+  console.warn("[db] Idle client error:", err.message);
+});
 
 /**
  * Tagged-template helper that turns sql`SELECT * FROM t WHERE id = ${v}`
