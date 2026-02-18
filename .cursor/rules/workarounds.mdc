@@ -12,7 +12,7 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** If package.json `name` is e.g. `@scope/openclaw-plugin-convos`, OpenClaw derives id `openclaw-plugin-convos`. If openclaw.plugin.json or channel config says `convos`, you get "plugin id mismatch".
 
-**Workaround:** Use a single id everywhere: set package.json `"name": "convos-sdk"` and openclaw.plugin.json `"id": "convos-sdk"` (and channel id `convos-sdk`). No scoped name for the extension package in this repo.
+**Workaround:** Use a single id everywhere: set package.json `"name": "@openclaw/convos"` and openclaw.plugin.json `"id": "convos"` (and channel id `convos`). No scoped name for the extension package in this repo.
 
 ## Extension/skill deps in OPENCLAW_STATE_DIR
 
@@ -22,7 +22,7 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 ## Plugin "Cannot find module" / extension deps resolution
 
-**Problem:** Plugins (e.g. convos-sdk) that depend on npm packages (e.g. `@xmtp/agent-sdk`) fail at load with `Cannot find module '@xmtp/agent-sdk'` or `ERR_PACKAGE_PATH_NOT_EXPORTED`. OpenClaw's jiti loader resolves `require()` from Node's default search path; extension code lives under `STATE_DIR/extensions/*` and their `node_modules` are in each extension dir, which Node does not search by default.
+**Problem:** Plugins (e.g. convos) that depend on npm packages (e.g. `@convos/cli`) fail at load with `Cannot find module '@convos/cli'` or `ERR_PACKAGE_PATH_NOT_EXPORTED`. OpenClaw's jiti loader resolves `require()` from Node's default search path; extension code lives under `STATE_DIR/extensions/*` and their `node_modules` are in each extension dir, which Node does not search by default.
 
 **Workaround:** Set `NODE_PATH` before starting the gateway so Node can resolve extension deps. [cli/scripts/lib/node-path.sh](cli/scripts/lib/node-path.sh) builds it from: `STATE_DIR/node_modules`, `ROOT/node_modules`, and each extension root (so `require` finds `extension/node_modules/...`). [gateway.sh](cli/scripts/gateway.sh) and [qa.sh](cli/scripts/qa.sh) source this helper. Do not remove or bypass NODE_PATH setup — plugins will fail without it.
 
@@ -61,7 +61,7 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 
 **Problem:** Extension has `openclaw` in devDependencies for types/sdk. In convos-agent there is no OpenClaw workspace, so `workspace:*` fails on install.
 
-**Workaround:** In [openclaw/extensions/convos-sdk/package.json](openclaw/extensions/convos-sdk/package.json), use `"openclaw": "*"` so install works; at runtime OpenClaw's loader provides the plugin-sdk. In Docker, [Dockerfile](Dockerfile) sed replaces `"openclaw": "*"` (or `workspace:*`) with `"openclaw": "file:/openclaw"` so the image resolves openclaw from the built /openclaw copy.
+**Workaround:** In [openclaw/extensions/convos/package.json](openclaw/extensions/convos/package.json), use `"openclaw": "workspace:*"` so install works; at runtime OpenClaw's loader provides the plugin-sdk. In Docker, [Dockerfile](Dockerfile) sed replaces `"openclaw": "workspace:*"` with `"openclaw": "file:/openclaw"` so the image resolves openclaw from the built /openclaw copy.
 
 ## Browser on Railway / headless (target + targetUrl)
 

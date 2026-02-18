@@ -92,12 +92,11 @@
     }
   },
   "channels": {
-    "convos-sdk": {
-      "XMTP_ENV": "${XMTP_ENV}",
-      "env": {
-        "XMTP_ENV": "${XMTP_ENV}"
-      },
-      "enabled": true
+    "convos": {
+      "debug": true,
+      "enabled": true,
+      "env": "${XMTP_ENV}",
+      "poolApiKey": "${POOL_API_KEY}"
     }
   },
   "tools": {

@@ -31,12 +31,12 @@ The `openclaw/` directory is synced into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`
 │   │       └── telnyx-cli/    # SKILL.md, config, setup, test
 │   │       └── bankr/         # SKILL.md, config, setup, test
 │   └── extensions/
-│       ├── convos-sdk/        # XMTP channel plugin (/convos-sdk/join, /convos-sdk/invite, setup)
+│       ├── convos/            # XMTP channel plugin (/convos/join, /convos/conversation, setup)
 │       │   ├── index.ts, openclaw.plugin.json, package.json
-│       │   └── src/           # channel, accounts, actions, sdk-client, outbound, …
+│       │   └── src/           # channel, accounts, sdk-client, outbound, …
 │       └── web-tools/         # form at /web-tools/form, agents at /web-tools/agents
 │           ├── form/          # form.html
-│           ├── agents/        # landing.html, sw.js, manifest, icon (calls convos-sdk APIs)
+│           ├── agents/        # landing.html, sw.js, manifest, icon (calls convos APIs)
 │           └── index.ts, openclaw.plugin.json, package.json
 ```
 

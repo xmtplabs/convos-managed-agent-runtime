@@ -20,6 +20,7 @@ const { getStateDir } = require("./context.cjs");
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
 const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN;
+const POOL_API_KEY = process.env.POOL_API_KEY;
 const ROOT = path.resolve(__dirname, "..");
 
 let gatewayReady = false;
@@ -113,54 +114,55 @@ function readBody(req) {
 }
 
 function checkAuth(req, res) {
-  if (!AUTH_TOKEN) return true;
+  if (!AUTH_TOKEN && !POOL_API_KEY) return true;
   const header = req.headers.authorization || "";
   const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match || match[1] !== AUTH_TOKEN) {
-    json(res, 401, { error: "Unauthorized" });
-    return false;
-  }
-  return true;
+  const token = match?.[1];
+  if (token && (token === AUTH_TOKEN || token === POOL_API_KEY)) return true;
+  json(res, 401, { error: "Unauthorized" });
+  return false;
 }
 
 // --- Convos invite/join helper ---
 
 async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
   const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
+  const headers = { "Content-Type": "application/json" };
+  if (POOL_API_KEY) headers["Authorization"] = `Bearer ${POOL_API_KEY}`;
   let lastError;
 
   for (let i = 1; i <= maxAttempts; i++) {
     try {
       if (joinUrl) {
         // Join an existing conversation
-        const res = await fetch(`${gatewayUrl}/convos-sdk/join`, {
+        const res = await fetch(`${gatewayUrl}/convos/join`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ invite: joinUrl }),
+          headers,
+          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`/convos-sdk/join returned ${res.status}: ${text}`);
+          throw new Error(`/convos/join returned ${res.status}: ${text}`);
         }
         const data = await res.json();
         console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
         return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
       } else {
         // Create a new conversation
-        const res = await fetch(`${gatewayUrl}/convos-sdk/invite`, {
+        const res = await fetch(`${gatewayUrl}/convos/conversation`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: agentName }),
+          headers,
+          body: JSON.stringify({ name: agentName, profileName: agentName }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`/convos-sdk/invite returned ${res.status}: ${text}`);
+          throw new Error(`/convos/conversation returned ${res.status}: ${text}`);
         }
         const data = await res.json();
-        console.log(`[pool-server] Created invite on attempt ${i}: ${data.inviteUrl}`);
-        return { inviteUrl: data.inviteUrl, conversationId: null, joined: false };
+        console.log(`[pool-server] Created conversation on attempt ${i}: ${data.inviteUrl}`);
+        return { inviteUrl: data.inviteUrl, conversationId: data.conversationId, joined: false };
       }
     } catch (err) {
       lastError = err;
@@ -266,7 +268,7 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
       console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
-      // Step 2: Invite or join via convos-sdk (channel may still be starting)
+      // Step 2: Create or join conversation via convos extension (channel may still be starting)
       const convosResult = await callConvosWithRetry(agentName, joinUrl);
 
       json(res, 200, {

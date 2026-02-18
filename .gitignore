@@ -1,6 +1,7 @@
 # Node
 node_modules
 extensions/*/node_modules
+openclaw/extensions/*/pnpm-lock.yaml
 .yarn
 npm-debug.log*
 

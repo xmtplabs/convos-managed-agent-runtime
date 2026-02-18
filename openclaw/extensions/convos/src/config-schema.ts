@@ -1,5 +1,6 @@
 /**
- * Config-types/contracts: Convos channel config Zod schema and JSON Schema for Control UI.
+ * Convos channel configuration schema
+ * Used for Control UI form generation
  */
 
 import { MarkdownConfigSchema, buildChannelConfigSchema } from "openclaw/plugin-sdk";
@@ -8,7 +9,7 @@ import { z } from "zod";
 const allowFromEntry = z.union([z.string(), z.number()]);
 
 /**
- * Zod schema for channels.convos-sdk.* configuration
+ * Zod schema for channels.convos.* configuration
  */
 export const ConvosConfigSchema = z.object({
   /** Account name (optional display name) */
@@ -20,11 +21,11 @@ export const ConvosConfigSchema = z.object({
   /** Markdown formatting overrides (tables). */
   markdown: MarkdownConfigSchema,
 
-  /** Hex-encoded XMTP private key (auto-generated on first run). */
-  privateKey: z.string().optional(),
+  /** CLI-managed identity ID (stored in ~/.convos/identities/). */
+  identityId: z.string().optional(),
 
-  /** XMTP environment: dev (default) or production. */
-  XMTP_ENV: z.enum(["production", "dev"]).optional(),
+  /** XMTP environment: production (default) or dev. */
+  env: z.enum(["production", "dev"]).optional(),
 
   /** Enable debug logging for this account. */
   debug: z.boolean().optional(),
@@ -61,12 +62,6 @@ export const ConvosConfigSchema = z.object({
 
   /** The conversation ID where OpenClaw communicates with its owner. */
   ownerConversationId: z.string().optional(),
-
-  /** XMTP public address (inbox ID) for display / share. */
-  inboxId: z.string().optional(),
-
-  /** Invite URL for joining the owner conversation (displayed as QR). */
-  inviteUrl: z.string().optional(),
 });
 
 export type ConvosConfigInput = z.infer<typeof ConvosConfigSchema>;
