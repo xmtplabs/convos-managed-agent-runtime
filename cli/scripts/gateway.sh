@@ -69,6 +69,13 @@ if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
   unset _chrome _headless _sandbox _loglevel
 fi
 echo "  📂 state dir    → $STATE_DIR"
+echo "  convos paths"
+echo "  ═══════════════════════════════════════════════"
+echo "  ROOT              $ROOT"
+echo "  STATE_DIR         $STATE_DIR"
+echo "  WORKSPACE_DIR     $WORKSPACE_DIR"
+echo "  CONFIG            $CONFIG"
+echo "  SKILLS_DIR        $SKILLS_DIR"
 
 # OpenRouter credit check
 if [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1; then

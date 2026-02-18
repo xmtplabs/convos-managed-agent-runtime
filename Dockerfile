@@ -30,7 +30,7 @@ COPY openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY openclaw/workspace /app/openclaw/workspace
 COPY openclaw/extensions /app/openclaw/extensions
 COPY cli ./cli
-RUN chmod +x /app/cli/scripts/*.sh
+RUN chmod +x /app/cli/scripts/*.sh /app/cli/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
 ENV OPENCLAW_STATE_DIR=/app
@@ -44,4 +44,5 @@ ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080
+ENTRYPOINT ["./cli/scripts/entrypoint.sh"]
 CMD ["pnpm", "start"]
