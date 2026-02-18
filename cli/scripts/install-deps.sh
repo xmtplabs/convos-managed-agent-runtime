@@ -54,4 +54,14 @@ if [ -d "$SKILLS_DIR/bankr" ]; then
   fi
 fi
 
+# convos: install @convos/cli globally (for convos conversation commands)
+if [ -d "$EXTENSIONS_DIR/convos" ]; then
+  if command -v convos >/dev/null 2>&1; then
+    echo "  Skipping @convos/cli (already installed)"
+  else
+    echo "  Installing @convos/cli globally"
+    pnpm install -g @convos/cli || npm install -g @convos/cli || true
+  fi
+fi
+
 echo "  install-deps done"
