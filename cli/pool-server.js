@@ -6,8 +6,9 @@
  * until deployed (same approach as qa.yml).
  *
  * Serves (on public PORT):
- *   GET  /pool/health    → { ready: boolean }
- *   POST /pool/provision → write AGENTS.md + invite/join convos, return { ok, inviteUrl?, conversationId?, joined }
+ *   GET  /pool/health           → { ready: boolean }
+ *   POST /pool/restart-gateway  → write env overrides to volume, restart gateway.sh
+ *   POST /pool/provision        → write AGENTS.md + invite/join convos, return { ok, inviteUrl?, conversationId?, joined }
  */
 
 const http = require("node:http");
@@ -197,7 +198,19 @@ const server = http.createServer(async (req, res) => {
 
     const extraEnv = body.env || {};
 
-    // Merge env overrides into process.env so the new child inherits them
+    // Persist env overrides to the volume so gateway.sh picks them up
+    const stateDir = getStateDir();
+    const envProvisionPath = path.join(stateDir, ".env.provision");
+    const existing = fs.existsSync(envProvisionPath) ? fs.readFileSync(envProvisionPath, "utf8") : "";
+    const existingVars = Object.fromEntries(
+      existing.split("\n").filter((l) => l && !l.startsWith("#")).map((l) => l.split("=", 2)),
+    );
+    const merged = { ...existingVars, ...extraEnv };
+    const content = Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n";
+    fs.writeFileSync(envProvisionPath, content);
+    console.log(`[pool-server] Wrote ${Object.keys(extraEnv).length} env override(s) to ${envProvisionPath}`);
+
+    // Also merge into process.env so the new child inherits them
     Object.assign(process.env, extraEnv);
 
     try {

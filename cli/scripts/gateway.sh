@@ -5,6 +5,14 @@ set -e
 cd "$ROOT"
 . "$ROOT/cli/scripts/lib/env-load.sh"
 
+# Load provision-time env overrides from the persistent volume (written by pool-server)
+if [ -f "$STATE_DIR/.env.provision" ]; then
+  set -a
+  . "$STATE_DIR/.env.provision"
+  set +a
+  echo "  📦 .env.provision loaded ($(grep -cE '^[A-Za-z_]' "$STATE_DIR/.env.provision" 2>/dev/null || echo 0) vars)"
+fi
+
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
 
