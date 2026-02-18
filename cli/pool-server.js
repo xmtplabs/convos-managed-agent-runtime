@@ -114,14 +114,13 @@ function readBody(req) {
 }
 
 function checkAuth(req, res) {
-  if (!AUTH_TOKEN) return true;
+  if (!AUTH_TOKEN && !POOL_API_KEY) return true;
   const header = req.headers.authorization || "";
   const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match || match[1] !== AUTH_TOKEN) {
-    json(res, 401, { error: "Unauthorized" });
-    return false;
-  }
-  return true;
+  const token = match?.[1];
+  if (token && (token === AUTH_TOKEN || token === POOL_API_KEY)) return true;
+  json(res, 401, { error: "Unauthorized" });
+  return false;
 }
 
 // --- Convos invite/join helper ---
