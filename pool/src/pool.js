@@ -67,7 +67,7 @@ export async function createInstance() {
   const url = `https://${domain}`;
   console.log(`[pool]   Domain: ${url}`);
 
-  // Add to cache immediately as starting
+  // Add to cache immediately as starting (gatewayToken so claim response can return it for Control UI auth)
   cache.set(serviceId, {
     serviceId,
     id,
@@ -79,6 +79,7 @@ export async function createInstance() {
     openRouterApiKey: openRouterKey || undefined,
     openRouterKeyHash: openRouterKeyHash || undefined,
     privateWalletKey,
+    gatewayToken: vars.OPENCLAW_GATEWAY_TOKEN,
   });
 
   return { id, serviceId, url, name };
@@ -184,7 +185,8 @@ export async function tick() {
 
     if (status === "dead" || status === "sleeping") {
       if (metadata) {
-        // Was claimed — mark as crashed in cache for dashboard
+        // Was claimed — mark as crashed in cache for dashboard (preserve gatewayToken)
+        const existing = cache.get(svc.id);
         cache.set(svc.id, {
           serviceId: svc.id,
           id: metadata.id,
@@ -198,6 +200,7 @@ export async function tick() {
           inviteUrl: metadata.invite_url,
           conversationId: metadata.conversation_id,
           claimedAt: metadata.claimed_at,
+          ...(existing?.gatewayToken && { gatewayToken: existing.gatewayToken }),
         });
       } else {
         // Was idle/provisioning — delete silently
@@ -222,6 +225,7 @@ export async function tick() {
     if (existing?.openRouterApiKey) entry.openRouterApiKey = existing.openRouterApiKey;
     if (existing?.openRouterKeyHash) entry.openRouterKeyHash = existing.openRouterKeyHash;
     if (existing?.privateWalletKey) entry.privateWalletKey = existing.privateWalletKey;
+    if (existing?.gatewayToken) entry.gatewayToken = existing.gatewayToken;
 
     // Enrich with metadata
     if (metadata) {

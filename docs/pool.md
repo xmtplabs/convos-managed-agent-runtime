@@ -66,10 +66,10 @@ cp .env.example .env
 | `OPENCLAW_GIT_REF` | OpenClaw git ref to build from (default: `staging` or `main`) |
 | `INSTANCE_ANTHROPIC_API_KEY` | Anthropic API key injected into each instance |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `INSTANCE_OPENCLAW_GATEWAY_TOKEN` | Optional. If unset, each instance gets a random token; the claim response returns `gatewayToken` and `gatewayUrl` for Control UI auth. Set to a fixed value to use the same token for all instances. |
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_MAX_TOTAL` | Maximum total instances (default `10`) |
 | `DATABASE_URL` | Neon Postgres connection string |
+
 
 Run the database migration:
 

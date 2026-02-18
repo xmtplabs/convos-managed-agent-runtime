@@ -80,6 +80,8 @@ export async function provision(opts) {
       conversationId: result.conversationId,
       instanceId: instance.id,
       joined: result.joined,
+      gatewayToken: instance.gatewayToken || null,
+      gatewayUrl: instance.url || null,
     };
   } finally {
     cache.endClaim(instance.serviceId);
