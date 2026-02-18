@@ -136,7 +136,7 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         const res = await fetch(`${gatewayUrl}/convos/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ invite: joinUrl }),
+          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
@@ -148,19 +148,19 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
       } else {
         // Create a new conversation
-        const res = await fetch(`${gatewayUrl}/convos/invite`, {
+        const res = await fetch(`${gatewayUrl}/convos/conversation`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: agentName }),
+          body: JSON.stringify({ name: agentName, profileName: agentName }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`/convos/invite returned ${res.status}: ${text}`);
+          throw new Error(`/convos/conversation returned ${res.status}: ${text}`);
         }
         const data = await res.json();
-        console.log(`[pool-server] Created invite on attempt ${i}: ${data.inviteUrl}`);
-        return { inviteUrl: data.inviteUrl, conversationId: null, joined: false };
+        console.log(`[pool-server] Created conversation on attempt ${i}: ${data.inviteUrl}`);
+        return { inviteUrl: data.inviteUrl, conversationId: data.conversationId, joined: false };
       }
     } catch (err) {
       lastError = err;
@@ -266,7 +266,7 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
       console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
-      // Step 2: Invite or join via convos (channel may still be starting)
+      // Step 2: Create or join conversation via convos extension (channel may still be starting)
       const convosResult = await callConvosWithRetry(agentName, joinUrl);
 
       json(res, 200, {
