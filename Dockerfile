@@ -16,7 +16,7 @@ RUN apt-get update \
 RUN corepack enable
 ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN pnpm setup
+RUN mkdir -p "$PNPM_HOME"
 
 WORKDIR /app
 
