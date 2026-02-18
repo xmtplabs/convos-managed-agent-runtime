@@ -545,29 +545,25 @@ app.get("/", (_req, res) => {
 
     .modal {
       background: #FFF;
-      border-radius: 24px;
-      padding: 32px;
-      max-width: 340px;
-      width: 90%;
-      aspect-ratio: 1;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 1.25rem;
+      max-width: 320px;
+      width: 100%;
       text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
     }
 
     .modal h3 {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      letter-spacing: -0.08px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 0.75rem;
+      color: #000;
     }
 
     .qr-wrap {
       position: relative;
-      aspect-ratio: 1;
-      max-width: 240px;
       width: 100%;
       margin: 0 auto;
       display: block;
@@ -600,14 +596,15 @@ app.get("/", (_req, res) => {
     .qr-wrap .icon-center svg { width: 100%; height: 100%; }
 
     .modal .invite-row {
-      margin: 12px auto 0;
+      margin: 0.75rem 0 0;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 14px;
+      padding: 8px 12px;
       background: #F5F5F5;
-      border-radius: 12px;
-      max-width: 260px;
+      border-radius: 8px;
+      width: 100%;
+      box-sizing: border-box;
       cursor: pointer;
       transition: background 0.2s;
     }
