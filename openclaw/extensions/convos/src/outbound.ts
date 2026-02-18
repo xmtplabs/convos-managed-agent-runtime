@@ -1,30 +1,34 @@
-/**
- * Outbound: Convos send-text/send-media adapter and per-account client registry.
- */
 import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk";
-import type { ConvosSDKClient } from "./sdk-client.js";
-import { resolveConvosAccount, type CoreConfig } from "./accounts.js";
+import type { ConvosInstance } from "./sdk-client.js";
 import { getConvosRuntime } from "./runtime.js";
 
-// Track SDK clients by account ID (set by channel.ts during startAccount)
-const clients = new Map<string, ConvosSDKClient>();
+// Single instance — this process has one conversation
+let instance: ConvosInstance | null = null;
 
-/**
- * Set the SDK client for an account (called from channel.ts)
- */
-export function setClientForAccount(accountId: string, client: ConvosSDKClient | null): void {
-  if (client) {
-    clients.set(accountId, client);
-  } else {
-    clients.delete(accountId);
+// Track recently sent message IDs to filter self-echoes from the stream.
+// Capped at 100 entries to avoid unbounded growth.
+const recentSentIds = new Set<string>();
+const SENT_ID_MAX = 100;
+
+export function addSentMessageId(id: string): void {
+  if (!id) return;
+  recentSentIds.add(id);
+  if (recentSentIds.size > SENT_ID_MAX) {
+    const first = recentSentIds.values().next().value;
+    if (first !== undefined) recentSentIds.delete(first);
   }
 }
 
-/**
- * Get the SDK client for an account
- */
-export function getClientForAccount(accountId: string): ConvosSDKClient | undefined {
-  return clients.get(accountId);
+export function isSentMessage(id: string): boolean {
+  return recentSentIds.has(id);
+}
+
+export function setConvosInstance(inst: ConvosInstance | null): void {
+  instance = inst;
+}
+
+export function getConvosInstance(): ConvosInstance | null {
+  return instance;
 }
 
 export const convosOutbound: ChannelOutboundAdapter = {
@@ -33,21 +37,21 @@ export const convosOutbound: ChannelOutboundAdapter = {
   chunkerMode: "markdown",
   textChunkLimit: 4000,
 
-  sendText: async ({ cfg, to, text, accountId }) => {
-    const account = resolveConvosAccount({
-      cfg: cfg as CoreConfig,
-      accountId,
-    });
-    const client = clients.get(account.accountId);
-    if (!client) {
-      throw new Error(
-        `Convos client not running for account ${account.accountId}. Is the gateway started?`,
-      );
+  sendText: async ({ to, text }) => {
+    if (!instance) {
+      throw new Error("Convos instance not running. Is the gateway started?");
     }
-    const result = await client.sendMessage(to, text);
+    // In 1:1, `to` should match the instance's conversation.
+    // Assert to catch misrouting bugs.
+    if (to && to !== instance.conversationId) {
+      throw new Error(`Convos routing mismatch: expected ${instance.conversationId}, got ${to}`);
+    }
+    const result = await instance.sendMessage(text);
+    const mid = result.messageId ?? `convos-${Date.now()}`;
+    addSentMessageId(mid);
     return {
       channel: "convos",
-      messageId: result.messageId ?? `convos-${Date.now()}`,
+      messageId: mid,
     };
   },
 

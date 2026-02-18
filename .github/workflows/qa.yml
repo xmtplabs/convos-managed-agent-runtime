@@ -21,7 +21,7 @@ jobs:
           node-version: 22
 
       - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@latest --activate
+        run: corepack enable
 
       - name: Install system deps
         run: |
@@ -35,6 +35,7 @@ jobs:
       - name: Write .env
         run: |
           cat > .env <<'DOTENV'
+          POOL_API_KEY=test-api-key
           OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
           AGENTMAIL_API_KEY=${{ secrets.AGENTMAIL_API_KEY }}
           AGENTMAIL_INBOX_ID=${{ secrets.AGENTMAIL_INBOX_ID }}
@@ -51,32 +52,29 @@ jobs:
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
-      - name: Apply config
-        run: pnpm cli apply
-
-      - name: Install state deps
-        run: pnpm cli install-deps
-
       - name: Add global bins to PATH
         run: echo "$(pnpm bin -g)" >> "$GITHUB_PATH"
 
-      - name: Start gateway
+      - name: Start gateway via pool-server
         run: |
-          pnpm cli init &
-          echo "Waiting for gateway on port 18789..."
+          node cli/pool-server.js &
+          echo "Waiting for pool-server health on port 8080..."
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null 2>&1; then
+            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
               echo "Gateway ready after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null 2>&1; then
+          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
             echo "Gateway failed to start within 120s"
             exit 1
           fi
           echo "Waiting 15s for browser service to initialise..."
           sleep 15
+        env:
+          PORT: "8080"
+          GATEWAY_INTERNAL_PORT: "18789"
 
       - name: QA smoke tests
         run: timeout 120 pnpm cli qa

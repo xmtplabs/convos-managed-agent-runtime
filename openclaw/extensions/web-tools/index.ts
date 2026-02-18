@@ -21,6 +21,36 @@ function serveFile(
   }
 }
 
+/** Read poolApiKey from runtime config so the landing page can auth to convos endpoints. */
+function getPoolApiKey(api: OpenClawPluginApi): string {
+  try {
+    const cfg = api.runtime.config.loadConfig() as Record<string, unknown>;
+    const channels = cfg.channels as Record<string, unknown> | undefined;
+    const convos = channels?.convos as Record<string, unknown> | undefined;
+    return (convos?.poolApiKey as string) || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Serve the landing page with the poolApiKey injected as a JS variable. */
+function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: ServerResponse) {
+  try {
+    let html = fs.readFileSync(path.join(agentsDir, "landing.html"), "utf-8");
+    const token = getPoolApiKey(api);
+    // Inject token before the closing </head> tag so it's available to scripts
+    const injection = `<script>window.__POOL_TOKEN=${JSON.stringify(token)};</script>`;
+    html = html.replace("</head>", injection + "\n</head>");
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    res.end(html);
+  } catch {
+    res.statusCode = 404;
+    res.end();
+  }
+}
+
 export default function register(api: OpenClawPluginApi) {
   const formDir = path.resolve(__dirname, "form");
   const agentsDir = path.resolve(__dirname, "agents");
@@ -57,12 +87,7 @@ export default function register(api: OpenClawPluginApi) {
         res.end();
         return;
       }
-      serveFile(
-        res,
-        path.join(agentsDir, "landing.html"),
-        "text/html; charset=utf-8",
-        "no-store",
-      );
+      serveLandingPage(api, agentsDir, res);
     },
   });
 
@@ -74,12 +99,7 @@ export default function register(api: OpenClawPluginApi) {
         res.end();
         return;
       }
-      serveFile(
-        res,
-        path.join(agentsDir, "landing.html"),
-        "text/html; charset=utf-8",
-        "no-store",
-      );
+      serveLandingPage(api, agentsDir, res);
     },
   });
 

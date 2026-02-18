@@ -31,9 +31,9 @@ The `openclaw/` directory is synced into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`
 │   │       └── telnyx-cli/    # SKILL.md, config, setup, test
 │   │       └── bankr/         # SKILL.md, config, setup, test
 │   └── extensions/
-│       ├── convos/            # XMTP channel plugin (/convos/join, /convos/invite, setup)
+│       ├── convos/            # XMTP channel plugin (/convos/join, /convos/conversation, setup)
 │       │   ├── index.ts, openclaw.plugin.json, package.json
-│       │   └── src/           # channel, accounts, actions, sdk-client, outbound, …
+│       │   └── src/           # channel, accounts, sdk-client, outbound, …
 │       └── web-tools/         # form at /web-tools/form, agents at /web-tools/agents
 │           ├── form/          # form.html
 │           ├── agents/        # landing.html, sw.js, manifest, icon (calls convos APIs)
@@ -75,7 +75,6 @@ CHROMIUM_PATH=
 # --- Auto-provisioned by key-provision (leave empty) ---
 OPENCLAW_GATEWAY_TOKEN=
 SETUP_PASSWORD=
-PRIVATE_WALLET_KEY=
 AGENTMAIL_INBOX_ID=
 TELNYX_PHONE_NUMBER=
 TELNYX_MESSAGING_PROFILE_ID=
