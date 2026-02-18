@@ -60,7 +60,7 @@ if [ -d "$EXTENSIONS_DIR/convos" ]; then
     echo "  Skipping @convos/cli (already installed)"
   else
     echo "  Installing @convos/cli globally"
-    pnpm install -g @convos/cli || npm install -g @convos/cli || true
+    pnpm install -g github:xmtplabs/convos-cli || npm install -g github:xmtplabs/convos-cli || true
   fi
 fi
 
