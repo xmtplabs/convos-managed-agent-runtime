@@ -122,12 +122,16 @@ export async function deleteOrphanAgentVolumes() {
   }
 }
 
-/** Delete a single volume by ID. Best-effort. */
+/** Delete a single volume by ID. Retries up to 3 times with backoff. */
 export async function deleteVolume(volumeId, serviceId) {
-  try {
-    await gql(`mutation($volumeId: String!) { volumeDelete(volumeId: $volumeId) }`, { volumeId });
-    console.log(`[volumes] Deleted ${volumeId} (was attached to ${serviceId})`);
-  } catch (err) {
-    console.warn(`[volumes] Failed to delete ${volumeId}: ${err.message}`);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await gql(`mutation($volumeId: String!) { volumeDelete(volumeId: $volumeId) }`, { volumeId });
+      console.log(`[volumes] Deleted ${volumeId} (was attached to ${serviceId})`);
+      return;
+    } catch (err) {
+      console.warn(`[volumes] Failed to delete ${volumeId} (attempt ${attempt}/3): ${err.message}`);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
   }
 }
