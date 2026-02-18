@@ -9,6 +9,7 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -41,20 +42,24 @@ let cachedBinPath: string | undefined;
 /** Resolve the `convos` CLI binary from the installed @convos/cli package. */
 function resolveConvosBin(): string {
   if (cachedBinPath) {
+    console.log(`[convos-bin] Using cached path: ${cachedBinPath}`);
     return cachedBinPath;
   }
+
+  console.log("[convos-bin] Resolving convos binary...");
 
   // Strategy 1: createRequire from this file's URL
   try {
     const require = createRequire(import.meta.url);
     const pkgPath = require.resolve("@convos/cli/package.json");
     const binPath = path.join(path.dirname(pkgPath), "bin", "run.js");
+    console.log(`[convos-bin] Strategy 1: pkgPath=${pkgPath}, binPath=${binPath}, exists=${existsSync(binPath)}`);
     if (existsSync(binPath)) {
       cachedBinPath = binPath;
       return binPath;
     }
-  } catch {
-    // import.meta.url may not resolve when loaded via jiti
+  } catch (e) {
+    console.log(`[convos-bin] Strategy 1 failed: ${e instanceof Error ? e.message : e}`);
   }
 
   // Strategy 2: walk up from this file to find extension's node_modules
@@ -63,15 +68,29 @@ function resolveConvosBin(): string {
     const thisDir = path.dirname(fileURLToPath(import.meta.url));
     const extRoot = path.resolve(thisDir, "..");
     const binPath = path.join(extRoot, "node_modules", "@convos", "cli", "bin", "run.js");
+    console.log(`[convos-bin] Strategy 2: thisDir=${thisDir}, extRoot=${extRoot}, binPath=${binPath}, exists=${existsSync(binPath)}`);
     if (existsSync(binPath)) {
       cachedBinPath = binPath;
       return binPath;
     }
-  } catch {
-    // fileURLToPath may fail for non-file: URLs
+  } catch (e) {
+    console.log(`[convos-bin] Strategy 2 failed: ${e instanceof Error ? e.message : e}`);
+  }
+
+  // Strategy 3: check OPENCLAW_STATE_DIR/extensions/convos/node_modules
+  // install-deps.sh runs pnpm install inside the state dir copy of the extension
+  {
+    const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+    const binPath = path.join(stateDir, "extensions", "convos", "node_modules", "@convos", "cli", "bin", "run.js");
+    console.log(`[convos-bin] Strategy 3: stateDir=${stateDir}, binPath=${binPath}, exists=${existsSync(binPath)}`);
+    if (existsSync(binPath)) {
+      cachedBinPath = binPath;
+      return binPath;
+    }
   }
 
   // Fallback: assume `convos` is on PATH
+  console.warn("[convos-bin] All strategies failed — falling back to 'convos' on PATH");
   cachedBinPath = "convos";
   return "convos";
 }
@@ -127,9 +146,7 @@ export class ConvosInstance {
   private async exec(args: string[]): Promise<string> {
     const bin = resolveConvosBin();
     const finalArgs = [...args, "--env", this.env];
-    if (this.debug) {
-      console.log(`[convos] exec: convos ${finalArgs.join(" ")}`);
-    }
+    console.log(`[convos] exec: bin=${bin}, cmd=${bin === "convos" ? bin : process.execPath} ${(bin === "convos" ? finalArgs : [bin, ...finalArgs]).join(" ")}`);
     const { stdout } = await execFileAsync(
       bin === "convos" ? bin : process.execPath,
       bin === "convos" ? finalArgs : [bin, ...finalArgs],
@@ -164,9 +181,7 @@ export class ConvosInstance {
   private spawnChild(args: string[]): ChildProcess {
     const bin = resolveConvosBin();
     const finalArgs = [...args, "--env", this.env, "--json"];
-    if (this.debug) {
-      console.log(`[convos] spawn: convos ${finalArgs.join(" ")}`);
-    }
+    console.log(`[convos] spawn: bin=${bin}, cmd=${bin === "convos" ? bin : process.execPath} ${(bin === "convos" ? finalArgs : [bin, ...finalArgs]).join(" ")}`);
     const child = spawn(
       bin === "convos" ? bin : process.execPath,
       bin === "convos" ? finalArgs : [bin, ...finalArgs],
