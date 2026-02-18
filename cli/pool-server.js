@@ -7,7 +7,7 @@
  *
  * Serves (on public PORT):
  *   GET  /pool/health    → { ready: boolean }
- *   POST /pool/provision → write AGENTS.md, return { ok: true }
+ *   POST /pool/provision → write AGENTS.md + invite/join convos, return { ok, inviteUrl?, conversationId?, joined }
  */
 
 const http = require("node:http");
@@ -95,6 +95,57 @@ function checkAuth(req, res) {
   return true;
 }
 
+// --- Convos invite/join helper ---
+
+async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
+  const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
+  let lastError;
+
+  for (let i = 1; i <= maxAttempts; i++) {
+    try {
+      if (joinUrl) {
+        // Join an existing conversation
+        const res = await fetch(`${gatewayUrl}/convos-sdk/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invite: joinUrl }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`/convos-sdk/join returned ${res.status}: ${text}`);
+        }
+        const data = await res.json();
+        console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
+        return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
+      } else {
+        // Create a new conversation
+        const res = await fetch(`${gatewayUrl}/convos-sdk/invite`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: agentName }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`/convos-sdk/invite returned ${res.status}: ${text}`);
+        }
+        const data = await res.json();
+        console.log(`[pool-server] Created invite on attempt ${i}: ${data.inviteUrl}`);
+        return { inviteUrl: data.inviteUrl, conversationId: null, joined: false };
+      }
+    } catch (err) {
+      lastError = err;
+      if (i < maxAttempts) {
+        console.log(`[pool-server] Convos ${joinUrl ? "join" : "invite"} attempt ${i}/${maxAttempts} failed, retrying in 1s...`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  }
+
+  throw new Error(`Convos ${joinUrl ? "join" : "invite"} failed after ${maxAttempts} attempts: ${lastError?.message}`);
+}
+
 // --- Pool HTTP server ---
 
 const server = http.createServer(async (req, res) => {
@@ -122,7 +173,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const { agentName, instructions } = body;
+    const { agentName, instructions, joinUrl } = body;
     if (!agentName || typeof agentName !== "string") {
       json(res, 400, { error: "agentName (string) is required" });
       return;
@@ -133,6 +184,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
+      // Step 1: Write AGENTS.md
       const stateDir = getStateDir();
       const workspaceDir = path.join(stateDir, "workspace");
       fs.mkdirSync(workspaceDir, { recursive: true });
@@ -141,7 +193,15 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
       console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
-      json(res, 200, { ok: true });
+      // Step 2: Invite or join via convos-sdk (channel may still be starting)
+      const convosResult = await callConvosWithRetry(agentName, joinUrl);
+
+      json(res, 200, {
+        ok: true,
+        inviteUrl: convosResult.inviteUrl || null,
+        conversationId: convosResult.conversationId || null,
+        joined: convosResult.joined || false,
+      });
     } catch (err) {
       console.error("[pool-server] Provision failed:", err);
       json(res, 500, { error: err.message || "Provision failed" });
