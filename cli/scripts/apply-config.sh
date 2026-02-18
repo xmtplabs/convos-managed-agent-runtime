@@ -13,25 +13,8 @@ echo "  ═══════════════════"
 
 mkdir -p "$STATE_DIR"
 
-# Copy the repo template, then restore runtime-written Convos identity fields
-# so that a restart doesn't wipe the XMTP identity created at conversation time.
-_CONVOS_STATE=""
-if [ -f "$CONFIG" ] && command -v jq >/dev/null 2>&1; then
-  _CONVOS_STATE="$(jq -c '.channels.convos // empty' "$CONFIG" 2>/dev/null || true)"
-fi
-
+# Identity is now stored in credentials/convos-identity.json, not in the config.
 cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
-
-if [ -n "$_CONVOS_STATE" ] && command -v jq >/dev/null 2>&1; then
-  # Merge saved convos state back into the fresh template.
-  # Template keys win; runtime-only keys (identityId, ownerConversationId,
-  # allowFrom) are preserved because the template doesn't define them.
-  jq --argjson saved "$_CONVOS_STATE" \
-    '.channels.convos = ($saved * .channels.convos)' \
-    "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-  echo "  🔀 convos       → restored identity from previous run"
-fi
-unset _CONVOS_STATE
 
 # Patch config when running in a container (Railway: PORT=8080, OPENCLAW_STATE_DIR=/app)
 if command -v jq >/dev/null 2>&1; then
