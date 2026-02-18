@@ -19,9 +19,14 @@ async function healthCheck(url) {
       headers: { Authorization: `Bearer ${POOL_API_KEY}` },
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.log(`[health] ${url} returned ${res.status}: ${text.slice(0, 200)}`);
+      return null;
+    }
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.log(`[health] ${url} error: ${err.message}`);
     return null;
   }
 }
