@@ -35,7 +35,6 @@ jobs:
       - name: Write .env
         run: |
           cat > .env <<'DOTENV'
-          POOL_API_KEY=test-api-key
           OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
           AGENTMAIL_API_KEY=${{ secrets.AGENTMAIL_API_KEY }}
           AGENTMAIL_INBOX_ID=${{ secrets.AGENTMAIL_INBOX_ID }}

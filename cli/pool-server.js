@@ -20,6 +20,7 @@ const { getStateDir } = require("./context.cjs");
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
 const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN;
+// POOL_API_KEY is optional; when neither it nor GATEWAY_AUTH_TOKEN is set, pool routes allow unauthenticated access.
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const ROOT = path.resolve(__dirname, "..");
 
