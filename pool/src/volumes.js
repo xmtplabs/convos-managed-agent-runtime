@@ -59,29 +59,66 @@ export async function fetchAllVolumesByService() {
   }
 }
 
-/** Delete ALL volumes in the project (one-time orphan cleanup at startup). */
-export async function deleteAllProjectVolumes() {
+/** Delete orphaned agent volumes (not attached to any current agent service).
+ *  Only touches volumes mounted at /data on convos-agent-* services. */
+export async function deleteOrphanAgentVolumes() {
   const projectId = process.env.RAILWAY_PROJECT_ID;
   try {
     const data = await gql(
       `query($id: String!) {
         project(id: $id) {
-          volumes { edges { node { id } } }
+          volumes {
+            edges {
+              node {
+                id
+                name
+                volumeInstances {
+                  edges { node { serviceId mountPath } }
+                }
+              }
+            }
+          }
+          services(first: 500) {
+            edges { node { id name } }
+          }
         }
       }`,
       { id: projectId }
     );
-    const edges = data.project?.volumes?.edges || [];
-    if (edges.length === 0) {
-      console.log(`[volumes] No orphan volumes found`);
-      return;
+
+    // Build set of active service IDs
+    const activeServiceIds = new Set(
+      (data.project?.services?.edges || []).map((e) => e.node.id)
+    );
+
+    const volumes = data.project?.volumes?.edges || [];
+    let deleted = 0;
+
+    for (const edge of volumes) {
+      const vol = edge.node;
+      const instances = vol.volumeInstances?.edges || [];
+
+      // Skip volumes not mounted at /data (e.g. Postgres, MySQL volumes)
+      const isAgentVolume = instances.some((vi) => vi.node?.mountPath === "/data");
+      if (!isAgentVolume && instances.length > 0) continue;
+
+      // Orphan = no instances at all, or attached to a service that no longer exists
+      const isOrphan = instances.length === 0 ||
+        instances.every((vi) => !activeServiceIds.has(vi.node?.serviceId));
+
+      if (isOrphan) {
+        await deleteVolume(vol.id, "(orphan)");
+        deleted++;
+      }
     }
-    console.log(`[volumes] Deleting ${edges.length} orphan volume(s)...`);
-    for (const edge of edges) {
-      await deleteVolume(edge.node.id, "(orphan)");
+
+    if (deleted === 0) {
+      console.log(`[volumes] No orphan agent volumes found`);
+    } else {
+      console.log(`[volumes] Cleaned up ${deleted} orphan volume(s)`);
     }
   } catch (err) {
-    console.warn(`[volumes] deleteAllProjectVolumes failed: ${err.message}`);
+    console.warn(`[volumes] deleteOrphanAgentVolumes failed: ${err.message}`);
   }
 }
 

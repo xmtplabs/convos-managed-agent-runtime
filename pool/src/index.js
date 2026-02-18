@@ -1,7 +1,7 @@
 import express from "express";
 import * as pool from "./pool.js";
 import * as cache from "./cache.js";
-import { deleteAllProjectVolumes } from "./volumes.js";
+import { deleteOrphanAgentVolumes } from "./volumes.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
@@ -1127,7 +1127,7 @@ setInterval(() => {
 }, TICK_INTERVAL);
 
 // One-time orphan volume cleanup, then run initial tick
-deleteAllProjectVolumes()
+deleteOrphanAgentVolumes()
   .catch((err) => console.warn("[startup] Orphan volume cleanup failed:", err.message))
   .then(() => pool.tick())
   .catch((err) => console.error("[tick] Initial tick error:", err));
