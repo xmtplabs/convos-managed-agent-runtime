@@ -1,3 +1,5 @@
+import { setResourceLimits } from "./resources.js";
+
 const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
 export async function gql(query, variables = {}) {
@@ -13,7 +15,13 @@ export async function gql(query, variables = {}) {
     body: JSON.stringify({ query, variables }),
   });
 
-  const json = await res.json();
+  const text = await res.text();
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`Railway API returned non-JSON (${res.status}): ${text.slice(0, 120)}`);
+  }
   if (json.errors) {
     throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
   }
@@ -27,14 +35,9 @@ export async function createService(name, variables = {}) {
   const repo = process.env.RAILWAY_SOURCE_REPO;
   const branch = process.env.RAILWAY_SOURCE_BRANCH;
 
-  const input = {
-    projectId,
-    environmentId,
-    name,
-    source: { repo },
-    variables,
-  };
-  if (branch) input.branch = branch;
+  // Create service WITHOUT source to prevent auto-deploy.
+  // Connecting the repo happens later, after all config is set.
+  const input = { projectId, environmentId, name, variables };
 
   console.log(`[railway] createService: ${name}, branch=${branch || "(default)"}, env=${environmentId}`);
 
@@ -47,8 +50,15 @@ export async function createService(name, variables = {}) {
 
   const serviceId = data.serviceCreate.id;
 
-  // Set rootDirectory for monorepo support (must be done via serviceInstanceUpdate,
-  // not supported in ServiceCreateInput).
+  // Step 1: Set startCommand (no repo connected, no auto-deploy).
+  try {
+    await updateServiceInstance(serviceId, { startCommand: "node cli/pool-server.js" });
+    console.log(`[railway]   Set startCommand: node cli/pool-server.js`);
+  } catch (err) {
+    console.warn(`[railway] Failed to set startCommand for ${serviceId}:`, err);
+  }
+
+  // Step 2: Set rootDirectory for monorepo support (no repo connected, no auto-deploy).
   const rootDir = process.env.RAILWAY_SOURCE_ROOT_DIR;
   if (rootDir) {
     try {
@@ -59,96 +69,36 @@ export async function createService(name, variables = {}) {
     }
   }
 
+  // Step 3: Set resource limits (no repo connected, no auto-deploy).
+  await setResourceLimits(serviceId);
 
-  // serviceCreate always deploys from the repo's default branch (main)
-  // regardless of the branch field. To build from the correct branch:
-  // 1. Cancel the initial main deployment that serviceCreate auto-triggered
-  // 2. Fetch the latest commit SHA from the target branch via GitHub API
-  // 3. Deploy that specific commit via serviceInstanceDeploy
-  //
-  // Variables are passed inline to serviceCreate above so that
-  // setVariables doesn't trigger another main deployment.
-  //
-  // We also cancel-and-redeploy when rootDir is set (even without branch),
-  // because serviceCreate triggers deployment before updateServiceInstance
-  // sets rootDirectory.
-  if (branch || rootDir) {
-    // Cancel the initial main deployment.
-    try {
-      const depData = await gql(
-        `query($id: String!) {
-          service(id: $id) {
-            deployments(first: 1) { edges { node { id } } }
-          }
-        }`,
-        { id: serviceId }
-      );
-      const initialDeploy = depData.service?.deployments?.edges?.[0]?.node;
-      if (initialDeploy) {
-        await gql(
-          `mutation($id: String!) { deploymentCancel(id: $id) }`,
-          { id: initialDeploy.id }
-        );
-        console.log(`[railway] Cancelled initial main deployment ${initialDeploy.id}`);
-      }
-    } catch (err) {
-      console.warn(`[railway] Failed to cancel initial deployment for ${serviceId}:`, err);
-    }
+  // Step 4: Connect repo — triggers a single deploy with all config already set.
+  const connectInput = { repo };
+  if (branch) connectInput.branch = branch;
+  try {
+    await gql(
+      `mutation($id: String!, $input: ServiceConnectInput!) {
+        serviceConnect(id: $id, input: $input) { id }
+      }`,
+      { id: serviceId, input: connectInput }
+    );
+    console.log(`[railway]   Connected repo ${repo} (branch: ${branch || "default"}) — deploying`);
+  } catch (err) {
+    console.warn(`[railway] Failed to connect repo for ${serviceId}:`, err);
+  }
 
-    // Deploy the latest commit from the correct branch (or default branch).
-    const deployRef = branch || "HEAD";
-    try {
-      const ghRes = await fetch(`https://api.github.com/repos/${repo}/commits/${deployRef}`, {
-        headers: { Accept: "application/vnd.github.v3+json" },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!ghRes.ok) throw new Error(`GitHub API ${ghRes.status}`);
-      const { sha } = await ghRes.json();
-
-      await gql(
-        `mutation($serviceId: String!, $environmentId: String!, $commitSha: String!) {
-          serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId, commitSha: $commitSha)
-        }`,
-        { serviceId, environmentId, commitSha: sha }
-      );
-      console.log(`[railway] Deployed ${repo}@${deployRef} (${sha.slice(0, 8)}) to ${serviceId}`);
-    } catch (err) {
-      console.warn(`[railway] Failed to deploy correct branch for ${serviceId}:`, err);
-    }
-
-    // Disconnect the repo so pushes don't auto-redeploy all agent instances.
-    // The correct commit is already deployed above; no further repo link needed.
-    try {
-      await gql(
-        `mutation($id: String!) { serviceDisconnect(id: $id) { id } }`,
-        { id: serviceId }
-      );
-      console.log(`[railway]   Disconnected repo (auto-deploys disabled)`);
-    } catch (err) {
-      console.warn(`[railway] Failed to disconnect repo for ${serviceId}:`, err);
-    }
+  // Step 5: Disconnect repo to prevent auto-deploys from future pushes.
+  try {
+    await gql(
+      `mutation($id: String!) { serviceDisconnect(id: $id) { id } }`,
+      { id: serviceId }
+    );
+    console.log(`[railway]   Disconnected repo (auto-deploys disabled)`);
+  } catch (err) {
+    console.warn(`[railway] Failed to disconnect repo for ${serviceId}:`, err);
   }
 
   return serviceId;
-}
-
-export async function setVariables(serviceId, variables) {
-  const projectId = process.env.RAILWAY_PROJECT_ID;
-  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
-
-  await gql(
-    `mutation($input: VariableCollectionUpsertInput!) {
-      variableCollectionUpsert(input: $input)
-    }`,
-    {
-      input: {
-        projectId,
-        environmentId,
-        serviceId,
-        variables,
-      },
-    }
-  );
 }
 
 export async function createDomain(serviceId) {
@@ -195,9 +145,10 @@ export async function createVolume(serviceId, mountPath = "/data") {
       volumeCreate(input: $input) { id name }
     }`,
     {
-      input: { projectId, environmentId, serviceId, mountPath },
+      input: { projectId, serviceId, mountPath, environmentId },
     }
   );
+
   return data.volumeCreate;
 }
 

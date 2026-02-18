@@ -277,6 +277,9 @@ app.get("/", (_req, res) => {
     .setting-input::placeholder { color: #B2B2B2; }
     textarea.setting-input { resize: vertical; min-height: 80px; }
 
+    .channel-checkboxes { display: flex; gap: 20px; flex-wrap: wrap; }
+    .channel-option { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; }
+
     .btn-primary {
       background: #FC4F37;
       color: #FFF;
@@ -666,7 +669,7 @@ app.get("/", (_req, res) => {
         <div class="pool-stat crashed" id="s-crashed-wrap" style="display:none"><span class="dot"></span><span id="s-crashed">0</span> crashed</div>
       </div>
       <div class="pool-bar-right">
-        <input id="replenish-count" type="number" min="1" max="20" value="3" />
+        <input id="replenish-count" type="number" min="1" max="20" value="1" />
         <button class="pool-btn" id="replenish-btn">+ Add</button>
         <button class="pool-btn danger" id="drain-btn">Drain</button>
       </div>
@@ -684,6 +687,7 @@ app.get("/", (_req, res) => {
           No instances ready. Waiting for pool to warm up...
         </div>
         <form id="f">
+          <!-- Join mode hidden for now
           <div class="mode-toggle">
             <button type="button" class="mode-btn active" id="mode-create">New Conversation</button>
             <button type="button" class="mode-btn" id="mode-join">Join Existing</button>
@@ -692,9 +696,18 @@ app.get("/", (_req, res) => {
             <label class="setting-label" for="join-url">Conversation Link</label>
             <input id="join-url" name="joinUrl" class="setting-input" placeholder="Paste a Convos invite link..." />
           </div>
+          -->
           <div class="setting-group">
             <label class="setting-label" for="name">Name</label>
             <input id="name" name="name" class="setting-input" placeholder="e.g. Tokyo Trip" required />
+          </div>
+          <div class="setting-group">
+            <label class="setting-label">Channels</label>
+            <div class="channel-checkboxes">
+              <label class="channel-option"><input type="checkbox" name="channel-email" checked /> Email</label>
+              <label class="channel-option"><input type="checkbox" name="channel-crypto" checked /> Crypto</label>
+              <label class="channel-option"><input type="checkbox" name="channel-sms" checked /> SMS</label>
+            </div>
           </div>
           <div class="setting-group">
             <label class="setting-label" for="instructions">Instructions</label>
@@ -737,7 +750,13 @@ app.get("/", (_req, res) => {
   <script>
     const API_KEY='${POOL_API_KEY}';
     const POOL_ENV='${POOL_ENVIRONMENT}';
+    const RAILWAY_PROJECT='${process.env.RAILWAY_PROJECT_ID || ""}';
+    const RAILWAY_ENV='${process.env.RAILWAY_ENVIRONMENT_ID || ""}';
     const authHeaders={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'};
+    function railwayUrl(serviceId){
+      if(!RAILWAY_PROJECT||!serviceId)return null;
+      return 'https://railway.com/project/'+RAILWAY_PROJECT+'/service/'+serviceId+(RAILWAY_ENV?'?environmentId='+RAILWAY_ENV:'');
+    }
 
     function copyText(el){
       navigator.clipboard.writeText(el.textContent.trim()).then(function(){
@@ -806,11 +825,14 @@ app.get("/", (_req, res) => {
       crashedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
         var instr=esc(a.instructions||'No instructions');
+        var rUrl=railwayUrl(a.serviceId);
+        var idLine='<div style="font-size:11px;color:#999;margin-bottom:8px;font-family:monospace">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener" style="color:#007AFF;text-decoration:none">Railway</a>':'')+'</div>';
         html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<span class="agent-name">'+name+' <span class="agent-status-badge">Crashed</span></span>'+
             '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
           '</div>'+
+          idLine+
           '<div class="agent-instructions">'+instr+'</div>'+
           '<div class="agent-actions">'+
             '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
@@ -822,11 +844,14 @@ app.get("/", (_req, res) => {
       claimedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
         var instr=esc(a.instructions||'No instructions');
+        var rUrl=railwayUrl(a.serviceId);
+        var idLine='<div style="font-size:11px;color:#999;margin-bottom:8px;font-family:monospace">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener" style="color:#007AFF;text-decoration:none">Railway</a>':'')+'</div>';
         html+='<div class="agent-card" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<span class="agent-name">'+name+'</span>'+
             '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
           '</div>'+
+          idLine+
           '<div class="agent-instructions">'+instr+'</div>'+
           '<div class="agent-actions">'+
             '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
@@ -847,8 +872,9 @@ app.get("/", (_req, res) => {
       }
       var killId=e.target.getAttribute('data-kill');
       if(killId){
-        var a2=claimedCache.find(function(x){return x.id===killId;});
-        if(a2)killAgent(a2.id,a2.agentName||a2.id);
+        var card=document.getElementById('agent-'+killId);
+        var name=card?card.querySelector('.agent-name').textContent.trim():killId;
+        killAgent(killId,name);
         return;
       }
       var dismissId=e.target.getAttribute('data-dismiss');
@@ -923,28 +949,6 @@ app.get("/", (_req, res) => {
       }
     }
 
-    // Mode toggle
-    var modeCreate=document.getElementById('mode-create');
-    var modeJoin=document.getElementById('mode-join');
-    var joinUrlGroup=document.getElementById('join-url-group');
-    var joinUrlInput=document.getElementById('join-url');
-    var isJoinMode=false;
-
-    modeCreate.onclick=function(){
-      isJoinMode=false;
-      modeCreate.classList.add('active');modeJoin.classList.remove('active');
-      joinUrlGroup.style.display='none';
-      joinUrlInput.removeAttribute('required');
-      btn.textContent='Launch Agent';
-    };
-    modeJoin.onclick=function(){
-      isJoinMode=true;
-      modeJoin.classList.add('active');modeCreate.classList.remove('active');
-      joinUrlGroup.style.display='block';
-      joinUrlInput.setAttribute('required','required');
-      btn.textContent='Join & Launch';
-    };
-
     // Launch form
     var f=document.getElementById('f'),errorEl=document.getElementById('error');
     var successEl=document.getElementById('success'),successTextEl=document.getElementById('success-text');
@@ -952,18 +956,7 @@ app.get("/", (_req, res) => {
       e.preventDefault();
       var agentName=f.name.value.trim();
       var payload={agentName:agentName,instructions:f.instructions.value.trim()};
-      if(isJoinMode){
-        var jUrl=joinUrlInput.value.trim();
-        if(!jUrl){errorEl.textContent='Conversation link is required';errorEl.style.display='block';return;}
-        if(POOL_ENV==='production'&&/dev\\.convos\\.org/i.test(jUrl)){
-          errorEl.textContent='That looks like a dev environment link. Use a popup.convos.org link for production.';errorEl.style.display='block';return;
-        }
-        if(POOL_ENV!=='production'&&/popup\\.convos\\.org/i.test(jUrl)){
-          errorEl.textContent='That looks like a production link. Use a dev.convos.org link for the dev environment.';errorEl.style.display='block';return;
-        }
-        payload.joinUrl=jUrl;
-      }
-      launching=true;btn.disabled=true;btn.textContent=isJoinMode?'Joining...':'Launching...';
+      launching=true;btn.disabled=true;btn.textContent='Launching...';
       errorEl.style.display='none';successEl.classList.remove('active');
       try{
         var res=await fetch('/api/pool/claim',{method:'POST',headers:authHeaders,
@@ -972,7 +965,6 @@ app.get("/", (_req, res) => {
         var data=await res.json();
         if(!res.ok)throw new Error(data.error||'Launch failed');
         f.reset();
-        if(isJoinMode){modeCreate.onclick();}
         if(data.joined){
           successTextEl.textContent=agentName+' joined the conversation';
           successEl.classList.add('active');
@@ -984,7 +976,7 @@ app.get("/", (_req, res) => {
       }catch(err){
         errorEl.textContent=err.message;
         errorEl.style.display='block';
-      }finally{launching=false;btn.textContent=isJoinMode?'Join & Launch':'Launch Agent';refreshStatus();}
+      }finally{launching=false;btn.textContent='Launch Agent';refreshStatus();}
     };
 
     // Pool controls
@@ -1060,7 +1052,11 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   }
 
   try {
-    const result = await pool.provision(agentName, instructions, joinUrl || undefined);
+    const result = await pool.provision({
+      agentName,
+      instructions,
+      joinUrl: joinUrl || undefined,
+    });
     if (!result) {
       return res.status(503).json({
         error: "No idle instances available. Try again in a few minutes.",
