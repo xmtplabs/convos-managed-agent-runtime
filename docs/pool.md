@@ -70,6 +70,7 @@ cp .env.example .env
 | `POOL_MAX_TOTAL` | Maximum total instances (default `10`) |
 | `DATABASE_URL` | Neon Postgres connection string |
 
+
 Run the database migration:
 
 ```sh
@@ -136,14 +137,16 @@ Claims an idle instance and provisions it. Creates a new conversation or joins a
 }
 ```
 
-Returns:
+Returns (use `gatewayToken` as the OpenClaw Control UI / gateway auth token; `gatewayUrl` is the instance base URL):
 
 ```json
 {
   "inviteUrl": "https://dev.convos.org/v2?i=...",
   "conversationId": "abc123",
   "instanceId": "rnM8UBQ_fZCz",
-  "joined": false
+  "joined": false,
+  "gatewayToken": "<64-char-hex>",
+  "gatewayUrl": "https://convos-agent-xxx.up.railway.app"
 }
 ```
 

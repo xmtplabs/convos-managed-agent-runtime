@@ -2,7 +2,7 @@
 
 OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config. Pre-warmed instances are provisioned via a pool; users claim an agent and it’s live in seconds.
 
-See `docs/` for design, QA, changelog, pool details, and workarounds.
+See `docs/` for design, QA, changelog, pool details, **convos extension** (`docs/convos-extension.md`), and workarounds.
 
 ---
 
@@ -93,7 +93,32 @@ flowchart LR
 | `pnpm pool:db:migrate` | Run DB migrations |
 | `pnpm pool:test` | Run pool tests |
 
-Configure via `pool/.env` (see `pool/.env.example`): `DATABASE_URL`, `RAILWAY_*`, `POOL_API_KEY`, `POOL_MIN_IDLE`, `POOL_MAX_TOTAL`, and instance env (OpenRouter, XMTP, Agentmail, Telnyx, Bankr).
+Configure via `pool/.env` (see `pool/.env.example`). Example with all instance vars (use placeholders for secrets):
+
+```bash
+# Pool
+POOL_MIN_IDLE=1
+POOL_API_KEY=test
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@postgres.railway.internal:5432/railway
+
+# Railway
+RAILWAY_PROJECT_ID=c8090f69-bfd3-4955-a1d1-fe9af4c7c45a
+RAILWAY_ENVIRONMENT_ID=3e887007-21f1-40d5-bf0b-89a3fb71f511
+RAILWAY_API_TOKEN=your-railway-api-token
+
+# OpenRouter (pool creates per-instance keys from this)
+OPENROUTER_MANAGEMENT_KEY=sk-or-v1-...
+
+# Instance defaults (injected into each pool instance)
+INSTANCE_OPENCLAW_PRIMARY_MODEL=openrouter/openai/gpt-oss-20b
+INSTANCE_XMTP_ENV=dev
+INSTANCE_AGENTMAIL_API_KEY=am_...
+INSTANCE_AGENTMAIL_INBOX_ID=convos@agentmail.to
+INSTANCE_BANKR_API_KEY=bk_...
+INSTANCE_TELNYX_API_KEY=KEY...
+INSTANCE_TELNYX_PHONE_NUMBER=+14193792549
+INSTANCE_TELNYX_MESSAGING_PROFILE_ID=40019c66-c84a-459f-8553-0ef16775fb29
+```
 
 ### Pool API (authenticated with Bearer `POOL_API_KEY`)
 
@@ -140,7 +165,7 @@ When `OPENCLAW_STATE_DIR` is set (e.g. in Docker), `apply` patches `agents.defau
 - **Join:** `POST /convos/join` with invite URL → join existing conversation.
 - **Status:** `GET /convos/status` → `ready` when identity and stream are up.
 
-Pool manager uses these endpoints to provision claimed instances.
+Pool manager uses these endpoints to provision claimed instances. Full API, config, and layout: **`docs/convos-extension.md`**.
 
 ---
 

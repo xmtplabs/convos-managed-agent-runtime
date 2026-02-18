@@ -12,6 +12,14 @@ import { ConvosInstance } from "./src/sdk-client.js";
 import { clearConvosCredentials, saveConvosCredentials } from "./src/credentials.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
+const DEFAULT_INSTRUCTIONS = `You are a helpful assistant on Convos, an encrypted messaging platform.
+
+When someone greets you (e.g. "hi", "hey", "hello"), greet them back naturally. Keep it friendly and concise.
+
+Your channel is Convos — you're already connected. Do NOT ask the user which platform they are on, what service they use, or for any API credentials. Everything is already set up.
+
+Refer to SOUL.md for your personality and TOOLS.md for your capabilities.`;
+
 // Module-level state for setup instance (accepts join requests during setup flow)
 let setupInstance: ConvosInstance | null = null;
 let setupJoinState = { joined: false, joinerInboxId: null as string | null };
@@ -418,14 +426,14 @@ const plugin = {
               : undefined;
           const accountId = typeof body.accountId === "string" ? body.accountId : undefined;
 
-          // Write instructions file for the agent if provided
+          // Write instructions file for the agent (use sensible default if none provided)
           const instructions =
-            typeof body.instructions === "string" ? body.instructions : undefined;
-          if (instructions && instructions.trim()) {
-            const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
-            fs.mkdirSync(wsDir, { recursive: true });
-            fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
-          }
+            typeof body.instructions === "string" && body.instructions.trim()
+              ? body.instructions
+              : DEFAULT_INSTRUCTIONS;
+          const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
+          fs.mkdirSync(wsDir, { recursive: true });
+          fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
 
           const runtime = getConvosRuntime();
           const cfg = runtime.config.loadConfig();
@@ -515,14 +523,14 @@ const plugin = {
             typeof body.profileImage === "string" ? body.profileImage : undefined;
           const accountId = typeof body.accountId === "string" ? body.accountId : undefined;
 
-          // Write instructions file for the agent if provided
+          // Write instructions file for the agent (use sensible default if none provided)
           const instructions =
-            typeof body.instructions === "string" ? body.instructions : undefined;
-          if (instructions && instructions.trim()) {
-            const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
-            fs.mkdirSync(wsDir, { recursive: true });
-            fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
-          }
+            typeof body.instructions === "string" && body.instructions.trim()
+              ? body.instructions
+              : DEFAULT_INSTRUCTIONS;
+          const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
+          fs.mkdirSync(wsDir, { recursive: true });
+          fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
 
           const runtime = getConvosRuntime();
           const cfg = runtime.config.loadConfig();
