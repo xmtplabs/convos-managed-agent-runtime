@@ -6,8 +6,9 @@
  * until deployed (same approach as qa.yml).
  *
  * Serves (on public PORT):
- *   GET  /pool/health    → { ready: boolean }
- *   POST /pool/provision → write AGENTS.md, return { ok: true }
+ *   GET  /pool/health           → { ready: boolean }
+ *   POST /pool/restart-gateway  → write env overrides to volume, restart gateway.sh
+ *   POST /pool/provision        → write AGENTS.md + invite/join convos, return { ok, inviteUrl?, conversationId?, joined }
  */
 
 const http = require("node:http");
@@ -22,26 +23,35 @@ const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN;
 const ROOT = path.resolve(__dirname, "..");
 
 let gatewayReady = false;
+let restarting = false;
+let gatewayChild = null;
 
-// --- Start gateway on internal port ---
+// --- Gateway lifecycle ---
 
-const child = spawn("pnpm", ["start"], {
-  cwd: ROOT,
-  stdio: "inherit",
-  env: {
-    ...process.env,
-    PORT: String(INTERNAL_PORT),
-    OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
-  },
-});
+function spawnGateway(extraEnv = {}) {
+  gatewayReady = false;
 
-child.on("exit", (code) => {
-  console.error(`[pool-server] Gateway exited with code ${code}`);
-  process.exit(code ?? 1);
-});
+  const child = spawn("sh", ["cli/scripts/gateway.sh"], {
+    cwd: ROOT,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      ...extraEnv,
+      PORT: String(INTERNAL_PORT),
+      OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
+      OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+    },
+  });
 
-// Poll gateway until deployed (same as qa.yml)
+  child.on("exit", (code) => {
+    console.error(`[pool-server] Gateway exited with code ${code}`);
+    if (!restarting) process.exit(code ?? 1);
+  });
+
+  gatewayChild = child;
+  return child;
+}
+
 async function pollGateway() {
   const url = `http://localhost:${INTERNAL_PORT}/__openclaw__/canvas/`;
   for (let i = 1; i <= 120; i++) {
@@ -59,6 +69,24 @@ async function pollGateway() {
   process.exit(1);
 }
 
+// Initial start uses pnpm start (full init chain) for first boot
+const initialChild = spawn("pnpm", ["start"], {
+  cwd: ROOT,
+  stdio: "inherit",
+  env: {
+    ...process.env,
+    PORT: String(INTERNAL_PORT),
+    OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
+    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+  },
+});
+
+initialChild.on("exit", (code) => {
+  console.error(`[pool-server] Gateway exited with code ${code}`);
+  if (!restarting) process.exit(code ?? 1);
+});
+
+gatewayChild = initialChild;
 pollGateway();
 
 // --- Helpers ---
@@ -95,6 +123,57 @@ function checkAuth(req, res) {
   return true;
 }
 
+// --- Convos invite/join helper ---
+
+async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
+  const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
+  let lastError;
+
+  for (let i = 1; i <= maxAttempts; i++) {
+    try {
+      if (joinUrl) {
+        // Join an existing conversation
+        const res = await fetch(`${gatewayUrl}/convos-sdk/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invite: joinUrl }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`/convos-sdk/join returned ${res.status}: ${text}`);
+        }
+        const data = await res.json();
+        console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
+        return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
+      } else {
+        // Create a new conversation
+        const res = await fetch(`${gatewayUrl}/convos-sdk/invite`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: agentName }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`/convos-sdk/invite returned ${res.status}: ${text}`);
+        }
+        const data = await res.json();
+        console.log(`[pool-server] Created invite on attempt ${i}: ${data.inviteUrl}`);
+        return { inviteUrl: data.inviteUrl, conversationId: null, joined: false };
+      }
+    } catch (err) {
+      lastError = err;
+      if (i < maxAttempts) {
+        console.log(`[pool-server] Convos ${joinUrl ? "join" : "invite"} attempt ${i}/${maxAttempts} failed, retrying in 1s...`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  }
+
+  throw new Error(`Convos ${joinUrl ? "join" : "invite"} failed after ${maxAttempts} attempts: ${lastError?.message}`);
+}
+
 // --- Pool HTTP server ---
 
 const server = http.createServer(async (req, res) => {
@@ -102,6 +181,51 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/pool/health") {
     if (!checkAuth(req, res)) return;
     json(res, 200, { ready: gatewayReady });
+    return;
+  }
+
+  // POST /pool/restart-gateway
+  if (req.method === "POST" && req.url === "/pool/restart-gateway") {
+    if (!checkAuth(req, res)) return;
+
+    let body;
+    try {
+      body = await readBody(req);
+    } catch {
+      json(res, 400, { error: "Invalid JSON body" });
+      return;
+    }
+
+    const extraEnv = body.env || {};
+
+    // Merge into process.env so the new child inherits them
+    Object.assign(process.env, extraEnv);
+
+    try {
+      restarting = true;
+      if (gatewayChild) {
+        console.log("[pool-server] Killing current gateway for restart...");
+        gatewayChild.kill("SIGTERM");
+        // Wait for the child to exit before respawning
+        await new Promise((resolve) => {
+          const onExit = () => resolve();
+          gatewayChild.once("exit", onExit);
+          // If already dead, resolve immediately
+          if (gatewayChild.exitCode !== null) resolve();
+        });
+      }
+      restarting = false;
+
+      console.log("[pool-server] Spawning new gateway...");
+      spawnGateway(extraEnv);
+      await pollGateway();
+
+      json(res, 200, { ok: true });
+    } catch (err) {
+      restarting = false;
+      console.error("[pool-server] restart-gateway failed:", err);
+      json(res, 500, { error: err.message || "Restart failed" });
+    }
     return;
   }
 
@@ -122,7 +246,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const { agentName, instructions } = body;
+    const { agentName, instructions, joinUrl } = body;
     if (!agentName || typeof agentName !== "string") {
       json(res, 400, { error: "agentName (string) is required" });
       return;
@@ -133,6 +257,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
+      // Step 1: Write AGENTS.md
       const stateDir = getStateDir();
       const workspaceDir = path.join(stateDir, "workspace");
       fs.mkdirSync(workspaceDir, { recursive: true });
@@ -141,7 +266,15 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
       console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
-      json(res, 200, { ok: true });
+      // Step 2: Invite or join via convos-sdk (channel may still be starting)
+      const convosResult = await callConvosWithRetry(agentName, joinUrl);
+
+      json(res, 200, {
+        ok: true,
+        inviteUrl: convosResult.inviteUrl || null,
+        conversationId: convosResult.conversationId || null,
+        joined: convosResult.joined || false,
+      });
     } catch (err) {
       console.error("[pool-server] Provision failed:", err);
       json(res, 500, { error: err.message || "Provision failed" });

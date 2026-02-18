@@ -41,6 +41,10 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 3. **Main agent has full tool access** — browser, agentmail, web_search, web_fetch; no per-agent allow/deny for those.
 4. **Deny only registered tools** — when you add a registered skill, deny it on agents that shouldn't use it. Don't deny script-based skill names (no effect).
 
+## CAUTON:
+
+    PRIVATE_WALLET_KEY does othing to do witgh Convos!
+
 ## Skill script paths: use explicit state dir path
 
 **Context:** Skills are provisioned under workspace (`openclaw/workspace/skills/`). OPENCLAW_STATE_DIR is set by the gateway.
