@@ -150,6 +150,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Proxy everything else to the gateway
+  proxyRequest(req, res);
+});
+
+function proxyRequest(req, res) {
   try {
     const proxyReq = http.request(
       { hostname: "localhost", port: INTERNAL_PORT, path: req.url, method: req.method, headers: req.headers },
@@ -163,6 +167,26 @@ const server = http.createServer(async (req, res) => {
   } catch {
     json(res, 502, { error: "Gateway unavailable" });
   }
+}
+
+// --- WebSocket upgrade proxy ---
+const net = require("node:net");
+
+server.on("upgrade", (req, socket, head) => {
+  const proxySocket = net.connect(INTERNAL_PORT, "localhost", () => {
+    // Rebuild the raw HTTP upgrade request to forward to the gateway
+    const headers = [`${req.method} ${req.url} HTTP/1.1`];
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      headers.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}`);
+    }
+    proxySocket.write(headers.join("\r\n") + "\r\n\r\n");
+    if (head.length) proxySocket.write(head);
+    proxySocket.pipe(socket);
+    socket.pipe(proxySocket);
+  });
+
+  proxySocket.on("error", () => socket.destroy());
+  socket.on("error", () => proxySocket.destroy());
 });
 
 server.listen(PORT, "0.0.0.0", () => {
