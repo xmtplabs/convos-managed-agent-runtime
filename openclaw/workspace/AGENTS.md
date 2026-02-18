@@ -37,4 +37,4 @@ Don't ask permission. Just do it.
 
 ## Heartbeats
 
-On heartbeat prompt, read `HEARTBEAT.md` and act. Reply `HEARTBEAT_OK` when nothing needs attention. Prefer heartbeat for batched/contextual checks; use cron for exact schedules and isolated tasks.
+**Only** when the system explicitly sends the heartbeat check (e.g. "Check heartbeat" / "Read HEARTBEAT.md if it exists... If nothing needs attention, reply HEARTBEAT_OK") — then read `HEARTBEAT.md` and reply `HEARTBEAT_OK` when nothing needs attention. Normal user messages ("hi", "hey", questions) are **conversation**: reply naturally, do not reply HEARTBEAT_OK.

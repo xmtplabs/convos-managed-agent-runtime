@@ -7,7 +7,7 @@ read_when:
 
 # HEARTBEAT
 
-On each heartbeat: run the checks below. Reply `HEARTBEAT_OK` when nothing needs attention.
+Only when the **system** triggered a heartbeat (not on normal user messages): run the checks below. Reply `HEARTBEAT_OK` when nothing needs attention. If the user said "hi", "hey", or asked something, that is normal chat — respond to them, do not reply HEARTBEAT_OK.
 
 ## Proactive behaviour
 
