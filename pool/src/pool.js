@@ -300,17 +300,28 @@ export async function drainPool(count) {
     .getAll()
     .filter((i) => !CLAIMED_STATUSES.has(i.status) && !cache.isBeingClaimed(i.serviceId))
     .slice(0, count);
-  console.log(`[pool] Draining ${unclaimed.length} unclaimed instance(s)...`);
+  if (unclaimed.length === 0) return [];
+
+  const ids = unclaimed.map((i) => i.id);
+  console.log(`[pool] Draining ${unclaimed.length} unclaimed instance(s): ${ids.join(", ")}`);
+  const volumeMap = await fetchAllVolumesByService();
+  const settled = await Promise.allSettled(
+    unclaimed.map((inst) => destroyInstance(inst, volumeMap))
+  );
+
   const results = [];
-  for (const inst of unclaimed) {
-    try {
-      await destroyInstance(inst);
+  let failed = 0;
+  unclaimed.forEach((inst, i) => {
+    const s = settled[i];
+    if (s.status === "fulfilled") {
       results.push(inst.id);
       console.log(`[pool]   Drained ${inst.id}`);
-    } catch (err) {
-      console.error(`[pool]   Failed to drain ${inst.id}:`, err.message);
+    } else {
+      failed++;
+      console.error(`[pool]   Failed to drain ${inst.id}:`, s.reason?.message ?? s.reason);
     }
-  }
+  });
+  console.log(`[pool] Drain complete: ${results.length} drained, ${failed} failed`);
   return results;
 }
 

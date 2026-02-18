@@ -24,11 +24,12 @@ async function cleanupVolumes(serviceId, volumeMap) {
 
 /** Delete a single instance (kill, drain, dismiss).
  *  Retries service deletion up to 3 times. Only removes from cache/DB after
- *  Railway confirms the service is deleted. Throws if deletion fails. */
-export async function destroyInstance(inst) {
+ *  Railway confirms the service is deleted. Throws if deletion fails.
+ *  Optional volumeMap: when provided (e.g. from drainPool batch), skips fetch. */
+export async function destroyInstance(inst, volumeMap = null) {
   await deleteOpenRouterKey(inst.openRouterKeyHash);
-  const volumeMap = await fetchAllVolumesByService();
-  await cleanupVolumes(inst.serviceId, volumeMap);
+  const map = volumeMap ?? (await fetchAllVolumesByService());
+  await cleanupVolumes(inst.serviceId, map);
 
   // Retry service deletion with backoff
   let deleted = false;
