@@ -133,7 +133,7 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
     try {
       if (joinUrl) {
         // Join an existing conversation
-        const res = await fetch(`${gatewayUrl}/convos-sdk/join`, {
+        const res = await fetch(`${gatewayUrl}/convos/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ invite: joinUrl }),
@@ -141,14 +141,14 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         });
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`/convos-sdk/join returned ${res.status}: ${text}`);
+          throw new Error(`/convos/join returned ${res.status}: ${text}`);
         }
         const data = await res.json();
         console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
         return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
       } else {
         // Create a new conversation
-        const res = await fetch(`${gatewayUrl}/convos-sdk/invite`, {
+        const res = await fetch(`${gatewayUrl}/convos/invite`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: agentName }),
@@ -156,7 +156,7 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         });
         if (!res.ok) {
           const text = await res.text();
-          throw new Error(`/convos-sdk/invite returned ${res.status}: ${text}`);
+          throw new Error(`/convos/invite returned ${res.status}: ${text}`);
         }
         const data = await res.json();
         console.log(`[pool-server] Created invite on attempt ${i}: ${data.inviteUrl}`);
@@ -266,7 +266,7 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
       console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
-      // Step 2: Invite or join via convos-sdk (channel may still be starting)
+      // Step 2: Invite or join via convos (channel may still be starting)
       const convosResult = await callConvosWithRetry(agentName, joinUrl);
 
       json(res, 200, {

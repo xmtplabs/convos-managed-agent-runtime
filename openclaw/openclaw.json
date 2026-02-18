@@ -92,7 +92,7 @@
     }
   },
   "channels": {
-    "convos-sdk": {
+    "convos": {
       "XMTP_ENV": "${XMTP_ENV}",
       "env": {
         "XMTP_ENV": "${XMTP_ENV}"

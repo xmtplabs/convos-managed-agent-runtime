@@ -341,7 +341,7 @@
         placeholder.style.display = "flex";
         placeholder.classList.add("loading");
 
-        fetch("/convos-sdk/invite", {
+        fetch("/convos/invite", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
@@ -387,7 +387,7 @@
         showError("");
         joinBtn.disabled = true;
         joinBtn.textContent = "Joining…";
-        fetch("/convos-sdk/join", {
+        fetch("/convos/join", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ invite: url }),
