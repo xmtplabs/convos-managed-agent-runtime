@@ -599,21 +599,45 @@ app.get("/", (_req, res) => {
 
     .qr-wrap .icon-center svg { width: 100%; height: 100%; }
 
-    .modal .invite-url {
+    .modal .invite-row {
       margin: 12px auto 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       padding: 10px 14px;
       background: #F5F5F5;
       border-radius: 12px;
-      font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-      font-size: 11px;
-      word-break: break-all;
-      color: #666;
+      max-width: 260px;
       cursor: pointer;
       transition: background 0.2s;
-      max-width: 260px;
     }
 
-    .modal .invite-url:hover { background: #EBEBEB; }
+    .modal .invite-row:hover { background: #EBEBEB; }
+
+    .modal .invite-url {
+      font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+      font-size: 11px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .modal .copy-icon {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      color: #999;
+      transition: color 0.2s;
+    }
+
+    .modal .invite-row:hover .copy-icon { color: #666; }
+
+    .modal .invite-row.copied { background: #D4EDDA; }
+    .modal .invite-row.copied .invite-url { color: #155724; }
+    .modal .invite-row.copied .copy-icon { color: #155724; }
 
     .empty-state {
       text-align: center;
@@ -785,7 +809,13 @@ app.get("/", (_req, res) => {
           </svg>
         </div>
       </a>
-      <div class="invite-url" id="modal-invite" onclick="copyText(this)" title="Click to copy"></div>
+      <div class="invite-row" id="invite-row" onclick="copyInvite()" title="Click to copy">
+        <span class="invite-url" id="modal-invite"></span>
+        <svg class="copy-icon" id="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -929,12 +959,35 @@ app.get("/", (_req, res) => {
     // QR modal
     var modal=document.getElementById('qr-modal');
     var qrWrap=document.getElementById('qr-wrap');
+    var inviteRow=document.getElementById('invite-row');
+    var inviteEl=document.getElementById('modal-invite');
+    var copyIcon=document.getElementById('copy-icon');
+    var currentInviteUrl='';
+    var checkSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>';
+    var copySvg=copyIcon.outerHTML;
     function showQr(name,url){
       document.getElementById('modal-title').textContent=name;
       document.getElementById('modal-qr').src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
       qrWrap.href=url;
-      document.getElementById('modal-invite').textContent=url;
+      currentInviteUrl=url;
+      inviteEl.textContent=url;
+      inviteRow.classList.remove('copied');
+      copyIcon.outerHTML=copySvg;
       modal.classList.add('active');
+    }
+    function copyInvite(){
+      navigator.clipboard.writeText(currentInviteUrl).then(function(){
+        inviteRow.classList.add('copied');
+        inviteEl.textContent='Copied!';
+        document.getElementById('copy-icon').outerHTML=checkSvg;
+        setTimeout(function(){
+          inviteRow.classList.remove('copied');
+          inviteEl.textContent=currentInviteUrl;
+          var tmp=document.createElement('div');tmp.innerHTML=copySvg;
+          var old=inviteRow.querySelector('svg');
+          if(old)inviteRow.replaceChild(tmp.firstChild,old);
+        },1500);
+      });
     }
     function closeModal(){modal.classList.remove('active');}
     modal.onclick=function(e){if(e.target===modal)closeModal();};
