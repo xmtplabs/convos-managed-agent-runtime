@@ -16,7 +16,7 @@ import {
 import { convosMessageActions } from "./actions.js";
 import { convosChannelConfigSchema } from "./config-schema.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
-import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound.js";
+import { addSentMessageId, convosOutbound, getConvosInstance, isSentMessage, setConvosInstance } from "./outbound.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
 
@@ -297,6 +297,19 @@ async function handleInboundMessage(
   runtime: PluginRuntime,
   log?: RuntimeLogger,
 ) {
+  const inst = getConvosInstance();
+
+  // Skip messages sent by this agent to prevent echo loops
+  if (
+    (inst && msg.senderId && msg.senderId === inst.identityId) ||
+    (msg.messageId && isSentMessage(msg.messageId))
+  ) {
+    if (account.debug) {
+      log?.info(`[${account.accountId}] Skipping self-message: ${msg.messageId}`);
+    }
+    return;
+  }
+
   if (account.debug) {
     log?.info(
       `[${account.accountId}] Inbound message from ${msg.senderId}: ${msg.content.slice(0, 50)}`,
@@ -304,7 +317,7 @@ async function handleInboundMessage(
   }
 
   // Safety assertion: in 1:1, all messages should be from our conversation
-  if (msg.conversationId !== getConvosInstance()?.conversationId) {
+  if (msg.conversationId !== inst?.conversationId) {
     log?.warn?.(
       `[${account.accountId}] Message from unexpected conversation: ${msg.conversationId}`,
     );
@@ -428,7 +441,8 @@ async function deliverConvosReply(params: {
 
     for (const chunk of chunks) {
       try {
-        await inst.sendMessage(chunk);
+        const result = await inst.sendMessage(chunk);
+        if (result.messageId) addSentMessageId(result.messageId);
       } catch (err) {
         log?.error(`[${accountId}] Send failed: ${String(err)}`);
         throw err;

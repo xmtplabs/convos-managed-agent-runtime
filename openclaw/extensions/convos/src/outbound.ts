@@ -5,6 +5,24 @@ import { getConvosRuntime } from "./runtime.js";
 // Single instance — this process has one conversation
 let instance: ConvosInstance | null = null;
 
+// Track recently sent message IDs to filter self-echoes from the stream.
+// Capped at 100 entries to avoid unbounded growth.
+const recentSentIds = new Set<string>();
+const SENT_ID_MAX = 100;
+
+export function addSentMessageId(id: string): void {
+  if (!id) return;
+  recentSentIds.add(id);
+  if (recentSentIds.size > SENT_ID_MAX) {
+    const first = recentSentIds.values().next().value;
+    if (first !== undefined) recentSentIds.delete(first);
+  }
+}
+
+export function isSentMessage(id: string): boolean {
+  return recentSentIds.has(id);
+}
+
 export function setConvosInstance(inst: ConvosInstance | null): void {
   instance = inst;
 }
@@ -29,9 +47,11 @@ export const convosOutbound: ChannelOutboundAdapter = {
       throw new Error(`Convos routing mismatch: expected ${instance.conversationId}, got ${to}`);
     }
     const result = await instance.sendMessage(text);
+    const mid = result.messageId ?? `convos-${Date.now()}`;
+    addSentMessageId(mid);
     return {
       channel: "convos",
-      messageId: result.messageId ?? `convos-${Date.now()}`,
+      messageId: mid,
     };
   },
 

@@ -100,6 +100,11 @@ export class ConvosInstance {
   private onJoinAccepted?: (info: { joinerInboxId: string }) => void;
   private debug: boolean;
 
+  /** The agent's own XMTP inbox ID, learned from the first echoed message. */
+  private selfInboxId: string | null = null;
+  /** Recently sent message content, used to detect self-echoes and learn selfInboxId. */
+  private recentSentContent = new Set<string>();
+
   private constructor(params: {
     conversationId: string;
     identityId: string;
@@ -335,10 +340,35 @@ export class ConvosInstance {
         return;
       }
 
+      const senderId = typeof data.senderInboxId === "string" ? data.senderInboxId : "";
+
+      // --- Self-message echo filter ---
+      // If we already know our own inbox ID, drop all messages from it.
+      if (this.selfInboxId && senderId === this.selfInboxId) {
+        if (this.debug) {
+          console.log(`[convos] Dropping self-echo (known selfInboxId): ${content.slice(0, 40)}`);
+        }
+        this.recentSentContent.delete(content);
+        return;
+      }
+      // If the content matches something we recently sent, this is our echo.
+      // Learn selfInboxId from it and drop the message.
+      if (this.recentSentContent.has(content)) {
+        this.recentSentContent.delete(content);
+        if (senderId && !this.selfInboxId) {
+          this.selfInboxId = senderId;
+          console.log(`[convos] Learned selfInboxId: ${senderId.slice(0, 16)}...`);
+        }
+        if (this.debug) {
+          console.log(`[convos] Dropping self-echo (content match): ${content.slice(0, 40)}`);
+        }
+        return;
+      }
+
       const msg: InboundMessage = {
         conversationId: this.conversationId,
         messageId: typeof data.id === "string" ? data.id : "",
-        senderId: typeof data.senderInboxId === "string" ? data.senderInboxId : "",
+        senderId,
         senderName: "",
         content,
         timestamp: typeof data.sentAt === "string" ? new Date(data.sentAt) : new Date(),
@@ -410,6 +440,13 @@ export class ConvosInstance {
   // ==== Operations (all shell out to CLI) ====
 
   async sendMessage(text: string): Promise<{ success: boolean; messageId?: string }> {
+    // Track content so we can detect our own echo in the stream
+    this.recentSentContent.add(text);
+    // Cap the set to avoid unbounded growth
+    if (this.recentSentContent.size > 50) {
+      const first = this.recentSentContent.values().next().value;
+      if (first !== undefined) this.recentSentContent.delete(first);
+    }
     const data = await this.execJson<{ success: boolean; messageId?: string }>([
       "conversation",
       "send-text",
