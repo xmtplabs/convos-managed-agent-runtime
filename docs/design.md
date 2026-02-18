@@ -143,7 +143,6 @@ The agent is a first-class participant in Convos group chats. It uses the same m
 | Users context | Get their quickname and more | ✅ |
 | More app features | TBD |  |
 | Explode | When a group explodes the agent and all of its files shoud be nuked. | ⏳ |
-
 ## Providers
 
 ### OpenRouter (models + search)
@@ -157,11 +156,11 @@ OpenRouter lets us manage AI consumption in a SaaS-like mode. Each agent gets it
 - **Many models, one account.** Claude for complex tasks, fast models for routing, Perplexity for search. One key covers everything. Suppeorted [model list](https://github.com/xmtplabs/convos-managed-agent-runtime/blob/main/openclaw.json)
 - **Dashboard visibility.** Per-agent spend on a single dashboard. Which agents are active, expensive, or idle.
 - **Path to charging users.** Free cap per agent. When exceeded, user tops up with crypto. OpenRouter is the metering layer.
-- **Privacy**: we can’t see the content of the conversations, just the api costs of each call.
+- **Privacy**: we can't see the content of the conversations, just the api costs of each call.
 
 ### Railway (compute)
 
-Each agent runs as a containerized Railway service with ephemeral filesystem, local Chromium, and scoped environment variables. Documented separately. 
+Each agent runs as a containerized Railway service with ephemeral filesystem, local Chromium, and scoped environment variables. Documented separately.
 
 ### Agentmail (email)
 

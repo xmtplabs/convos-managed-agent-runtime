@@ -3,7 +3,7 @@
 ## 2026-02-17
 
 - CLI: rename program name from convos to runtime; remove convos→convos-sdk migration from sync-openclaw.
-- Extract NODE_PATH setup into `cli/scripts/lib/node-path.sh`; gateway.sh and qa.sh source it. Document plugin "Cannot find module" workaround in workarounds.mdc.
+- Extract NODE_PATH setup into `cli/scripts/lib/node-path.sh`; gateway.sh and qa.sh source it. Document plugin "Cannot find module" workaround in docs/workarounds.md.
 - **Breaking:** Rename convos extension to convos-sdk. Directory `openclaw/extensions/convos/` → `openclaw/extensions/convos-sdk/`. Plugin and channel id `convos` → `convos-sdk`. Config `channels.convos` → `channels.convos-sdk`. HTTP paths `/convos/*` → `/convos-sdk/*`. Gateway methods `convos.setup` etc. → `convos-sdk.setup` etc. State dir paths `stateDir/convos/` → `stateDir/convos-sdk/`. Migrate config and re-run setup if upgrading.
 
 ## 2026-02-16
@@ -11,7 +11,7 @@
 - README: fix mermaid subgraph id (no leading digit) for pool diagram.
 - CLI: rename `start` → `init`, `apply-config` → `apply`; add unified `reset <sessions|chrome>`; document `pnpm cli <cmd>`; README/DESIGN aligned with CLI help; Docker/QA use `pnpm cli apply` and `pnpm cli init`.
 - Landing: fix staging/main switch link (staging pointed to dev, now points to main).
-- QA: add QA.md with test commands for email, SMS, bankr, search, browser.
+- QA: add docs/qa.md with test commands for email, SMS, bankr, search, browser.
 - Telnyx integration: add `telnyx-cli` skill to workspace with SMS support. Auto-provision US phone number + messaging profile during `key-provision` via Telnyx API.
 - AgentMail inbox provisioning: `key-provision` now creates a unique inbox (`convos-<hex>@agentmail.to`) per agent instead of sharing a hardcoded address.
 - Bankr integration: register `bankr` skill in openclaw.json with `BANKR_API_KEY` env var.
