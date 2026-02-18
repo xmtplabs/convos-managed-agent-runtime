@@ -21,6 +21,7 @@ const POOL_API_KEY = process.env.POOL_API_KEY;
 const ROOT = path.resolve(__dirname, "..");
 
 let gatewayReady = false;
+let convosReady = false;
 let restarting = false;
 let gatewayChild = null;
 
@@ -28,6 +29,7 @@ let gatewayChild = null;
 
 function spawnGateway(extraEnv = {}) {
   gatewayReady = false;
+  convosReady = false;
 
   const child = spawn("sh", ["cli/scripts/gateway.sh"], {
     cwd: ROOT,
@@ -180,7 +182,23 @@ const server = http.createServer(async (req, res) => {
   // GET /pool/health
   if (req.method === "GET" && req.url === "/pool/health") {
     if (!checkAuth(req, res)) return;
-    json(res, 200, { ready: gatewayReady });
+    if (!gatewayReady) {
+      json(res, 200, { ready: false });
+      return;
+    }
+    // Once convos is ready, cache it — no need to re-check
+    if (!convosReady) {
+      try {
+        const cRes = await fetch(`http://localhost:${INTERNAL_PORT}/convos/status`, {
+          signal: AbortSignal.timeout(3000),
+        });
+        if (cRes.ok) {
+          const cData = await cRes.json();
+          if (cData.ready) convosReady = true;
+        }
+      } catch {}
+    }
+    json(res, 200, { ready: convosReady });
     return;
   }
 

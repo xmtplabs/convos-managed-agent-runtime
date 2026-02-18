@@ -9,6 +9,7 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -69,6 +70,17 @@ function resolveConvosBin(): string {
     }
   } catch {
     // fileURLToPath may fail for non-file: URLs
+  }
+
+  // Strategy 3: check OPENCLAW_STATE_DIR/extensions/convos/node_modules
+  // install-deps.sh runs pnpm install in the state dir copy of each extension
+  {
+    const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+    const binPath = path.join(stateDir, "extensions", "convos", "node_modules", "@convos", "cli", "bin", "run.js");
+    if (existsSync(binPath)) {
+      cachedBinPath = binPath;
+      return binPath;
+    }
   }
 
   // Fallback: assume `convos` is on PATH

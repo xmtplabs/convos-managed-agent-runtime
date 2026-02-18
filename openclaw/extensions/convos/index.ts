@@ -3,12 +3,13 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { emptyPluginConfigSchema, renderQrPngBase64 } from "openclaw/plugin-sdk";
+import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
 import { convosPlugin, startWiredInstance } from "./src/channel.js";
 import { getConvosInstance, setConvosInstance } from "./src/outbound.js";
 import { getConvosRuntime, setConvosRuntime, setConvosSetupActive } from "./src/runtime.js";
 import { ConvosInstance } from "./src/sdk-client.js";
+import { clearConvosCredentials, saveConvosCredentials } from "./src/credentials.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
 // Module-level state for setup instance (accepts join requests during setup flow)
@@ -28,7 +29,6 @@ let setupResult: {
 let cachedSetupResponse: {
   inviteUrl: string;
   conversationId: string;
-  qrDataUrl: string;
 } | null = null;
 
 async function cleanupSetupInstance() {
@@ -63,6 +63,24 @@ async function handleSetup(params: {
   }
 
   await cleanupSetupInstance();
+  if (params.force) {
+    clearConvosCredentials();
+    // Also clear stale identity from config (legacy writes)
+    try {
+      const runtime = getConvosRuntime();
+      const cfg = runtime.config.loadConfig() as Record<string, unknown>;
+      const channels = (cfg.channels ?? {}) as Record<string, unknown>;
+      const convos = { ...(channels.convos ?? {}) as Record<string, unknown> };
+      delete convos.identityId;
+      delete convos.ownerConversationId;
+      await runtime.config.writeConfigFile({
+        ...cfg,
+        channels: { ...channels, convos },
+      });
+    } catch {
+      // Config cleanup is best-effort
+    }
+  }
   setupJoinState = { joined: false, joinerInboxId: null };
   cachedSetupResponse = null;
 
@@ -103,12 +121,9 @@ async function handleSetup(params: {
     accountId: params.accountId,
   };
 
-  const qrBase64 = await renderQrPngBase64(result.inviteUrl);
-
   cachedSetupResponse = {
     inviteUrl: result.inviteUrl,
     conversationId: result.conversationId,
-    qrDataUrl: `data:image/png;base64,${qrBase64}`,
   };
 
   return cachedSetupResponse;
@@ -160,8 +175,6 @@ async function handleComplete() {
       ...existingChannels,
       convos: {
         ...existingConvos,
-        identityId: setupResult.identityId,
-        ownerConversationId: setupResult.conversationId,
         env: setupResult.env,
         enabled: true,
         ...(allowFrom.length > 0 ? { allowFrom } : {}),
@@ -170,6 +183,10 @@ async function handleComplete() {
   };
 
   await runtime.config.writeConfigFile(updatedCfg);
+  saveConvosCredentials({
+    identityId: setupResult.identityId,
+    ownerConversationId: setupResult.conversationId,
+  });
   console.log("[convos-setup] Config saved successfully");
 
   const saved = { ...setupResult };
@@ -434,12 +451,14 @@ const plugin = {
               ...existingChannels,
               convos: {
                 ...existingConvos,
-                identityId: instance.identityId,
-                ownerConversationId: result.conversationId,
                 env,
                 enabled: true,
               },
             },
+          });
+          saveConvosCredentials({
+            identityId: instance.identityId,
+            ownerConversationId: result.conversationId,
           });
 
           // Start with full message handling pipeline (must happen before
@@ -531,12 +550,14 @@ const plugin = {
               ...existingChannels,
               convos: {
                 ...existingConvos,
-                identityId: instance.identityId,
-                ownerConversationId: conversationId,
                 env,
                 enabled: true,
               },
             },
+          });
+          saveConvosCredentials({
+            identityId: instance.identityId,
+            ownerConversationId: conversationId,
           });
 
           // Start with full message handling pipeline

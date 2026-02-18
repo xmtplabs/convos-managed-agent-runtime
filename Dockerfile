@@ -4,6 +4,7 @@ ENV NODE_ENV=production
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates \
+    git \
     jq \
     ripgrep \
     chromium \
@@ -13,6 +14,9 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN mkdir -p "$PNPM_HOME"
 
 WORKDIR /app
 
@@ -26,7 +30,7 @@ COPY openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY openclaw/workspace /app/openclaw/workspace
 COPY openclaw/extensions /app/openclaw/extensions
 COPY cli ./cli
-RUN chmod +x /app/cli/scripts/*.sh
+RUN chmod +x /app/cli/scripts/*.sh /app/cli/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
 ENV OPENCLAW_STATE_DIR=/app
@@ -40,4 +44,5 @@ ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080
+ENTRYPOINT ["./cli/scripts/entrypoint.sh"]
 CMD ["pnpm", "start"]
