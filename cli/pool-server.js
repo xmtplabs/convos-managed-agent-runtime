@@ -192,10 +192,7 @@ const server = http.createServer(async (req, res) => {
     // Once convos is ready, cache it — no need to re-check
     if (!convosReady) {
       try {
-        const fetchHeaders = {};
-        if (POOL_API_KEY) fetchHeaders["Authorization"] = `Bearer ${POOL_API_KEY}`;
         const cRes = await fetch(`http://localhost:${INTERNAL_PORT}/convos/status`, {
-          headers: fetchHeaders,
           signal: AbortSignal.timeout(3000),
         });
         if (cRes.ok) {
