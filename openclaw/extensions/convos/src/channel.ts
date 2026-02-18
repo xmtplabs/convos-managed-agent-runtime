@@ -367,7 +367,7 @@ async function handleInboundMessage(
     SessionKey: route.sessionKey,
     AccountId: route.accountId,
     ChatType: "group",
-    ConversationLabel: msg.conversationId.slice(0, 12),
+    ConversationLabel: inst?.label ?? "chat",
     SenderName: msg.senderName || undefined,
     SenderId: msg.senderId,
     Provider: "convos",
