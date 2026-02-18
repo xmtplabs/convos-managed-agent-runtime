@@ -277,8 +277,8 @@ app.get("/", (_req, res) => {
     .setting-input::placeholder { color: #B2B2B2; }
     textarea.setting-input { resize: vertical; min-height: 80px; }
 
-    .channel-checkboxes { display: flex; gap: 20px; flex-wrap: wrap; }
-    .channel-option { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; }
+    /* .channel-checkboxes { display: flex; gap: 20px; flex-wrap: wrap; }
+    .channel-option { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; } */
 
     .btn-primary {
       background: #FC4F37;
@@ -701,6 +701,7 @@ app.get("/", (_req, res) => {
             <label class="setting-label" for="name">Name</label>
             <input id="name" name="name" class="setting-input" placeholder="e.g. Tokyo Trip" required />
           </div>
+          <!--
           <div class="setting-group">
             <label class="setting-label">Channels</label>
             <div class="channel-checkboxes">
@@ -709,6 +710,7 @@ app.get("/", (_req, res) => {
               <label class="channel-option"><input type="checkbox" name="channel-sms" checked /> SMS</label>
             </div>
           </div>
+          -->
           <div class="setting-group">
             <label class="setting-label" for="instructions">Instructions</label>
             <textarea id="instructions" name="instructions" class="setting-input" placeholder="You are a helpful trip planner for Tokyo..." required></textarea>
