@@ -1,5 +1,6 @@
 import { DEFAULT_ACCOUNT_ID, normalizeAccountId } from "openclaw/plugin-sdk";
 import type { ConvosConfig } from "./config-types.js";
+import { loadConvosCredentials } from "./credentials.js";
 
 export type CoreConfig = {
   channels?: {
@@ -43,18 +44,20 @@ export function resolveConvosAccount(params: {
   const base = params.cfg.channels?.convos ?? {};
   const enabled = base.enabled !== false;
 
-  // Convos is "configured" if we have an owner conversation (identity + conversation established)
-  const configured = Boolean(base.ownerConversationId);
+  // Credentials file takes priority over config (credentials persist across deploys)
+  const creds = loadConvosCredentials();
+  const identityId = creds?.identityId ?? base.identityId;
+  const ownerConversationId = creds?.ownerConversationId ?? base.ownerConversationId;
 
   return {
     accountId,
     enabled,
     name: base.name?.trim() || undefined,
-    configured,
-    identityId: base.identityId,
+    configured: Boolean(ownerConversationId),
+    identityId,
     env: base.env ?? "production",
     debug: base.debug ?? false,
-    ownerConversationId: base.ownerConversationId,
+    ownerConversationId,
     config: base,
   };
 }

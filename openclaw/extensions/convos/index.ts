@@ -9,6 +9,7 @@ import { convosPlugin, startWiredInstance } from "./src/channel.js";
 import { getConvosInstance, setConvosInstance } from "./src/outbound.js";
 import { getConvosRuntime, setConvosRuntime, setConvosSetupActive } from "./src/runtime.js";
 import { ConvosInstance } from "./src/sdk-client.js";
+import { clearConvosCredentials, saveConvosCredentials } from "./src/credentials.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
 // Module-level state for setup instance (accepts join requests during setup flow)
@@ -62,6 +63,9 @@ async function handleSetup(params: {
   }
 
   await cleanupSetupInstance();
+  if (params.force) {
+    clearConvosCredentials();
+  }
   setupJoinState = { joined: false, joinerInboxId: null };
   cachedSetupResponse = null;
 
@@ -156,8 +160,6 @@ async function handleComplete() {
       ...existingChannels,
       convos: {
         ...existingConvos,
-        identityId: setupResult.identityId,
-        ownerConversationId: setupResult.conversationId,
         env: setupResult.env,
         enabled: true,
         ...(allowFrom.length > 0 ? { allowFrom } : {}),
@@ -166,6 +168,10 @@ async function handleComplete() {
   };
 
   await runtime.config.writeConfigFile(updatedCfg);
+  saveConvosCredentials({
+    identityId: setupResult.identityId,
+    ownerConversationId: setupResult.conversationId,
+  });
   console.log("[convos-setup] Config saved successfully");
 
   const saved = { ...setupResult };
@@ -430,12 +436,14 @@ const plugin = {
               ...existingChannels,
               convos: {
                 ...existingConvos,
-                identityId: instance.identityId,
-                ownerConversationId: result.conversationId,
                 env,
                 enabled: true,
               },
             },
+          });
+          saveConvosCredentials({
+            identityId: instance.identityId,
+            ownerConversationId: result.conversationId,
           });
 
           // Start with full message handling pipeline (must happen before
@@ -527,12 +535,14 @@ const plugin = {
               ...existingChannels,
               convos: {
                 ...existingConvos,
-                identityId: instance.identityId,
-                ownerConversationId: conversationId,
                 env,
                 enabled: true,
               },
             },
+          });
+          saveConvosCredentials({
+            identityId: instance.identityId,
+            ownerConversationId: conversationId,
           });
 
           // Start with full message handling pipeline
