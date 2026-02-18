@@ -8,7 +8,6 @@ import { randomBytes } from "crypto";
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const INSTANCE_VAR_MAP = {
   OPENCLAW_PRIMARY_MODEL: "INSTANCE_OPENCLAW_PRIMARY_MODEL",
-  OPENROUTER_API_KEY: "INSTANCE_OPENROUTER_API_KEY",
   OPENCLAW_GATEWAY_TOKEN: "INSTANCE_OPENCLAW_GATEWAY_TOKEN",
   SETUP_PASSWORD: "INSTANCE_SETUP_PASSWORD",
   XMTP_ENV: "INSTANCE_XMTP_ENV",
@@ -31,6 +30,7 @@ export function instanceEnvVars() {
   const setupPassword = getEnv(INSTANCE_VAR_MAP.SETUP_PASSWORD);
   const vars = {
     OPENCLAW_STATE_DIR: "/app",
+    NODE_ENV:'development',
     OPENCLAW_PRIMARY_MODEL: getEnv(INSTANCE_VAR_MAP.OPENCLAW_PRIMARY_MODEL),
     OPENROUTER_API_KEY: getEnv(INSTANCE_VAR_MAP.OPENROUTER_API_KEY),
     XMTP_ENV: getEnv(INSTANCE_VAR_MAP.XMTP_ENV, "dev"),
@@ -63,7 +63,7 @@ export function generatePrivateWalletKey() {
   return "0x" + randomBytes(32).toString("hex");
 }
 
-/** Resolve OPENROUTER_API_KEY. Priority: 1) INSTANCE_OPENROUTER_API_KEY if set (no create), 2) create via OPENROUTER_MANAGEMENT_KEY.
+/** Resolve OPENROUTER_API_KEY. Priority: 1) 2) create via OPENROUTER_MANAGEMENT_KEY.
  *  Returns { key, hash } — hash is null for shared keys or when no key is available. */
 export async function resolveOpenRouterApiKey(instanceId) {
   const existing = getEnv(INSTANCE_VAR_MAP.OPENROUTER_API_KEY);

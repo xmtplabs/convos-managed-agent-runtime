@@ -22,16 +22,31 @@ async function cleanupVolumes(serviceId, volumeMap) {
   }
 }
 
-/** Delete a single instance (kill, drain, dismiss). */
+/** Delete a single instance (kill, drain, dismiss).
+ *  Retries service deletion up to 3 times. Only removes from cache/DB after
+ *  Railway confirms the service is deleted. Throws if deletion fails. */
 export async function destroyInstance(inst) {
   await deleteOpenRouterKey(inst.openRouterKeyHash);
   const volumeMap = await fetchAllVolumesByService();
   await cleanupVolumes(inst.serviceId, volumeMap);
-  try {
-    await railway.deleteService(inst.serviceId);
-  } catch (err) {
-    console.warn(`[delete] Failed to delete Railway service ${inst.serviceId}:`, err.message);
+
+  // Retry service deletion with backoff
+  let deleted = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await railway.deleteService(inst.serviceId);
+      deleted = true;
+      break;
+    } catch (err) {
+      console.warn(`[delete] Failed to delete service ${inst.serviceId} (attempt ${attempt}/3): ${err.message}`);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
+    }
   }
+
+  if (!deleted) {
+    throw new Error(`Failed to delete Railway service ${inst.serviceId} after 3 attempts`);
+  }
+
   cache.remove(inst.serviceId);
   await db.deleteByServiceId(inst.serviceId).catch(() => {});
 }

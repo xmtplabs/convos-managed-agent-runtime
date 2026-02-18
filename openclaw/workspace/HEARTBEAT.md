@@ -22,4 +22,4 @@ Only act when it fits your primary job and the room. Don’t spam; one nudge per
 
 ## Tasks (add below)
 
-_(Add concrete periodic tasks for this agent.)_
+_(Add your concrete periodic tasks below.)_

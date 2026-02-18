@@ -277,8 +277,8 @@ app.get("/", (_req, res) => {
     .setting-input::placeholder { color: #B2B2B2; }
     textarea.setting-input { resize: vertical; min-height: 80px; }
 
-    .channel-checkboxes { display: flex; gap: 20px; flex-wrap: wrap; }
-    .channel-option { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; }
+    /* .channel-checkboxes { display: flex; gap: 20px; flex-wrap: wrap; }
+    .channel-option { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; } */
 
     .btn-primary {
       background: #FC4F37;
@@ -671,7 +671,7 @@ app.get("/", (_req, res) => {
       <div class="pool-bar-right">
         <input id="replenish-count" type="number" min="1" max="20" value="1" />
         <button class="pool-btn" id="replenish-btn">+ Add</button>
-        <button class="pool-btn danger" id="drain-btn">Drain</button>
+        <button class="pool-btn danger" id="drain-btn">Drain Unclaimed</button>
       </div>
     </div>
 
@@ -701,6 +701,7 @@ app.get("/", (_req, res) => {
             <label class="setting-label" for="name">Name</label>
             <input id="name" name="name" class="setting-input" placeholder="e.g. Tokyo Trip" required />
           </div>
+          <!--
           <div class="setting-group">
             <label class="setting-label">Channels</label>
             <div class="channel-checkboxes">
@@ -709,6 +710,7 @@ app.get("/", (_req, res) => {
               <label class="channel-option"><input type="checkbox" name="channel-sms" checked /> SMS</label>
             </div>
           </div>
+          -->
           <div class="setting-group">
             <label class="setting-label" for="instructions">Instructions</label>
             <textarea id="instructions" name="instructions" class="setting-input" placeholder="You are a helpful trip planner for Tokyo..." required></textarea>
@@ -997,12 +999,12 @@ app.get("/", (_req, res) => {
       }finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
     };
 
-    // Drain — remove idle instances from the pool
+    // Drain — remove unclaimed instances from the pool
     var drainBtn=document.getElementById('drain-btn');
     drainBtn.onclick=async function(){
       var n=parseInt(replenishCount.value)||3;
       var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Drain '+n+' idle instance(s) from the pool?';
+        'Drain up to '+n+' unclaimed instance(s) from the pool?';
       if(!confirm(drainMsg))return;
       drainBtn.disabled=true;drainBtn.textContent='Draining...';
       try{
@@ -1014,7 +1016,7 @@ app.get("/", (_req, res) => {
         refreshStatus();
       }catch(err){
         alert('Failed to drain pool: '+err.message);
-      }finally{drainBtn.disabled=false;drainBtn.textContent='Drain';}
+      }finally{drainBtn.disabled=false;drainBtn.textContent='Drain Unclaimed';}
     };
 
     // Initial load + polling
@@ -1103,7 +1105,7 @@ app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
   }
 });
 
-// Drain idle instances from the pool
+// Drain unclaimed instances from the pool
 app.post("/api/pool/drain", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 1, 20);

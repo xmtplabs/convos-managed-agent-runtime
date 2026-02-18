@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-02-18
+
+- **Changelog:** Document convos CLI and pool manager integration from commit history.
+- **Convos CLI:** Integrated into runtime CLI. `pnpm cli reset convos` resets convos identity (server-side QR, UI, CLI build). Identity stored in credentials dir (not openclaw.json); persisted on Railway volume. Reset identity button in convos agents UI. @convos/cli installed globally from state dir with NODE_PATH resolution; node-path.sh used by gateway.sh and qa.sh.
+- **Pool manager:** Integrated into monorepo under `pool/`. `pool-server.js` is the agnostic container entrypoint for pool-managed instances. Claim API generates gateway token per instance and returns it in the claim response. Provision uses convos invite/join pattern; health check verifies convos readiness. `POST /pool/restart-gateway` for fast gateway restart. QA workflow dogfoods pool API for health check. Auth: POOL_API_KEY replaced by SETUP_PASSWORD; convos routes protected by gateway auth.
+- **CLI:** Add `openrouter-clean` command to delete all OpenRouter API keys (#54).
+- **Docs:** Convos extension doc, README pointer to docs/ (design, QA, pool, convos-extension, workarounds), pool and QA workflow (#55). README title simplified to "Convos agents".
+
 ## 2026-02-17
 
 - CLI: rename program name from convos to runtime; remove convos→convos-sdk migration from sync-openclaw.

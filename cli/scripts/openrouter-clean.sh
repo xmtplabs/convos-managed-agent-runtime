@@ -36,11 +36,16 @@ echo "[openrouter-clean] Found $count key(s). Deleting all..."
 
 deleted=0
 failed=0
+SKIP_KEY_NAME="${OPENROUTER_CLEAN_SKIP_NAME:-dont touch}"
 echo "$keys" | jq -c '.[]' | while read -r entry; do
   hash=$(echo "$entry" | jq -r '.hash // empty')
   name=$(echo "$entry" | jq -r '.name // "unnamed"')
   if [ -z "$hash" ]; then
     echo "  [skip] Key '$name' has no hash"
+    continue
+  fi
+  if [ "$name" = "$SKIP_KEY_NAME" ]; then
+    echo "  [skip] Key '$name' (preserved)"
     continue
   fi
 

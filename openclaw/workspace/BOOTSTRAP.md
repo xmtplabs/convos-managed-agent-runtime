@@ -1,6 +1,6 @@
 ---
 title: "BOOTSTRAP — First-Run Ritual"
-summary: "First time the agent wakes up; ties to THE ENTRANCE"
+summary: "First time you wake up; ties to THE ENTRANCE"
 read_when:
   - Bootstrapping a workspace manually
 ---
