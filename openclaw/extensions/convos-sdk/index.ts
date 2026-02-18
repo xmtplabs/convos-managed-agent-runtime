@@ -249,15 +249,12 @@ async function handleComplete() {
     },
   };
 
-  // Stop the setup agent BEFORE writing config. Writing config triggers a
-  // hot reload that creates a new channel client using the same XMTP DB —
-  // if the setup agent still holds the DB open, Agent.create() hangs.
+  await runtime.config.writeConfigFile(updatedCfg);
+  console.log("[convos-sdk-setup] Config saved (identity in state dir; convos-sdk.ownerConversationId, allowFrom in config)");
+
   const saved = { ...setupResult };
   setupResult = null;
   await cleanupSetupAgent();
-
-  await runtime.config.writeConfigFile(updatedCfg);
-  console.log("[convos-sdk-setup] Config saved (identity in state dir; convos-sdk.ownerConversationId, allowFrom in config)");
 
   return { saved: true, conversationId: saved.conversationId };
 }
@@ -496,24 +493,10 @@ const plugin = {
             return;
           }
           let result: { status: "joined" | "waiting_for_acceptance"; conversationId: string | null };
-
-          // Wait for the channel client to become available. After setup/complete
-          // saves config, a hot reload restarts the channel asynchronously. If we
-          // create a one-off client here we risk DB lock contention with the
-          // restarting channel client, so poll briefly first.
-          let client = getClientForAccount(account.accountId);
-          if (!client) {
-            for (let i = 0; i < 10; i++) {
-              await new Promise((r) => setTimeout(r, 500));
-              client = getClientForAccount(account.accountId);
-              if (client) break;
-            }
-          }
-
+          const client = getClientForAccount(account.accountId);
           if (client) {
             result = await client.joinConversation(invite);
           } else {
-            // Channel client still unavailable after waiting — fall back to one-off
             const dbPath = resolveConvosDbPath({
               stateDir,
               env: account.env,
@@ -527,7 +510,6 @@ const plugin = {
               debug: account.debug,
             });
             try {
-              await oneOff.start();
               result = await oneOff.joinConversation(invite);
             } finally {
               await oneOff.stop();

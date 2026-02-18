@@ -7,8 +7,6 @@ import type { InviteContext } from "convos-node-sdk";
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import type { ConvosSetupResult } from "./types.js";
 import { resolveConvosAccount, type CoreConfig } from "./accounts.js";
-import { resolveConvosDbPath } from "./lib/convos-client.js";
-import { createUser } from "./lib/identity.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosSDKClient } from "./sdk-client.js";
 
@@ -49,24 +47,13 @@ export async function setupConvosWithInvite(
     accountId: params.accountId,
   });
 
-  // Pre-generate the private key so we can resolve the persistent DB path
-  // before creating the client. This ensures setup and channel restart use
-  // the same DB, so conversation membership survives the restart.
-  const env = params.env ?? account.env;
-  const existingKey = params.forceNewKey ? undefined : account.privateKey;
-  const generatedKey = existingKey ?? createUser().key;
-  const stateDir = runtime.state.resolveStateDir();
-  const dbPath = resolveConvosDbPath({
-    stateDir,
-    env,
-    accountId: account.accountId,
-    privateKey: generatedKey,
-  });
-
+  // Create SDK client (generates new identity if no privateKey).
+  // Use in-memory DB — setup is temporary; the runtime client will use a
+  // persistent dbPath once the identity is saved to config.
   const client = await ConvosSDKClient.create({
-    privateKey: generatedKey,
-    env,
-    dbPath,
+    privateKey: params.forceNewKey ? undefined : account.privateKey,
+    env: params.env ?? account.env,
+    dbPath: null,
     debug: false,
     onInvite: params.onInvite,
   });

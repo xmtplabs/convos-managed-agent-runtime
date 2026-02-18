@@ -211,13 +211,13 @@ export class ConvosSDKClient {
    * Stop the client and cleanup
    */
   async stop(): Promise<void> {
-    const wasRunning = this.running;
+    if (!this.running) return;
     this.running = false;
 
     console.log("[convos-sdk] Stopping agent...");
     const t0 = Date.now();
     await this.agent.stop();
-    console.log(`[convos-sdk] Agent stopped in ${Date.now() - t0}ms${wasRunning ? "" : " (was not started)"}`);
+    console.log(`[convos-sdk] Agent stopped in ${Date.now() - t0}ms`);
   }
 
   /**
