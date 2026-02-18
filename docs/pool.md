@@ -66,6 +66,7 @@ cp .env.example .env
 | `OPENCLAW_GIT_REF` | OpenClaw git ref to build from (default: `staging` or `main`) |
 | `INSTANCE_ANTHROPIC_API_KEY` | Anthropic API key injected into each instance |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
+| `INSTANCE_OPENCLAW_GATEWAY_TOKEN` | Optional. If unset, each instance gets a random token; the claim response returns `gatewayToken` and `gatewayUrl` for Control UI auth. Set to a fixed value to use the same token for all instances. |
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_MAX_TOTAL` | Maximum total instances (default `10`) |
 | `DATABASE_URL` | Neon Postgres connection string |
@@ -136,14 +137,16 @@ Claims an idle instance and provisions it. Creates a new conversation or joins a
 }
 ```
 
-Returns:
+Returns (use `gatewayToken` as the OpenClaw Control UI / gateway auth token; `gatewayUrl` is the instance base URL):
 
 ```json
 {
   "inviteUrl": "https://dev.convos.org/v2?i=...",
   "conversationId": "abc123",
   "instanceId": "rnM8UBQ_fZCz",
-  "joined": false
+  "joined": false,
+  "gatewayToken": "<64-char-hex>",
+  "gatewayUrl": "https://convos-agent-xxx.up.railway.app"
 }
 ```
 

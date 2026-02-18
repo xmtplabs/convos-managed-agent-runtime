@@ -2,7 +2,7 @@
 
 OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config. Pre-warmed instances are provisioned via a pool; users claim an agent and it’s live in seconds.
 
-See `docs/` for design, QA, changelog, pool details, and workarounds.
+See `docs/` for design, QA, changelog, pool details, **convos extension** (`docs/convos-extension.md`), and workarounds.
 
 ---
 
@@ -140,7 +140,7 @@ When `OPENCLAW_STATE_DIR` is set (e.g. in Docker), `apply` patches `agents.defau
 - **Join:** `POST /convos/join` with invite URL → join existing conversation.
 - **Status:** `GET /convos/status` → `ready` when identity and stream are up.
 
-Pool manager uses these endpoints to provision claimed instances.
+Pool manager uses these endpoints to provision claimed instances. Full API, config, and layout: **`docs/convos-extension.md`**.
 
 ---
 
