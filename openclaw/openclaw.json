@@ -95,7 +95,8 @@
     "convos": {
       "debug": true,
       "enabled": true,
-      "env": "${XMTP_ENV}"
+      "env": "${XMTP_ENV}",
+      "poolApiKey": "${POOL_API_KEY}"
     }
   },
   "tools": {
