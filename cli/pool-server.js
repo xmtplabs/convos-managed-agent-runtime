@@ -20,6 +20,7 @@ const { getStateDir } = require("./context.cjs");
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
 const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN;
+const POOL_API_KEY = process.env.POOL_API_KEY;
 const ROOT = path.resolve(__dirname, "..");
 
 let gatewayReady = false;
@@ -127,6 +128,8 @@ function checkAuth(req, res) {
 
 async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
   const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
+  const headers = { "Content-Type": "application/json" };
+  if (POOL_API_KEY) headers["Authorization"] = `Bearer ${POOL_API_KEY}`;
   let lastError;
 
   for (let i = 1; i <= maxAttempts; i++) {
@@ -135,7 +138,7 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         // Join an existing conversation
         const res = await fetch(`${gatewayUrl}/convos/join`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName }),
           signal: AbortSignal.timeout(10_000),
         });
@@ -150,7 +153,7 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         // Create a new conversation
         const res = await fetch(`${gatewayUrl}/convos/conversation`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ name: agentName, profileName: agentName }),
           signal: AbortSignal.timeout(10_000),
         });
