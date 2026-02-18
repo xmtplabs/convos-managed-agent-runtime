@@ -7,9 +7,7 @@
  *
  * Serves (on public PORT):
  *   GET  /pool/health    → { ready: boolean }
- *   POST /pool/provision → write INSTRUCTIONS.md, return { ok: true }
- *
- * No channel-specific logic. No convos imports.
+ *   POST /pool/provision → write AGENTS.md, return { ok: true }
  */
 
 const http = require("node:http");
@@ -135,12 +133,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      // Write INSTRUCTIONS.md to workspace
       const stateDir = getStateDir();
       const workspaceDir = path.join(stateDir, "workspace");
       fs.mkdirSync(workspaceDir, { recursive: true });
-      fs.writeFileSync(path.join(workspaceDir, "INSTRUCTIONS.md"), instructions);
-      console.log(`[pool-server] Wrote INSTRUCTIONS.md for "${agentName}"`);
+      const agentsPath = path.join(workspaceDir, "AGENTS.md");
+      const existing = fs.existsSync(agentsPath) ? fs.readFileSync(agentsPath, "utf8") : "";
+      fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
+      console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
 
       json(res, 200, { ok: true });
     } catch (err) {
@@ -151,6 +150,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Proxy everything else to the gateway
+  proxyRequest(req, res);
+});
+
+function proxyRequest(req, res) {
   try {
     const proxyReq = http.request(
       { hostname: "localhost", port: INTERNAL_PORT, path: req.url, method: req.method, headers: req.headers },
@@ -164,6 +167,26 @@ const server = http.createServer(async (req, res) => {
   } catch {
     json(res, 502, { error: "Gateway unavailable" });
   }
+}
+
+// --- WebSocket upgrade proxy ---
+const net = require("node:net");
+
+server.on("upgrade", (req, socket, head) => {
+  const proxySocket = net.connect(INTERNAL_PORT, "localhost", () => {
+    // Rebuild the raw HTTP upgrade request to forward to the gateway
+    const headers = [`${req.method} ${req.url} HTTP/1.1`];
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      headers.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}`);
+    }
+    proxySocket.write(headers.join("\r\n") + "\r\n\r\n");
+    if (head.length) proxySocket.write(head);
+    proxySocket.pipe(socket);
+    socket.pipe(proxySocket);
+  });
+
+  proxySocket.on("error", () => socket.destroy());
+  socket.on("error", () => proxySocket.destroy());
 });
 
 server.listen(PORT, "0.0.0.0", () => {

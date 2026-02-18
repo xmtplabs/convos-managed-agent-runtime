@@ -1,6 +1,6 @@
 ---
-title: "TOOLS.md Template"
-summary: "Workspace template for TOOLS.md"
+title: "TOOLS — SUPERPOWERS"
+summary: "What this agent can do; Convos skills and OpenClaw implementation"
 read_when:
   - Bootstrapping a workspace manually
 ---
