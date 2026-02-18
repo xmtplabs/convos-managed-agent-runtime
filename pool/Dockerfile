@@ -4,10 +4,10 @@ RUN corepack enable
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY pool/package.json pool/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-COPY src ./src
+COPY pool/src ./src
 
 ENV PORT=3001
 EXPOSE 3001
