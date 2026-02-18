@@ -47,13 +47,14 @@ program
 
 program
   .command("reset <target>")
-  .description("Reset state. Target: sessions (clear session state), chrome (restart browser)")
+  .description("Reset state. Target: sessions (clear session state), chrome (restart browser), convos (wipe identity + db)")
   .action((target) => {
     const t = target.toLowerCase();
     if (t === "sessions") runScript("reset-sessions.sh");
     else if (t === "chrome") runScript("restart-chrome.sh");
+    else if (t === "convos") runScript("reset-convos.sh");
     else {
-      console.error("Unknown reset target: %s. Use: sessions | chrome", target);
+      console.error("Unknown reset target: %s. Use: sessions | chrome | convos", target);
       process.exit(1);
     }
   });

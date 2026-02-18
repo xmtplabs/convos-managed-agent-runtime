@@ -80,6 +80,8 @@ TELNYX_PHONE_NUMBER=
 TELNYX_MESSAGING_PROFILE_ID=
 ```
 
+POOL_API_KEY and SETUP_PASSWORD (for pool/convos auth) are optional; when unset, pool and convos HTTP endpoints allow unauthenticated access.
+
 ## CLI
 
 Run with: `pnpm cli <command>`. Help: `pnpm cli help`.

@@ -236,6 +236,17 @@
     }
     .card-env a:hover { text-decoration: underline; }
     .card-env .env-links { margin-top: 0.35rem; }
+    .reset-btn {
+      margin-top: 0.25rem;
+      background: none;
+      border: 1px solid #ddd;
+      color: #999;
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+    }
+    .reset-btn:hover { border-color: #c00; color: #c00; }
   </style>
 </head>
 <body>
@@ -287,7 +298,7 @@
         <div class="connected-label">Conversation bound</div>
         <div class="connected-sublabel" id="connected-sublabel">streaming</div>
         <div class="convo-id" id="convo-id"></div>
-       
+        <button type="button" id="reset-btn" class="reset-btn">Reset identity</button>
       </div>
     </div>
     <div id="error" class="error" role="alert"></div>
@@ -567,6 +578,40 @@
 
       createBtn.addEventListener("click", function () {
         fetchInvite();
+      });
+
+      // Reset identity
+      var resetBtn = document.getElementById("reset-btn");
+      resetBtn.addEventListener("click", function () {
+        if (!confirm("Reset convos identity? This will create a fresh identity and clear the current conversation.")) return;
+        showError("");
+        resetBtn.disabled = true;
+        resetBtn.textContent = "Resetting…";
+        setStatus(null, "resetting…");
+        fetch("/convos/reset", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({}),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); })
+          .then(function (_) {
+            resetBtn.disabled = false;
+            resetBtn.textContent = "Reset identity";
+            if (_.ok) {
+              showSuccess("Identity reset.");
+              setStatus(null, "no conversation bound");
+              showTwoModes();
+            } else {
+              showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
+              setStatus("error", "reset failed");
+            }
+          })
+          .catch(function (err) {
+            resetBtn.disabled = false;
+            resetBtn.textContent = "Reset identity";
+            showError("Reset failed: " + (err.message || err));
+            setStatus("error", "network error");
+          });
       });
 
       // Send test message

@@ -5,10 +5,11 @@ export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 . "$(dirname "$0")/lib/init.sh"
 
 # Extensions: pnpm install in each dir with package.json (always run to fix stale/partial installs)
+# NODE_ENV=development ensures devDeps (typescript, oclif) are available for git-hosted packages
 for ext in "$EXTENSIONS_DIR"/*; do
   [ -d "$ext" ] && [ -f "$ext/package.json" ] || continue
   echo "  Installing deps: $ext"
-  (cd "$ext" && pnpm install --no-frozen-lockfile) || true
+  (cd "$ext" && NODE_ENV=development pnpm install --no-frozen-lockfile) || true
 done
 
 # agentmail: add to state dir package.json and install
