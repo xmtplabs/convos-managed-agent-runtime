@@ -32,8 +32,13 @@ export async function createService(name, variables = {}) {
   const projectId = process.env.RAILWAY_PROJECT_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!environmentId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
-  const repo = process.env.RAILWAY_SOURCE_REPO;
-  const branch = process.env.RAILWAY_SOURCE_BRANCH;
+  // Default to the same repo/branch the pool manager was deployed from
+  const repo = process.env.RAILWAY_SOURCE_REPO
+    || (process.env.RAILWAY_GIT_REPO_OWNER && process.env.RAILWAY_GIT_REPO_NAME
+      ? `${process.env.RAILWAY_GIT_REPO_OWNER}/${process.env.RAILWAY_GIT_REPO_NAME}`
+      : null);
+  const branch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
+  if (!repo) throw new Error("RAILWAY_SOURCE_REPO not set and could not be derived from RAILWAY_GIT_* vars");
 
   // Create service WITHOUT source to prevent auto-deploy.
   // Connecting the repo happens later, after all config is set.
@@ -58,18 +63,7 @@ export async function createService(name, variables = {}) {
     console.warn(`[railway] Failed to set startCommand for ${serviceId}:`, err);
   }
 
-  // Step 2: Set rootDirectory for monorepo support (no repo connected, no auto-deploy).
-  const rootDir = process.env.RAILWAY_SOURCE_ROOT_DIR;
-  if (rootDir) {
-    try {
-      await updateServiceInstance(serviceId, { rootDirectory: rootDir });
-      console.log(`[railway]   Set rootDirectory: ${rootDir}`);
-    } catch (err) {
-      console.warn(`[railway] Failed to set rootDirectory for ${serviceId}:`, err);
-    }
-  }
-
-  // Step 3: Set resource limits (no repo connected, no auto-deploy).
+  // Step 2: Set resource limits (no repo connected, no auto-deploy).
   await setResourceLimits(serviceId);
 
   // Step 4: Connect repo — triggers a single deploy with all config already set.
