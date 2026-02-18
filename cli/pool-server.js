@@ -8,19 +8,15 @@
  * Serves (on public PORT):
  *   GET  /pool/health           → { ready: boolean }
  *   POST /pool/restart-gateway  → write env overrides to volume, restart gateway.sh
- *   POST /pool/provision        → write AGENTS.md + invite/join convos, return { ok, inviteUrl?, conversationId?, joined }
+ *   POST /pool/provision        → invite/join convos (instructions written by convos extension), return { ok, inviteUrl?, conversationId?, joined }
  */
 
 const http = require("node:http");
 const path = require("node:path");
-const fs = require("node:fs");
 const { spawn } = require("node:child_process");
-const { getStateDir } = require("./context.cjs");
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
-const AUTH_TOKEN = process.env.GATEWAY_AUTH_TOKEN;
-// POOL_API_KEY is optional; when neither it nor GATEWAY_AUTH_TOKEN is set, pool routes allow unauthenticated access.
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const ROOT = path.resolve(__dirname, "..");
 
@@ -43,7 +39,7 @@ function spawnGateway(extraEnv = {}) {
       ...extraEnv,
       PORT: String(INTERNAL_PORT),
       OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-      OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+      OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
     },
   });
 
@@ -81,7 +77,7 @@ const initialChild = spawn("pnpm", ["start"], {
     ...process.env,
     PORT: String(INTERNAL_PORT),
     OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-    OPENCLAW_GATEWAY_TOKEN: AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || "",
+    OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
   },
 });
 
@@ -117,21 +113,22 @@ function readBody(req) {
 }
 
 function checkAuth(req, res) {
-  if (!AUTH_TOKEN && !POOL_API_KEY) return true;
+  if (!POOL_API_KEY) return true;
   const header = req.headers.authorization || "";
   const match = header.match(/^Bearer\s+(.+)$/i);
-  const token = match?.[1];
-  if (token && (token === AUTH_TOKEN || token === POOL_API_KEY)) return true;
+  if (match?.[1] === POOL_API_KEY) return true;
   json(res, 401, { error: "Unauthorized" });
   return false;
 }
 
 // --- Convos invite/join helper ---
 
-async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
+async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts = 30) {
   const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
   const headers = { "Content-Type": "application/json" };
-  if (POOL_API_KEY) headers["Authorization"] = `Bearer ${POOL_API_KEY}`;
+  // Convos extension checks poolApiKey (SETUP_PASSWORD), not POOL_API_KEY
+  const setupPassword = process.env.SETUP_PASSWORD;
+  if (setupPassword) headers["Authorization"] = `Bearer ${setupPassword}`;
   let lastError;
 
   for (let i = 1; i <= maxAttempts; i++) {
@@ -141,7 +138,7 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         const res = await fetch(`${gatewayUrl}/convos/join`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName }),
+          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName, instructions }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
@@ -152,11 +149,11 @@ async function callConvosWithRetry(agentName, joinUrl, maxAttempts = 30) {
         console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
         return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
       } else {
-        // Create a new conversation
+        // Create a new conversation (instructions written to INSTRUCTIONS.md by convos extension)
         const res = await fetch(`${gatewayUrl}/convos/conversation`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ name: agentName, profileName: agentName }),
+          body: JSON.stringify({ name: agentName, profileName: agentName, instructions }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
@@ -278,17 +275,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      // Step 1: Write AGENTS.md
-      const stateDir = getStateDir();
-      const workspaceDir = path.join(stateDir, "workspace");
-      fs.mkdirSync(workspaceDir, { recursive: true });
-      const agentsPath = path.join(workspaceDir, "AGENTS.md");
-      const existing = fs.existsSync(agentsPath) ? fs.readFileSync(agentsPath, "utf8") : "";
-      fs.writeFileSync(agentsPath, existing + "\n\n## Agent Instructions\n\n" + instructions);
-      console.log(`[pool-server] Wrote AGENTS.md for "${agentName}"`);
-
-      // Step 2: Create or join conversation via convos extension (channel may still be starting)
-      const convosResult = await callConvosWithRetry(agentName, joinUrl);
+      // Create or join conversation — convos extension writes INSTRUCTIONS.md with the instructions
+      const convosResult = await callConvosWithRetry(agentName, instructions, joinUrl);
 
       json(res, 200, {
         ok: true,
