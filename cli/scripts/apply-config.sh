@@ -12,7 +12,12 @@ echo "  ═══════════════════"
 . "$ROOT/cli/scripts/lib/sync-openclaw.sh"
 
 mkdir -p "$STATE_DIR"
-cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
+if [ -f "$CONFIG" ]; then
+  echo "  ♻️  config exists → preserving provisioned config"
+else
+  cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
+  echo "  📋 config        → copied template"
+fi
 
 # Patch config when running in a container (Railway: PORT=8080, OPENCLAW_STATE_DIR=/app)
 if command -v jq >/dev/null 2>&1; then
