@@ -599,7 +599,8 @@
             resetBtn.textContent = "Reset identity";
             if (_.ok) {
               showSuccess("Identity reset.");
-              checkStatus();
+              setStatus(null, "no conversation bound");
+              showTwoModes();
             } else {
               showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
               setStatus("error", "reset failed");

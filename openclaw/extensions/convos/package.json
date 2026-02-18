@@ -10,6 +10,9 @@
   "devDependencies": {
     "openclaw": "*"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@convos/cli"]
+  },
   "openclaw": {
     "extensions": [
       "./index.ts"

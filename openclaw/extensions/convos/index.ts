@@ -3,7 +3,7 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { emptyPluginConfigSchema, renderQrPngBase64 } from "openclaw/plugin-sdk";
+import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
 import { convosPlugin, startWiredInstance } from "./src/channel.js";
 import { getConvosInstance, setConvosInstance } from "./src/outbound.js";
@@ -28,7 +28,6 @@ let setupResult: {
 let cachedSetupResponse: {
   inviteUrl: string;
   conversationId: string;
-  qrDataUrl: string;
 } | null = null;
 
 async function cleanupSetupInstance() {
@@ -103,12 +102,9 @@ async function handleSetup(params: {
     accountId: params.accountId,
   };
 
-  const qrBase64 = await renderQrPngBase64(result.inviteUrl);
-
   cachedSetupResponse = {
     inviteUrl: result.inviteUrl,
     conversationId: result.conversationId,
-    qrDataUrl: `data:image/png;base64,${qrBase64}`,
   };
 
   return cachedSetupResponse;
