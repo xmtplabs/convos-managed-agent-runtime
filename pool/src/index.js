@@ -547,29 +547,61 @@ app.get("/", (_req, res) => {
       background: #FFF;
       border-radius: 24px;
       padding: 32px;
-      max-width: 400px;
+      max-width: 340px;
       width: 90%;
+      aspect-ratio: 1;
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     .modal h3 {
       font-size: 16px;
       font-weight: 700;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       letter-spacing: -0.08px;
     }
 
-    .modal img {
-      border-radius: 16px;
-      width: 256px;
-      height: 256px;
+    .qr-wrap {
+      position: relative;
+      aspect-ratio: 1;
+      max-width: 240px;
+      width: 100%;
       margin: 0 auto;
       display: block;
+      color: inherit;
+      text-decoration: none;
     }
 
+    .qr-wrap img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+
+    .qr-wrap .icon-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 9%;
+      height: 9%;
+      background: #fff;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-wrap .icon-center svg { width: 100%; height: 100%; }
+
     .modal .invite-url {
-      margin: 16px auto 0;
-      padding: 12px 16px;
+      margin: 12px auto 0;
+      padding: 10px 14px;
       background: #F5F5F5;
       border-radius: 12px;
       font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
@@ -578,15 +610,10 @@ app.get("/", (_req, res) => {
       color: #666;
       cursor: pointer;
       transition: background 0.2s;
-      max-width: 300px;
+      max-width: 260px;
     }
 
     .modal .invite-url:hover { background: #EBEBEB; }
-
-    .modal .btn-secondary {
-      margin-top: 20px;
-      width: 100%;
-    }
 
     .empty-state {
       text-align: center;
@@ -743,9 +770,22 @@ app.get("/", (_req, res) => {
   <div class="modal-overlay" id="qr-modal">
     <div class="modal">
       <h3 id="modal-title">QR Code</h3>
-      <img id="modal-qr" alt="Scan to connect" />
+      <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener">
+        <img id="modal-qr" alt="Scan to connect" />
+        <div class="icon-center" aria-hidden="true">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <style>.s0{fill:#000}.s1{fill:#fff}.s2{fill:none;stroke:#000;stroke-width:7.2}</style>
+            <path fill-rule="evenodd" class="s0" d="m24 0h72c13.25 0 24 10.75 24 24v72c0 13.25-10.75 24-24 24h-72c-13.25 0-24-10.75-24-24v-72c0-13.25 10.75-24 24-24z"/>
+            <path fill-rule="evenodd" class="s1" d="m60 30c16.57 0 30 13.43 30 30 0 16.57-13.43 30-30 30-16.57 0-30-13.43-30-30 0-16.57 13.43-30 30-30z"/>
+            <path class="s2" d="m40 60h40"/>
+            <path class="s2" d="m50 60h40"/>
+            <path class="s2" d="m60 40v40"/>
+            <path class="s2" d="m45.9 45.86l28.28 28.28"/>
+            <path class="s2" d="m45.9 74.14l28.28-28.28"/>
+          </svg>
+        </div>
+      </a>
       <div class="invite-url" id="modal-invite" onclick="copyText(this)" title="Click to copy"></div>
-      <button class="btn-secondary" onclick="closeModal()">Close</button>
     </div>
   </div>
 
@@ -888,9 +928,11 @@ app.get("/", (_req, res) => {
 
     // QR modal
     var modal=document.getElementById('qr-modal');
+    var qrWrap=document.getElementById('qr-wrap');
     function showQr(name,url){
       document.getElementById('modal-title').textContent=name;
-      document.getElementById('modal-qr').src='https://api.qrserver.com/v1/create-qr-code/?size=256x256&data='+encodeURIComponent(url);
+      document.getElementById('modal-qr').src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
+      qrWrap.href=url;
       document.getElementById('modal-invite').textContent=url;
       modal.classList.add('active');
     }
