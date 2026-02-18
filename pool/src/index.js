@@ -445,9 +445,9 @@ app.get("/", (_req, res) => {
     .agent-card {
       background: #FFF;
       border: 1px solid #EBEBEB;
-      border-radius: 20px;
-      padding: 20px;
-      margin-bottom: 10px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
     }
 
     .agent-card.crashed {
@@ -459,7 +459,19 @@ app.get("/", (_req, res) => {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .agent-header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .agent-header-actions {
+      flex-shrink: 0;
     }
 
     .agent-name {
@@ -485,15 +497,16 @@ app.get("/", (_req, res) => {
       color: #DC2626;
     }
 
-    .agent-instructions {
-      font-size: 13px;
-      color: #666;
-      line-height: 1.4;
-      margin-bottom: 12px;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+    .agent-id-line {
+      font-size: 11px;
+      color: #999;
+      font-family: monospace;
+      margin-bottom: 0;
+    }
+
+    .agent-id-line a {
+      color: #007AFF;
+      text-decoration: none;
     }
 
     .agent-actions {
@@ -893,39 +906,39 @@ app.get("/", (_req, res) => {
       // Crashed agents first
       crashedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
-        var instr=esc(a.instructions||'No instructions');
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div style="font-size:11px;color:#999;margin-bottom:8px;font-family:monospace">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener" style="color:#007AFF;text-decoration:none">Railway</a>':'')+'</div>';
+        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
         html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
-            '<span class="agent-name">'+name+' <span class="agent-status-badge">Crashed</span></span>'+
-            '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '<div class="agent-header-left">'+
+              '<span class="agent-name">'+name+' <span class="agent-status-badge">Crashed</span></span>'+
+              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '</div>'+
+            '<div class="agent-header-actions agent-actions">'+
+              '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
+              '<button class="btn-warn" data-dismiss="'+a.id+'">Dismiss</button>'+
+            '</div>'+
           '</div>'+
           idLine+
-          '<div class="agent-instructions">'+instr+'</div>'+
-          '<div class="agent-actions">'+
-            '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
-            '<button class="btn-warn" data-dismiss="'+a.id+'">Dismiss</button>'+
-          '</div>'+
         '</div>';
       });
       // Live agents
       claimedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
-        var instr=esc(a.instructions||'No instructions');
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div style="font-size:11px;color:#999;margin-bottom:8px;font-family:monospace">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener" style="color:#007AFF;text-decoration:none">Railway</a>':'')+'</div>';
+        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
         html+='<div class="agent-card" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
-            '<span class="agent-name">'+name+'</span>'+
-            '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '<div class="agent-header-left">'+
+              '<span class="agent-name">'+name+'</span>'+
+              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '</div>'+
+            '<div class="agent-header-actions agent-actions">'+
+              '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
+              '<button class="btn-danger" data-kill="'+a.id+'">Kill</button>'+
+            '</div>'+
           '</div>'+
           idLine+
-          '<div class="agent-instructions">'+instr+'</div>'+
-          '<div class="agent-actions">'+
-            '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
-            '<button class="btn-danger" data-kill="'+a.id+'">Kill</button>'+
-          '</div>'+
         '</div>';
       });
       feed.innerHTML=html;
