@@ -4,6 +4,8 @@ if [ -n "${RAILWAY_VOLUME_MOUNT_PATH:-}" ]; then
   export OPENCLAW_STATE_DIR="${RAILWAY_VOLUME_MOUNT_PATH}/openclaw"
   # Persist convos CLI identity keys (~/.convos/identities/) on the volume
   mkdir -p "${RAILWAY_VOLUME_MOUNT_PATH}/convos"
-  ln -sfn "${RAILWAY_VOLUME_MOUNT_PATH}/convos" "$HOME/.convos"
+  rm -rf "$HOME/.convos"
+  ln -s "${RAILWAY_VOLUME_MOUNT_PATH}/convos" "$HOME/.convos"
+  echo "[entrypoint] ~/.convos -> ${RAILWAY_VOLUME_MOUNT_PATH}/convos"
 fi
 exec "$@"
