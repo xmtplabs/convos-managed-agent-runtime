@@ -18,7 +18,7 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Problem:** Custom extensions and skills (e.g. agentmail) need node_modules. OpenClaw loads extensions from the state dir; skill scripts resolve packages from state dir's node_modules.
 
-**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) installs deps in `$noth/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
+**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) installs deps in `$OPENCLAW_STATE_DIR/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
 
 ## Plugin "Cannot find module" / extension deps resolution
 
