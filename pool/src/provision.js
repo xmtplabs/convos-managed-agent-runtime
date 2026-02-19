@@ -70,7 +70,7 @@ export async function provision(opts) {
 
     // Rename Railway service for dashboard visibility
     try {
-      await railway.renameService(instance.serviceId, `convos-agent-${agentName}`);
+      await railway.renameService(instance.serviceId, `convos-agent-${agentName}-${instance.id}`);
     } catch (err) {
       console.warn(`[provision] Failed to rename ${instance.id}:`, err.message);
     }
