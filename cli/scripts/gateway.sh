@@ -106,19 +106,21 @@ fi
 
 echo ""
 
+# In-process restart: SIGUSR1 reloads config inside the same process instead
+# of exiting. This prevents the container from dying on config-level changes
+# (e.g. model switch via native commands).
+export OPENCLAW_NO_RESPAWN=1
+
 # Disable set -e so the restart loop can capture non-zero exit codes
 set +e
 
-# --- Restart loop ---
-# OpenClaw exits when a restart is requested (e.g. model change via native
-# commands, config writes that trigger SIGUSR1). Without a loop the container
-# dies because `exec` replaces the shell. We re-launch automatically unless
-# the gateway exits with code 0 (clean shutdown) or we hit too many rapid
-# crashes in a row.
+# --- Restart loop (safety net) ---
+# Even with in-process restart, the gateway can still crash from unrelated
+# errors. This loop re-launches automatically unless exit code is 0 (clean
+# shutdown) or we hit too many rapid crashes in a row.
 MAX_RAPID_CRASHES=5
 RAPID_WINDOW=30          # seconds — crashes within this window count as rapid
 _crash_count=0
-_last_start=$(date +%s)
 
 while true; do
   _last_start=$(date +%s)
