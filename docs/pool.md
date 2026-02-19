@@ -38,7 +38,7 @@ The background tick runs every 30 seconds:
 
 ## Setup
 
-Requires Node.js 22+ and a [Neon](https://neon.tech) Postgres database.
+Requires Node.js 22+ and a [Railway](https://railway.com) Postgres database.
 
 ```sh
 cp pool/.env.example pool/.env
@@ -58,7 +58,7 @@ pnpm start
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
-| `DATABASE_URL` | Neon Postgres connection string |
+| `DATABASE_URL` | Railway postgres connection string |
 | **Railway** | |
 | `RAILWAY_API_TOKEN` | Railway project-scoped API token |
 | `RAILWAY_PROJECT_ID` | Railway project ID |
