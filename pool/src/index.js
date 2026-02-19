@@ -445,9 +445,9 @@ app.get("/", (_req, res) => {
     .agent-card {
       background: #FFF;
       border: 1px solid #EBEBEB;
-      border-radius: 20px;
-      padding: 20px;
-      margin-bottom: 10px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
     }
 
     .agent-card.crashed {
@@ -459,7 +459,19 @@ app.get("/", (_req, res) => {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .agent-header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .agent-header-actions {
+      flex-shrink: 0;
     }
 
     .agent-name {
@@ -485,15 +497,16 @@ app.get("/", (_req, res) => {
       color: #DC2626;
     }
 
-    .agent-instructions {
-      font-size: 13px;
-      color: #666;
-      line-height: 1.4;
-      margin-bottom: 12px;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+    .agent-id-line {
+      font-size: 11px;
+      color: #999;
+      font-family: monospace;
+      margin-bottom: 0;
+    }
+
+    .agent-id-line a {
+      color: #007AFF;
+      text-decoration: none;
     }
 
     .agent-actions {
@@ -545,48 +558,96 @@ app.get("/", (_req, res) => {
 
     .modal {
       background: #FFF;
-      border-radius: 24px;
-      padding: 32px;
-      max-width: 400px;
-      width: 90%;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 1.25rem;
+      max-width: 320px;
+      width: 100%;
       text-align: center;
     }
 
     .modal h3 {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 20px;
-      letter-spacing: -0.08px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 0.75rem;
+      color: #000;
     }
 
-    .modal img {
-      border-radius: 16px;
-      width: 256px;
-      height: 256px;
+    .qr-wrap {
+      position: relative;
+      width: 100%;
       margin: 0 auto;
       display: block;
+      color: inherit;
+      text-decoration: none;
     }
 
-    .modal .invite-url {
-      margin: 16px auto 0;
-      padding: 12px 16px;
-      background: #F5F5F5;
+    .qr-wrap img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
       border-radius: 12px;
-      font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
-      font-size: 11px;
-      word-break: break-all;
-      color: #666;
+    }
+
+    .qr-wrap .icon-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 9%;
+      height: 9%;
+      background: #fff;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-wrap .icon-center svg { width: 100%; height: 100%; }
+
+    .modal .invite-row {
+      margin: 0.75rem 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #F5F5F5;
+      border-radius: 8px;
+      width: 100%;
+      box-sizing: border-box;
       cursor: pointer;
       transition: background 0.2s;
-      max-width: 300px;
     }
 
-    .modal .invite-url:hover { background: #EBEBEB; }
+    .modal .invite-row:hover { background: #EBEBEB; }
 
-    .modal .btn-secondary {
-      margin-top: 20px;
-      width: 100%;
+    .modal .invite-url {
+      font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+      font-size: 11px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      min-width: 0;
     }
+
+    .modal .copy-icon {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      color: #999;
+      transition: color 0.2s;
+    }
+
+    .modal .invite-row:hover .copy-icon { color: #666; }
+
+    .modal .invite-row.copied { background: #D4EDDA; }
+    .modal .invite-row.copied .invite-url { color: #155724; }
+    .modal .invite-row.copied .copy-icon { color: #155724; }
 
     .empty-state {
       text-align: center;
@@ -743,9 +804,28 @@ app.get("/", (_req, res) => {
   <div class="modal-overlay" id="qr-modal">
     <div class="modal">
       <h3 id="modal-title">QR Code</h3>
-      <img id="modal-qr" alt="Scan to connect" />
-      <div class="invite-url" id="modal-invite" onclick="copyText(this)" title="Click to copy"></div>
-      <button class="btn-secondary" onclick="closeModal()">Close</button>
+      <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener">
+        <img id="modal-qr" alt="Scan to connect" />
+        <div class="icon-center" aria-hidden="true">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <style>.s0{fill:#000}.s1{fill:#fff}.s2{fill:none;stroke:#000;stroke-width:7.2}</style>
+            <path fill-rule="evenodd" class="s0" d="m24 0h72c13.25 0 24 10.75 24 24v72c0 13.25-10.75 24-24 24h-72c-13.25 0-24-10.75-24-24v-72c0-13.25 10.75-24 24-24z"/>
+            <path fill-rule="evenodd" class="s1" d="m60 30c16.57 0 30 13.43 30 30 0 16.57-13.43 30-30 30-16.57 0-30-13.43-30-30 0-16.57 13.43-30 30-30z"/>
+            <path class="s2" d="m40 60h40"/>
+            <path class="s2" d="m50 60h40"/>
+            <path class="s2" d="m60 40v40"/>
+            <path class="s2" d="m45.9 45.86l28.28 28.28"/>
+            <path class="s2" d="m45.9 74.14l28.28-28.28"/>
+          </svg>
+        </div>
+      </a>
+      <div class="invite-row" id="invite-row" onclick="copyInvite()" title="Click to copy">
+        <span class="invite-url" id="modal-invite"></span>
+        <svg class="copy-icon" id="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -826,39 +906,39 @@ app.get("/", (_req, res) => {
       // Crashed agents first
       crashedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
-        var instr=esc(a.instructions||'No instructions');
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div style="font-size:11px;color:#999;margin-bottom:8px;font-family:monospace">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener" style="color:#007AFF;text-decoration:none">Railway</a>':'')+'</div>';
+        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
         html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
-            '<span class="agent-name">'+name+' <span class="agent-status-badge">Crashed</span></span>'+
-            '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '<div class="agent-header-left">'+
+              '<span class="agent-name">'+name+' <span class="agent-status-badge">Crashed</span></span>'+
+              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '</div>'+
+            '<div class="agent-header-actions agent-actions">'+
+              '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
+              '<button class="btn-warn" data-dismiss="'+a.id+'">Dismiss</button>'+
+            '</div>'+
           '</div>'+
           idLine+
-          '<div class="agent-instructions">'+instr+'</div>'+
-          '<div class="agent-actions">'+
-            '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
-            '<button class="btn-warn" data-dismiss="'+a.id+'">Dismiss</button>'+
-          '</div>'+
         '</div>';
       });
       // Live agents
       claimedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
-        var instr=esc(a.instructions||'No instructions');
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div style="font-size:11px;color:#999;margin-bottom:8px;font-family:monospace">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener" style="color:#007AFF;text-decoration:none">Railway</a>':'')+'</div>';
+        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
         html+='<div class="agent-card" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
-            '<span class="agent-name">'+name+'</span>'+
-            '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '<div class="agent-header-left">'+
+              '<span class="agent-name">'+name+'</span>'+
+              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '</div>'+
+            '<div class="agent-header-actions agent-actions">'+
+              '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
+              '<button class="btn-danger" data-kill="'+a.id+'">Kill</button>'+
+            '</div>'+
           '</div>'+
           idLine+
-          '<div class="agent-instructions">'+instr+'</div>'+
-          '<div class="agent-actions">'+
-            '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
-            '<button class="btn-danger" data-kill="'+a.id+'">Kill</button>'+
-          '</div>'+
         '</div>';
       });
       feed.innerHTML=html;
@@ -888,11 +968,36 @@ app.get("/", (_req, res) => {
 
     // QR modal
     var modal=document.getElementById('qr-modal');
+    var qrWrap=document.getElementById('qr-wrap');
+    var inviteRow=document.getElementById('invite-row');
+    var inviteEl=document.getElementById('modal-invite');
+    var copyIcon=document.getElementById('copy-icon');
+    var currentInviteUrl='';
+    var checkSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>';
+    var copySvg=copyIcon.outerHTML;
     function showQr(name,url){
       document.getElementById('modal-title').textContent=name;
-      document.getElementById('modal-qr').src='https://api.qrserver.com/v1/create-qr-code/?size=256x256&data='+encodeURIComponent(url);
-      document.getElementById('modal-invite').textContent=url;
+      document.getElementById('modal-qr').src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
+      qrWrap.href=url;
+      currentInviteUrl=url;
+      inviteEl.textContent=url;
+      inviteRow.classList.remove('copied');
+      copyIcon.outerHTML=copySvg;
       modal.classList.add('active');
+    }
+    function copyInvite(){
+      navigator.clipboard.writeText(currentInviteUrl).then(function(){
+        inviteRow.classList.add('copied');
+        inviteEl.textContent='Copied!';
+        document.getElementById('copy-icon').outerHTML=checkSvg;
+        setTimeout(function(){
+          inviteRow.classList.remove('copied');
+          inviteEl.textContent=currentInviteUrl;
+          var tmp=document.createElement('div');tmp.innerHTML=copySvg;
+          var old=inviteRow.querySelector('svg');
+          if(old)inviteRow.replaceChild(tmp.firstChild,old);
+        },1500);
+      });
     }
     function closeModal(){modal.classList.remove('active');}
     modal.onclick=function(e){if(e.target===modal)closeModal();};
@@ -999,12 +1104,20 @@ app.get("/", (_req, res) => {
       }finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
     };
 
-    // Drain — remove unclaimed instances from the pool
+    // Drain — remove all unclaimed (idle + starting); use fresh counts from server
     var drainBtn=document.getElementById('drain-btn');
     drainBtn.onclick=async function(){
-      var n=parseInt(replenishCount.value)||3;
+      drainBtn.disabled=true;
+      try{
+        var countRes=await fetch('/api/pool/counts');
+        var c=await countRes.json();
+        var idle=c.idle||0, starting=c.starting||0;
+        var n=Math.min(idle+starting,20);
+      }catch(e){ n=0; }
+      drainBtn.disabled=false;
+      if(n===0){ alert('No unclaimed instances to drain.'); return; }
       var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Drain up to '+n+' unclaimed instance(s) from the pool?';
+        'Drain '+n+' unclaimed instance(s) from the pool?';
       if(!confirm(drainMsg))return;
       drainBtn.disabled=true;drainBtn.textContent='Draining...';
       try{
