@@ -6,6 +6,8 @@ import { deleteOrphanAgentVolumes } from "./volumes.js";
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
+const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
+const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
 
 const app = express();
 app.disable("x-powered-by");
@@ -237,6 +239,22 @@ app.get("/", (_req, res) => {
       font-weight: 700;
       margin-bottom: 20px;
       letter-spacing: -0.08px;
+    }
+
+    .info-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .info-chip {
+      font-size: 12px;
+      font-weight: 500;
+      color: #999;
+      padding: 4px 10px;
+      background: #FAFAFA;
+      border: 1px solid #EBEBEB;
+      border-radius: 8px;
     }
 
     .unavailable-msg {
@@ -739,6 +757,10 @@ app.get("/", (_req, res) => {
     <div class="main-content">
       <div class="card">
         <h3>Launch an Agent</h3>
+        <div class="info-row">
+          <span class="info-chip">Branch: ${DEPLOY_BRANCH}</span>
+          <span class="info-chip">Model: ${INSTANCE_MODEL}</span>
+        </div>
         <div id="unavailable" class="unavailable-msg" style="display:none">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="1.5">
             <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10">
