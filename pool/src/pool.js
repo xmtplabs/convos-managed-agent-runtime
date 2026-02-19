@@ -52,7 +52,7 @@ export async function createInstance() {
   if (vars.SETUP_PASSWORD === undefined) vars.SETUP_PASSWORD = generateSetupPassword();
   const { key: openRouterKey, hash: openRouterKeyHash } = await resolveOpenRouterApiKey(id);
   if (openRouterKey) vars.OPENROUTER_API_KEY = openRouterKey;
-  const { inboxId: agentMailInboxId, perInstance: agentMailPerInstance } = await resolveAgentMailInbox(id);
+  const { inboxId: agentMailInboxId } = await resolveAgentMailInbox(id);
   if (agentMailInboxId) vars.AGENTMAIL_INBOX_ID = agentMailInboxId;
   const privateWalletKey = generatePrivateWalletKey();
   vars.PRIVATE_WALLET_KEY = privateWalletKey;
@@ -79,7 +79,7 @@ export async function createInstance() {
     deployStatus: "BUILDING",
     openRouterApiKey: openRouterKey || undefined,
     openRouterKeyHash: openRouterKeyHash || undefined,
-    agentMailInboxId: agentMailPerInstance ? agentMailInboxId : undefined,
+    agentMailInboxId: agentMailInboxId || undefined,
     privateWalletKey,
     gatewayToken: vars.OPENCLAW_GATEWAY_TOKEN,
   });

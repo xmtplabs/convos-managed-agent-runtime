@@ -73,8 +73,7 @@ pnpm start
 | **Instance env vars** | Injected into each agent instance (`INSTANCE_*` prefix is stripped) |
 | `INSTANCE_OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key |
-| `INSTANCE_AGENTMAIL_INBOX_ID` | AgentMail inbox ID |
+| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
 | `INSTANCE_BANKR_API_KEY` | Bankr API key |
 | `INSTANCE_TELNYX_API_KEY` | Telnyx API key |
 | `INSTANCE_TELNYX_PHONE_NUMBER` | Telnyx phone number |

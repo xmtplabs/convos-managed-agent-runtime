@@ -12,7 +12,6 @@ const INSTANCE_VAR_MAP = {
   SETUP_PASSWORD: "INSTANCE_SETUP_PASSWORD",
   XMTP_ENV: "INSTANCE_XMTP_ENV",
   AGENTMAIL_API_KEY: "INSTANCE_AGENTMAIL_API_KEY",
-  AGENTMAIL_INBOX_ID: "INSTANCE_AGENTMAIL_INBOX_ID",
   BANKR_API_KEY: "INSTANCE_BANKR_API_KEY",
   TELNYX_API_KEY: "INSTANCE_TELNYX_API_KEY",
   TELNYX_PHONE_NUMBER: "INSTANCE_TELNYX_PHONE_NUMBER",
@@ -37,7 +36,6 @@ export function instanceEnvVars() {
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_API_KEY: POOL_API_KEY || "",
     AGENTMAIL_API_KEY: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY),
-    AGENTMAIL_INBOX_ID: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_INBOX_ID),
     BANKR_API_KEY: getEnv(INSTANCE_VAR_MAP.BANKR_API_KEY),
     TELNYX_API_KEY: getEnv(INSTANCE_VAR_MAP.TELNYX_API_KEY),
     TELNYX_PHONE_NUMBER: getEnv(INSTANCE_VAR_MAP.TELNYX_PHONE_NUMBER),
@@ -63,12 +61,9 @@ export function generatePrivateWalletKey() {
   return "0x" + randomBytes(32).toString("hex");
 }
 
-/** Resolve AGENTMAIL_INBOX_ID. If INSTANCE_AGENTMAIL_INBOX_ID is set, use it (shared).
- *  Otherwise create a per-instance inbox via the AgentMail API.
- *  Returns { inboxId, perInstance } — perInstance=true means we created it and should delete on destroy. */
+/** Create a per-instance AgentMail inbox via the API.
+ *  Returns { inboxId, perInstance } — perInstance is always true when an inbox is created. */
 export async function resolveAgentMailInbox(instanceId) {
-  const existing = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_INBOX_ID);
-  if (existing) return { inboxId: existing, perInstance: false };
   const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
   if (!apiKey) return { inboxId: "", perInstance: false };
   return createAgentMailInbox(apiKey, instanceId);
