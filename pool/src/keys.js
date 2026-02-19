@@ -71,7 +71,7 @@ export async function resolveAgentMailInbox(instanceId) {
 
 /** Create a per-instance AgentMail inbox. */
 async function createAgentMailInbox(apiKey, instanceId) {
-  const username = `convos-${randomBytes(4).toString("hex")}`;
+  const username = `convos-agent-${instanceId}`;
   const clientId = `convos-agent-${instanceId}`;
 
   const res = await fetch("https://api.agentmail.to/v0/inboxes", {
