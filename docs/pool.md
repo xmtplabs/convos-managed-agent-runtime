@@ -54,20 +54,34 @@ cp .env.example .env
 
 | Variable | Description |
 |----------|-------------|
+| **Pool manager** | |
 | `PORT` | Server port (default `3001`) |
 | `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
 | `POOL_ENVIRONMENT` | `"staging"`, `"dev"`, or `"production"` |
+| `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
+| `POOL_STUCK_TIMEOUT_MS` | Max time for an instance to pass health checks before marked dead (default `900000` / 15 min) |
+| `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
+| `DATABASE_URL` | Neon Postgres connection string |
+| **Railway** | |
 | `RAILWAY_API_TOKEN` | Railway project-scoped API token |
 | `RAILWAY_PROJECT_ID` | Railway project ID |
 | `RAILWAY_ENVIRONMENT_ID` | Railway environment ID |
-| `RAILWAY_SOURCE_REPO` | GitHub repo to deploy (e.g. `xmtplabs/convos-agent-pool-manager`) |
-| `RAILWAY_SOURCE_BRANCH` | Branch to deploy from (e.g. `staging`, `main`) |
+| `RAILWAY_SOURCE_REPO` | GitHub repo to deploy (e.g. `xmtplabs/convos-agents`); falls back to `RAILWAY_GIT_REPO_OWNER/RAILWAY_GIT_REPO_NAME` |
+| `RAILWAY_SOURCE_BRANCH` | Branch to deploy from (e.g. `staging`, `main`); falls back to `RAILWAY_GIT_BRANCH` |
 | `RAILWAY_SOURCE_ROOT_DIR` | Subdirectory containing the Dockerfile (`agent`) |
-| `OPENCLAW_GIT_REF` | OpenClaw git ref to build from (default: `staging` or `main`) |
-| `INSTANCE_ANTHROPIC_API_KEY` | Anthropic API key injected into each instance |
+| **OpenRouter** | |
+| `OPENROUTER_MANAGEMENT_KEY` | Management key for creating per-instance OpenRouter API keys |
+| `OPENROUTER_KEY_LIMIT` | USD spend limit per key (default `20`) |
+| `OPENROUTER_KEY_LIMIT_RESET` | Limit reset period (default `monthly`) |
+| **Instance env vars** | Injected into each agent instance (`INSTANCE_*` prefix is stripped) |
+| `INSTANCE_OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
-| `DATABASE_URL` | Neon Postgres connection string |
+| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key |
+| `INSTANCE_AGENTMAIL_INBOX_ID` | AgentMail inbox ID |
+| `INSTANCE_BANKR_API_KEY` | Bankr API key |
+| `INSTANCE_TELNYX_API_KEY` | Telnyx API key |
+| `INSTANCE_TELNYX_PHONE_NUMBER` | Telnyx phone number |
+| `INSTANCE_TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile ID |
 
 
 Run the database migration:
