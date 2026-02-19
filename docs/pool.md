@@ -67,7 +67,6 @@ cp .env.example .env
 | `INSTANCE_ANTHROPIC_API_KEY` | Anthropic API key injected into each instance |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
-| `POOL_MAX_TOTAL` | Maximum total instances (default `10`) |
 | `DATABASE_URL` | Neon Postgres connection string |
 
 
@@ -171,7 +170,7 @@ provisioning  →  idle  →  claimed
 
 The background tick runs every 30 seconds:
 1. Polls all `provisioning` instances — if `/convos/status` returns `ready`, marks them `idle`
-2. Checks if idle + provisioning count is below `POOL_MIN_IDLE` — if so, creates new instances up to `POOL_MAX_TOTAL`
+2. Checks if idle + provisioning count is below `POOL_MIN_IDLE` — if so, creates new instances
 3. Periodically reconciles DB against Railway to clean up orphaned entries
 
 ## Environments

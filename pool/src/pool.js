@@ -9,7 +9,6 @@ import { destroyInstance, destroyInstances } from "./delete.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const MIN_IDLE = parseInt(process.env.POOL_MIN_IDLE || "3", 10);
-const MAX_TOTAL = parseInt(process.env.POOL_MAX_TOTAL || "10", 10);
 
 // Health-check a single instance via /pool/health.
 // Returns parsed JSON on success, null on failure.
@@ -287,18 +286,15 @@ export async function tick() {
   );
 
   if (deficit > 0) {
-    const canCreate = Math.min(deficit, MAX_TOTAL - total);
-    if (canCreate > 0) {
-      console.log(`[tick] Creating ${canCreate} new instance(s)...`);
-      const settled = await Promise.allSettled(
-        Array.from({ length: canCreate }, () => createInstance())
-      );
-      settled.forEach((r, i) => {
-        if (r.status === "rejected") {
-          console.error(`[tick] Failed to create instance:`, r.reason);
-        }
-      });
-    }
+    console.log(`[tick] Creating ${deficit} new instance(s)...`);
+    const settled = await Promise.allSettled(
+      Array.from({ length: deficit }, () => createInstance())
+    );
+    settled.forEach((r, i) => {
+      if (r.status === "rejected") {
+        console.error(`[tick] Failed to create instance:`, r.reason);
+      }
+    });
   }
 }
 
