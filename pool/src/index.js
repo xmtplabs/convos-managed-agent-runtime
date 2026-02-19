@@ -6,6 +6,13 @@ import { deleteOrphanAgentVolumes } from "./volumes.js";
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
+// Deploy context shown in dashboard info tags
+const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
+const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
+const AGENTMAIL_INBOX = process.env.INSTANCE_AGENTMAIL_INBOX_ID || "";
+const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || "";
+const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || "";
+const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || "";
 
 const app = express();
 app.disable("x-powered-by");
@@ -237,6 +244,29 @@ app.get("/", (_req, res) => {
       font-weight: 700;
       margin-bottom: 20px;
       letter-spacing: -0.08px;
+    }
+
+    .info-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+
+    .info-chip {
+      font-size: 11px;
+      font-weight: 500;
+      color: #999;
+      padding: 3px 8px;
+      background: #FAFAFA;
+      border: 1px solid #EBEBEB;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .info-chip a {
+      color: #007AFF;
+      text-decoration: none;
     }
 
     .unavailable-msg {
@@ -739,6 +769,12 @@ app.get("/", (_req, res) => {
     <div class="main-content">
       <div class="card">
         <h3>Launch an Agent</h3>
+        <div class="info-row">
+          <span class="info-chip">branch: ${DEPLOY_BRANCH}</span>
+          <span class="info-chip">model: ${INSTANCE_MODEL}</span>${AGENTMAIL_INBOX ? `
+          <span class="info-chip">inbox: ${AGENTMAIL_INBOX}</span>` : ""}${RAILWAY_SERVICE_ID ? `
+          <span class="info-chip">service: ${RAILWAY_PROJECT_ID ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>` : RAILWAY_SERVICE_ID.slice(0, 8)}</span>` : ""}
+        </div>
         <div id="unavailable" class="unavailable-msg" style="display:none">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="1.5">
             <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10">
@@ -907,7 +943,9 @@ app.get("/", (_req, res) => {
       crashedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
+        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
+        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
+        var idLine='<div class="agent-id-line">'+idPart+branchTag+'</div>';
         html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<div class="agent-header-left">'+
@@ -926,7 +964,9 @@ app.get("/", (_req, res) => {
       claimedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
+        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
+        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
+        var idLine='<div class="agent-id-line">'+idPart+branchTag+'</div>';
         html+='<div class="agent-card" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<div class="agent-header-left">'+

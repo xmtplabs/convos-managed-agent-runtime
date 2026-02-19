@@ -65,12 +65,16 @@ async function migrate() {
           invite_url TEXT,
           instructions TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-          claimed_at TIMESTAMPTZ DEFAULT NOW()
+          claimed_at TIMESTAMPTZ DEFAULT NOW(),
+          source_branch TEXT
         )
       `;
       console.log("Created agent_metadata table.");
     }
   }
+
+  // Add source_branch column if missing (idempotent)
+  await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS source_branch TEXT`;
 
   process.exit(0);
 }
