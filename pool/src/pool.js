@@ -226,8 +226,6 @@ export async function tick() {
       deployStatus: svc.deployStatus,
     };
     if (existing?.openRouterApiKey) entry.openRouterApiKey = existing.openRouterApiKey;
-    if (existing?.openRouterKeyHash) entry.openRouterKeyHash = existing.openRouterKeyHash;
-    if (existing?.agentMailInboxId) entry.agentMailInboxId = existing.agentMailInboxId;
     if (existing?.privateWalletKey) entry.privateWalletKey = existing.privateWalletKey;
     if (existing?.gatewayToken) entry.gatewayToken = existing.gatewayToken;
 

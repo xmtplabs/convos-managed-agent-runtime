@@ -1,10 +1,10 @@
 import { sql } from "./connection.js";
 
 // Insert metadata when an instance is claimed.
-export async function insertMetadata({ id, railwayServiceId, agentName, conversationId, inviteUrl, instructions, sourceBranch }) {
+export async function insertMetadata({ id, railwayServiceId, agentName, conversationId, inviteUrl, instructions, sourceBranch, openrouterKeyHash, agentmailInboxId }) {
   await sql`
-    INSERT INTO agent_metadata (id, railway_service_id, agent_name, conversation_id, invite_url, instructions, claimed_at, source_branch)
-    VALUES (${id}, ${railwayServiceId}, ${agentName}, ${conversationId}, ${inviteUrl || null}, ${instructions || null}, NOW(), ${sourceBranch || null})
+    INSERT INTO agent_metadata (id, railway_service_id, agent_name, conversation_id, invite_url, instructions, claimed_at, source_branch, openrouter_key_hash, agentmail_inbox_id)
+    VALUES (${id}, ${railwayServiceId}, ${agentName}, ${conversationId}, ${inviteUrl || null}, ${instructions || null}, NOW(), ${sourceBranch || null}, ${openrouterKeyHash || null}, ${agentmailInboxId || null})
   `;
 }
 

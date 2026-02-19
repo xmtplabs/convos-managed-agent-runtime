@@ -45,7 +45,7 @@ export async function provision(opts) {
     }
     const result = await provisionRes.json();
 
-    // Insert metadata row
+    // Insert metadata row (persist resource IDs from cache so destroy can read them from DB)
     const sourceBranch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
     await db.insertMetadata({
       id: instance.id,
@@ -55,6 +55,8 @@ export async function provision(opts) {
       inviteUrl: result.inviteUrl || joinUrl || null,
       instructions,
       sourceBranch,
+      openrouterKeyHash: instance.openRouterKeyHash || null,
+      agentmailInboxId: instance.agentMailInboxId || null,
     });
 
     // Update cache

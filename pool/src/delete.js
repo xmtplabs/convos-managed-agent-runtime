@@ -22,14 +22,25 @@ async function cleanupVolumes(serviceId, volumeMap) {
   }
 }
 
+/** Resolve resource IDs for cleanup. DB is authoritative for claimed instances;
+ *  falls back to cache values for unclaimed ones. */
+async function resolveResourceIds(inst) {
+  const row = await db.findByServiceId(inst.serviceId).catch(() => null);
+  return {
+    openRouterKeyHash: row?.openrouter_key_hash || inst.openRouterKeyHash || null,
+    agentMailInboxId: row?.agentmail_inbox_id || inst.agentMailInboxId || null,
+  };
+}
+
 /** Delete a single instance (kill, drain, dismiss).
  *  Retries service deletion up to 3 times. Only removes from cache/DB after
  *  Railway confirms the service is deleted. Throws if deletion fails.
  *  Optional volumeMap: when provided (e.g. from drainPool batch), skips fetch. */
 export async function destroyInstance(inst, volumeMap = null) {
   console.log(`[delete] Deleting instance ${inst.id} (serviceId=${inst.serviceId})`);
-  await deleteOpenRouterKey(inst.openRouterKeyHash, inst.id);
-  await deleteAgentMailInbox(inst.agentMailInboxId);
+  const { openRouterKeyHash, agentMailInboxId } = await resolveResourceIds(inst);
+  await deleteOpenRouterKey(openRouterKeyHash, inst.id);
+  await deleteAgentMailInbox(agentMailInboxId);
   const map = volumeMap ?? (await fetchAllVolumesByService());
   await cleanupVolumes(inst.serviceId, map);
   console.log(`[delete] Volumes cleaned for ${inst.id}, deleting Railway service...`);
@@ -65,8 +76,9 @@ export async function destroyInstances(items) {
   for (const { svc, cached } of items) {
     if (deleteFailures.has(svc.id)) continue;
     try {
-      await deleteOpenRouterKey(cached?.openRouterKeyHash, cached?.id);
-      await deleteAgentMailInbox(cached?.agentMailInboxId);
+      const ids = await resolveResourceIds({ serviceId: svc.id, id: cached?.id, ...cached });
+      await deleteOpenRouterKey(ids.openRouterKeyHash, cached?.id);
+      await deleteAgentMailInbox(ids.agentMailInboxId);
       await cleanupVolumes(svc.id, volumeMap);
       await railway.deleteService(svc.id);
       console.log(`[delete] Deleted ${svc.id} (${svc.name})`);
