@@ -1,0 +1,130 @@
+---
+name: convos-cli
+description: |
+  In-conversation messaging for an active Convos agent session.
+  USE WHEN: Sending messages, replies, reactions, or attachments in the current conversation. Reading message history, checking who is in the group, viewing profiles or permissions.
+  DON'T USE WHEN: Managing identities, creating conversations, or anything outside the current conversation.
+---
+
+# Convos — In-Conversation Reference
+
+You are inside a running `convos agent serve` session. You are one member of a single conversation. Everything below is the protocol for participating in it.
+
+The `ready` event gives you your conversation ID (`conversationId`) and your own inbox ID (`inboxId`). Use the conversation ID with any CLI command below.
+
+## Receiving Events
+
+Events arrive as ndjson on stdout. Each has an `event` field.
+
+| Event | Meaning | Key fields |
+| ----- | ------- | ---------- |
+| `message` | Someone sent a message | `id`, `senderInboxId`, `content`, `contentType`, `sentAt` |
+| `member_joined` | A new member was added | `inboxId`, `conversationId` |
+| `sent` | Your message was delivered | `id`, `text`, `replyTo` |
+| `error` | Something went wrong | `message` |
+
+### Message content formats
+
+The `content` field is always a normalized string. The format depends on `contentType`:
+
+| contentType typeId | content example |
+| --- | --- |
+| `text` | `Hello everyone` |
+| `reply` | `reply to <message-id>: Thanks!` |
+| `reaction` | `reacted 👍 to <message-id>` or `removed 👍 to <message-id>` |
+| `group_updated` | `Alice updated the group name to "New Name"` |
+| `attachment` | `[attachment: photo.jpg (image/jpeg)]` |
+
+## Sending Messages
+
+Write one JSON object per line to stdin.
+
+### Text
+
+```jsonl
+{"type":"send","text":"Plain text only"}
+```
+
+### Reply
+
+```jsonl
+{"type":"send","text":"Responding to that","replyTo":"<message-id>"}
+```
+
+Always reply to the specific message you are responding to. This keeps threads legible.
+
+### Reaction
+
+```jsonl
+{"type":"react","messageId":"<message-id>","emoji":"👍"}
+{"type":"react","messageId":"<message-id>","emoji":"👍","action":"remove"}
+```
+
+`action` defaults to `add`.
+
+### Attachment (local file)
+
+```jsonl
+{"type":"attach","file":"./path/to/file.jpg"}
+{"type":"attach","file":"./photo.jpg","replyTo":"<message-id>"}
+{"type":"attach","file":"./file.bin","mimeType":"image/png"}
+```
+
+Files up to 1 MB are sent inline. Larger files are encrypted and uploaded via the configured provider.
+
+### Pre-uploaded Attachment
+
+```jsonl
+{"type":"remote-attach","url":"https://...","contentDigest":"<hex>","secret":"<base64>","salt":"<base64>","nonce":"<base64>","contentLength":12345,"filename":"photo.jpg"}
+```
+
+### Stop
+
+```jsonl
+{"type":"stop"}
+```
+
+Ends the session. Use only when explicitly asked.
+
+## Reading the Conversation
+
+These CLI commands let you look things up without sending a message. Always pass `--json` when you need to parse the output.
+
+### Who is in the group
+
+```bash
+convos conversation members <conversation-id> --json
+convos conversation profiles <conversation-id> --json
+```
+
+`members` returns inbox IDs and permission levels. `profiles` returns display names and avatars. Members without a profile appear as anonymous.
+
+### Message history
+
+```bash
+convos conversation messages <conversation-id> --json --sync --limit 20
+convos conversation messages <conversation-id> --json --limit 50 --direction ascending
+```
+
+Use `--sync` to pull the latest from the network before listing. Use `--content-type text` or `--exclude-content-type reaction` to filter. Use `--sent-after <ns>` / `--sent-before <ns>` for time ranges (nanosecond timestamps).
+
+### Group info and permissions
+
+```bash
+convos conversation info <conversation-id> --json
+convos conversation permissions <conversation-id> --json
+```
+
+### Download an attachment
+
+```bash
+convos conversation download-attachment <conversation-id> <message-id>
+convos conversation download-attachment <conversation-id> <message-id> --output ./photo.jpg
+```
+
+## Rules
+
+- **Plain text only.** Convos does not render markdown. Never use `**bold**`, `*italic*`, `` `code` ``, `[links](url)`, or list markers like `- ` or `* `. Write naturally.
+- **Every message costs everyone's attention.** Only speak when it adds something no one else in the room could. When in doubt, stay quiet.
+- **Reply, don't broadcast.** Use `replyTo` so people know what you are responding to.
+- **Reactions are cheap, messages are expensive.** If acknowledgment is enough, react instead of typing.
