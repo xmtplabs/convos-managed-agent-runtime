@@ -772,8 +772,7 @@ app.get("/", (_req, res) => {
           <span class="info-chip">branch: ${DEPLOY_BRANCH}</span>
           <span class="info-chip">model: ${INSTANCE_MODEL}</span>${AGENTMAIL_INBOX ? `
           <span class="info-chip">inbox: ${AGENTMAIL_INBOX}</span>` : ""}${RAILWAY_SERVICE_ID ? `
-          <span class="info-chip">service: ${RAILWAY_SERVICE_ID.slice(0, 8)}</span>` : ""}${RAILWAY_PROJECT_ID ? `
-          <span class="info-chip"><a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">Railway</a></span>` : ""}
+          <span class="info-chip">service: ${RAILWAY_PROJECT_ID ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>` : RAILWAY_SERVICE_ID.slice(0, 8)}</span>` : ""}
         </div>
         <div id="unavailable" class="unavailable-msg" style="display:none">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="1.5">
@@ -944,7 +943,8 @@ app.get("/", (_req, res) => {
         var name=esc(a.agentName||a.id);
         var rUrl=railwayUrl(a.serviceId);
         var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
-        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+branchTag+'</div>';
+        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
+        var idLine='<div class="agent-id-line">'+idPart+branchTag+'</div>';
         html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<div class="agent-header-left">'+
@@ -964,7 +964,8 @@ app.get("/", (_req, res) => {
         var name=esc(a.agentName||a.id);
         var rUrl=railwayUrl(a.serviceId);
         var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
-        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+branchTag+'</div>';
+        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
+        var idLine='<div class="agent-id-line">'+idPart+branchTag+'</div>';
         html+='<div class="agent-card" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<div class="agent-header-left">'+
