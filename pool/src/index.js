@@ -243,7 +243,8 @@ app.get("/", (_req, res) => {
 
     .info-row {
       display: flex;
-      gap: 8px;
+      flex-direction: column;
+      gap: 6px;
       margin-bottom: 20px;
     }
 
