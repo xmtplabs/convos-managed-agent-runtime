@@ -259,14 +259,19 @@ export async function tick() {
   // Delete dead services + their volumes (single volume query for all)
   await destroyInstances(toDelete);
 
-  // Ensure all agent services have volumes
+  // Ensure all agent services have volumes (parallel)
   const volumeMap = await fetchAllVolumesByService();
   if (volumeMap) {
-    for (const svc of agentServices) {
-      if (!volumeMap.has(svc.id) && svc.deployStatus === "SUCCESS") {
-        console.log(`[tick] Agent ${svc.name} missing volume, creating...`);
-        await ensureVolume(svc.id);
-      }
+    const missing = agentServices.filter(
+      (s) => !volumeMap.has(s.id) && s.deployStatus === "SUCCESS"
+    );
+    if (missing.length > 0) {
+      const settled = await Promise.allSettled(missing.map((s) => ensureVolume(s.id)));
+      settled.forEach((r, i) => {
+        if (r.status === "rejected" || r.value === false) {
+          console.warn(`[tick] Agent ${missing[i].name} volume create failed`);
+        }
+      });
     }
   }
 
@@ -283,13 +288,14 @@ export async function tick() {
     const canCreate = Math.min(deficit, MAX_TOTAL - total);
     if (canCreate > 0) {
       console.log(`[tick] Creating ${canCreate} new instance(s)...`);
-      for (let i = 0; i < canCreate; i++) {
-        try {
-          await createInstance();
-        } catch (err) {
-          console.error(`[tick] Failed to create instance:`, err);
+      const settled = await Promise.allSettled(
+        Array.from({ length: canCreate }, () => createInstance())
+      );
+      settled.forEach((r, i) => {
+        if (r.status === "rejected") {
+          console.error(`[tick] Failed to create instance:`, r.reason);
         }
-      }
+      });
     }
   }
 }
