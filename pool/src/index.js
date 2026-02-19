@@ -1104,12 +1104,15 @@ app.get("/", (_req, res) => {
       }finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
     };
 
-    // Drain — remove unclaimed instances from the pool
+    // Drain — remove all unclaimed (idle + starting) from the pool
     var drainBtn=document.getElementById('drain-btn');
     drainBtn.onclick=async function(){
-      var n=parseInt(replenishCount.value)||3;
+      var idle=parseInt(sIdle.textContent,10)||0;
+      var starting=parseInt(sStarting.textContent,10)||0;
+      var n=Math.min(idle+starting,20);
+      if(n===0){ alert('No unclaimed instances to drain.'); return; }
       var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Drain up to '+n+' unclaimed instance(s) from the pool?';
+        'Drain '+n+' unclaimed instance(s) from the pool?';
       if(!confirm(drainMsg))return;
       drainBtn.disabled=true;drainBtn.textContent='Draining...';
       try{
