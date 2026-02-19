@@ -36,6 +36,10 @@ The `content` field is always a normalized string. The format depends on `conten
 | `attachment` | `[attachment: photo.jpg (image/jpeg)]` |
 | `remoteStaticAttachment` | `[remote attachment: video.mp4 (4521 bytes) https://...]` |
 
+### Replies and context
+
+When you receive a `reply` message, the content includes the referenced message ID (e.g. `reply to abc123: Thanks!`). To understand what the person is replying to, look up that ID in the messages you have already seen in the stream. If you haven't seen it, fetch recent history with `convos conversation messages <conversation-id> --json --sync --limit 50` and find the referenced message to get full context before responding.
+
 ### group_updated content
 
 `group_updated` messages are human-readable descriptions of what changed. Multiple changes in one update are joined with `; `. Examples:
@@ -55,8 +59,6 @@ The `content` field is always a normalized string. The format depends on `conten
 Profile updates are stored in appData (opaque binary). They arrive as a generic `Group updated` message with no readable diff. When you see this, refresh profiles to learn what changed.
 
 ## Sending Messages
-
-Write one JSON object per line to stdin.
 
 ### Text
 
@@ -96,14 +98,6 @@ Files up to 1 MB are sent inline. Larger files are encrypted and uploaded via th
 ```jsonl
 {"type":"remote-attach","url":"https://...","contentDigest":"<hex>","secret":"<base64>","salt":"<base64>","nonce":"<base64>","contentLength":12345,"filename":"photo.jpg"}
 ```
-
-### Stop
-
-```jsonl
-{"type":"stop"}
-```
-
-Ends the session. Use only when explicitly asked.
 
 ## Reading the Conversation
 
