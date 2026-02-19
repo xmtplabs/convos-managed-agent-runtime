@@ -153,7 +153,7 @@ OpenRouter lets us manage AI consumption in a SaaS-like mode. Each agent gets it
 
 - **One key per agent.** Created on provision. Isolated billing
 - **Spending caps.** Monthly limit per key. An agent can't exceed its cap. Credits are consumed only on use. We dont need to allocate. Curernt limit $20 per agent.
-- **Many models, one account.** Claude for complex tasks, fast models for routing, Perplexity for search. One key covers everything. Suppeorted [model list](https://github.com/xmtplabs/convos-managed-agent-runtime/blob/main/openclaw.json)
+- **Many models, one account.** Claude for complex tasks, fast models for routing, Perplexity for search. One key covers everything. Suppeorted [model list](https://github.com/xmtplabs/convos-agents/blob/main/openclaw/openclaw.json)
 - **Dashboard visibility.** Per-agent spend on a single dashboard. Which agents are active, expensive, or idle.
 - **Path to charging users.** Free cap per agent. When exceeded, user tops up with crypto. OpenRouter is the metering layer.
 - **Privacy**: we can't see the content of the conversations, just the api costs of each call.
@@ -180,6 +180,6 @@ Per-agent crypto wallet for payments. API key provided manually (`BANKR_API_KEY`
 
 https://github.com/xmtplabs/openclaw/pulls
 
-https://github.com/xmtplabs/convos-managed-agent-runtime
+https://github.com/xmtplabs/convos-agents
 
 [v.01](https://www.notion.so/v-01-30730823ce928019a7cbf3b3bd519a4c?pvs=21)
