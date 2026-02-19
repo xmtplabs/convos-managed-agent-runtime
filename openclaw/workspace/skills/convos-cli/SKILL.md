@@ -32,8 +32,27 @@ The `content` field is always a normalized string. The format depends on `conten
 | `text` | `Hello everyone` |
 | `reply` | `reply to <message-id>: Thanks!` |
 | `reaction` | `reacted 👍 to <message-id>` or `removed 👍 to <message-id>` |
-| `group_updated` | `Alice updated the group name to "New Name"` |
+| `group_updated` | See below |
 | `attachment` | `[attachment: photo.jpg (image/jpeg)]` |
+| `remoteStaticAttachment` | `[remote attachment: video.mp4 (4521 bytes) https://...]` |
+
+### group_updated content
+
+`group_updated` messages are human-readable descriptions of what changed. Multiple changes in one update are joined with `; `. Examples:
+
+- `Alice changed group name to "New Name"`
+- `Alice changed description to "Weekend plans"`
+- `Alice changed group image url to "https://..."`
+- `Alice cleared description`
+- `Bob joined by invite`
+- `Alice added Bob`
+- `Alice removed Bob`
+- `Bob left the group`
+- `Alice made Bob an admin`
+- `Alice removed Bob as admin`
+- `Group updated` (appData-only change, e.g. profile update — no readable details)
+
+Profile updates are stored in appData (opaque binary). They arrive as a generic `Group updated` message with no readable diff. When you see this, refresh profiles to learn what changed.
 
 ## Sending Messages
 
@@ -98,6 +117,8 @@ convos conversation profiles <conversation-id> --json
 ```
 
 `members` returns inbox IDs and permission levels. `profiles` returns display names and avatars. Members without a profile appear as anonymous.
+
+Refresh profiles when you see a `member_joined` event or a `group_updated` message with content `Group updated` (signals an appData change like a profile update). This keeps your name mapping current.
 
 ### Message history
 
