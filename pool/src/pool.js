@@ -200,6 +200,7 @@ export async function tick() {
           inviteUrl: metadata.invite_url,
           conversationId: metadata.conversation_id,
           claimedAt: metadata.claimed_at,
+          sourceBranch: metadata.source_branch,
           ...(existing?.gatewayToken && { gatewayToken: existing.gatewayToken }),
         });
       } else {
@@ -234,6 +235,7 @@ export async function tick() {
       entry.inviteUrl = metadata.invite_url;
       entry.conversationId = metadata.conversation_id;
       entry.claimedAt = metadata.claimed_at;
+      entry.sourceBranch = metadata.source_branch;
     }
 
     cache.set(svc.id, entry);

@@ -907,7 +907,8 @@ app.get("/", (_req, res) => {
       crashedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
+        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
+        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+branchTag+'</div>';
         html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<div class="agent-header-left">'+
@@ -926,7 +927,8 @@ app.get("/", (_req, res) => {
       claimedCache.forEach(function(a){
         var name=esc(a.agentName||a.id);
         var rUrl=railwayUrl(a.serviceId);
-        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+'</div>';
+        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
+        var idLine='<div class="agent-id-line">'+esc(a.id)+(rUrl?' · <a href="'+rUrl+'" target="_blank" rel="noopener">Railway</a>':'')+branchTag+'</div>';
         html+='<div class="agent-card" id="agent-'+a.id+'">'+
           '<div class="agent-header">'+
             '<div class="agent-header-left">'+
