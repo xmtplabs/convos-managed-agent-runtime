@@ -8,6 +8,10 @@ const POOL_API_KEY = process.env.POOL_API_KEY;
 const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
 const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
 const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
+const AGENTMAIL_INBOX = process.env.INSTANCE_AGENTMAIL_INBOX_ID || "";
+const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || "";
+const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || "";
+const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || "";
 
 const app = express();
 app.disable("x-powered-by");
@@ -243,19 +247,25 @@ app.get("/", (_req, res) => {
 
     .info-row {
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       gap: 6px;
       margin-bottom: 20px;
     }
 
     .info-chip {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 500;
       color: #999;
-      padding: 4px 10px;
+      padding: 3px 8px;
       background: #FAFAFA;
       border: 1px solid #EBEBEB;
-      border-radius: 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .info-chip a {
+      color: #007AFF;
+      text-decoration: none;
     }
 
     .unavailable-msg {
@@ -759,8 +769,11 @@ app.get("/", (_req, res) => {
       <div class="card">
         <h3>Launch an Agent</h3>
         <div class="info-row">
-          <span class="info-chip">Branch: ${DEPLOY_BRANCH}</span>
-          <span class="info-chip">Model: ${INSTANCE_MODEL}</span>
+          <span class="info-chip">branch: ${DEPLOY_BRANCH}</span>
+          <span class="info-chip">model: ${INSTANCE_MODEL}</span>${AGENTMAIL_INBOX ? `
+          <span class="info-chip">inbox: ${AGENTMAIL_INBOX}</span>` : ""}${RAILWAY_SERVICE_ID ? `
+          <span class="info-chip">service: ${RAILWAY_SERVICE_ID.slice(0, 8)}</span>` : ""}${RAILWAY_PROJECT_ID ? `
+          <span class="info-chip"><a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">Railway</a></span>` : ""}
         </div>
         <div id="unavailable" class="unavailable-msg" style="display:none">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="1.5">
