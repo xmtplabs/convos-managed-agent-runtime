@@ -22,9 +22,9 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 ## Plugin "Cannot find module" / extension deps resolution
 
-**Problem:** Plugins (e.g. convos) that depend on npm packages (e.g. `@convos/cli`) fail at load with `Cannot find module '@convos/cli'` or `ERR_PACKAGE_PATH_NOT_EXPORTED`. OpenClaw's jiti loader resolves `require()` from Node's default search path; extension code lives under `STATE_DIR/extensions/*` and their `node_modules` are in each extension dir, which Node does not search by default.
+**Problem:** Plugins (e.g. convos) that depend on npm packages fail at load with `Cannot find module` or `ERR_PACKAGE_PATH_NOT_EXPORTED`. OpenClaw's jiti loader resolves `require()` from Node's default search path; extension code lives under `STATE_DIR/extensions/*` whose `node_modules` Node does not search by default.
 
-**Workaround:** Set `NODE_PATH` before starting the gateway so Node can resolve extension deps. [cli/scripts/lib/node-path.sh](cli/scripts/lib/node-path.sh) builds it from: `STATE_DIR/node_modules`, `ROOT/node_modules`, and each extension root (so `require` finds `extension/node_modules/...`). [gateway.sh](cli/scripts/gateway.sh) and [qa.sh](cli/scripts/qa.sh) source this helper. Do not remove or bypass NODE_PATH setup — plugins will fail without it.
+**Workaround:** `@xmtp/convos-cli` is now installed at the repo root (`package.json`) and resolved from `ROOT/node_modules` via NODE_PATH. [cli/scripts/lib/node-path.sh](cli/scripts/lib/node-path.sh) builds NODE_PATH from: `STATE_DIR/node_modules`, `ROOT/node_modules`, and each extension root. [gateway.sh](cli/scripts/gateway.sh) and [qa.sh](cli/scripts/qa.sh) source this helper. Do not remove or bypass NODE_PATH setup — plugins will fail without it.
 
 ## Registered vs script-based skills: only use `alsoAllow` for registered tools
 

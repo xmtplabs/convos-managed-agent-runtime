@@ -9,4 +9,4 @@
 
 # Workarounds
 
-- `@convos/cli` is not published to npm — it's installed from `github:xmtplabs/convos-cli` as a dependency of the convos extension. Extension deps must be installed with `NODE_ENV=development` so that devDependencies (typescript, oclif) are available for the prepack build step. See `cli/scripts/install-deps.sh`.
+- `@xmtp/convos-cli` is installed at the repo root (`package.json`). No special install flags needed.
