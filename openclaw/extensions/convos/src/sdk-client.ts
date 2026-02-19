@@ -48,8 +48,10 @@ function resolveConvosBin(): string {
   // Strategy 1: createRequire from this file's URL
   try {
     const require = createRequire(import.meta.url);
-    const pkgPath = require.resolve("@convos/cli/package.json");
-    const binPath = path.join(path.dirname(pkgPath), "bin", "run.js");
+    const mainPath = require.resolve("@xmtp/convos-cli");
+    // mainPath = .../node_modules/@xmtp/convos-cli/dist/index.js → go up to package root
+    const pkgRoot = path.resolve(path.dirname(mainPath), "..");
+    const binPath = path.join(pkgRoot, "bin", "run.js");
     if (existsSync(binPath)) {
       cachedBinPath = binPath;
       return binPath;
@@ -63,7 +65,7 @@ function resolveConvosBin(): string {
   try {
     const thisDir = path.dirname(fileURLToPath(import.meta.url));
     const extRoot = path.resolve(thisDir, "..");
-    const binPath = path.join(extRoot, "node_modules", "@convos", "cli", "bin", "run.js");
+    const binPath = path.join(extRoot, "node_modules", "@xmtp", "convos-cli", "bin", "run.js");
     if (existsSync(binPath)) {
       cachedBinPath = binPath;
       return binPath;
@@ -76,7 +78,7 @@ function resolveConvosBin(): string {
   // install-deps.sh runs pnpm install in the state dir copy of each extension
   {
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
-    const binPath = path.join(stateDir, "extensions", "convos", "node_modules", "@convos", "cli", "bin", "run.js");
+    const binPath = path.join(stateDir, "extensions", "convos", "node_modules", "@xmtp", "convos-cli", "bin", "run.js");
     if (existsSync(binPath)) {
       cachedBinPath = binPath;
       return binPath;

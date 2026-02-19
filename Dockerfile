@@ -1,5 +1,5 @@
 FROM node:22-bookworm
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -34,11 +34,6 @@ RUN chmod +x /app/cli/scripts/*.sh /app/cli/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
 ENV OPENCLAW_STATE_DIR=/app
-
-# husky must be globally available so git-hosted packages with a "prepare": "husky"
-# script don't fail; HUSKY=0 makes it exit immediately without installing hooks.
-ENV HUSKY=0
-RUN npm install -g husky
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_PUBLIC_PORT=8080
