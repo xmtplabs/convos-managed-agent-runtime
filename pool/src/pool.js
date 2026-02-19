@@ -103,7 +103,7 @@ export async function tick() {
   const agentServices = allServices.filter(
     (s) =>
       s.name.startsWith("convos-agent-") &&
-      s.name !== "convos-agent-pool-manager" &&
+      s.name !== "convos-agents" &&
       s.environmentIds.includes(myEnvId)
   );
 

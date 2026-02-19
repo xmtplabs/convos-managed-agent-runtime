@@ -126,6 +126,6 @@ Response:
 
 | Environment | Pool Manager URL | XMTP Network | Source Branch |
 |-------------|-----------------|---------------|---------------|
-| dev | `convos-agent-pool-manager-dev.up.railway.app` | dev | *(your branch)* |
+| dev | `convos-agents-dev.up.railway.app` | dev | *(your branch)* |
 | staging | `convos-agents-dev.up.railway.app` | dev | `staging` |
 | production | `convos-agents.up.railway.app` | production | `main` |

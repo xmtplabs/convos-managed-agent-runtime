@@ -1,5 +1,5 @@
 {
-  "name": "convos-agent-pool-manager",
+  "name": "convos-agents-pool",
   "private": true,
   "type": "module",
   "engines": {
