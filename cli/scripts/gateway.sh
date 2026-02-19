@@ -106,4 +106,45 @@ fi
 
 echo ""
 
-exec $ENTRY gateway run
+# Disable set -e so the restart loop can capture non-zero exit codes
+set +e
+
+# --- Restart loop ---
+# OpenClaw exits when a restart is requested (e.g. model change via native
+# commands, config writes that trigger SIGUSR1). Without a loop the container
+# dies because `exec` replaces the shell. We re-launch automatically unless
+# the gateway exits with code 0 (clean shutdown) or we hit too many rapid
+# crashes in a row.
+MAX_RAPID_CRASHES=5
+RAPID_WINDOW=30          # seconds — crashes within this window count as rapid
+_crash_count=0
+_last_start=$(date +%s)
+
+while true; do
+  _last_start=$(date +%s)
+  $ENTRY gateway run
+  _exit_code=$?
+  _now=$(date +%s)
+  _elapsed=$((_now - _last_start))
+
+  # Clean shutdown (exit 0) — do not restart
+  if [ "$_exit_code" -eq 0 ]; then
+    echo "  [gateway] exited cleanly (code 0) — not restarting"
+    break
+  fi
+
+  # Track rapid crashes (process lived < RAPID_WINDOW seconds)
+  if [ "$_elapsed" -lt "$RAPID_WINDOW" ]; then
+    _crash_count=$((_crash_count + 1))
+  else
+    _crash_count=1
+  fi
+
+  if [ "$_crash_count" -ge "$MAX_RAPID_CRASHES" ]; then
+    echo "  [gateway] too many rapid crashes ($_crash_count in <${RAPID_WINDOW}s each) — giving up"
+    exit "$_exit_code"
+  fi
+
+  echo "  [gateway] exited with code $_exit_code — restarting in 2s (crash $_crash_count/$MAX_RAPID_CRASHES)"
+  sleep 2
+done
