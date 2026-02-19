@@ -923,8 +923,8 @@ app.get("/", (_req, res) => {
       try{
         var res=await fetch('/api/pool/agents');
         var data=await res.json();
-        claimedCache=data.claimed||[];
-        crashedCache=data.crashed||[];
+        claimedCache=(data.claimed||[]).sort(function(a,b){return new Date(b.claimedAt)-new Date(a.claimedAt);});
+        crashedCache=(data.crashed||[]).sort(function(a,b){return new Date(b.claimedAt)-new Date(a.claimedAt);});
         renderFeed();
       }catch{}
     }
