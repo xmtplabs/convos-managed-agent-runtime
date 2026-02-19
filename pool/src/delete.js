@@ -1,6 +1,6 @@
 /**
- * Instance deletion: OpenRouter key cleanup, Railway service + volume teardown,
- * cache removal, and DB row deletion.
+ * Instance deletion: OpenRouter key + AgentMail inbox cleanup, Railway service +
+ * volume teardown, cache removal, and DB row deletion.
  *
  * destroyInstance()  — single instance (kill, drain, dismiss)
  * destroyInstances() — batch delete (tick), fetches all volumes once
@@ -9,7 +9,7 @@
 import * as db from "./db/pool.js";
 import * as railway from "./railway.js";
 import * as cache from "./cache.js";
-import { deleteOpenRouterKey } from "./keys.js";
+import { deleteOpenRouterKey, deleteAgentMailInbox } from "./keys.js";
 import { fetchAllVolumesByService, deleteVolume } from "./volumes.js";
 
 // Services that failed to delete — skip on future ticks to avoid retry loops.
@@ -28,7 +28,8 @@ async function cleanupVolumes(serviceId, volumeMap) {
  *  Optional volumeMap: when provided (e.g. from drainPool batch), skips fetch. */
 export async function destroyInstance(inst, volumeMap = null) {
   console.log(`[delete] Deleting instance ${inst.id} (serviceId=${inst.serviceId})`);
-  await deleteOpenRouterKey(inst.openRouterKeyHash);
+  await deleteOpenRouterKey(inst.openRouterKeyHash, inst.id);
+  await deleteAgentMailInbox(inst.agentMailInboxId);
   const map = volumeMap ?? (await fetchAllVolumesByService());
   await cleanupVolumes(inst.serviceId, map);
   console.log(`[delete] Volumes cleaned for ${inst.id}, deleting Railway service...`);
@@ -64,7 +65,8 @@ export async function destroyInstances(items) {
   for (const { svc, cached } of items) {
     if (deleteFailures.has(svc.id)) continue;
     try {
-      await deleteOpenRouterKey(cached?.openRouterKeyHash);
+      await deleteOpenRouterKey(cached?.openRouterKeyHash, cached?.id);
+      await deleteAgentMailInbox(cached?.agentMailInboxId);
       await cleanupVolumes(svc.id, volumeMap);
       await railway.deleteService(svc.id);
       console.log(`[delete] Deleted ${svc.id} (${svc.name})`);
