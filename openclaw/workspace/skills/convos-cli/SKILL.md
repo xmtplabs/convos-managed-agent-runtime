@@ -36,9 +36,9 @@ The `content` field is always a normalized string. The format depends on `conten
 | `attachment` | `[attachment: photo.jpg (image/jpeg)]` |
 | `remoteStaticAttachment` | `[remote attachment: video.mp4 (4521 bytes) https://...]` |
 
-### Replies and context
+### Replies, reactions, and context
 
-When you receive a `reply` message, the content includes the referenced message ID (e.g. `reply to abc123: Thanks!`). To understand what the person is replying to, look up that ID in the messages you have already seen in the stream. If you haven't seen it, fetch recent history with `convos conversation messages <conversation-id> --json --sync --limit 50` and find the referenced message to get full context before responding.
+Replies and reactions both reference another message by ID (e.g. `reply to abc123: Thanks!`, `reacted 👍 to abc123`). To understand what they refer to, look up that ID in the messages you have already seen in the stream. If you haven't seen it, fetch recent history with `convos conversation messages <conversation-id> --json --sync --limit 50` and find the referenced message to get full context.
 
 ### group_updated content
 
@@ -83,21 +83,14 @@ Always reply to the specific message you are responding to. This keeps threads l
 
 `action` defaults to `add`.
 
-### Attachment (local file)
+### Attachment
 
 ```jsonl
 {"type":"attach","file":"./path/to/file.jpg"}
 {"type":"attach","file":"./photo.jpg","replyTo":"<message-id>"}
-{"type":"attach","file":"./file.bin","mimeType":"image/png"}
 ```
 
-Files up to 1 MB are sent inline. Larger files are encrypted and uploaded via the configured provider.
-
-### Pre-uploaded Attachment
-
-```jsonl
-{"type":"remote-attach","url":"https://...","contentDigest":"<hex>","secret":"<base64>","salt":"<base64>","nonce":"<base64>","contentLength":12345,"filename":"photo.jpg"}
-```
+Just pass a file path. Convos handles encryption and upload automatically.
 
 ## Reading the Conversation
 
