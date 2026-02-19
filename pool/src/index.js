@@ -6,6 +6,7 @@ import { deleteOrphanAgentVolumes } from "./volumes.js";
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
+// Deploy context shown in dashboard info tags
 const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
 const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
 const AGENTMAIL_INBOX = process.env.INSTANCE_AGENTMAIL_INBOX_ID || "";
