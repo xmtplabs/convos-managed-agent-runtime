@@ -35,6 +35,12 @@ Additionally, these improvements to `agent serve` would make the extension more 
 | **Stream health** | Emit a periodic `heartbeat` event (or at minimum an event when the stream reconnects) so the extension knows the process is alive. |
 | **`messageId` on sent** | The `sent` event already includes `id` — confirm this is the XMTP message ID usable for echo filtering on the extension side. |
 
+## Status
+
+- **Phase 1 (CLI):** Done — [convos-cli PR #4](https://github.com/xmtplabs/convos-cli/pull/4)
+- **Phase 2 (Extension):** Done — see this branch
+- **Phase 3 (Cleanup):** Done — all three echo filters removed
+
 ## Migration plan
 
 ### Phase 1: CLI changes (convos-cli)

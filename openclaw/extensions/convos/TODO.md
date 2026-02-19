@@ -20,9 +20,9 @@ Needs investigation:
 
 This is a convos-cli issue, not an extension issue — the extension only stores the identity *ID*, not the keys themselves.
 
-## 🟡 Self-Echo Filtering (Fragile)
+## ✅ Self-Echo Filtering (Fixed)
 
-**Priority: Medium — likely fixed by agent-serve migration**
+**Resolved by agent-serve migration.**
 
 The current extension has three redundant self-echo filters, none fully reliable:
 
@@ -32,9 +32,4 @@ The current extension has three redundant self-echo filters, none fully reliable
 
 3. **Sender ID check** (`channel.ts`): Checks `msg.senderId === inst.identityId`. This is the most correct approach but `identityId` is the *identity store ID*, not the XMTP inbox ID, so it may not match `senderInboxId` from the stream.
 
-`convos agent serve` already solves this correctly: it filters by `message.senderInboxId === client.inboxId` inside the CLI process itself, so echoes never reach stdout. The agent-serve migration (see AGENT-SERVE-MIGRATION.md) should eliminate all three filters.
-
-**If for some reason the migration doesn't happen**, the fix is:
-- Have `ConvosInstance` resolve the XMTP `inboxId` at construction time (it's available from the identity store or from `conversations create --json` output)
-- Filter purely by `senderInboxId === self.inboxId` in the stream handler
-- Remove content matching and the outbound message ID tracker
+`convos agent serve` solves this correctly: it filters by `message.senderInboxId === client.inboxId` inside the CLI process itself, so echoes never reach stdout. All three filters have been removed from the extension.
