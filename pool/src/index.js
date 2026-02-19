@@ -11,22 +11,6 @@ const app = express();
 app.disable("x-powered-by");
 app.use(express.json());
 
-// --- In-memory log buffer for UI (capture console.log/warn/error) ---
-const LOG_BUFFER_MAX = 1000;
-const logBuffer = [];
-function captureLog(level) {
-  const orig = console[level];
-  console[level] = function (...args) {
-    const msg = args.map((a) => (typeof a === "string" ? a : (a instanceof Error ? a.message : JSON.stringify(a)))).join(" ");
-    logBuffer.push({ t: new Date().toISOString(), level, msg });
-    if (logBuffer.length > LOG_BUFFER_MAX) logBuffer.splice(0, logBuffer.length - LOG_BUFFER_MAX);
-    orig.apply(console, args);
-  };
-}
-captureLog("log");
-captureLog("warn");
-captureLog("error");
-
 // --- Auth middleware ---
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
@@ -726,23 +710,6 @@ app.get("/", (_req, res) => {
         width: 100%;
       }
     }
-
-    .server-logs-pre {
-      background: #1a1a1a;
-      color: #e0e0e0;
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
-      line-height: 1.4;
-      padding: 12px;
-      border-radius: 8px;
-      max-height: 320px;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      margin: 0;
-    }
-    .server-logs-pre .log-err { color: #f87171; }
-    .server-logs-pre .log-warn { color: #fbbf24; }
   </style>
 </head>
 <body class="env-${POOL_ENVIRONMENT}">
@@ -831,14 +798,6 @@ app.get("/", (_req, res) => {
         </div>
         <div id="feed"></div>
       </div>
-    </div>
-
-    <div class="card logs-card">
-      <div class="section-header" style="margin-bottom:8px">
-        <span class="section-title">Server logs</span>
-        <button type="button" class="pool-btn" id="logs-refresh-btn">Refresh</button>
-      </div>
-      <pre id="server-logs" class="server-logs-pre"></pre>
     </div>
   </div>
 
@@ -1145,15 +1104,12 @@ app.get("/", (_req, res) => {
       }finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
     };
 
-    // Drain — remove all unclaimed (idle + starting) from the pool
+    // Drain — remove unclaimed instances from the pool
     var drainBtn=document.getElementById('drain-btn');
     drainBtn.onclick=async function(){
-      var idle=parseInt(sIdle.textContent,10)||0;
-      var starting=parseInt(sStarting.textContent,10)||0;
-      var n=Math.min(idle+starting,20);
-      if(n===0){ alert('No unclaimed instances to drain.'); return; }
+      var n=parseInt(replenishCount.value)||3;
       var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Drain '+n+' unclaimed instance(s) from the pool?';
+        'Drain up to '+n+' unclaimed instance(s) from the pool?';
       if(!confirm(drainMsg))return;
       drainBtn.disabled=true;drainBtn.textContent='Draining...';
       try{
@@ -1168,27 +1124,6 @@ app.get("/", (_req, res) => {
       }finally{drainBtn.disabled=false;drainBtn.textContent='Drain Unclaimed';}
     };
 
-    // Server logs
-    var serverLogsEl=document.getElementById('server-logs');
-    var logsRefreshBtn=document.getElementById('logs-refresh-btn');
-    async function refreshLogs(){
-      try{
-        var res=await fetch('/api/pool/logs?tail=500',{headers:authHeaders});
-        var data=await res.json();
-        if(!res.ok)throw new Error(data.error||'Failed');
-        var html='';
-        (data.lines||[]).forEach(function(line){
-          var cls=line.level==='error'?'log-err':line.level==='warn'?'log-warn':'';
-          html+='<span class="'+cls+'">'+escapeHtml(line.t)+' ['+escapeHtml(line.level)+'] '+escapeHtml(line.msg)+'</span>\n';
-        });
-        serverLogsEl.innerHTML=html||'(no logs)';
-        serverLogsEl.scrollTop=serverLogsEl.scrollHeight;
-      }catch(err){ serverLogsEl.textContent='Logs unavailable: '+err.message; }
-    }
-    function escapeHtml(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
-    logsRefreshBtn.onclick=function(){ logsRefreshBtn.disabled=true; refreshLogs().finally(function(){ logsRefreshBtn.disabled=false; }); };
-    refreshLogs();
-    setInterval(refreshLogs,5000);
     // Initial load + polling
     refreshStatus();refreshFeed();
     setInterval(function(){refreshStatus();refreshFeed();},15000);
@@ -1202,13 +1137,6 @@ app.get("/api/pool/status", requireAuth, (_req, res) => {
   const counts = cache.getCounts();
   const instances = cache.getAll();
   res.json({ counts, instances });
-});
-
-// Server logs (last N lines from in-memory buffer)
-app.get("/api/pool/logs", requireAuth, (req, res) => {
-  const tail = Math.min(parseInt(req.query.tail, 10) || 500, 1000);
-  const lines = logBuffer.slice(-tail);
-  res.json({ lines });
 });
 
 // Launch an agent — claim an idle instance and provision it with instructions.
