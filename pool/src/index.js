@@ -747,7 +747,7 @@ app.get("/", (_req, res) => {
     <header class="header">
       <div class="logo-container">
         <span class="logo-text">Convos Agent Pool<span class="env-badge env-${POOL_ENVIRONMENT}">${POOL_ENVIRONMENT}</span></span>
-        <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.</span>
+        <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""}</span>
       </div>
     </header>
 
@@ -923,8 +923,8 @@ app.get("/", (_req, res) => {
       try{
         var res=await fetch('/api/pool/agents');
         var data=await res.json();
-        claimedCache=data.claimed||[];
-        crashedCache=data.crashed||[];
+        claimedCache=(data.claimed||[]).sort(function(a,b){return new Date(b.claimedAt)-new Date(a.claimedAt);});
+        crashedCache=(data.crashed||[]).sort(function(a,b){return new Date(b.claimedAt)-new Date(a.claimedAt);});
         renderFeed();
       }catch{}
     }
