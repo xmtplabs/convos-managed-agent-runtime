@@ -1104,12 +1104,17 @@ app.get("/", (_req, res) => {
       }finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
     };
 
-    // Drain — remove all unclaimed (idle + starting) from the pool
+    // Drain — remove all unclaimed (idle + starting); use fresh counts from server
     var drainBtn=document.getElementById('drain-btn');
     drainBtn.onclick=async function(){
-      var idle=parseInt(sIdle.textContent,10)||0;
-      var starting=parseInt(sStarting.textContent,10)||0;
-      var n=Math.min(idle+starting,20);
+      drainBtn.disabled=true;
+      try{
+        var countRes=await fetch('/api/pool/counts');
+        var c=await countRes.json();
+        var idle=c.idle||0, starting=c.starting||0;
+        var n=Math.min(idle+starting,20);
+      }catch(e){ n=0; }
+      drainBtn.disabled=false;
       if(n===0){ alert('No unclaimed instances to drain.'); return; }
       var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
         'Drain '+n+' unclaimed instance(s) from the pool?';

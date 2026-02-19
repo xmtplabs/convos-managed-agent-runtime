@@ -239,10 +239,14 @@ export async function tick() {
     cache.set(svc.id, entry);
   }
 
-  // Remove cache entries for services no longer in Railway
+  // Remove cache entries for services no longer in Railway (keep "starting" — may not be listed yet)
   const railwayServiceIds = new Set(agentServices.map((s) => s.id));
   for (const inst of cache.getAll()) {
-    if (!railwayServiceIds.has(inst.serviceId) && !cache.isBeingClaimed(inst.serviceId)) {
+    if (
+      !railwayServiceIds.has(inst.serviceId) &&
+      !cache.isBeingClaimed(inst.serviceId) &&
+      inst.status !== "starting"
+    ) {
       cache.remove(inst.serviceId);
     }
   }
