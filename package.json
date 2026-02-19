@@ -1,5 +1,5 @@
 {
-  "name": "convos-managed-agent-runtime",
+  "name": "convos-agents",
   "version": "0.0.11",
   "private": true,
   "engines": {

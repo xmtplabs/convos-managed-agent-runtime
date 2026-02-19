@@ -4,7 +4,6 @@ extensions/*/node_modules
 openclaw/extensions/*/pnpm-lock.yaml
 .yarn
 npm-debug.log*
-
 # Local env — never commit secrets
 .env
 .env.*

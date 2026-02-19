@@ -130,7 +130,7 @@ INSTANCE_TELNYX_MESSAGING_PROFILE_ID=40019c66-c84a-459f-8553-0ef16775fb29
 | `POST /api/pool/drain` | Remove N idle instances |
 | `POST /api/pool/reconcile` | Sync DB with Railway |
 
-Environments: **staging** (`convos-agents-dev.up.railway.app`, XMTP dev), **production** (`convos-agents.up.railway.app`, XMTP production). See `docs/pool.md` and `docs/pool-manager.md`.
+Environments: **staging** (`convos-agents-dev.up.railway.app`, XMTP dev), **production** (`convos-agents.up.railway.app`, XMTP production). See `docs/pool.md`.
 
 ---
 
