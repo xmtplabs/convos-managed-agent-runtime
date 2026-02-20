@@ -88,7 +88,6 @@ To remove: add `remove=true`.
 
 ```
 action=sendAttachment  file="./path/to/file.jpg"
-action=sendAttachment  file="./photo.jpg"  replyTo="<message-id>"
 ```
 
 Just pass a file path. Convos handles encryption and upload automatically.

@@ -412,11 +412,9 @@ export class ConvosInstance {
     return this.sendAndWait(cmd);
   }
 
-  async sendAttachment(file: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
+  async sendAttachment(file: string): Promise<{ success: boolean; messageId?: string }> {
     this.assertRunning();
-    const cmd: Record<string, unknown> = { type: "attach", file };
-    if (replyTo) cmd.replyTo = replyTo;
-    return this.sendAndWait(cmd);
+    return this.sendAndWait({ type: "attach", file });
   }
 
   async react(

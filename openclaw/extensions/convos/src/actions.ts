@@ -29,8 +29,7 @@ export const convosMessageActions: ChannelMessageActionAdapter = {
 
     if (action === "sendAttachment") {
       const file = readStringParam(params, "file", { required: true });
-      const replyTo = readStringParam(params, "replyTo");
-      const result = await inst.sendAttachment(file, replyTo);
+      const result = await inst.sendAttachment(file);
       return jsonResult({ ok: true, messageId: result.messageId ?? `convos-${Date.now()}` });
     }
 
