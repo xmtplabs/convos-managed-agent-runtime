@@ -52,7 +52,9 @@
         "openrouter/perplexity/sonar": {},
         "openrouter/openai/gpt-5.2-codex": {},
         "openrouter/anthropic/claude-sonnet-4-6": {},
+        "openrouter/anthropic/claude-sonnet-4.6": {},
         "openrouter/anthropic/claude-opus-4-6": {},
+        "openrouter/anthropic/claude-opus-4.6": {},
         "openrouter/google/gemini-2.0-flash-exp": {},
         "openrouter/meta-llama/llama-3.3-70b-instruct": {},
         "openrouter/deepseek/deepseek-r1": {},
@@ -132,18 +134,30 @@
         "api": "openai-completions",
         "models": [
           { "id": "openrouter/openai/gpt-oss-20b", "name": "GPT-OSS 20B" },
-          { "id": "openrouter/openai/gpt-5.1-codex-mini", "name": "GPT-5.1 Codex Mini" },
+          { "id": "openrouter/openai/gpt-5.1-codex-mini", "name": "GPT-5.1 Codex Mini", "input": ["text", "image"] },
           { "id": "openrouter/perplexity/sonar", "name": "Perplexity Sonar" },
-          { "id": "openrouter/openai/gpt-5.2-codex", "name": "GPT-5.2 Codex" },
-          { "id": "openrouter/anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4" },
-          { "id": "openrouter/anthropic/claude-opus-4-6", "name": "Claude Opus 4" },
-          { "id": "openrouter/google/gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash" },
+          { "id": "openrouter/openai/gpt-5.2-codex", "name": "GPT-5.2 Codex", "input": ["text", "image"] },
+          { "id": "openrouter/anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4", "input": ["text", "image"] },
+          { "id": "openrouter/anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6", "input": ["text", "image"] },
+          { "id": "openrouter/anthropic/claude-opus-4-6", "name": "Claude Opus 4", "input": ["text", "image"] },
+          { "id": "openrouter/anthropic/claude-opus-4.6", "name": "Claude Opus 4.6", "input": ["text", "image"] },
+          { "id": "openrouter/google/gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash", "input": ["text", "image"] },
           { "id": "openrouter/meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B" },
           { "id": "openrouter/deepseek/deepseek-r1", "name": "DeepSeek R1" },
           { "id": "openrouter/qwen/qwen-2.5-72b-instruct", "name": "Qwen 2.5 72B" },
-          { "id": "openrouter/openai/gpt-4o", "name": "GPT-4o" },
-          { "id": "openrouter/openai/gpt-4o-mini", "name": "GPT-4o Mini" },
-          { "id": "openrouter/mistralai/mistral-large-2411", "name": "Mistral Large" }
+          { "id": "openrouter/openai/gpt-4o", "name": "GPT-4o", "input": ["text", "image"] },
+          { "id": "openrouter/openai/gpt-4o-mini", "name": "GPT-4o Mini", "input": ["text", "image"] },
+          { "id": "openrouter/mistralai/mistral-large-2411", "name": "Mistral Large" },
+
+          { "id": "anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4", "input": ["text", "image"] },
+          { "id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6", "input": ["text", "image"] },
+          { "id": "anthropic/claude-opus-4-6", "name": "Claude Opus 4", "input": ["text", "image"] },
+          { "id": "anthropic/claude-opus-4.6", "name": "Claude Opus 4.6", "input": ["text", "image"] },
+          { "id": "openai/gpt-5.1-codex-mini", "name": "GPT-5.1 Codex Mini", "input": ["text", "image"] },
+          { "id": "openai/gpt-5.2-codex", "name": "GPT-5.2 Codex", "input": ["text", "image"] },
+          { "id": "google/gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash", "input": ["text", "image"] },
+          { "id": "openai/gpt-4o", "name": "GPT-4o", "input": ["text", "image"] },
+          { "id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "input": ["text", "image"] }
         ]
       }
     }

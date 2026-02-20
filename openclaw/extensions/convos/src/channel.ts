@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   DEFAULT_ACCOUNT_ID,
@@ -310,12 +311,14 @@ async function handleInboundMessage(
   log?: RuntimeLogger,
 ) {
   const inst = getConvosInstance();
+  const debugLog = (msg: string) => log ? log.info(msg) : console.log(msg);
+  const errorLog = (msg: string) => log ? log.error(msg) : console.error(msg);
 
   // Self-echo filtering is handled by `convos agent serve` — messages from
   // our own inboxId are never emitted. No filtering needed here.
 
   if (account.debug) {
-    log?.info(
+    debugLog(
       `[${account.accountId}] Inbound message from ${msg.senderId}: ${msg.content.slice(0, 50)}${msg.catchup ? " (catchup)" : ""}`,
     );
   }
@@ -360,6 +363,48 @@ async function handleInboundMessage(
     body: rawBody,
   });
 
+  // --- Image attachment handling ---
+  // Download image before finalizeInboundContext so MediaPath/MediaType are
+  // included in the finalized context and picked up by the media pipeline.
+  //
+  // Content format from the CLI:
+  //   remoteStaticAttachment: "[remote attachment: filename (-1 bytes) https://...encrypted.bin]"
+  //   attachment:             "[attachment: filename (size bytes)]"
+  //
+  // The URL points to an encrypted blob — we must always download via the CLI
+  // which handles decryption. Detect image type from the filename extension.
+  let mediaPath: string | undefined;
+  if (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment") {
+    try {
+      const filenameMatch = msg.content.match(/:\s+(\S+\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?|avif|svg))\s/i);
+      const ext = filenameMatch?.[2] ? `.${filenameMatch[2].toLowerCase()}` : "";
+
+      if (filenameMatch && inst) {
+        const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
+        mediaPath = path.join(os.tmpdir(), `convos-img-${safeId}${ext}`);
+        await inst.downloadAttachment(msg.messageId, mediaPath);
+
+        if (account.debug) {
+          debugLog(`[${account.accountId}] Image attachment downloaded: ${mediaPath}`);
+        }
+      }
+    } catch (err) {
+      errorLog(`[${account.accountId}] Failed to process image attachment: ${String(err)}`);
+      mediaPath = undefined;
+    }
+  }
+
+  // Map file extension to MIME type for the media pipeline
+  const extToMime: Record<string, string> = {
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".png": "image/png", ".gif": "image/gif",
+    ".webp": "image/webp", ".heic": "image/heic",
+    ".heif": "image/heif", ".bmp": "image/bmp",
+    ".tif": "image/tiff", ".tiff": "image/tiff",
+    ".avif": "image/avif", ".svg": "image/svg+xml",
+  };
+  const mediaMime = mediaPath ? extToMime[path.extname(mediaPath).toLowerCase()] ?? "image/jpeg" : undefined;
+
   const ctxPayload = runtime.channel.reply.finalizeInboundContext({
     Body: body,
     RawBody: rawBody,
@@ -377,6 +422,7 @@ async function handleInboundMessage(
     MessageSid: msg.messageId,
     OriginatingChannel: "convos",
     OriginatingTo: `convos:${msg.conversationId}`,
+    ...(mediaPath ? { MediaPath: mediaPath, MediaType: mediaMime } : {}),
   });
 
   await runtime.channel.session.recordInboundSession({
@@ -384,7 +430,7 @@ async function handleInboundMessage(
     sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
     ctx: ctxPayload,
     onRecordError: (err) => {
-      log?.error(`[${account.accountId}] Failed updating session meta: ${String(err)}`);
+      errorLog(`[${account.accountId}] Failed updating session meta: ${String(err)}`);
     },
   });
 
@@ -394,27 +440,34 @@ async function handleInboundMessage(
     accountId: account.accountId,
   });
 
-  await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-    ctx: ctxPayload,
-    cfg,
-    dispatcherOptions: {
-      deliver: async (payload: ReplyPayload) => {
-        await deliverConvosReply({
-          payload,
-          accountId: account.accountId,
-          runtime,
-          log,
-          tableMode,
-          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
-            ? msg.messageId
-            : undefined,
-        });
+  try {
+    await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+      ctx: ctxPayload,
+      cfg,
+      dispatcherOptions: {
+        deliver: async (payload: ReplyPayload) => {
+          await deliverConvosReply({
+            payload,
+            accountId: account.accountId,
+            runtime,
+            log,
+            tableMode,
+            triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+              ? msg.messageId
+              : undefined,
+          });
+        },
+        onError: (err, info) => {
+          errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
+        },
       },
-      onError: (err, info) => {
-        log?.error(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
-      },
-    },
-  });
+    });
+  } finally {
+    // Clean up temp image file after the reply pipeline is done with it
+    if (mediaPath) {
+      fs.unlink(mediaPath, () => {});
+    }
+  }
 }
 
 /**
