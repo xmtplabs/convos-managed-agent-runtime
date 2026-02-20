@@ -605,7 +605,9 @@ export class ConvosInstance {
           senderId: (data.senderInboxId as string) ?? "",
           senderName: "",
           content: (data.content as string) ?? "",
-          contentType: data.contentType as string | undefined,
+          contentType: typeof data.contentType === "object" && data.contentType !== null
+            ? ((data.contentType as Record<string, unknown>).typeId as string | undefined)
+            : (data.contentType as string | undefined),
           timestamp: typeof data.sentAt === "string" ? new Date(data.sentAt) : new Date(),
           catchup: (data.catchup as boolean) ?? false,
         };

@@ -405,7 +405,9 @@ async function handleInboundMessage(
           runtime,
           log,
           tableMode,
-          triggerMessageId: msg.contentType === "group_updated" ? undefined : msg.messageId,
+          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+            ? msg.messageId
+            : undefined,
         });
       },
       onError: (err, info) => {
