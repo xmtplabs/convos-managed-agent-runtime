@@ -53,6 +53,17 @@ else
   fail "bankr" "$(cat "$QA_TMP")"
 fi
 
+# --- Convos CLI ---
+echo ""
+echo "=== QA: convos ==="
+echo "  > convos --version"
+run convos --version
+if grep -qi "convos-cli" "$QA_TMP"; then
+  pass "convos"
+else
+  fail "convos" "$(cat "$QA_TMP")"
+fi
+
 # --- Browser ---
 echo ""
 echo "=== QA: browser ==="
