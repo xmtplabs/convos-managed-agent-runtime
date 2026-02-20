@@ -409,9 +409,16 @@ export class ConvosInstance {
 
   // ==== Operations (via stdin commands) ====
 
-  async sendMessage(text: string): Promise<{ success: boolean; messageId?: string }> {
+  async sendMessage(text: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
     this.assertRunning();
-    return this.sendAndWait({ type: "send", text });
+    const cmd: Record<string, unknown> = { type: "send", text };
+    if (replyTo) cmd.replyTo = replyTo;
+    return this.sendAndWait(cmd);
+  }
+
+  async sendAttachment(file: string): Promise<{ success: boolean; messageId?: string }> {
+    this.assertRunning();
+    return this.sendAndWait({ type: "attach", file });
   }
 
   async react(
@@ -604,7 +611,9 @@ export class ConvosInstance {
           senderId: (data.senderInboxId as string) ?? "",
           senderName: "",
           content: (data.content as string) ?? "",
-          contentType: data.contentType as string | undefined,
+          contentType: typeof data.contentType === "object" && data.contentType !== null
+            ? ((data.contentType as Record<string, unknown>).typeId as string | undefined)
+            : (data.contentType as string | undefined),
           timestamp: typeof data.sentAt === "string" ? new Date(data.sentAt) : new Date(),
           catchup: (data.catchup as boolean) ?? false,
         };
@@ -637,9 +646,8 @@ export class ConvosInstance {
           scheduled: data.scheduled as boolean | undefined,
         };
 
-        // Resolve pending send if this is a text send confirmation
-        if (info.id && !info.type) {
-          // This is a text send confirmation — resolve the oldest pending send
+        // Resolve pending send — any confirmation with an id (text, attachment, reaction, etc.)
+        if (info.id) {
           const firstKey = this.pendingSends.keys().next().value;
           if (firstKey !== undefined) {
             const pending = this.pendingSends.get(firstKey);

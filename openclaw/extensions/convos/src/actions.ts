@@ -9,7 +9,7 @@ export const convosMessageActions: ChannelMessageActionAdapter = {
     if (ids.length === 0) {
       return [];
     }
-    return ["send", "react"];
+    return ["send", "react", "sendAttachment"];
   },
 
   supportsButtons: () => false,
@@ -22,7 +22,14 @@ export const convosMessageActions: ChannelMessageActionAdapter = {
 
     if (action === "send") {
       const message = readStringParam(params, "message", { required: true, allowEmpty: true });
-      const result = await inst.sendMessage(message);
+      const replyTo = readStringParam(params, "replyTo");
+      const result = await inst.sendMessage(message, replyTo);
+      return jsonResult({ ok: true, messageId: result.messageId ?? `convos-${Date.now()}` });
+    }
+
+    if (action === "sendAttachment") {
+      const file = readStringParam(params, "file", { required: true });
+      const result = await inst.sendAttachment(file);
       return jsonResult({ ok: true, messageId: result.messageId ?? `convos-${Date.now()}` });
     }
 

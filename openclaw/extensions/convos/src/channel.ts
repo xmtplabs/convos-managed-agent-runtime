@@ -59,7 +59,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     chatTypes: ["group"],
     reactions: true,
     threads: false,
-    media: false,
+    media: true,
   },
   reload: { configPrefixes: ["channels.convos"] },
   configSchema: convosChannelConfigSchema,
@@ -67,8 +67,9 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   actions: convosMessageActions,
   agentPrompt: {
     messageToolHints: () => [
-      "- To send a Convos message: use `action=send` with `message`.",
+      "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID.",
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
+      "- To send a file: use `action=sendAttachment` with `file` (local path).",
     ],
   },
   config: {
@@ -134,8 +135,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   messaging: {
     normalizeTarget: normalizeConvosMessagingTarget,
     targetResolver: {
-      looksLikeId: (raw) => {
-        const trimmed = raw.trim();
+      looksLikeId: (_raw, normalized) => {
+        const trimmed = (normalized ?? _raw).trim();
         if (!trimmed) {
           return false;
         }
@@ -404,6 +405,9 @@ async function handleInboundMessage(
           runtime,
           log,
           tableMode,
+          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+            ? msg.messageId
+            : undefined,
         });
       },
       onError: (err, info) => {
@@ -422,13 +426,17 @@ async function deliverConvosReply(params: {
   runtime: PluginRuntime;
   log?: RuntimeLogger;
   tableMode?: "off" | "plain" | "markdown" | "bullets" | "code";
+  triggerMessageId?: string;
 }): Promise<void> {
-  const { payload, accountId, runtime, log, tableMode = "code" } = params;
+  const { payload, accountId, runtime, log, tableMode = "code", triggerMessageId } = params;
 
   const inst = getConvosInstance();
   if (!inst) {
     throw new Error("Convos instance not available");
   }
+
+  // Resolve replyTo from reply tags: [[reply_to:<id>]] or [[reply_to_current]]
+  const replyTo = payload.replyToId ?? (payload.replyToCurrent ? triggerMessageId : undefined);
 
   const text = runtime.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
 
@@ -442,9 +450,10 @@ async function deliverConvosReply(params: {
 
     const chunks = runtime.channel.text.chunkMarkdownText(text, chunkLimit);
 
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
       try {
-        await inst.sendMessage(chunk);
+        // Only apply replyTo on the first chunk
+        await inst.sendMessage(chunks[i], i === 0 ? replyTo : undefined);
       } catch (err) {
         log?.error(`[${accountId}] Send failed: ${String(err)}`);
         throw err;

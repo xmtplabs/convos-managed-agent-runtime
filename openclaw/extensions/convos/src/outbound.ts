@@ -35,7 +35,18 @@ export const convosOutbound: ChannelOutboundAdapter = {
     };
   },
 
-  sendMedia: async () => {
-    throw new Error("Media sending not yet implemented in Convos");
+  sendMedia: async ({ to, mediaUrl }) => {
+    if (!instance) {
+      throw new Error("Convos instance not running. Is the gateway started?");
+    }
+    if (to && to !== instance.conversationId) {
+      throw new Error(`Convos routing mismatch: expected ${instance.conversationId}, got ${to}`);
+    }
+    const result = await instance.sendAttachment(mediaUrl);
+    const mid = result.messageId ?? `convos-${Date.now()}`;
+    return {
+      channel: "convos",
+      messageId: mid,
+    };
   },
 };
