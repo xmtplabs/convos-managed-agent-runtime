@@ -73,8 +73,10 @@ async function migrate() {
     }
   }
 
-  // Add source_branch column if missing (idempotent)
+  // Add columns if missing (idempotent)
   await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS source_branch TEXT`;
+  await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS openrouter_key_hash TEXT`;
+  await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS agentmail_inbox_id TEXT`;
 
   process.exit(0);
 }

@@ -354,7 +354,11 @@ export class ConvosInstance {
     }
     this.running = true;
     this.restartCount = 0;
-    return this.spawnAgentServe();
+    const ready = await this.spawnAgentServe();
+    if (this.options.debug) {
+      console.log(`[convos] Started: ${this.conversationId.slice(0, 12)}... (inboxId: ${ready.inboxId?.slice(0, 12)}...)`);
+    }
+    return ready;
   }
 
   async stop(): Promise<void> {
@@ -504,13 +508,11 @@ export class ConvosInstance {
         rl.on("line", (line) => this.handleEvent(line));
       }
 
-      // Log stderr
+      // Always log stderr for diagnostics (crash messages, XMTP errors)
       if (child.stderr) {
         const rl = createInterface({ input: child.stderr });
         rl.on("line", (line) => {
-          if (this.options.debug) {
-            console.error(`[convos:stderr] ${line}`);
-          }
+          console.error(`[convos:stderr] ${line}`);
         });
       }
 
@@ -574,6 +576,10 @@ export class ConvosInstance {
     }
 
     const event = data.event as string;
+
+    if (this.options.debug) {
+      console.log(`[convos] event: ${event} ${JSON.stringify(data)}`);
+    }
 
     switch (event) {
       case "ready": {
@@ -684,6 +690,9 @@ export class ConvosInstance {
   private writeCommand(cmd: Record<string, unknown>): void {
     if (!this.child?.stdin?.writable) {
       throw new Error("Agent serve process not running or stdin not writable");
+    }
+    if (this.options.debug) {
+      console.log(`[convos] stdin: ${JSON.stringify(cmd)}`);
     }
     this.child.stdin.write(JSON.stringify(cmd) + "\n");
   }

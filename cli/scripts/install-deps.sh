@@ -1,58 +1,35 @@
 #!/bin/sh
-# Install extension deps and skill deps (e.g. agentmail) in OPENCLAW_STATE_DIR
+# Install extension deps and symlink skill library deps into the state dir.
+# All deps are declared in root package.json (single source of truth).
+# CLIs (@telnyx/api-cli, @bankr/cli) resolve via PATH (node-path.sh).
+# JS libraries (agentmail) need symlinks because ESM import doesn't use NODE_PATH.
 set -e
 export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 . "$(dirname "$0")/lib/init.sh"
 
 # Extensions: pnpm install in each dir with package.json (always run to fix stale/partial installs)
-# NODE_ENV=development ensures devDeps are available for extensions that need them at install time
 for ext in "$EXTENSIONS_DIR"/*; do
   [ -d "$ext" ] && [ -f "$ext/package.json" ] || continue
   echo "  Installing deps: $ext"
-  (cd "$ext" && NODE_ENV=development pnpm install --no-frozen-lockfile) || true
+  (cd "$ext" && pnpm install --no-frozen-lockfile) || true
 done
 
-# agentmail: add to state dir package.json and install
-if [ -d "$SKILLS_DIR/agentmail" ]; then
-  pkg="$STATE_DIR/package.json"
-  if [ ! -f "$pkg" ]; then
-    echo '{"name":"openclaw-state","private":true,"dependencies":{}}' > "$pkg"
+# Skill library deps: symlink from root node_modules into state dir so ESM imports resolve.
+# ESM import walks up from the script location (~/.openclaw/workspace/skills/...) —
+# it won't find ROOT/node_modules. Symlinks bridge the gap.
+# To add a new JS library dep: add to root package.json, add the name here.
+SKILL_LIBS="agentmail"
+mkdir -p "$STATE_DIR/node_modules"
+for pkg in $SKILL_LIBS; do
+  src="$ROOT/node_modules/$pkg"
+  dest="$STATE_DIR/node_modules/$pkg"
+  if [ -d "$src" ]; then
+    # Resolve pnpm symlink to the real path
+    real_src="$(cd "$src" && pwd -P)"
+    rm -f "$dest"
+    ln -s "$real_src" "$dest"
+    echo "  Linked $pkg -> $real_src"
   fi
-  if ! grep -q '"agentmail"' "$pkg" 2>/dev/null; then
-    echo "  Adding agentmail to state dir"
-    node -e "
-      const p=require('$pkg');
-      p.dependencies=p.dependencies||{};
-      p.dependencies.agentmail=p.dependencies.agentmail||'*';
-      require('fs').writeFileSync('$pkg', JSON.stringify(p,null,2));
-    "
-  fi
-  if [ -d "$STATE_DIR/node_modules/agentmail" ]; then
-    echo "  Skipping state dir deps (already installed)"
-  else
-    echo "  Installing state dir deps"
-    (cd "$STATE_DIR" && pnpm install --no-frozen-lockfile) || true
-  fi
-fi
-
-# telnyx-cli: install @telnyx/api-cli globally
-if [ -d "$SKILLS_DIR/telnyx-cli" ]; then
-  if command -v telnyx >/dev/null 2>&1; then
-    echo "  Skipping @telnyx/api-cli (already installed)"
-  else
-    echo "  Installing @telnyx/api-cli globally"
-    pnpm install -g @telnyx/api-cli || npm install -g @telnyx/api-cli || true
-  fi
-fi
-
-# bankr: install @bankr/cli globally (for bankr prompt, balance, etc.)
-if [ -d "$SKILLS_DIR/bankr" ]; then
-  if command -v bankr >/dev/null 2>&1; then
-    echo "  Skipping @bankr/cli (already installed)"
-  else
-    echo "  Installing @bankr/cli globally"
-    pnpm install -g @bankr/cli || npm install -g @bankr/cli || true
-  fi
-fi
+done
 
 echo "  install-deps done"
