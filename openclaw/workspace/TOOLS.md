@@ -27,81 +27,120 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 # Examples
 
 > Hi!
+**Tool:** None
 → Just reply, no tools.
 _Note: Greetings, chitchat, jokes, opinions, general knowledge — just talk. No tools needed._
 
 > What's 2 + 2?
+**Tool:** None
 → Answer directly (4), no tools.
 _Note: If you can answer from your own knowledge, don't use tools._
 
 > Tell me a joke
+**Tool:** None
 → Answer directly, no tools.
 _Note: Never include URLs or citations you didn't actually retrieve. Making up citations is worse than having none._
 
+> Who's in this group?
+**Skill:** Convos (convos-cli)
+→ `convos-cli members`
+_Note: Use convos-cli to list the members of the current conversation._
+
+> What did we talk about earlier today?
+**Skill:** Convos (convos-cli)
+→ `convos-cli history`
+
+> React with a thumbs up to the last message.
+**Skill:** Convos (convos-cli)
+→ `convos-cli react`
+
+> Send a photo of the receipt to the group.
+**Skill:** Convos (convos-cli)
+→ `convos-cli send` with attachment
+_Note: Use convos-cli for sending messages and attachments in the current conversation._
+
 > What's the latest news on Elon Musk?
+**Tool:** Web Search
 → web_search
 _Note: Current/live info requires search._
 
 > Find Italian restaurants in Buenos Aires.
+**Tool:** Web Search
 → web_search
 
 > Find the booking page for Don Julio steakhouse.
+**Tool:** Web Search
 → web_search
 _Note: This only finds the URL. To actually book, use the browser tool._
 
 > Go fill out and submit https://convos-agent-main.up.railway.app/web-tools/form
-→ browser 
+**Tool:** Browser
+→ browser
 _Note: If no URL is provided, use web_search first to find the booking page, then browser._
 
-
 > Book a table at Don Julio for tonight at 9pm.
+**Tool:** Browser
 → browser
 _Note: If no URL is provided, use web_search first to find the booking page, then browser._
 
 > Check availability on Resy for 2 people Friday.
+**Tool:** Browser
 → browser
 
 > Send a calendar invite for dinner Friday 9pm to john@email.com.
+**Skill:** Email (AgentMail)
 → `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-calendar-email.mjs ...`
 
 > Send me an email with today's summary.
+**Skill:** Email (AgentMail)
 → `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-email.mjs ...`
 _Note: ANY request to send, forward, or reply to email MUST use agentmail scripts. Never respond with a link or suggestion._
 
 > Check my inbox for new emails.
+**Skill:** Email (AgentMail)
 → `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/poll-inbox.mjs ...`
 
 > Text +1555123456 that I'm running late.
+**Skill:** SMS (Telnyx)
 → `telnyx message send --from $TELNYX_PHONE_NUMBER --to +1555123456 --text "..."`
 _Note: ANY request to send an SMS/text MUST use telnyx CLI. Always use $TELNYX_PHONE_NUMBER as --from. US numbers (+1) only — if the number is international, decline and suggest email._
 
 > Send an SMS to my wife saying I'll be home at 8.
+**Skill:** SMS (Telnyx)
 → `telnyx message send ...`
 
 > What's my ETH balance?
+**Skill:** Crypto (Bankr)
 → `bankr prompt "What is my ETH balance?"`
 _Note: ANY crypto question (balance, price, trade, transfer, portfolio) MUST use bankr CLI._
 
 > Buy $20 of PEPE on Base.
+**Skill:** Crypto (Bankr)
 → `bankr prompt "Buy $20 of PEPE on Base"`
 
 > Send 0.5 ETH to vitalik.eth.
+**Skill:** Crypto (Bankr)
 → `bankr prompt "Send 0.5 ETH to vitalik.eth"`
 
 > What tokens are trending?
+**Skill:** Crypto (Bankr)
 → `bankr prompt "What tokens are trending?"`
 
 > Book in Farid restaurant.
+**Tools:** Web Search → Browser
 → web_search → browser
 _Note: Multi-step — search finds the page, browser does the booking._
 
 > Reserve at that place and send me an invite.
+**Tools:** Browser → Email (AgentMail)
 → browser → agentmail scripts
 
 > Book a table and text my friend the details.
+**Tools:** Browser → SMS (Telnyx)
 → browser → telnyx CLI
 
 > Buy some ETH and email me the confirmation.
+**Tools:** Crypto (Bankr) → Email (AgentMail)
 → bankr CLI → agentmail scripts
 
 ## Common mistakes
