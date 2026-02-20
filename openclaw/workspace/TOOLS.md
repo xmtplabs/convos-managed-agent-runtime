@@ -121,47 +121,47 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 → browser
 
 > Send a calendar invite for dinner Friday 9pm to john@email.com.
-→ agentmail (send-calendar-email.mjs)
+→ exec: `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-calendar-email.mjs ...`
 
 > Send me an email with today's summary.
-→ agentmail (send-email.mjs)
-_Note: ANY request to send, forward, or reply to email MUST use agentmail. Never respond with a link or suggestion._
+→ exec: `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-email.mjs ...`
+_Note: ANY request to send, forward, or reply to email MUST use the exec tool to run agentmail scripts. Never respond with a link or suggestion._
 
 > Check my inbox for new emails.
-→ agentmail (poll-inbox.mjs)
+→ exec: `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/poll-inbox.mjs ...`
 
 > Text +1555123456 that I'm running late.
-→ telnyx (message send)
-_Note: ANY request to send an SMS/text MUST use telnyx. Always use $TELNYX_PHONE_NUMBER as --from. US numbers (+1) only — if the number is international, decline and suggest email._
+→ exec: `telnyx message send --from $TELNYX_PHONE_NUMBER --to +1555123456 --text "..."`
+_Note: ANY request to send an SMS/text MUST use the exec tool to run telnyx CLI. Always use $TELNYX_PHONE_NUMBER as --from. US numbers (+1) only — if the number is international, decline and suggest email._
 
 > Send an SMS to my wife saying I'll be home at 8.
-→ telnyx (message send)
+→ exec: `telnyx message send ...`
 
 > What's my ETH balance?
-→ bankr
-_Note: ANY crypto question (balance, price, trade, transfer, portfolio) MUST use bankr._
+→ exec: `bankr prompt "What is my ETH balance?"`
+_Note: ANY crypto question (balance, price, trade, transfer, portfolio) MUST use the exec tool to run bankr CLI._
 
 > Buy $20 of PEPE on Base.
-→ bankr
+→ exec: `bankr prompt "Buy $20 of PEPE on Base"`
 
 > Send 0.5 ETH to vitalik.eth.
-→ bankr
+→ exec: `bankr prompt "Send 0.5 ETH to vitalik.eth"`
 
 > What tokens are trending?
-→ bankr
+→ exec: `bankr prompt "What tokens are trending?"`
 
 > Book in Farid restaurant.
 → web_search → browser
 _Note: Multi-step — search finds the page, browser does the booking._
 
 > Reserve at that place and send me an invite.
-→ browser → agentmail
+→ browser → exec (agentmail scripts)
 
 > Book a table and text my friend the details.
-→ browser → telnyx
+→ browser → exec (telnyx CLI)
 
 > Buy some ETH and email me the confirmation.
-→ bankr → agentmail
+→ exec (bankr CLI) → exec (agentmail scripts)
 
 ## Common mistakes
 
@@ -169,10 +169,10 @@ _Note: Multi-step — search finds the page, browser does the booking._
 |---|---|---|---|
 | "Latest news on X" | browser | web_search | Search, not site interaction |
 | "Book a table" | web_search | browser | Booking needs form interaction |
-| "Send invite" | browser | agentmail | Email delivery, not browsing |
-| "Send me an email" | answer with text | agentmail | Must execute, not suggest |
-| "Text my friend" | answer with text | telnyx | Must send SMS via telnyx |
-| "What's my balance?" | answer from memory | bankr | Must query live data |
-| "Buy ETH" | web_search | bankr | Trading goes through bankr |
-| "Text +5411..." | telnyx | decline → suggest email | SMS is US-only (+1 numbers) |
+| "Send invite" | browser | exec (agentmail) | Email delivery, not browsing |
+| "Send me an email" | answer with text | exec (agentmail) | Must execute, not suggest |
+| "Text my friend" | answer with text | exec (telnyx) | Must send SMS via telnyx CLI |
+| "What's my balance?" | answer from memory | exec (bankr) | Must query live data |
+| "Buy ETH" | web_search | exec (bankr) | Trading goes through bankr CLI |
+| "Text +5411..." | exec (telnyx) | decline → suggest email | SMS is US-only (+1 numbers) |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |
