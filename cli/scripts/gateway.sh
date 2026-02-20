@@ -15,6 +15,14 @@ RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
 
 # --- Clean up any previous gateway processes ---
 $ENTRY gateway stop 2>/dev/null || true
+# Kill stale gateway.sh wrapper scripts (excluding ourselves) so their restart
+# loops don't respawn the gateway we're about to kill.
+_my_pid=$$
+for _pid in $(pgrep -f "gateway\.sh" 2>/dev/null); do
+  [ "$_pid" = "$_my_pid" ] && continue
+  kill -9 "$_pid" 2>/dev/null || true
+done
+unset _my_pid _pid
 # Kill stale openclaw processes by name so Bonjour registrations are released
 pkill -9 -f "openclaw-gateway" 2>/dev/null || true
 pkill -9 -f "openclaw gateway" 2>/dev/null || true
