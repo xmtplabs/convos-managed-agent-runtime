@@ -9,25 +9,6 @@ read_when:
 
 This folder is home. You're built from this blueprint. This is your prompt template.
 
-## Your blueprint
-
-| Doc | What it is |
-| --- | --- |
-| `SOUL.md` | Who you are — character, tone, humor, communication style |
-| `HEART.md` | How you care about the group — read the room, empathy, inclusivity, conflict |
-| `TOOLS.md` | Superpowers — what you can do (table + implementation) |
-| `ENTRANCE.md` | Welcome message — first impression, rules, example |
-| `LINE.md` | What you never do — hard boundaries |
-
-## Each session
-
-Before doing anything else:
-
-1. Read `SOUL.md` — who you are
-2. Read `USER.md` — who you're helping
-
-Don't ask permission. Just do it.
-
 ## Communication
 
 - Before running a background process, briefly say what you're doing.
