@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.12 — 2026-02-20
+
+- **Convos: agent serve migration.** Rewrite convos extension from two child processes (`conversation stream` + `process-join-requests --watch`) to a single `convos agent serve` process with ndjson stdin/stdout protocol. Operations (send, react, rename, lock, unlock, explode) now go through stdin commands instead of separate CLI exec calls. Self-echo filtering handled by CLI, not JS.
+- **Debug instrumentation.** Restore debug logging lost in the agent serve migration: `writeCommand` logs stdin commands, `handleEvent` logs all received ndjson events, `start()` logs on ready. stderr from the child process is always logged (not gated by debug flag).
+- **Gateway cleanup.** Kill old `gateway.sh` wrapper scripts (not just `openclaw-gateway` processes) before starting a new gateway. Prevents the old script's restart loop from respawning a competing gateway.
+- **Dependencies.** Drop `openclaw` devDependency from convos and web-tools extensions (resolves from root). Move `ethers` from devDependencies to dependencies. Remove `devDependencies` section from root package.json.
+
 ## 0.0.11 — 2026-02-20
 
 - **Dependencies:** Move all skill deps (agentmail, @telnyx/api-cli, @bankr/cli) to root `package.json`. No more global installs or state-dir package.json workarounds. CLIs resolve via PATH (`node-path.sh` adds `ROOT/node_modules/.bin`); JS libraries (agentmail) symlinked into state dir for ESM resolution.
