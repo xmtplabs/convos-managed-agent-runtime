@@ -6,7 +6,8 @@ function runScript(scriptName, envOverrides = {}) {
   const root = getRoot();
   const scriptPath = path.join(root, "cli", "scripts", scriptName);
   const env = { ...getEnv(), ...envOverrides };
-  const out = spawnSync("sh", [scriptPath], {
+  const cmd = scriptName.endsWith(".mjs") ? "node" : "sh";
+  const out = spawnSync(cmd, [scriptPath], {
     cwd: root,
     env,
     stdio: "inherit",
