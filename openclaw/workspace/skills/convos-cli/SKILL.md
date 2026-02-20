@@ -70,8 +70,9 @@ Profile updates are stored in appData (opaque binary). They arrive as a generic 
 | List members / profiles | CLI | `convos conversation members` / `profiles` |
 | View group info | CLI | `convos conversation info` / `permissions` |
 | Download a received file | CLI | `convos conversation download-attachment` |
+| Update your display name | CLI | `convos conversation update-profile` |
 
-The message tool is for **sending**. The CLI is for **reading**. Never use the CLI to send.
+The message tool is for **sending**. The CLI is for **reading and profile management**. Never use the CLI to send.
 
 ## Sending (message tool)
 
@@ -105,9 +106,9 @@ action=sendAttachment  file="./path/to/file.jpg"
 
 Just pass a file path. Convos handles encryption and upload automatically.
 
-## Reading (CLI)
+## Reading and profile management (CLI)
 
-Read-only lookups use the `convos` CLI via the exec tool. Always pass `--json` when you need to parse the output.
+These operations use the `convos` CLI via the exec tool. Always pass `--json` when you need to parse the output.
 
 ### Who is in the group
 
@@ -142,6 +143,15 @@ convos conversation permissions <conversation-id> --json
 convos conversation download-attachment <conversation-id> <message-id>
 convos conversation download-attachment <conversation-id> <message-id> --output ./photo.jpg
 ```
+
+### Update your profile
+
+```bash
+convos conversation update-profile <conversation-id> --name "New Name"
+convos conversation update-profile <conversation-id> --name "New Name" --image "https://example.com/avatar.jpg"
+```
+
+When someone renames you (e.g. `Alice changed group name to "Bot v2"`), update your own display name to match. Your profile is per-conversation — it only affects this group.
 
 ## Rules
 
