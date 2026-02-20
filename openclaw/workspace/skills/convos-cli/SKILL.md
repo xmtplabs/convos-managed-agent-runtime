@@ -58,9 +58,9 @@ Replies and reactions both reference another message by ID (e.g. `reply to abc12
 
 Profile updates are stored in appData (opaque binary). They arrive as a generic `Group updated` message with no readable diff. When you see this, refresh profiles to learn what changed.
 
-## Sending Messages
+## Sending (message tool)
 
-Use the message tool (`action=...`) to send messages, replies, reactions, and attachments.
+All outbound actions go through the message tool. Never write ndjson to stdin directly.
 
 ### Text
 
@@ -93,9 +93,9 @@ action=attach  file="./photo.jpg"  replyTo="<message-id>"
 
 Just pass a file path. Convos handles encryption and upload automatically.
 
-## Reading the Conversation
+## Reading (CLI commands)
 
-These CLI commands let you look things up without sending a message. Always pass `--json` when you need to parse the output.
+Read-only lookups use the `convos` CLI directly. Always pass `--json` when you need to parse the output.
 
 ### Who is in the group
 
