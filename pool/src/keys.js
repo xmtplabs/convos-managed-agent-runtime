@@ -12,7 +12,6 @@ const INSTANCE_VAR_MAP = {
   SETUP_PASSWORD: "INSTANCE_SETUP_PASSWORD",
   XMTP_ENV: "INSTANCE_XMTP_ENV",
   AGENTMAIL_API_KEY: "INSTANCE_AGENTMAIL_API_KEY",
-  AGENTMAIL_INBOX_ID: "INSTANCE_AGENTMAIL_INBOX_ID",
   BANKR_API_KEY: "INSTANCE_BANKR_API_KEY",
   TELNYX_API_KEY: "INSTANCE_TELNYX_API_KEY",
   TELNYX_PHONE_NUMBER: "INSTANCE_TELNYX_PHONE_NUMBER",
@@ -37,7 +36,6 @@ export function instanceEnvVars() {
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_API_KEY: POOL_API_KEY || "",
     AGENTMAIL_API_KEY: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY),
-    AGENTMAIL_INBOX_ID: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_INBOX_ID),
     BANKR_API_KEY: getEnv(INSTANCE_VAR_MAP.BANKR_API_KEY),
     TELNYX_API_KEY: getEnv(INSTANCE_VAR_MAP.TELNYX_API_KEY),
     TELNYX_PHONE_NUMBER: getEnv(INSTANCE_VAR_MAP.TELNYX_PHONE_NUMBER),
@@ -61,6 +59,58 @@ export function generateSetupPassword() {
 /** Generate a random Ethereum wallet private key (0x + 64 hex chars). */
 export function generatePrivateWalletKey() {
   return "0x" + randomBytes(32).toString("hex");
+}
+
+/** Create a per-instance AgentMail inbox via the API.
+ *  Returns { inboxId, perInstance } — perInstance is always true when an inbox is created. */
+export async function resolveAgentMailInbox(instanceId) {
+  const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
+  if (!apiKey) return { inboxId: "", perInstance: false };
+  return createAgentMailInbox(apiKey, instanceId);
+}
+
+/** Create a per-instance AgentMail inbox. */
+async function createAgentMailInbox(apiKey, instanceId) {
+  const username = `convos-agent-${instanceId}`;
+  const clientId = `convos-agent-${instanceId}`;
+
+  const res = await fetch("https://api.agentmail.to/v0/inboxes", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ username, display_name: "Convos Agent", client_id: clientId }),
+  });
+  const body = await res.json();
+  const inboxId = body?.inbox_id;
+  if (!inboxId) {
+    console.error("[keys] AgentMail create inbox failed:", res.status, body);
+    throw new Error(`AgentMail inbox creation failed: ${res.status}`);
+  }
+  console.log(`[keys] Created AgentMail inbox ${inboxId} for ${clientId}`);
+  return { inboxId, perInstance: true };
+}
+
+/** Delete an AgentMail inbox. Best-effort — logs and swallows errors. */
+export async function deleteAgentMailInbox(inboxId) {
+  const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
+  if (!apiKey || !inboxId) return;
+
+  try {
+    const res = await fetch(`https://api.agentmail.to/v0/inboxes/${inboxId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (res.ok) {
+      console.log(`[keys] Deleted AgentMail inbox ${inboxId}`);
+    } else {
+      const body = await res.text();
+      console.warn(`[keys] Failed to delete AgentMail inbox ${inboxId}: ${res.status} ${body}`);
+    }
+  } catch (err) {
+    console.warn(`[keys] Failed to delete AgentMail inbox ${inboxId}:`, err.message);
+  }
 }
 
 /** Resolve OPENROUTER_API_KEY. Priority: 1) 2) create via OPENROUTER_MANAGEMENT_KEY.
@@ -100,23 +150,52 @@ export async function createOpenRouterKey(instanceId) {
   return { key, hash };
 }
 
-/** Delete an OpenRouter API key by hash. Best-effort — logs and swallows errors. */
-export async function deleteOpenRouterKey(hash) {
+/** Lookup an OpenRouter key hash by instance name. Returns hash or null. */
+async function findOpenRouterKeyHash(mgmtKey, instanceId) {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/keys", {
+      headers: { Authorization: `Bearer ${mgmtKey}` },
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    const keys = body?.data ?? [];
+    const name = `convos-agent-${instanceId}`;
+    const match = keys.find((k) => k.name === name);
+    return match?.hash ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Delete an OpenRouter API key by hash (preferred) or by instance ID lookup (fallback).
+ *  Best-effort — logs and swallows errors. */
+export async function deleteOpenRouterKey(hash, instanceId) {
   const mgmtKey = process.env.OPENROUTER_MANAGEMENT_KEY;
-  if (!mgmtKey || !hash) return;
+  if (!mgmtKey) return;
+
+  let targetHash = hash;
+  if (!targetHash && instanceId) {
+    targetHash = await findOpenRouterKeyHash(mgmtKey, instanceId);
+    if (!targetHash) {
+      console.log(`[keys] No OpenRouter key found for instance ${instanceId}`);
+      return;
+    }
+    console.log(`[keys] Resolved OpenRouter key hash for ${instanceId}: ${targetHash}`);
+  }
+  if (!targetHash) return;
 
   try {
-    const res = await fetch(`https://openrouter.ai/api/v1/keys/${hash}`, {
+    const res = await fetch(`https://openrouter.ai/api/v1/keys/${targetHash}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${mgmtKey}` },
     });
     if (res.ok) {
-      console.log(`[keys] Deleted OpenRouter key (hash=${hash})`);
+      console.log(`[keys] Deleted OpenRouter key (hash=${targetHash})`);
     } else {
       const body = await res.text();
-      console.warn(`[keys] Failed to delete OpenRouter key (hash=${hash}): ${res.status} ${body}`);
+      console.warn(`[keys] Failed to delete OpenRouter key (hash=${targetHash}): ${res.status} ${body}`);
     }
   } catch (err) {
-    console.warn(`[keys] Failed to delete OpenRouter key (hash=${hash}):`, err.message);
+    console.warn(`[keys] Failed to delete OpenRouter key (hash=${targetHash}):`, err.message);
   }
 }

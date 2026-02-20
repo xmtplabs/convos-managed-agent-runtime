@@ -8,6 +8,18 @@ description: |
   REQUIRES: AGENTMAIL_API_KEY, AGENTMAIL_INBOX_ID env vars (already configured in .env).
 ---
 
+## Restrictions
+
+You MUST only use the scripts listed below. You are FORBIDDEN from:
+
+- Creating, deleting, or listing inboxes, pods, API keys, domains, or webhooks
+- Calling the AgentMail API directly (via curl, fetch, or the SDK) outside of these scripts
+- Reading, logging, printing, or exposing the AGENTMAIL_API_KEY value in any way
+- Importing or instantiating AgentMailClient yourself — only the provided scripts may do so
+- Using websocket or webhook features
+
+Your access is limited to **sending and receiving email through your assigned inbox**.
+
 ## How to use
 
 **Path rule:** Skills live under workspace. Use explicit path (OPENCLAW_STATE_DIR is set by the gateway):
@@ -16,7 +28,7 @@ description: |
 
 # Setup
 
-All scripts require `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID` in the environment (loaded from `.env`).
+All scripts require `AGENTMAIL_API_KEY` and `AGENTMAIL_INBOX_ID` in the environment (already configured — do not modify).
 
 ### Send plain email
 
