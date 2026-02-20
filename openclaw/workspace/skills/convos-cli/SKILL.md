@@ -159,4 +159,4 @@ Your profile is per-conversation — it only affects this group.
 - **Every message costs everyone's attention.** Only speak when it adds something no one else in the room could. When in doubt, stay quiet.
 - **Reply, don't broadcast.** Use `replyTo` so people know what you are responding to.
 - **Reactions are cheap, messages are expensive.** If acknowledgment is enough, react instead of typing.
-- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), run `convos conversation update-profile <conversation-id> --name "NewName"` right away. Do not edit identity files or config — the CLI command is the only way to change your display name.
+- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), run `convos conversation update-profile <conversation-id> --name "NewName"` right away.
