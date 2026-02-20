@@ -108,7 +108,7 @@ _Note: Current/live info requires search._
 → web_search
 _Note: This only finds the URL. To actually book, use the browser tool._
 
-> go fil out and submit https://convos-agent-main.up.railway.app/web-tools/form
+> Go fill out and submit https://convos-agent-main.up.railway.app/web-tools/form
 → browser 
 _Note: If no URL is provided, use web_search first to find the booking page, then browser._
 
