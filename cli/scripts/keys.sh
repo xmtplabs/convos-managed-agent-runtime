@@ -66,11 +66,12 @@ if [ -n "$AGENTMAIL_API_KEY" ]; then
     echo "[keys] Provisioning AgentMail inbox..."
     inbox_username="convos-$(openssl rand -hex 4)"
     inbox_client_id="convos-agent-$(hostname -s 2>/dev/null || echo local)"
+    inbox_payload=$(jq -n --arg u "$inbox_username" --arg cid "$inbox_client_id" --arg dom "${AGENTMAIL_DOMAIN:-}" \
+        '{username: $u, display_name: "Convos Agent", client_id: $cid} + (if ($dom | length) > 0 then {domain: $dom} else {} end)')
     inbox_resp=$(curl -s -X POST "https://api.agentmail.to/v0/inboxes" \
       -H "Authorization: Bearer $AGENTMAIL_API_KEY" \
       -H "Content-Type: application/json" \
-      -d "$(jq -n --arg u "$inbox_username" --arg cid "$inbox_client_id" \
-        '{username: $u, display_name: "Convos Agent", client_id: $cid}')")
+      -d "$inbox_payload")
     agentmail_inbox=$(echo "$inbox_resp" | jq -r '.inbox_id // empty')
     if [ -z "$agentmail_inbox" ]; then
       echo "[keys] Failed to create AgentMail inbox: $inbox_resp" >&2

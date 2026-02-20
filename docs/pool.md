@@ -74,6 +74,7 @@ pnpm start
 | `INSTANCE_OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
 | `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
+| `AGENTMAIL_DOMAIN` | Custom domain for inboxes (e.g. `mail.convos.org`); defaults to `agentmail.to` |
 | `INSTANCE_BANKR_API_KEY` | Bankr API key |
 | `INSTANCE_TELNYX_API_KEY` | Telnyx API key |
 | `INSTANCE_TELNYX_PHONE_NUMBER` | Telnyx phone number |
