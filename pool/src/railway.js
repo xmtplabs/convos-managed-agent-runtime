@@ -110,15 +110,6 @@ export async function createDomain(serviceId) {
   return data.serviceDomainCreate.domain;
 }
 
-export async function renameService(serviceId, name) {
-  await gql(
-    `mutation($id: String!, $input: ServiceUpdateInput!) {
-      serviceUpdate(id: $id, input: $input) { id }
-    }`,
-    { id: serviceId, input: { name } }
-  );
-}
-
 export async function updateServiceInstance(serviceId, settings = {}) {
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
 

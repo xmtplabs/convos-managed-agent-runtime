@@ -3,7 +3,6 @@
  *
  * Flow:
  *   1. POST /pool/provision — write AGENTS.md + invite/join convos
- *   2. Rename Railway service for dashboard visibility
  *
  * The pool-server handles the full convos flow (invite or join) internally,
  * using the channel client's auto-created identity (persisted in state-dir).
@@ -12,7 +11,6 @@
  */
 
 import * as db from "./db/pool.js";
-import * as railway from "./railway.js";
 import * as cache from "./cache.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
@@ -69,13 +67,6 @@ export async function provision(opts) {
       instructions,
       claimedAt: new Date().toISOString(),
     });
-
-    // Rename Railway service for dashboard visibility
-    try {
-      await railway.renameService(instance.serviceId, `convos-agent-${agentName}-${instance.id}`);
-    } catch (err) {
-      console.warn(`[provision] Failed to rename ${instance.id}:`, err.message);
-    }
 
     console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
 
