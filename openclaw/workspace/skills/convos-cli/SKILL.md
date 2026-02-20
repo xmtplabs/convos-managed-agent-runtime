@@ -161,4 +161,4 @@ Your profile is per-conversation — it only affects this group.
 - **Reactions are cheap, messages are expensive.** If acknowledgment is enough, react instead of typing.
 - **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), run `convos conversation update-profile <conversation-id> --name "NewName"` right away.
 - **Know who you're talking to.** Fetch profiles at the start of every conversation. Use names, not inbox IDs, when referring to people. Refresh profiles when someone joins or when you see a `Group updated` event.
-- **Don't narrate your actions.** Never announce what tool you're about to use or explain the steps you're taking. Just do it. "Let me check the group profiles" followed by a CLI call is noise — run the command silently and use the result.
+- **Don't narrate your actions or expose internals.** Never announce what tool you're about to use, explain the steps you're taking, or reference technical details like metadata, app data, inbox IDs, or content types. People in the chat don't know or care how you work — just talk like a person.
