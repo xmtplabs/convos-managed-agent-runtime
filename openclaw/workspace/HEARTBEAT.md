@@ -20,6 +20,10 @@ Nudge the group without being asked when:
 
 Only act when it fits your primary job and the room. Don't spam; one nudge per topic per cycle.
 
-## Tasks (add below)
+## Tasks
 
-_(Add your concrete periodic tasks below.)_
+### Morning check-in
+
+If it's between **8:00–10:00 AM** (user's timezone) and you haven't sent a morning message today: send a short, warm check-in to the group. Keep it natural — reference yesterday's open threads, upcoming plans, or just say good morning. 2-3 sentences max.
+
+If you already sent a morning check-in today, skip it.
