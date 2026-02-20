@@ -60,7 +60,7 @@ Profile updates are stored in appData (opaque binary). They arrive as a generic 
 
 ## Sending (message tool)
 
-All outbound actions go through the message tool. Never write ndjson to stdin directly.
+All outbound actions go through the message tool. Do not use CLI commands or ndjson to send — only the message tool.
 
 ### Text
 
