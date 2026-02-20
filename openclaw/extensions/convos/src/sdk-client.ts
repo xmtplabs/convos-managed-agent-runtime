@@ -646,8 +646,8 @@ export class ConvosInstance {
           scheduled: data.scheduled as boolean | undefined,
         };
 
-        // Resolve pending send for text or attachment confirmations
-        if (info.id && (!info.type || info.type === "attachment")) {
+        // Resolve pending send — any confirmation with an id (text, attachment, reaction, etc.)
+        if (info.id) {
           const firstKey = this.pendingSends.keys().next().value;
           if (firstKey !== undefined) {
             const pending = this.pendingSends.get(firstKey);
