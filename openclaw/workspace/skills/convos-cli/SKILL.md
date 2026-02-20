@@ -58,9 +58,22 @@ Replies and reactions both reference another message by ID (e.g. `reply to abc12
 
 Profile updates are stored in appData (opaque binary). They arrive as a generic `Group updated` message with no readable diff. When you see this, refresh profiles to learn what changed.
 
-## Sending (message tool)
+## Two interfaces
 
-All outbound actions go through the message tool. Do not use CLI commands or ndjson to send — only the message tool.
+| I want to... | Use | Tool |
+| --- | --- | --- |
+| Send a message | message tool | `action=send` |
+| Reply to a message | message tool | `action=send` + `replyTo` |
+| React to a message | message tool | `action=react` |
+| Send a file | message tool | `action=sendAttachment` |
+| Read message history | CLI | `convos conversation messages` |
+| List members / profiles | CLI | `convos conversation members` / `profiles` |
+| View group info | CLI | `convos conversation info` / `permissions` |
+| Download a received file | CLI | `convos conversation download-attachment` |
+
+The message tool is for **sending**. The CLI is for **reading**. Never use the CLI to send.
+
+## Sending (message tool)
 
 ### Text
 
@@ -92,9 +105,9 @@ action=sendAttachment  file="./path/to/file.jpg"
 
 Just pass a file path. Convos handles encryption and upload automatically.
 
-## Reading (CLI commands)
+## Reading (CLI)
 
-Read-only lookups use the `convos` CLI directly. Always pass `--json` when you need to parse the output.
+Read-only lookups use the `convos` CLI via the exec tool. Always pass `--json` when you need to parse the output.
 
 ### Who is in the group
 
@@ -123,7 +136,7 @@ convos conversation info <conversation-id> --json
 convos conversation permissions <conversation-id> --json
 ```
 
-### Download an attachment
+### Download a received attachment
 
 ```bash
 convos conversation download-attachment <conversation-id> <message-id>
