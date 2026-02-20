@@ -23,7 +23,4 @@ _(Who said yes/no, pending RSVPs, chosen time/place, unresolved items.)_
 
 _(What they care about, projects, what annoys them, what makes them laugh. For groups: dynamics, who drives decisions, who's quiet. Build over time.)_
 
-
-The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. 
-
-Respect the difference.To learn who is in the conversation and what they go by, use the convos-cli skill to fetch group profiles. Refresh profiles whenever a new member joins or a profile update occurs.
+The more you know, the better you can help. But remember — you're learning about a person, not building a dossier. Respect the difference.
