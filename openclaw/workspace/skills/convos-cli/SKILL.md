@@ -60,34 +60,35 @@ Profile updates are stored in appData (opaque binary). They arrive as a generic 
 
 ## Sending Messages
 
+Use the message tool (`action=...`) to send messages, replies, reactions, and attachments.
+
 ### Text
 
-```jsonl
-{"type":"send","text":"Plain text only"}
+```
+action=send  message="Plain text only"
 ```
 
 ### Reply
 
-```jsonl
-{"type":"send","text":"Responding to that","replyTo":"<message-id>"}
+```
+action=send  message="Responding to that"  replyTo="<message-id>"
 ```
 
 Always reply to the specific message you are responding to. This keeps threads legible.
 
 ### Reaction
 
-```jsonl
-{"type":"react","messageId":"<message-id>","emoji":"👍"}
-{"type":"react","messageId":"<message-id>","emoji":"👍","action":"remove"}
+```
+action=react  messageId="<message-id>"  emoji="👍"
 ```
 
-`action` defaults to `add`.
+To remove: add `remove=true`.
 
 ### Attachment
 
-```jsonl
-{"type":"attach","file":"./path/to/file.jpg"}
-{"type":"attach","file":"./photo.jpg","replyTo":"<message-id>"}
+```
+action=attach  file="./path/to/file.jpg"
+action=attach  file="./photo.jpg"  replyTo="<message-id>"
 ```
 
 Just pass a file path. Convos handles encryption and upload automatically.

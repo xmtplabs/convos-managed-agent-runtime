@@ -405,9 +405,18 @@ export class ConvosInstance {
 
   // ==== Operations (via stdin commands) ====
 
-  async sendMessage(text: string): Promise<{ success: boolean; messageId?: string }> {
+  async sendMessage(text: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
     this.assertRunning();
-    return this.sendAndWait({ type: "send", text });
+    const cmd: Record<string, unknown> = { type: "send", text };
+    if (replyTo) cmd.replyTo = replyTo;
+    return this.sendAndWait(cmd);
+  }
+
+  async sendAttachment(file: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
+    this.assertRunning();
+    const cmd: Record<string, unknown> = { type: "attach", file };
+    if (replyTo) cmd.replyTo = replyTo;
+    return this.sendAndWait(cmd);
   }
 
   async react(
