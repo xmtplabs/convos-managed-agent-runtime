@@ -155,6 +155,9 @@ export class ConvosInstance {
   private lastStartTime = 0;
   private options: ConvosInstanceOptions;
 
+  /** inboxId → display name */
+  private profileCache = new Map<string, string>();
+
   /** Resolves when the `ready` event is received after start(). */
   private readyPromiseResolve?: (info: ReadyEvent) => void;
   private readyPromiseReject?: (err: Error) => void;
@@ -358,6 +361,8 @@ export class ConvosInstance {
     if (this.options.debug) {
       console.log(`[convos] Started: ${this.conversationId.slice(0, 12)}... (inboxId: ${ready.inboxId?.slice(0, 12)}...)`);
     }
+    // Populate profile cache in the background (non-blocking)
+    void this.fetchProfiles();
     return ready;
   }
 
@@ -462,6 +467,36 @@ export class ConvosInstance {
       "--no-qr",
     ]);
     return { inviteSlug: data.slug };
+  }
+
+  // ==== Profile Cache ====
+
+  /**
+   * Fetch conversation member profiles and populate the cache.
+   * Non-fatal: logs errors but never throws.
+   */
+  private async fetchProfiles(): Promise<void> {
+    try {
+      const data = await this.execJson<
+        Array<{ inboxId: string; displayName?: string; name?: string }>
+      >(["conversation", "profiles", this.conversationId]);
+
+      const profiles = Array.isArray(data) ? data : [];
+      for (const p of profiles) {
+        const name = p.displayName ?? p.name ?? "";
+        if (name && p.inboxId) {
+          this.profileCache.set(p.inboxId, name);
+        }
+      }
+
+      if (this.options.debug) {
+        console.log(`[convos] Fetched ${this.profileCache.size} profiles`);
+      }
+    } catch (err) {
+      if (this.options.debug) {
+        console.error(`[convos] Profile fetch failed: ${String(err)}`);
+      }
+    }
   }
 
   // ==== Private: Agent Serve Process Management ====
@@ -609,7 +644,7 @@ export class ConvosInstance {
           conversationId: this.conversationId,
           messageId: (data.id as string) ?? "",
           senderId: (data.senderInboxId as string) ?? "",
-          senderName: "",
+          senderName: this.profileCache.get((data.senderInboxId as string) ?? "") ?? "",
           content: (data.content as string) ?? "",
           contentType: typeof data.contentType === "object" && data.contentType !== null
             ? ((data.contentType as Record<string, unknown>).typeId as string | undefined)
@@ -627,6 +662,10 @@ export class ConvosInstance {
           conversationId: (data.conversationId as string) ?? this.conversationId,
           catchup: (data.catchup as boolean) ?? false,
         });
+        // Refresh profiles when a new member joins (skip catchup to avoid hammering)
+        if (!data.catchup) {
+          void this.fetchProfiles();
+        }
         break;
       }
 
