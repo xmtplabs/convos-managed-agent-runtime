@@ -135,8 +135,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   messaging: {
     normalizeTarget: normalizeConvosMessagingTarget,
     targetResolver: {
-      looksLikeId: (raw) => {
-        const trimmed = raw.trim();
+      looksLikeId: (_raw, normalized) => {
+        const trimmed = (normalized ?? _raw).trim();
         if (!trimmed) {
           return false;
         }
