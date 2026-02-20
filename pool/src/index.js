@@ -9,7 +9,6 @@ const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
 // Deploy context shown in dashboard info tags
 const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
 const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
-const AGENTMAIL_INBOX = process.env.INSTANCE_AGENTMAIL_INBOX_ID || "";
 const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || "";
 const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || "";
 const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || "";
@@ -771,8 +770,7 @@ app.get("/", (_req, res) => {
         <h3>Launch an Agent</h3>
         <div class="info-row">
           <span class="info-chip">branch: ${DEPLOY_BRANCH}</span>
-          <span class="info-chip">model: ${INSTANCE_MODEL}</span>${AGENTMAIL_INBOX ? `
-          <span class="info-chip">inbox: ${AGENTMAIL_INBOX}</span>` : ""}${RAILWAY_SERVICE_ID ? `
+          <span class="info-chip">model: ${INSTANCE_MODEL}</span>${RAILWAY_SERVICE_ID ? `
           <span class="info-chip">service: ${RAILWAY_PROJECT_ID ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>` : RAILWAY_SERVICE_ID.slice(0, 8)}</span>` : ""}
         </div>
         <div id="unavailable" class="unavailable-msg" style="display:none">

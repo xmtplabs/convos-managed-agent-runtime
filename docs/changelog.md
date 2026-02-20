@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.11 — 2026-02-20
+
+- **Dependencies:** Move all skill deps (agentmail, @telnyx/api-cli, @bankr/cli) to root `package.json`. No more global installs or state-dir package.json workarounds. CLIs resolve via PATH (`node-path.sh` adds `ROOT/node_modules/.bin`); JS libraries (agentmail) symlinked into state dir for ESM resolution.
+- **install-deps.sh:** Simplified — only handles extensions and ESM symlinks. Removed NODE_ENV=development override, extension root loop, agentmail state-dir install, telnyx/bankr global installs.
+- **node-path.sh:** Adds `ROOT/node_modules/.bin` to PATH for CLI tools. Removed extension root loop (convos-cli is now a root dep).
+- **pool:** Remove `NODE_ENV=development` override from pool instance env vars (no longer needed).
+- **Convos reset:** Fix `/convos/reset` not clearing the running instance. Status showed "bound" after reset because the in-memory ConvosInstance was never stopped. Now stops the instance and clears it before re-running setup.
+- **TOOLS.md:** Skill examples now show `exec:` with actual commands instead of bare skill names (`agentmail`, `bankr`, `telnyx`). Prevents weaker models (GPT/Groq) from trying to call skills as tool names.
+- **QA:** Fix bankr grep pattern (`USDC` → `USD` to match broader responses).
+- **Docs:** Consolidate workarounds.md — merge three overlapping dep sections into one table, remove noise.
+
 ## 2026-02-18
 
 - **Changelog:** Document convos CLI and pool manager integration from commit history.

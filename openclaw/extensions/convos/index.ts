@@ -296,6 +296,12 @@ const plugin = {
 
     api.registerGatewayMethod("convos.reset", async ({ params, respond }) => {
       try {
+        // Stop the running main instance so /convos/status reports unbound
+        const inst = getConvosInstance();
+        if (inst) {
+          try { await inst.stop(); } catch { /* best-effort */ }
+          setConvosInstance(null);
+        }
         const result = await handleSetup({
           accountId: typeof params.accountId === "string" ? params.accountId : undefined,
           env: typeof params.env === "string" ? (params.env as "production" | "dev") : undefined,
@@ -736,7 +742,7 @@ const plugin = {
       },
     });
 
-    // Reset: re-run setup with a fresh identity.
+    // Reset: stop running instance, clear credentials, re-run setup with a fresh identity.
     api.registerHttpRoute({
       path: "/convos/reset",
       handler: async (req, res) => {
@@ -749,6 +755,12 @@ const plugin = {
           return;
         }
         try {
+          // Stop the running main instance so /convos/status reports unbound
+          const inst = getConvosInstance();
+          if (inst) {
+            try { await inst.stop(); } catch { /* best-effort */ }
+            setConvosInstance(null);
+          }
           const body = await readJsonBody(req);
           const result = await handleSetup({
             accountId: typeof body.accountId === "string" ? body.accountId : undefined,
