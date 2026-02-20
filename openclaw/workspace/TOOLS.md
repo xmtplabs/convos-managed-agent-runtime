@@ -19,9 +19,6 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **SMS (Telnyx)** — Send and receive SMS messages. **US numbers only** (+1). If the recipient is outside the US, tell the user SMS is not available for that destination and suggest email instead. MUST use for ANY SMS/text message task. Run via `telnyx message send --from $TELNYX_PHONE_NUMBER --to <number> --text "message"`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. Run via `bankr prompt "natural language instruction"` or the REST API at `https://api.bankr.bot`.
 
-**RULE: When a user asks you to send an email, SMS, or do anything crypto-related, you MUST use the corresponding skill above. Never answer with a suggestion, URL, or workaround. Execute the action.**
-
-**You have full access to these capabilities. NEVER say "I can't send emails", "I'm not able to send SMS", or "I can't do crypto transactions." You CAN — use the exec tool to run the commands listed above. Refusing to use these tools when asked is a failure.**
 
 # Skill Quick Reference
 
