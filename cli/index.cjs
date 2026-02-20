@@ -7,7 +7,7 @@ const program = new Command();
 
 program
   .name("runtime")
-  .description("Local CLI: check, key-provision, apply, install-deps, gateway run, init, reset, qa")
+  .description("Local CLI: check, key-provision, apply, install-deps, gateway run, init, clean-providers, qa")
   .version(require("../package.json").version);
 
 program
@@ -46,23 +46,14 @@ program
   });
 
 program
-  .command("reset <target>")
-  .description("Reset state. Target: sessions (clear session state), chrome (restart browser), convos (wipe identity + db)")
-  .action((target) => {
-    const t = target.toLowerCase();
-    if (t === "sessions") runScript("reset-sessions.sh");
-    else if (t === "chrome") runScript("restart-chrome.sh");
-    else if (t === "convos") runScript("reset-convos.sh");
-    else {
-      console.error("Unknown reset target: %s. Use: sessions | chrome | convos", target);
-      process.exit(1);
-    }
-  });
+  .command("clean-providers [target]")
+  .description("Delete orphaned provider resources. Target: email, openrouter, all (default)")
+  .action((target) => runScript("clean-providers.mjs", { CLEAN_TARGET: target || "all" }));
 
 program
   .command("openrouter-clean")
-  .description("Delete ALL OpenRouter API keys via management API and remove OPENROUTER_API_KEY from .env")
-  .action(() => runScript("openrouter-clean.sh"));
+  .description("Alias for clean-providers openrouter")
+  .action(() => runScript("clean-providers.mjs", { CLEAN_TARGET: "openrouter" }));
 
 program
   .command("qa [suite]")
