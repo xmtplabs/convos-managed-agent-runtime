@@ -14,17 +14,17 @@ Documented workarounds so future changes don't break them or duplicate logic.
 
 **Workaround:** Use a single id everywhere: set package.json `"name": "@openclaw/convos"` and openclaw.plugin.json `"id": "convos"` (and channel id `convos`). No scoped name for the extension package in this repo.
 
-## Extension/skill deps in OPENCLAW_STATE_DIR
+## Extension deps in OPENCLAW_STATE_DIR
 
-**Problem:** Custom extensions and skills (e.g. agentmail) need node_modules. OpenClaw loads extensions from the state dir; skill scripts resolve packages from state dir's node_modules.
+**Problem:** Extensions need node_modules. OpenClaw loads extensions from the state dir.
 
-**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) installs deps in `$OPENCLAW_STATE_DIR/extensions/*` and adds agentmail to state dir when `skills/agentmail` exists. Run manually when setting up or after syncing.
+**Workaround:** Run `pnpm cli install-deps` after `pnpm cli apply`. [cli/scripts/install-deps.sh](cli/scripts/install-deps.sh) runs `pnpm install` in each `$OPENCLAW_STATE_DIR/extensions/*` directory. Run manually when setting up or after syncing.
 
 ## Plugin "Cannot find module" / extension deps resolution
 
 **Problem:** Plugins (e.g. convos) that depend on npm packages fail at load with `Cannot find module` or `ERR_PACKAGE_PATH_NOT_EXPORTED`. OpenClaw's jiti loader resolves `require()` from Node's default search path; extension code lives under `STATE_DIR/extensions/*` whose `node_modules` Node does not search by default.
 
-**Workaround:** [cli/scripts/lib/node-path.sh](cli/scripts/lib/node-path.sh) builds NODE_PATH from `STATE_DIR/node_modules` (skill deps like agentmail) and `ROOT/node_modules` (repo-level deps like `@xmtp/convos-cli`). [gateway.sh](cli/scripts/gateway.sh) and [qa.sh](cli/scripts/qa.sh) source this helper.
+**Workaround:** [cli/scripts/lib/node-path.sh](cli/scripts/lib/node-path.sh) builds NODE_PATH from `ROOT/node_modules` (all deps — agentmail, @xmtp/convos-cli, openclaw, etc.) and adds `ROOT/node_modules/.bin` to PATH (CLI tools — telnyx, bankr). All skill and extension deps are root dependencies in `package.json`. [gateway.sh](cli/scripts/gateway.sh) and [qa.sh](cli/scripts/qa.sh) source this helper.
 
 ## Registered vs script-based skills: only use `alsoAllow` for registered tools
 
@@ -51,11 +51,13 @@ Using `tools.allow` for a skill name (when the skill has no `_meta.json`) makes 
 
 **Workaround:** Run `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`. SKILL.md and TOOLS.md state this so the agent gets the right path.
 
-## agentmail: installed in state dir
+## Skill deps: root dependencies
 
-**Problem:** The agentmail scripts `import "agentmail"`. Skills live under state dir; state dir must have `node_modules/agentmail`.
+**Context:** Skill deps (agentmail, @telnyx/api-cli, @bankr/cli) are declared in the root `package.json` like any other dependency. `node-path.sh` adds `ROOT/node_modules/.bin` to `PATH` so CLI tools (`bankr`, `telnyx`) resolve.
 
-**Workaround:** Run `install-deps` — it adds agentmail to `$OPENCLAW_STATE_DIR/package.json` and runs `pnpm install` there when `workspace/skills/agentmail` exists (SKILLS_DIR = WORKSPACE_DIR/skills). Set `NODE_PATH=$OPENCLAW_STATE_DIR/node_modules` so skill scripts resolve it.
+**ESM caveat:** Skill scripts run from `~/.openclaw/workspace/skills/...` and use ESM `import`. Unlike CommonJS `require()`, ESM does **not** respect `NODE_PATH` — it only walks up from the importing file's location. Since the state dir is a different tree from `ROOT/node_modules`, ESM can't find root deps. `install-deps.sh` fixes this by symlinking JS library deps (e.g. `agentmail`) from `ROOT/node_modules` into `STATE_DIR/node_modules`.
+
+**To add a new skill dep:** add it to root `package.json`, run `pnpm install`. If the skill uses ESM `import` (not a CLI), also add the package name to the `SKILL_LIBS` list in `install-deps.sh`.
 
 ## openclaw dependency in extension (no workspace)
 
