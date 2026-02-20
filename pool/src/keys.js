@@ -29,7 +29,6 @@ export function instanceEnvVars() {
   const setupPassword = getEnv(INSTANCE_VAR_MAP.SETUP_PASSWORD);
   const vars = {
     OPENCLAW_STATE_DIR: "/app",
-    NODE_ENV:'development',
     OPENCLAW_PRIMARY_MODEL: getEnv(INSTANCE_VAR_MAP.OPENCLAW_PRIMARY_MODEL),
     OPENROUTER_API_KEY: getEnv(INSTANCE_VAR_MAP.OPENROUTER_API_KEY),
     XMTP_ENV: getEnv(INSTANCE_VAR_MAP.XMTP_ENV, "dev"),
