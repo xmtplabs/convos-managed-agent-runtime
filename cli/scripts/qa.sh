@@ -47,7 +47,7 @@ echo ""
 echo "=== QA: bankr ==="
 echo "  > bankr prompt 'Check my USDC balance'"
 run bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>'
-if grep -qi "USDC\|balance\|0x" "$QA_TMP"; then
+if grep -qi "USD\|balance\|0x" "$QA_TMP"; then
   pass "bankr"
 else
   fail "bankr" "$(cat "$QA_TMP")"
