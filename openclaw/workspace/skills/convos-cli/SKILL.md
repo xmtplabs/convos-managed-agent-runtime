@@ -88,7 +88,7 @@ action=send  message="Plain text only"
 action=send  message="Responding to that"  replyTo="<message-id>"
 ```
 
-Always reply to the specific message you are responding to. This keeps threads legible.
+Always reply to the specific message you are responding to. This keeps threads legible. Only reply to actual messages (text, reply, attachment) — never to system events like group_updated, reactions, or member joins. If you're responding to a system event, send a plain message without replyTo.
 
 ### Reaction
 
