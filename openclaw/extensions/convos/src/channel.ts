@@ -418,6 +418,29 @@ async function handleInboundMessage(
 }
 
 /**
+ * Strip Markdown formatting so outgoing messages read as plain text.
+ * Removes bold/italic markers, inline code backticks, and converts
+ * [text](url) links to just the text.
+ */
+function stripMarkdown(text: string): string {
+  return (
+    text
+      // Code fences first: ```lang\n...\n``` → just the content
+      .replace(/```[^\n]*\n([\s\S]*?)```/g, "$1")
+      // Inline code: `code` → code
+      .replace(/`([^`]+)`/g, "$1")
+      // Links: [text](url) → text (url)
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+      // Bold/italic: ***, **, *
+      .replace(/\*{1,3}(.*?)\*{1,3}/g, "$1")
+      // Strikethrough: ~~text~~
+      .replace(/~~(.*?)~~/g, "$1")
+      // Heading markers: # at line start
+      .replace(/^#{1,6}\s+/gm, "")
+  );
+}
+
+/**
  * Deliver a reply to the Convos conversation
  */
 async function deliverConvosReply(params: {
@@ -438,7 +461,8 @@ async function deliverConvosReply(params: {
   // Resolve replyTo from reply tags: [[reply_to:<id>]] or [[reply_to_current]]
   const replyTo = payload.replyToId ?? (payload.replyToCurrent ? triggerMessageId : undefined);
 
-  const text = runtime.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
+  const raw = runtime.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
+  const text = stripMarkdown(raw);
 
   if (text) {
     const cfg = runtime.config.loadConfig();
