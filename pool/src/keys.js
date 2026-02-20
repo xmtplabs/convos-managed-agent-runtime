@@ -72,14 +72,13 @@ export async function resolveAgentMailInbox(instanceId) {
 async function createAgentMailInbox(apiKey, instanceId) {
   const username = `convos-agent-${instanceId}`;
   const clientId = `convos-agent-${instanceId}`;
-
   const res = await fetch("https://api.agentmail.to/v0/inboxes", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ username, display_name: "Convos Agent", client_id: clientId }),
+    body: JSON.stringify({ username, domain: getEnv("AGENTMAIL_DOMAIN") || undefined, display_name: "Convos Agent", client_id: clientId }),
   });
   const body = await res.json();
   const inboxId = body?.inbox_id;

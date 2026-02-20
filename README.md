@@ -62,7 +62,7 @@ Key env vars (see `.env.example` for full list):
 - **Model:** `OPENCLAW_PRIMARY_MODEL` (e.g. `openrouter/openai/gpt-5.1-codex-mini`)
 - **OpenRouter:** `OPENROUTER_API_KEY` or `OPENROUTER_MANAGEMENT_KEY`
 - **XMTP:** `XMTP_ENV` (`dev` | `production`)
-- **Skills:** `AGENTMAIL_API_KEY`, `BANKR_API_KEY`, `TELNYX_API_KEY`
+- **Skills:** `AGENTMAIL_API_KEY`, `AGENTMAIL_DOMAIN` (custom inbox domain, e.g. `mail.convos.org`), `BANKR_API_KEY`, `TELNYX_API_KEY`
 - **State:** `OPENCLAW_STATE_DIR` (default `~/.openclaw`; Docker often uses `/app`)
 - **Browser:** `CHROMIUM_PATH` (Docker: `/usr/bin/chromium`)
 
@@ -113,6 +113,7 @@ OPENROUTER_MANAGEMENT_KEY=sk-or-v1-...
 INSTANCE_OPENCLAW_PRIMARY_MODEL=openrouter/openai/gpt-oss-20b
 INSTANCE_XMTP_ENV=dev
 INSTANCE_AGENTMAIL_API_KEY=am_...
+AGENTMAIL_DOMAIN=mail.convos.org
 INSTANCE_BANKR_API_KEY=bk_...
 INSTANCE_TELNYX_API_KEY=KEY...
 INSTANCE_TELNYX_PHONE_NUMBER=+14193792549
