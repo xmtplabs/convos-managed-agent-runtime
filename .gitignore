@@ -24,5 +24,8 @@ xmtp-*.db3-wal
 # Backup exports
 *.tar.gz
 
+# dmux worktrees
+.dmux/
+
 # OS
 .DS_Store
