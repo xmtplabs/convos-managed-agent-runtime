@@ -3,6 +3,5 @@
   "version": "1.0.0",
   "description": "Workspace-based web tools (form, etc.)",
   "type": "module",
-  "devDependencies": { "openclaw": "*" },
   "openclaw": { "extensions": ["./index.ts"] }
 }

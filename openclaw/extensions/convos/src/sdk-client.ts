@@ -1,9 +1,11 @@
 /**
- * ConvosInstance — thin wrapper around the `convos` CLI binary.
+ * ConvosInstance — wrapper around `convos agent serve`.
  *
- * 1 process = 1 conversation. No pool. No routing. No library imports.
- * All operations shell out to `convos <command> --json`.
- * Streaming uses long-lived child processes with JSONL stdout parsing.
+ * 1 process = 1 conversation. All operations go through a single
+ * long-lived child process using an ndjson stdin/stdout protocol.
+ *
+ * Stdout events: ready, message, member_joined, sent, heartbeat, error
+ * Stdin commands: send, react, attach, remote-attach, rename, lock, unlock, explode, stop
  */
 
 import { execFile, spawn, type ChildProcess } from "node:child_process";
@@ -14,7 +16,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import type { CreateConversationResult, InviteResult } from "./types.js";
+import type { CreateConversationResult } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -22,8 +24,14 @@ const execFileAsync = promisify(execFile);
 
 export interface ConvosInstanceOptions {
   onMessage?: (msg: InboundMessage) => void;
-  onJoinAccepted?: (info: { joinerInboxId: string }) => void;
+  onMemberJoined?: (info: { joinerInboxId: string; conversationId: string; catchup?: boolean }) => void;
+  onReady?: (info: ReadyEvent) => void;
+  onSent?: (info: SentEvent) => void;
+  onHeartbeat?: (info: HeartbeatEvent) => void;
+  onError?: (info: { message: string }) => void;
+  onExit?: (code: number | null) => void;
   debug?: boolean;
+  heartbeatSeconds?: number;
 }
 
 export interface InboundMessage {
@@ -32,7 +40,41 @@ export interface InboundMessage {
   senderId: string;
   senderName: string;
   content: string;
+  contentType?: string;
   timestamp: Date;
+  catchup?: boolean;
+}
+
+export interface ReadyEvent {
+  conversationId: string;
+  identityId: string;
+  inboxId: string;
+  address: string;
+  name: string;
+  inviteUrl?: string;
+  inviteSlug?: string;
+  inviteTag?: string;
+  qrCodePath?: string;
+}
+
+export interface SentEvent {
+  id?: string;
+  text?: string;
+  type?: string;
+  messageId?: string;
+  emoji?: string;
+  action?: string;
+  name?: string;
+  conversationId?: string;
+  identityDestroyed?: string;
+  membersRemoved?: number;
+  expiresAt?: string;
+  scheduled?: boolean;
+}
+
+export interface HeartbeatEvent {
+  conversationId: string;
+  activeStreams: number;
 }
 
 // ---- Binary resolution ----
@@ -61,7 +103,6 @@ function resolveConvosBin(): string {
   }
 
   // Strategy 2: walk up from this file to find extension's node_modules
-  // This file lives at extensions/convos/src/sdk-client.ts (or .js)
   try {
     const thisDir = path.dirname(fileURLToPath(import.meta.url));
     const extRoot = path.resolve(thisDir, "..");
@@ -75,7 +116,6 @@ function resolveConvosBin(): string {
   }
 
   // Strategy 3: check OPENCLAW_STATE_DIR/extensions/convos/node_modules
-  // install-deps.sh runs pnpm install in the state dir copy of each extension
   {
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
     const binPath = path.join(stateDir, "extensions", "convos", "node_modules", "@xmtp", "convos-cli", "bin", "run.js");
@@ -92,32 +132,40 @@ function resolveConvosBin(): string {
 
 // ---- Constants ----
 
-/** Max number of automatic restarts per child process label (stream, join-requests). */
-const MAX_CHILD_RESTARTS = 3;
+/** Max number of automatic restarts for the agent serve process. */
+const MAX_RESTARTS = 5;
 /** Base delay between restarts (multiplied by attempt number). */
 const RESTART_BASE_DELAY_MS = 2000;
+/** After this many ms of sustained uptime, reset the restart counter. */
+const RESTART_RESET_AFTER_MS = 60_000;
 
 // ---- ConvosInstance ----
 
 export class ConvosInstance {
-  /** The one conversation this instance is bound to. */
   readonly conversationId: string;
   readonly identityId: string;
   readonly label: string | undefined;
+  /** XMTP inbox ID — set from the `ready` event. */
+  inboxId: string | null = null;
 
   private env: "production" | "dev";
-  private children: ChildProcess[] = [];
-  private streamChild: ChildProcess | null = null;
+  private child: ChildProcess | null = null;
   private running = false;
-  private restartCounts = new Map<string, number>();
-  private onMessage?: (msg: InboundMessage) => void;
-  private onJoinAccepted?: (info: { joinerInboxId: string }) => void;
-  private debug: boolean;
+  private restartCount = 0;
+  private lastStartTime = 0;
+  private options: ConvosInstanceOptions;
 
-  /** The agent's own XMTP inbox ID, learned from the first echoed message. */
-  private selfInboxId: string | null = null;
-  /** Recently sent message content, used to detect self-echoes and learn selfInboxId. */
-  private recentSentContent = new Set<string>();
+  /** Resolves when the `ready` event is received after start(). */
+  private readyPromiseResolve?: (info: ReadyEvent) => void;
+  private readyPromiseReject?: (err: Error) => void;
+
+  /** Pending sendMessage calls waiting for `sent` confirmation. */
+  private pendingSends = new Map<string, {
+    resolve: (result: { success: boolean; messageId?: string }) => void;
+    reject: (err: Error) => void;
+    timeout: ReturnType<typeof setTimeout>;
+  }>();
+  private sendCounter = 0;
 
   private constructor(params: {
     conversationId: string;
@@ -130,18 +178,16 @@ export class ConvosInstance {
     this.identityId = params.identityId;
     this.label = params.label;
     this.env = params.env;
-    this.onMessage = params.options?.onMessage;
-    this.onJoinAccepted = params.options?.onJoinAccepted;
-    this.debug = params.options?.debug ?? false;
+    this.options = params.options ?? {};
   }
 
   // ---- CLI helpers ----
 
-  /** Run a convos command and return raw stdout. */
+  /** Run a one-shot convos command and return raw stdout. */
   private async exec(args: string[]): Promise<string> {
     const bin = resolveConvosBin();
     const finalArgs = [...args, "--env", this.env];
-    if (this.debug) {
+    if (this.options.debug) {
       console.log(`[convos] exec: convos ${finalArgs.join(" ")}`);
     }
     const { stdout } = await execFileAsync(
@@ -152,15 +198,11 @@ export class ConvosInstance {
     return stdout;
   }
 
-  /** Run a convos command with --json and parse the JSON output.
-   *  The CLI prints human-readable log lines before the pretty-printed
-   *  JSON object, so we find the last top-level JSON block in stdout. */
+  /** Run a one-shot convos command with --json and parse the JSON output. */
   private async execJson<T>(args: string[]): Promise<T> {
     const stdout = await this.exec([...args, "--json"]);
-    // Find the last { and its matching } to extract the JSON object
     const lastBrace = stdout.lastIndexOf("}");
     if (lastBrace !== -1) {
-      // Walk backwards from lastBrace to find the matching opening {
       let depth = 0;
       for (let i = lastBrace; i >= 0; i--) {
         if (stdout[i] === "}") depth++;
@@ -170,30 +212,7 @@ export class ConvosInstance {
         }
       }
     }
-    // Fallback: try parsing the whole thing (will throw a clear error)
     return JSON.parse(stdout.trim()) as T;
-  }
-
-  /** Spawn a long-lived convos command and return the child process. */
-  private spawnChild(args: string[]): ChildProcess {
-    const bin = resolveConvosBin();
-    const finalArgs = [...args, "--env", this.env, "--json"];
-    if (this.debug) {
-      console.log(`[convos] spawn: convos ${finalArgs.join(" ")}`);
-    }
-    const child = spawn(
-      bin === "convos" ? bin : process.execPath,
-      bin === "convos" ? finalArgs : [bin, ...finalArgs],
-      {
-        stdio: ["ignore", "pipe", "pipe"],
-        env: { ...process.env, CONVOS_ENV: this.env },
-      },
-    );
-    this.children.push(child);
-    child.on("error", (err) => {
-      console.error(`[convos] spawn error: ${String(err)}`);
-    });
-    return child;
   }
 
   // ==== Factory Methods ====
@@ -222,33 +241,18 @@ export class ConvosInstance {
     options?: ConvosInstanceOptions,
   ): Promise<{ instance: ConvosInstance; result: CreateConversationResult }> {
     const args = ["conversations", "create"];
-    if (params?.name) {
-      args.push("--name", params.name);
-    }
-    if (params?.profileName) {
-      args.push("--profile-name", params.profileName);
-    }
-    if (params?.description) {
-      args.push("--description", params.description);
-    }
-    if (params?.imageUrl) {
-      args.push("--image-url", params.imageUrl);
-    }
-    if (params?.permissions) {
-      args.push("--permissions", params.permissions);
-    }
+    if (params?.name) args.push("--name", params.name);
+    if (params?.profileName) args.push("--profile-name", params.profileName);
+    if (params?.description) args.push("--description", params.description);
+    if (params?.imageUrl) args.push("--image-url", params.imageUrl);
+    if (params?.permissions) args.push("--permissions", params.permissions);
 
-    // Use a temporary instance to access exec helpers
-    const tmp = new ConvosInstance({
-      conversationId: "",
-      identityId: "",
-      env,
-      options,
-    });
+    const tmp = new ConvosInstance({ conversationId: "", identityId: "", env, options });
     const data = await tmp.execJson<{
       conversationId: string;
       identityId: string;
       name?: string;
+      inboxId: string;
       invite: { slug: string; url: string };
     }>(args);
 
@@ -259,6 +263,7 @@ export class ConvosInstance {
       env,
       options,
     });
+    instance.inboxId = data.inboxId;
 
     return {
       instance,
@@ -283,22 +288,16 @@ export class ConvosInstance {
     identityId: string | null;
   }> {
     const args = ["conversations", "join", invite];
-    if (params?.profileName) {
-      args.push("--profile-name", params.profileName);
-    }
+    if (params?.profileName) args.push("--profile-name", params.profileName);
     args.push("--timeout", String(params?.timeout ?? 60));
 
-    const tmp = new ConvosInstance({
-      conversationId: "",
-      identityId: "",
-      env,
-      options,
-    });
+    const tmp = new ConvosInstance({ conversationId: "", identityId: "", env, options });
 
     let data: {
       status: string;
       conversationId?: string;
       identityId: string;
+      inboxId?: string;
       tag?: string;
       name?: string;
     };
@@ -306,8 +305,6 @@ export class ConvosInstance {
     try {
       data = await tmp.execJson<typeof data>(args);
     } catch (err) {
-      // Handle "Already joined this conversation" from the CLI.
-      // The error stderr contains Identity and Conversation IDs we can extract.
       const msg = err instanceof Error ? (err as Error & { stderr?: string }).stderr ?? err.message : String(err);
       const alreadyJoined = /Already joined this conversation/i.test(msg);
       if (alreadyJoined) {
@@ -316,12 +313,7 @@ export class ConvosInstance {
         if (identityMatch && conversationMatch) {
           const identityId = identityMatch[1];
           const conversationId = conversationMatch[1];
-          const instance = new ConvosInstance({
-            conversationId,
-            identityId,
-            env,
-            options,
-          });
+          const instance = new ConvosInstance({ conversationId, identityId, env, options });
           return { instance, status: "joined", conversationId, identityId };
         }
       }
@@ -336,6 +328,7 @@ export class ConvosInstance {
         env,
         options,
       });
+      if (data.inboxId) instance.inboxId = data.inboxId;
       return {
         instance,
         status: "joined",
@@ -354,112 +347,50 @@ export class ConvosInstance {
 
   // ==== Lifecycle ====
 
-  async start(): Promise<void> {
+  /** Start the agent serve process. Resolves when the `ready` event is received. */
+  async start(): Promise<ReadyEvent> {
     if (this.running) {
-      return;
+      throw new Error("Instance already running");
     }
     this.running = true;
-    this.restartCounts.clear();
-
-    this.startStreamChild();
-    this.startJoinRequestsChild();
-
-    if (this.debug) {
-      console.log(`[convos] Started: ${this.conversationId.slice(0, 12)}...`);
+    this.restartCount = 0;
+    const ready = await this.spawnAgentServe();
+    if (this.options.debug) {
+      console.log(`[convos] Started: ${this.conversationId.slice(0, 12)}... (inboxId: ${ready.inboxId?.slice(0, 12)}...)`);
     }
-  }
-
-  /** Spawn (or re-spawn) the message stream child process. */
-  private startStreamChild(): void {
-    const streamChild = this.spawnChild(["conversation", "stream", this.conversationId]);
-    this.streamChild = streamChild;
-    this.pumpJsonLines(streamChild, "stream", (data) => {
-      // Skip empty/non-text content
-      const content = typeof data.content === "string" ? data.content : "";
-      if (!content.trim()) {
-        return;
-      }
-
-      const senderId = typeof data.senderInboxId === "string" ? data.senderInboxId : "";
-
-      // --- Self-message echo filter ---
-      // If we already know our own inbox ID, drop all messages from it.
-      if (this.selfInboxId && senderId === this.selfInboxId) {
-        if (this.debug) {
-          console.log(`[convos] Dropping self-echo (known selfInboxId): ${content.slice(0, 40)}`);
-        }
-        this.recentSentContent.delete(content);
-        return;
-      }
-      // If the content matches something we recently sent, this is our echo.
-      // Learn selfInboxId from it and drop the message.
-      if (this.recentSentContent.has(content)) {
-        this.recentSentContent.delete(content);
-        if (senderId && !this.selfInboxId) {
-          this.selfInboxId = senderId;
-          console.log(`[convos] Learned selfInboxId: ${senderId.slice(0, 16)}...`);
-        }
-        if (this.debug) {
-          console.log(`[convos] Dropping self-echo (content match): ${content.slice(0, 40)}`);
-        }
-        return;
-      }
-
-      const msg: InboundMessage = {
-        conversationId: this.conversationId,
-        messageId: typeof data.id === "string" ? data.id : "",
-        senderId,
-        senderName: "",
-        content,
-        timestamp: typeof data.sentAt === "string" ? new Date(data.sentAt) : new Date(),
-      };
-      queueMicrotask(() => {
-        try {
-          this.onMessage?.(msg);
-        } catch (err) {
-          if (this.debug) {
-            console.error("[convos] onMessage error:", err);
-          }
-        }
-      });
-    });
-  }
-
-  /** Spawn (or re-spawn) the join-requests watcher child process. */
-  private startJoinRequestsChild(): void {
-    const joinChild = this.spawnChild([
-      "conversations",
-      "process-join-requests",
-      "--watch",
-      "--conversation",
-      this.conversationId,
-    ]);
-    this.pumpJsonLines(joinChild, "join-requests", (data) => {
-      if (data.event === "join_request_accepted" && data.joinerInboxId) {
-        const joinerInboxId = typeof data.joinerInboxId === "string" ? data.joinerInboxId : "";
-        if (this.debug) {
-          console.log(`[convos] Join accepted: ${joinerInboxId}`);
-        }
-        this.onJoinAccepted?.({ joinerInboxId });
-      }
-    });
+    return ready;
   }
 
   async stop(): Promise<void> {
-    if (!this.running) {
-      return;
-    }
+    if (!this.running) return;
     this.running = false;
-    this.streamChild = null;
-    for (const child of this.children) {
-      try {
-        child.kill("SIGTERM");
-      } catch {
-        /* ignore */
-      }
+
+    if (this.child) {
+      // Send graceful stop command
+      this.writeCommand({ type: "stop" });
+      // Give it 3 seconds to exit gracefully
+      const child = this.child;
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          try { child.kill("SIGTERM"); } catch { /* ignore */ }
+          resolve();
+        }, 3000);
+        child.on("exit", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+      this.child = null;
     }
-    this.children = [];
-    if (this.debug) {
+
+    // Reject any pending sends
+    for (const [, pending] of this.pendingSends) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error("Instance stopped"));
+    }
+    this.pendingSends.clear();
+
+    if (this.options.debug) {
       console.log(`[convos] Stopped: ${this.conversationId.slice(0, 12)}...`);
     }
   }
@@ -468,33 +399,19 @@ export class ConvosInstance {
     return this.running;
   }
 
-  /** True when the XMTP message stream child process is alive. */
   isStreaming(): boolean {
-    return this.running && this.streamChild !== null && this.streamChild.exitCode === null;
+    return this.running && this.child !== null && this.child.exitCode === null;
   }
 
   get envName(): "production" | "dev" {
     return this.env;
   }
 
-  // ==== Operations (all shell out to CLI) ====
+  // ==== Operations (via stdin commands) ====
 
   async sendMessage(text: string): Promise<{ success: boolean; messageId?: string }> {
-    // Track content so we can detect our own echo in the stream
-    this.recentSentContent.add(text);
-    // Cap the set to avoid unbounded growth
-    if (this.recentSentContent.size > 50) {
-      const first = this.recentSentContent.values().next().value;
-      if (first !== undefined) this.recentSentContent.delete(first);
-    }
-    const data = await this.execJson<{ success: boolean; messageId?: string }>([
-      "conversation",
-      "send-text",
-      this.conversationId,
-      "--text",
-      text,
-    ]);
-    return data;
+    this.assertRunning();
+    return this.sendAndWait({ type: "send", text });
   }
 
   async react(
@@ -502,18 +419,35 @@ export class ConvosInstance {
     emoji: string,
     action: "add" | "remove" = "add",
   ): Promise<{ success: boolean; action: "added" | "removed" }> {
-    await this.execJson([
-      "conversation",
-      "send-reaction",
-      this.conversationId,
-      messageId,
-      action,
-      emoji,
-    ]);
+    this.assertRunning();
+    this.writeCommand({ type: "react", messageId, emoji, action });
+    // React doesn't need confirmation tracking — fire and forget
     return { success: true, action: action === "add" ? "added" : "removed" };
   }
 
-  async getInvite(): Promise<InviteResult> {
+  async rename(name: string): Promise<void> {
+    this.assertRunning();
+    this.writeCommand({ type: "rename", name });
+  }
+
+  async lock(): Promise<void> {
+    this.assertRunning();
+    this.writeCommand({ type: "lock" });
+  }
+
+  async unlock(): Promise<void> {
+    this.assertRunning();
+    this.writeCommand({ type: "unlock" });
+  }
+
+  async explode(): Promise<void> {
+    this.assertRunning();
+    this.writeCommand({ type: "explode" });
+    // Explode triggers shutdown of the child process
+  }
+
+  /** One-shot: get invite info (not available via agent serve stdin). */
+  async getInvite(): Promise<{ inviteSlug: string }> {
     const data = await this.execJson<{ slug: string; url: string }>([
       "conversation",
       "invite",
@@ -523,110 +457,258 @@ export class ConvosInstance {
     return { inviteSlug: data.slug };
   }
 
-  async updateProfile(profile: { name?: string; image?: string }): Promise<void> {
-    const args = ["conversation", "update-profile", this.conversationId];
-    if (profile.name !== undefined) {
-      args.push("--name", profile.name);
-    }
-    if (profile.image !== undefined) {
-      args.push("--image", profile.image);
-    }
-    await this.execJson(args);
+  // ==== Private: Agent Serve Process Management ====
+
+  private spawnAgentServe(): Promise<ReadyEvent> {
+    return new Promise<ReadyEvent>((resolve, reject) => {
+      this.readyPromiseResolve = resolve;
+      this.readyPromiseReject = reject;
+
+      const bin = resolveConvosBin();
+      const args = ["agent", "serve", this.conversationId, "--env", this.env, "--json"];
+      if (this.options.heartbeatSeconds && this.options.heartbeatSeconds > 0) {
+        args.push("--heartbeat", String(this.options.heartbeatSeconds));
+      }
+
+      if (this.options.debug) {
+        console.log(`[convos] spawn: convos ${args.join(" ")}`);
+      }
+
+      const child = spawn(
+        bin === "convos" ? bin : process.execPath,
+        bin === "convos" ? args : [bin, ...args],
+        {
+          stdio: ["pipe", "pipe", "pipe"],
+          env: { ...process.env, CONVOS_ENV: this.env },
+        },
+      );
+
+      this.child = child;
+      this.lastStartTime = Date.now();
+
+      child.on("error", (err) => {
+        console.error(`[convos] spawn error: ${String(err)}`);
+        if (this.readyPromiseReject) {
+          this.readyPromiseReject(err);
+          this.readyPromiseResolve = undefined;
+          this.readyPromiseReject = undefined;
+        }
+      });
+
+      // Parse stdout as ndjson
+      if (child.stdout) {
+        const rl = createInterface({ input: child.stdout });
+        rl.on("line", (line) => this.handleEvent(line));
+      }
+
+      // Always log stderr for diagnostics (crash messages, XMTP errors)
+      if (child.stderr) {
+        const rl = createInterface({ input: child.stderr });
+        rl.on("line", (line) => {
+          console.error(`[convos:stderr] ${line}`);
+        });
+      }
+
+      child.on("exit", (code) => {
+        this.child = null;
+
+        // Reject pending sends
+        for (const [, pending] of this.pendingSends) {
+          clearTimeout(pending.timeout);
+          pending.reject(new Error(`Process exited with code ${code}`));
+        }
+        this.pendingSends.clear();
+
+        // Reject ready promise if still pending
+        if (this.readyPromiseReject) {
+          this.readyPromiseReject(new Error(`Process exited with code ${code} before ready`));
+          this.readyPromiseResolve = undefined;
+          this.readyPromiseReject = undefined;
+        }
+
+        // Notify callback
+        this.options.onExit?.(code);
+
+        // Auto-restart if still supposed to be running
+        if (this.running) {
+          // Reset counter if we had sustained uptime
+          if (Date.now() - this.lastStartTime > RESTART_RESET_AFTER_MS) {
+            this.restartCount = 0;
+          }
+
+          this.restartCount++;
+          if (this.restartCount <= MAX_RESTARTS) {
+            const delayMs = RESTART_BASE_DELAY_MS * this.restartCount;
+            console.error(
+              `[convos] Process exited with code ${code}, restarting in ${delayMs}ms (attempt ${this.restartCount}/${MAX_RESTARTS})`,
+            );
+            setTimeout(() => {
+              if (!this.running) return;
+              this.spawnAgentServe().catch((err) => {
+                console.error(`[convos] Restart failed: ${String(err)}`);
+              });
+            }, delayMs);
+          } else {
+            console.error(`[convos] Max restarts reached (${MAX_RESTARTS}), giving up`);
+            this.running = false;
+          }
+        }
+      });
+    });
   }
 
-  /** Shorthand for updateProfile({ name }). */
-  async rename(name: string): Promise<void> {
-    await this.updateProfile({ name });
-  }
-
-  async lock(): Promise<void> {
-    await this.execJson(["conversation", "lock", this.conversationId, "--force"]);
-  }
-
-  async unlock(): Promise<void> {
-    await this.execJson(["conversation", "lock", this.conversationId, "--unlock", "--force"]);
-  }
-
-  async explode(): Promise<void> {
-    await this.execJson(["conversation", "explode", this.conversationId, "--force"]);
-    await this.stop();
-  }
-
-  // ==== Private: JSONL stream parsing ====
-
-  private pumpJsonLines(
-    child: ChildProcess,
-    label: string,
-    handler: (data: Record<string, unknown>) => void,
-  ): void {
-    if (!child.stdout) {
+  private handleEvent(line: string): void {
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(line);
+    } catch {
+      if (this.options.debug) {
+        console.log(`[convos] non-JSON: ${line}`);
+      }
       return;
     }
 
-    const rl = createInterface({ input: child.stdout });
-    rl.on("line", (line) => {
-      try {
-        const data = JSON.parse(line);
-        handler(data);
-      } catch {
-        // Non-JSON line (e.g. human-readable output) — skip
-        if (this.debug) {
-          console.log(`[convos:${label}] non-JSON: ${line}`);
+    const event = data.event as string;
+
+    if (this.options.debug) {
+      console.log(`[convos] event: ${event} ${JSON.stringify(data)}`);
+    }
+
+    switch (event) {
+      case "ready": {
+        const info: ReadyEvent = {
+          conversationId: data.conversationId as string,
+          identityId: data.identityId as string,
+          inboxId: data.inboxId as string,
+          address: data.address as string,
+          name: (data.name as string) ?? "",
+          inviteUrl: data.inviteUrl as string | undefined,
+          inviteSlug: data.inviteSlug as string | undefined,
+          inviteTag: data.inviteTag as string | undefined,
+          qrCodePath: data.qrCodePath as string | undefined,
+        };
+        this.inboxId = info.inboxId;
+        this.options.onReady?.(info);
+        if (this.readyPromiseResolve) {
+          this.readyPromiseResolve(info);
+          this.readyPromiseResolve = undefined;
+          this.readyPromiseReject = undefined;
         }
-      }
-    });
-
-    child.on("exit", (code) => {
-      // Remove from children list
-      const idx = this.children.indexOf(child);
-      if (idx !== -1) {
-        this.children.splice(idx, 1);
-      }
-      if (child === this.streamChild) {
-        this.streamChild = null;
+        break;
       }
 
-      if (this.running) {
-        // Unexpected exit — log always (not just in debug mode)
-        console.error(`[convos:${label}] exited unexpectedly with code ${code}`);
+      case "message": {
+        const msg: InboundMessage = {
+          conversationId: this.conversationId,
+          messageId: (data.id as string) ?? "",
+          senderId: (data.senderInboxId as string) ?? "",
+          senderName: "",
+          content: (data.content as string) ?? "",
+          contentType: data.contentType as string | undefined,
+          timestamp: typeof data.sentAt === "string" ? new Date(data.sentAt) : new Date(),
+          catchup: (data.catchup as boolean) ?? false,
+        };
+        this.options.onMessage?.(msg);
+        break;
+      }
 
-        // Auto-restart stream/join-requests children after a delay
-        const attempt = (this.restartCounts.get(label) ?? 0) + 1;
-        if (attempt <= MAX_CHILD_RESTARTS) {
-          this.restartCounts.set(label, attempt);
-          const delayMs = RESTART_BASE_DELAY_MS * attempt;
-          console.error(
-            `[convos:${label}] restarting in ${delayMs}ms (attempt ${attempt}/${MAX_CHILD_RESTARTS})`,
-          );
-          setTimeout(() => {
-            if (!this.running) {
-              return;
+      case "member_joined": {
+        this.options.onMemberJoined?.({
+          joinerInboxId: (data.inboxId as string) ?? "",
+          conversationId: (data.conversationId as string) ?? this.conversationId,
+          catchup: (data.catchup as boolean) ?? false,
+        });
+        break;
+      }
+
+      case "sent": {
+        const info: SentEvent = {
+          id: data.id as string | undefined,
+          text: data.text as string | undefined,
+          type: data.type as string | undefined,
+          messageId: data.messageId as string | undefined,
+          emoji: data.emoji as string | undefined,
+          action: data.action as string | undefined,
+          name: data.name as string | undefined,
+          conversationId: data.conversationId as string | undefined,
+          identityDestroyed: data.identityDestroyed as string | undefined,
+          membersRemoved: data.membersRemoved as number | undefined,
+          expiresAt: data.expiresAt as string | undefined,
+          scheduled: data.scheduled as boolean | undefined,
+        };
+
+        // Resolve pending send if this is a text send confirmation
+        if (info.id && !info.type) {
+          // This is a text send confirmation — resolve the oldest pending send
+          const firstKey = this.pendingSends.keys().next().value;
+          if (firstKey !== undefined) {
+            const pending = this.pendingSends.get(firstKey);
+            if (pending) {
+              this.pendingSends.delete(firstKey);
+              clearTimeout(pending.timeout);
+              pending.resolve({ success: true, messageId: info.id });
             }
-            if (label === "stream") {
-              this.startStreamChild();
-            } else if (label === "join-requests") {
-              this.startJoinRequestsChild();
-            }
-          }, delayMs);
-        } else {
-          console.error(
-            `[convos:${label}] max restarts reached (${MAX_CHILD_RESTARTS}), giving up`,
-          );
-          // If all children are gone, mark instance as no longer running
-          if (this.children.length === 0) {
-            this.running = false;
-            console.error("[convos] All child processes exited — instance stopped");
           }
         }
-      }
-    });
 
-    if (child.stderr) {
-      const errRl = createInterface({ input: child.stderr });
-      errRl.on("line", (line) => {
-        // Always log stderr for diagnostics (crash messages, XMTP errors)
-        console.error(`[convos:${label}:stderr] ${line}`);
-      });
+        this.options.onSent?.(info);
+        break;
+      }
+
+      case "heartbeat": {
+        this.options.onHeartbeat?.({
+          conversationId: (data.conversationId as string) ?? this.conversationId,
+          activeStreams: (data.activeStreams as number) ?? 0,
+        });
+        break;
+      }
+
+      case "error": {
+        const message = (data.message as string) ?? "Unknown error";
+        console.error(`[convos] error event: ${message}`);
+        this.options.onError?.({ message });
+        break;
+      }
+
+      default: {
+        if (this.options.debug) {
+          console.log(`[convos] unknown event: ${event}`);
+        }
+      }
+    }
+  }
+
+  private writeCommand(cmd: Record<string, unknown>): void {
+    if (!this.child?.stdin?.writable) {
+      throw new Error("Agent serve process not running or stdin not writable");
+    }
+    if (this.options.debug) {
+      console.log(`[convos] stdin: ${JSON.stringify(cmd)}`);
+    }
+    this.child.stdin.write(JSON.stringify(cmd) + "\n");
+  }
+
+  /**
+   * Send a command and wait for a `sent` confirmation event.
+   * Used for sendMessage where we need the returned messageId.
+   */
+  private sendAndWait(cmd: Record<string, unknown>): Promise<{ success: boolean; messageId?: string }> {
+    return new Promise((resolve, reject) => {
+      const key = `send-${++this.sendCounter}`;
+      const timeout = setTimeout(() => {
+        this.pendingSends.delete(key);
+        // Don't reject — the message was probably sent, we just didn't get confirmation
+        resolve({ success: true, messageId: undefined });
+      }, 30_000);
+
+      this.pendingSends.set(key, { resolve, reject, timeout });
+      this.writeCommand(cmd);
+    });
+  }
+
+  private assertRunning(): void {
+    if (!this.running) {
+      throw new Error("Convos instance not running");
     }
   }
 }

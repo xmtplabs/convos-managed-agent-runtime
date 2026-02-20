@@ -18,7 +18,7 @@ import {
 import { convosMessageActions } from "./actions.js";
 import { convosChannelConfigSchema } from "./config-schema.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
-import { addSentMessageId, convosOutbound, getConvosInstance, isSentMessage, setConvosInstance } from "./outbound.js";
+import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
 
@@ -252,13 +252,22 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         account.env,
         {
           debug: account.debug,
+          heartbeatSeconds: 30,
           onMessage: (msg: InboundMessage) => {
             handleInboundMessage(account, msg, runtime, log).catch((err) => {
               log?.error(`[${account.accountId}] Message handling failed: ${String(err)}`);
             });
           },
-          onJoinAccepted: (info) => {
-            log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}`);
+          onMemberJoined: (info) => {
+            log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}${info.catchup ? " (catchup)" : ""}`);
+          },
+          onHeartbeat: (info) => {
+            if (account.debug) {
+              log?.info(`[${account.accountId}] Heartbeat: ${info.activeStreams} active streams`);
+            }
+          },
+          onExit: (code) => {
+            log?.error(`[${account.accountId}] Agent serve process exited with code ${code}`);
           },
         },
       );
@@ -301,24 +310,16 @@ async function handleInboundMessage(
 ) {
   const inst = getConvosInstance();
 
-  // Skip messages sent by this agent to prevent echo loops
-  if (
-    (inst && msg.senderId && msg.senderId === inst.identityId) ||
-    (msg.messageId && isSentMessage(msg.messageId))
-  ) {
-    if (account.debug) {
-      log?.info(`[${account.accountId}] Skipping self-message: ${msg.messageId}`);
-    }
-    return;
-  }
+  // Self-echo filtering is handled by `convos agent serve` — messages from
+  // our own inboxId are never emitted. No filtering needed here.
 
   if (account.debug) {
     log?.info(
-      `[${account.accountId}] Inbound message from ${msg.senderId}: ${msg.content.slice(0, 50)}`,
+      `[${account.accountId}] Inbound message from ${msg.senderId}: ${msg.content.slice(0, 50)}${msg.catchup ? " (catchup)" : ""}`,
     );
   }
 
-  // Safety assertion: in 1:1, all messages should be from our conversation
+  // Safety assertion: all messages should be from our bound conversation
   if (msg.conversationId !== inst?.conversationId) {
     log?.warn?.(
       `[${account.accountId}] Message from unexpected conversation: ${msg.conversationId}`,
@@ -443,8 +444,7 @@ async function deliverConvosReply(params: {
 
     for (const chunk of chunks) {
       try {
-        const result = await inst.sendMessage(chunk);
-        if (result.messageId) addSentMessageId(result.messageId);
+        await inst.sendMessage(chunk);
       } catch (err) {
         log?.error(`[${accountId}] Send failed: ${String(err)}`);
         throw err;
@@ -496,7 +496,7 @@ export async function startWiredInstance(params: {
         console.error(`[convos] Message handling failed: ${String(err)}`);
       });
     },
-    onJoinAccepted: (info) => {
+    onMemberJoined: (info) => {
       console.log(`[convos] Join accepted: ${info.joinerInboxId}`);
       if (params.name) {
         inst.rename(params.name).catch((err) => {
