@@ -18,7 +18,7 @@ Events arrive as ndjson on stdout. Each has an `event` field.
 
 | Event | Meaning | Key fields |
 | ----- | ------- | ---------- |
-| `message` | Someone sent a message | `id`, `senderInboxId`, `content`, `contentType`, `sentAt` |
+| `message` | Someone sent a message | `id`, `senderInboxId`, `content`, `contentType`, `sentAt`, `senderProfile` (optional: `{ name?, image? }`) |
 | `member_joined` | A new member was added | `inboxId`, `conversationId` |
 | `sent` | Your message was delivered | `id`, `text`, `replyTo` |
 | `error` | Something went wrong | `message` |
@@ -30,7 +30,7 @@ The `content` field is always a normalized string. The format depends on `conten
 | contentType typeId | content example |
 | --- | --- |
 | `text` | `Hello everyone` |
-| `reply` | `reply to <message-id>: Thanks!` |
+| `reply` | `reply to "Hello everyone" (<message-id>): Thanks!` |
 | `reaction` | `reacted 👍 to <message-id>` or `removed 👍 to <message-id>` |
 | `group_updated` | See below |
 | `attachment` | `[attachment: photo.jpg (image/jpeg)]` |
@@ -38,7 +38,7 @@ The `content` field is always a normalized string. The format depends on `conten
 
 ### Replies, reactions, and context
 
-Replies and reactions both reference another message by ID (e.g. `reply to abc123: Thanks!`, `reacted 👍 to abc123`). To understand what they refer to, look up that ID in the messages you have already seen in the stream. If you haven't seen it, fetch recent history with `convos conversation messages <conversation-id> --json --sync --limit 50` and find the referenced message to get full context.
+Replies and reactions both reference another message by ID. Replies include the parent message content inline when available (e.g. `reply to "Hello everyone" (abc123): Thanks!`). Reactions reference by ID (e.g. `reacted 👍 to abc123`). If you need more context about a referenced message, look it up in the messages you have already seen in the stream. If you haven't seen it, fetch recent history with `convos conversation messages <conversation-id> --json --sync --limit 50`.
 
 ### group_updated content
 
@@ -54,9 +54,12 @@ Replies and reactions both reference another message by ID (e.g. `reply to abc12
 - `Bob left the group`
 - `Alice made Bob an admin`
 - `Alice removed Bob as admin`
-- `Group updated` (appData-only change, e.g. profile update — no readable details)
-
-Profile updates are stored in appData (opaque binary). They arrive as a generic `Group updated` message with no readable diff. When you see this, refresh profiles to learn what changed.
+- `Alice set their profile name`
+- `Bob changed their name to Robert`
+- `Alice updated their profile photo`
+- `Alice removed their profile photo`
+- `Alice rotated the invite tag` (all existing invite links are now invalid)
+- `Alice set conversation expiration to 2026-03-01T00:00:00.000Z`
 
 ## Two interfaces
 
@@ -119,7 +122,7 @@ convos conversation profiles <conversation-id> --json
 
 `members` returns inbox IDs and permission levels. `profiles` returns display names and avatars. Members without a profile appear as anonymous.
 
-Refresh profiles when you see a `member_joined` event or a `group_updated` message with content `Group updated` (signals an appData change like a profile update). This keeps your name mapping current.
+Refresh profiles when you see a `member_joined` event or a `group_updated` message about profile changes (e.g. "Alice set their profile name"). This keeps your name mapping current.
 
 ### Message history
 

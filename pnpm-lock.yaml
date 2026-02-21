@@ -12,8 +12,8 @@ dependencies:
     specifier: ^1.1.0
     version: 1.1.0
   '@xmtp/convos-cli':
-    specifier: ^0.2.0
-    version: 0.2.0(zod@4.3.6)
+    specifier: ^0.3.1
+    version: 0.3.1(zod@4.3.6)
   agentmail:
     specifier: ^0.2.17
     version: 0.2.17
@@ -3996,8 +3996,8 @@ packages:
       '@xmtp/proto': 3.78.0
     dev: false
 
-  /@xmtp/convos-cli@0.2.0(zod@4.3.6):
-    resolution: {integrity: sha512-6gXvNXyntDtejTwg12FN/5OpElw+snodylHappPzgaIrTcWPbQOdgWlJKQPKuSRK2coc49v/qfy2z6KNrw9BPA==}
+  /@xmtp/convos-cli@0.3.1(zod@4.3.6):
+    resolution: {integrity: sha512-dLyU5jU+7XzAw9LCC77aDpNUZiUT08AO3hZv6dBsG1Ct+xgGAZdIRoKjIVjm8Aht+dwSWStBAm2zQwFYRNc4MA==}
     engines: {node: '>=22'}
     hasBin: true
     dependencies:
