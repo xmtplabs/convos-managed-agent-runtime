@@ -36,7 +36,6 @@ export async function createService(name, variables = {}) {
     ? `${process.env.RAILWAY_GIT_REPO_OWNER}/${process.env.RAILWAY_GIT_REPO_NAME}`
     : null;
   const branch = process.env.RAILWAY_GIT_BRANCH || null;
-  if (!repo) throw new Error("Could not derive repo from RAILWAY_GIT_REPO_OWNER/RAILWAY_GIT_REPO_NAME");
 
   // Create service WITHOUT source to prevent auto-deploy.
   // Connecting the repo happens later, after all config is set.

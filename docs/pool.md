@@ -54,7 +54,7 @@ pnpm start
 | **Pool manager** | |
 | `PORT` | Server port (default `3001`) |
 | `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
-| `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
+| `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `1`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
 | `DATABASE_URL` | Railway postgres connection string |
