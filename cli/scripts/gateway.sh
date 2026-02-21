@@ -128,6 +128,14 @@ if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
       rm -f "$STATE_DIR/browser"/*/user-data/SingletonLock 2>/dev/null || true
       sleep 1
     fi
+    # Check for bind=lan + ws:// security conflict (browser relay blocks plaintext to non-loopback)
+    _gw_bind=$(jq -r '.gateway.bind // "loopback"' "$STATE_DIR/openclaw.json")
+    if [ "$_gw_bind" != "loopback" ]; then
+      echo "  ⚠️  browser      → gateway.bind=$_gw_bind — browser relay may fail (ws:// to non-loopback)"
+      echo "     ↳ Fix: use pool-server.js (keeps gateway on loopback) or set gateway.bind=loopback"
+      _browser_ok=false
+    fi
+    unset _gw_bind
     if [ "$_browser_ok" = "true" ]; then
       echo "  ✅ browser      → ready (chrome $_headless, cdp :$CDP_PORT)"
     fi

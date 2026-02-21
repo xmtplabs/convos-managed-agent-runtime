@@ -11,7 +11,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 - **FS** — read, write, edit, apply_patch
 - **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab.
-  - _Headless/cloud (Railway, CHROMIUM_PATH): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`)._
+  - _This browser runs headless. Always use `target: "host"`. For `navigate` always pass `targetUrl` with the full URL. For `act` and other interactions always pass all required params (e.g. `ref` from a prior `snapshot`). Always take a `snapshot` before interacting with a page._
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
 
