@@ -10,9 +10,6 @@ ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)
 
 . "$ROOT/cli/scripts/lib/node-path.sh"
 
-CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
-RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
-
 # --- Clean up any previous gateway processes ---
 $ENTRY gateway stop 2>/dev/null || true
 # Kill stale gateway.sh wrapper scripts (excluding ourselves) so their restart
@@ -26,56 +23,38 @@ unset _my_pid _pid
 # Kill stale openclaw processes by name so Bonjour registrations are released
 pkill -9 -f "openclaw-gateway" 2>/dev/null || true
 pkill -9 -f "openclaw gateway" 2>/dev/null || true
-# Force-kill anything still holding the ports (lsof can return multiple PIDs)
+# Force-kill anything still holding the gateway port
 lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 # Remove stale lock/pid files and let ports + Bonjour registrations clear
 rm -f "$STATE_DIR/gateway.pid" "$STATE_DIR/gateway.lock" 2>/dev/null || true
 sleep 2
 # Second pass — kill anything that respawned during the wait
 lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 sleep 1
+
+# --- Browser pre-flight (stale Chrome, device scopes, config validation) ---
+sh "$ROOT/cli/scripts/browser.sh"
+
 echo ""
 echo "  🚀 Starting gateway"
 echo "  ═══════════════════"
 
-# Port availability checks
+# Port availability check (gateway only — browser ports checked by browser.sh)
 _gw_busy=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
 if [ -n "$_gw_busy" ]; then
   echo "  ⚠️  port $PORT    → in use (pid $_gw_busy) — gateway may fail to bind"
 else
   echo "  ✅ port $PORT    → available (gateway)"
 fi
+unset _gw_busy
 
-_relay_busy=$(lsof -ti "tcp:$RELAY_PORT" 2>/dev/null) || true
-if [ -n "$_relay_busy" ]; then
-  echo "  ⚠️  port $RELAY_PORT   → in use (pid $_relay_busy) — browser relay may conflict"
-else
-  echo "  ✅ port $RELAY_PORT   → available (browser relay)"
-fi
-_cdp_busy=$(lsof -ti "tcp:$CDP_PORT" 2>/dev/null) || true
-if [ -n "$_cdp_busy" ]; then
-  echo "  ⚠️  port $CDP_PORT   → in use (pid $_cdp_busy) — browser CDP may conflict"
-else
-  echo "  ✅ port $CDP_PORT   → available (browser CDP)"
-fi
-unset _gw_busy _relay_busy _cdp_busy
-
-# Chrome path (read from the patched config)
+# Log level
 if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
-  _chrome=$(jq -r '.browser.executablePath // "not set"' "$STATE_DIR/openclaw.json")
-  _headless=$(jq -r '.browser.headless // "not set"' "$STATE_DIR/openclaw.json")
-  _sandbox=$(jq -r 'if .browser.noSandbox == true then "off" elif .browser.noSandbox == false then "on" else "not set" end' "$STATE_DIR/openclaw.json")
   _loglevel=$(jq -r '.logging.consoleLevel // "not set"' "$STATE_DIR/openclaw.json")
-  echo "  🌐 chrome       → $_chrome"
-  echo "  🖥  headless     → $_headless"
-  echo "  🔒 sandbox      → $_sandbox"
   echo "  📝 log level    → $_loglevel"
-  unset _chrome _headless _sandbox _loglevel
+  unset _loglevel
 fi
+
 echo "  📂 state dir    → $STATE_DIR"
 echo "  convos paths"
 echo "  ═══════════════════════════════════════════════"

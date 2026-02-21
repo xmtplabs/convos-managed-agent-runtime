@@ -2,7 +2,7 @@ name: QA Smoke Tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main,staging]
 
 jobs:
   qa:
@@ -54,26 +54,23 @@ jobs:
       - name: Add global bins to PATH
         run: echo "$(pnpm bin -g)" >> "$GITHUB_PATH"
 
-      - name: Start gateway via pool-server
+      - name: Start gateway
         run: |
-          node cli/pool-server.js &
-          echo "Waiting for pool-server health on port 8080..."
+          pnpm start &
+          echo "Waiting for gateway on port 18789..."
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
+            if curl -sf http://localhost:18789/__openclaw__/canvas/ >/dev/null 2>&1; then
               echo "Gateway ready after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
+          if ! curl -sf http://localhost:18789/__openclaw__/canvas/ >/dev/null 2>&1; then
             echo "Gateway failed to start within 120s"
             exit 1
           fi
           echo "Waiting 15s for browser service to initialise..."
           sleep 15
-        env:
-          PORT: "8080"
-          GATEWAY_INTERNAL_PORT: "18789"
 
       - name: QA smoke tests
         run: timeout 120 pnpm cli qa

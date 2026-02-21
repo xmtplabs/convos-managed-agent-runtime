@@ -36,8 +36,11 @@ RUN chmod +x /app/cli/scripts/*.sh /app/cli/scripts/entrypoint.sh
 ENV OPENCLAW_STATE_DIR=/app
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
-ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["./cli/scripts/entrypoint.sh"]
-CMD ["pnpm", "start"]
+# pool-server listens on 0.0.0.0:PORT and proxies to gateway on localhost:18789.
+# This keeps gateway.bind="loopback" so the browser relay connects via
+# ws://127.0.0.1:18789 instead of ws://<LAN_IP>:8080 (which triggers a
+# plaintext-to-non-loopback security error in the browser control service).
+CMD ["node", "cli/pool-server.js"]

@@ -56,6 +56,11 @@ program
   .action(() => runScript("clean-providers.mjs", { CLEAN_TARGET: "openrouter" }));
 
 program
+  .command("browser")
+  .description("Browser pre-flight: kill stale Chrome, fix device scopes, validate config")
+  .action(() => runScript("browser.sh"));
+
+program
   .command("qa [suite]")
   .description("Run QA smoke test. Suites: email, sms, bankr, search, browser, all (default)")
   .action((suite) => runScript("qa.sh", { QA_SUITE: suite || "all" }));

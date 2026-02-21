@@ -10,8 +10,12 @@ read_when:
 Primary channel: **Convos** (group chats and DMs for bookings). Full access: all tools are available.
 
 - **FS** — read, write, edit, apply_patch
-- **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab.
-  - _Headless/cloud (Railway, CHROMIUM_PATH): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`)._
+- **Browser** — Managed headless Chrome (profile `openclaw`). Start via the tool if needed. Never ask the user to attach the extension or open a tab.
+  - **Every browser call** must include `target: "host"` (headless has no sandbox/UI target).
+  - **Workflow:** `snapshot` first → then `act` using `ref` from the snapshot. Never skip the snapshot.
+  - **`navigate`:** always pass `targetUrl` with the full URL.
+  - **`act`:** use for ALL UI interactions — click, type, fill, select, press, hover. Always pass `ref` (e.g. `e8` from snapshot). Do NOT call `fill`, `click`, `type` etc. as standalone actions — they are sub-actions of `act`.
+  - **`snapshot`:** take before every interaction to get fresh refs. Refs go stale after page changes.
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
 
@@ -73,7 +77,7 @@ _Note: Current/live info requires search._
 → web_search
 _Note: This only finds the URL. To actually book, use the browser tool._
 
-> Go fill out and submit https://convos-agent-main.up.railway.app/web-tools/form
+> Go fill out and submit https://convos-managed-dev.up.railway.app/web-tools/form
 **Tool:** Browser
 → browser
 _Note: If no URL is provided, use web_search first to find the booking page, then browser._
