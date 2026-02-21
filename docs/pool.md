@@ -73,7 +73,8 @@ pnpm start
 | **Instance env vars** | Injected into each agent instance (`INSTANCE_*` prefix is stripped) |
 | `INSTANCE_OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
+| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically when not using a shared inbox) |
+| `INSTANCE_AGENTMAIL_INBOX_ID` | Optional shared inbox ID; when set, all instances use this inbox and none are created/deleted |
 | `AGENTMAIL_DOMAIN` | Custom domain for inboxes (e.g. `mail.convos.org`); defaults to `agentmail.to` |
 | `INSTANCE_BANKR_API_KEY` | Bankr API key |
 | `INSTANCE_TELNYX_API_KEY` | Telnyx API key |

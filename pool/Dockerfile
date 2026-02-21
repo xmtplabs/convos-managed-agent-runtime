@@ -9,6 +9,5 @@ RUN pnpm install --frozen-lockfile
 
 COPY pool/src ./src
 
-ENV PORT=3001
-EXPOSE 3001
+EXPOSE 8080
 CMD ["node", "src/index.js"]

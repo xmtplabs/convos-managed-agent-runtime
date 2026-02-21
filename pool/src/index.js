@@ -3,7 +3,7 @@ import * as pool from "./pool.js";
 import * as cache from "./cache.js";
 import { deleteOrphanAgentVolumes } from "./volumes.js";
 
-const PORT = parseInt(process.env.PORT || "3001", 10);
+const PORT = parseInt(process.env.PORT || "8080", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
 // Deploy context shown in dashboard info tags

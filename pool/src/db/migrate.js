@@ -55,7 +55,7 @@ async function migrate() {
     if (newTable.rows.length > 0) {
       console.log("agent_metadata table already exists. Nothing to do.");
     } else {
-      // Fresh install — create agent_metadata directly
+      // First time — create agent_metadata with full schema
       await sql`
         CREATE TABLE agent_metadata (
           id TEXT PRIMARY KEY,
@@ -66,22 +66,30 @@ async function migrate() {
           instructions TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           claimed_at TIMESTAMPTZ DEFAULT NOW(),
-          source_branch TEXT
+          source_branch TEXT,
+          openrouter_key_hash TEXT,
+          agentmail_inbox_id TEXT
         )
       `;
       console.log("Created agent_metadata table.");
     }
   }
 
-  // Add columns if missing (idempotent)
+  // Add columns if missing (idempotent, for tables created before these existed)
   await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS source_branch TEXT`;
   await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS openrouter_key_hash TEXT`;
   await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS agentmail_inbox_id TEXT`;
-
-  process.exit(0);
 }
 
-migrate().catch((err) => {
-  console.error("Migration failed:", err);
-  process.exit(1);
-});
+const isMain = Boolean(process.argv[1]?.endsWith("db/migrate.js"));
+
+if (isMain) {
+  migrate()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Migration failed:", err);
+      process.exit(1);
+    });
+}
+
+export { migrate };

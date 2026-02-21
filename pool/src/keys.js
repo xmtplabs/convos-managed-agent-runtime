@@ -60,9 +60,11 @@ export function generatePrivateWalletKey() {
   return "0x" + randomBytes(32).toString("hex");
 }
 
-/** Create a per-instance AgentMail inbox via the API.
- *  Returns { inboxId, perInstance } — perInstance is always true when an inbox is created. */
+/** Resolve AgentMail inbox: use INSTANCE_AGENTMAIL_INBOX_ID if set, else create per-instance via API.
+ *  Returns { inboxId, perInstance } — perInstance false when using a provided inbox. */
 export async function resolveAgentMailInbox(instanceId) {
+  const provided = getEnv("INSTANCE_AGENTMAIL_INBOX_ID");
+  if (provided) return { inboxId: provided, perInstance: false };
   const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
   if (!apiKey) return { inboxId: "", perInstance: false };
   return createAgentMailInbox(apiKey, instanceId);
