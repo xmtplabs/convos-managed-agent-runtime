@@ -8,7 +8,7 @@ import { instanceEnvVars, resolveOpenRouterApiKey, resolveAgentMailInbox, genera
 import { destroyInstance, destroyInstances } from "./delete.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
-const MIN_IDLE = parseInt(process.env.POOL_MIN_IDLE || "3", 10);
+const MIN_IDLE = parseInt(process.env.POOL_MIN_IDLE || "1", 10);
 
 // Health-check a single instance via /pool/health.
 // Returns parsed JSON on success, null on failure.
