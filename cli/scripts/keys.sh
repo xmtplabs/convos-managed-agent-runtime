@@ -7,34 +7,44 @@ ENV_FILE="$ROOT/.env"
 
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
 
+echo ""
+echo " 🔑 Keys"
+echo "  ═══════════════"
+gate_existing=0; setup_existing=0; wallet_existing=0
+key_existing=0; agentmail_existing=0; bankr_existing=0; telnyx_existing=0
+
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
   gateway_token="$OPENCLAW_GATEWAY_TOKEN"
-  echo "[keys] Using existing OPENCLAW_GATEWAY_TOKEN from env"
+  gate_existing=1
+  echo "  ✓ OPENCLAW_GATEWAY_TOKEN  already there"
 else
   gateway_token=$(openssl rand -hex 32)
-  echo "[keys] Generated random OPENCLAW_GATEWAY_TOKEN"
+  echo "  ✨ OPENCLAW_GATEWAY_TOKEN  generated"
 fi
 
 if [ -n "$SETUP_PASSWORD" ]; then
   setup_password="$SETUP_PASSWORD"
-  echo "[keys] Using existing SETUP_PASSWORD from env"
+  setup_existing=1
+  echo "  ✓ SETUP_PASSWORD  already there"
 else
   setup_password=$(openssl rand -hex 16)
-  echo "[keys] Generated random SETUP_PASSWORD"
+  echo "  ✨ SETUP_PASSWORD  generated"
 fi
 
 if [ -n "$PRIVATE_WALLET_KEY" ]; then
   private_wallet_key="$PRIVATE_WALLET_KEY"
-  echo "[keys] Using existing PRIVATE_WALLET_KEY from env"
+  wallet_existing=1
+  echo "  ✓ PRIVATE_WALLET_KEY  already there"
 else
   private_wallet_key="0x$(openssl rand -hex 32)"
-  echo "[keys] Generated random PRIVATE_WALLET_KEY"
+  echo "  ✨ PRIVATE_WALLET_KEY  generated"
 fi
 
 key=""
 if [ -n "$OPENROUTER_API_KEY" ]; then
   key="$OPENROUTER_API_KEY"
-  echo "[keys] Using existing OPENROUTER_API_KEY from env"
+  key_existing=1
+  echo "  ✓ OPENROUTER_API_KEY  already there"
 elif [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
   name="convos-local-$(date +%s)"
   limit="${OPENROUTER_KEY_LIMIT:-20}"
@@ -49,21 +59,22 @@ elif [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
   body=$(echo "$resp" | sed '$d')
   key=$(echo "$body" | jq -r '.key // empty')
   if [ -z "$key" ] || [ "$key" = "null" ]; then
-    echo "[keys] Failed to create OpenRouter key (http=$http_code): $body" >&2
+    echo "  ✗ Failed to create OpenRouter key (http=$http_code): $body" >&2
     exit 1
   fi
-  echo "[keys] Created OpenRouter key via API"
+  echo "  ✨ OPENROUTER_API_KEY  created via API"
 else
-  echo "[keys] No OpenRouter key: set OPENROUTER_API_KEY or OPENROUTER_MANAGEMENT_KEY and re-run to add it"
+  echo "  ○ OpenRouter  set OPENROUTER_API_KEY or OPENROUTER_MANAGEMENT_KEY to add"
 fi
 
 agentmail_inbox=""
 if [ -n "$AGENTMAIL_API_KEY" ]; then
   if [ -n "$AGENTMAIL_INBOX_ID" ]; then
     agentmail_inbox="$AGENTMAIL_INBOX_ID"
-    echo "[keys] Using existing AGENTMAIL_INBOX_ID from env"
+    agentmail_existing=1
+    echo "  ✓ AGENTMAIL_INBOX_ID  already there"
   else
-    echo "[keys] Provisioning AgentMail inbox..."
+    echo "  ⏳ Provisioning AgentMail inbox..."
     inbox_username="convos-$(openssl rand -hex 4)"
     inbox_client_id="convos-agent-$(hostname -s 2>/dev/null || echo local)"
     inbox_payload=$(jq -n --arg u "$inbox_username" --arg cid "$inbox_client_id" --arg dom "${AGENTMAIL_DOMAIN:-}" \
@@ -74,21 +85,22 @@ if [ -n "$AGENTMAIL_API_KEY" ]; then
       -d "$inbox_payload")
     agentmail_inbox=$(echo "$inbox_resp" | jq -r '.inbox_id // empty')
     if [ -z "$agentmail_inbox" ]; then
-      echo "[keys] Failed to create AgentMail inbox: $inbox_resp" >&2
+      echo "  ✗ Failed to create AgentMail inbox: $inbox_resp" >&2
     else
-      echo "[keys] Created AgentMail inbox: $agentmail_inbox"
+      echo "  ✨ AGENTMAIL_INBOX_ID  created: $agentmail_inbox"
     fi
   fi
 else
-  echo "[keys] No AgentMail key: set AGENTMAIL_API_KEY and re-run to provision an inbox"
+  echo "  ○ AgentMail  set AGENTMAIL_API_KEY to provision an inbox"
 fi
 
 bankr_key=""
 if [ -n "$BANKR_API_KEY" ]; then
   bankr_key="$BANKR_API_KEY"
-  echo "[keys] Using existing BANKR_API_KEY from env"
+  bankr_existing=1
+  echo "  ✓ BANKR_API_KEY  already there"
 else
-  echo "[keys] No Bankr key: set BANKR_API_KEY (bk_...) and re-run to add it"
+  echo "  ○ Bankr  set BANKR_API_KEY (bk_...) to add"
 fi
 
 telnyx_phone=""
@@ -97,18 +109,18 @@ if [ -n "$TELNYX_API_KEY" ]; then
   if [ -n "$TELNYX_PHONE_NUMBER" ]; then
     telnyx_phone="$TELNYX_PHONE_NUMBER"
     telnyx_profile="$TELNYX_MESSAGING_PROFILE_ID"
-    echo "[keys] Using existing TELNYX_PHONE_NUMBER from env"
+    telnyx_existing=1
+    echo "  ✓ TELNYX_PHONE_NUMBER  already there"
   else
-    echo "[keys] Provisioning Telnyx phone number..."
+    echo "  ⏳ Provisioning Telnyx phone number..."
     # Search for an available US SMS-enabled number
     search_resp=$(curl -s -g -X GET "https://api.telnyx.com/v2/available_phone_numbers?filter[country_code]=US&filter[features][]=sms&filter[limit]=1" \
       -H "Authorization: Bearer $TELNYX_API_KEY" \
       -H "Content-Type: application/json")
     avail_number=$(echo "$search_resp" | jq -r '.data[0].phone_number // empty')
     if [ -z "$avail_number" ]; then
-      echo "[keys] Failed to find available Telnyx number: $search_resp" >&2
+      echo "  ✗ Failed to find available Telnyx number: $search_resp" >&2
     else
-      echo "[keys] Found available number: $avail_number"
       # Purchase the number first (no profile yet)
       order_resp=$(curl -s -X POST "https://api.telnyx.com/v2/number_orders" \
         -H "Authorization: Bearer $TELNYX_API_KEY" \
@@ -117,21 +129,19 @@ if [ -n "$TELNYX_API_KEY" ]; then
           '{phone_numbers: [{phone_number: $num}]}')")
       ordered_number=$(echo "$order_resp" | jq -r '.data.phone_numbers[0].phone_number // empty')
       if [ -z "$ordered_number" ]; then
-        echo "[keys] Failed to purchase number: $order_resp" >&2
+        echo "  ✗ Failed to purchase number: $order_resp" >&2
       else
         telnyx_phone="$ordered_number"
-        echo "[keys] Purchased Telnyx number: $telnyx_phone"
+        echo "  ✨ TELNYX_PHONE_NUMBER  provisioned: $telnyx_phone"
         # Reuse existing messaging profile (env → API lookup → create)
         if [ -n "$TELNYX_MESSAGING_PROFILE_ID" ]; then
           telnyx_profile="$TELNYX_MESSAGING_PROFILE_ID"
-          echo "[keys] Reusing messaging profile from env: $telnyx_profile"
         else
           existing_profile=$(curl -s -X GET "https://api.telnyx.com/v2/messaging_profiles?page[size]=1" \
             -H "Authorization: Bearer $TELNYX_API_KEY" \
             -H "Content-Type: application/json" | jq -r '.data[0].id // empty')
           if [ -n "$existing_profile" ]; then
             telnyx_profile="$existing_profile"
-            echo "[keys] Reusing existing messaging profile from account: $telnyx_profile"
           else
             profile_resp=$(curl -s -X POST "https://api.telnyx.com/v2/messaging_profiles" \
               -H "Authorization: Bearer $TELNYX_API_KEY" \
@@ -139,26 +149,22 @@ if [ -n "$TELNYX_API_KEY" ]; then
               -d '{"name":"convos-sms","whitelisted_destinations":["US"]}')
             telnyx_profile=$(echo "$profile_resp" | jq -r '.data.id // empty')
             if [ -z "$telnyx_profile" ]; then
-              echo "[keys] Failed to create messaging profile: $profile_resp" >&2
-            else
-              echo "[keys] Created messaging profile: $telnyx_profile"
+              echo "  ✗ Failed to create messaging profile: $profile_resp" >&2
             fi
           fi
         fi
-        # Assign the number to the messaging profile
         if [ -n "$telnyx_profile" ]; then
           curl -s -X PATCH "https://api.telnyx.com/v2/phone_numbers/$telnyx_phone" \
             -H "Authorization: Bearer $TELNYX_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg pid "$telnyx_profile" \
               '{messaging_profile_id: $pid}')" > /dev/null
-          echo "[keys] Assigned $telnyx_phone to messaging profile $telnyx_profile"
         fi
       fi
     fi
   fi
 else
-  echo "[keys] No Telnyx key: set TELNYX_API_KEY and re-run to provision a phone number"
+  echo "  ○ Telnyx  set TELNYX_API_KEY to provision a phone number"
 fi
 
 touch "$ENV_FILE"
@@ -173,8 +179,14 @@ if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
 if [ -n "$telnyx_phone" ]; then echo "TELNYX_PHONE_NUMBER=$telnyx_phone" >> "$tmp"; fi
 if [ -n "$telnyx_profile" ]; then echo "TELNYX_MESSAGING_PROFILE_ID=$telnyx_profile" >> "$tmp"; fi
 mv "$tmp" "$ENV_FILE"
-echo "[keys] Gateway token, setup password, private wallet key written to .env"
-if [ -n "$key" ]; then echo "[keys] OpenRouter key written to .env"; fi
-if [ -n "$agentmail_inbox" ]; then echo "[keys] AgentMail inbox written to .env"; fi
-if [ -n "$bankr_key" ]; then echo "[keys] Bankr key written to .env"; fi
-if [ -n "$telnyx_phone" ]; then echo "[keys] Telnyx phone number written to .env"; fi
+if [ "$gate_existing" = 1 ] && [ "$setup_existing" = 1 ] && [ "$wallet_existing" = 1 ]; then
+  echo "  ✓ Gateway token, setup password, wallet key  already there"
+else
+  echo "  📝 Gateway token, setup password, wallet key  written to .env"
+fi
+if [ -n "$key" ]; then [ "$key_existing" = 1 ] && echo "  ✓ OpenRouter key  already there" || echo "  📝 OpenRouter key  written to .env"; fi
+if [ -n "$agentmail_inbox" ]; then [ "$agentmail_existing" = 1 ] && echo "  ✓ AgentMail inbox  already there" || echo "  📝 AgentMail inbox  written to .env"; fi
+if [ -n "$bankr_key" ]; then [ "$bankr_existing" = 1 ] && echo "  ✓ Bankr key  already there" || echo "  📝 Bankr key  written to .env"; fi
+if [ -n "$telnyx_phone" ]; then [ "$telnyx_existing" = 1 ] && echo "  ✓ Telnyx phone number  already there" || echo "  📝 Telnyx phone number  written to .env"; fi
+echo "  ✨ done"
+echo ""

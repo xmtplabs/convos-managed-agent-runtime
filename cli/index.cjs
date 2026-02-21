@@ -36,6 +36,11 @@ program
   .action(() => runScript("gateway.sh"));
 
 program
+  .command("browser")
+  .description("Browser pre-flight (profile lock, device scopes, config validation)")
+  .action(() => runScript("browser.sh"));
+
+program
   .command("init")
   .description("Provision keys (if missing), apply config, install deps, then start the gateway")
   .action(() => {

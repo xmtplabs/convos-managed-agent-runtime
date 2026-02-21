@@ -64,32 +64,15 @@ Every file that references Chrome/Chromium and why:
 
 ## Startup self-heal (`browser.sh`)
 
-[`cli/scripts/browser.sh`](../cli/scripts/browser.sh) runs before every gateway start (called by `gateway.sh`). Also available standalone: `pnpm cli browser`.
+[`cli/scripts/browser.sh`](../cli/scripts/browser.sh) runs before every gateway start (called by [`gateway.sh`](../cli/scripts/gateway.sh)). Also available standalone: `pnpm cli browser`.
 
 What it does:
 
 | Step | What | Why |
 |---|---|---|
-| Kill stale Chrome | `pkill -9 -f "user-data-dir=$STATE_DIR/browser"` | Port-based kill misses renderers, GPU, network helpers |
-| Kill CDP/relay ports | `lsof -ti tcp:18800` / `tcp:18792` | Catch anything else holding the ports |
-| Remove SingletonLock | Delete `SingletonLock` + `SingletonSocket` | Dead Chrome leaves dangling symlinks that block new instances |
-| Clear pending pairing | `rm devices/pending.json` | Stale scope-upgrade requests cause "pairing required" errors |
-| Patch device scopes | Add `operator.read` to gateway-client | Older pairings miss this scope; browser relay needs it for Chrome control |
+| Remove SingletonLock | Delete `SingletonLock` + `SingletonSocket` in browser profile | Dead Chrome leaves dangling symlinks that block new instances |
+| Fix device scopes | Add `operator.read` to gateway-client in paired.json | Older pairings miss this scope; browser relay needs it for Chrome control |
 | Validate config | Check executable, enabled, bind mode, ports | Logs status for each check |
-
-Output:
-
-```
-  🌐 Browser pre-flight
-  ═══════════════════
-  ✅ processes     → no stale Chrome
-  ✅ profile lock  → clean
-  ✅ device scopes → ok
-  🌐 chrome       → /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
-  🖥  headless     → true
-  🔒 sandbox      → off
-  ✅ browser      → ready (headless=true, cdp=:18800, relay=:18792)
-```
 
 ## Agent instructions
 
@@ -122,7 +105,7 @@ Chromium is baked into the Docker image (`apt install chromium`) with `CHROMIUM_
 | Error | Cause | Fix |
 |---|---|---|
 | `"pairing required"` | gateway-client device missing `operator.read` scope | Restart gateway — `browser.sh` patches scopes automatically |
-| `"tab not found"` | Stale Chrome holding profile lock, new Chrome can't manage tabs | Restart gateway — `browser.sh` kills stale Chrome + removes SingletonLock |
+| `"tab not found"` | Stale Chrome holding profile lock, new Chrome can't manage tabs | Restart gateway — `browser.sh` cleans profile lock |
 | `"fields are required"` | Agent omitted required browser params (no `target`, no `ref`, no `targetUrl`) | Check TOOLS.md has the headless instructions |
 | `ws:// non-loopback security error` | `gateway.bind=lan` + browser relay rejects plaintext to non-loopback | Use pool-server.js (Dockerfile) or set `gateway.bind=loopback` |
 | `chrome not found` | Wrong `executablePath` or `CHROMIUM_PATH` not set | Install Chrome/Chromium, set `CHROMIUM_PATH`, or fix path in `openclaw.json` |
@@ -140,7 +123,7 @@ Chromium is baked into the Docker image (`apt install chromium`) with `CHROMIUM_
 | File | Role |
 |---|---|
 | `openclaw/openclaw.json` | Browser config (timeouts, headless, profile, executable path) |
-| `cli/scripts/browser.sh` | Startup self-heal (kill stale Chrome, fix scopes, validate) |
+| `cli/scripts/browser.sh` | Startup self-heal (profile lock, device scopes, validate) |
 | `cli/scripts/install-deps.sh` | Chrome resolution + config patching |
 | `cli/scripts/apply-config.sh` | `CHROMIUM_PATH` → config patching (headless, noSandbox, executablePath) |
 | `cli/scripts/gateway.sh` | Calls `browser.sh` before gateway start |

@@ -114,6 +114,9 @@ fi
 
 echo ""
 
+# Browser pre-flight (profile lock, device scopes, config validation)
+. "$ROOT/cli/scripts/browser.sh" 2>/dev/null || true
+
 # In-process restart: SIGUSR1 reloads config inside the same process instead
 # of exiting. This prevents the container from dying on config-level changes
 # (e.g. model switch via native commands).
