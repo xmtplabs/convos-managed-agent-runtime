@@ -6,22 +6,6 @@
 import { randomBytes } from "crypto";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
-const INSTANCE_VAR_MAP = {
-  OPENCLAW_PRIMARY_MODEL: "INSTANCE_OPENCLAW_PRIMARY_MODEL",
-  SETUP_PASSWORD: "INSTANCE_SETUP_PASSWORD",
-  XMTP_ENV: "INSTANCE_XMTP_ENV",
-  // optional pre-set keys — when provided, skip per-instance creation
-  OPENROUTER_API_KEY: "INSTANCE_OPENROUTER_API_KEY",
-  AGENTMAIL_INBOX_ID: "INSTANCE_AGENTMAIL_INBOX_ID",
-  // agentmail
-  AGENTMAIL_API_KEY: "INSTANCE_AGENTMAIL_API_KEY",
-  AGENTMAIL_DOMAIN: "INSTANCE_AGENTMAIL_DOMAIN",
-  BANKR_API_KEY: "INSTANCE_BANKR_API_KEY",
-  // telnyx
-  TELNYX_API_KEY: "INSTANCE_TELNYX_API_KEY",
-  TELNYX_PHONE_NUMBER: "INSTANCE_TELNYX_PHONE_NUMBER",
-  TELNYX_MESSAGING_PROFILE_ID: "INSTANCE_TELNYX_MESSAGING_PROFILE_ID",
-};
 
 function getEnv(name, fallback = "") {
   const val = process.env[name];
@@ -30,19 +14,19 @@ function getEnv(name, fallback = "") {
 
 /** Build env vars for instance (warm-up and claim). Omit SETUP_PASSWORD when INSTANCE_SETUP_PASSWORD is unset so provision does not overwrite warmup-generated values. */
 export function instanceEnvVars() {
-  const setupPassword = getEnv(INSTANCE_VAR_MAP.SETUP_PASSWORD);
+  const setupPassword = getEnv("INSTANCE_SETUP_PASSWORD");
   const vars = {
     OPENCLAW_STATE_DIR: "/app",
-    OPENCLAW_PRIMARY_MODEL: getEnv(INSTANCE_VAR_MAP.OPENCLAW_PRIMARY_MODEL),
-    OPENROUTER_API_KEY: getEnv(INSTANCE_VAR_MAP.OPENROUTER_API_KEY),
-    XMTP_ENV: getEnv(INSTANCE_VAR_MAP.XMTP_ENV, "dev"),
+    OPENCLAW_PRIMARY_MODEL: getEnv("INSTANCE_OPENCLAW_PRIMARY_MODEL"),
+    OPENROUTER_API_KEY: getEnv("INSTANCE_OPENROUTER_API_KEY"),
+    XMTP_ENV: getEnv("INSTANCE_XMTP_ENV", "dev"),
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_API_KEY: POOL_API_KEY || "",
-    AGENTMAIL_API_KEY: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY),
-    BANKR_API_KEY: getEnv(INSTANCE_VAR_MAP.BANKR_API_KEY),
-    TELNYX_API_KEY: getEnv(INSTANCE_VAR_MAP.TELNYX_API_KEY),
-    TELNYX_PHONE_NUMBER: getEnv(INSTANCE_VAR_MAP.TELNYX_PHONE_NUMBER),
-    TELNYX_MESSAGING_PROFILE_ID: getEnv(INSTANCE_VAR_MAP.TELNYX_MESSAGING_PROFILE_ID),
+    AGENTMAIL_API_KEY: getEnv("INSTANCE_AGENTMAIL_API_KEY"),
+    BANKR_API_KEY: getEnv("INSTANCE_BANKR_API_KEY"),
+    TELNYX_API_KEY: getEnv("INSTANCE_TELNYX_API_KEY"),
+    TELNYX_PHONE_NUMBER: getEnv("INSTANCE_TELNYX_PHONE_NUMBER"),
+    TELNYX_MESSAGING_PROFILE_ID: getEnv("INSTANCE_TELNYX_MESSAGING_PROFILE_ID"),
   };
   if (setupPassword) vars.SETUP_PASSWORD = setupPassword;
   return vars;
@@ -66,9 +50,9 @@ export function generatePrivateWalletKey() {
 /** Create a per-instance AgentMail inbox via the API.
  *  Returns { inboxId, perInstance } — perInstance is always true when an inbox is created. */
 export async function resolveAgentMailInbox(instanceId) {
-  const presetInboxId = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_INBOX_ID);
+  const presetInboxId = getEnv("INSTANCE_AGENTMAIL_INBOX_ID");
   if (presetInboxId) return { inboxId: presetInboxId, perInstance: false };
-  const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
+  const apiKey = getEnv("INSTANCE_AGENTMAIL_API_KEY");
   if (!apiKey) return { inboxId: "", perInstance: false };
   return createAgentMailInbox(apiKey, instanceId);
 }
@@ -83,7 +67,7 @@ async function createAgentMailInbox(apiKey, instanceId) {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ username, domain: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_DOMAIN) || undefined, display_name: "Convos Agent", client_id: clientId }),
+    body: JSON.stringify({ username, domain: getEnv("INSTANCE_AGENTMAIL_DOMAIN") || undefined, display_name: "Convos Agent", client_id: clientId }),
   });
   const body = await res.json();
   const inboxId = body?.inbox_id;
@@ -97,7 +81,7 @@ async function createAgentMailInbox(apiKey, instanceId) {
 
 /** Delete an AgentMail inbox. Best-effort — logs and swallows errors. */
 export async function deleteAgentMailInbox(inboxId) {
-  const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
+  const apiKey = getEnv("INSTANCE_AGENTMAIL_API_KEY");
   if (!apiKey || !inboxId) return;
 
   try {
@@ -119,7 +103,7 @@ export async function deleteAgentMailInbox(inboxId) {
 /** Resolve OPENROUTER_API_KEY. Priority: 1) 2) create via OPENROUTER_MANAGEMENT_KEY.
  *  Returns { key, hash } — hash is null for shared keys or when no key is available. */
 export async function resolveOpenRouterApiKey(instanceId) {
-  const existing = getEnv(INSTANCE_VAR_MAP.OPENROUTER_API_KEY);
+  const existing = getEnv("INSTANCE_OPENROUTER_API_KEY");
   if (existing) return { key: existing, hash: null }; // never create when shared key is configured
   if (!process.env.OPENROUTER_MANAGEMENT_KEY) return { key: "", hash: null };
   return createOpenRouterKey(instanceId);
