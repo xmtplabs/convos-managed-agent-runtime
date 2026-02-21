@@ -11,7 +11,12 @@ const INSTANCE_VAR_MAP = {
   OPENCLAW_GATEWAY_TOKEN: "INSTANCE_OPENCLAW_GATEWAY_TOKEN",
   SETUP_PASSWORD: "INSTANCE_SETUP_PASSWORD",
   XMTP_ENV: "INSTANCE_XMTP_ENV",
+  // optional pre-set keys — when provided, skip per-instance creation
+  OPENROUTER_API_KEY: "INSTANCE_OPENROUTER_API_KEY",
+  AGENTMAIL_INBOX_ID: "INSTANCE_AGENTMAIL_INBOX_ID",
+  // agentmail
   AGENTMAIL_API_KEY: "INSTANCE_AGENTMAIL_API_KEY",
+  AGENTMAIL_DOMAIN: "INSTANCE_AGENTMAIL_DOMAIN",
   BANKR_API_KEY: "INSTANCE_BANKR_API_KEY",
   TELNYX_API_KEY: "INSTANCE_TELNYX_API_KEY",
   TELNYX_PHONE_NUMBER: "INSTANCE_TELNYX_PHONE_NUMBER",
@@ -63,6 +68,8 @@ export function generatePrivateWalletKey() {
 /** Create a per-instance AgentMail inbox via the API.
  *  Returns { inboxId, perInstance } — perInstance is always true when an inbox is created. */
 export async function resolveAgentMailInbox(instanceId) {
+  const presetInboxId = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_INBOX_ID);
+  if (presetInboxId) return { inboxId: presetInboxId, perInstance: false };
   const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
   if (!apiKey) return { inboxId: "", perInstance: false };
   return createAgentMailInbox(apiKey, instanceId);
@@ -78,7 +85,7 @@ async function createAgentMailInbox(apiKey, instanceId) {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ username, domain: getEnv("AGENTMAIL_DOMAIN") || undefined, display_name: "Convos Agent", client_id: clientId }),
+    body: JSON.stringify({ username, domain: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_DOMAIN) || undefined, display_name: "Convos Agent", client_id: clientId }),
   });
   const body = await res.json();
   const inboxId = body?.inbox_id;
