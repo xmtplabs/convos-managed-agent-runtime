@@ -28,12 +28,8 @@ openclaw agent -m 'Search the current BTC price. Reply: BTC: $X.' --agent main
 
 ## Browser
 
+Gateway must be running and the browser control service starts with it. If you see "Can't reach the OpenClaw browser control service" or "Error: fields are required", restart the gateway (`openclaw gateway` or OpenClaw.app). Ensure `browser.enabled` is true in config.
+
 ```bash
-openclaw agent -m 'Use the browser tool to fill and submit a form. Follow these exact steps:
-1. Call browser with request="navigate" and targetUrl="https://convos-agent-main.up.railway.app/web-tools/form"
-2. Call browser with request="snapshot" to get the page elements and their ref IDs
-3. For each form field, call browser with request="act", action="fill", ref="<ref from snapshot>", value="<test data>"
-4. Call browser with request="act", action="click", ref="<submit button ref>" to submit
-5. Call browser with request="snapshot" to read the confirmation code
-Reply with: Form submitted. Confirmation code: <the code from the page>' --agent main
+openclaw agent -m 'go fill the form https://convos-managed-dev.up.railway.app/web-tools/form and submit it, give me the confirmation code' --agent main
 ```
