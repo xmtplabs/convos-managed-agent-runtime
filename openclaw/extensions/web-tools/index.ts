@@ -21,18 +21,15 @@ function serveFile(
   }
 }
 
-/** Read pool config from runtime config. */
-function getPoolConfig(api: OpenClawPluginApi): { token: string; url: string } {
+/** Read poolApiKey from runtime config so the landing page can auth to convos endpoints. */
+function getPoolApiKey(api: OpenClawPluginApi): string {
   try {
     const cfg = api.runtime.config.loadConfig() as Record<string, unknown>;
     const channels = cfg.channels as Record<string, unknown> | undefined;
     const convos = channels?.convos as Record<string, unknown> | undefined;
-    return {
-      token: (convos?.poolApiKey as string) || "",
-      url: (convos?.poolUrl as string) || "",
-    };
+    return (convos?.poolApiKey as string) || "";
   } catch {
-    return { token: "", url: "" };
+    return "";
   }
 }
 
@@ -40,7 +37,7 @@ function getPoolConfig(api: OpenClawPluginApi): { token: string; url: string } {
 function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: ServerResponse) {
   try {
     let html = fs.readFileSync(path.join(agentsDir, "landing.html"), "utf-8");
-    const { token } = getPoolConfig(api);
+    const token = getPoolApiKey(api);
     // Inject token before the closing </head> tag so it's available to scripts
     const injection = `<script>window.__POOL_TOKEN=${JSON.stringify(token)};</script>`;
     html = html.replace("</head>", injection + "\n</head>");
