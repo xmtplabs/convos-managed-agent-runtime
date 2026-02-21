@@ -32,13 +32,12 @@ export async function createService(name, variables = {}) {
   const projectId = process.env.RAILWAY_PROJECT_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!environmentId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
-  // Default to the same repo/branch the pool manager was deployed from
-  const repo = process.env.RAILWAY_SOURCE_REPO
-    || (process.env.RAILWAY_GIT_REPO_OWNER && process.env.RAILWAY_GIT_REPO_NAME
+  const repo =
+    process.env.RAILWAY_GIT_REPO_OWNER && process.env.RAILWAY_GIT_REPO_NAME
       ? `${process.env.RAILWAY_GIT_REPO_OWNER}/${process.env.RAILWAY_GIT_REPO_NAME}`
-      : null);
-  const branch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
-  if (!repo) throw new Error("RAILWAY_SOURCE_REPO not set and could not be derived from RAILWAY_GIT_* vars");
+      : null;
+  const branch = process.env.RAILWAY_GIT_BRANCH || null;
+  if (!repo) throw new Error("RAILWAY_GIT_REPO_OWNER and RAILWAY_GIT_REPO_NAME not set");
 
   // Create service WITHOUT source to prevent auto-deploy.
   // Connecting the repo happens later, after all config is set.

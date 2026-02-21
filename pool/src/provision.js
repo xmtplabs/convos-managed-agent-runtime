@@ -44,7 +44,7 @@ export async function provision(opts) {
     const result = await provisionRes.json();
 
     // Insert metadata row (persist resource IDs from cache so destroy can read them from DB)
-    const sourceBranch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
+    const sourceBranch = process.env.RAILWAY_GIT_BRANCH || null;
     await db.insertMetadata({
       id: instance.id,
       railwayServiceId: instance.serviceId,

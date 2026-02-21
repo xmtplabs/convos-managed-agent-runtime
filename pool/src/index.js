@@ -8,7 +8,7 @@ const PORT = parseInt(process.env.PORT || "8080", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
 // Deploy context shown in dashboard info tags
-const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
+const DEPLOY_BRANCH = process.env.RAILWAY_GIT_BRANCH || "unknown";
 const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
 const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || "";
 const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || "";
