@@ -208,34 +208,6 @@
     .test-msg-row input { flex: 1; }
     #send-test-btn { white-space: nowrap; }
     .convo-id { font-family: monospace; font-size: 0.65rem; color: #aaa; word-break: break-all; }
-    .env-badge {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 0.35rem 0.6rem;
-      border-radius: 4px;
-      z-index: 100;
-    }
-    .env-badge--production { background: #22c55e; color: #fff; }
-    .env-badge--staging { background: #f59e0b; color: #1f2937; }
-    .card-env {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #eee;
-      font-size: 0.8rem;
-      color: #666;
-      text-align: center;
-    }
-    .card-env a {
-      color: #111;
-      text-decoration: none;
-    }
-    .card-env a:hover { text-decoration: underline; }
-    .card-env .env-links { margin-top: 0.35rem; }
     .reset-btn {
       margin-top: 0.25rem;
       background: none;
@@ -250,7 +222,6 @@
   </style>
 </head>
 <body>
-  <div id="env-badge" class="env-badge env-badge--staging" aria-hidden="true">Staging</div>
   <div class="card">
     <div class="card-header">
       <span>convos agents</span>
@@ -302,12 +273,6 @@
       </div>
     </div>
     <div id="error" class="error" role="alert"></div>
-    <div id="card-env" class="card-env">
-      <span id="card-env-text">You are in staging.</span>
-      <div class="env-links" id="env-links">
-        <a id="link-switch" href="#" target="_blank" rel="noopener" style="display: none;">Switch to Railway</a>
-      </div>
-    </div>
   </div>
 
   <footer class="footer">
@@ -319,31 +284,6 @@
 
   <script>
     (function () {
-      (function setEnvBadgeAndCardEnv() {
-        var h = window.location.hostname;
-        var isMain = /railway\.app$/i.test(h);
-        var isStaging = !isMain && (h === "localhost" || h === "127.0.0.1" || h === "[::1]" || /\.ngrok(-free)?\.(app|io)/i.test(h));
-        var env = isMain ? "main" : (isStaging ? "staging" : "main");
-        var el = document.getElementById("env-badge");
-        if (el) {
-          el.textContent = env;
-          el.className = "env-badge env-badge--" + (env === "main" ? "production" : "staging");
-        }
-        var cardEnvText = document.getElementById("card-env-text");
-        if (cardEnvText) cardEnvText.textContent = "You are in " + env + ".";
-        var linkSwitch = document.getElementById("link-switch");
-        if (linkSwitch) {
-          if (env === "staging") {
-            linkSwitch.href = "https://convos-agent-main.up.railway.app/web-tools/agents";
-            linkSwitch.textContent = "Switch to main";
-            linkSwitch.style.display = "";
-          } else {
-            linkSwitch.href = "https://3b63484a39c2.ngrok.app/web-tools/agents";
-            linkSwitch.textContent = "Switch to staging";
-            linkSwitch.style.display = "";
-          }
-        }
-      })();
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/web-tools/agents/sw.js", { scope: "/web-tools/agents/" }).catch(function () {});
       }
