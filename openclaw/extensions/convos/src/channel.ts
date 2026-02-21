@@ -411,6 +411,7 @@ async function handleInboundMessage(
     CommandBody: rawBody,
     From: `convos:${msg.senderId}`,
     To: `convos:${msg.conversationId}`,
+    ConversationId: msg.conversationId,
     SessionKey: route.sessionKey,
     AccountId: route.accountId,
     ChatType: "group",
