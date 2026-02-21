@@ -12,26 +12,34 @@ function getEnv(name, fallback = "") {
   return val != null && val !== "" ? val : fallback;
 }
 
-/** Build env vars for instance (warm-up and claim). Omit SETUP_PASSWORD when unset so provision does not overwrite warmup-generated values. */
+// Env vars passed through to each agent instance as-is
+const PASSTHROUGH_VARS = [
+  "OPENCLAW_PRIMARY_MODEL",
+  "OPENROUTER_API_KEY",
+  "AGENTMAIL_API_KEY",
+  "AGENTMAIL_INBOX_ID",
+  "BANKR_API_KEY",
+  "TELNYX_API_KEY",
+  "TELNYX_PHONE_NUMBER",
+  "TELNYX_MESSAGING_PROFILE_ID",
+];
+
+// Env vars only set when present (so provision doesn't overwrite warmup-generated values)
+const OPTIONAL_VARS = ["SETUP_PASSWORD"];
+
+/** Build env vars for an agent instance (warm-up and claim). */
 export function instanceEnvVars() {
-  const setupPassword = getEnv("SETUP_PASSWORD");
   const vars = {
-    //Railway
     CHROMIUM_PATH: "/usr/bin/chromium",
     OPENCLAW_STATE_DIR: "/app",
-    //OpenClaw
-    OPENCLAW_PRIMARY_MODEL: getEnv("OPENCLAW_PRIMARY_MODEL"),
-    OPENROUTER_API_KEY: getEnv("OPENROUTER_API_KEY"),
     XMTP_ENV: getEnv("XMTP_ENV", "dev"),
     POOL_API_KEY: POOL_API_KEY || "",
-    AGENTMAIL_API_KEY: getEnv("AGENTMAIL_API_KEY"),
-    AGENTMAIL_INBOX_ID: getEnv("AGENTMAIL_INBOX_ID"),
-    BANKR_API_KEY: getEnv("BANKR_API_KEY"),
-    TELNYX_API_KEY: getEnv("TELNYX_API_KEY"),
-    TELNYX_PHONE_NUMBER: getEnv("TELNYX_PHONE_NUMBER"),
-    TELNYX_MESSAGING_PROFILE_ID: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
   };
-  if (setupPassword) vars.SETUP_PASSWORD = setupPassword;
+  for (const name of PASSTHROUGH_VARS) vars[name] = getEnv(name);
+  for (const name of OPTIONAL_VARS) {
+    const val = getEnv(name);
+    if (val) vars[name] = val;
+  }
   return vars;
 }
 
