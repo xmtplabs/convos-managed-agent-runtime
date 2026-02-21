@@ -437,7 +437,8 @@ const plugin = {
             typeof body.instructions === "string" && body.instructions.trim()
               ? body.instructions
               : DEFAULT_INSTRUCTIONS;
-          const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
+          const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+          const wsDir = path.join(stateDir, "workspace");
           fs.mkdirSync(wsDir, { recursive: true });
           fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
 
@@ -534,7 +535,8 @@ const plugin = {
             typeof body.instructions === "string" && body.instructions.trim()
               ? body.instructions
               : DEFAULT_INSTRUCTIONS;
-          const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
+          const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+          const wsDir = path.join(stateDir, "workspace");
           fs.mkdirSync(wsDir, { recursive: true });
           fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
 
