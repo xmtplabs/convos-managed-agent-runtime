@@ -1,6 +1,6 @@
 import { sql } from "./connection.js";
 
-async function migrate() {
+export async function migrate() {
   // If old table exists, rename and clean up
   const oldTable = await sql`
     SELECT 1 FROM information_schema.tables
@@ -78,10 +78,18 @@ async function migrate() {
   await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS openrouter_key_hash TEXT`;
   await sql`ALTER TABLE agent_metadata ADD COLUMN IF NOT EXISTS agentmail_inbox_id TEXT`;
 
-  process.exit(0);
 }
 
-migrate().catch((err) => {
-  console.error("Migration failed:", err);
-  process.exit(1);
-});
+// Run directly as a script: node pool/src/db/migrate.js
+const isMain =
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith("/db/migrate.js");
+
+if (isMain) {
+  migrate()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Migration failed:", err);
+      process.exit(1);
+    });
+}
