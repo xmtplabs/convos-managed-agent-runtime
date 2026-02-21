@@ -20,6 +20,25 @@ Your channel is Convos — you're already connected. Do NOT ask the user which p
 
 Refer to SOUL.md for your personality and TOOLS.md for your capabilities.`;
 
+/** Write custom instructions into workspace IDENTITY.md so the agent sees them on every message. */
+function writeInstructions(rawInstructions: unknown) {
+  const instructions =
+    typeof rawInstructions === "string" && rawInstructions.trim()
+      ? rawInstructions
+      : DEFAULT_INSTRUCTIONS;
+  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const wsDir = path.join(stateDir, "workspace");
+  fs.mkdirSync(wsDir, { recursive: true });
+  const identityPath = path.join(wsDir, "IDENTITY.md");
+  let baseIdentity = "";
+  try { baseIdentity = fs.readFileSync(identityPath, "utf-8"); } catch { /* first run — no base file yet */ }
+  const identityContent = baseIdentity
+    ? `${baseIdentity}\n\n---\n\n## Custom Instructions\n\n${instructions}`
+    : instructions;
+  fs.writeFileSync(identityPath, identityContent);
+  console.log(`[convos] wrote IDENTITY.md (${identityContent.length} chars) to ${identityPath}`);
+}
+
 // Module-level state for setup instance (accepts join requests during setup flow)
 let setupInstance: ConvosInstance | null = null;
 let setupJoinState = { joined: false, joinerInboxId: null as string | null };
@@ -432,14 +451,7 @@ const plugin = {
               : undefined;
           const accountId = typeof body.accountId === "string" ? body.accountId : undefined;
 
-          // Write instructions file for the agent (use sensible default if none provided)
-          const instructions =
-            typeof body.instructions === "string" && body.instructions.trim()
-              ? body.instructions
-              : DEFAULT_INSTRUCTIONS;
-          const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
-          fs.mkdirSync(wsDir, { recursive: true });
-          fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
+          writeInstructions(body.instructions);
 
           const runtime = getConvosRuntime();
           const cfg = runtime.config.loadConfig();
@@ -529,14 +541,7 @@ const plugin = {
             typeof body.profileImage === "string" ? body.profileImage : undefined;
           const accountId = typeof body.accountId === "string" ? body.accountId : undefined;
 
-          // Write instructions file for the agent (use sensible default if none provided)
-          const instructions =
-            typeof body.instructions === "string" && body.instructions.trim()
-              ? body.instructions
-              : DEFAULT_INSTRUCTIONS;
-          const wsDir = path.join(os.homedir(), ".openclaw", "workspace");
-          fs.mkdirSync(wsDir, { recursive: true });
-          fs.writeFileSync(path.join(wsDir, "INSTRUCTIONS.md"), instructions);
+          writeInstructions(body.instructions);
 
           const runtime = getConvosRuntime();
           const cfg = runtime.config.loadConfig();
