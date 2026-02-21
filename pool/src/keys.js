@@ -24,9 +24,6 @@ const PASSTHROUGH_VARS = [
   "TELNYX_MESSAGING_PROFILE_ID",
 ];
 
-// Env vars only set when present (so provision doesn't overwrite warmup-generated values)
-const OPTIONAL_VARS = ["SETUP_PASSWORD"];
-
 /** Build env vars for an agent instance (warm-up and claim). */
 export function instanceEnvVars() {
   const vars = {
@@ -36,10 +33,6 @@ export function instanceEnvVars() {
     POOL_API_KEY: POOL_API_KEY || "",
   };
   for (const name of PASSTHROUGH_VARS) vars[name] = getEnv(name);
-  for (const name of OPTIONAL_VARS) {
-    const val = getEnv(name);
-    if (val) vars[name] = val;
-  }
   return vars;
 }
 
