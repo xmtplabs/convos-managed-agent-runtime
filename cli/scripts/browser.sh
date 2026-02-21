@@ -1,5 +1,5 @@
 #!/bin/sh
-# Browser self-heal: kill stale Chrome, fix device scopes, validate config.
+# Browser self-heal: fix profile locks, device scopes, validate config.
 # Runs standalone or sourced by gateway.sh before the gateway starts.
 set -e
 
@@ -14,39 +14,14 @@ echo "  🌐 Browser pre-flight"
 echo "  ═══════════════════"
 
 # ---------------------------------------------------------------------------
-# 1. Kill stale Chrome processes
-#    Port-based kill only catches the main process; renderers, GPU helpers,
-#    and network helpers survive. Match by user-data-dir instead.
-# ---------------------------------------------------------------------------
-_oc_ud="$STATE_DIR/browser"
-_stale_chrome=$(pgrep -f "user-data-dir=$_oc_ud" 2>/dev/null | head -1) || true
-if [ -n "$_stale_chrome" ]; then
-  echo "  ⚠️  stale Chrome  → killing (matched user-data-dir)"
-  pkill -9 -f "user-data-dir=$_oc_ud" 2>/dev/null || true
-  sleep 1
-else
-  echo "  ✅ processes     → no stale Chrome"
-fi
-
-# Also kill anything on the CDP and relay ports
-lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-
-# ---------------------------------------------------------------------------
-# 2. Remove SingletonLock / SingletonSocket
+# 1. Remove SingletonLock / SingletonSocket
 #    Chrome refuses to start if another instance holds the profile lock.
 #    A dead Chrome leaves a dangling symlink pointing to a stale PID.
 # ---------------------------------------------------------------------------
+_oc_ud="$STATE_DIR/browser"
 _cleaned_lock=false
 for _lock in "$_oc_ud"/*/user-data/SingletonLock; do
   [ -e "$_lock" ] || [ -L "$_lock" ] || continue
-  if [ -L "$_lock" ]; then
-    _lock_pid=$(readlink "$_lock" 2>/dev/null | sed 's/.*-//')
-    if [ -n "$_lock_pid" ] && kill -0 "$_lock_pid" 2>/dev/null; then
-      echo "  ⚠️  profile lock  → live Chrome (pid $_lock_pid) — killed"
-      kill -9 "$_lock_pid" 2>/dev/null || true
-    fi
-  fi
   rm -f "$_lock" 2>/dev/null || true
   _cleaned_lock=true
 done
@@ -60,10 +35,10 @@ if [ "$_cleaned_lock" = "true" ]; then
 else
   echo "  ✅ profile lock  → clean"
 fi
-unset _oc_ud _stale_chrome _cleaned_lock _lock _lock_pid _sock
+unset _oc_ud _cleaned_lock _lock _sock
 
 # ---------------------------------------------------------------------------
-# 3. Fix device pairing scopes
+# 2. Fix device pairing scopes
 #    The gateway-client device needs operator.read to control Chrome via the
 #    browser relay. Older pairing records may be missing this scope, causing
 #    "pairing required" errors on scope-upgrade.
@@ -99,7 +74,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Validate browser config
+# 3. Validate browser config
 #    Check executable, ports, headless, bind mode.
 # ---------------------------------------------------------------------------
 if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
