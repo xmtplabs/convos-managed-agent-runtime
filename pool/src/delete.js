@@ -9,7 +9,7 @@
 import * as db from "./db/pool.js";
 import * as railway from "./railway.js";
 import * as cache from "./cache.js";
-import { deleteOpenRouterKey, deleteAgentMailInbox } from "./keys.js";
+import { cleanupAll } from "./services/index.js";
 import { fetchAllVolumesByService, deleteVolume } from "./volumes.js";
 
 // Services that failed to delete — skip on future ticks to avoid retry loops.
@@ -39,8 +39,11 @@ async function resolveResourceIds(inst) {
 export async function destroyInstance(inst, volumeMap = null) {
   console.log(`[delete] Deleting instance ${inst.id} (serviceId=${inst.serviceId})`);
   const { openRouterKeyHash, agentMailInboxId } = await resolveResourceIds(inst);
-  await deleteOpenRouterKey(openRouterKeyHash, inst.id);
-  await deleteAgentMailInbox(agentMailInboxId);
+  const handles = {
+    openrouter: { openRouterKeyHash },
+    email: { agentMailInboxId },
+  };
+  await cleanupAll(handles, inst.id);
   const map = volumeMap ?? (await fetchAllVolumesByService());
   await cleanupVolumes(inst.serviceId, map);
   console.log(`[delete] Volumes cleaned for ${inst.id}, deleting Railway service...`);
@@ -77,8 +80,11 @@ export async function destroyInstances(items) {
     if (deleteFailures.has(svc.id)) continue;
     try {
       const ids = await resolveResourceIds({ serviceId: svc.id, id: cached?.id, ...cached });
-      await deleteOpenRouterKey(ids.openRouterKeyHash, cached?.id);
-      await deleteAgentMailInbox(ids.agentMailInboxId);
+      const handles = {
+        openrouter: { openRouterKeyHash: ids.openRouterKeyHash },
+        email: { agentMailInboxId: ids.agentMailInboxId },
+      };
+      await cleanupAll(handles, cached?.id);
       await cleanupVolumes(svc.id, volumeMap);
       await railway.deleteService(svc.id);
       console.log(`[delete] Deleted ${svc.id} (${svc.name})`);

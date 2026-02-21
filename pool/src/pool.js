@@ -4,7 +4,8 @@ import * as railway from "./railway.js";
 import * as cache from "./cache.js";
 import { deriveStatus } from "./status.js";
 import { ensureVolume, fetchAllVolumesByService } from "./volumes.js";
-import { instanceEnvVars, resolveOpenRouterApiKey, resolveAgentMailInbox, generatePrivateWalletKey, generateGatewayToken, generateSetupPassword } from "./keys.js";
+import { instanceEnvVars, generatePrivateWalletKey, generateGatewayToken, generateSetupPassword } from "./keys.js";
+import { resolveAll } from "./services/index.js";
 import { destroyInstance, destroyInstances } from "./delete.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
@@ -50,10 +51,8 @@ export async function createInstance() {
   const vars = { ...instanceEnvVars() };
   if (vars.OPENCLAW_GATEWAY_TOKEN === undefined) vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
   if (vars.SETUP_PASSWORD === undefined) vars.SETUP_PASSWORD = generateSetupPassword();
-  const { key: openRouterKey, hash: openRouterKeyHash } = await resolveOpenRouterApiKey(id);
-  if (openRouterKey) vars.OPENROUTER_API_KEY = openRouterKey;
-  const { inboxId: agentMailInboxId, perInstance: agentMailPerInstance } = await resolveAgentMailInbox(id);
-  if (agentMailInboxId) vars.AGENTMAIL_INBOX_ID = agentMailInboxId;
+  const { envVars: serviceEnv, handles: serviceHandles } = await resolveAll(id);
+  Object.assign(vars, serviceEnv);
   const privateWalletKey = generatePrivateWalletKey();
   vars.PRIVATE_WALLET_KEY = privateWalletKey;
 
@@ -77,11 +76,12 @@ export async function createInstance() {
     status: "starting",
     createdAt: new Date().toISOString(),
     deployStatus: "BUILDING",
-    openRouterApiKey: openRouterKey || undefined,
-    openRouterKeyHash: openRouterKeyHash || undefined,
-    agentMailInboxId: agentMailPerInstance ? agentMailInboxId : undefined,
+    openRouterApiKey: serviceEnv.OPENROUTER_API_KEY || undefined,
+    openRouterKeyHash: serviceHandles.openrouter?.openRouterKeyHash || undefined,
+    agentMailInboxId: serviceHandles.email?.agentMailInboxId || undefined,
     privateWalletKey,
     gatewayToken: vars.OPENCLAW_GATEWAY_TOKEN,
+    serviceHandles,
   });
 
   return { id, serviceId, url, name };
@@ -228,6 +228,7 @@ export async function tick() {
     if (existing?.openRouterApiKey) entry.openRouterApiKey = existing.openRouterApiKey;
     if (existing?.privateWalletKey) entry.privateWalletKey = existing.privateWalletKey;
     if (existing?.gatewayToken) entry.gatewayToken = existing.gatewayToken;
+    if (existing?.serviceHandles) entry.serviceHandles = existing.serviceHandles;
 
     // Enrich with metadata
     if (metadata) {

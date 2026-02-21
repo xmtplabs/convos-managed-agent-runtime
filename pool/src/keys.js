@@ -15,13 +15,8 @@ function getEnv(name, fallback = "") {
 // Env vars passed through to each agent instance as-is
 const PASSTHROUGH_VARS = [
   "OPENCLAW_PRIMARY_MODEL",
-  "OPENROUTER_API_KEY",
   "AGENTMAIL_API_KEY",
-  "AGENTMAIL_INBOX_ID",
   "BANKR_API_KEY",
-  "TELNYX_API_KEY",
-  "TELNYX_PHONE_NUMBER",
-  "TELNYX_MESSAGING_PROFILE_ID",
 ];
 
 /** Build env vars for an agent instance (warm-up and claim). */

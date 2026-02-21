@@ -6,7 +6,6 @@ import { migrate } from "./db/migrate.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
-const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
 // Deploy context shown in dashboard info tags
 const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
 const AGENT_MODEL = process.env.OPENCLAW_PRIMARY_MODEL || "unknown";
@@ -34,7 +33,7 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 // Version — check this to verify what code is deployed.
 const BUILD_VERSION = "2026-02-12T01:cache-v1";
-app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: POOL_ENVIRONMENT }));
+app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION }));
 
 // Pool counts (no auth — used by the launch form)
 app.get("/api/pool/counts", (_req, res) => {
@@ -686,33 +685,6 @@ app.get("/", (_req, res) => {
       font-size: 13px;
     }
 
-    .env-badge {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 3px 8px;
-      border-radius: 6px;
-      margin-left: 10px;
-      vertical-align: middle;
-    }
-
-    .env-badge.env-staging {
-      background: #FEF3C7;
-      border: 1px solid #FDE68A;
-      color: #92400E;
-    }
-
-    .env-badge.env-production {
-      background: #FEE2E2;
-      border: 1px solid #FECACA;
-      color: #991B1B;
-    }
-
-    body.env-production { border-top: 3px solid #DC2626; }
-    body.env-staging { border-top: 3px solid #F59E0B; }
-
     @media (max-width: 768px) {
       body { padding: 16px; }
 
@@ -742,11 +714,11 @@ app.get("/", (_req, res) => {
     }
   </style>
 </head>
-<body class="env-${POOL_ENVIRONMENT}">
+<body>
   <div class="container">
     <header class="header">
       <div class="logo-container">
-        <span class="logo-text">Convos Agent Pool<span class="env-badge env-${POOL_ENVIRONMENT}">${POOL_ENVIRONMENT}</span></span>
+        <span class="logo-text">Convos Agent Pool</span>
         <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""}</span>
       </div>
     </header>
@@ -866,7 +838,6 @@ app.get("/", (_req, res) => {
 
   <script>
     const API_KEY='${POOL_API_KEY}';
-    const POOL_ENV='${POOL_ENVIRONMENT}';
     const RAILWAY_PROJECT='${process.env.RAILWAY_PROJECT_ID || ""}';
     const RAILWAY_ENV='${process.env.RAILWAY_ENVIRONMENT_ID || ""}';
     const authHeaders={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'};
@@ -1062,9 +1033,7 @@ app.get("/", (_req, res) => {
     }
 
     async function killAgent(id,name){
-      var confirmMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Are you sure you want to kill "'+name+'"? This will delete the Railway service permanently.';
-      if(!confirm(confirmMsg))return;
+      if(!confirm('Are you sure you want to kill "'+name+'"? This will delete the Railway service permanently.'))return;
       try{
         await killOne(id);
         refreshStatus();
@@ -1077,9 +1046,7 @@ app.get("/", (_req, res) => {
 
     // Dismiss crashed agent
     async function dismissAgent(id,name){
-      var confirmMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Dismiss crashed agent "'+name+'"? This will clean up the Railway service.';
-      if(!confirm(confirmMsg))return;
+      if(!confirm('Dismiss crashed agent "'+name+'"? This will clean up the Railway service.'))return;
       markDestroying(id);
       try{
         var res=await fetch('/api/pool/crashed/'+id,{method:'DELETE',headers:authHeaders});
@@ -1155,9 +1122,7 @@ app.get("/", (_req, res) => {
       }catch(e){ n=0; }
       drainBtn.disabled=false;
       if(n===0){ alert('No unclaimed instances to drain.'); return; }
-      var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Drain '+n+' unclaimed instance(s) from the pool?';
-      if(!confirm(drainMsg))return;
+      if(!confirm('Drain '+n+' unclaimed instance(s) from the pool?'))return;
       drainBtn.disabled=true;drainBtn.textContent='Draining...';
       try{
         var res=await fetch('/api/pool/drain',{method:'POST',headers:authHeaders,
@@ -1198,13 +1163,6 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   if (joinUrl && typeof joinUrl !== "string") {
     return res.status(400).json({ error: "joinUrl must be a string if provided" });
   }
-  if (joinUrl && POOL_ENVIRONMENT === "production" && /dev\.convos\.org/i.test(joinUrl)) {
-    return res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" });
-  }
-  if (joinUrl && POOL_ENVIRONMENT !== "production" && /popup\.convos\.org/i.test(joinUrl)) {
-    return res.status(400).json({ error: `popup.convos.org links cannot be used in the ${POOL_ENVIRONMENT} environment` });
-  }
-
   try {
     const result = await pool.provision({
       agentName,
@@ -1266,6 +1224,130 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("[api] Drain failed:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CORS preflight for test endpoints ---
+app.options("/api/pool/test/:service", (_req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  res.setHeader("Access-Control-Max-Age", "86400");
+  res.status(204).end();
+});
+
+// Middleware: attach CORS headers to all test endpoint responses
+function corsHeaders(_req, res, next) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  next();
+}
+
+// --- Test endpoints ---
+
+app.post("/api/pool/test/email", requireAuth, corsHeaders, async (_req, res) => {
+  const apiKey = process.env.AGENTMAIL_API_KEY;
+  if (!apiKey) return res.json({ ok: false, error: "AGENTMAIL_API_KEY not configured" });
+  try {
+    const r = await fetch("https://api.agentmail.to/v0/inboxes", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      return res.json({ ok: false, error: `AgentMail API returned ${r.status}: ${body.slice(0, 200)}` });
+    }
+    const body = await r.json();
+    const inboxCount = Array.isArray(body?.inboxes) ? body.inboxes.length : (body?.total ?? "unknown");
+    res.json({ ok: true, inboxCount });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/pool/test/openrouter", requireAuth, corsHeaders, async (_req, res) => {
+  const mgmtKey = process.env.OPENROUTER_MANAGEMENT_KEY;
+  const sharedKey = process.env.OPENROUTER_API_KEY;
+  if (mgmtKey) {
+    try {
+      const r = await fetch("https://openrouter.ai/api/v1/keys", {
+        headers: { Authorization: `Bearer ${mgmtKey}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        return res.json({ ok: false, error: `OpenRouter API returned ${r.status}: ${body.slice(0, 200)}` });
+      }
+      const body = await r.json();
+      const keyCount = body?.data?.length ?? "unknown";
+      return res.json({ ok: true, mode: "management", keyCount });
+    } catch (err) {
+      return res.json({ ok: false, error: err.message });
+    }
+  }
+  if (sharedKey) {
+    try {
+      const r = await fetch("https://openrouter.ai/api/v1/auth/key", {
+        headers: { Authorization: `Bearer ${sharedKey}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        return res.json({ ok: false, error: `OpenRouter API returned ${r.status}: ${body.slice(0, 200)}` });
+      }
+      return res.json({ ok: true, mode: "shared" });
+    } catch (err) {
+      return res.json({ ok: false, error: err.message });
+    }
+  }
+  res.json({ ok: false, error: "not configured" });
+});
+
+app.post("/api/pool/test/telnyx", requireAuth, corsHeaders, async (req, res) => {
+  const apiKey = process.env.TELNYX_API_KEY;
+  if (!apiKey) return res.json({ ok: false, error: "TELNYX_API_KEY not configured" });
+  const to = req.body?.to;
+  if (!to) {
+    // Validate key only
+    try {
+      const r = await fetch("https://api.telnyx.com/v2/messaging_profiles", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) {
+        const body = await r.text().catch(() => "");
+        return res.json({ ok: false, error: `Telnyx API returned ${r.status}: ${body.slice(0, 200)}` });
+      }
+      return res.json({ ok: true, smsSent: false });
+    } catch (err) {
+      return res.json({ ok: false, error: err.message });
+    }
+  }
+  // Send test SMS
+  try {
+    const from = process.env.TELNYX_PHONE_NUMBER;
+    const profileId = process.env.TELNYX_MESSAGING_PROFILE_ID;
+    const payload = {
+      to,
+      text: "Test message from Convos Agent Pool",
+      ...(from && { from }),
+      ...(profileId && { messaging_profile_id: profileId }),
+    };
+    const r = await fetch("https://api.telnyx.com/v2/messages", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      return res.json({ ok: false, error: `Telnyx API returned ${r.status}: ${body.slice(0, 200)}` });
+    }
+    res.json({ ok: true, smsSent: true });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
   }
 });
 
