@@ -2,6 +2,7 @@ import express from "express";
 import * as pool from "./pool.js";
 import * as cache from "./cache.js";
 import { deleteOrphanAgentVolumes } from "./volumes.js";
+import { migrate } from "./db/migrate.js";
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
@@ -1278,12 +1279,13 @@ setInterval(() => {
   pool.tick().catch((err) => console.error("[tick] Error:", err));
 }, TICK_INTERVAL);
 
-// One-time orphan volume cleanup, then run initial tick
-deleteOrphanAgentVolumes()
-  .catch((err) => console.warn("[startup] Orphan volume cleanup failed:", err.message))
-  .then(() => pool.tick())
-  .catch((err) => console.error("[tick] Initial tick error:", err));
-
-app.listen(PORT, () => {
-  console.log(`Pool manager listening on :${PORT}`);
+async function startup() {
+  await migrate();
+  await deleteOrphanAgentVolumes().catch((err) => console.warn("[startup] Orphan volume cleanup failed:", err.message));
+  await pool.tick().catch((err) => console.error("[tick] Initial tick error:", err));
+  app.listen(PORT, () => console.log(`Pool manager listening on :${PORT}`));
+}
+startup().catch((err) => {
+  console.error("[startup] Fatal:", err);
+  process.exit(1);
 });
