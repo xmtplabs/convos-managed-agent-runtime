@@ -12,22 +12,28 @@ function getEnv(name, fallback = "") {
   return val != null && val !== "" ? val : fallback;
 }
 
-// Env vars passed through to each agent instance as-is
-const PASSTHROUGH_VARS = [
-  "OPENCLAW_PRIMARY_MODEL",
-  "AGENTMAIL_API_KEY",
-  "BANKR_API_KEY",
-];
+// Env vars that must NOT be passed to agent instances (pool-manager only).
+const BLOCKED_VARS = new Set([
+  "OPENROUTER_MANAGEMENT_KEY",  // used by services internally, never leaked
+  "OPENROUTER_KEY_LIMIT",
+  "OPENROUTER_KEY_LIMIT_RESET",
+  "RAILWAY_API_TOKEN",          // pool-manager credential for Railway API
+  "DATABASE_URL",               // pool-manager postgres
+]);
 
-/** Build env vars for an agent instance (warm-up and claim). */
+/** Build env vars for an agent instance (warm-up and claim).
+ *  Passes all env vars except BLOCKED_VARS, then applies instance overrides. */
 export function instanceEnvVars() {
-  const vars = {
-    CHROMIUM_PATH: "/usr/bin/chromium",
-    OPENCLAW_STATE_DIR: "/app",
-    XMTP_ENV: getEnv("XMTP_ENV", "dev"),
-    POOL_API_KEY: POOL_API_KEY || "",
-  };
-  for (const name of PASSTHROUGH_VARS) vars[name] = getEnv(name);
+  const vars = {};
+  for (const [name, val] of Object.entries(process.env)) {
+    if (!BLOCKED_VARS.has(name) && val != null && val !== "") {
+      vars[name] = val;
+    }
+  }
+  // Instance-specific overrides
+  vars.CHROMIUM_PATH = "/usr/bin/chromium";
+  vars.OPENCLAW_STATE_DIR = "/app";
+  if (!vars.XMTP_ENV) vars.XMTP_ENV = "dev";
   return vars;
 }
 
