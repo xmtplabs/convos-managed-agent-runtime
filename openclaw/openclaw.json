@@ -3,6 +3,7 @@
     "mode": "local",
     "port": 18789,
     "bind": "loopback",
+    "trustedProxies": ["::1", "127.0.0.1"],
     "auth": {
       "mode": "token"
     },
