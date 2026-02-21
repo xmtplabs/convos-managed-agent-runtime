@@ -8,7 +8,8 @@
       "mode": "token"
     },
     "controlUi": {
-      "allowInsecureAuth": true
+      "allowInsecureAuth": true,
+      "dangerouslyDisableDeviceAuth": true
     }
   },
   "logging": {
