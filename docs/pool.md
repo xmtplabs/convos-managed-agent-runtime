@@ -62,9 +62,7 @@ pnpm start
 | `RAILWAY_API_TOKEN` | Railway project-scoped API token |
 | `RAILWAY_PROJECT_ID` | Railway project ID |
 | `RAILWAY_ENVIRONMENT_ID` | Railway environment ID |
-| `RAILWAY_SOURCE_REPO` | GitHub repo to deploy (e.g. `xmtplabs/convos-agents`); falls back to `RAILWAY_GIT_REPO_OWNER/RAILWAY_GIT_REPO_NAME` |
-| `RAILWAY_SOURCE_BRANCH` | Branch to deploy from (e.g. `staging`, `main`); falls back to `RAILWAY_GIT_BRANCH` |
-| `RAILWAY_SOURCE_ROOT_DIR` | Subdirectory containing the Dockerfile (`agent`) |
+| `RAILWAY_GIT_BRANCH` | Branch to deploy from (e.g. `staging`, `main`) |
 | **OpenRouter** | |
 | `OPENROUTER_MANAGEMENT_KEY` | Management key for creating per-instance API keys |
 | `OPENROUTER_KEY_LIMIT` | USD spend limit per key (default `20`) |
