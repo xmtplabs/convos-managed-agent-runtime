@@ -10,6 +10,8 @@ import { destroyInstance, destroyInstances } from "./delete.js";
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const MIN_IDLE = parseInt(process.env.POOL_MIN_IDLE || "1", 10);
 
+let tickRunning = false;
+
 // Health-check a single instance via /pool/health.
 // Returns parsed JSON on success, null on failure.
 async function healthCheck(url) {
@@ -89,6 +91,19 @@ export async function createInstance() {
 
 // Unified tick: rebuild cache from Railway, health-check, replenish.
 export async function tick() {
+  if (tickRunning) {
+    console.log("[tick] Already running, skipping");
+    return;
+  }
+  tickRunning = true;
+  try {
+    await _tick();
+  } finally {
+    tickRunning = false;
+  }
+}
+
+async function _tick() {
   const myEnvId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!myEnvId) {
     console.warn(`[tick] RAILWAY_ENVIRONMENT_ID not set, skipping tick`);
