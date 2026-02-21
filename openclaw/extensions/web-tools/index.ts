@@ -54,27 +54,9 @@ function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: Server
   }
 }
 
-/** Serve the services test page with pool token and URL injected. */
-function serveServicesPage(api: OpenClawPluginApi, servicesDir: string, res: ServerResponse) {
-  try {
-    let html = fs.readFileSync(path.join(servicesDir, "services.html"), "utf-8");
-    const { token, url } = getPoolConfig(api);
-    const injection = `<script>window.__POOL_TOKEN=${JSON.stringify(token)};window.__POOL_URL=${JSON.stringify(url)};</script>`;
-    html = html.replace("</head>", injection + "\n</head>");
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store");
-    res.end(html);
-  } catch {
-    res.statusCode = 404;
-    res.end();
-  }
-}
-
 export default function register(api: OpenClawPluginApi) {
   const formDir = path.resolve(__dirname, "form");
   const agentsDir = path.resolve(__dirname, "agents");
-  const servicesDir = path.resolve(__dirname, "services");
 
   api.registerHttpRoute({
     path: "/web-tools/form",
@@ -169,27 +151,4 @@ export default function register(api: OpenClawPluginApi) {
     },
   });
 
-  api.registerHttpRoute({
-    path: "/web-tools/services",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveServicesPage(api, servicesDir, res);
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/services/",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveServicesPage(api, servicesDir, res);
-    },
-  });
 }
