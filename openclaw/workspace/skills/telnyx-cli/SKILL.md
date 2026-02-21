@@ -1,7 +1,7 @@
 ---
 name: telnyx-cli
 description: Telnyx API integration via CLI. Send SMS/MMS/WhatsApp messages, manage phone numbers, query call logs, debug webhooks, and access your Telnyx account. Use when interacting with Telnyx APIs, managing messaging, or accessing account data.
-metadata: {"openclaw":{"emoji":"🔧","requires":{"bins":["telnyx"],"env":["TELNYX_API_KEY","TELNYX_PHONE_NUMBER","TELNYX_MESSAGING_PROFILE_ID"]},"primaryEnv":"TELNYX_API_KEY"}}
+metadata: {"openclaw":{"emoji":"🔧","requires":{"bins":["telnyx"],"env":["TELNYX_API_KEY","TELNYX_PHONE_NUMBER"]},"primaryEnv":"TELNYX_API_KEY"}}
 ---
 
 # Telnyx CLI

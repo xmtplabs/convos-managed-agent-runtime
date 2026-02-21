@@ -122,7 +122,6 @@
     }
   },
   "plugins": {
-    "allow": ["convos", "web-tools"],
     "slots": { "memory": "none" },
     "entries": { "web-tools": { "enabled": true } }
   },

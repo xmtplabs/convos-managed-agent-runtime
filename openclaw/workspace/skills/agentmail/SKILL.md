@@ -6,7 +6,6 @@ description: |
   DON'T USE WHEN: User hasn't provided an email address. Task is just creating an ICS file without sending it (use fs tools).
   INPUTS: Recipient email, subject, content, optional ICS path. OUTPUTS: Sent confirmation.
   REQUIRES: AGENTMAIL_API_KEY, AGENTMAIL_INBOX_ID env vars (already configured in .env).
-metadata: {"openclaw":{"requires":{"env":["AGENTMAIL_API_KEY","AGENTMAIL_INBOX_ID"]},"primaryEnv":"AGENTMAIL_API_KEY"}}
 ---
 
 ## Restrictions
