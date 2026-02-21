@@ -83,10 +83,10 @@ async function createAgentMailInbox(apiKey, instanceId) {
   const body = await res.json();
   const inboxId = body?.inbox_id;
   if (!inboxId) {
-    console.error("[keys] AgentMail create inbox failed:", res.status, body);
+    console.error("  ⚠️  AgentMail create inbox failed:", res.status, body);
     throw new Error(`AgentMail inbox creation failed: ${res.status}`);
   }
-  console.log(`[keys] Created AgentMail inbox ${inboxId} for ${clientId}`);
+  console.log("  📬 AgentMail inbox → created", inboxId, "for", clientId);
   return { inboxId, perInstance: true };
 }
 
@@ -101,13 +101,13 @@ export async function deleteAgentMailInbox(inboxId) {
       headers: { Authorization: `Bearer ${apiKey}` },
     });
     if (res.ok) {
-      console.log(`[keys] Deleted AgentMail inbox ${inboxId}`);
+      console.log("  📬 AgentMail inbox → deleted", inboxId);
     } else {
       const body = await res.text();
-      console.warn(`[keys] Failed to delete AgentMail inbox ${inboxId}: ${res.status} ${body}`);
+      console.warn("  ⚠️  AgentMail delete failed:", inboxId, res.status, body);
     }
   } catch (err) {
-    console.warn(`[keys] Failed to delete AgentMail inbox ${inboxId}:`, err.message);
+    console.warn("  ⚠️  AgentMail delete failed:", inboxId, err.message);
   }
 }
 
@@ -141,10 +141,10 @@ export async function createOpenRouterKey(instanceId) {
   const key = body?.key;
   const hash = body?.data?.hash ?? null;
   if (!key) {
-    console.error("[keys] OpenRouter create key failed:", res.status, body);
+    console.error("  ⚠️  OpenRouter create key failed:", res.status, body);
     throw new Error(`OpenRouter key creation failed: ${res.status}`);
   }
-  console.log(`[keys] Created OpenRouter key for ${name} (hash=${hash})`);
+  console.log("  🔐 OpenRouter key → created for", name, "hash=" + hash);
   return { key, hash };
 }
 
@@ -175,10 +175,10 @@ export async function deleteOpenRouterKey(hash, instanceId) {
   if (!targetHash && instanceId) {
     targetHash = await findOpenRouterKeyHash(mgmtKey, instanceId);
     if (!targetHash) {
-      console.log(`[keys] No OpenRouter key found for instance ${instanceId}`);
+      console.log("  🔐 OpenRouter key → none for instance", instanceId);
       return;
     }
-    console.log(`[keys] Resolved OpenRouter key hash for ${instanceId}: ${targetHash}`);
+    console.log("  🔐 OpenRouter key → resolved hash for", instanceId, "→", targetHash);
   }
   if (!targetHash) return;
 
@@ -188,12 +188,12 @@ export async function deleteOpenRouterKey(hash, instanceId) {
       headers: { Authorization: `Bearer ${mgmtKey}` },
     });
     if (res.ok) {
-      console.log(`[keys] Deleted OpenRouter key (hash=${targetHash})`);
+      console.log("  🔐 OpenRouter key → deleted hash=" + targetHash);
     } else {
       const body = await res.text();
-      console.warn(`[keys] Failed to delete OpenRouter key (hash=${targetHash}): ${res.status} ${body}`);
+      console.warn("  ⚠️  OpenRouter delete failed hash=" + targetHash, res.status, body);
     }
   } catch (err) {
-    console.warn(`[keys] Failed to delete OpenRouter key (hash=${targetHash}):`, err.message);
+    console.warn("  ⚠️  OpenRouter delete failed hash=" + targetHash, err.message);
   }
 }
