@@ -54,9 +54,12 @@ function spawnGateway(extraEnv = {}) {
 
 async function pollGateway() {
   const url = `http://localhost:${INTERNAL_PORT}/__openclaw__/canvas/`;
+  const headers = {};
+  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   for (let i = 1; i <= 120; i++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         console.log(`[pool-server] Gateway ready after ${i}s`);
         gatewayReady = true;
