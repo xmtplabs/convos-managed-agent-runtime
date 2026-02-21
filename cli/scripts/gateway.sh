@@ -10,9 +10,6 @@ ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)
 
 . "$ROOT/cli/scripts/lib/node-path.sh"
 
-CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
-RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
-
 # --- Clean up any previous gateway processes ---
 $ENTRY gateway stop 2>/dev/null || true
 # Kill stale gateway.sh wrapper scripts (excluding ourselves) so their restart
@@ -26,122 +23,38 @@ unset _my_pid _pid
 # Kill stale openclaw processes by name so Bonjour registrations are released
 pkill -9 -f "openclaw-gateway" 2>/dev/null || true
 pkill -9 -f "openclaw gateway" 2>/dev/null || true
-# Force-kill anything still holding the ports (lsof can return multiple PIDs)
+# Force-kill anything still holding the gateway port
 lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-# Kill stale Chrome processes using the openclaw browser profile (renderers, GPU,
-# network helpers don't listen on the CDP port, so port-based kill misses them).
-_oc_ud="$STATE_DIR/browser"
-pkill -9 -f "user-data-dir=$_oc_ud" 2>/dev/null || true
-rm -f "$_oc_ud"/*/user-data/SingletonLock "$_oc_ud"/*/user-data/SingletonSocket 2>/dev/null || true
-unset _oc_ud
 # Remove stale lock/pid files and let ports + Bonjour registrations clear
 rm -f "$STATE_DIR/gateway.pid" "$STATE_DIR/gateway.lock" 2>/dev/null || true
-# Clear stale device pairing state so the gateway-client gets a fresh pairing
-# with correct scopes (prevents "pairing required" errors on browser relay).
-rm -f "$STATE_DIR/devices/pending.json" 2>/dev/null || true
-if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/devices/paired.json" ]; then
-  jq '
-    to_entries
-    | map(
-        if .value.clientId == "gateway-client"
-        then .value.scopes = (.value.scopes + ["operator.read"] | unique)
-           | .value.tokens = (
-               .value.tokens | to_entries
-               | map(.value.scopes = (.value.scopes + ["operator.read"] | unique))
-               | from_entries
-             )
-        else .
-        end
-      )
-    | from_entries
-  ' "$STATE_DIR/devices/paired.json" > "$STATE_DIR/devices/paired.json.tmp" \
-    && mv "$STATE_DIR/devices/paired.json.tmp" "$STATE_DIR/devices/paired.json" 2>/dev/null || true
-fi
 sleep 2
 # Second pass — kill anything that respawned during the wait
 lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 sleep 1
+
+# --- Browser pre-flight (stale Chrome, device scopes, config validation) ---
+sh "$ROOT/cli/scripts/browser.sh"
+
 echo ""
 echo "  🚀 Starting gateway"
 echo "  ═══════════════════"
 
-# Port availability checks
+# Port availability check (gateway only — browser ports checked by browser.sh)
 _gw_busy=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
 if [ -n "$_gw_busy" ]; then
   echo "  ⚠️  port $PORT    → in use (pid $_gw_busy) — gateway may fail to bind"
 else
   echo "  ✅ port $PORT    → available (gateway)"
 fi
+unset _gw_busy
 
-_relay_busy=$(lsof -ti "tcp:$RELAY_PORT" 2>/dev/null) || true
-if [ -n "$_relay_busy" ]; then
-  echo "  ⚠️  port $RELAY_PORT   → in use (pid $_relay_busy) — browser relay may conflict"
-else
-  echo "  ✅ port $RELAY_PORT   → available (browser relay)"
-fi
-_cdp_busy=$(lsof -ti "tcp:$CDP_PORT" 2>/dev/null) || true
-if [ -n "$_cdp_busy" ]; then
-  echo "  ⚠️  port $CDP_PORT   → in use (pid $_cdp_busy) — browser CDP may conflict"
-else
-  echo "  ✅ port $CDP_PORT   → available (browser CDP)"
-fi
-unset _gw_busy _relay_busy _cdp_busy
-
-# Chrome path (read from the patched config)
+# Log level
 if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
-  _chrome=$(jq -r '.browser.executablePath // "not set"' "$STATE_DIR/openclaw.json")
-  _headless=$(jq -r '.browser.headless // "not set"' "$STATE_DIR/openclaw.json")
-  _sandbox=$(jq -r 'if .browser.noSandbox == true then "off" elif .browser.noSandbox == false then "on" else "not set" end' "$STATE_DIR/openclaw.json")
   _loglevel=$(jq -r '.logging.consoleLevel // "not set"' "$STATE_DIR/openclaw.json")
-  echo "  🌐 chrome       → $_chrome"
-  echo "  🖥  headless     → $_headless"
-  echo "  🔒 sandbox      → $_sandbox"
   echo "  📝 log level    → $_loglevel"
-  # Browser readiness check
-  _browser_ok=true
-  _browser_enabled=$(jq -r '.browser.enabled // false' "$STATE_DIR/openclaw.json")
-  if [ "$_browser_enabled" != "true" ]; then
-    echo "  🌐 browser      → disabled in config"
-    _browser_ok=false
-  elif [ "$_chrome" = "not set" ] || [ ! -x "$_chrome" ]; then
-    echo "  ❌ browser      → chrome not found at $_chrome"
-    _browser_ok=false
-  else
-    _stale_lock="$STATE_DIR/browser/openclaw/user-data/SingletonLock"
-    if [ -L "$_stale_lock" ]; then
-      _lock_pid=$(readlink "$_stale_lock" 2>/dev/null | sed 's/.*-//')
-      if [ -n "$_lock_pid" ] && kill -0 "$_lock_pid" 2>/dev/null; then
-        echo "  ⚠️  browser      → stale Chrome (pid $_lock_pid) holding profile lock"
-        _browser_ok=false
-      else
-        rm -f "$_stale_lock" 2>/dev/null || true
-      fi
-    fi
-    _stale_chrome=$(pgrep -f "user-data-dir=$STATE_DIR/browser" 2>/dev/null | head -1) || true
-    if [ -n "$_stale_chrome" ]; then
-      echo "  ⚠️  browser      → stale Chrome process (pid $_stale_chrome) — killing"
-      pkill -9 -f "user-data-dir=$STATE_DIR/browser" 2>/dev/null || true
-      rm -f "$STATE_DIR/browser"/*/user-data/SingletonLock 2>/dev/null || true
-      sleep 1
-    fi
-    # Check for bind=lan + ws:// security conflict (browser relay blocks plaintext to non-loopback)
-    _gw_bind=$(jq -r '.gateway.bind // "loopback"' "$STATE_DIR/openclaw.json")
-    if [ "$_gw_bind" != "loopback" ]; then
-      echo "  ⚠️  browser      → gateway.bind=$_gw_bind — browser relay may fail (ws:// to non-loopback)"
-      echo "     ↳ Fix: use pool-server.js (keeps gateway on loopback) or set gateway.bind=loopback"
-      _browser_ok=false
-    fi
-    unset _gw_bind
-    if [ "$_browser_ok" = "true" ]; then
-      echo "  ✅ browser      → ready (chrome $_headless, cdp :$CDP_PORT)"
-    fi
-  fi
-  unset _chrome _headless _sandbox _loglevel _browser_ok _browser_enabled _stale_lock _lock_pid _stale_chrome
+  unset _loglevel
 fi
+
 echo "  📂 state dir    → $STATE_DIR"
 echo "  convos paths"
 echo "  ═══════════════════════════════════════════════"

@@ -50,11 +50,9 @@ Skills live under `$OPENCLAW_STATE_DIR/workspace/skills/`. Invoke them with the 
 node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs
 ```
 
-## Browser on Railway / headless
+## Browser
 
-**Instructions:** In [TOOLS.md](openclaw/workspace/TOOLS.md), a callout tells the agent to use `target: "host"` and always pass `targetUrl` for `navigate`. Do not remove it.
-
-**CDP timeouts:** `remoteCdpTimeoutMs: 5000` and `remoteCdpHandshakeTimeoutMs: 8000` in [openclaw.json](openclaw/openclaw.json). Do not lower — prevents race conditions on Chrome cold-start.
+See [docs/browser.md](browser.md) for the full browser reference (config, startup self-heal, troubleshooting, Railway/Docker).
 
 ## Control UI: replies only after refresh
 

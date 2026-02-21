@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0-beta.12",
+    "@puppeteer/browsers": "^2.13.0",
     "@telnyx/api-cli": "^1.1.0",
     "@xmtp/convos-cli": "^0.3.1",
     "agentmail": "^0.2.17",
