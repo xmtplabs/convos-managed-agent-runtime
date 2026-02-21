@@ -421,6 +421,15 @@ export class ConvosInstance {
     return this.sendAndWait({ type: "attach", file });
   }
 
+  async downloadAttachment(messageId: string, outputPath: string): Promise<string> {
+    await this.exec([
+      "conversation", "download-attachment",
+      this.conversationId, messageId,
+      "--output", outputPath,
+    ]);
+    return outputPath;
+  }
+
   async react(
     messageId: string,
     emoji: string,
