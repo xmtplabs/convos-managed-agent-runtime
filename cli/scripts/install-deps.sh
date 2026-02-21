@@ -6,7 +6,6 @@
 set -e
 export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 . "$(dirname "$0")/lib/init.sh"
-. "$ROOT/cli/scripts/lib/node-path.sh"
 
 echo ""
 echo "  📦 Installing deps"
@@ -41,13 +40,12 @@ for pkg in $SKILL_LIBS; do
 done
 
 # ---------------------------------------------------------------------------
-# 3. Chrome: ensure a Chrome/Chromium binary is available for the browser tool.
-#    Priority: CHROMIUM_PATH env > system Chrome > managed install via @puppeteer/browsers.
-#    The managed install goes to $STATE_DIR/browsers/ and is reused across restarts.
+# 3. Chrome: verify a Chrome/Chromium binary is available for the browser tool.
+#    Priority: CHROMIUM_PATH env > config executablePath > common system paths.
+#    Docker/CI set CHROMIUM_PATH. macOS has Chrome at a known path.
 # ---------------------------------------------------------------------------
-_chrome_cache="$STATE_DIR/browsers"
 
-# Resolve current chrome path from config or env
+# Resolve current chrome path from env or config
 if [ -n "${CHROMIUM_PATH:-}" ]; then
   _chrome_bin="$CHROMIUM_PATH"
 elif command -v jq >/dev/null 2>&1 && [ -f "$CONFIG" ]; then
@@ -79,29 +77,11 @@ else
     echo "  🌐 chrome       → $_found (system)"
     _chrome_bin="$_found"
   else
-    # No Chrome found — install via @puppeteer/browsers
-    echo "  🌐 chrome       → not found, installing via @puppeteer/browsers..."
-    _install_out=$(npx @puppeteer/browsers install chrome@stable \
-      --path "$_chrome_cache" \
-      --format "{{path}}" 2>&1) || true
-
-    if [ -n "$_install_out" ] && [ -x "$_install_out" ]; then
-      _chrome_bin="$_install_out"
-      echo "  ✅ chrome       → installed: $_chrome_bin"
-    else
-      # Try to find the binary in the cache (install output may include extra text)
-      _chrome_bin=$(find "$_chrome_cache" -name "chrome" -o -name "Google Chrome for Testing" 2>/dev/null \
-        | while read -r f; do [ -x "$f" ] && echo "$f" && break; done) || true
-      if [ -n "$_chrome_bin" ] && [ -x "$_chrome_bin" ]; then
-        echo "  ✅ chrome       → installed: $_chrome_bin"
-      else
-        echo "  ⚠️  chrome       → install failed, browser tool will not work"
-        echo "     ↳ Set CHROMIUM_PATH or install Chrome manually"
-        _chrome_bin=""
-      fi
-    fi
+    echo "  ⚠️  chrome       → not found, browser tool will not work"
+    echo "     ↳ Install Chrome/Chromium or set CHROMIUM_PATH"
+    _chrome_bin=""
   fi
-  unset _found _try _install_out
+  unset _found _try
 
   # Patch config with the resolved binary path
   if [ -n "$_chrome_bin" ] && command -v jq >/dev/null 2>&1 && [ -f "$CONFIG" ]; then
@@ -110,7 +90,7 @@ else
     echo "  🔧 config       → browser.executablePath patched"
   fi
 fi
-unset _chrome_bin _chrome_cache
+unset _chrome_bin
 
 echo "  ✨ done"
 echo ""
