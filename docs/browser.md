@@ -90,13 +90,21 @@ These instructions are critical for headless mode. Without them, the agent omits
 
 ## Railway / Docker
 
-The [`Dockerfile`](../Dockerfile) uses `pool-server.js` as the entry point:
+**Single instance** (`Dockerfile` CMD `pnpm start`):
+
+- `pnpm start` runs `cli init` which provisions keys, uploads brain, then starts the gateway via `gateway.sh`
+- Gateway binds to `127.0.0.1:18789` (loopback)
+- Railway's reverse proxy routes external traffic to the container's PORT (8080)
+- Browser relay connects to `ws://127.0.0.1:18789` (passes security check)
+
+**Pool-managed instances** (pool orchestrator overrides CMD to `node cli/pool-server.js`):
 
 - **pool-server** listens on `0.0.0.0:8080` (accepts Railway proxy traffic)
-- **gateway** stays on `127.0.0.1:18789` (loopback)
-- **browser relay** connects to `ws://127.0.0.1:18789` (passes security check)
+- **gateway** stays on `127.0.0.1:18789` (loopback, internal)
+- pool-server proxies HTTP + WebSocket to the gateway
+- Browser relay connects to `ws://127.0.0.1:18789` (passes security check)
 
-Without pool-server, the gateway would bind to `lan` for external access, and the browser relay would hit the `ws://<LAN_IP>` security error.
+In both cases, the gateway binds to loopback. The browser relay requires this — if the gateway binds to `lan`, the relay constructs `ws://<LAN_IP>:<port>` and core rejects it as a plaintext-to-non-loopback security error.
 
 Chromium is baked into the Docker image (`apt install chromium`) with `CHROMIUM_PATH=/usr/bin/chromium`. The `apply-config.sh` step patches the config with this path and forces `headless=true` + `noSandbox=true`. The `pool/src/keys.js` also passes `CHROMIUM_PATH` to spawned instances.
 

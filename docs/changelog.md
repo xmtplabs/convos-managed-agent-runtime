@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.0.13 — 2026-02-21
+
+- **OpenClaw 2026.2.21.** Bump from 2026.2.15. Includes stricter proxy header detection and device auth enforcement for the Control UI (see security.md).
+- **Gateway: trustedProxies + dangerouslyDisableDeviceAuth.** Required for Railway deployments. OpenClaw 2026.2.21 no longer lets `allowInsecureAuth` bypass device pairing — `dangerouslyDisableDeviceAuth` is now needed for headless environments behind a reverse proxy. `trustedProxies: ["::1", "127.0.0.1"]` tells the gateway to trust Railway's proxy headers.
+- **Browser pre-flight (`browser.sh`).** New startup script runs before every gateway start. Cleans stale Chrome profile locks (SingletonLock/SingletonSocket), patches `operator.read` scope into gateway-client device pairings, and validates browser config (executable, ports, headless, bind mode).
+- **Custom instructions → IDENTITY.md.** Convos extension now writes custom instructions to `IDENTITY.md` (appended to base identity) instead of a standalone `INSTRUCTIONS.md`. Agents see instructions in their system prompt.
+- **Pool: AgentMail per-instance inboxes.** Pool manager creates per-instance AgentMail inboxes on provision and deletes them on cleanup. `INSTANCE_AGENTMAIL_INBOX_ID` env var opts into shared inbox mode (no create/delete). `agentmail_inbox_id` column tracks inbox per instance.
+- **Pool: DB migration.** `pool_instances` table renamed to `agent_metadata`. New columns: `source_branch`, `openrouter_key_hash`, `agentmail_inbox_id`. Migration runs automatically on startup. Old unused columns dropped.
+- **Pool: dashboard metadata.** Agent cards show deploy branch, primary model, and Railway service links.
+- **Pool: Railway env vars.** Use `RAILWAY_GIT_REPO_OWNER`/`RAILWAY_GIT_REPO_NAME`/`RAILWAY_GIT_BRANCH` (injected by Railway) instead of manual `SOURCE_*` vars.
+- **QA workflow.** Narrowed to `main` branch only. CI uses `pnpm start` directly (not pool-server.js). Health check: `/__openclaw__/canvas/` on port 18789.
+- **Keys logging.** CLI keys script outputs structured block with emojis and "already there" vs "generated" messaging.
+- **Skill env metadata.** Skills declare env vars in their config entries (`skills.entries.<skill>.env`) for OpenClaw to inject at runtime.
+- **Plugins allow list.** `plugins.allow: ["convos", "web-tools"]` in openclaw.json.
+- **Security doc.** New `docs/security.md` covering gateway auth, device pairing, Railway-specific config, and OpenClaw 2026.2.21 breaking changes.
+
 ## 0.0.12 — 2026-02-20
 
 - **Convos: agent serve migration.** Rewrite convos extension from two child processes (`conversation stream` + `process-join-requests --watch`) to a single `convos agent serve` process with ndjson stdin/stdout protocol. Operations (send, react, rename, lock, unlock, explode) now go through stdin commands instead of separate CLI exec calls. Self-echo filtering handled by CLI, not JS.

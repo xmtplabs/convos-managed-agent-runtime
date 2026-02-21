@@ -70,13 +70,65 @@ pnpm start
 | **Instance env vars** | Injected into each agent instance (`INSTANCE_*` prefix is stripped) |
 | `INSTANCE_OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
 | `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically when not using a shared inbox) |
-| `INSTANCE_AGENTMAIL_INBOX_ID` | Optional shared inbox ID; when set, all instances use this inbox and none are created/deleted |
+| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
+| `INSTANCE_AGENTMAIL_INBOX_ID` | Optional shared inbox ID; when set, all instances use this inbox and none are created/deleted on cleanup |
 | `AGENTMAIL_DOMAIN` | Custom domain for inboxes (e.g. `mail.convos.org`); defaults to `agentmail.to` |
 | `INSTANCE_BANKR_API_KEY` | Bankr API key |
 | `INSTANCE_TELNYX_API_KEY` | Telnyx API key |
 | `INSTANCE_TELNYX_PHONE_NUMBER` | Telnyx phone number |
 | `INSTANCE_TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile ID |
+
+## Database
+
+Postgres table: `agent_metadata`. Created/migrated automatically on startup (`pool/src/db/migrate.js`).
+
+If upgrading from an older version with `pool_instances`, the migration renames the table, drops unused columns (`railway_url`, `status`, `health_check_failures`, `updated_at`, `join_url`), renames `claimed_by` to `agent_name`, and removes non-claimed rows.
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| `id` | TEXT PK | Instance ID |
+| `railway_service_id` | TEXT | Railway service ID |
+| `agent_name` | TEXT | Name assigned on claim |
+| `conversation_id` | TEXT | Convos conversation ID |
+| `invite_url` | TEXT | Convos invite URL |
+| `instructions` | TEXT | Agent instructions |
+| `created_at` | TIMESTAMPTZ | When the instance was created |
+| `claimed_at` | TIMESTAMPTZ | When the instance was claimed |
+| `source_branch` | TEXT | Git branch the instance was deployed from (`RAILWAY_GIT_BRANCH`) |
+| `openrouter_key_hash` | TEXT | OpenRouter key hash for cleanup on delete |
+| `agentmail_inbox_id` | TEXT | AgentMail inbox ID for cleanup on delete |
+
+Migration is idempotent — safe to re-run. New columns are added via `ADD COLUMN IF NOT EXISTS`.
+
+## AgentMail inbox management
+
+Two modes, controlled by `INSTANCE_AGENTMAIL_INBOX_ID`:
+
+| Mode | Env var | Behavior |
+|------|---------|----------|
+| **Shared inbox** | `INSTANCE_AGENTMAIL_INBOX_ID` set | All instances use this inbox. No inboxes created or deleted by the pool. |
+| **Per-instance inbox** | `INSTANCE_AGENTMAIL_INBOX_ID` unset | Each instance gets its own inbox via AgentMail API on provision. Deleted on instance cleanup. |
+
+Per-instance inboxes use the username format `convos-<hex>` with an optional custom domain (`AGENTMAIL_DOMAIN`). The `agentmail_inbox_id` column in `agent_metadata` tracks which inbox belongs to which instance for cleanup.
+
+## Gateway config for Railway
+
+Instances deployed on Railway need specific gateway config in `openclaw/openclaw.json` to work behind Railway's reverse proxy. See [docs/security.md](security.md) for details.
+
+```json
+{
+  "gateway": {
+    "trustedProxies": ["::1", "127.0.0.1"],
+    "controlUi": {
+      "allowInsecureAuth": true,
+      "dangerouslyDisableDeviceAuth": true
+    }
+  }
+}
+```
+
+- **`trustedProxies`** — tells the gateway to trust proxy headers from Railway's reverse proxy on loopback
+- **`dangerouslyDisableDeviceAuth`** — disables device identity pairing for the Control UI (required since device pairing can't complete through Railway's proxy)
 
 ## API
 

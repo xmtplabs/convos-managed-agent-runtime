@@ -1,6 +1,8 @@
 # QA commands
 
-Gateway must be running (`pnpm gateway`). Use `--session-id "qa-<suite>-$(date +%s)"` for isolated runs, or omit for default session.
+Gateway must be running. In CI, `pnpm start` runs the full init chain (keys, brain, gateway) on port 18789. Locally, use `pnpm gateway` for gateway-only. Health check: `curl http://localhost:18789/__openclaw__/canvas/`.
+
+Use `--session-id "qa-<suite>-$(date +%s)"` for isolated runs, or omit for default session.
 
 ## Email
 
