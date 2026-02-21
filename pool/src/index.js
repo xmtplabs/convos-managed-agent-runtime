@@ -666,10 +666,15 @@ app.get("/", (_req, res) => {
 
     .modal .copy-icon {
       flex-shrink: 0;
+      display: inline-flex;
       width: 16px;
       height: 16px;
       color: #999;
       transition: color 0.2s;
+    }
+    .modal .copy-icon svg {
+      width: 100%;
+      height: 100%;
     }
 
     .modal .invite-row:hover .copy-icon { color: #666; }
@@ -855,10 +860,10 @@ app.get("/", (_req, res) => {
       </a>
       <div class="invite-row" id="invite-row" onclick="copyInvite()" title="Click to copy">
         <span class="invite-url" id="modal-invite"></span>
-        <svg class="copy-icon" id="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <span id="copy-icon-wrap" class="copy-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-        </svg>
+        </svg></span>
       </div>
     </div>
   </div>
@@ -1009,10 +1014,10 @@ app.get("/", (_req, res) => {
     var qrWrap=document.getElementById('qr-wrap');
     var inviteRow=document.getElementById('invite-row');
     var inviteEl=document.getElementById('modal-invite');
-    var copyIcon=document.getElementById('copy-icon');
+    var copyIconWrap=document.getElementById('copy-icon-wrap');
     var currentInviteUrl='';
     var checkSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>';
-    var copySvg=copyIcon.outerHTML;
+    var copySvg=copyIconWrap.innerHTML;
     function showQr(name,url){
       document.getElementById('modal-title').textContent=name;
       document.getElementById('modal-qr').src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
@@ -1020,20 +1025,18 @@ app.get("/", (_req, res) => {
       currentInviteUrl=url;
       inviteEl.textContent=url;
       inviteRow.classList.remove('copied');
-      copyIcon.outerHTML=copySvg;
+      copyIconWrap.innerHTML=copySvg;
       modal.classList.add('active');
     }
     function copyInvite(){
       navigator.clipboard.writeText(currentInviteUrl).then(function(){
         inviteRow.classList.add('copied');
         inviteEl.textContent='Copied!';
-        document.getElementById('copy-icon').outerHTML=checkSvg;
+        copyIconWrap.innerHTML=checkSvg;
         setTimeout(function(){
           inviteRow.classList.remove('copied');
           inviteEl.textContent=currentInviteUrl;
-          var tmp=document.createElement('div');tmp.innerHTML=copySvg;
-          var old=inviteRow.querySelector('svg');
-          if(old)inviteRow.replaceChild(tmp.firstChild,old);
+          copyIconWrap.innerHTML=copySvg;
         },1500);
       });
     }
