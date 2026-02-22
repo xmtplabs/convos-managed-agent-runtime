@@ -97,7 +97,7 @@ if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
     _browser_ok=false
   fi
 
-  if [ "$_browser_ok" = "true" ] && [ "$_gw_bind" != "loopback" ]; then
+  if [ "$_browser_ok" = "true" ] && [ "$_gw_bind" != "loopback" ] && [ -z "${RAILWAY_ENVIRONMENT:-}" ]; then
     echo "  ⚠️  browser      → gateway.bind=$_gw_bind — browser relay may fail (ws:// to non-loopback)"
     echo "     ↳ Fix: use pool-server.js (keeps gateway on loopback) or set gateway.bind=loopback"
     _browser_ok=false
