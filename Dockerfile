@@ -13,8 +13,7 @@ RUN apt-get update \
     libxkbcommon0 libxrandr2 xdg-utils \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack install
-ENV COREPACK_ENABLE_NETWORK=0
+RUN corepack enable
 ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN mkdir -p "$PNPM_HOME"
@@ -23,6 +22,8 @@ WORKDIR /app
 
 # Install all deps (openclaw now comes from npm via package.json)
 COPY package.json pnpm-lock.yaml /app/
+RUN corepack install
+ENV COREPACK_ENABLE_NETWORK=0
 RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
