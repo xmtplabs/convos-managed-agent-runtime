@@ -49,34 +49,18 @@ pnpm start
 
 ## Environment variables
 
+See [`pool/.env.example`](../pool/.env.example) for the full list. Key variables:
+
 | Variable | Description |
 |----------|-------------|
-| **Pool manager** | |
-| `PORT` | Server port (default `3001`) |
 | `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
 | `POOL_ENVIRONMENT` | `"staging"`, `"dev"`, or `"production"` |
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `1`) |
-| `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
-| `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
 | `DATABASE_URL` | Railway postgres connection string |
-| **Railway** | |
 | `RAILWAY_API_TOKEN` | Railway project-scoped API token |
-| `RAILWAY_GIT_REPO_OWNER` | GitHub repo owner (injected by Railway) |
-| `RAILWAY_GIT_REPO_NAME` | GitHub repo name (injected by Railway) |
-| **OpenRouter** | |
 | `OPENROUTER_MANAGEMENT_KEY` | Management key for creating per-instance API keys |
-| `OPENROUTER_KEY_LIMIT` | USD spend limit per key (default `20`) |
-| `OPENROUTER_KEY_LIMIT_RESET` | Limit reset period (default `monthly`) |
-| **Instance env vars** | Injected into each agent instance (`INSTANCE_*` prefix is stripped) |
-| `INSTANCE_OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
-| `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
-| `INSTANCE_AGENTMAIL_INBOX_ID` | Optional shared inbox ID; when set, all instances use this inbox and none are created/deleted on cleanup |
-| `AGENTMAIL_DOMAIN` | Custom domain for inboxes (e.g. `mail.convos.org`); defaults to `agentmail.to` |
-| `INSTANCE_BANKR_API_KEY` | Bankr API key |
-| `INSTANCE_TELNYX_API_KEY` | Telnyx API key |
-| `INSTANCE_TELNYX_PHONE_NUMBER` | Telnyx phone number |
-| `INSTANCE_TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile ID |
+
+Instance env vars and other pool/Railway settings are documented in the `.env.example`.
 
 ## Database
 
@@ -102,12 +86,12 @@ Migration is idempotent — safe to re-run. New columns are added via `ADD COLUM
 
 ## AgentMail inbox management
 
-Two modes, controlled by `INSTANCE_AGENTMAIL_INBOX_ID`:
+Two modes, controlled by `AGENTMAIL_INBOX_ID`:
 
 | Mode | Env var | Behavior |
 |------|---------|----------|
-| **Shared inbox** | `INSTANCE_AGENTMAIL_INBOX_ID` set | All instances use this inbox. No inboxes created or deleted by the pool. |
-| **Per-instance inbox** | `INSTANCE_AGENTMAIL_INBOX_ID` unset | Each instance gets its own inbox via AgentMail API on provision. Deleted on instance cleanup. |
+| **Shared inbox** | `AGENTMAIL_INBOX_ID` set | All instances use this inbox. No inboxes created or deleted by the pool. |
+| **Per-instance inbox** | `AGENTMAIL_INBOX_ID` unset | Each instance gets its own inbox via AgentMail API on provision. Deleted on instance cleanup. |
 
 Per-instance inboxes use the username format `convos-<hex>` with an optional custom domain (`AGENTMAIL_DOMAIN`). The `agentmail_inbox_id` column in `agent_metadata` tracks which inbox belongs to which instance for cleanup.
 

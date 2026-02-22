@@ -4,7 +4,7 @@ import * as railway from "./railway.js";
 import * as cache from "./cache.js";
 import { deriveStatus } from "./status.js";
 import { ensureVolume, fetchAllVolumesByService } from "./volumes.js";
-import { collectServiceEnvVars, createAll, generateGatewayToken, generateSetupPassword } from "./services.js";
+import { collectServiceEnvVars, createAll, generateGatewayToken, generateSetupPassword, getEnv } from "./services.js";
 import { destroyInstance, destroyInstances } from "./delete.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
@@ -49,20 +49,14 @@ export async function createInstance() {
 
   console.log(`[pool] Creating instance ${name}...`);
 
-  // Base instance env vars (not service-specific)
-  function getEnv(name, fallback = "") {
-    const val = process.env[name];
-    return val != null && val !== "" ? val : fallback;
-  }
-  const gatewayToken = getEnv("INSTANCE_OPENCLAW_GATEWAY_TOKEN") || generateGatewayToken();
-  const setupPassword = getEnv("INSTANCE_SETUP_PASSWORD") || generateSetupPassword();
+  const gatewayToken = getEnv("OPENCLAW_GATEWAY_TOKEN") || generateGatewayToken();
+  const setupPassword = getEnv("SETUP_PASSWORD") || generateSetupPassword();
   const vars = {
     OPENCLAW_STATE_DIR: "/app",
-    OPENCLAW_PRIMARY_MODEL: getEnv("INSTANCE_OPENCLAW_PRIMARY_MODEL"),
-    XMTP_ENV: getEnv("INSTANCE_XMTP_ENV", "dev"),
+    OPENCLAW_PRIMARY_MODEL: getEnv("OPENCLAW_PRIMARY_MODEL"),
+    XMTP_ENV: getEnv("XMTP_ENV", "dev"),
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_API_KEY: POOL_API_KEY || "",
-    BANKR_API_KEY: getEnv("INSTANCE_BANKR_API_KEY"),
     OPENCLAW_GATEWAY_TOKEN: gatewayToken,
     SETUP_PASSWORD: setupPassword,
     ...collectServiceEnvVars(),

@@ -28,7 +28,7 @@ import * as db from "./db/pool.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getEnv(name, fallback = "") {
+export function getEnv(name, fallback = "") {
   const val = process.env[name];
   return val != null && val !== "" ? val : fallback;
 }
@@ -124,7 +124,7 @@ register({
   name: "openrouter",
 
   create: async (instanceId) => {
-    const shared = getEnv("INSTANCE_OPENROUTER_API_KEY");
+    const shared = getEnv("OPENROUTER_API_KEY");
     if (shared) return { envVars: { OPENROUTER_API_KEY: shared }, cache: {} };
 
     const mgmtKey = process.env.OPENROUTER_MANAGEMENT_KEY;
@@ -259,16 +259,16 @@ register({
   name: "agentmail",
 
   envVars: () => ({
-    AGENTMAIL_API_KEY: getEnv("INSTANCE_AGENTMAIL_API_KEY"),
+    AGENTMAIL_API_KEY: getEnv("AGENTMAIL_API_KEY"),
   }),
 
   create: async (instanceId) => {
-    const provided = getEnv("INSTANCE_AGENTMAIL_INBOX_ID");
+    const provided = getEnv("AGENTMAIL_INBOX_ID");
     if (provided) {
       return { envVars: { AGENTMAIL_INBOX_ID: provided }, cache: { agentMailInboxId: provided } };
     }
 
-    const apiKey = getEnv("INSTANCE_AGENTMAIL_API_KEY");
+    const apiKey = getEnv("AGENTMAIL_API_KEY");
     if (!apiKey) return null;
 
     const username = `convos-agent-${instanceId}`;
@@ -299,12 +299,12 @@ register({
     dbRow?.agentmail_inbox_id || inst.agentMailInboxId || null,
 
   shouldSkipDestroy: (resourceId) => {
-    const shared = process.env.INSTANCE_AGENTMAIL_INBOX_ID;
+    const shared = getEnv("AGENTMAIL_INBOX_ID");
     return !!(shared && resourceId === shared);
   },
 
   destroy: async ({ resourceId: inboxId }) => {
-    const apiKey = getEnv("INSTANCE_AGENTMAIL_API_KEY");
+    const apiKey = getEnv("AGENTMAIL_API_KEY");
     if (!apiKey || !inboxId) return;
 
     try {
@@ -325,7 +325,7 @@ register({
 
   cleanup: {
     target: "email",
-    envVars: () => [["AGENTMAIL_API_KEY", process.env.AGENTMAIL_API_KEY || process.env.INSTANCE_AGENTMAIL_API_KEY]],
+    envVars: () => [["AGENTMAIL_API_KEY", getEnv("AGENTMAIL_API_KEY")]],
 
     getActiveIds: async (pool) => {
       const { rows } = await pool.query(
@@ -335,7 +335,7 @@ register({
     },
 
     findOrphaned: async (activeIds, activeInstanceIds) => {
-      const apiKey = process.env.AGENTMAIL_API_KEY || process.env.INSTANCE_AGENTMAIL_API_KEY;
+      const apiKey = getEnv("AGENTMAIL_API_KEY");
       if (!apiKey) {
         console.log("[clean] AGENTMAIL_API_KEY not set — skipping inbox cleanup");
         return [];
@@ -351,7 +351,7 @@ register({
       }
       const body = await res.json();
       const inboxes = body?.inboxes ?? body?.data ?? [];
-      const localInboxId = process.env.AGENTMAIL_INBOX_ID;
+      const localInboxId = getEnv("AGENTMAIL_INBOX_ID");
 
       const managed = inboxes.filter(
         (i) => i.client_id?.startsWith("convos-agent-") || i.username?.startsWith("convos-agent-")
@@ -369,7 +369,7 @@ register({
     },
 
     deleteOrphaned: async (items) => {
-      const apiKey = process.env.AGENTMAIL_API_KEY || process.env.INSTANCE_AGENTMAIL_API_KEY;
+      const apiKey = getEnv("AGENTMAIL_API_KEY");
       for (const inbox of items) {
         const label = inbox.username || inbox.client_id || inbox.inbox_id;
         try {
@@ -392,15 +392,25 @@ register({
   },
 });
 
-// ── Service: Telnyx (shared credentials only, no per-instance resources) ──────
+// ── Service: Bankr (shared credentials only) ──────────────────────────────────
+
+register({
+  name: "bankr",
+
+  envVars: () => ({
+    BANKR_API_KEY: getEnv("BANKR_API_KEY"),
+  }),
+});
+
+// ── Service: Telnyx (shared credentials only) ─────────────────────────────────
 
 register({
   name: "telnyx",
 
   envVars: () => ({
-    TELNYX_API_KEY: getEnv("INSTANCE_TELNYX_API_KEY"),
-    TELNYX_PHONE_NUMBER: getEnv("INSTANCE_TELNYX_PHONE_NUMBER"),
-    TELNYX_MESSAGING_PROFILE_ID: getEnv("INSTANCE_TELNYX_MESSAGING_PROFILE_ID"),
+    TELNYX_API_KEY: getEnv("TELNYX_API_KEY"),
+    TELNYX_PHONE_NUMBER: getEnv("TELNYX_PHONE_NUMBER"),
+    TELNYX_MESSAGING_PROFILE_ID: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
   }),
 });
 

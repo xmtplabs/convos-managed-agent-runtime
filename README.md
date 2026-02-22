@@ -93,32 +93,7 @@ flowchart LR
 | `pnpm pool:db:migrate` | Run DB migrations |
 | `pnpm pool:test` | Run pool tests |
 
-Configure via `pool/.env` (see `pool/.env.example`). Example with all instance vars (use placeholders for secrets):
-
-```bash
-# Pool
-POOL_MIN_IDLE=1
-POOL_API_KEY=test
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@postgres.railway.internal:5432/railway
-
-# Railway
-RAILWAY_PROJECT_ID=c8090f69-bfd3-4955-a1d1-fe9af4c7c45a
-RAILWAY_ENVIRONMENT_ID=3e887007-21f1-40d5-bf0b-89a3fb71f511
-RAILWAY_API_TOKEN=your-railway-api-token
-
-# OpenRouter (pool creates per-instance keys from this)
-OPENROUTER_MANAGEMENT_KEY=sk-or-v1-...
-
-# Instance defaults (injected into each pool instance)
-INSTANCE_OPENCLAW_PRIMARY_MODEL=openrouter/openai/gpt-oss-20b
-INSTANCE_XMTP_ENV=dev
-INSTANCE_AGENTMAIL_API_KEY=am_...
-AGENTMAIL_DOMAIN=mail.convos.org
-INSTANCE_BANKR_API_KEY=bk_...
-INSTANCE_TELNYX_API_KEY=KEY...
-INSTANCE_TELNYX_PHONE_NUMBER=+14193792549
-INSTANCE_TELNYX_MESSAGING_PROFILE_ID=40019c66-c84a-459f-8553-0ef16775fb29
-```
+Configure via `pool/.env` — see [`pool/.env.example`](pool/.env.example) for all variables.
 
 ### Pool API (authenticated with Bearer `POOL_API_KEY`)
 
