@@ -17,14 +17,12 @@ function loadEnv(envName) {
     process.exit(1);
   }
 
-  const envFile = path.join(root, `.env.${envName}`);
-  if (!fs.existsSync(envFile)) {
-    console.error(`Environment file not found: .env.${envName}`);
-    process.exit(1);
-  }
-
   _envName = envName;
-  require("dotenv").config({ path: envFile });
+
+  const envFile = path.join(root, `.env.${envName}`);
+  if (fs.existsSync(envFile)) {
+    require("dotenv").config({ path: envFile });
+  }
 }
 
 function confirmProtectedEnv() {
