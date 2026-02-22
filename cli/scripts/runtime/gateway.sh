@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/../lib/init.sh"
 cd "$ROOT"
 . "$ROOT/cli/scripts/lib/env-load.sh"
 
@@ -115,7 +115,7 @@ fi
 echo ""
 
 # Browser pre-flight (profile lock, device scopes, config validation)
-. "$ROOT/cli/scripts/browser.sh" 2>/dev/null || true
+. "$ROOT/cli/scripts/runtime/browser.sh" 2>/dev/null || true
 
 # In-process restart: SIGUSR1 reloads config inside the same process instead
 # of exiting. This prevents the container from dying on config-level changes

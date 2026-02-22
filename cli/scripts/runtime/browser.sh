@@ -3,7 +3,7 @@
 # Runs standalone or sourced by gateway.sh before the gateway starts.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/../lib/init.sh"
 . "$ROOT/cli/scripts/lib/env-load.sh"
 
 CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"

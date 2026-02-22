@@ -3,7 +3,7 @@
 # Requires gateway running.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/../lib/init.sh"
 cd "$ROOT"
 . "$ROOT/cli/scripts/lib/env-load.sh"
 

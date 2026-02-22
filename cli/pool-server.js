@@ -31,7 +31,7 @@ function spawnGateway(extraEnv = {}) {
   gatewayReady = false;
   convosReady = false;
 
-  const child = spawn("sh", ["cli/scripts/gateway.sh"], {
+  const child = spawn("sh", ["cli/scripts/runtime/gateway.sh"], {
     cwd: ROOT,
     stdio: "inherit",
     env: {

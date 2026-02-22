@@ -5,7 +5,7 @@
 # JS libraries (agentmail) need symlinks because ESM import doesn't use NODE_PATH.
 set -e
 export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/../lib/init.sh"
 
 # Extensions: pnpm install in each dir with package.json (always run to fix stale/partial installs)
 for ext in "$EXTENSIONS_DIR"/*; do

@@ -34,7 +34,7 @@ The browser relay connects to the gateway via `ws://127.0.0.1:18789`. The gatewa
 
 ## Chrome resolution
 
-[`install-deps.sh`](../cli/scripts/install-deps.sh) ensures a Chrome binary is available. Resolution order:
+[`install-deps.sh`](../cli/scripts/init/install-deps.sh) ensures a Chrome binary is available. Resolution order:
 
 1. **`CHROMIUM_PATH` env** — Docker/Railway set this (e.g. `/usr/bin/chromium`)
 2. **Config `browser.executablePath`** — from `openclaw.json`
@@ -42,7 +42,7 @@ The browser relay connects to the gateway via `ws://127.0.0.1:18789`. The gatewa
 
 If Chrome is found, the config is patched automatically.
 
-When `CHROMIUM_PATH` is set, [`apply-config.sh`](../cli/scripts/apply-config.sh) also patches `headless=true` and `noSandbox=true`.
+When `CHROMIUM_PATH` is set, [`apply-config.sh`](../cli/scripts/init/apply-config.sh) also patches `headless=true` and `noSandbox=true`.
 
 ### Chromium references across the repo
 
@@ -53,9 +53,9 @@ Every file that references Chrome/Chromium and why:
 | `Dockerfile` (line 10) | `apt install chromium` + font/lib deps | Bakes Chromium into Docker image — no runtime download |
 | `Dockerfile` (line 38) | `ENV CHROMIUM_PATH=/usr/bin/chromium` | Points install-deps.sh to the baked-in binary |
 | `pool/src/keys.js` (line 35) | `CHROMIUM_PATH: "/usr/bin/chromium"` | Pool server passes env to spawned gateway instances |
-| `cli/scripts/apply-config.sh` (line 34-39) | Patches config when `CHROMIUM_PATH` is set | Sets `executablePath`, `headless=true`, `noSandbox=true` for Docker |
-| `cli/scripts/install-deps.sh` (step 3) | Chrome resolution + config patching | env → config → system paths |
-| `cli/scripts/browser.sh` | Validates `executablePath` from config | Startup pre-flight logs chrome path and readiness |
+| `cli/scripts/init/apply-config.sh` (line 34-39) | Patches config when `CHROMIUM_PATH` is set | Sets `executablePath`, `headless=true`, `noSandbox=true` for Docker |
+| `cli/scripts/init/install-deps.sh` (step 3) | Chrome resolution + config patching | env → config → system paths |
+| `cli/scripts/runtime/browser.sh` | Validates `executablePath` from config | Startup pre-flight logs chrome path and readiness |
 | `.env.example` (line 27) | `CHROMIUM_PATH=` | Documents the env var for local dev |
 | `.github/workflows/qa.yml` (line 12, 30) | `CHROMIUM_PATH` + `apt install chromium` | CI needs Chrome for browser QA suite |
 | `openclaw/openclaw.json` | `browser.executablePath` | macOS default path; patched at runtime by apply-config or install-deps |
@@ -64,7 +64,7 @@ Every file that references Chrome/Chromium and why:
 
 ## Startup self-heal (`browser.sh`)
 
-[`cli/scripts/browser.sh`](../cli/scripts/browser.sh) runs before every gateway start (called by [`gateway.sh`](../cli/scripts/gateway.sh)). Also available standalone: `pnpm cli browser`.
+[`cli/scripts/runtime/browser.sh`](../cli/scripts/runtime/browser.sh) runs before every gateway start (called by [`gateway.sh`](../cli/scripts/runtime/gateway.sh)). Also available standalone: `pnpm cli browser`.
 
 What it does:
 
@@ -131,10 +131,10 @@ Chromium is baked into the Docker image (`apt install chromium`) with `CHROMIUM_
 | File | Role |
 |---|---|
 | `openclaw/openclaw.json` | Browser config (timeouts, headless, profile, executable path) |
-| `cli/scripts/browser.sh` | Startup self-heal (profile lock, device scopes, validate) |
-| `cli/scripts/install-deps.sh` | Chrome resolution + config patching |
-| `cli/scripts/apply-config.sh` | `CHROMIUM_PATH` → config patching (headless, noSandbox, executablePath) |
-| `cli/scripts/gateway.sh` | Calls `browser.sh` before gateway start |
+| `cli/scripts/runtime/browser.sh` | Startup self-heal (profile lock, device scopes, validate) |
+| `cli/scripts/init/install-deps.sh` | Chrome resolution + config patching |
+| `cli/scripts/init/apply-config.sh` | `CHROMIUM_PATH` → config patching (headless, noSandbox, executablePath) |
+| `cli/scripts/runtime/gateway.sh` | Calls `browser.sh` before gateway start |
 | `openclaw/workspace/TOOLS.md` | Agent instructions (target:host, snapshot, required params) |
 | `Dockerfile` | pool-server CMD, `CHROMIUM_PATH`, Chromium + deps baked in |
 | `pool/src/keys.js` | Passes `CHROMIUM_PATH` env to spawned gateway instances |

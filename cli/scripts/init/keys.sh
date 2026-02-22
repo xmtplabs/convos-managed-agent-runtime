@@ -2,7 +2,7 @@
 # Write OPENROUTER_API_KEY, BANKR_API_KEY (if set), random OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, and PRIVATE_WALLET_KEY to repo .env.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/../lib/init.sh"
 ENV_FILE="$ROOT/.env"
 
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
