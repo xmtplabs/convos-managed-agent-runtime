@@ -13,8 +13,8 @@ RUN apt-get update \
     libxkbcommon0 libxrandr2 xdg-utils \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable
-ENV COREPACK_ENABLE_STRICT=0
+RUN corepack enable && corepack install
+ENV COREPACK_ENABLE_NETWORK=0
 ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN mkdir -p "$PNPM_HOME"
