@@ -703,6 +703,12 @@ app.get("/", (_req, res) => {
       vertical-align: middle;
     }
 
+    .env-badge.env-dev {
+      background: #DBEAFE;
+      border: 1px solid #BFDBFE;
+      color: #1E40AF;
+    }
+
     .env-badge.env-staging {
       background: #FEF3C7;
       border: 1px solid #FDE68A;
@@ -715,6 +721,50 @@ app.get("/", (_req, res) => {
       color: #991B1B;
     }
 
+    .env-links {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-top: 4px;
+    }
+
+    .env-link {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      border-radius: 5px;
+      text-decoration: none;
+      width: fit-content;
+    }
+
+    .env-link.env-dev {
+      background: #DBEAFE;
+      border: 1px solid #BFDBFE;
+      color: #1E40AF;
+    }
+
+    .env-link.env-staging {
+      background: #FEF3C7;
+      border: 1px solid #FDE68A;
+      color: #92400E;
+    }
+
+    .env-link.env-production {
+      background: #FEE2E2;
+      border: 1px solid #FECACA;
+      color: #991B1B;
+    }
+
+    .env-link.env-current {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    body.env-dev { border-top: 3px solid #3B82F6; }
     body.env-production { border-top: 3px solid #DC2626; }
     body.env-staging { border-top: 3px solid #F59E0B; }
 
@@ -752,7 +802,8 @@ app.get("/", (_req, res) => {
     <header class="header">
       <div class="logo-container">
         <span class="logo-text">Convos Agent Pool<span class="env-badge env-${RAILWAY_ENV_NAME}">${RAILWAY_ENV_NAME}</span></span>
-        <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""} · ${["dev", "staging", "production"].filter(e => e !== RAILWAY_ENV_NAME).map(e => `<a href="https://convos-agents-${e}.up.railway.app/" style="color:#007AFF;text-decoration:none">${e}</a>`).join(" · ")}</span>
+        <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""}</span>
+        <div class="env-links">${["dev", "staging", "production"].map(e => `<a class="env-link env-${e}${e === RAILWAY_ENV_NAME ? " env-current" : ""}" href="https://convos-agents-${e}.up.railway.app/"${e !== RAILWAY_ENV_NAME ? ' target="_blank" rel="noopener"' : ""}>${e}${e === RAILWAY_ENV_NAME ? " (current)" : " ↗"}</a>`).join("")}</div>
       </div>
     </header>
 
