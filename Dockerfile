@@ -22,9 +22,7 @@ WORKDIR /app
 
 # Install all deps (openclaw now comes from npm via package.json)
 COPY package.json pnpm-lock.yaml /app/
-RUN corepack install
-ENV COREPACK_ENABLE_NETWORK=0
-RUN pnpm install --no-frozen-lockfile
+RUN corepack install && pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
 # RUNTIME_DIR=$ROOT/openclaw in paths.sh — apply-config syncs from here to STATE_DIR (/app)
