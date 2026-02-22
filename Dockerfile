@@ -13,21 +13,14 @@ RUN apt-get update \
     libxkbcommon0 libxrandr2 xdg-utils \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable
-ENV PNPM_HOME="/root/.local/share/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN mkdir -p "$PNPM_HOME"
+RUN npm install -g pnpm@8.7.5
 
 WORKDIR /app
 
 # Install all deps (openclaw now comes from npm via package.json)
 COPY package.json pnpm-lock.yaml /app/
-RUN corepack install && pnpm install --no-frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
-# Extensions install on the Railway volume (outside /app), so corepack can't
-# find packageManager from root package.json. Without this, corepack tries to
-# download the latest pnpm instead of using the cached 8.x from `corepack install`.
-ENV COREPACK_DEFAULT_TO_LATEST=0
 
 # RUNTIME_DIR=$ROOT/openclaw in paths.sh — apply-config syncs from here to STATE_DIR (/app)
 COPY openclaw/openclaw.json /app/openclaw/openclaw.json

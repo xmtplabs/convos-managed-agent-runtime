@@ -1,11 +1,11 @@
 FROM node:22-bookworm-slim
 
-RUN corepack enable
+RUN npm install -g pnpm@8.7.5
 
 WORKDIR /app
 
 COPY pool/package.json pool/pnpm-lock.yaml ./
-RUN corepack install && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 COPY pool/src ./src
 
