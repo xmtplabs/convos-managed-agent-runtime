@@ -752,7 +752,7 @@ app.get("/", (_req, res) => {
     <header class="header">
       <div class="logo-container">
         <span class="logo-text">Convos Agent Pool<span class="env-badge env-${RAILWAY_ENV_NAME}">${RAILWAY_ENV_NAME}</span></span>
-        <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""}</span>
+        <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""} · ${["dev", "staging", "production"].filter(e => e !== RAILWAY_ENV_NAME).map(e => `<a href="https://convos-agents-${e}.up.railway.app/" style="color:#007AFF;text-decoration:none">${e}</a>`).join(" · ")}</span>
       </div>
     </header>
 
