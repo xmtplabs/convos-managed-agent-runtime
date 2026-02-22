@@ -6,6 +6,7 @@ import { deriveStatus } from "./status.js";
 import { ensureVolume, fetchAllVolumesByService } from "./volumes.js";
 import { collectServiceEnvVars, createAll, generateGatewayToken, generateSetupPassword, getEnv } from "./services.js";
 import { destroyInstance, destroyInstances } from "./delete.js";
+import { serviceName, isAgentService, parseInstanceId } from "./naming.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const MIN_IDLE = parseInt(process.env.POOL_MIN_IDLE || "1", 10);
@@ -45,7 +46,7 @@ async function getServiceUrl(serviceId) {
 // Create a single new Railway service (no DB write).
 export async function createInstance() {
   const id = nanoid(12);
-  const name = `convos-agent-${id}`;
+  const name = serviceName(id);
 
   console.log(`[pool] Creating instance ${name}...`);
 
@@ -121,10 +122,7 @@ async function _tick() {
 
   // Filter to agent services in our environment
   const agentServices = allServices.filter(
-    (s) =>
-      s.name.startsWith("convos-agent-") &&
-      s.name !== "convos-agent-pool-manager" &&
-      s.environmentIds.includes(myEnvId)
+    (s) => isAgentService(s.name) && s.environmentIds.includes(myEnvId)
   );
 
   // Load metadata rows for enrichment
@@ -235,7 +233,7 @@ async function _tick() {
     const existing = cache.get(svc.id);
     const entry = {
       serviceId: svc.id,
-      id: metadata?.id || svc.name.replace("convos-agent-", ""),
+      id: metadata?.id || parseInstanceId(svc.name),
       name: svc.name,
       url,
       status,

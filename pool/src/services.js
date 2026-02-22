@@ -25,6 +25,7 @@
 
 import { randomBytes } from "crypto";
 import * as db from "./db/pool.js";
+import { serviceName, isAgentService, parseInstanceId } from "./naming.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ async function findOpenRouterKeyHash(mgmtKey, instanceId) {
     if (!res.ok) return null;
     const body = await res.json();
     const keys = body?.data ?? [];
-    const name = `convos-agent-${instanceId}`;
+    const name = serviceName(instanceId);
     const match = keys.find((k) => k.name === name);
     return match?.hash ?? null;
   } catch {
@@ -130,7 +131,7 @@ register({
     const mgmtKey = process.env.OPENROUTER_MANAGEMENT_KEY;
     if (!mgmtKey) return null;
 
-    const name = `convos-agent-${instanceId}`;
+    const name = serviceName(instanceId);
     const limit = parseInt(process.env.OPENROUTER_KEY_LIMIT || "20", 10);
     const limitReset = process.env.OPENROUTER_KEY_LIMIT_RESET || "monthly";
 
@@ -216,12 +217,12 @@ register({
       const keys = body?.data ?? [];
       const skipName = process.env.OPENROUTER_CLEAN_SKIP_NAME || "dont touch";
 
-      const managed = keys.filter((k) => k.name?.startsWith("convos-agent-"));
+      const managed = keys.filter((k) => isAgentService(k.name ?? ""));
       const orphaned = managed.filter((k) => {
         if (!k.hash) return false;
         if (activeIds.has(k.hash)) return false;
         if (k.name === skipName) return false;
-        const instanceId = (k.name || "").replace("convos-agent-", "");
+        const instanceId = parseInstanceId(k.name || "");
         if (instanceId && activeInstanceIds.has(instanceId)) return false;
         return true;
       });
@@ -271,28 +272,38 @@ register({
     const apiKey = getEnv("AGENTMAIL_API_KEY");
     if (!apiKey) return null;
 
-    const username = `convos-agent-${instanceId}`;
-    const res = await fetch("https://api.agentmail.to/v0/inboxes", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username,
-        domain: getEnv("AGENTMAIL_DOMAIN") || undefined,
-        display_name: "Convos Agent",
-        client_id: `convos-agent-${instanceId}`,
-      }),
-    });
-    const body = await res.json();
-    const inboxId = body?.inbox_id;
-    if (!inboxId) {
-      console.error("  ⚠️  AgentMail create inbox failed:", res.status, body);
-      throw new Error(`AgentMail inbox creation failed: ${res.status}`);
+    const username = serviceName(instanceId);
+    const fallback = getEnv("AGENTMAIL_FALLBACK_INBOX_ID", "convos@agentmail.to");
+
+    try {
+      const res = await fetch("https://api.agentmail.to/v0/inboxes", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          domain: getEnv("AGENTMAIL_DOMAIN") || undefined,
+          display_name: "Convos Agent",
+          client_id: serviceName(instanceId),
+        }),
+      });
+      const body = await res.json();
+      const inboxId = body?.inbox_id;
+      if (!inboxId) {
+        console.error("  ⚠️  AgentMail create inbox failed:", res.status, body);
+        throw new Error(`AgentMail inbox creation failed: ${res.status}`);
+      }
+      console.log("  📬 AgentMail inbox → created", inboxId, "for", username);
+      return {
+        envVars: { AGENTMAIL_INBOX_ID: inboxId },
+        cache: { agentMailInboxId: inboxId },
+      };
+    } catch (err) {
+      console.warn(`  ⚠️  AgentMail create failed (${err.message}), falling back to ${fallback}`);
+      return {
+        envVars: { AGENTMAIL_INBOX_ID: fallback },
+        cache: { agentMailInboxId: fallback },
+      };
     }
-    console.log("  📬 AgentMail inbox → created", inboxId, "for", username);
-    return {
-      envVars: { AGENTMAIL_INBOX_ID: inboxId },
-      cache: { agentMailInboxId: inboxId },
-    };
   },
 
   resolveResourceId: (inst, dbRow) =>
@@ -354,12 +365,12 @@ register({
       const localInboxId = getEnv("AGENTMAIL_INBOX_ID");
 
       const managed = inboxes.filter(
-        (i) => i.client_id?.startsWith("convos-agent-") || i.username?.startsWith("convos-agent-")
+        (i) => isAgentService(i.client_id ?? "") || isAgentService(i.username ?? "")
       );
       const orphaned = managed.filter((i) => {
         if (activeIds.has(i.inbox_id)) return false;
         if (i.inbox_id === localInboxId) return false;
-        const instanceId = (i.client_id || "").replace("convos-agent-", "");
+        const instanceId = parseInstanceId(i.client_id || "");
         if (instanceId && activeInstanceIds.has(instanceId)) return false;
         return true;
       });

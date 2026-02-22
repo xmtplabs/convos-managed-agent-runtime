@@ -54,7 +54,7 @@ See [`pool/.env.example`](../pool/.env.example) for the full list. Key variables
 | Variable | Description |
 |----------|-------------|
 | `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
-| `POOL_ENVIRONMENT` | `"staging"`, `"dev"`, or `"production"` |
+| `RAILWAY_ENVIRONMENT_NAME` | `"staging"`, `"dev"`, or `"production"` |
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `1`) |
 | `DATABASE_URL` | Railway postgres connection string |
 | `RAILWAY_API_TOKEN` | Railway project-scoped API token |

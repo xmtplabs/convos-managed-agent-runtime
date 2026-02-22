@@ -14,7 +14,8 @@ CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
 RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
 
 # --- Clean up any previous gateway processes ---
-$ENTRY gateway stop 2>/dev/null || true
+# (openclaw gateway stop logs "Gateway service not loaded." when no daemon is installed; harmless, so silence it)
+$ENTRY gateway stop >/dev/null 2>&1 || true
 # Kill stale gateway.sh wrapper scripts (excluding ourselves) so their restart
 # loops don't respawn the gateway we're about to kill.
 _my_pid=$$

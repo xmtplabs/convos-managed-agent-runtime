@@ -6,7 +6,7 @@ import { migrate } from "./db/migrate.js";
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
-const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
+const RAILWAY_ENV_NAME = process.env.RAILWAY_ENVIRONMENT_NAME || "staging";
 // Deploy context shown in dashboard info tags
 const DEPLOY_BRANCH = process.env.RAILWAY_GIT_BRANCH || "unknown";
 const INSTANCE_MODEL = process.env.OPENCLAW_PRIMARY_MODEL || "unknown";
@@ -34,7 +34,7 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 // Version — check this to verify what code is deployed.
 const BUILD_VERSION = "2026-02-12T01:cache-v1";
-app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: POOL_ENVIRONMENT }));
+app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: RAILWAY_ENV_NAME }));
 
 // Pool counts (no auth — used by the launch form)
 app.get("/api/pool/counts", (_req, res) => {
@@ -77,7 +77,7 @@ app.get("/", (_req, res) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Convos Agent Pool</title>
+  <title>Pool ${RAILWAY_ENV_NAME.charAt(0).toUpperCase() + RAILWAY_ENV_NAME.slice(1)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -747,11 +747,11 @@ app.get("/", (_req, res) => {
     }
   </style>
 </head>
-<body class="env-${POOL_ENVIRONMENT}">
+<body class="env-${RAILWAY_ENV_NAME}">
   <div class="container">
     <header class="header">
       <div class="logo-container">
-        <span class="logo-text">Convos Agent Pool<span class="env-badge env-${POOL_ENVIRONMENT}">${POOL_ENVIRONMENT}</span></span>
+        <span class="logo-text">Convos Agent Pool<span class="env-badge env-${RAILWAY_ENV_NAME}">${RAILWAY_ENV_NAME}</span></span>
         <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""}</span>
       </div>
     </header>
@@ -871,7 +871,7 @@ app.get("/", (_req, res) => {
 
   <script>
     const API_KEY='${POOL_API_KEY}';
-    const POOL_ENV='${POOL_ENVIRONMENT}';
+    const ENV_NAME='${RAILWAY_ENV_NAME}';
     const RAILWAY_PROJECT='${process.env.RAILWAY_PROJECT_ID || ""}';
     const RAILWAY_ENV='${process.env.RAILWAY_ENVIRONMENT_ID || ""}';
     const authHeaders={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'};
@@ -1065,7 +1065,7 @@ app.get("/", (_req, res) => {
     }
 
     async function killAgent(id,name){
-      var confirmMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
+      var confirmMsg=(ENV_NAME==='production'?'[PRODUCTION] ':'')+
         'Are you sure you want to kill "'+name+'"? This will delete the Railway service permanently.';
       if(!confirm(confirmMsg))return;
       try{
@@ -1080,7 +1080,7 @@ app.get("/", (_req, res) => {
 
     // Dismiss crashed agent
     async function dismissAgent(id,name){
-      var confirmMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
+      var confirmMsg=(ENV_NAME==='production'?'[PRODUCTION] ':'')+
         'Dismiss crashed agent "'+name+'"? This will clean up the Railway service.';
       if(!confirm(confirmMsg))return;
       markDestroying(id);
@@ -1158,7 +1158,7 @@ app.get("/", (_req, res) => {
       }catch(e){ n=0; }
       drainBtn.disabled=false;
       if(n===0){ alert('No unclaimed instances to drain.'); return; }
-      var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
+      var drainMsg=(ENV_NAME==='production'?'[PRODUCTION] ':'')+
         'Drain '+n+' unclaimed instance(s) from the pool?';
       if(!confirm(drainMsg))return;
       drainBtn.disabled=true;drainBtn.textContent='Draining...';
@@ -1201,11 +1201,11 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   if (joinUrl && typeof joinUrl !== "string") {
     return res.status(400).json({ error: "joinUrl must be a string if provided" });
   }
-  if (joinUrl && POOL_ENVIRONMENT === "production" && /dev\.convos\.org/i.test(joinUrl)) {
+  if (joinUrl && RAILWAY_ENV_NAME === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     return res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" });
   }
-  if (joinUrl && POOL_ENVIRONMENT !== "production" && /popup\.convos\.org/i.test(joinUrl)) {
-    return res.status(400).json({ error: `popup.convos.org links cannot be used in the ${POOL_ENVIRONMENT} environment` });
+  if (joinUrl && RAILWAY_ENV_NAME !== "production" && /popup\.convos\.org/i.test(joinUrl)) {
+    return res.status(400).json({ error: `popup.convos.org links cannot be used in the ${RAILWAY_ENV_NAME} environment` });
   }
 
   try {

@@ -2,13 +2,20 @@
 const { Command } = require("commander");
 const { runScript } = require("./run.cjs");
 const { runCheck } = require("./check-paths.cjs");
+const { loadEnv, confirmProtectedEnv, getEnvName } = require("./context.cjs");
 
 const program = new Command();
 
 program
   .name("runtime")
-  .description("Local CLI: check, key-provision, apply, install-deps, gateway run, init, clean-providers, qa")
-  .version(require("../package.json").version);
+  .description("Local CLI: check, key-provision, apply, install-deps, gateway run, init, services, qa")
+  .version(require("../package.json").version)
+  .option("-e, --env <name>", "Environment to use (dev, staging, production)", "dev")
+  .hook("preAction", async (thisCommand) => {
+    const envName = thisCommand.opts().env;
+    loadEnv(envName);
+    await confirmProtectedEnv();
+  });
 
 program
   .command("check")
@@ -50,15 +57,24 @@ program
     runScript("runtime/gateway.sh");
   });
 
-program
-  .command("clean-providers [target]")
-  .description("Delete orphaned provider resources. Target: email, openrouter, all (default)")
-  .action((target) => runScript("tools/clean-providers.mjs", { CLEAN_TARGET: target || "all" }));
+const services = program
+  .command("services")
+  .description("Manage provider resources (OpenRouter keys, AgentMail inboxes, etc.)");
 
-program
-  .command("openrouter-clean")
-  .description("Alias for clean-providers openrouter")
-  .action(() => runScript("tools/clean-providers.mjs", { CLEAN_TARGET: "openrouter" }));
+services
+  .command("list")
+  .description("List all provider resources and their Railway instance association")
+  .action(() => runScript("services/list-resources.mjs"));
+
+services
+  .command("clean-agentmail")
+  .description("Find and delete orphaned AgentMail inboxes across ALL Railway environments")
+  .action(() => runScript("services/clean-agentmail.mjs"));
+
+services
+  .command("clean-openrouter")
+  .description("Find and delete orphaned OpenRouter API keys across ALL Railway environments")
+  .action(() => runScript("services/clean-openrouter.mjs"));
 
 program
   .command("qa [suite]")
