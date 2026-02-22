@@ -723,8 +723,7 @@ app.get("/", (_req, res) => {
 
     .env-links {
       display: flex;
-      flex-direction: column;
-      gap: 3px;
+      gap: 5px;
       margin-top: 4px;
     }
 
