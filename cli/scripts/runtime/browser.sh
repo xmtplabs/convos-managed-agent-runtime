@@ -14,9 +14,44 @@ echo "  🌐 Browser pre-flight"
 echo "  ═══════════════════"
 
 # ---------------------------------------------------------------------------
-# 1. Remove SingletonLock / SingletonSocket
+# 1. Kill stale Chrome / Chromium processes
+#    A zombie Chrome holds the CDP port and profile lock, causing "tab not
+#    found" errors on the next run. Kill it before touching lock files.
+# ---------------------------------------------------------------------------
+_killed=false
+for _sig in TERM KILL; do
+  _pids=$(pgrep -f '(chrome|chromium)' 2>/dev/null) || true
+  [ -z "$_pids" ] && break
+  echo "$_pids" | xargs kill -"$_sig" 2>/dev/null || true
+  _killed=true
+  sleep 1
+done
+if [ "$_killed" = "true" ]; then
+  echo "  ✅ stale chrome  → killed"
+else
+  echo "  ✅ stale chrome  → none"
+fi
+unset _killed _sig _pids
+
+# ---------------------------------------------------------------------------
+# 2. Kill processes holding CDP / relay ports
+#    If Chrome crashed, orphan processes may still bind the ports.
+# ---------------------------------------------------------------------------
+for _port in "$CDP_PORT" "$RELAY_PORT"; do
+  _holders=$(lsof -ti "tcp:$_port" 2>/dev/null) || true
+  if [ -n "$_holders" ]; then
+    echo "$_holders" | xargs kill -9 2>/dev/null || true
+    echo "  ✅ port $_port    → freed (killed pid $_holders)"
+  fi
+done
+unset _port _holders
+
+# ---------------------------------------------------------------------------
+# 3. Remove SingletonLock / SingletonSocket + stale profile data
 #    Chrome refuses to start if another instance holds the profile lock.
 #    A dead Chrome leaves a dangling symlink pointing to a stale PID.
+#    Also purge crash reports, DevToolsActivePort, and session state that
+#    reference tabs/pages from a previous run ("tab not found").
 # ---------------------------------------------------------------------------
 _oc_ud="$STATE_DIR/browser"
 _cleaned_lock=false
@@ -30,15 +65,27 @@ for _sock in "$_oc_ud"/*/user-data/SingletonSocket; do
   rm -f "$_sock" 2>/dev/null || true
   _cleaned_lock=true
 done
+# Remove stale CDP marker and crash data
+for _ud in "$_oc_ud"/*/user-data; do
+  [ -d "$_ud" ] || continue
+  rm -f "$_ud/DevToolsActivePort" 2>/dev/null || true
+  rm -rf "$_ud/Crashpad" 2>/dev/null || true
+  rm -rf "$_ud/BrowserMetrics"* 2>/dev/null || true
+  # Session / tab state — forces Chrome to start fresh (no stale tab refs)
+  rm -rf "$_ud/Default/Sessions" 2>/dev/null || true
+  rm -f "$_ud/Default/Current Session" "$_ud/Default/Current Tabs" 2>/dev/null || true
+  rm -f "$_ud/Default/Last Session" "$_ud/Default/Last Tabs" 2>/dev/null || true
+  _cleaned_lock=true
+done
 if [ "$_cleaned_lock" = "true" ]; then
   echo "  ✅ profile lock  → cleaned"
 else
   echo "  ✅ profile lock  → clean"
 fi
-unset _oc_ud _cleaned_lock _lock _sock
+unset _oc_ud _cleaned_lock _lock _sock _ud
 
 # ---------------------------------------------------------------------------
-# 2. Fix device pairing scopes
+# 4. Fix device pairing scopes
 #    The gateway-client device needs operator.read to control Chrome via the
 #    browser relay. Older pairing records may be missing this scope, causing
 #    "pairing required" errors on scope-upgrade.
@@ -74,7 +121,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Validate browser config
+# 5. Validate browser config
 #    Check executable, ports, headless, bind mode.
 # ---------------------------------------------------------------------------
 if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then

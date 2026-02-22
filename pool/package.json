@@ -11,6 +11,7 @@
     "test": "node --env-file=.env --test src/**/*.test.js",
     "db:migrate": "node --env-file=.env src/db/migrate.js"
   },
+  "packageManager": "pnpm@8.7.5",
   "dependencies": {
     "express": "^5.1.0",
     "nanoid": "^5.1.5",

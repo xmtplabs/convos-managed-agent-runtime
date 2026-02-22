@@ -24,6 +24,10 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml /app/
 RUN corepack install && pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
+# Extensions install on the Railway volume (outside /app), so corepack can't
+# find packageManager from root package.json. Without this, corepack tries to
+# download the latest pnpm instead of using the cached 8.x from `corepack install`.
+ENV COREPACK_DEFAULT_TO_LATEST=0
 
 # RUNTIME_DIR=$ROOT/openclaw in paths.sh — apply-config syncs from here to STATE_DIR (/app)
 COPY openclaw/openclaw.json /app/openclaw/openclaw.json
