@@ -19,7 +19,7 @@ function loadEnv(envName) {
 
   _envName = envName;
 
-  const envFile = path.join(root, `.env.${envName}`);
+  const envFile = path.join(root, ".env");
   if (fs.existsSync(envFile)) {
     require("dotenv").config({ path: envFile });
   }
