@@ -68,7 +68,6 @@ function getEnv() {
   return {
     ...process.env,
     ROOT: root,
-    OPENCLAW_ENV: _envName,
     OPENCLAW_STATE_DIR: getStateDir(),
   };
 }

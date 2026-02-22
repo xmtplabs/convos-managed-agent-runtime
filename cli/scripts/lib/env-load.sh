@@ -1,8 +1,7 @@
 #!/bin/sh
-# Load .env.<OPENCLAW_ENV> into caller's shell. Source after init (ROOT set). Uses lib/paths.sh.
+# Load .env into caller's shell. Source after init (ROOT set). Uses lib/paths.sh.
 ROOT="${ROOT:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 . "$ROOT/cli/scripts/lib/paths.sh" 2>/dev/null || true
-OPENCLAW_ENV="${OPENCLAW_ENV:-dev}"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"
 if [ -f "$ENV_FILE" ]; then
   _save_token="$OPENCLAW_GATEWAY_TOKEN"

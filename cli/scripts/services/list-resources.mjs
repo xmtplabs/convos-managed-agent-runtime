@@ -44,8 +44,7 @@ async function listAgentMailInboxes() {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  const env = process.env.OPENCLAW_ENV || "dev";
-  console.log(`\n${TAG} Environment: ${env.toUpperCase()}\n`);
+  console.log(`\n${TAG} Listing resources\n`);
 
   // Check required env vars
   const required = {
@@ -56,7 +55,7 @@ async function main() {
   };
   const missing = Object.entries(required).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length > 0) {
-    console.log(`  Missing in .env.${env}: ${missing.join(", ")}\n`);
+    console.log(`  Missing: ${missing.join(", ")}\n`);
   }
 
   if (!process.env.RAILWAY_API_TOKEN || !process.env.RAILWAY_PROJECT_ID) {
