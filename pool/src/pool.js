@@ -4,7 +4,7 @@ import * as railway from "./railway.js";
 import * as cache from "./cache.js";
 import { deriveStatus } from "./status.js";
 import { ensureVolume, fetchAllVolumesByService } from "./volumes.js";
-import { instanceEnvVars, resolveOpenRouterApiKey, resolveAgentMailInbox, generatePrivateWalletKey, generateGatewayToken, generateSetupPassword } from "./keys.js";
+import { collectServiceEnvVars, createAll, generateGatewayToken, generateSetupPassword } from "./services.js";
 import { destroyInstance, destroyInstances } from "./delete.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
@@ -49,15 +49,26 @@ export async function createInstance() {
 
   console.log(`[pool] Creating instance ${name}...`);
 
-  const vars = { ...instanceEnvVars() };
-  if (vars.OPENCLAW_GATEWAY_TOKEN === undefined) vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
-  if (vars.SETUP_PASSWORD === undefined) vars.SETUP_PASSWORD = generateSetupPassword();
-  const { key: openRouterKey, hash: openRouterKeyHash } = await resolveOpenRouterApiKey(id);
-  if (openRouterKey) vars.OPENROUTER_API_KEY = openRouterKey;
-  const { inboxId: agentMailInboxId } = await resolveAgentMailInbox(id);
-  if (agentMailInboxId) vars.AGENTMAIL_INBOX_ID = agentMailInboxId;
-  const privateWalletKey = generatePrivateWalletKey();
-  vars.PRIVATE_WALLET_KEY = privateWalletKey;
+  // Base instance env vars (not service-specific)
+  function getEnv(name, fallback = "") {
+    const val = process.env[name];
+    return val != null && val !== "" ? val : fallback;
+  }
+  const gatewayToken = getEnv("INSTANCE_OPENCLAW_GATEWAY_TOKEN") || generateGatewayToken();
+  const setupPassword = getEnv("INSTANCE_SETUP_PASSWORD") || generateSetupPassword();
+  const vars = {
+    OPENCLAW_STATE_DIR: "/app",
+    OPENCLAW_PRIMARY_MODEL: getEnv("INSTANCE_OPENCLAW_PRIMARY_MODEL"),
+    XMTP_ENV: getEnv("INSTANCE_XMTP_ENV", "dev"),
+    CHROMIUM_PATH: "/usr/bin/chromium",
+    POOL_API_KEY: POOL_API_KEY || "",
+    BANKR_API_KEY: getEnv("INSTANCE_BANKR_API_KEY"),
+    OPENCLAW_GATEWAY_TOKEN: gatewayToken,
+    SETUP_PASSWORD: setupPassword,
+    ...collectServiceEnvVars(),
+  };
+  const { envVars: serviceEnvVars, cache: serviceCache } = await createAll(id);
+  Object.assign(vars, serviceEnvVars);
 
   const serviceId = await railway.createService(name, vars);
   console.log(`[pool]   Railway service created: ${serviceId}`);
@@ -79,10 +90,7 @@ export async function createInstance() {
     status: "starting",
     createdAt: new Date().toISOString(),
     deployStatus: "BUILDING",
-    openRouterApiKey: openRouterKey || undefined,
-    openRouterKeyHash: openRouterKeyHash || undefined,
-    agentMailInboxId: agentMailInboxId || undefined,
-    privateWalletKey,
+    ...serviceCache,
     gatewayToken: vars.OPENCLAW_GATEWAY_TOKEN,
   });
 

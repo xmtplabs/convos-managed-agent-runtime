@@ -1,6 +1,6 @@
 /**
- * Instance deletion: OpenRouter key + AgentMail inbox cleanup, Railway service +
- * volume teardown, cache removal, and DB row deletion.
+ * Instance deletion: service resource cleanup, Railway service + volume
+ * teardown, cache removal, and DB row deletion.
  *
  * destroyInstance()  — single instance (kill, drain, dismiss)
  * destroyInstances() — batch delete (tick), fetches all volumes once
@@ -9,7 +9,7 @@
 import * as db from "./db/pool.js";
 import * as railway from "./railway.js";
 import * as cache from "./cache.js";
-import { deleteOpenRouterKey, deleteAgentMailInbox } from "./keys.js";
+import { destroyAll } from "./services.js";
 import { fetchAllVolumesByService, deleteVolume } from "./volumes.js";
 
 // Services that failed to delete — skip on future ticks to avoid retry loops.
@@ -22,28 +22,13 @@ async function cleanupVolumes(serviceId, volumeMap) {
   }
 }
 
-/** Resolve resource IDs for cleanup. DB is authoritative for claimed instances;
- *  falls back to cache values for unclaimed ones. */
-async function resolveResourceIds(inst) {
-  const row = await db.findByServiceId(inst.serviceId).catch(() => null);
-  return {
-    openRouterKeyHash: row?.openrouter_key_hash || inst.openRouterKeyHash || null,
-    agentMailInboxId: row?.agentmail_inbox_id || inst.agentMailInboxId || null,
-  };
-}
-
 /** Delete a single instance (kill, drain, dismiss).
  *  Retries service deletion up to 3 times. Only removes from cache/DB after
  *  Railway confirms the service is deleted. Throws if deletion fails.
  *  Optional volumeMap: when provided (e.g. from drainPool batch), skips fetch. */
 export async function destroyInstance(inst, volumeMap = null) {
   console.log(`[delete] Deleting instance ${inst.id} (serviceId=${inst.serviceId})`);
-  const { openRouterKeyHash, agentMailInboxId } = await resolveResourceIds(inst);
-  await deleteOpenRouterKey(openRouterKeyHash, inst.id);
-  const sharedInbox = process.env.INSTANCE_AGENTMAIL_INBOX_ID;
-  if (!sharedInbox || agentMailInboxId !== sharedInbox) {
-    await deleteAgentMailInbox(agentMailInboxId);
-  }
+  await destroyAll(inst);
   const map = volumeMap ?? (await fetchAllVolumesByService());
   await cleanupVolumes(inst.serviceId, map);
   console.log(`[delete] Volumes cleaned for ${inst.id}, deleting Railway service...`);
@@ -76,15 +61,11 @@ export async function destroyInstances(items) {
 
   const volumeMap = await fetchAllVolumesByService();
 
-  const sharedInbox = process.env.INSTANCE_AGENTMAIL_INBOX_ID;
   for (const { svc, cached } of items) {
     if (deleteFailures.has(svc.id)) continue;
     try {
-      const ids = await resolveResourceIds({ serviceId: svc.id, id: cached?.id, ...cached });
-      await deleteOpenRouterKey(ids.openRouterKeyHash, cached?.id);
-      if (!sharedInbox || ids.agentMailInboxId !== sharedInbox) {
-        await deleteAgentMailInbox(ids.agentMailInboxId);
-      }
+      const merged = { serviceId: svc.id, id: cached?.id, ...cached };
+      await destroyAll(merged);
       await cleanupVolumes(svc.id, volumeMap);
       await railway.deleteService(svc.id);
       console.log(`[delete] Deleted ${svc.id} (${svc.name})`);
