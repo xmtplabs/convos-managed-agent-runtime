@@ -618,7 +618,7 @@ export class ConvosInstance {
           conversationId: this.conversationId,
           messageId: (data.id as string) ?? "",
           senderId: (data.senderInboxId as string) ?? "",
-          senderName: "",
+          senderName: (data.senderProfile as { name?: string } | undefined)?.name ?? "",
           content: (data.content as string) ?? "",
           contentType: typeof data.contentType === "object" && data.contentType !== null
             ? ((data.contentType as Record<string, unknown>).typeId as string | undefined)
