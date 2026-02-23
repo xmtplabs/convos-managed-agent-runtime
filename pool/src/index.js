@@ -979,6 +979,7 @@ app.get("/", (_req, res) => {
       }else{
         nameInput.setAttribute('required','');
         nameInput.placeholder='e.g. Tokyo Trip';
+        joinUrlHint.style.display='';
       }
     }
 
