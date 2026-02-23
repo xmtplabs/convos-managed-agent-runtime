@@ -82,7 +82,7 @@ openclaw agent -m 'Search the current BTC price. Reply: BTC: $X.' --agent main
 
 **Browser**
 ```bash
-openclaw agent -m 'go fill the form https://convos-managed-dev.up.railway.app/web-tools/form and submit it, give me the confirmation code' --agent main
+openclaw agent -m 'go fill the form https://convos-managed-staging.up.railway.app/web-tools/form and submit it, give me the confirmation code' --agent main
 ```
 
 ### Pool-specific (dev pool)
