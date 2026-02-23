@@ -306,6 +306,22 @@ app.get("/", (_req, res) => {
     .setting-input::placeholder { color: #B2B2B2; }
     textarea.setting-input { resize: vertical; min-height: 80px; }
 
+    .field-hint {
+      font-size: 12px;
+      color: #B2B2B2;
+      margin-top: 6px;
+      padding-bottom: 1px;
+    }
+    .field-error {
+      color: #DC2626;
+      font-size: 13px;
+      margin-top: 6px;
+      display: none;
+    }
+    .field-error.visible { display: block; }
+    .setting-input.invalid { border-color: #DC2626; }
+    .setting-input.invalid:focus { border-color: #DC2626; }
+
     /* .channel-checkboxes { display: flex; gap: 20px; flex-wrap: wrap; }
     .channel-option { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; } */
 
@@ -787,19 +803,15 @@ app.get("/", (_req, res) => {
           No instances ready. Waiting for pool to warm up...
         </div>
         <form id="f">
-          <!-- Join mode hidden for now
-          <div class="mode-toggle">
-            <button type="button" class="mode-btn active" id="mode-create">New Conversation</button>
-            <button type="button" class="mode-btn" id="mode-join">Join Existing</button>
-          </div>
-          <div class="setting-group" id="join-url-group" style="display:none">
-            <label class="setting-label" for="join-url">Conversation Link</label>
-            <input id="join-url" name="joinUrl" class="setting-input" placeholder="Paste a Convos invite link..." />
-          </div>
-          -->
           <div class="setting-group">
             <label class="setting-label" for="name">Name</label>
             <input id="name" name="name" class="setting-input" placeholder="e.g. Tokyo Trip" required />
+          </div>
+          <div class="setting-group">
+            <label class="setting-label" for="join-url">Invite URL <span style="color:#B2B2B2;font-weight:400">(optional)</span></label>
+            <input id="join-url" name="joinUrl" class="setting-input" placeholder="https://popup.convos.org/v2?... or paste invite slug" />
+            <div class="field-hint" id="join-url-hint">Leave empty to create a new conversation</div>
+            <div class="field-error" id="join-url-error"></div>
           </div>
           <!--
           <div class="setting-group">
@@ -933,6 +945,62 @@ app.get("/", (_req, res) => {
     }
 
     function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
+    // Join URL validation
+    function validateJoinUrl(input){
+      if(!input)return {valid:true};
+      if(/^https?:\\/\\/(popup\\.convos\\.org|dev\\.convos\\.org)\\/v2\\?.+$/i.test(input))return {valid:true};
+      if(/^https?:\\/\\/convos\\.app\\/join\\/.+$/i.test(input))return {valid:true};
+      if(/^convos:\\/\\/join\\/.+$/i.test(input))return {valid:true};
+      if(/^[A-Za-z0-9+/=*_-]+$/.test(input)&&input.length>20)return {valid:true};
+      return {valid:false,message:'Enter a valid Convos invite URL or invite slug'};
+    }
+    function checkEnvUrl(url){
+      if(!url)return {valid:true};
+      if(POOL_ENV==='production'&&/dev\\.convos\\.org/i.test(url))
+        return {valid:false,message:'dev.convos.org links cannot be used in production'};
+      if(POOL_ENV!=='production'&&/popup\\.convos\\.org/i.test(url))
+        return {valid:false,message:'popup.convos.org links cannot be used in '+POOL_ENV};
+      return {valid:true};
+    }
+
+    // Dynamic button text based on invite URL
+    var joinUrlInput=document.getElementById('join-url');
+    var joinUrlError=document.getElementById('join-url-error');
+    var joinUrlHint=document.getElementById('join-url-hint');
+    var nameInput=document.getElementById('name');
+    function updateButtonText(){
+      if(launching)return;
+      var hasJoinUrl=joinUrlInput.value.trim().length>0;
+      btn.textContent=hasJoinUrl?'Join Conversation':'Launch Agent';
+      if(hasJoinUrl){
+        nameInput.removeAttribute('required');
+        nameInput.placeholder='e.g. My Agent (optional for join)';
+      }else{
+        nameInput.setAttribute('required','');
+        nameInput.placeholder='e.g. Tokyo Trip';
+        joinUrlHint.style.display='';
+      }
+    }
+
+    // Real-time validation on invite URL input
+    joinUrlInput.addEventListener('input',function(){
+      var val=joinUrlInput.value.trim();
+      var result=validateJoinUrl(val);
+      if(result.valid)result=checkEnvUrl(val);
+      if(!result.valid){
+        joinUrlError.textContent=result.message;
+        joinUrlError.classList.add('visible');
+        joinUrlInput.classList.add('invalid');
+        joinUrlHint.style.display='none';
+      }else{
+        joinUrlError.textContent='';
+        joinUrlError.classList.remove('visible');
+        joinUrlInput.classList.remove('invalid');
+        joinUrlHint.style.display=val?'none':'';
+      }
+      updateButtonText();
+    });
 
     function renderFeed(){
       var total=claimedCache.length+crashedCache.length;
@@ -1103,8 +1171,24 @@ app.get("/", (_req, res) => {
     f.onsubmit=async function(e){
       e.preventDefault();
       var agentName=f.name.value.trim();
-      var payload={agentName:agentName,instructions:f.instructions.value.trim()};
-      launching=true;btn.disabled=true;btn.textContent='Launching...';
+      var joinUrl=joinUrlInput.value.trim();
+
+      // Validate join URL before submit
+      var urlResult=validateJoinUrl(joinUrl);
+      if(urlResult.valid)urlResult=checkEnvUrl(joinUrl);
+      if(!urlResult.valid){
+        joinUrlError.textContent=urlResult.message;
+        joinUrlError.classList.add('visible');
+        joinUrlInput.classList.add('invalid');
+        joinUrlInput.focus();
+        return;
+      }
+
+      var payload={agentName:agentName||(joinUrl?'Agent':''),instructions:f.instructions.value.trim()};
+      if(joinUrl)payload.joinUrl=joinUrl;
+
+      var isJoin=!!joinUrl;
+      launching=true;btn.disabled=true;btn.textContent=isJoin?'Joining...':'Launching...';
       errorEl.style.display='none';successEl.classList.remove('active');
       try{
         var res=await fetch('/api/pool/claim',{method:'POST',headers:authHeaders,
@@ -1113,8 +1197,9 @@ app.get("/", (_req, res) => {
         var data=await res.json();
         if(!res.ok)throw new Error(data.error||'Launch failed');
         f.reset();
+        updateButtonText();
         if(data.joined){
-          successTextEl.textContent=agentName+' joined the conversation';
+          successTextEl.textContent=(agentName||'Agent')+' joined the conversation';
           successEl.classList.add('active');
           setTimeout(function(){successEl.classList.remove('active');},8000);
         }else{
@@ -1124,7 +1209,7 @@ app.get("/", (_req, res) => {
       }catch(err){
         errorEl.textContent=err.message;
         errorEl.style.display='block';
-      }finally{launching=false;btn.textContent='Launch Agent';refreshStatus();}
+      }finally{launching=false;btn.textContent=joinUrlInput.value.trim()?'Join Conversation':'Launch Agent';refreshStatus();}
     };
 
     // Pool controls
