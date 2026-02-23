@@ -970,6 +970,7 @@ app.get("/", (_req, res) => {
     var joinUrlHint=document.getElementById('join-url-hint');
     var nameInput=document.getElementById('name');
     function updateButtonText(){
+      if(launching)return;
       var hasJoinUrl=joinUrlInput.value.trim().length>0;
       btn.textContent=hasJoinUrl?'Join Conversation':'Launch Agent';
       if(hasJoinUrl){
