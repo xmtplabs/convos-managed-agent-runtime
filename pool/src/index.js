@@ -310,6 +310,7 @@ app.get("/", (_req, res) => {
       font-size: 12px;
       color: #B2B2B2;
       margin-top: 6px;
+      padding-bottom: 1px;
     }
     .field-error {
       color: #DC2626;
