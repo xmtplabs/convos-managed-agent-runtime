@@ -35,7 +35,8 @@ export async function createService(name, variables = {}) {
 
   const image = process.env.RAILWAY_RUNTIME_IMAGE || "ghcr.io/xmtplabs/convos-runtime:scaling";
 
-  const input = { projectId, environmentId, name, variables };
+  // Create service WITHOUT variables to avoid triggering a deploy before image is set.
+  const input = { projectId, environmentId, name };
 
   console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);
 
@@ -48,7 +49,7 @@ export async function createService(name, variables = {}) {
 
   const serviceId = data.serviceCreate.id;
 
-  // Set start command and deploy from pre-built image (no repo build needed).
+  // Set image + start command BEFORE adding variables (which triggers the deploy).
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server.js",
@@ -62,7 +63,24 @@ export async function createService(name, variables = {}) {
   // Set resource limits.
   await setResourceLimits(serviceId);
 
+  // Now upsert variables — this triggers the first deploy with the image already configured.
+  if (Object.keys(variables).length > 0) {
+    await upsertVariables(serviceId, variables);
+  }
+
   return serviceId;
+}
+
+export async function upsertVariables(serviceId, variables) {
+  const projectId = process.env.RAILWAY_PROJECT_ID;
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
+
+  await gql(
+    `mutation($input: VariableCollectionUpsertInput!) {
+      variableCollectionUpsert(input: $input)
+    }`,
+    { input: { projectId, environmentId, serviceId, variables } }
+  );
 }
 
 export async function createDomain(serviceId) {
