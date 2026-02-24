@@ -2,9 +2,13 @@ name: Build Runtime Image
 
 on:
   push:
-    branches: [scaling, staging, main]
+    branches: [scaling, dev, staging, main]
+    paths:
+      - 'runtime/**'
   pull_request:
-    branches: [scaling, staging, main]
+    branches: [scaling, dev, staging, main]
+    paths:
+      - 'runtime/**'
 
 permissions:
   contents: read
