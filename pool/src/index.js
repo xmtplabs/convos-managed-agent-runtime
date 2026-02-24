@@ -190,9 +190,24 @@ app.get("/", (req, res) => {
       margin-bottom: 56px;
     }
 
+    .paste-input-label {
+      position: absolute;
+      top: 12px;
+      left: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: #B2B2B2;
+      pointer-events: none;
+      z-index: 1;
+      transition: color 0.25s ease;
+    }
+
+    .paste-input-wrap:focus-within .paste-input-label { color: #FC4F37; }
+
     .paste-input {
       width: 100%;
-      padding: 18px 24px 18px 48px;
+      padding: 30px 20px 12px 20px;
       border: 1.5px solid #EBEBEB;
       border-radius: 14px;
       font-size: 15px;
@@ -212,6 +227,7 @@ app.get("/", (req, res) => {
     .paste-input::placeholder { color: #D4D4D4; }
     .paste-input.invalid { border-color: #DC2626; }
     .paste-input.invalid:focus { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.06); }
+    .paste-input.invalid ~ .paste-input-label { color: #DC2626; }
 
     .paste-input-icon {
       position: absolute;
@@ -232,6 +248,12 @@ app.get("/", (req, res) => {
     }
 
     .paste-error.visible { display: block; }
+
+    .paste-hint {
+      font-size: 12px;
+      color: #CCC;
+      margin-top: 8px;
+    }
 
     /* --- Stories (end-user mode) --- */
     .stories {
@@ -261,6 +283,85 @@ app.get("/", (req, res) => {
       color: #B2B2B2;
       text-decoration: underline;
       text-underline-offset: 2px;
+    }
+
+    /* --- Get Convos strip --- */
+    .get-convos {
+      margin-top: 48px;
+      padding: 24px;
+      border: 1px solid #F0F0F0;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .get-convos-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .get-convos-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .get-convos-icon svg { width: 20px; height: 26px; }
+
+    .get-convos-text {
+      min-width: 0;
+    }
+
+    .get-convos-tagline {
+      font-size: 12px;
+      font-weight: 600;
+      color: #B2B2B2;
+      line-height: 1.3;
+    }
+
+    .get-convos-sub {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      color: #000;
+      margin-top: 2px;
+    }
+
+    .get-convos-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 20px;
+      background: #FC4F37;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      letter-spacing: -0.1px;
+    }
+
+    .get-convos-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .get-convos-btn:active { transform: scale(0.98); }
+
+    .get-convos-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .get-convos { padding: 20px 16px; gap: 16px; }
+      .get-convos-tagline { font-size: 13px; }
     }
 
     .field-group { margin-bottom: 28px; }
@@ -843,6 +944,9 @@ app.get("/", (req, res) => {
       padding: 8px 16px;
       font-size: 12px;
       color: #999;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
     .dev-bar.collapsed {
@@ -1427,8 +1531,8 @@ app.get("/", (req, res) => {
         </div>
         <span class="brand-name">Convos</span>
       </div>
-      <h1 class="page-title" id="page-title">Invite an assistant</h1>
-      <p class="page-subtitle" id="page-subtitle">Paste a link and an AI assistant will join your Convos conversation.</p>
+      <h1 class="page-title" id="page-title">Invite an assistant to a private group chat</h1>
+      <p class="page-subtitle" id="page-subtitle">Paste a Convos Invite Link and an AI assistant will join your convo.</p>
 
       <div id="empty-state" class="empty-state">
         <div class="empty-scene">
@@ -1514,11 +1618,10 @@ app.get("/", (req, res) => {
           <button class="joining-dismiss-btn" id="joining-dismiss" style="display:none"></button>
         </div>
         <div class="paste-input-wrap">
-          <span class="paste-input-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-          </span>
           <input id="paste-input" class="paste-input" placeholder="${POOL_ENVIRONMENT === "production" ? "popup.convos.org/..." : "dev.convos.org/..."}" />
+          <span class="paste-input-label">Paste the invite link for your convo</span>
           <div class="paste-error" id="paste-error"></div>
+          <div class="paste-hint">To get your invite link, tap Share in the app</div>
         </div>
         <div class="stories">
           <div>
@@ -1531,6 +1634,19 @@ app.get("/", (req, res) => {
           </div>
         </div>
 
+      </div>
+
+      <div class="get-convos">
+        <div class="get-convos-left">
+          <div class="get-convos-icon">
+            <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#E54D00"/><path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#E54D00"/></svg>
+          </div>
+          <div class="get-convos-text">
+            <div class="get-convos-tagline">Get the Convos app</div>
+            <div class="get-convos-sub">Everyday private chat for the AI world</div>
+          </div>
+        </div>
+        <a class="get-convos-btn" href="https://convos.org/app" target="_blank" rel="noopener">Get</a>
       </div>
 
       <div class="prompt-store" id="prompt-store">
@@ -1656,8 +1772,8 @@ app.get("/", (req, res) => {
       if(formEl)formEl.style.display=active?'':'none';
       if(footerNote)footerNote.style.display=active?'':'none';
       if(pasteView)pasteView.style.display=active?'none':'';
-      pageTitle.textContent=active?'Launch your assistant':'Invite an assistant';
-      pageSubtitle.textContent=active?'Create an AI assistant and drop it into any Convos conversation.':'Paste a link and an AI assistant will join your Convos conversation.';
+      pageTitle.textContent=active?'Launch your assistant':'Invite an assistant to a private group chat';
+      pageSubtitle.textContent=active?'Create an AI assistant and drop it into any Convos conversation.':'Paste a Convos Invite Link and an AI assistant will join your convo.';
       refreshStatus();
     }
 
