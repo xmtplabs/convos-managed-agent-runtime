@@ -1,12 +1,7 @@
 name: Build Runtime Image
 
 on:
-  push:
-    branches: [scaling, dev, staging, main]
-    paths:
-      - 'runtime/**'
   pull_request:
-    branches: [scaling, dev, staging, main]
     paths:
       - 'runtime/**'
   workflow_dispatch:
@@ -42,11 +37,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             TAG="pr-${{ github.event.number }}"
           else
-            TAG="$GITHUB_REF_NAME"
-          fi
-          # Use dropdown value for manual dispatch
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            TAG="${{ github.event.inputs.tag }}"
+            TAG="latest"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
