@@ -1,12 +1,12 @@
-# Phase 3 — Extract Services + Infra Lifecycle (includes sharding)
+# Phase 3 — Extract Services
 
-[Back to plan](./plan.md) | [Architecture](./architecture.md) | Prev: [Phase 2 — TypeScript](./phase-2-typescript.md) | Next: [Phase 4 — DB Migration](./phase-4-db-migration.md)
+[Back to plan](./plan.md) | [Architecture](./architecture.md) | Prev: [Phase 2 — DB Migration](./phase-2-db-migration.md) | Next: [Phase 4 — Railway Sharding](./phase-4-sharding.md)
 
 ---
 
 ## Goal
 
-Extract all external API integrations into a standalone `services` deployable. Implement one-project-per-agent sharding as part of this extraction so that provisioning only migrates once.
+Extract all external API integrations into a standalone `services` deployable. Still deploys into the single shared Railway project (same as today) — sharding comes next phase.
 
 ## Work
 
@@ -17,8 +17,8 @@ Extract all external API integrations into a standalone `services` deployable. I
 - Move Railway logic → `services/src/infra/railway.ts`
 
 ### Infra lifecycle routes
-- `POST /create-instance` — create Railway project + deploy GHCR image + provision OpenRouter + wallet
-- `DELETE /destroy/:instanceId` — cleanup external resources + `projectDelete`
+- `POST /create-instance` — deploy GHCR image into shared project + provision OpenRouter + wallet
+- `DELETE /destroy/:instanceId` — cleanup external resources + `serviceDelete`
 - `POST /status/batch` — batch health + deploy status check
 - `POST /redeploy/:instanceId` — trigger redeployment (new image pull)
 
@@ -29,8 +29,8 @@ Extract all external API integrations into a standalone `services` deployable. I
 - `GET /registry` — list available tools and their provisioning modes
 
 ### Infrastructure
-- `create-instance` handles: `projectCreate` → environment setup → GHCR credentials → `serviceCreate` from image → env vars → volume → OpenRouter + wallet provisioning
-- `destroy/:instanceId` handles: external resource cleanup → `projectDelete`
+- `create-instance` handles: `serviceCreate` from GHCR image in shared project → env vars → volume → OpenRouter + wallet provisioning
+- `destroy/:instanceId` handles: external resource cleanup → `serviceDelete`
 - Services DB: `instance_infra` + `instance_services` tables
 - Pool calls services via `SERVICES_URL` (Railway private networking) — no workspace import
 - Auth between pool↔services via `SERVICES_API_KEY`
@@ -42,16 +42,14 @@ Extract all external API integrations into a standalone `services` deployable. I
 
 ## Validate
 
-- Pool can create instances via services (new Railway projects with GHCR images)
-- Pool can destroy instances via services (external cleanup + project deletion)
+- Pool can create instances via services (GHCR images in shared project)
+- Pool can destroy instances via services (external cleanup + service deletion)
 - Tick loop works with batch status endpoint
 - Claiming works with tool provisioning via services
 - Runtime can self-provision via `INSTANCE_SERVICES_TOKEN`
-- **One-project-per-agent is live after this phase**
 
 ## Notes
 
-- **Railway API token must be team/org-scoped** (not project-scoped) to create new projects — verify token scope during implementation
-- Concurrency limit: ~8 parallel agent creations to stay within Railway's 50 RPS rate limit (Pro plan). Each agent creation takes ~5-6 sequential API calls
-- Existing agents in the old single project continue working during transition
-- New agents get their own projects with pre-built images
+- Deployment topology doesn't change here — still one shared Railway project, same as today
+- This phase validates the services extraction in isolation before changing Railway topology
+- Existing agents continue working unchanged during rollout
