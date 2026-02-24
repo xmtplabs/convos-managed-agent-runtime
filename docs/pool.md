@@ -19,7 +19,7 @@ Manages pre-warmed [OpenClaw](https://github.com/xmtplabs/openclaw) agent instan
     └──────────────┘   └──────────────┘     └──────────────┘
 ```
 
-1. Creates Railway services from `agent/` (Dockerfile + entrypoint that builds and runs OpenClaw)
+1. Creates Railway services from a pre-built GHCR image (`ghcr.io/xmtplabs/convos-runtime`, see [runtime.md](./runtime.md))
 2. Polls `/convos/status` until `ready`, then marks the instance **idle**
 3. On `POST /api/pool/claim`, provisions a Convos conversation on the instance and backfills the pool
 4. Claimed instances are renamed in Railway for dashboard visibility
@@ -63,9 +63,7 @@ pnpm start
 | `RAILWAY_API_TOKEN` | Railway project-scoped API token |
 | `RAILWAY_PROJECT_ID` | Railway project ID |
 | `RAILWAY_ENVIRONMENT_ID` | Railway environment ID |
-| `RAILWAY_SOURCE_REPO` | GitHub repo to deploy (e.g. `xmtplabs/convos-agents`); falls back to `RAILWAY_GIT_REPO_OWNER/RAILWAY_GIT_REPO_NAME` |
-| `RAILWAY_SOURCE_BRANCH` | Branch to deploy from (e.g. `staging`, `main`); falls back to `RAILWAY_GIT_BRANCH` |
-| `RAILWAY_SOURCE_ROOT_DIR` | Subdirectory containing the Dockerfile (`agent`) |
+| `RAILWAY_RUNTIME_IMAGE` | Pre-built GHCR image (e.g. `ghcr.io/xmtplabs/convos-runtime:scaling`). See [runtime.md](./runtime.md) |
 | **OpenRouter** | |
 | `OPENROUTER_MANAGEMENT_KEY` | Management key for creating per-instance API keys |
 | `OPENROUTER_KEY_LIMIT` | USD spend limit per key (default `20`) |
