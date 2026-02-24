@@ -116,6 +116,7 @@ app.get("/", (req, res) => {
     .form-center {
       max-width: 640px;
       width: 100%;
+      position: relative;
     }
 
     .brand {
@@ -419,6 +420,254 @@ app.get("/", (req, res) => {
       font-size: 14px;
       color: #B0B0B0;
       line-height: 1.5;
+    }
+
+    /* --- Joining overlay (balloon scene) --- */
+    .joining-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.97);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+      z-index: 10;
+    }
+
+    .joining-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .joining-scene {
+      position: relative;
+      width: 200px;
+      height: 240px;
+      margin-bottom: 24px;
+    }
+
+    .joining-balloon-group {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      transform-origin: center bottom;
+    }
+
+    .joining-balloon-group svg.joining-balloon-svg {
+      display: block;
+      filter: drop-shadow(0 6px 20px rgba(229,77,0,0.2));
+    }
+
+    .joining-string-upper {
+      transform-origin: top center;
+      animation: joining-string-top-sway 3.5s ease-in-out infinite;
+      margin: -2px auto 0;
+      width: 20px;
+    }
+
+    .joining-string-upper svg { display: block; }
+
+    @keyframes joining-string-top-sway {
+      0%, 100% { transform: rotate(0deg); }
+      40% { transform: rotate(4deg); }
+      70% { transform: rotate(-3deg); }
+    }
+
+    .joining-string-lower {
+      transform-origin: top center;
+      animation: joining-string-btm-sway 2.8s ease-in-out infinite;
+      width: 20px;
+    }
+
+    .joining-string-lower svg { display: block; }
+
+    @keyframes joining-string-btm-sway {
+      0%, 100% { transform: rotate(0deg); }
+      35% { transform: rotate(-5deg); }
+      65% { transform: rotate(4deg); }
+    }
+
+    /* Floating particles */
+    .joining-particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #FC4F37;
+      opacity: 0;
+    }
+
+    .joining-particle:nth-child(1) { left: 20%; top: 30%; }
+    .joining-particle:nth-child(2) { left: 75%; top: 40%; }
+    .joining-particle:nth-child(3) { left: 15%; top: 60%; }
+    .joining-particle:nth-child(4) { left: 80%; top: 55%; }
+    .joining-particle:nth-child(5) { left: 40%; top: 20%; }
+    .joining-particle:nth-child(6) { left: 60%; top: 70%; }
+
+    /* Joining state: inflate + float + particles */
+    .joining-overlay.joining .joining-balloon-group {
+      animation: joining-inflate 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                 joining-float 3s 1.5s ease-in-out infinite;
+    }
+
+    @keyframes joining-inflate {
+      0% { transform: translateX(-50%) scale(0.3); opacity: 0.5; }
+      60% { transform: translateX(-50%) scale(1.05); opacity: 1; }
+      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    }
+
+    @keyframes joining-float {
+      0%, 100% { transform: translateX(-50%) translateY(0) rotate(2deg); }
+      25% { transform: translateX(-50%) translateY(-8px) rotate(-1deg); }
+      50% { transform: translateX(-50%) translateY(-4px) rotate(3deg); }
+      75% { transform: translateX(-50%) translateY(-10px) rotate(0deg); }
+    }
+
+    .joining-overlay.joining .joining-particle {
+      animation: joining-particle-float 3s ease-in-out infinite;
+    }
+
+    .joining-particle:nth-child(1) { animation-delay: 0s; }
+    .joining-particle:nth-child(2) { animation-delay: 0.5s; }
+    .joining-particle:nth-child(3) { animation-delay: 1s; }
+    .joining-particle:nth-child(4) { animation-delay: 1.5s; }
+    .joining-particle:nth-child(5) { animation-delay: 0.3s; }
+    .joining-particle:nth-child(6) { animation-delay: 0.8s; }
+
+    @keyframes joining-particle-float {
+      0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+      20% { opacity: 0.6; }
+      50% { opacity: 0.4; transform: translateY(-20px) scale(1); }
+      80% { opacity: 0.2; }
+    }
+
+    /* Success state: bounce + confetti */
+    .joining-overlay.success .joining-balloon-group {
+      animation: joining-success-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                 joining-float 3s 0.6s ease-in-out infinite;
+    }
+
+    @keyframes joining-success-bounce {
+      0% { transform: translateX(-50%) scale(1); }
+      40% { transform: translateX(-50%) scale(1.2) translateY(-16px); }
+      70% { transform: translateX(-50%) scale(0.95); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+
+    .joining-overlay.success .joining-balloon-group svg.joining-balloon-svg {
+      filter: drop-shadow(0 8px 32px rgba(229,77,0,0.35));
+    }
+
+    .joining-overlay.success .joining-particle { animation: none; opacity: 0; }
+
+    .joining-confetti {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .joining-confetti-piece {
+      position: absolute;
+      top: -10px;
+      opacity: 0;
+    }
+
+    .joining-overlay.success .joining-confetti-piece {
+      animation: joining-confetti-rain 1.5s ease-out forwards;
+    }
+
+    @keyframes joining-confetti-rain {
+      0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+      100% { opacity: 0; transform: translateY(300px) rotate(720deg); }
+    }
+
+    /* Error state: gentle droop */
+    .joining-overlay.error .joining-balloon-group {
+      animation: joining-error-droop 1.2s ease-out forwards;
+      transform-origin: center 70px;
+    }
+
+    @keyframes joining-error-droop {
+      0% { transform: translateX(-50%) scale(1) rotate(0deg); }
+      40% { transform: translateX(-50%) scale(0.95, 0.88) rotate(4deg); }
+      100% { transform: translateX(-50%) scale(0.9, 0.82) rotate(8deg) translateY(10px); opacity: 0.75; }
+    }
+
+    .joining-overlay.error .joining-balloon-group svg.joining-balloon-svg {
+      filter: drop-shadow(0 3px 10px rgba(220,38,38,0.18));
+    }
+
+    .joining-overlay.error .joining-particle { animation: none; opacity: 0; }
+
+    /* Status text */
+    .joining-status-text {
+      font-size: 20px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .joining-status-sub {
+      font-size: 14px;
+      color: #B2B2B2;
+      text-align: center;
+    }
+
+    .joining-overlay.success .joining-status-text { color: #16A34A; }
+    .joining-overlay.error .joining-status-text { color: #DC2626; }
+
+    /* Dismiss button */
+    .joining-dismiss-btn {
+      margin-top: 20px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 24px;
+      border: 1.5px solid #EBEBEB;
+      border-radius: 12px;
+      cursor: pointer;
+      background: #fff;
+      color: #666;
+      transition: all 0.2s;
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .joining-dismiss-btn:hover { background: #F5F5F5; border-color: #CCC; }
+
+    .joining-overlay.success .joining-dismiss-btn,
+    .joining-overlay.error .joining-dismiss-btn {
+      animation: joining-btn-in 0.3s 0.6s ease-out forwards;
+    }
+
+    @keyframes joining-btn-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .joining-overlay.error .joining-dismiss-btn {
+      border-color: #FECACA;
+      color: #DC2626;
+    }
+
+    .joining-overlay.error .joining-dismiss-btn:hover { background: #FEF2F2; }
+
+    /* Reduced motion: disable animations, show static states */
+    @media (prefers-reduced-motion: reduce) {
+      .joining-overlay.joining .joining-balloon-group,
+      .joining-overlay.success .joining-balloon-group,
+      .joining-overlay.error .joining-balloon-group {
+        animation: none;
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+      }
+      .joining-particle { animation: none !important; opacity: 0 !important; }
+      .joining-confetti-piece { animation: none !important; opacity: 0 !important; }
+      .joining-string-upper, .joining-string-lower { animation: none; }
+      .joining-dismiss-btn { animation: none; opacity: 1; transform: none; }
+      .joining-overlay { transition: none; }
     }
 
     .error-message {
@@ -927,6 +1176,45 @@ app.get("/", (req, res) => {
       ` : ''}
 
       <div id="paste-view"${showDevTools ? ' style="display:none"' : ''}>
+        <div class="joining-overlay" id="joining-overlay" aria-live="polite">
+          <div class="joining-scene">
+            <div class="joining-particle"></div>
+            <div class="joining-particle"></div>
+            <div class="joining-particle"></div>
+            <div class="joining-particle"></div>
+            <div class="joining-particle"></div>
+            <div class="joining-particle"></div>
+            <div class="joining-balloon-group">
+              <svg class="joining-balloon-svg" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="92">
+                <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#E54D00"/>
+                <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#E54D00"/>
+              </svg>
+              <div class="joining-string-upper">
+                <svg width="20" height="40" viewBox="0 0 20 40" fill="none">
+                  <path d="M10 0 Q13 14 8 25 Q6 33 10 40" stroke="#D4D4D4" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+                <div class="joining-string-lower">
+                  <svg width="20" height="35" viewBox="0 0 20 35" fill="none">
+                    <path d="M10 0 Q14 15 8 35" stroke="#D4D4D4" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div class="joining-confetti" id="joining-confetti">
+              <div class="joining-confetti-piece"></div>
+              <div class="joining-confetti-piece"></div>
+              <div class="joining-confetti-piece"></div>
+              <div class="joining-confetti-piece"></div>
+              <div class="joining-confetti-piece"></div>
+              <div class="joining-confetti-piece"></div>
+              <div class="joining-confetti-piece"></div>
+              <div class="joining-confetti-piece"></div>
+            </div>
+          </div>
+          <div class="joining-status-text" id="joining-text"></div>
+          <div class="joining-status-sub" id="joining-sub"></div>
+          <button class="joining-dismiss-btn" id="joining-dismiss" style="display:none"></button>
+        </div>
         <div class="paste-input-wrap">
           <span class="paste-input-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
@@ -1023,6 +1311,12 @@ app.get("/", (req, res) => {
     var pasteView=document.getElementById('paste-view');
     var pasteInput=document.getElementById('paste-input');
     var pasteError=document.getElementById('paste-error');
+    var joiningOverlay=document.getElementById('joining-overlay');
+    var joiningText=document.getElementById('joining-text');
+    var joiningSub=document.getElementById('joining-sub');
+    var joiningDismiss=document.getElementById('joining-dismiss');
+    var joiningConfetti=document.getElementById('joining-confetti');
+    var joiningAutoHideTimer=null;
     var pageTitle=document.getElementById('page-title');
     var pageSubtitle=document.getElementById('page-subtitle');
     var launching=false;
@@ -1291,6 +1585,44 @@ app.get("/", (req, res) => {
         errorEl.style.display='none';
       }
     });
+    function showJoiningOverlay(state,text,sub){
+      if(joiningAutoHideTimer){clearTimeout(joiningAutoHideTimer);joiningAutoHideTimer=null;}
+      joiningOverlay.className='joining-overlay active '+state;
+      joiningText.textContent=text;
+      joiningSub.textContent=sub;
+      joiningDismiss.style.display=(state==='success'||state==='error')?'':'none';
+      joiningDismiss.textContent=state==='success'?'Paste another link':'Try again';
+      if(state==='success'){
+        // Generate dynamic confetti particles
+        var colors=['#FC4F37','#FBBF24','#34D399','#60A5FA','#E54D00'];
+        joiningConfetti.innerHTML='';
+        for(var i=0;i<20;i++){
+          var p=document.createElement('div');
+          p.className='joining-confetti-piece';
+          p.style.left=(10+Math.random()*80)+'%';
+          p.style.background=colors[i%colors.length];
+          p.style.animationDelay=(Math.random()*0.3)+'s';
+          p.style.width=(4+Math.random()*4)+'px';
+          p.style.height=(4+Math.random()*4)+'px';
+          p.style.borderRadius=Math.random()>0.5?'50%':'2px';
+          joiningConfetti.appendChild(p);
+        }
+      }
+    }
+
+    function hideJoiningOverlay(){
+      if(joiningAutoHideTimer){clearTimeout(joiningAutoHideTimer);joiningAutoHideTimer=null;}
+      joiningOverlay.className='joining-overlay';
+      joiningDismiss.style.display='none';
+      pasteInput.value='';
+      pasteInput.disabled=false;
+      pasteInput.focus();
+    }
+
+    if(joiningDismiss){
+      joiningDismiss.addEventListener('click',function(){hideJoiningOverlay();});
+    }
+
     function handlePasteUrl(url){
       var result=validateJoinUrl(url);
       if(result.valid)result=checkEnvUrl(url);
@@ -1304,30 +1636,27 @@ app.get("/", (req, res) => {
       pasteInput.classList.remove('invalid');
       launching=true;
       pasteInput.disabled=true;
-      pasteInput.value='Joining conversation\u2026';
+      pasteInput.value='';
       errorEl.style.display='none';successEl.classList.remove('active');
+      showJoiningOverlay('joining','Your assistant is on the way','Setting up a secure connection');
       fetch('/api/pool/claim',{method:'POST',headers:authHeaders,body:JSON.stringify({joinUrl:url})})
         .then(function(res){return res.json().then(function(data){return {ok:res.ok,data:data};});})
         .then(function(r){
           if(!r.ok)throw new Error(r.data.error||'Failed to join');
-          pasteInput.value='';
           if(r.data.joined){
-            successTextEl.textContent='Assistant joined the conversation';
-            successEl.classList.add('active');
-            setTimeout(function(){successEl.classList.remove('active');},8000);
+            showJoiningOverlay('success','Your assistant has arrived!','They\u2019re now in your conversation');
+            joiningAutoHideTimer=setTimeout(function(){hideJoiningOverlay();},2500);
           }else{
+            hideJoiningOverlay();
             showQr(r.data.agentName||'Assistant',r.data.inviteUrl);
           }
           refreshFeed();
         })
         .catch(function(err){
-          errorEl.textContent=err.message;
-          errorEl.style.display='block';
-          pasteInput.value=url;
+          showJoiningOverlay('error','Couldn\u2019t reach your conversation',err.message||'Check the link and try again');
         })
         .then(function(){
           launching=false;
-          pasteInput.disabled=false;
           refreshStatus();
         });
     }
