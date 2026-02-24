@@ -69,14 +69,20 @@ app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
   }
 });
 
-// Dashboard page
-app.get("/", (_req, res) => {
+// Dashboard page — mode determined by POOL_ENVIRONMENT + ?mode= query param
+app.get("/", (req, res) => {
+  // Dev mode: default for non-prod/staging envs, overridable with ?mode=dev
+  const devMode = req.query.mode === "dev" || (POOL_ENVIRONMENT !== "production" && POOL_ENVIRONMENT !== "staging");
+  const serviceLink = RAILWAY_PROJECT_ID && RAILWAY_SERVICE_ID
+    ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>`
+    : RAILWAY_SERVICE_ID ? RAILWAY_SERVICE_ID.slice(0, 8) : "";
+
   res.type("html").send(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Convos Agent Pool</title>
+  <title>Convos${devMode ? " Assistant Pool" : ""}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -87,185 +93,168 @@ app.get("/", (_req, res) => {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
       background: #FFF;
       min-height: 100vh;
-      padding: 32px;
       color: #000;
       -webkit-font-smoothing: antialiased;
     }
 
-    .container {
-      max-width: 900px;
+    /* --- Form (shared between modes) --- */
+    .form-wrapper {
+      padding: 60px 24px;
+      background: linear-gradient(180deg, #FAFAFA 0%, #fff 40%);
+      min-height: ${devMode ? "auto" : "100vh"};
+      display: flex;
+      align-items: ${devMode ? "flex-start" : "center"};
+      justify-content: center;
+    }
+
+    .form-center {
+      max-width: 520px;
       width: 100%;
-      margin: 0 auto;
     }
 
-    /* Header */
-    .header {
+    .brand {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 32px;
+      gap: 10px;
+      margin-bottom: 48px;
     }
 
-    .logo-container {
+    .brand-icon {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      align-items: center;
+      justify-content: center;
     }
 
-    .logo-text {
-      font-size: 20px;
+    .brand-icon svg { width: 22px; height: 28px; }
+
+    .brand-name {
+      font-size: 16px;
       font-weight: 700;
-      letter-spacing: -0.5px;
+      letter-spacing: -0.3px;
     }
 
-    .logo-sub {
-      font-size: 13px;
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.8px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      font-size: 16px;
       color: #999;
-      font-weight: 400;
+      margin-bottom: 40px;
     }
 
-    /* Pool bar */
-    .pool-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: #FAFAFA;
-      border: 1px solid #EBEBEB;
-      border-radius: 14px;
-      margin-bottom: 24px;
-    }
+    .field-group { margin-bottom: 28px; }
 
-    .pool-bar-left {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .pool-bar-label {
+    .field-label {
+      display: block;
       font-size: 12px;
       font-weight: 600;
       color: #999;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-right: 6px;
+      margin-bottom: 8px;
     }
 
-    .pool-stat {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 13px;
-      font-weight: 500;
-      padding: 4px 10px;
-      background: #FFF;
-      border-radius: 8px;
-      color: #666;
-      border: 1px solid #EBEBEB;
+    .field-label .opt {
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      color: #CCC;
     }
 
-    .pool-stat .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-    }
-
-    .pool-stat.ready .dot { background: #34C759; }
-    .pool-stat.starting .dot { background: #FF9500; }
-    .pool-stat.claimed .dot { background: #007AFF; }
-    .pool-stat.crashed .dot { background: #DC2626; }
-
-    .pool-bar-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .pool-bar-right input {
-      width: 48px;
-      padding: 5px 4px;
-      font-size: 13px;
-      text-align: center;
-      border: 1px solid #EBEBEB;
-      border-radius: 8px;
+    .field-input {
+      width: 100%;
+      padding: 16px 20px;
+      border: 1px solid #E5E5E5;
+      border-radius: 16px;
+      font-size: 16px;
       font-family: inherit;
       color: #000;
-      background: #FFF;
+      background: #fff;
+      transition: all 0.2s;
     }
 
-    .pool-bar-right input:focus { outline: none; border-color: #999; }
+    .field-input:focus {
+      outline: none;
+      border-color: #000;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+    }
 
-    .pool-btn {
+    .field-input::placeholder { color: #D4D4D4; }
+    .field-input.invalid { border-color: #DC2626; }
+    .field-input.invalid:focus { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.06); }
+
+    textarea.field-input { resize: vertical; min-height: 120px; }
+
+    .field-hint {
       font-size: 12px;
-      font-weight: 600;
-      padding: 5px 10px;
-      border: 1px solid #EBEBEB;
-      border-radius: 8px;
-      cursor: pointer;
-      background: #FFF;
-      color: #666;
-      transition: all 0.15s ease;
+      color: #CCC;
+      margin-top: 6px;
     }
 
-    .pool-btn:hover { background: #F5F5F5; border-color: #CCC; }
-    .pool-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .pool-btn.danger {
+    .field-error {
       color: #DC2626;
-      border-color: #FECACA;
+      font-size: 13px;
+      margin-top: 6px;
+      display: none;
     }
 
-    .pool-btn.danger:hover { background: #FEF2F2; }
+    .field-error.visible { display: block; }
 
-    /* Two-column grid */
-    .main-content {
-      display: grid;
-      grid-template-columns: 1fr 340px;
-      gap: 24px;
-      align-items: start;
-    }
-
-    @media (max-width: 768px) {
-      .main-content {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .card {
-      background: #FFF;
-      border: 1px solid #EBEBEB;
-      border-radius: 24px;
-      padding: 32px;
-    }
-
-    .card h3 {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 20px;
-      letter-spacing: -0.08px;
-    }
-
-    .info-row {
+    .template-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 20px;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
     }
 
-    .info-chip {
+    .template-pill {
       font-size: 11px;
       font-weight: 500;
+      padding: 4px 10px;
+      border: 1px dashed #D4D4D4;
+      border-radius: 20px;
       color: #999;
-      padding: 3px 8px;
-      background: #FAFAFA;
-      border: 1px solid #EBEBEB;
-      border-radius: 6px;
-      white-space: nowrap;
+      cursor: default;
     }
 
-    .info-chip a {
-      color: #007AFF;
-      text-decoration: none;
+    .template-pill:hover { border-color: #999; color: #666; }
+
+    .template-soon {
+      font-size: 11px;
+      color: #CCC;
+      font-style: italic;
+    }
+
+    .btn-launch {
+      width: 100%;
+      padding: 18px;
+      background: #FC4F37;
+      color: #fff;
+      border: none;
+      border-radius: 16px;
+      font-size: 17px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: -0.2px;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+
+    .btn-launch:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-launch:active { transform: scale(0.98); }
+    .btn-launch:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .footer-note {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 12px;
+      color: #CCC;
     }
 
     .unavailable-msg {
@@ -280,101 +269,14 @@ app.get("/", (_req, res) => {
       margin: 0 auto 12px;
     }
 
-    .setting-group { margin-bottom: 20px; }
-
-    .setting-label {
-      display: block;
-      color: #666;
-      font-size: 14px;
-      font-weight: 500;
-      margin-bottom: 8px;
-    }
-
-    .setting-input {
-      width: 100%;
-      background: #FFF;
-      border: 1px solid #EBEBEB;
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 15px;
-      color: #000;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-
-    .setting-input:focus { outline: none; border-color: #000; }
-    .setting-input::placeholder { color: #B2B2B2; }
-    textarea.setting-input { resize: vertical; min-height: 80px; }
-
-    .field-hint {
-      font-size: 12px;
-      color: #B2B2B2;
-      margin-top: 6px;
-      padding-bottom: 1px;
-    }
-    .field-error {
+    .error-message {
       color: #DC2626;
-      font-size: 13px;
-      margin-top: 6px;
-      display: none;
-    }
-    .field-error.visible { display: block; }
-    .setting-input.invalid { border-color: #DC2626; }
-    .setting-input.invalid:focus { border-color: #DC2626; }
-
-    /* .channel-checkboxes { display: flex; gap: 20px; flex-wrap: wrap; }
-    .channel-option { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #333; cursor: pointer; } */
-
-    .btn-primary {
-      background: #FC4F37;
-      color: #FFF;
-      border: none;
-      border-radius: 40px;
-      padding: 18px 32px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      letter-spacing: -0.08px;
-      width: 100%;
-      margin-top: 4px;
-    }
-
-    .btn-primary:hover { opacity: 0.9; }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .mode-toggle {
-      display: flex;
-      gap: 4px;
-      padding: 4px;
-      margin-bottom: 20px;
-      background: #F5F5F5;
-      border-radius: 12px;
-    }
-
-    .mode-btn {
-      flex: 1;
-      padding: 10px 16px;
-      border: none;
-      background: transparent;
-      color: #666;
       font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border-radius: 8px;
-    }
-
-    .mode-btn.active {
-      background: #FFF;
-      color: #000;
-      font-weight: 600;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-
-    .mode-btn:hover:not(.active) {
-      color: #333;
+      margin-top: 12px;
+      padding: 12px 16px;
+      background: #FEE2E2;
+      border-radius: 12px;
+      display: none;
     }
 
     .success-banner {
@@ -388,205 +290,12 @@ app.get("/", (_req, res) => {
       margin-top: 16px;
     }
 
-    .success-banner.active {
-      display: flex;
-    }
+    .success-banner.active { display: flex; }
+    .success-banner svg { flex-shrink: 0; }
+    .success-banner .success-text { font-size: 14px; font-weight: 500; color: #166534; }
+    .success-banner .success-sub { font-size: 13px; color: #15803D; margin-top: 2px; }
 
-    .success-banner svg {
-      flex-shrink: 0;
-    }
-
-    .success-banner .success-text {
-      font-size: 14px;
-      font-weight: 500;
-      color: #166534;
-    }
-
-    .success-banner .success-sub {
-      font-size: 13px;
-      color: #15803D;
-      margin-top: 2px;
-    }
-
-    .btn-secondary {
-      background: #F5F5F5;
-      color: #000;
-      border: none;
-      border-radius: 12px;
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-secondary:hover { background: #EBEBEB; }
-
-    .btn-danger {
-      background: #FEE2E2;
-      color: #DC2626;
-      border: none;
-      border-radius: 12px;
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-danger:hover { background: #FECACA; }
-
-    .btn-warn {
-      background: #FEF3C7;
-      color: #92400E;
-      border: none;
-      border-radius: 12px;
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .btn-warn:hover { background: #FDE68A; }
-
-    .error-message {
-      color: #DC2626;
-      font-size: 14px;
-      margin-top: 12px;
-      padding: 12px 16px;
-      background: #FEE2E2;
-      border-radius: 12px;
-      display: none;
-    }
-
-    /* Agent feed (right column) */
-    .feed-column {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-
-    .section-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .live-count {
-      font-size: 13px;
-      font-weight: 500;
-      color: #999;
-    }
-
-    .agent-card {
-      background: #FFF;
-      border: 1px solid #EBEBEB;
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 8px;
-    }
-
-    .agent-card.crashed {
-      border-color: #FECACA;
-      background: #FEF2F2;
-    }
-
-    .agent-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 4px;
-    }
-
-    .agent-header-left {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      min-width: 0;
-    }
-
-    .agent-header-actions {
-      flex-shrink: 0;
-    }
-
-    .agent-name {
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: -0.08px;
-    }
-
-    .agent-uptime {
-      font-size: 12px;
-      color: #999;
-      font-weight: 500;
-    }
-
-    .agent-status-badge {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: #FEE2E2;
-      color: #DC2626;
-    }
-
-    .agent-id-line {
-      font-size: 11px;
-      color: #999;
-      font-family: monospace;
-      margin-bottom: 0;
-    }
-
-    .agent-id-line a {
-      color: #007AFF;
-      text-decoration: none;
-    }
-
-    .agent-actions {
-      display: flex;
-      gap: 6px;
-    }
-
-    .agent-actions .btn-secondary,
-    .agent-actions .btn-danger,
-    .agent-actions .btn-warn {
-      padding: 6px 12px;
-      font-size: 12px;
-      border-radius: 8px;
-    }
-
-    .agent-card.destroying {
-      opacity: 0.5;
-      pointer-events: none;
-      position: relative;
-    }
-
-    .agent-card.destroying .agent-uptime {
-      color: #DC2626;
-    }
-
-    @keyframes destroyPulse {
-      0%, 100% { opacity: 0.5; }
-      50% { opacity: 0.3; }
-    }
-
-    .agent-card.destroying {
-      animation: destroyPulse 1.5s ease-in-out infinite;
-    }
-
-    /* QR modal */
+    /* --- QR modal --- */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -597,14 +306,12 @@ app.get("/", (_req, res) => {
       justify-content: center;
     }
 
-    .modal-overlay.active {
-      display: flex;
-    }
+    .modal-overlay.active { display: flex; }
 
     .modal {
       background: #FFF;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
       padding: 1.25rem;
       max-width: 320px;
       width: 100%;
@@ -688,167 +395,358 @@ app.get("/", (_req, res) => {
       color: #999;
       transition: color 0.2s;
     }
-    .modal .copy-icon svg {
-      width: 100%;
-      height: 100%;
-    }
 
+    .modal .copy-icon svg { width: 100%; height: 100%; }
     .modal .invite-row:hover .copy-icon { color: #666; }
-
     .modal .invite-row.copied { background: #D4EDDA; }
     .modal .invite-row.copied .invite-url { color: #155724; }
     .modal .invite-row.copied .copy-icon { color: #155724; }
 
-    .empty-state {
-      text-align: center;
-      padding: 32px 16px;
+    /* --- Dev status bar --- */
+    .dev-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #FAFAFA;
+      border-bottom: 1px solid #EBEBEB;
+      font-size: 12px;
       color: #999;
-      font-size: 13px;
+      position: relative;
     }
 
-    .env-badge {
-      display: inline-block;
+    .dev-bar .env-tag {
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 3px 8px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #DBEAFE;
+      color: #1D4ED8;
+    }
+
+    .dev-bar .env-tag.env-staging { background: #FEF3C7; color: #92400E; }
+    .dev-bar .env-tag.env-production { background: #FEE2E2; color: #991B1B; }
+
+    .dev-bar .sep { width: 1px; height: 16px; background: #E5E5E5; }
+
+    .dev-bar .bar-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+
+    .dev-bar .bar-stat.clickable {
+      cursor: pointer;
+      padding: 2px 8px;
       border-radius: 6px;
-      margin-left: 10px;
-      vertical-align: middle;
+      transition: background 0.15s;
     }
 
-    .env-badge.env-staging {
-      background: #FEF3C7;
-      border: 1px solid #FDE68A;
-      color: #92400E;
+    .dev-bar .bar-stat.clickable:hover { background: #EBEBEB; }
+    .dev-bar .bar-stat.clickable.open { background: #E5E5E5; }
+
+    .dev-bar .chevron {
+      display: inline-block;
+      font-size: 8px;
+      margin-left: 2px;
+      transition: transform 0.15s;
     }
 
-    .env-badge.env-production {
+    .dev-bar .bar-stat.open .chevron { transform: rotate(180deg); }
+
+    .dev-bar .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .dev-bar .dot.green { background: #34C759; }
+    .dev-bar .dot.orange { background: #FF9500; }
+    .dev-bar .dot.blue { background: #007AFF; }
+    .dev-bar .dot.red { background: #DC2626; }
+
+    .dev-bar .spacer { flex: 1; }
+
+    .dev-bar .bar-btn {
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border: 1px solid #EBEBEB;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #fff;
+      color: #666;
+      transition: all 0.15s;
+    }
+
+    .dev-bar .bar-btn:hover { background: #F5F5F5; border-color: #CCC; }
+    .dev-bar .bar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .dev-bar .bar-btn.danger { color: #DC2626; border-color: #FECACA; }
+    .dev-bar .bar-btn.danger:hover { background: #FEF2F2; }
+
+    .dev-bar input[type="number"] {
+      width: 36px;
+      padding: 2px 4px;
+      text-align: center;
+      font-size: 11px;
+      border: 1px solid #EBEBEB;
+      border-radius: 6px;
+      font-family: inherit;
+      color: #000;
+      background: #fff;
+    }
+
+    .dev-bar input[type="number"]:focus { outline: none; border-color: #999; }
+
+    .dev-bar .chip {
+      font-size: 10px;
+      font-weight: 500;
+      color: #B2B2B2;
+      padding: 2px 6px;
+      background: #F5F5F5;
+      border: 1px solid #EBEBEB;
+      border-radius: 4px;
+    }
+
+    .dev-bar .chip a { color: #007AFF; text-decoration: none; }
+
+    /* --- Agents dropdown --- */
+    .agents-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 380px;
+      background: #fff;
+      border: 1px solid #EBEBEB;
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.04);
+      z-index: 100;
+      padding: 4px;
+    }
+
+    .agents-dropdown.open { display: block; animation: dropIn 0.15s ease-out; }
+
+    @keyframes dropIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    .dropdown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px 6px;
+    }
+
+    .dropdown-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .dropdown-count {
+      font-size: 11px;
+      color: #CCC;
+      font-weight: 500;
+    }
+
+    .dropdown-list {
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 0 4px 4px;
+    }
+
+    .agent-card {
+      background: #fff;
+      border: 1px solid #F0F0F0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 4px;
+      transition: background 0.1s;
+    }
+
+    .agent-card:hover { background: #FAFAFA; }
+    .agent-card:last-child { margin-bottom: 0; }
+    .agent-card.crashed { border-color: #FECACA; background: #FEF2F2; }
+    .agent-card.crashed:hover { background: #FEE2E2; }
+
+    .agent-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .agent-top-left {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .agent-name { font-size: 13px; font-weight: 600; }
+    .agent-uptime { font-size: 11px; color: #999; }
+
+    .agent-status-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      padding: 2px 5px;
+      border-radius: 4px;
       background: #FEE2E2;
-      border: 1px solid #FECACA;
-      color: #991B1B;
+      color: #DC2626;
+      margin-left: 4px;
     }
 
-    body.env-production { border-top: 3px solid #DC2626; }
-    body.env-staging { border-top: 3px solid #F59E0B; }
+    .agent-meta {
+      font-size: 10px;
+      color: #CCC;
+      font-family: monospace;
+    }
 
-    @media (max-width: 768px) {
-      body { padding: 16px; }
+    .agent-meta a { color: #007AFF; text-decoration: none; }
 
-      .header {
-        flex-wrap: wrap;
-        gap: 12px;
-      }
+    .agent-actions { display: flex; gap: 3px; }
 
-      .header-right {
-        flex-wrap: wrap;
-        gap: 6px;
-      }
+    .agent-btn {
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 3px 7px;
+      border: 1px solid #EBEBEB;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #fff;
+      color: #666;
+      transition: all 0.15s;
+    }
 
-      .pool-bar {
-        flex-wrap: wrap;
-        gap: 10px;
-      }
+    .agent-btn:hover { background: #F5F5F5; }
+    .agent-btn.danger { color: #DC2626; border-color: #FECACA; }
+    .agent-btn.danger:hover { background: #FEF2F2; }
+    .agent-btn.warn { color: #92400E; border-color: #FDE68A; }
+    .agent-btn.warn:hover { background: #FEF3C7; }
 
-      .pool-bar-left {
-        flex-wrap: wrap;
-        width: 100%;
-      }
+    .agent-card.destroying { opacity: 0.5; pointer-events: none; animation: destroyPulse 1.5s ease-in-out infinite; }
+    @keyframes destroyPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.3; } }
 
-      .pool-bar-right {
-        width: 100%;
-      }
+    .dropdown-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 99;
+    }
+
+    .dropdown-backdrop.open { display: block; }
+
+    .dropdown-empty {
+      text-align: center;
+      padding: 16px;
+      color: #CCC;
+      font-size: 12px;
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 640px) {
+      .dev-bar { flex-wrap: wrap; gap: 6px; }
+      .dev-bar .spacer { display: none; }
+      .form-wrapper { padding: 32px 16px; }
+      .page-title { font-size: 24px; }
+      .agents-dropdown { width: calc(100vw - 32px); left: 16px; transform: none; }
     }
   </style>
 </head>
-<body class="env-${POOL_ENVIRONMENT}">
-  <div class="container">
-    <header class="header">
-      <div class="logo-container">
-        <span class="logo-text">Convos Agent Pool<span class="env-badge env-${POOL_ENVIRONMENT}">${POOL_ENVIRONMENT}</span></span>
-        <span class="logo-sub">Internal tool for quickly spinning up agents with new instructions.${RAILWAY_PROJECT_ID ? ` <a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener" style="color:inherit;opacity:0.7">Railway ↗</a>` : ""}</span>
+<body>
+  ${devMode ? `
+  <div class="dropdown-backdrop" id="dropdown-backdrop"></div>
+  <div class="dev-bar">
+    <span class="env-tag env-${POOL_ENVIRONMENT}">${POOL_ENVIRONMENT}</span>
+    <span class="sep"></span>
+    <span class="bar-stat"><span class="dot green"></span> <span id="s-idle">-</span> ready</span>
+    <span class="bar-stat"><span class="dot orange"></span> <span id="s-starting">-</span> starting</span>
+    <span class="bar-stat clickable" id="claimed-toggle">
+      <span class="dot blue"></span> <span id="s-claimed">-</span> claimed <span class="chevron">&#9660;</span>
+      <div class="agents-dropdown" id="agents-dropdown">
+        <div class="dropdown-header">
+          <span class="dropdown-title">Live Assistants</span>
+          <span class="dropdown-count" id="dropdown-count"></span>
+        </div>
+        <div class="dropdown-list" id="feed"></div>
       </div>
-    </header>
+    </span>
+    <span class="bar-stat" id="s-crashed-wrap" style="display:none"><span class="dot red"></span> <span id="s-crashed">0</span> crashed</span>
+    <span class="sep"></span>
+    <input id="replenish-count" type="number" min="1" max="20" value="1" />
+    <button class="bar-btn" id="replenish-btn">+ Add</button>
+    <button class="bar-btn danger" id="drain-btn">Drain</button>
+    <span class="spacer"></span>
+    <span class="chip">branch: ${DEPLOY_BRANCH}</span>
+    <span class="chip">model: ${INSTANCE_MODEL}</span>
+    ${serviceLink ? `<span class="chip">service: ${serviceLink}</span>` : ""}
+    ${RAILWAY_PROJECT_ID ? `<span class="chip"><a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener">Railway ↗</a></span>` : ""}
+  </div>
+  ` : ""}
 
-    <div class="pool-bar">
-      <div class="pool-bar-left">
-        <span class="pool-bar-label">Pool</span>
-        <div class="pool-stat ready"><span class="dot"></span><span id="s-idle">-</span> ready</div>
-        <div class="pool-stat starting"><span class="dot"></span><span id="s-starting">-</span> starting</div>
-        <div class="pool-stat claimed"><span class="dot"></span><span id="s-claimed">-</span> claimed</div>
-        <div class="pool-stat crashed" id="s-crashed-wrap" style="display:none"><span class="dot"></span><span id="s-crashed">0</span> crashed</div>
+  <div class="form-wrapper">
+    <div class="form-center">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#E54D00"/><path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#E54D00"/></svg>
+        </div>
+        <span class="brand-name">Convos</span>
       </div>
-      <div class="pool-bar-right">
-        <input id="replenish-count" type="number" min="1" max="20" value="1" />
-        <button class="pool-btn" id="replenish-btn">+ Add</button>
-        <button class="pool-btn danger" id="drain-btn">Drain Unclaimed</button>
-      </div>
-    </div>
+      <h1 class="page-title">Launch your assistant</h1>
+      <p class="page-subtitle">Create an AI assistant and drop it into any Convos conversation.</p>
 
-    <div class="main-content">
-      <div class="card">
-        <h3>Launch an Agent</h3>
-        <div class="info-row">
-          <span class="info-chip">branch: ${DEPLOY_BRANCH}</span>
-          <span class="info-chip">model: ${INSTANCE_MODEL}</span>${RAILWAY_SERVICE_ID ? `
-          <span class="info-chip">service: ${RAILWAY_PROJECT_ID ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>` : RAILWAY_SERVICE_ID.slice(0, 8)}</span>` : ""}
-        </div>
-        <div id="unavailable" class="unavailable-msg" style="display:none">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="1.5">
-            <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10">
-              <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-          No instances ready. Waiting for pool to warm up...
-        </div>
-        <form id="f">
-          <div class="setting-group">
-            <label class="setting-label" for="name">Name</label>
-            <input id="name" name="name" class="setting-input" placeholder="e.g. Tokyo Trip" required />
-          </div>
-          <div class="setting-group">
-            <label class="setting-label" for="join-url">Invite URL <span style="color:#B2B2B2;font-weight:400">(optional)</span></label>
-            <input id="join-url" name="joinUrl" class="setting-input" placeholder="https://popup.convos.org/v2?... or paste invite slug" />
-            <div class="field-hint" id="join-url-hint">Leave empty to create a new conversation</div>
-            <div class="field-error" id="join-url-error"></div>
-          </div>
-          <!--
-          <div class="setting-group">
-            <label class="setting-label">Channels</label>
-            <div class="channel-checkboxes">
-              <label class="channel-option"><input type="checkbox" name="channel-email" checked /> Email</label>
-              <label class="channel-option"><input type="checkbox" name="channel-crypto" checked /> Crypto</label>
-              <label class="channel-option"><input type="checkbox" name="channel-sms" checked /> SMS</label>
-            </div>
-          </div>
-          -->
-          <div class="setting-group">
-            <label class="setting-label" for="instructions">Instructions</label>
-            <textarea id="instructions" name="instructions" class="setting-input" placeholder="You are a helpful trip planner for Tokyo..." required></textarea>
-          </div>
-          <button type="submit" id="btn" class="btn-primary" disabled>Launch Agent</button>
-        </form>
-        <div class="error-message" id="error"></div>
-        <div class="success-banner" id="success">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9 12l2 2 4-4"/>
-          </svg>
-          <div>
-            <div class="success-text" id="success-text"></div>
-            <div class="success-sub" id="success-sub">The agent is now active in the conversation.</div>
-          </div>
-        </div>
+      <div id="unavailable" class="unavailable-msg" style="display:none">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10">
+            <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+        No instances ready. Waiting for pool to warm up...
       </div>
 
-      <div class="feed-column">
-        <div class="section-header">
-          <span class="section-title">Live Agents</span>
-          <span class="live-count" id="live-count"></span>
+      <form id="f">
+        <div class="field-group">
+          <label class="field-label" for="name">Assistant Name</label>
+          <input id="name" name="name" class="field-input" placeholder="Give your assistant a name" required />
         </div>
-        <div id="feed"></div>
+        <div class="field-group">
+          <label class="field-label" for="join-url">Invite URL <span class="opt">(optional)</span></label>
+          <input id="join-url" name="joinUrl" class="field-input" placeholder="Paste a Convos invite link to join an existing conversation" />
+          <div class="field-hint" id="join-url-hint">Leave empty to create a new conversation</div>
+          <div class="field-error" id="join-url-error"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="instructions">Instructions</label>
+          <textarea id="instructions" name="instructions" class="field-input" placeholder="Tell the assistant who it is and what it should do..." required></textarea>
+          <div class="template-row">
+            <span class="template-pill">Trip Planner</span>
+            <span class="template-pill">Research Assistant</span>
+            <span class="template-pill">Writing Coach</span>
+            <span class="template-soon">coming soon</span>
+          </div>
+        </div>
+        <button type="submit" id="btn" class="btn-launch" disabled>Launch Assistant</button>
+      </form>
+
+      <div class="error-message" id="error"></div>
+      <div class="success-banner" id="success">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+        <div>
+          <div class="success-text" id="success-text"></div>
+          <div class="success-sub" id="success-sub">The assistant is now active in the conversation.</div>
+        </div>
       </div>
+
+      <div class="footer-note">Your assistant will be live in about 30 seconds</div>
     </div>
   </div>
 
@@ -881,22 +779,16 @@ app.get("/", (_req, res) => {
   </div>
 
   <script>
-    const API_KEY='${POOL_API_KEY}';
-    const POOL_ENV='${POOL_ENVIRONMENT}';
-    const RAILWAY_PROJECT='${process.env.RAILWAY_PROJECT_ID || ""}';
-    const RAILWAY_ENV='${process.env.RAILWAY_ENVIRONMENT_ID || ""}';
-    const authHeaders={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'};
+    var DEV_MODE=${devMode};
+    var API_KEY='${POOL_API_KEY}';
+    var POOL_ENV='${POOL_ENVIRONMENT}';
+    var RAILWAY_PROJECT='${process.env.RAILWAY_PROJECT_ID || ""}';
+    var RAILWAY_ENV='${process.env.RAILWAY_ENVIRONMENT_ID || ""}';
+    var authHeaders={'Authorization':'Bearer '+API_KEY,'Content-Type':'application/json'};
+
     function railwayUrl(serviceId){
       if(!RAILWAY_PROJECT||!serviceId)return null;
       return 'https://railway.com/project/'+RAILWAY_PROJECT+'/service/'+serviceId+(RAILWAY_ENV?'?environmentId='+RAILWAY_ENV:'');
-    }
-
-    function copyText(el){
-      navigator.clipboard.writeText(el.textContent.trim()).then(function(){
-        var orig=el.textContent;
-        el.textContent='Copied!';el.style.background='#D4EDDA';el.style.color='#155724';
-        setTimeout(function(){el.textContent=orig;el.style.background='';el.style.color='';},1500);
-      });
     }
 
     function timeAgo(dateStr){
@@ -909,20 +801,24 @@ app.get("/", (_req, res) => {
       return '<1m';
     }
 
+    function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
     // Pool status
-    var sIdle=document.getElementById('s-idle'),sStarting=document.getElementById('s-starting'),sClaimed=document.getElementById('s-claimed');
-    var sCrashed=document.getElementById('s-crashed'),sCrashedWrap=document.getElementById('s-crashed-wrap');
     var unavail=document.getElementById('unavailable'),btn=document.getElementById('btn');
-    var liveCount=document.getElementById('live-count');
     var launching=false;
 
     async function refreshStatus(){
       try{
         var res=await fetch('/api/pool/counts');
         var c=await res.json();
-        sIdle.textContent=c.idle;sStarting.textContent=c.starting;sClaimed.textContent=c.claimed;
-        if(c.crashed>0){sCrashed.textContent=c.crashed;sCrashedWrap.style.display='';}
-        else{sCrashedWrap.style.display='none';}
+        if(DEV_MODE){
+          document.getElementById('s-idle').textContent=c.idle;
+          document.getElementById('s-starting').textContent=c.starting;
+          document.getElementById('s-claimed').textContent=c.claimed;
+          var sw=document.getElementById('s-crashed-wrap');
+          if(c.crashed>0){document.getElementById('s-crashed').textContent=c.crashed;sw.style.display='';}
+          else{sw.style.display='none';}
+        }
         if(!launching){
           if(c.idle>0){btn.disabled=false;unavail.style.display='none'}
           else{btn.disabled=true;unavail.style.display='block'}
@@ -930,11 +826,11 @@ app.get("/", (_req, res) => {
       }catch{}
     }
 
-    // Agent feed
-    var feed=document.getElementById('feed');
+    // Agent feed (dev mode only)
     var claimedCache=[],crashedCache=[];
 
     async function refreshFeed(){
+      if(!DEV_MODE)return;
       try{
         var res=await fetch('/api/pool/agents');
         var data=await res.json();
@@ -944,7 +840,60 @@ app.get("/", (_req, res) => {
       }catch{}
     }
 
-    function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+    function renderFeed(){
+      if(!DEV_MODE)return;
+      var feed=document.getElementById('feed');
+      var dc=document.getElementById('dropdown-count');
+      var total=claimedCache.length+crashedCache.length;
+      var parts=[];
+      if(claimedCache.length)parts.push(claimedCache.length+' running');
+      if(crashedCache.length)parts.push(crashedCache.length+' crashed');
+      dc.textContent=parts.join(' · ')||'';
+      if(!total){
+        feed.innerHTML='<div class="dropdown-empty">No live assistants yet.</div>';
+        return;
+      }
+      var html='';
+      crashedCache.forEach(function(a){
+        var name=esc(a.agentName||a.id);
+        var rUrl=railwayUrl(a.serviceId);
+        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
+        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
+        html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
+          '<div class="agent-top">'+
+            '<div class="agent-top-left">'+
+              '<span class="agent-name">'+name+'<span class="agent-status-badge">Crashed</span></span>'+
+              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '</div>'+
+            '<div class="agent-actions">'+
+              '<button class="agent-btn" data-qr="'+a.id+'">QR</button>'+
+              '<button class="agent-btn warn" data-dismiss="'+a.id+'">Dismiss</button>'+
+            '</div>'+
+          '</div>'+
+          '<div class="agent-meta">'+idPart+branchTag+'</div>'+
+        '</div>';
+      });
+      claimedCache.forEach(function(a){
+        var name=esc(a.agentName||a.id);
+        var rUrl=railwayUrl(a.serviceId);
+        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
+        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
+        html+='<div class="agent-card" id="agent-'+a.id+'">'+
+          '<div class="agent-top">'+
+            '<div class="agent-top-left">'+
+              '<span class="agent-name">'+name+'</span>'+
+              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
+            '</div>'+
+            '<div class="agent-actions">'+
+              '<button class="agent-btn" data-qr="'+a.id+'">QR</button>'+
+              '<button class="agent-btn danger" data-kill="'+a.id+'">Kill</button>'+
+            '</div>'+
+          '</div>'+
+          '<div class="agent-meta">'+idPart+branchTag+'</div>'+
+        '</div>';
+      });
+      feed.innerHTML=html;
+    }
 
     // Join URL validation
     function validateJoinUrl(input){
@@ -972,18 +921,17 @@ app.get("/", (_req, res) => {
     function updateButtonText(){
       if(launching)return;
       var hasJoinUrl=joinUrlInput.value.trim().length>0;
-      btn.textContent=hasJoinUrl?'Join Conversation':'Launch Agent';
+      btn.textContent=hasJoinUrl?'Join Conversation':'Launch Assistant';
       if(hasJoinUrl){
         nameInput.removeAttribute('required');
-        nameInput.placeholder='e.g. My Agent (optional for join)';
+        nameInput.placeholder='e.g. My Assistant (optional for join)';
       }else{
         nameInput.setAttribute('required','');
-        nameInput.placeholder='e.g. Tokyo Trip';
+        nameInput.placeholder='Give your assistant a name';
         joinUrlHint.style.display='';
       }
     }
 
-    // Real-time validation on invite URL input
     joinUrlInput.addEventListener('input',function(){
       var val=joinUrlInput.value.trim();
       var result=validateJoinUrl(val);
@@ -1001,81 +949,6 @@ app.get("/", (_req, res) => {
       }
       updateButtonText();
     });
-
-    function renderFeed(){
-      var total=claimedCache.length+crashedCache.length;
-      liveCount.textContent=claimedCache.length?claimedCache.length+' running':'';
-      if(!total){
-        feed.innerHTML='<div class="empty-state">No live agents yet.</div>';
-        return;
-      }
-      var html='';
-      // Crashed agents first
-      crashedCache.forEach(function(a){
-        var name=esc(a.agentName||a.id);
-        var rUrl=railwayUrl(a.serviceId);
-        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
-        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
-        var idLine='<div class="agent-id-line">'+idPart+branchTag+'</div>';
-        html+='<div class="agent-card crashed" id="agent-'+a.id+'">'+
-          '<div class="agent-header">'+
-            '<div class="agent-header-left">'+
-              '<span class="agent-name">'+name+' <span class="agent-status-badge">Crashed</span></span>'+
-              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
-            '</div>'+
-            '<div class="agent-header-actions agent-actions">'+
-              '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
-              '<button class="btn-warn" data-dismiss="'+a.id+'">Dismiss</button>'+
-            '</div>'+
-          '</div>'+
-          idLine+
-        '</div>';
-      });
-      // Live agents
-      claimedCache.forEach(function(a){
-        var name=esc(a.agentName||a.id);
-        var rUrl=railwayUrl(a.serviceId);
-        var branchTag=a.sourceBranch?' · '+esc(a.sourceBranch):'';
-        var idPart=rUrl?'<a href="'+rUrl+'" target="_blank" rel="noopener">'+esc(a.id)+'</a>':esc(a.id);
-        var idLine='<div class="agent-id-line">'+idPart+branchTag+'</div>';
-        html+='<div class="agent-card" id="agent-'+a.id+'">'+
-          '<div class="agent-header">'+
-            '<div class="agent-header-left">'+
-              '<span class="agent-name">'+name+'</span>'+
-              '<span class="agent-uptime">'+timeAgo(a.claimedAt)+'</span>'+
-            '</div>'+
-            '<div class="agent-header-actions agent-actions">'+
-              '<button class="btn-secondary" data-qr="'+a.id+'">Show QR</button>'+
-              '<button class="btn-danger" data-kill="'+a.id+'">Kill</button>'+
-            '</div>'+
-          '</div>'+
-          idLine+
-        '</div>';
-      });
-      feed.innerHTML=html;
-    }
-
-    // Event delegation for agent actions
-    feed.onclick=function(e){
-      var qrId=e.target.getAttribute('data-qr');
-      if(qrId){
-        var a=claimedCache.concat(crashedCache).find(function(x){return x.id===qrId;});
-        if(a)showQr(a.agentName||a.id,a.inviteUrl||'');
-        return;
-      }
-      var killId=e.target.getAttribute('data-kill');
-      if(killId){
-        var card=document.getElementById('agent-'+killId);
-        var name=card?card.querySelector('.agent-name').textContent.trim():killId;
-        killAgent(killId,name);
-        return;
-      }
-      var dismissId=e.target.getAttribute('data-dismiss');
-      if(dismissId){
-        var a3=crashedCache.find(function(x){return x.id===dismissId;});
-        if(a3)dismissAgent(a3.id,a3.agentName||a3.id);
-      }
-    };
 
     // QR modal
     var modal=document.getElementById('qr-modal');
@@ -1111,60 +984,6 @@ app.get("/", (_req, res) => {
     function closeModal(){modal.classList.remove('active');}
     modal.onclick=function(e){if(e.target===modal)closeModal();};
 
-    // Kill single agent
-    function markDestroying(id){
-      var card=document.getElementById('agent-'+id);
-      if(card){
-        card.classList.add('destroying');
-        var uptime=card.querySelector('.agent-uptime');
-        if(uptime)uptime.textContent='Destroying...';
-      }
-    }
-
-    async function killOne(id){
-      markDestroying(id);
-      var res=await fetch('/api/pool/instances/'+id,{method:'DELETE',headers:authHeaders});
-      var data=await res.json();
-      if(!res.ok)throw new Error(data.error||'Kill failed');
-      var card=document.getElementById('agent-'+id);
-      if(card)card.remove();
-      return id;
-    }
-
-    async function killAgent(id,name){
-      var confirmMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Are you sure you want to kill "'+name+'"? This will delete the Railway service permanently.';
-      if(!confirm(confirmMsg))return;
-      try{
-        await killOne(id);
-        refreshStatus();
-      }catch(err){
-        alert('Failed to kill: '+err.message);
-        var card=document.getElementById('agent-'+id);
-        if(card)card.classList.remove('destroying');
-      }
-    }
-
-    // Dismiss crashed agent
-    async function dismissAgent(id,name){
-      var confirmMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Dismiss crashed agent "'+name+'"? This will clean up the Railway service.';
-      if(!confirm(confirmMsg))return;
-      markDestroying(id);
-      try{
-        var res=await fetch('/api/pool/crashed/'+id,{method:'DELETE',headers:authHeaders});
-        var data=await res.json();
-        if(!res.ok)throw new Error(data.error||'Dismiss failed');
-        var card=document.getElementById('agent-'+id);
-        if(card)card.remove();
-        refreshStatus();refreshFeed();
-      }catch(err){
-        alert('Failed to dismiss: '+err.message);
-        var card=document.getElementById('agent-'+id);
-        if(card)card.classList.remove('destroying');
-      }
-    }
-
     // Launch form
     var f=document.getElementById('f'),errorEl=document.getElementById('error');
     var successEl=document.getElementById('success'),successTextEl=document.getElementById('success-text');
@@ -1172,8 +991,6 @@ app.get("/", (_req, res) => {
       e.preventDefault();
       var agentName=f.name.value.trim();
       var joinUrl=joinUrlInput.value.trim();
-
-      // Validate join URL before submit
       var urlResult=validateJoinUrl(joinUrl);
       if(urlResult.valid)urlResult=checkEnvUrl(joinUrl);
       if(!urlResult.valid){
@@ -1183,23 +1000,19 @@ app.get("/", (_req, res) => {
         joinUrlInput.focus();
         return;
       }
-
-      var payload={agentName:agentName||(joinUrl?'Agent':''),instructions:f.instructions.value.trim()};
+      var payload={agentName:agentName||(joinUrl?'Assistant':''),instructions:f.instructions.value.trim()};
       if(joinUrl)payload.joinUrl=joinUrl;
-
       var isJoin=!!joinUrl;
       launching=true;btn.disabled=true;btn.textContent=isJoin?'Joining...':'Launching...';
       errorEl.style.display='none';successEl.classList.remove('active');
       try{
-        var res=await fetch('/api/pool/claim',{method:'POST',headers:authHeaders,
-          body:JSON.stringify(payload)
-        });
+        var res=await fetch('/api/pool/claim',{method:'POST',headers:authHeaders,body:JSON.stringify(payload)});
         var data=await res.json();
         if(!res.ok)throw new Error(data.error||'Launch failed');
         f.reset();
         updateButtonText();
         if(data.joined){
-          successTextEl.textContent=(agentName||'Agent')+' joined the conversation';
+          successTextEl.textContent=(agentName||'Assistant')+' joined the conversation';
           successEl.classList.add('active');
           setTimeout(function(){successEl.classList.remove('active');},8000);
         }else{
@@ -1209,54 +1022,117 @@ app.get("/", (_req, res) => {
       }catch(err){
         errorEl.textContent=err.message;
         errorEl.style.display='block';
-      }finally{launching=false;btn.textContent=joinUrlInput.value.trim()?'Join Conversation':'Launch Agent';refreshStatus();}
+      }finally{launching=false;btn.textContent=joinUrlInput.value.trim()?'Join Conversation':'Launch Assistant';refreshStatus();}
     };
 
-    // Pool controls
-    var replenishBtn=document.getElementById('replenish-btn');
-    var replenishCount=document.getElementById('replenish-count');
-    replenishBtn.onclick=async function(){
-      var n=parseInt(replenishCount.value)||3;
-      replenishBtn.disabled=true;replenishBtn.textContent='Adding...';
-      try{
-        var res=await fetch('/api/pool/replenish',{method:'POST',headers:authHeaders,
-          body:JSON.stringify({count:n})
-        });
-        var data=await res.json();
-        if(!res.ok)throw new Error(data.error||'Failed');
-        refreshStatus();
-      }catch(err){
-        alert('Failed to add instances: '+err.message);
-      }finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
-    };
+    // Dev mode: dropdown toggle, pool controls, agent actions
+    if(DEV_MODE){
+      var toggle=document.getElementById('claimed-toggle');
+      var dropdown=document.getElementById('agents-dropdown');
+      var backdrop=document.getElementById('dropdown-backdrop');
 
-    // Drain — remove all unclaimed (idle + starting); use fresh counts from server
-    var drainBtn=document.getElementById('drain-btn');
-    drainBtn.onclick=async function(){
-      drainBtn.disabled=true;
-      try{
-        var countRes=await fetch('/api/pool/counts');
-        var c=await countRes.json();
-        var idle=c.idle||0, starting=c.starting||0;
-        var n=Math.min(idle+starting,20);
-      }catch(e){ n=0; }
-      drainBtn.disabled=false;
-      if(n===0){ alert('No unclaimed instances to drain.'); return; }
-      var drainMsg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+
-        'Drain '+n+' unclaimed instance(s) from the pool?';
-      if(!confirm(drainMsg))return;
-      drainBtn.disabled=true;drainBtn.textContent='Draining...';
-      try{
-        var res=await fetch('/api/pool/drain',{method:'POST',headers:authHeaders,
-          body:JSON.stringify({count:n})
-        });
-        var data=await res.json();
-        if(!res.ok)throw new Error(data.error||'Failed');
-        refreshStatus();
-      }catch(err){
-        alert('Failed to drain pool: '+err.message);
-      }finally{drainBtn.disabled=false;drainBtn.textContent='Drain Unclaimed';}
-    };
+      function openDropdown(){dropdown.classList.add('open');backdrop.classList.add('open');toggle.classList.add('open');}
+      function closeDropdown(){dropdown.classList.remove('open');backdrop.classList.remove('open');toggle.classList.remove('open');}
+
+      toggle.addEventListener('click',function(e){
+        if(e.target.closest('.agents-dropdown'))return;
+        dropdown.classList.contains('open')?closeDropdown():openDropdown();
+      });
+      backdrop.addEventListener('click',closeDropdown);
+      dropdown.addEventListener('click',function(e){e.stopPropagation();});
+
+      // Agent actions (event delegation on feed)
+      var feed=document.getElementById('feed');
+      feed.onclick=function(e){
+        var qrId=e.target.getAttribute('data-qr');
+        if(qrId){
+          var a=claimedCache.concat(crashedCache).find(function(x){return x.id===qrId;});
+          if(a)showQr(a.agentName||a.id,a.inviteUrl||'');
+          return;
+        }
+        var killId=e.target.getAttribute('data-kill');
+        if(killId){killAgent(killId);return;}
+        var dismissId=e.target.getAttribute('data-dismiss');
+        if(dismissId){dismissAgent(dismissId);}
+      };
+
+      function markDestroying(id){
+        var card=document.getElementById('agent-'+id);
+        if(card){card.classList.add('destroying');var u=card.querySelector('.agent-uptime');if(u)u.textContent='Destroying...';}
+      }
+
+      async function killAgent(id){
+        var card=document.getElementById('agent-'+id);
+        var name=card?card.querySelector('.agent-name').textContent.trim():id;
+        var msg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+'Kill "'+name+'"? This deletes the Railway service.';
+        if(!confirm(msg))return;
+        markDestroying(id);
+        try{
+          var res=await fetch('/api/pool/instances/'+id,{method:'DELETE',headers:authHeaders});
+          var data=await res.json();
+          if(!res.ok)throw new Error(data.error||'Kill failed');
+          if(card)card.remove();
+          refreshStatus();
+        }catch(err){
+          alert('Failed to kill: '+err.message);
+          if(card)card.classList.remove('destroying');
+        }
+      }
+
+      async function dismissAgent(id){
+        var a=crashedCache.find(function(x){return x.id===id;});
+        var name=a?(a.agentName||a.id):id;
+        var msg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+'Dismiss crashed "'+name+'"?';
+        if(!confirm(msg))return;
+        markDestroying(id);
+        try{
+          var res=await fetch('/api/pool/crashed/'+id,{method:'DELETE',headers:authHeaders});
+          var data=await res.json();
+          if(!res.ok)throw new Error(data.error||'Dismiss failed');
+          var card=document.getElementById('agent-'+id);
+          if(card)card.remove();
+          refreshStatus();refreshFeed();
+        }catch(err){
+          alert('Failed to dismiss: '+err.message);
+          var card=document.getElementById('agent-'+id);
+          if(card)card.classList.remove('destroying');
+        }
+      }
+
+      // Pool controls
+      var replenishBtn=document.getElementById('replenish-btn');
+      var replenishCount=document.getElementById('replenish-count');
+      replenishBtn.onclick=async function(){
+        var n=parseInt(replenishCount.value)||1;
+        replenishBtn.disabled=true;replenishBtn.textContent='Adding...';
+        try{
+          var res=await fetch('/api/pool/replenish',{method:'POST',headers:authHeaders,body:JSON.stringify({count:n})});
+          var data=await res.json();
+          if(!res.ok)throw new Error(data.error||'Failed');
+          refreshStatus();
+        }catch(err){alert('Failed: '+err.message);}
+        finally{replenishBtn.disabled=false;replenishBtn.textContent='+ Add';}
+      };
+
+      var drainBtn=document.getElementById('drain-btn');
+      drainBtn.onclick=async function(){
+        drainBtn.disabled=true;
+        var n=0;
+        try{var cr=await fetch('/api/pool/counts');var c=await cr.json();n=Math.min((c.idle||0)+(c.starting||0),20);}catch(e){}
+        drainBtn.disabled=false;
+        if(n===0){alert('No unclaimed instances to drain.');return;}
+        var msg=(POOL_ENV==='production'?'[PRODUCTION] ':'')+'Drain '+n+' unclaimed instance(s)?';
+        if(!confirm(msg))return;
+        drainBtn.disabled=true;drainBtn.textContent='Draining...';
+        try{
+          var res=await fetch('/api/pool/drain',{method:'POST',headers:authHeaders,body:JSON.stringify({count:n})});
+          var data=await res.json();
+          if(!res.ok)throw new Error(data.error||'Failed');
+          refreshStatus();
+        }catch(err){alert('Failed: '+err.message);}
+        finally{drainBtn.disabled=false;drainBtn.textContent='Drain';}
+      };
+    }
 
     // Initial load + polling
     refreshStatus();refreshFeed();
