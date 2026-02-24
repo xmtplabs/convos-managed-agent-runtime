@@ -30,12 +30,13 @@ jobs:
       - name: Determine image tag
         id: meta
         run: |
-          BRANCH="${GITHUB_REF_NAME}"
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-          if [ "$BRANCH" = "main" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.number }}"
+          elif [ "$GITHUB_REF_NAME" = "main" ]; then
             TAG="production"
           else
-            TAG="$BRANCH"
+            TAG="$GITHUB_REF_NAME"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
