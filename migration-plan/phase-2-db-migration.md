@@ -1,12 +1,12 @@
-# Phase 4 — DB Migration (instances + services infra)
+# Phase 2 — DB Migration (instances table)
 
-[Back to plan](./plan.md) | [Architecture](./architecture.md) | Prev: [Phase 3 — Services](./phase-3-services.md) | Next: [Phase 5 — Templates](./phase-5-templates.md)
+[Back to plan](./plan.md) | [Architecture](./architecture.md) | Prev: [Phase 1 — GHCR](./phase-1-ghcr.md) | Next: [Phase 3 — Services](./phase-3-services.md)
 
 ---
 
 ## Goal
 
-Replace the in-memory cache with a proper `instances` table in pool DB. Validate that the new provisioning + sharding pipeline works end-to-end against real data.
+Replace the in-memory cache with a proper `instances` table in the pool DB. Everything else (Railway sharding, services extraction) stays untouched — this phase only changes where instance state lives.
 
 ## Work
 
@@ -19,10 +19,6 @@ Replace the in-memory cache with a proper `instances` table in pool DB. Validate
 - Cache becomes thin hot-path optimization
 - Ephemeral fields (`openRouterApiKey`, `privateWalletKey`, `gatewayToken`) stay in-memory only
 
-### Services DB
-- `instance_infra` and `instance_services` tables already exist from Phase 3
-- Migration backfills existing rows: set `railway_project_id` on `instance_infra` from the current shared project ID
-
 ### Batch status mapping
 
 | Batch status | Pool `deploy_status` | Pool `status` transition |
@@ -34,13 +30,13 @@ Replace the in-memory cache with a proper `instances` table in pool DB. Validate
 
 ## Validate
 
-- New provisioning + sharding works end-to-end against real DB
 - Tick loop reads from DB, not just cache
 - Claim is atomic (`FOR UPDATE SKIP LOCKED`)
-- Backfill migration runs cleanly on existing data
 - Cache stays in sync as a hot-path optimization
+- Existing provisioning flow (single shared Railway project) still works unchanged
 
 ## Notes
 
-- Template-related columns (`template_id`, `owner_id`) are NOT added here — they come in Phase 5
-- This keeps the migration focused on validating the core infra pipeline
+- No Railway sharding here — that moves to Phase 4
+- Template-related columns (`template_id`, `owner_id`) are NOT added here — they come in Phase 6
+- Services DB tables (`instance_infra`, `instance_services`) and backfill are NOT part of this phase

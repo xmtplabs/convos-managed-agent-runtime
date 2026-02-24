@@ -1,39 +1,29 @@
-# Convos Agents Monorepo
 
-**Date:** 2026-02-23
-**Status:** Draft
 
-This plan merges the monorepo restructuring, multi-project sharding (one Railway project per agent + GHCR), and portable agent instances (templates + cloning) into a single execution path.
+## Current State vs End State
 
-**Target architecture:** [architecture.md](./architecture.md)
+Phase 0 is complete. The pool manager currently does everything (orchestration + Railway API + external APIs). The table below shows what exists today vs the end-state split.
 
----
+| Concern | Today (pool monolith) | End state |
+|---|---|---|
+| Railway API calls | `pool/src/railway.js` | `services/src/infra/railway.ts` |
+| GHCR image config | `RAILWAY_RUNTIME_IMAGE` env var on pool | `RAILWAY_RUNTIME_IMAGE` env var on services |
+| OpenRouter key provisioning | `runtime/scripts/keys.sh` (self-provision) | `services/src/plugins/openrouter.ts` |
+| AgentMail provisioning | `runtime/scripts/keys.sh` (self-provision) | `services/src/plugins/agentmail.ts` |
+| Telnyx provisioning | `runtime/scripts/keys.sh` (self-provision) | `services/src/plugins/telnyx.ts` |
+| Instance health checks | `pool/src/pool.js` (direct HTTP) | `services/status/batch` endpoint |
+| Instance DB | `pool/src/db/` (single table) | Split: pool DB (orchestration) + services DB (infra/resources) |
+| Docker image build | CI → GHCR (done) | Same (no change) |
+| Instance deployment | `serviceInstanceUpdate` with `source.image` | Same pattern, moved to services |
 
 ## Phases
 
-| Phase | Name | Details |
-|-------|------|---------|
-| 0 | [GHCR CI Pipeline](./phase-0-ghcr.md) | Pre-built runtime images on GitHub Container Registry |
-| 1 | [Monorepo Foundation](./phase-1-monorepo.md) | pnpm workspace, turbo, runtime extraction |
-| 2 | [TypeScript Migration (pool)](./phase-2-typescript.md) | Convert pool from JS to TS |
-| 3 | [Extract Services + Sharding](./phase-3-services.md) | Services deployable, one-project-per-agent |
-| 4 | [DB Migration (instances + services)](./phase-4-db-migration.md) | Pool `instances` table, atomic claim, validate end-to-end |
-| 5 | [Template DB, CRUD + Claim](./phase-5-templates.md) | `agent_templates` table, template-aware claiming |
-| 6 | [Dashboard (React + Vite)](./phase-6-dashboard.md) | Real product UI built against template APIs |
-
----
-
-## Key Decisions
-
-1. **Railway project lifecycle — services owns it.** Pool never knows Railway project IDs exist.
-2. **Unified instance schema — split by domain.** Pool DB stores orchestration state. Services DB stores Railway and external resource state.
-3. **`railway_project_id` — services DB only.** Pool identifies instances by `instance_id`.
-4. **Tick loop — batch status endpoint.** `POST services/status/batch` returns a status map. One HTTP call per tick.
-5. **GHCR CI — auto on push, branch-name + SHA tags.** Staging-to-production promotion via branch tagging.
-6. **Phase sequencing — GHCR first, validate infra before templates, dashboard last.** Phase 0 ships GHCR (standalone). Phase 3 extracts services with sharding so provisioning migrates once. Phase 4 lands the DB migration to validate against real data. Phase 5 adds templates. Dashboard (Phase 6) comes last, built against the real APIs. Template sync + clone is a separate follow-up project.
-7. **Teardown — external cleanup then project delete.** OpenRouter → AgentMail → Telnyx → Bankr → `projectDelete`.
-8. **Template-aware provisioning — claim-time resolution.** Idle instances are generic. Templates apply at claim time.
-9. **Services API surface — infra and tools are separate route groups.** `/create-instance` vs `/provision/:instanceId/:toolId`.
-10. **Pre-warming stays.** GHCR makes idle instance creation cheap (~20-30s). `POOL_MIN_IDLE` controls warm pool size.
-11. **URL source of truth — services.** Pool stores a copy for client-facing APIs.
+| Phase | Name | Status | Details |
+|-------|------|--------|---------|
+| 1 | [GHCR CI Pipeline](./phase-1-ghcr.md) | **Complete** | Pre-built runtime images on GitHub Container Registry |
+| 2 | [DB Migration](./phase-2-db-migration.md) | Planned | Pool `instances` table, atomic claim, replace in-memory cache |
+| 3 | [Extract Services](./phase-3-services.md) | Planned | Services deployable, pool calls services via HTTP, shared project |
+| 4 | [Railway Sharding](./phase-4-sharding.md) | Planned | One-project-per-agent, backfill migration |
+| 5 | [Dashboard (React + Vite + TypeScript)](./phase-5-dashboard.md) | Planned | Product UI built against pool APIs, TypeScript codebase |
+| 6 | [Templates](./phase-6-templates.md) | Planned | `agent_templates` table, template-aware claiming |
 

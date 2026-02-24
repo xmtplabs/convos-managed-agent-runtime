@@ -1,6 +1,6 @@
-# Phase 5 — Template DB, CRUD + Template-Aware Claim
+# Phase 6 — Template DB, CRUD + Template-Aware Claim
 
-[Back to plan](./plan.md) | [Architecture](./architecture.md) | Prev: [Phase 4 — DB Migration](./phase-4-db-migration.md) | Next: [Phase 6 — Dashboard](./phase-6-dashboard.md)
+[Back to plan](./plan.md) | [Architecture](./architecture.md) | Prev: [Phase 5 — Dashboard](./phase-5-dashboard.md)
 
 ---
 

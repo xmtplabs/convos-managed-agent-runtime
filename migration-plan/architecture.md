@@ -2,6 +2,8 @@
 
 The end-state architecture after all phases are complete.
 
+**Last updated:** 2026-02-24 (Phase 0 complete)
+
 ---
 
 ## High-Level Architecture
@@ -88,12 +90,20 @@ convos-agents/
 │       ├── main.tsx
 │       └── ...
 ├── runtime/                 # Agent runtime (deployed instances)
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── cli/                 # runtime-only CLI commands
-│   ├── openclaw/            # extensions + workspace + config
-│   └── ...
-└── plans/
+│   ├── Dockerfile           # builds from repo root context
+│   ├── package.json         # openclaw + deps (agentmail, telnyx, bankr, etc.)
+│   ├── openclaw/            # extensions + workspace + config template
+│   │   ├── openclaw.json    # config with ${ENV_VAR} placeholders
+│   │   ├── extensions/      # convos channel, web-tools
+│   │   └── workspace/       # agent identity, skills, tools
+│   └── scripts/             # entrypoint, keys, gateway, apply-config
+│       ├── entrypoint.sh    # Railway volume setup
+│       ├── keys.sh          # provision/display all env vars
+│       ├── apply-config.sh  # sync workspace + extensions to state dir
+│       ├── gateway.sh       # start openclaw gateway with restart loop
+│       └── lib/             # init, paths, env-load, node-path, sync
+├── .github/workflows/
+│   └── build-runtime.yml    # CI: build + push to ghcr.io/xmtplabs/convos-runtime
 ```
 
 ---
@@ -390,10 +400,8 @@ DATABASE_URL=
 # Railway API (infra layer — team/org-level token, NOT project-scoped)
 RAILWAY_API_TOKEN=
 
-# GHCR
-AGENT_IMAGE=ghcr.io/xmtplabs/convos-runtime
-AGENT_IMAGE_TAG=                          # optional override, defaults from RAILWAY_ENVIRONMENT_NAME
-GHCR_TOKEN=                               # GitHub PAT with read:packages scope
+# GHCR (single image ref — tag controls which version to deploy)
+RAILWAY_RUNTIME_IMAGE=ghcr.io/xmtplabs/convos-runtime:staging  # or :production, :sha-abc1234
 
 # Railway metadata (injected by Railway, read-only)
 RAILWAY_ENVIRONMENT_NAME=staging
