@@ -3,7 +3,7 @@ import * as db from "./db/pool.js";
 import * as railway from "./railway.js";
 import * as cache from "./cache.js";
 import { deriveStatus } from "./status.js";
-import { ensureVolume, fetchAllVolumesByService } from "./volumes.js";
+import { fetchAllVolumesByService } from "./volumes.js";
 import { instanceEnvVars, resolveOpenRouterApiKey, resolveAgentMailInbox, generatePrivateWalletKey, generateGatewayToken, generateSetupPassword } from "./keys.js";
 import { destroyInstance, destroyInstances } from "./delete.js";
 
@@ -58,10 +58,6 @@ export async function createInstance() {
 
   const serviceId = await railway.createService(name, vars);
   console.log(`[pool]   Railway service created: ${serviceId}`);
-
-  // Attach persistent volume for OpenClaw state
-  const hasVolume = await ensureVolume(serviceId);
-  if (!hasVolume) console.warn(`[pool]   Volume creation failed for ${serviceId}, will retry in tick`);
 
   const domain = await railway.createDomain(serviceId);
   const url = `https://${domain}`;
@@ -260,22 +256,6 @@ export async function tick() {
 
   // Delete dead services + their volumes (single volume query for all)
   await destroyInstances(toDelete);
-
-  // Ensure all agent services have volumes (parallel)
-  const volumeMap = await fetchAllVolumesByService();
-  if (volumeMap) {
-    const missing = agentServices.filter(
-      (s) => !volumeMap.has(s.id) && s.deployStatus === "SUCCESS"
-    );
-    if (missing.length > 0) {
-      const settled = await Promise.allSettled(missing.map((s) => ensureVolume(s.id)));
-      settled.forEach((r, i) => {
-        if (r.status === "rejected" || r.value === false) {
-          console.warn(`[tick] Agent ${missing[i].name} volume create failed`);
-        }
-      });
-    }
-  }
 
   // Replenish
   const counts = cache.getCounts();
