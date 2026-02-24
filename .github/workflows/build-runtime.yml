@@ -10,16 +10,6 @@ on:
     paths:
       - 'runtime/**'
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Image tag to build'
-        required: true
-        type: choice
-        options:
-          - scaling
-          - dev
-          - staging
-          - production
 
 permissions:
   contents: read
