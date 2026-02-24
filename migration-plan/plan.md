@@ -37,23 +37,3 @@ This plan merges the monorepo restructuring, multi-project sharding (one Railway
 10. **Pre-warming stays.** GHCR makes idle instance creation cheap (~20-30s). `POOL_MIN_IDLE` controls warm pool size.
 11. **URL source of truth — services.** Pool stores a copy for client-facing APIs.
 
----
-
-## Future: Template Sync + Clone
-
-Out of scope for the phases above. Next project after Phase 6.
-
-- Pool DB: add `parent_instance`, `template_synced_at` columns to `instances`
-
-**Sync:** When `PUT /api/pool/templates/:id` updates a template:
-1. Update `agent_templates` row
-2. Query instances with `template_id = :id`
-3. Fan out `POST instance.url/pool/update-template`
-4. Set `instances.template_synced_at = NOW()` on success
-
-**Clone:** Extended `POST /api/pool/claim` when `cloneFrom` present:
-1. Verify `requester == parent's owner_id`
-2. Provision child with template + fresh services-managed tools
-3. Write `parent_instance = cloneFrom` on child
-4. After child is live: `POST parent.url/pool/clone-summary`
-5. Return claim result immediately (context transfer is async)
