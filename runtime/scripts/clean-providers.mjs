@@ -77,7 +77,7 @@ async function getActiveInstanceIds() {
 // ── AgentMail ────────────────────────────────────────────────────────────────
 
 async function findOrphanedInboxes(activeInboxIds, activeInstanceIds) {
-  const apiKey = process.env.AGENTMAIL_API_KEY || process.env.INSTANCE_AGENTMAIL_API_KEY;
+  const apiKey = process.env.AGENTMAIL_API_KEY;
   if (!apiKey) {
     console.log(`${TAG} AGENTMAIL_API_KEY not set — skipping inbox cleanup`);
     return { orphaned: [], apiKey: null };

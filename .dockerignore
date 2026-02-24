@@ -1,0 +1,13 @@
+.git
+node_modules
+.env
+.env.*
+!.env.example
+pool/
+docs/
+migration-plan/
+.github/
+.claude/
+.DS_Store
+*.tar.gz
+.dmux/

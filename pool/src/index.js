@@ -2,13 +2,14 @@ import express from "express";
 import * as pool from "./pool.js";
 import * as cache from "./cache.js";
 import { deleteOrphanAgentVolumes } from "./volumes.js";
+import { migrate } from "./db/migrate.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
 // Deploy context shown in dashboard info tags
 const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
-const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
+const INSTANCE_MODEL = process.env.OPENCLAW_PRIMARY_MODEL || "unknown";
 const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || "";
 const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || "";
 const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || "";
@@ -1363,8 +1364,9 @@ setInterval(() => {
   pool.tick().catch((err) => console.error("[tick] Error:", err));
 }, TICK_INTERVAL);
 
-// One-time orphan volume cleanup, then run initial tick
-deleteOrphanAgentVolumes()
+// Run migrations (idempotent), clean up orphan volumes, then initial tick
+migrate()
+  .then(() => deleteOrphanAgentVolumes())
   .catch((err) => console.warn("[startup] Orphan volume cleanup failed:", err.message))
   .then(() => pool.tick())
   .catch((err) => console.error("[tick] Initial tick error:", err));

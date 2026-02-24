@@ -48,14 +48,13 @@ export async function createInstance() {
   console.log(`[pool] Creating instance ${name}...`);
 
   const vars = { ...instanceEnvVars() };
-  if (vars.OPENCLAW_GATEWAY_TOKEN === undefined) vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
-  if (vars.SETUP_PASSWORD === undefined) vars.SETUP_PASSWORD = generateSetupPassword();
+  vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
+  vars.SETUP_PASSWORD = generateSetupPassword();
+  vars.PRIVATE_WALLET_KEY = generatePrivateWalletKey();
   const { key: openRouterKey, hash: openRouterKeyHash } = await resolveOpenRouterApiKey(id);
   if (openRouterKey) vars.OPENROUTER_API_KEY = openRouterKey;
   const { inboxId: agentMailInboxId } = await resolveAgentMailInbox(id);
   if (agentMailInboxId) vars.AGENTMAIL_INBOX_ID = agentMailInboxId;
-  const privateWalletKey = generatePrivateWalletKey();
-  vars.PRIVATE_WALLET_KEY = privateWalletKey;
 
   const serviceId = await railway.createService(name, vars);
   console.log(`[pool]   Railway service created: ${serviceId}`);
@@ -64,9 +63,14 @@ export async function createInstance() {
   const hasVolume = await ensureVolume(serviceId);
   if (!hasVolume) console.warn(`[pool]   Volume creation failed for ${serviceId}, will retry in tick`);
 
-  const domain = await railway.createDomain(serviceId);
-  const url = `https://${domain}`;
-  console.log(`[pool]   Domain: ${url}`);
+  let url = null;
+  try {
+    const domain = await railway.createDomain(serviceId);
+    url = `https://${domain}`;
+    console.log(`[pool]   Domain: ${url}`);
+  } catch (err) {
+    console.warn(`[pool]   Domain creation failed for ${serviceId}, will retry in tick: ${err.message}`);
+  }
 
   // Add to cache immediately as starting (gatewayToken so claim response can return it for Control UI auth)
   cache.set(serviceId, {
@@ -80,7 +84,7 @@ export async function createInstance() {
     openRouterApiKey: openRouterKey || undefined,
     openRouterKeyHash: openRouterKeyHash || undefined,
     agentMailInboxId: agentMailInboxId || undefined,
-    privateWalletKey,
+    privateWalletKey: vars.PRIVATE_WALLET_KEY,
     gatewayToken: vars.OPENCLAW_GATEWAY_TOKEN,
   });
 
@@ -133,12 +137,24 @@ export async function tick() {
     }
   }
 
-  // For services not in cache, fetch domains in parallel
+  // For services not in cache, fetch domains in parallel (create if missing)
   const needUrls = successServices.filter((s) => !urlMap.has(s.id));
   if (needUrls.length > 0) {
     const urlResults = await Promise.allSettled(
       needUrls.map(async (svc) => {
-        const url = await getServiceUrl(svc.id);
+        let url = await getServiceUrl(svc.id);
+        // If no domain exists yet, create one (recovery for failed createDomain during createInstance)
+        if (!url) {
+          try {
+            const domain = await railway.createDomain(svc.id);
+            if (domain) {
+              url = `https://${domain}`;
+              console.log(`[tick] Created missing domain for ${svc.name}: ${url}`);
+            }
+          } catch (err) {
+            console.warn(`[tick] Failed to create domain for ${svc.name}: ${err.message}`);
+          }
+        }
         return { id: svc.id, url };
       })
     );

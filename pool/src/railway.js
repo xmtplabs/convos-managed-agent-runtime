@@ -32,19 +32,12 @@ export async function createService(name, variables = {}) {
   const projectId = process.env.RAILWAY_PROJECT_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!environmentId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
-  // Default to the same repo/branch the pool manager was deployed from
-  const repo = process.env.RAILWAY_SOURCE_REPO
-    || (process.env.RAILWAY_GIT_REPO_OWNER && process.env.RAILWAY_GIT_REPO_NAME
-      ? `${process.env.RAILWAY_GIT_REPO_OWNER}/${process.env.RAILWAY_GIT_REPO_NAME}`
-      : null);
-  const branch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
-  if (!repo) throw new Error("RAILWAY_SOURCE_REPO not set and could not be derived from RAILWAY_GIT_* vars");
 
-  // Create service WITHOUT source to prevent auto-deploy.
-  // Connecting the repo happens later, after all config is set.
+  const image = process.env.RAILWAY_RUNTIME_IMAGE || "ghcr.io/xmtplabs/convos-runtime:scaling";
+
   const input = { projectId, environmentId, name, variables };
 
-  console.log(`[railway] createService: ${name}, branch=${branch || "(default)"}, env=${environmentId}`);
+  console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);
 
   const data = await gql(
     `mutation($input: ServiceCreateInput!) {
@@ -55,42 +48,19 @@ export async function createService(name, variables = {}) {
 
   const serviceId = data.serviceCreate.id;
 
-  // Step 1: Set startCommand (no repo connected, no auto-deploy).
+  // Set start command and deploy from pre-built image (no repo build needed).
   try {
-    await updateServiceInstance(serviceId, { startCommand: "node cli/pool-server.js" });
-    console.log(`[railway]   Set startCommand: node cli/pool-server.js`);
+    await updateServiceInstance(serviceId, {
+      startCommand: "node scripts/pool-server.js",
+      source: { image },
+    });
+    console.log(`[railway]   Configured: image=${image}, startCommand=node scripts/pool-server.js`);
   } catch (err) {
-    console.warn(`[railway] Failed to set startCommand for ${serviceId}:`, err);
+    console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
   }
 
-  // Step 2: Set resource limits (no repo connected, no auto-deploy).
+  // Set resource limits.
   await setResourceLimits(serviceId);
-
-  // Step 4: Connect repo — triggers a single deploy with all config already set.
-  const connectInput = { repo };
-  if (branch) connectInput.branch = branch;
-  try {
-    await gql(
-      `mutation($id: String!, $input: ServiceConnectInput!) {
-        serviceConnect(id: $id, input: $input) { id }
-      }`,
-      { id: serviceId, input: connectInput }
-    );
-    console.log(`[railway]   Connected repo ${repo} (branch: ${branch || "default"}) — deploying`);
-  } catch (err) {
-    console.warn(`[railway] Failed to connect repo for ${serviceId}:`, err);
-  }
-
-  // Step 5: Disconnect repo to prevent auto-deploys from future pushes.
-  try {
-    await gql(
-      `mutation($id: String!) { serviceDisconnect(id: $id) { id } }`,
-      { id: serviceId }
-    );
-    console.log(`[railway]   Disconnected repo (auto-deploys disabled)`);
-  } catch (err) {
-    console.warn(`[railway] Failed to disconnect repo for ${serviceId}:`, err);
-  }
 
   return serviceId;
 }
