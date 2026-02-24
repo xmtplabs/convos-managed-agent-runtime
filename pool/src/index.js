@@ -1,6 +1,7 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import * as pool from "./pool.js";
 import * as cache from "./cache.js";
 import { deleteOrphanAgentVolumes } from "./volumes.js";
@@ -16,6 +17,31 @@ const INSTANCE_MODEL = process.env.INSTANCE_OPENCLAW_PRIMARY_MODEL || "unknown";
 const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || "";
 const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || "";
 const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || "";
+const NOTION_API_KEY = process.env.NOTION_API_KEY || "";
+
+// --- Notion prompt cache (1 hour TTL) ---
+const promptCache = new Map();
+const PROMPT_CACHE_TTL = 60 * 60 * 1000;
+
+// --- Agent catalog for prompt store ---
+const AGENT_CATALOG_JSON = (() => {
+  try {
+    const catalogPath = resolve(__dirname, "../../.claude-design/agents-data.json");
+    const raw = JSON.parse(readFileSync(catalogPath, "utf8"));
+    const compact = raw.map(a => {
+      const url = a.subPageUrl || "";
+      const m = url.match(/([a-f0-9]{32})/);
+      const catParts = (a.category || "").split(" — ");
+      const emoji = catParts[0].trim().split(" ")[0];
+      const catName = catParts[0].trim().replace(/^\S+\s/, "");
+      return { n: a.name, d: a.description, c: catName, e: emoji, p: m ? m[1] : "", s: a.status };
+    }).filter(a => a.n && a.p);
+    return JSON.stringify(compact);
+  } catch (e) {
+    console.warn("[pool] Could not load agents catalog:", e.message);
+    return "[]";
+  }
+})();
 
 const app = express();
 app.disable("x-powered-by");
@@ -1076,7 +1102,278 @@ app.get("/", (req, res) => {
       font-size: 12px;
     }
 
+    /* --- Prompt Store --- */
+    .prompt-store {
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 1px solid #F5F5F5;
+    }
+
+    .ps-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 8px;
+    }
+
+    .ps-intro {
+      font-size: 13px;
+      color: #B2B2B2;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .ps-search-wrap {
+      position: relative;
+      margin-bottom: 12px;
+    }
+
+    .ps-search {
+      width: 100%;
+      padding: 10px 12px 10px 36px;
+      border: 1px solid #EBEBEB;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #000;
+      background: #FAFAFA;
+      transition: all 0.15s;
+    }
+
+    .ps-search:focus {
+      outline: none;
+      border-color: #E54D00;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(229,77,0,0.06);
+    }
+
+    .ps-search::placeholder { color: #D4D4D4; }
+
+    .ps-search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #D4D4D4;
+      pointer-events: none;
+    }
+
+    .ps-search-icon svg { width: 14px; height: 14px; }
+
+    .ps-filters {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .ps-filter-pill {
+      padding: 4px 12px;
+      border: 1px solid #EBEBEB;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      color: #999;
+      cursor: pointer;
+      background: #fff;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+
+    .ps-filter-pill:hover { border-color: #999; color: #666; }
+    .ps-filter-pill.active { background: #000; color: #fff; border-color: #000; }
+
+    .ps-cat-header {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #D4D4D4;
+      padding: 20px 0 8px;
+      border-bottom: 1px solid #F5F5F5;
+    }
+
+    .ps-cat-header:first-child { padding-top: 4px; }
+
+    .ps-agent-row {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #F5F5F5;
+      cursor: pointer;
+      transition: background 0.1s;
+      gap: 12px;
+    }
+
+    .ps-agent-row:hover {
+      background: #FAFAFA;
+      margin: 0 -8px;
+      padding: 12px 8px;
+      border-radius: 8px;
+    }
+
+    .ps-agent-info { flex: 1; min-width: 0; }
+
+    .ps-agent-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #000;
+      margin-bottom: 2px;
+    }
+
+    .ps-agent-desc {
+      font-size: 12px;
+      color: #B2B2B2;
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ps-agent-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    .ps-btn {
+      padding: 6px 12px;
+      border: 1px solid #EBEBEB;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .ps-btn:hover { border-color: #999; color: #333; }
+
+    .ps-btn.primary {
+      background: #E54D00;
+      color: #fff;
+      border-color: #E54D00;
+    }
+
+    .ps-btn.primary:hover { opacity: 0.9; }
+    .ps-btn.copied { background: #16A34A; color: #fff; border-color: #16A34A; }
+    .ps-btn.loading { opacity: 0.6; cursor: wait; }
+
+    .ps-show-more {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-top: 16px;
+      background: none;
+      border: 1px dashed #EBEBEB;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #999;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+
+    .ps-show-more:hover { border-color: #999; color: #666; }
+
+    .ps-no-results {
+      text-align: center;
+      padding: 32px 16px;
+      color: #CCC;
+      font-size: 13px;
+      display: none;
+    }
+
+    /* --- Prompt Modal --- */
+    .ps-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 24px;
+    }
+
+    .ps-modal-overlay.open { display: flex; }
+
+    .ps-modal {
+      background: #fff;
+      border-radius: 16px;
+      max-width: 560px;
+      width: 100%;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.15);
+    }
+
+    .ps-modal-head {
+      padding: 20px 24px;
+      border-bottom: 1px solid #EBEBEB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .ps-modal-title { font-size: 16px; font-weight: 600; }
+
+    .ps-modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #999;
+      font-size: 20px;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .ps-modal-close:hover { color: #000; }
+
+    .ps-modal-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .ps-modal-text {
+      font-size: 13px;
+      line-height: 1.7;
+      color: #333;
+      white-space: pre-wrap;
+    }
+
+    .ps-modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #EBEBEB;
+      flex-shrink: 0;
+    }
+
+    .ps-modal-copy {
+      width: 100%;
+      padding: 12px;
+      background: #E54D00;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.15s;
+    }
+
+    .ps-modal-copy:hover { opacity: 0.9; }
+
     /* --- Responsive --- */
+    @media (max-width: 640px) {
+      .ps-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+      .ps-agent-actions { gap: 4px; }
+      .ps-btn { padding: 5px 8px; font-size: 11px; }
+      .ps-modal { max-width: 100%; margin: 0 8px; }
+    }
+
     @media (max-width: 640px) {
       .dev-bar { flex-wrap: wrap; gap: 6px; }
       .dev-bar .spacer { display: none; }
@@ -1230,6 +1527,36 @@ app.get("/", (req, res) => {
           <div>
             <div class="story-label">Safe by default</div>
             <p class="story-text">Convos keeps conversations separate and encrypted by default. Each assistant you add is unique to that conversation and can never access other chats, contacts, or profiles.<br><a href="#">Learn more</a></p>
+          </div>
+        </div>
+
+        <div class="prompt-store" id="prompt-store">
+          <div class="ps-header">
+            <span class="ps-title">Try an assistant</span>
+          </div>
+          <p class="ps-intro">Below find our 100+ favorite group agent skills &mdash; Simply copy and paste any instructions into the chat and you now have an incredibly powerful new group agent.</p>
+          <div class="ps-search-wrap">
+            <span class="ps-search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
+            <input class="ps-search" placeholder="Search assistants..." id="ps-search" aria-label="Search assistants" />
+          </div>
+          <div class="ps-filters" id="ps-filters"></div>
+          <div class="ps-no-results" id="ps-no-results">No assistants match your search</div>
+          <div class="ps-list" id="ps-list"></div>
+          <button class="ps-show-more" id="ps-show-more">Show all assistants</button>
+        </div>
+      </div>
+
+      <div class="ps-modal-overlay" id="ps-modal">
+        <div class="ps-modal">
+          <div class="ps-modal-head">
+            <span class="ps-modal-title" id="ps-modal-name"></span>
+            <button class="ps-modal-close" id="ps-modal-close" aria-label="Close modal">&times;</button>
+          </div>
+          <div class="ps-modal-body">
+            <div class="ps-modal-text" id="ps-modal-text">Loading...</div>
+          </div>
+          <div class="ps-modal-footer">
+            <button class="ps-modal-copy" id="ps-modal-copy">Copy full prompt</button>
           </div>
         </div>
       </div>
@@ -1783,6 +2110,193 @@ app.get("/", (req, res) => {
     // Initial load + polling
     refreshStatus();refreshFeed();
     setInterval(function(){refreshStatus();refreshFeed();},15000);
+
+    // ===== Prompt Store =====
+    (function(){
+      var CATALOG=${AGENT_CATALOG_JSON};
+
+      var PS_LIMIT=10;
+      var psExpanded=false;
+      var psActiveCategory='All';
+      var psSearchText='';
+      var psPromptCache={};
+      var psEl=document.getElementById('prompt-store');
+      var psSearch=document.getElementById('ps-search');
+      var psFilters=document.getElementById('ps-filters');
+      var psList=document.getElementById('ps-list');
+      var psShowMore=document.getElementById('ps-show-more');
+      var psNoResults=document.getElementById('ps-no-results');
+      var psModal=document.getElementById('ps-modal');
+      var psModalName=document.getElementById('ps-modal-name');
+      var psModalText=document.getElementById('ps-modal-text');
+      var psModalCopy=document.getElementById('ps-modal-copy');
+      var psModalClose=document.getElementById('ps-modal-close');
+
+      if(!psEl||!CATALOG.length)return;
+
+      // Get unique categories in order
+      var cats=[];var catSet={};
+      CATALOG.forEach(function(a){
+        if(!catSet[a.c]){catSet[a.c]=true;cats.push({name:a.c,emoji:a.e});}
+      });
+
+      // Render filter pills
+      function renderFilters(){
+        var h='<button class="ps-filter-pill'+(psActiveCategory==='All'?' active':'')+'" data-cat="All">All</button>';
+        cats.forEach(function(c){
+          h+='<button class="ps-filter-pill'+(psActiveCategory===c.name?' active':'')+'" data-cat="'+esc(c.name)+'">'+c.emoji+' '+esc(c.name)+'</button>';
+        });
+        psFilters.innerHTML=h;
+      }
+
+      // Filter agents
+      function getFiltered(){
+        var q=psSearchText.toLowerCase();
+        return CATALOG.filter(function(a){
+          if(psActiveCategory!=='All'&&a.c!==psActiveCategory)return false;
+          if(q&&a.n.toLowerCase().indexOf(q)===-1&&a.d.toLowerCase().indexOf(q)===-1)return false;
+          return true;
+        });
+      }
+
+      // Render agent list
+      function renderList(){
+        var filtered=getFiltered();
+        var shown=psExpanded||psSearchText||psActiveCategory!=='All'?filtered:filtered.slice(0,PS_LIMIT);
+        if(!shown.length){
+          psList.innerHTML='';
+          psNoResults.style.display='block';
+          psShowMore.style.display='none';
+          return;
+        }
+        psNoResults.style.display='none';
+        var html='';var lastCat='';
+        shown.forEach(function(a){
+          if(a.c!==lastCat){
+            lastCat=a.c;
+            html+='<div class="ps-cat-header">'+a.e+' '+esc(a.c)+'</div>';
+          }
+          html+='<div class="ps-agent-row" data-pid="'+esc(a.p)+'" data-name="'+esc(a.n)+'">';
+          html+='<div class="ps-agent-info"><div class="ps-agent-name">'+esc(a.n)+'</div><div class="ps-agent-desc">'+esc(a.d)+'</div></div>';
+          html+='<div class="ps-agent-actions">';
+          if(a.p){
+            html+='<button class="ps-btn ps-view-btn" data-pid="'+esc(a.p)+'" data-name="'+esc(a.n)+'">View</button>';
+            html+='<button class="ps-btn primary ps-copy-btn" data-pid="'+esc(a.p)+'" data-name="'+esc(a.n)+'">Copy</button>';
+          }
+          html+='</div></div>';
+        });
+        psList.innerHTML=html;
+
+        // Show more button
+        if(!psSearchText&&psActiveCategory==='All'&&!psExpanded&&filtered.length>PS_LIMIT){
+          psShowMore.style.display='block';
+          psShowMore.textContent='Show all '+filtered.length+' assistants';
+        }else if(psExpanded&&!psSearchText&&psActiveCategory==='All'){
+          psShowMore.style.display='block';
+          psShowMore.textContent='Show less';
+        }else{
+          psShowMore.style.display='none';
+        }
+      }
+
+      // Fetch prompt from API
+      function fetchPrompt(pageId,cb){
+        if(psPromptCache[pageId])return cb(null,psPromptCache[pageId]);
+        fetch('/api/prompts/'+pageId).then(function(r){
+          if(!r.ok)throw new Error('Failed');
+          return r.json();
+        }).then(function(d){
+          psPromptCache[pageId]=d;
+          cb(null,d);
+        }).catch(function(e){cb(e);});
+      }
+
+      // Copy to clipboard
+      function copyToClipboard(text,btn,label){
+        navigator.clipboard.writeText(text).then(function(){
+          btn.classList.add('copied');
+          btn.textContent='Copied!';
+          setTimeout(function(){btn.classList.remove('copied');btn.textContent=label||'Copy';},1500);
+        });
+      }
+
+      // Open modal
+      function openModal(pageId,name){
+        psModalName.textContent=name;
+        psModalText.textContent='Loading...';
+        psModalCopy.textContent='Copy full prompt';
+        psModalCopy.classList.remove('copied');
+        psModal.classList.add('open');
+        document.body.style.overflow='hidden';
+        fetchPrompt(pageId,function(err,data){
+          if(err){psModalText.textContent='Failed to load prompt. Try again later.';return;}
+          psModalText.textContent=data.prompt||'(No prompt content found)';
+          psModalCopy.onclick=function(){copyToClipboard(data.prompt,psModalCopy,'Copy full prompt');};
+        });
+      }
+
+      function closeModal(){
+        psModal.classList.remove('open');
+        document.body.style.overflow='';
+      }
+
+      // Event: search
+      psSearch.addEventListener('input',function(){
+        psSearchText=this.value.trim();
+        renderList();
+      });
+
+      // Event: filter pills
+      psFilters.addEventListener('click',function(e){
+        var pill=e.target.closest('.ps-filter-pill');
+        if(!pill)return;
+        psActiveCategory=pill.dataset.cat;
+        renderFilters();
+        renderList();
+      });
+
+      // Event: show more/less
+      psShowMore.addEventListener('click',function(){
+        psExpanded=!psExpanded;
+        renderList();
+      });
+
+      // Event: agent row clicks (view/copy buttons)
+      psList.addEventListener('click',function(e){
+        var viewBtn=e.target.closest('.ps-view-btn');
+        var copyBtn=e.target.closest('.ps-copy-btn');
+        if(viewBtn){
+          e.stopPropagation();
+          openModal(viewBtn.dataset.pid,viewBtn.dataset.name);
+          return;
+        }
+        if(copyBtn){
+          e.stopPropagation();
+          copyBtn.classList.add('loading');
+          copyBtn.textContent='...';
+          fetchPrompt(copyBtn.dataset.pid,function(err,data){
+            copyBtn.classList.remove('loading');
+            if(err){copyBtn.textContent='Error';setTimeout(function(){copyBtn.textContent='Copy';},1500);return;}
+            copyToClipboard(data.prompt,copyBtn);
+          });
+          return;
+        }
+        // Click on row opens modal
+        var row=e.target.closest('.ps-agent-row');
+        if(row&&row.dataset.pid){
+          openModal(row.dataset.pid,row.dataset.name);
+        }
+      });
+
+      // Event: modal close
+      psModalClose.addEventListener('click',closeModal);
+      psModal.addEventListener('click',function(e){if(e.target===psModal)closeModal();});
+      document.addEventListener('keydown',function(e){if(e.key==='Escape'&&psModal.classList.contains('open'))closeModal();});
+
+      // Init
+      renderFilters();
+      renderList();
+    })();
   </script>
 </body>
 </html>`);
@@ -1878,6 +2392,74 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
   }
 });
 
+// --- Notion prompt fetching ---
+async function fetchNotionPrompt(pageId) {
+  const cached = promptCache.get(pageId);
+  if (cached && Date.now() - cached.ts < PROMPT_CACHE_TTL) return cached.data;
+  const headers = { "Authorization": `Bearer ${NOTION_API_KEY}`, "Notion-Version": "2022-06-28" };
+  const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`, { headers });
+  if (!blocksRes.ok) throw new Error(`Notion API ${blocksRes.status}`);
+  const blocksData = await blocksRes.json();
+  let text = "";
+  for (const block of blocksData.results || []) {
+    const rt = block[block.type]?.rich_text;
+    if (rt) text += rt.map(t => t.plain_text).join("") + "\n";
+    else if (block.type === "divider") text += "---\n";
+    else if (block.type === "heading_1" || block.type === "heading_2" || block.type === "heading_3") {
+      const prefix = block.type === "heading_1" ? "# " : block.type === "heading_2" ? "## " : "### ";
+      const ht = block[block.type]?.rich_text;
+      if (ht) text += prefix + ht.map(t => t.plain_text).join("") + "\n";
+    } else if (block.type === "bulleted_list_item" || block.type === "numbered_list_item") {
+      const lt = block[block.type]?.rich_text;
+      if (lt) text += "- " + lt.map(t => t.plain_text).join("") + "\n";
+    }
+  }
+  const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, { headers });
+  let name = "";
+  if (pageRes.ok) {
+    const pageData = await pageRes.json();
+    const titleProp = Object.values(pageData.properties || {}).find(p => p.type === "title");
+    if (titleProp) name = titleProp.title?.map(t => t.plain_text).join("") || "";
+  }
+  const result = { name, prompt: text.trim() };
+  promptCache.set(pageId, { data: result, ts: Date.now() });
+  return result;
+}
+
+// Prefetch all agent prompts in background (3 concurrent)
+async function prefetchAllPrompts() {
+  if (!NOTION_API_KEY) return;
+  const catalog = JSON.parse(AGENT_CATALOG_JSON);
+  const ids = catalog.map(a => a.p).filter(Boolean);
+  const uncached = ids.filter(id => !promptCache.has(id));
+  if (!uncached.length) return;
+  console.log(`[prompts] Prefetching ${uncached.length} prompts...`);
+  let done = 0;
+  for (let i = 0; i < uncached.length; i += 3) {
+    const batch = uncached.slice(i, i + 3);
+    await Promise.allSettled(batch.map(async id => {
+      try { await fetchNotionPrompt(id); done++; } catch {}
+    }));
+  }
+  console.log(`[prompts] Prefetched ${done}/${uncached.length} prompts`);
+}
+
+app.get("/api/prompts/:pageId", async (req, res) => {
+  const { pageId } = req.params;
+  if (!pageId || !/^[a-f0-9]{32}$/.test(pageId)) {
+    return res.status(400).json({ error: "Invalid page ID" });
+  }
+  if (!NOTION_API_KEY) {
+    return res.status(503).json({ error: "Notion API not configured" });
+  }
+  try {
+    res.json(await fetchNotionPrompt(pageId));
+  } catch (err) {
+    console.error("[api] Notion fetch failed:", err);
+    res.status(502).json({ error: "Failed to fetch prompt from Notion" });
+  }
+});
+
 // --- Background tick ---
 // Rebuild cache from Railway + health checks every 30 seconds.
 const TICK_INTERVAL = parseInt(process.env.TICK_INTERVAL_MS || "30000", 10);
@@ -1890,6 +2472,9 @@ deleteOrphanAgentVolumes()
   .catch((err) => console.warn("[startup] Orphan volume cleanup failed:", err.message))
   .then(() => pool.tick())
   .catch((err) => console.error("[tick] Initial tick error:", err));
+
+// Prefetch all Notion prompts in background so Copy is instant
+setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
 
 app.listen(PORT, () => {
   console.log(`Pool manager listening on :${PORT}`);

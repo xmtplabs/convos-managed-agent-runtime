@@ -1,151 +1,205 @@
-# Design Implementation Plan: Pool Dashboard — Joining/Success/Error States
+# Design Implementation Plan: Prompt Store
 
 ## Summary
-- **Scope:** Component (transitional states in the paste-and-go end-user view)
-- **Target:** `pool/src/index.js` (inline HTML dashboard)
-- **Winner:** Variant E — Full Balloon Scene
-- **Key improvements:** Replace flat "Joining conversation..." text and basic green/red banners with an expressive balloon animation scene that matches the delight of the existing empty state
+- **Scope:** New section added to the pool dashboard page
+- **Target:** `pool/src/index.js` (inline HTML in Express template literal)
+- **Winner variant:** F (synthesized from A's hierarchy + D's search/filter + B's View/Copy buttons)
+- **Key features:**
+  - Search bar for filtering 90+ agents
+  - Category filter pills (13 categories)
+  - Compact list grouped by category with uppercase headers
+  - Each row: agent name, description, View button, Copy (primary) button
+  - Modal overlay for viewing full prompt text
+  - "Show more" pattern (first ~10 agents visible, expand for all)
+  - Intro copy: "Below find our 100+ favorite group agent skills..."
 
-## Design Direction
-The Convos balloon (same SVG as empty state) is the centerpiece of all three transitional states:
-- **Joining:** Balloon inflates from small to full size with floating orange particles, gentle bobbing, and swaying string. Text: "Your assistant is on the way"
-- **Success:** Balloon does a celebratory bounce, confetti rains down in brand colors. Text: "Your assistant has arrived!" with "Paste another link" dismiss button. Auto-fade after ~2.5s.
-- **Error:** Balloon gently droops (8deg angle, 75% opacity) matching the empty state's sad energy. Text: "Couldn't reach your conversation" with "Try again" dismiss button.
+## Data Source
+- Agent metadata (name, description, category, skills) from Notion page `30730823ce9281909484c83e1f4704cb`
+- Full prompts fetched from Notion sub-pages on demand via new API endpoint
+- Extracted data available at `.claude-design/agents-data.json` (90 agents, 13 categories)
 
 ## Files to Change
-- [ ] `pool/src/index.js` — Add CSS for joining/success/error overlay states, add overlay HTML to the paste-view section, update the `handlePasteUrl` JS function
+- [ ] `pool/src/index.js` — Add CSS styles, HTML section, JavaScript logic, and new API endpoint
 
 ## Implementation Steps
 
-### 1. Add CSS for the overlay states
-Add after the existing `.empty-state` styles (around line 348):
+### 1. Add Notion API integration for fetching full prompts
+- Use raw `fetch()` to Notion API (no new npm deps needed)
+- Env var: `NOTION_API_KEY` for Notion internal integration token
+- New endpoint: `GET /api/prompts/:pageId` — fetches a Notion sub-page's text content, returns `{ name, prompt }`
+- Server-side in-memory cache with ~1 hour TTL (prompts rarely change)
 
-**Overlay container:**
-- `.joining-overlay` — Full area overlay with `rgba(255,255,255,0.97)` background, centered flex column
-- Transitions: `opacity 0.4s ease`, starts hidden with `opacity: 0; pointer-events: none`
-- `.joining-overlay.active` — `opacity: 1; pointer-events: auto`
+### 2. Embed agent catalog data in HTML
+- Serialize the 90-agent catalog as a JSON `<script>` block in the HTML template
+- Data per agent: `{ name, description, category, categoryEmoji, skills, status, notionPageId }`
+- No extra API call needed for the initial list render
 
-**Balloon scene:**
-- `.joining-scene` — 200×240px relative container
-- `.joining-balloon-group` — Positioned at `top: 40px; left: 50%; transform: translateX(-50%)`
-- Use the same balloon SVG as the empty state (72×92px)
+### 3. Add CSS styles to the inline stylesheet
+From Variant F, add these style blocks:
 
-**String segments (nested, matching empty state pattern):**
-- `.joining-string-upper` wraps `.joining-string-lower` (lower nested inside upper)
-- Same SVG paths as empty state strings
-- Same sway animations: `string-top-sway 3.5s` and `string-btm-sway 2.8s`
-- `margin: -2px auto 0; width: 20px; transform-origin: top center`
+**Section & header:**
+- `.prompt-store` — section container with top margin/padding
+- `.ps-title` — 18px, weight 700, letter-spacing -0.3px
+- `.ps-intro` — 13px, color #B2B2B2, line-height 1.5
 
-**Joining state animations:**
-- Balloon inflate: `scale(0.3) → scale(1.05) → scale(1)` over 1.5s with `cubic-bezier(0.34, 1.56, 0.64, 1)`
-- Then continuous float: gentle `translateY` + slight `rotate` oscillation over 3s
-- 6 floating particles (4px orange dots) with staggered `translateY` + opacity animation
+**Search:**
+- `.ps-search-wrap` + `.ps-search` — border #EBEBEB, radius 10px, bg #FAFAFA
+- `.ps-search-icon` — positioned left 12px, color #D4D4D4
+- Focus state: border #E54D00, box-shadow rgba(229,77,0,0.06)
 
-**Success state animations:**
-- Balloon bounce: `scale(1) → scale(1.2) translateY(-16px) → scale(0.95) → scale(1)` over 0.6s
-- Enhanced drop-shadow glow
-- 8 confetti pieces (mixed shapes: circles + rectangles) in brand colors (#FC4F37, #FBBF24, #34D399, #60A5FA)
-- Confetti rain: `translateY(0) → translateY(300px)` with rotation, 1.5s duration
-- Particles stop during success
+**Filter pills:**
+- `.ps-filters` — flex wrap, gap 4px
+- `.ps-filter-pill` — 11px, radius 20px, border #EBEBEB
+- `.ps-filter-pill.active` — bg #000, color #fff
 
-**Error state animations:**
-- Balloon droop: `scale(1) rotate(0) → scale(0.9, 0.82) rotate(8deg) translateY(10px)` over 1.2s
-- Opacity settles at 0.75 (not too transparent)
-- Red-tinted drop-shadow
-- Particles stop during error
+**Category headers:**
+- `.ps-cat-header` — 10px, weight 700, uppercase, letter-spacing 0.8px, color #D4D4D4
 
-**Dismiss button:**
-- `.joining-dismiss-btn` — 14px Inter, `padding: 10px 24px`, `border-radius: 12px`, white bg with #EBEBEB border
-- Fades in with `translateY(8px) → translateY(0)` after 0.6s delay
-- Error variant: red border (#FECACA) and red text (#DC2626)
+**Agent rows:**
+- `.ps-agent-row` — flex, padding 12px 0, border-bottom #F5F5F5, cursor pointer
+- `.ps-agent-row:hover` — bg #FAFAFA, negative margin expansion with border-radius 8px
+- `.ps-agent-name` — 14px, weight 600
+- `.ps-agent-desc` — 12px, color #B2B2B2, ellipsis truncation
 
-**Status text:**
-- `.joining-status-text` — 20px, weight 600, #333
-- `.joining-status-sub` — 14px, #B2B2B2
-- Success variant: text color #16A34A
-- Error variant: text color #DC2626
+**Buttons:**
+- `.ps-agent-actions` — flex, gap 6px
+- `.ps-btn` (View) — outline, border #EBEBEB, radius 8px
+- `.ps-btn.primary` (Copy) — bg #E54D00, color #fff
+- `.ps-btn.copied` — bg #16A34A (green), 1.5s transition back
 
-### 2. Add overlay HTML
-Add inside the `<div id="paste-view">` section, before the `.paste-input-wrap`:
+**Show more:**
+- `.ps-show-more` — dashed border #EBEBEB, radius 10px, color #999
+
+**Modal:**
+- `.ps-modal-overlay` — fixed inset 0, bg rgba(0,0,0,0.4)
+- `.ps-modal` — max-width 560px, radius 16px, shadow 0 24px 48px rgba(0,0,0,0.15)
+- `.ps-modal-head` — sticky header with agent name + close button
+- `.ps-modal-body` — overflow-y auto, flex: 1
+- `.ps-modal-footer` — fixed footer with Copy button (bg #E54D00)
+
+**No results:**
+- `.ps-no-results` — centered, color #CCC, 13px
+
+**Responsive:**
+- At 640px: filter pills overflow-x auto, full-width buttons
+
+### 4. Add HTML section after stories
+Insert after the `.stories` closing `</div>`, still inside `#paste-view`:
 
 ```html
-<div class="joining-overlay" id="joining-overlay">
-  <div class="joining-scene">
-    <!-- 6 floating particles -->
-    <div class="joining-particle"></div> (×6, positioned with CSS)
-    <!-- Balloon group -->
-    <div class="joining-balloon-group">
-      <svg class="joining-balloon-svg" ...><!-- same SVG as empty state, 72×92 --></svg>
-      <div class="joining-string-upper">
-        <svg ...><!-- same upper string SVG --></svg>
-        <div class="joining-string-lower">
-          <svg ...><!-- same lower string SVG --></svg>
-        </div>
-      </div>
+<div class="prompt-store" id="prompt-store">
+  <div class="ps-header">
+    <span class="ps-title">Try an assistant</span>
+  </div>
+  <p class="ps-intro">Below find our 100+ favorite group agent skills — Simply copy and paste any instructions into the chat and you now have an incredibly powerful new group agent.</p>
+  <div class="ps-search-wrap">
+    <span class="ps-search-icon"><svg>...</svg></span>
+    <input class="ps-search" placeholder="Search assistants..." id="ps-search" />
+  </div>
+  <div class="ps-filters" id="ps-filters">
+    <!-- Dynamically rendered from categories -->
+  </div>
+  <div class="ps-no-results" id="ps-no-results">No assistants match your search</div>
+  <div class="ps-list" id="ps-list">
+    <!-- Dynamically rendered from embedded catalog data -->
+  </div>
+  <button class="ps-show-more" id="ps-show-more">Show all assistants</button>
+</div>
+
+<!-- Prompt modal overlay (outside paste-view for proper stacking) -->
+<div class="ps-modal-overlay" id="ps-modal">
+  <div class="ps-modal">
+    <div class="ps-modal-head">
+      <span class="ps-modal-title" id="ps-modal-name"></span>
+      <button class="ps-modal-close" id="ps-modal-close">&times;</button>
     </div>
-    <!-- Confetti container (8 pieces, populated by CSS) -->
-    <div class="joining-confetti" id="joining-confetti">
-      <div class="joining-confetti-piece"></div> (×8)
+    <div class="ps-modal-body">
+      <div class="ps-modal-text" id="ps-modal-text">Loading...</div>
+    </div>
+    <div class="ps-modal-footer">
+      <button class="ps-modal-copy" id="ps-modal-copy">Copy full prompt</button>
     </div>
   </div>
-  <div class="joining-status-text" id="joining-text"></div>
-  <div class="joining-status-sub" id="joining-sub"></div>
-  <button class="joining-dismiss-btn" id="joining-dismiss" style="display:none"></button>
 </div>
 ```
 
-### 3. Update JavaScript
-Modify the `handlePasteUrl` function to show the overlay states:
+### 5. Add JavaScript logic
 
-**On paste/enter (start joining):**
-1. Show overlay with `.active` class and `.joining` state class
-2. Set text: "Your assistant is on the way" / "Setting up a secure connection"
-3. Hide dismiss button
+**Initialization:**
+- Parse embedded catalog JSON
+- Render category filter pills
+- Render initial list (first 10 agents, grouped by category)
+- Bind event listeners
 
-**On success (`r.data.joined`):**
-1. Remove `.joining` class, add `.success` class
-2. Set text: "Your assistant has arrived!" / "They're now in your conversation"
-3. Show dismiss button ("Paste another link")
-4. Generate confetti particles dynamically (JS creates 20 particles with random positions/colors)
-5. Auto-dismiss after 2.5s OR on button click
+**Search (client-side filtering):**
+- On `input` event, filter agents by name + description match
+- If a category filter is active, apply both filters
+- Re-render visible list with matching agents
+- Show/hide "No results" and "Show more" accordingly
 
-**On error (`.catch`):**
-1. Remove `.joining` class, add `.error` class
-2. Set text: "Couldn't reach your conversation" / "Check the link and try again"
-3. Show dismiss button ("Try again")
+**Category filter pills:**
+- On click, toggle active state (only one active at a time, or "All")
+- Re-render list filtered to that category
+- If search text exists, apply both filters
 
-**Dismiss handler:**
-1. Remove `.active` class (fades out via CSS transition)
-2. Reset paste input value and state
-3. Re-enable paste input
+**Show more / Show less:**
+- Default: show first 10 agents (or all in first 2-3 categories)
+- Click "Show all": render all 90 agents
+- Update button text to "Show less" when expanded
 
-### 4. Remove old success/error elements
-- Remove or hide the existing `.success-banner` and `.error-message` elements for the paste-view flow (keep them for dev mode form)
-- The overlay replaces both
+**Copy prompt (fetch on demand):**
+- On Copy click, check JS cache Map first
+- If not cached, `fetch('/api/prompts/' + notionPageId)`
+- Show "..." on button while fetching
+- On success, `navigator.clipboard.writeText(promptText)`
+- Flash button green "Copied!" for 1.5s
+- Cache result for future clicks
+
+**View modal:**
+- On View click (or row click), open modal
+- Fetch prompt from API (or cache)
+- Display in scrollable modal body
+- Copy button in modal footer
+- Close on backdrop click, close button, or Escape key
+
+**Prompt cache:**
+- `const promptCache = new Map()` — stores fetched prompts by pageId
+- Avoids re-fetching for repeat views/copies
+
+### 6. Visibility in both modes
+- Show the prompt store section in **end-user mode** (paste-view) always
+- In **dev mode**, also show it below the form (useful for quick prompt copying when testing)
 
 ## Required UI States
-- **Idle:** Normal paste input view (unchanged)
-- **Joining:** Full overlay with inflating balloon + floating particles
-- **Success:** Overlay with bouncing balloon + confetti + dismiss button
-- **Error:** Overlay with drooping balloon + dismiss button
-- **Empty pool:** Existing empty state (unchanged — this is the inspiration)
+- **Default:** First ~10 agents visible, "Show all" button
+- **Searching:** Filtered list, result count, "No results" if empty
+- **Loading prompt:** "..." on button or "Loading..." in modal
+- **Copied:** Button flashes green for 1.5s
+- **Error fetching:** "Failed to load prompt" in modal, retry option
+- **All expanded:** All 90 agents visible, "Show less" button
 
 ## Accessibility Checklist
-- [ ] Dismiss buttons are focusable and keyboard-operable
-- [ ] Status text updates are announced (use `aria-live="polite"` on the overlay)
-- [ ] Animations respect `prefers-reduced-motion` (disable animations, show static states)
-- [ ] Color contrast meets WCAG AA for all status text
+- [ ] Search input has `aria-label` or visible label
+- [ ] Filter pills use `<button>` with `aria-pressed` state
+- [ ] Agent rows are keyboard-focusable
+- [ ] Modal traps focus when open
+- [ ] Modal closes on Escape key
+- [ ] Copy buttons announce state via `aria-live` region
+- [ ] Color contrast meets WCAG AA (4.5:1 text, 3:1 UI)
 
-## Design Tokens (from existing codebase)
-- Brand orange: `#E54D00` / `#FC4F37`
-- Text primary: `#333`
-- Text secondary: `#B2B2B2`
-- Success green: `#16A34A`
-- Error red: `#DC2626`
-- Border: `#EBEBEB`
-- Font: Inter, weight 500-700
-- Border radius: 12-14px
-- Confetti colors: `#FC4F37`, `#FBBF24`, `#34D399`, `#60A5FA`
+## Design Tokens
+- **Primary orange:** #E54D00
+- **CTA orange:** #FC4F37
+- **Success green:** #16A34A
+- **Text primary:** #000
+- **Text secondary:** #B2B2B2 / #999
+- **Text muted:** #CCC / #D4D4D4
+- **Border:** #EBEBEB
+- **Background hover:** #FAFAFA
+- **Search bg:** #FAFAFA
+- **Active pill:** #000 bg, #fff text
+- **Border radius:** 8-10px (inputs/buttons), 16px (modal), 20px (pills)
+- **Font:** Inter, weights 400-700
 
 ---
 
