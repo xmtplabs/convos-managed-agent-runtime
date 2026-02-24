@@ -44,11 +44,11 @@ describe("deriveStatus", () => {
   });
 
   it("SUCCESS + healthy + no metadata → idle", () => {
-    assert.equal(deriveStatus({ deployStatus: "SUCCESS", healthCheck: { ready: true }, hasMetadata: false }), "idle");
+    assert.equal(deriveStatus({ deployStatus: "SUCCESS", healthCheck: { ready: true }, isClaimed: false }), "idle");
   });
 
   it("SUCCESS + healthy + has metadata → claimed", () => {
-    assert.equal(deriveStatus({ deployStatus: "SUCCESS", healthCheck: { ready: true }, hasMetadata: true }), "claimed");
+    assert.equal(deriveStatus({ deployStatus: "SUCCESS", healthCheck: { ready: true }, isClaimed: true }), "claimed");
   });
 
   it("SUCCESS + unreachable + young → starting", () => {
@@ -63,20 +63,20 @@ describe("deriveStatus", () => {
     assert.equal(deriveStatus({ deployStatus: null, createdAt: young }), "starting");
   });
 
-  // Claimed instances (hasMetadata) should preserve status through redeploys
-  it("BUILDING + hasMetadata → claimed", () => {
-    assert.equal(deriveStatus({ deployStatus: "BUILDING", createdAt: young, hasMetadata: true }), "claimed");
+  // Claimed instances (isClaimed) should preserve status through redeploys
+  it("BUILDING + isClaimed → claimed", () => {
+    assert.equal(deriveStatus({ deployStatus: "BUILDING", createdAt: young, isClaimed: true }), "claimed");
   });
 
-  it("DEPLOYING + hasMetadata → claimed", () => {
-    assert.equal(deriveStatus({ deployStatus: "DEPLOYING", createdAt: young, hasMetadata: true }), "claimed");
+  it("DEPLOYING + isClaimed → claimed", () => {
+    assert.equal(deriveStatus({ deployStatus: "DEPLOYING", createdAt: young, isClaimed: true }), "claimed");
   });
 
-  it("FAILED + hasMetadata → crashed", () => {
-    assert.equal(deriveStatus({ deployStatus: "FAILED", createdAt: young, hasMetadata: true }), "crashed");
+  it("FAILED + isClaimed → crashed", () => {
+    assert.equal(deriveStatus({ deployStatus: "FAILED", createdAt: young, isClaimed: true }), "crashed");
   });
 
-  it("SUCCESS + unreachable + hasMetadata → claimed", () => {
-    assert.equal(deriveStatus({ deployStatus: "SUCCESS", healthCheck: null, createdAt: young, hasMetadata: true }), "claimed");
+  it("SUCCESS + unreachable + isClaimed → claimed", () => {
+    assert.equal(deriveStatus({ deployStatus: "SUCCESS", healthCheck: null, createdAt: young, isClaimed: true }), "claimed");
   });
 });
