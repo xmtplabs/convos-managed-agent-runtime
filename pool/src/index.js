@@ -1,7 +1,11 @@
 import express from "express";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import * as pool from "./pool.js";
 import * as cache from "./cache.js";
 import { deleteOrphanAgentVolumes } from "./volumes.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
@@ -29,6 +33,7 @@ function requireAuth(req, res, next) {
 
 // --- Routes ---
 
+app.get("/favicon.ico", (_req, res) => res.sendFile(join(__dirname, "favicon.ico")));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 // Version — check this to verify what code is deployed.
@@ -71,9 +76,7 @@ app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
 
 // Dashboard page — mode determined by POOL_ENVIRONMENT + ?mode= query param
 app.get("/", (req, res) => {
-  // Dev mode: default for non-prod/staging envs, overridable with ?mode=dev
-  const devMode = req.query.mode === "dev" || (POOL_ENVIRONMENT !== "production" && POOL_ENVIRONMENT !== "staging");
-  const showDevBar = POOL_ENVIRONMENT !== "production";
+  const showDevTools = POOL_ENVIRONMENT !== "production";
   const serviceLink = RAILWAY_PROJECT_ID && RAILWAY_SERVICE_ID
     ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>`
     : RAILWAY_SERVICE_ID ? RAILWAY_SERVICE_ID.slice(0, 8) : "";
@@ -83,9 +86,11 @@ app.get("/", (req, res) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Convos${devMode ? " Assistant Pool" : ""}</title>
+  <title>Convos${showDevTools ? " Assistant Pool" : ""}</title>
+  <link rel="icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -98,19 +103,18 @@ app.get("/", (req, res) => {
       -webkit-font-smoothing: antialiased;
     }
 
-    /* --- Form (shared between modes) --- */
+    /* --- Layout wrapper --- */
     .form-wrapper {
-      padding: 60px 24px;
-      background: linear-gradient(180deg, #FAFAFA 0%, #fff 40%);
-      min-height: ${devMode ? "auto" : "100vh"};
-      transition: min-height 0.2s;
+      padding: 80px 32px;
+      background: #fff;
+      min-height: 100vh;
       display: flex;
-      align-items: ${devMode ? "flex-start" : "center"};
+      align-items: flex-start;
       justify-content: center;
     }
 
     .form-center {
-      max-width: 520px;
+      max-width: 640px;
       width: 100%;
     }
 
@@ -118,7 +122,7 @@ app.get("/", (req, res) => {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 48px;
+      margin-bottom: 56px;
     }
 
     .brand-icon {
@@ -146,7 +150,89 @@ app.get("/", (req, res) => {
     .page-subtitle {
       font-size: 16px;
       color: #999;
-      margin-bottom: 40px;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    /* --- Paste input (end-user mode) --- */
+    .paste-input-wrap {
+      max-width: 460px;
+      width: 100%;
+      position: relative;
+      margin-bottom: 56px;
+    }
+
+    .paste-input {
+      width: 100%;
+      padding: 18px 24px 18px 48px;
+      border: 1.5px solid #EBEBEB;
+      border-radius: 14px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #000;
+      background: #fff;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.03);
+      transition: all 0.25s ease;
+    }
+
+    .paste-input:focus {
+      outline: none;
+      border-color: #FC4F37;
+      box-shadow: 0 2px 16px rgba(252,79,55,0.06);
+    }
+
+    .paste-input::placeholder { color: #D4D4D4; }
+    .paste-input.invalid { border-color: #DC2626; }
+    .paste-input.invalid:focus { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.06); }
+
+    .paste-input-icon {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #D4D4D4;
+      pointer-events: none;
+    }
+
+    .paste-input-icon svg { width: 16px; height: 16px; }
+
+    .paste-error {
+      color: #DC2626;
+      font-size: 13px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    .paste-error.visible { display: block; }
+
+    /* --- Stories (end-user mode) --- */
+    .stories {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+
+    .story-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #D4D4D4;
+      margin-bottom: 12px;
+    }
+
+    .story-text {
+      font-size: 13px;
+      color: #B2B2B2;
+      line-height: 1.6;
+    }
+
+    .story-text a {
+      display: inline-block;
+      margin-top: 8px;
+      color: #B2B2B2;
+      text-decoration: underline;
+      text-underline-offset: 2px;
     }
 
     .field-group { margin-bottom: 28px; }
@@ -748,13 +834,15 @@ app.get("/", (req, res) => {
       .form-wrapper { padding: 32px 16px; }
       .page-title { font-size: 24px; }
       .agents-dropdown { width: calc(100vw - 32px); left: -8px; }
+      .stories { grid-template-columns: 1fr; gap: 32px; }
+      .paste-input-wrap { margin-bottom: 40px; }
     }
   </style>
 </head>
 <body>
-  ${showDevBar ? `
+  ${showDevTools ? `
   <div class="dropdown-backdrop" id="dropdown-backdrop"></div>
-  <div class="dev-bar${devMode ? "" : " collapsed"}" id="dev-bar">
+  <div class="dev-bar${showDevTools ? "" : " collapsed"}" id="dev-bar">
     <span class="env-tag env-${POOL_ENVIRONMENT}" id="env-toggle">${POOL_ENVIRONMENT}</span>
     <div class="bar-content">
       <span class="sep"></span>
@@ -792,8 +880,8 @@ app.get("/", (req, res) => {
         </div>
         <span class="brand-name">Convos</span>
       </div>
-      <h1 class="page-title">Launch your assistant</h1>
-      <p class="page-subtitle">Create an AI assistant and drop it into any Convos conversation.</p>
+      <h1 class="page-title" id="page-title">${showDevTools ? "Launch your assistant" : "Invite an assistant"}</h1>
+      <p class="page-subtitle" id="page-subtitle">${showDevTools ? "Create an AI assistant and drop it into any Convos conversation." : "Paste a link and an AI assistant will join your Convos conversation."}</p>
 
       <div id="empty-state" class="empty-state">
         <div class="empty-scene">
@@ -818,6 +906,7 @@ app.get("/", (req, res) => {
         <div class="empty-sub">No assistants available right now.<br>Check back a little later.</div>
       </div>
 
+      ${showDevTools ? `
       <form id="f">
         <div class="field-group">
           <label class="field-label" for="name">Assistant Name</label>
@@ -832,15 +921,30 @@ app.get("/", (req, res) => {
         <div class="field-group">
           <label class="field-label" for="instructions">Instructions</label>
           <textarea id="instructions" name="instructions" class="field-input" placeholder="Tell the assistant who it is and what it should do..." required></textarea>
-          <div class="template-row">
-            <span class="template-pill">Trip Planner</span>
-            <span class="template-pill">Research Assistant</span>
-            <span class="template-pill">Writing Coach</span>
-            <span class="template-soon">coming soon</span>
-          </div>
         </div>
         <button type="submit" id="btn" class="btn-launch" disabled>Launch Assistant</button>
       </form>
+      ` : ''}
+
+      <div id="paste-view"${showDevTools ? ' style="display:none"' : ''}>
+        <div class="paste-input-wrap">
+          <span class="paste-input-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          </span>
+          <input id="paste-input" class="paste-input" placeholder="${POOL_ENVIRONMENT === "production" ? "popup.convos.org/..." : "dev.convos.org/..."}" />
+          <div class="paste-error" id="paste-error"></div>
+        </div>
+        <div class="stories">
+          <div>
+            <div class="story-label">Built in</div>
+            <p class="story-text">Convos AI Assistants can browse the web and use email, SMS, and crypto wallets to help your group with scheduling, reservations, payments, and more.<br><a href="#">Built with OpenClaw 🦞</a></p>
+          </div>
+          <div>
+            <div class="story-label">Safe by default</div>
+            <p class="story-text">Convos keeps conversations separate and encrypted by default. Each assistant you add is unique to that conversation and can never access other chats, contacts, or profiles.<br><a href="#">Learn more</a></p>
+          </div>
+        </div>
+      </div>
 
       <div class="error-message" id="error"></div>
       <div class="success-banner" id="success">
@@ -854,7 +958,7 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
-      <div class="footer-note" id="footer-note">Your assistant will be live in about 30 seconds</div>
+      ${showDevTools ? '<div class="footer-note" id="footer-note">Your assistant will be live in about 30 seconds</div>' : ''}
     </div>
   </div>
 
@@ -887,8 +991,7 @@ app.get("/", (req, res) => {
   </div>
 
   <script>
-    var DEV_MODE=${devMode};
-    var SHOW_DEV_BAR=${showDevBar};
+    var SHOW_DEV_TOOLS=${showDevTools};
     var API_KEY='${POOL_API_KEY}';
     var POOL_ENV='${POOL_ENVIRONMENT}';
     var RAILWAY_PROJECT='${process.env.RAILWAY_PROJECT_ID || ""}';
@@ -913,14 +1016,33 @@ app.get("/", (req, res) => {
     function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 
     // Pool status
-    var emptyState=document.getElementById('empty-state'),formEl=document.getElementById('f'),btn=document.getElementById('btn'),footerNote=document.getElementById('footer-note');
+    var emptyState=document.getElementById('empty-state');
+    var formEl=document.getElementById('f');
+    var btn=document.getElementById('btn');
+    var footerNote=document.getElementById('footer-note');
+    var pasteView=document.getElementById('paste-view');
+    var pasteInput=document.getElementById('paste-input');
+    var pasteError=document.getElementById('paste-error');
+    var pageTitle=document.getElementById('page-title');
+    var pageSubtitle=document.getElementById('page-subtitle');
     var launching=false;
+    var devToolsActive=SHOW_DEV_TOOLS;
+
+    function setDevToolsActive(active){
+      devToolsActive=active;
+      if(formEl)formEl.style.display=active?'':'none';
+      if(footerNote)footerNote.style.display=active?'':'none';
+      if(pasteView)pasteView.style.display=active?'none':'';
+      pageTitle.textContent=active?'Launch your assistant':'Invite an assistant';
+      pageSubtitle.textContent=active?'Create an AI assistant and drop it into any Convos conversation.':'Paste a link and an AI assistant will join your Convos conversation.';
+      refreshStatus();
+    }
 
     async function refreshStatus(){
       try{
         var res=await fetch('/api/pool/counts');
         var c=await res.json();
-        if(SHOW_DEV_BAR){
+        if(SHOW_DEV_TOOLS){
           document.getElementById('s-idle').textContent=c.idle;
           document.getElementById('s-starting').textContent=c.starting;
           document.getElementById('s-claimed').textContent=c.claimed;
@@ -929,8 +1051,13 @@ app.get("/", (req, res) => {
           else{sw.style.display='none';}
         }
         if(!launching){
-          if(c.idle>0){btn.disabled=false;emptyState.style.display='none';formEl.style.display='';footerNote.style.display=''}
-          else{btn.disabled=true;emptyState.style.display='block';formEl.style.display='none';footerNote.style.display='none'}
+          if(devToolsActive){
+            if(c.idle>0){if(btn)btn.disabled=false;emptyState.style.display='none';if(formEl)formEl.style.display='';if(footerNote)footerNote.style.display=''}
+            else{if(btn)btn.disabled=true;emptyState.style.display='block';if(formEl)formEl.style.display='none';if(footerNote)footerNote.style.display='none'}
+          }else{
+            if(c.idle>0){emptyState.style.display='none';if(pasteView)pasteView.style.display='';}
+            else{emptyState.style.display='block';if(pasteView)pasteView.style.display='none';}
+          }
         }
       }catch{}
     }
@@ -939,7 +1066,7 @@ app.get("/", (req, res) => {
     var claimedCache=[],crashedCache=[];
 
     async function refreshFeed(){
-      if(!SHOW_DEV_BAR)return;
+      if(!SHOW_DEV_TOOLS)return;
       try{
         var res=await fetch('/api/pool/agents');
         var data=await res.json();
@@ -950,7 +1077,7 @@ app.get("/", (req, res) => {
     }
 
     function renderFeed(){
-      if(!SHOW_DEV_BAR)return;
+      if(!SHOW_DEV_TOOLS)return;
       var feed=document.getElementById('feed');
       var dc=document.getElementById('dropdown-count');
       var total=claimedCache.length+crashedCache.length;
@@ -1022,6 +1149,7 @@ app.get("/", (req, res) => {
       return {valid:true};
     }
 
+    if(SHOW_DEV_TOOLS){
     // Dynamic button text based on invite URL
     var joinUrlInput=document.getElementById('join-url');
     var joinUrlError=document.getElementById('join-url-error');
@@ -1058,6 +1186,7 @@ app.get("/", (req, res) => {
       }
       updateButtonText();
     });
+    } // end SHOW_DEV_TOOLS join-url handling
 
     // QR modal
     var modal=document.getElementById('qr-modal');
@@ -1093,9 +1222,13 @@ app.get("/", (req, res) => {
     function closeModal(){modal.classList.remove('active');}
     modal.onclick=function(e){if(e.target===modal)closeModal();};
 
-    // Launch form
-    var f=document.getElementById('f'),errorEl=document.getElementById('error');
+    // Shared elements
+    var errorEl=document.getElementById('error');
     var successEl=document.getElementById('success'),successTextEl=document.getElementById('success-text');
+
+    // Launch form (dev mode)
+    if(SHOW_DEV_TOOLS){
+    var f=document.getElementById('f');
     f.onsubmit=async function(e){
       e.preventDefault();
       var agentName=f.name.value.trim();
@@ -1133,14 +1266,82 @@ app.get("/", (req, res) => {
         errorEl.style.display='block';
       }finally{launching=false;btn.textContent=joinUrlInput.value.trim()?'Join Conversation':'Launch Assistant';refreshStatus();}
     };
+    } // end SHOW_DEV_TOOLS form
+
+    // Paste auto-launch (always wired up since paste-view is always in DOM)
+    if(pasteInput){
+    pasteInput.addEventListener('paste',function(){
+      setTimeout(function(){
+        var url=pasteInput.value.trim();
+        if(url)handlePasteUrl(url);
+      },0);
+    });
+    pasteInput.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){
+        e.preventDefault();
+        var url=pasteInput.value.trim();
+        if(url)handlePasteUrl(url);
+      }
+    });
+    pasteInput.addEventListener('input',function(){
+      var val=pasteInput.value.trim();
+      if(!val){
+        pasteError.classList.remove('visible');
+        pasteInput.classList.remove('invalid');
+        errorEl.style.display='none';
+      }
+    });
+    function handlePasteUrl(url){
+      var result=validateJoinUrl(url);
+      if(result.valid)result=checkEnvUrl(url);
+      if(!result.valid){
+        pasteError.textContent=result.message;
+        pasteError.classList.add('visible');
+        pasteInput.classList.add('invalid');
+        return;
+      }
+      pasteError.classList.remove('visible');
+      pasteInput.classList.remove('invalid');
+      launching=true;
+      pasteInput.disabled=true;
+      pasteInput.value='Joining conversation\u2026';
+      errorEl.style.display='none';successEl.classList.remove('active');
+      fetch('/api/pool/claim',{method:'POST',headers:authHeaders,body:JSON.stringify({joinUrl:url})})
+        .then(function(res){return res.json().then(function(data){return {ok:res.ok,data:data};});})
+        .then(function(r){
+          if(!r.ok)throw new Error(r.data.error||'Failed to join');
+          pasteInput.value='';
+          if(r.data.joined){
+            successTextEl.textContent='Assistant joined the conversation';
+            successEl.classList.add('active');
+            setTimeout(function(){successEl.classList.remove('active');},8000);
+          }else{
+            showQr(r.data.agentName||'Assistant',r.data.inviteUrl);
+          }
+          refreshFeed();
+        })
+        .catch(function(err){
+          errorEl.textContent=err.message;
+          errorEl.style.display='block';
+          pasteInput.value=url;
+        })
+        .then(function(){
+          launching=false;
+          pasteInput.disabled=false;
+          refreshStatus();
+        });
+    }
+    } // end paste auto-launch
 
     // Dev bar: env toggle, dropdown, pool controls, agent actions
-    if(SHOW_DEV_BAR){
+    if(SHOW_DEV_TOOLS){
       // Env tag toggles the bar
       var devBar=document.getElementById('dev-bar');
       var envToggle=document.getElementById('env-toggle');
       envToggle.addEventListener('click',function(){
+        var collapsed=!devBar.classList.contains('collapsed');
         devBar.classList.toggle('collapsed');
+        setDevToolsActive(!collapsed);
       });
 
       var toggle=document.getElementById('claimed-toggle');
@@ -1268,10 +1469,10 @@ app.get("/api/pool/status", requireAuth, (_req, res) => {
 // Launch an agent — claim an idle instance and provision it with instructions.
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
   const { agentName, instructions, joinUrl } = req.body || {};
-  if (!instructions || typeof instructions !== "string") {
+  if (!joinUrl && (!instructions || typeof instructions !== "string")) {
     return res.status(400).json({ error: "instructions (string) is required" });
   }
-  if (!agentName || typeof agentName !== "string") {
+  if (!joinUrl && (!agentName || typeof agentName !== "string")) {
     return res.status(400).json({ error: "agentName (string) is required" });
   }
   if (joinUrl && typeof joinUrl !== "string") {
@@ -1286,8 +1487,8 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
 
   try {
     const result = await pool.provision({
-      agentName,
-      instructions,
+      agentName: agentName || "Assistant",
+      instructions: instructions || "You are a helpful AI assistant.",
       joinUrl: joinUrl || undefined,
     });
     if (!result) {
