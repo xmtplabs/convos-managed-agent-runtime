@@ -68,15 +68,15 @@ pnpm start
 | `OPENROUTER_MANAGEMENT_KEY` | Management key for creating per-instance API keys |
 | `OPENROUTER_KEY_LIMIT` | USD spend limit per key (default `20`) |
 | `OPENROUTER_KEY_LIMIT_RESET` | Limit reset period (default `monthly`) |
-| **Instance env vars** | Injected into each agent instance (`INSTANCE_*` prefix is stripped) |
-| `INSTANCE_OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
-| `INSTANCE_XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `INSTANCE_AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
+| **Agent keys** | Passed directly to runtime instances |
+| `OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
+| `XMTP_ENV` | XMTP environment (`dev` or `production`) |
+| `AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
 | `AGENTMAIL_DOMAIN` | Custom domain for inboxes (e.g. `mail.convos.org`); defaults to `agentmail.to` |
-| `INSTANCE_BANKR_API_KEY` | Bankr API key |
-| `INSTANCE_TELNYX_API_KEY` | Telnyx API key |
-| `INSTANCE_TELNYX_PHONE_NUMBER` | Telnyx phone number |
-| `INSTANCE_TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile ID |
+| `BANKR_API_KEY` | Bankr API key |
+| `TELNYX_API_KEY` | Telnyx API key |
+| `TELNYX_PHONE_NUMBER` | Telnyx phone number |
+| `TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile ID |
 
 ## API
 
