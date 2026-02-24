@@ -26,7 +26,7 @@ const PROMPT_CACHE_TTL = 60 * 60 * 1000;
 // --- Agent catalog for prompt store ---
 const AGENT_CATALOG_JSON = (() => {
   try {
-    const catalogPath = resolve(__dirname, "../../.claude-design/agents-data.json");
+    const catalogPath = resolve(__dirname, "agents-data.json");
     const raw = JSON.parse(readFileSync(catalogPath, "utf8"));
     const compact = raw.map(a => {
       const url = a.subPageUrl || "";
