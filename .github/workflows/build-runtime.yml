@@ -9,6 +9,12 @@ on:
     branches: [scaling, dev, staging, main]
     paths:
       - 'runtime/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or tag to build from'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -44,6 +50,10 @@ jobs:
             TAG="production"
           else
             TAG="$GITHUB_REF_NAME"
+          fi
+          # Allow manual override tag via workflow_dispatch input
+          if [ -n "${{ github.event.inputs.ref }}" ]; then
+            TAG="${{ github.event.inputs.ref }}"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
