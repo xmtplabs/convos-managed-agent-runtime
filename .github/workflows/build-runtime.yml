@@ -11,10 +11,15 @@ on:
       - 'runtime/**'
   workflow_dispatch:
     inputs:
-      ref:
-        description: 'Branch or tag to build from'
-        required: false
-        default: ''
+      tag:
+        description: 'Image tag to build'
+        required: true
+        type: choice
+        options:
+          - scaling
+          - dev
+          - staging
+          - production
 
 permissions:
   contents: read
@@ -51,9 +56,9 @@ jobs:
           else
             TAG="$GITHUB_REF_NAME"
           fi
-          # Allow manual override tag via workflow_dispatch input
-          if [ -n "${{ github.event.inputs.ref }}" ]; then
-            TAG="${{ github.event.inputs.ref }}"
+          # Use dropdown value for manual dispatch
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG="${{ github.event.inputs.tag }}"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
