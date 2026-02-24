@@ -33,8 +33,7 @@ export async function createService(name, variables = {}) {
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!environmentId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
 
-  const branch = process.env.RAILWAY_ENVIRONMENT_NAME 
-  const image = process.env.RAILWAY_RUNTIME_IMAGE || `ghcr.io/xmtplabs/convos-runtime:${branch}`;
+  const image = process.env.RAILWAY_RUNTIME_IMAGE || "ghcr.io/xmtplabs/convos-runtime:latest";
 
   // Create service (no variables, no source — no deploy triggered).
   const input = { projectId, environmentId, name };
