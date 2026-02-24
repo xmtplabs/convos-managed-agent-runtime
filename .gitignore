@@ -27,6 +27,9 @@ xmtp-*.db3-wal
 # dmux worktrees
 .dmux/
 
+# Claude design scratch
+.claude-design/
+
 # OS
 .DS_Store
 
