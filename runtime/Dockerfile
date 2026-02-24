@@ -13,24 +13,21 @@ RUN apt-get update \
     libxkbcommon0 libxrandr2 xdg-utils \
   && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable
-ENV PNPM_HOME="/root/.local/share/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN mkdir -p "$PNPM_HOME"
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 
 # Install all deps (openclaw now comes from npm via package.json)
-COPY package.json pnpm-lock.yaml /app/
+COPY runtime/package.json runtime/pnpm-lock.yaml /app/
 RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
 # RUNTIME_DIR=$ROOT/openclaw in paths.sh — apply-config syncs from here to STATE_DIR (/app)
-COPY openclaw/openclaw.json /app/openclaw/openclaw.json
-COPY openclaw/workspace /app/openclaw/workspace
-COPY openclaw/extensions /app/openclaw/extensions
-COPY cli ./cli
-RUN chmod +x /app/cli/scripts/*.sh /app/cli/scripts/entrypoint.sh
+COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
+COPY runtime/openclaw/workspace /app/openclaw/workspace
+COPY runtime/openclaw/extensions /app/openclaw/extensions
+COPY runtime/scripts ./scripts
+RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
 ENV OPENCLAW_STATE_DIR=/app
@@ -39,5 +36,5 @@ ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
 EXPOSE 8080
-ENTRYPOINT ["./cli/scripts/entrypoint.sh"]
+ENTRYPOINT ["./scripts/entrypoint.sh"]
 CMD ["pnpm", "start"]

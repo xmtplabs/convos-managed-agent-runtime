@@ -121,9 +121,10 @@
       }
     }
   },
-  "plugins": {
+ "plugins": {
+    "allow": ["convos", "web-tools"],
     "slots": { "memory": "none" },
-    "entries": { "web-tools": { "enabled": true } }
+    "entries": { "convos": { "enabled": true }, "web-tools": { "enabled": true } }
   },
   "models": {
     "mode": "merge",

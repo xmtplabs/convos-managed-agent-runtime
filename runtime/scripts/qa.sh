@@ -5,10 +5,10 @@ set -e
 
 . "$(dirname "$0")/lib/init.sh"
 cd "$ROOT"
-. "$ROOT/cli/scripts/lib/env-load.sh"
+. "$ROOT/scripts/lib/env-load.sh"
 
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
-. "$ROOT/cli/scripts/lib/node-path.sh"
+. "$ROOT/scripts/lib/node-path.sh"
 
 FAILED=""
 QA_TMP=$(mktemp)
