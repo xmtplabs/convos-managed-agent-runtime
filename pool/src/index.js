@@ -73,6 +73,7 @@ app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
 app.get("/", (req, res) => {
   // Dev mode: default for non-prod/staging envs, overridable with ?mode=dev
   const devMode = req.query.mode === "dev" || (POOL_ENVIRONMENT !== "production" && POOL_ENVIRONMENT !== "staging");
+  const showDevBar = POOL_ENVIRONMENT !== "production";
   const serviceLink = RAILWAY_PROJECT_ID && RAILWAY_SERVICE_ID
     ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>`
     : RAILWAY_SERVICE_ID ? RAILWAY_SERVICE_ID.slice(0, 8) : "";
@@ -102,6 +103,7 @@ app.get("/", (req, res) => {
       padding: 60px 24px;
       background: linear-gradient(180deg, #FAFAFA 0%, #fff 40%);
       min-height: ${devMode ? "auto" : "100vh"};
+      transition: min-height 0.2s;
       display: flex;
       align-items: ${devMode ? "flex-start" : "center"};
       justify-content: center;
@@ -257,16 +259,80 @@ app.get("/", (req, res) => {
       color: #CCC;
     }
 
-    .unavailable-msg {
+    /* --- Empty pool state (sad balloon) --- */
+    .empty-state {
       text-align: center;
-      padding: 24px 16px;
-      color: #999;
-      font-size: 14px;
+      padding: 40px 16px;
+      display: none;
     }
 
-    .unavailable-msg svg {
+    .empty-scene {
+      position: relative;
+      width: 160px;
+      height: 200px;
+      margin: 0 auto 20px;
+    }
+
+    .empty-balloon-group {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) rotate(10deg);
+      transform-origin: center 70px;
+      animation: balloon-droop 5s ease-in-out infinite;
+    }
+
+    @keyframes balloon-droop {
+      0%, 100% { transform: translateX(-50%) rotate(10deg); }
+      30% { transform: translateX(-50%) rotate(6deg); }
+      60% { transform: translateX(-50%) rotate(13deg); }
+    }
+
+    .empty-balloon-group svg.balloon-logo {
       display: block;
-      margin: 0 auto 12px;
+      filter: drop-shadow(0 4px 12px rgba(229,77,0,0.15));
+    }
+
+    .balloon-string-upper {
+      transform-origin: top center;
+      animation: string-top-sway 3.5s ease-in-out infinite;
+      margin: -2px auto 0;
+      width: 20px;
+    }
+
+    .balloon-string-upper svg { display: block; }
+
+    @keyframes string-top-sway {
+      0%, 100% { transform: rotate(0deg); }
+      40% { transform: rotate(4deg); }
+      70% { transform: rotate(-3deg); }
+    }
+
+    .balloon-string-lower {
+      transform-origin: top center;
+      animation: string-btm-sway 2.8s ease-in-out infinite;
+      width: 20px;
+    }
+
+    .balloon-string-lower svg { display: block; }
+
+    @keyframes string-btm-sway {
+      0%, 100% { transform: rotate(0deg); }
+      35% { transform: rotate(-5deg); }
+      65% { transform: rotate(4deg); }
+    }
+
+    .empty-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .empty-sub {
+      font-size: 14px;
+      color: #B0B0B0;
+      line-height: 1.5;
     }
 
     .error-message {
@@ -404,18 +470,37 @@ app.get("/", (req, res) => {
 
     /* --- Dev status bar --- */
     .dev-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 998;
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 16px;
-      background: #FAFAFA;
-      border-bottom: 1px solid #EBEBEB;
       font-size: 12px;
       color: #999;
-      position: relative;
     }
 
+    .dev-bar.collapsed {
+      right: auto;
+    }
+
+    .dev-bar .bar-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      margin-left: 40px;
+    }
+
+    .dev-bar.collapsed .bar-content { display: none; }
+
     .dev-bar .env-tag {
+      position: fixed;
+      top: 11px;
+      left: 16px;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
@@ -424,7 +509,14 @@ app.get("/", (req, res) => {
       border-radius: 4px;
       background: #DBEAFE;
       color: #1D4ED8;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.15s;
+      z-index: 999;
     }
+
+    .dev-bar .env-tag:hover { opacity: 0.8; }
+
 
     .dev-bar .env-tag.env-staging { background: #FEF3C7; color: #92400E; }
     .dev-bar .env-tag.env-production { background: #FEE2E2; color: #991B1B; }
@@ -443,6 +535,7 @@ app.get("/", (req, res) => {
       padding: 2px 8px;
       border-radius: 6px;
       transition: background 0.15s;
+      position: relative;
     }
 
     .dev-bar .bar-stat.clickable:hover { background: #EBEBEB; }
@@ -514,8 +607,7 @@ app.get("/", (req, res) => {
       display: none;
       position: absolute;
       top: calc(100% + 4px);
-      left: 50%;
-      transform: translateX(-50%);
+      left: 0;
       width: 380px;
       background: #fff;
       border: 1px solid #EBEBEB;
@@ -528,8 +620,8 @@ app.get("/", (req, res) => {
     .agents-dropdown.open { display: block; animation: dropIn 0.15s ease-out; }
 
     @keyframes dropIn {
-      from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .dropdown-header {
@@ -655,38 +747,40 @@ app.get("/", (req, res) => {
       .dev-bar .spacer { display: none; }
       .form-wrapper { padding: 32px 16px; }
       .page-title { font-size: 24px; }
-      .agents-dropdown { width: calc(100vw - 32px); left: 16px; transform: none; }
+      .agents-dropdown { width: calc(100vw - 32px); left: -8px; }
     }
   </style>
 </head>
 <body>
-  ${devMode ? `
+  ${showDevBar ? `
   <div class="dropdown-backdrop" id="dropdown-backdrop"></div>
-  <div class="dev-bar">
-    <span class="env-tag env-${POOL_ENVIRONMENT}">${POOL_ENVIRONMENT}</span>
-    <span class="sep"></span>
-    <span class="bar-stat"><span class="dot green"></span> <span id="s-idle">-</span> ready</span>
-    <span class="bar-stat"><span class="dot orange"></span> <span id="s-starting">-</span> starting</span>
-    <span class="bar-stat clickable" id="claimed-toggle">
-      <span class="dot blue"></span> <span id="s-claimed">-</span> claimed <span class="chevron">&#9660;</span>
-      <div class="agents-dropdown" id="agents-dropdown">
-        <div class="dropdown-header">
-          <span class="dropdown-title">Live Assistants</span>
-          <span class="dropdown-count" id="dropdown-count"></span>
+  <div class="dev-bar${devMode ? "" : " collapsed"}" id="dev-bar">
+    <span class="env-tag env-${POOL_ENVIRONMENT}" id="env-toggle">${POOL_ENVIRONMENT}</span>
+    <div class="bar-content">
+      <span class="sep"></span>
+      <span class="bar-stat"><span class="dot green"></span> <span id="s-idle">-</span> ready</span>
+      <span class="bar-stat"><span class="dot orange"></span> <span id="s-starting">-</span> starting</span>
+      <span class="bar-stat clickable" id="claimed-toggle">
+        <span class="dot blue"></span> <span id="s-claimed">-</span> claimed <span class="chevron">&#9660;</span>
+        <div class="agents-dropdown" id="agents-dropdown">
+          <div class="dropdown-header">
+            <span class="dropdown-title">Live Assistants</span>
+            <span class="dropdown-count" id="dropdown-count"></span>
+          </div>
+          <div class="dropdown-list" id="feed"></div>
         </div>
-        <div class="dropdown-list" id="feed"></div>
-      </div>
-    </span>
-    <span class="bar-stat" id="s-crashed-wrap" style="display:none"><span class="dot red"></span> <span id="s-crashed">0</span> crashed</span>
-    <span class="sep"></span>
-    <input id="replenish-count" type="number" min="1" max="20" value="1" />
-    <button class="bar-btn" id="replenish-btn">+ Add</button>
-    <button class="bar-btn danger" id="drain-btn">Drain</button>
-    <span class="spacer"></span>
-    <span class="chip">branch: ${DEPLOY_BRANCH}</span>
-    <span class="chip">model: ${INSTANCE_MODEL}</span>
-    ${serviceLink ? `<span class="chip">service: ${serviceLink}</span>` : ""}
-    ${RAILWAY_PROJECT_ID ? `<span class="chip"><a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener">Railway ↗</a></span>` : ""}
+      </span>
+      <span class="bar-stat" id="s-crashed-wrap" style="display:none"><span class="dot red"></span> <span id="s-crashed">0</span> crashed</span>
+      <span class="sep"></span>
+      <input id="replenish-count" type="number" min="1" max="20" value="1" />
+      <button class="bar-btn" id="replenish-btn">+ Add</button>
+      <button class="bar-btn danger" id="drain-btn">Drain</button>
+      <span class="spacer"></span>
+      <span class="chip">branch: ${DEPLOY_BRANCH}</span>
+      <span class="chip">model: ${INSTANCE_MODEL}</span>
+      ${serviceLink ? `<span class="chip">service: ${serviceLink}</span>` : ""}
+      ${RAILWAY_PROJECT_ID ? `<span class="chip"><a href="https://railway.com/project/${RAILWAY_PROJECT_ID}" target="_blank" rel="noopener">Railway ↗</a></span>` : ""}
+    </div>
   </div>
   ` : ""}
 
@@ -701,13 +795,27 @@ app.get("/", (req, res) => {
       <h1 class="page-title">Launch your assistant</h1>
       <p class="page-subtitle">Create an AI assistant and drop it into any Convos conversation.</p>
 
-      <div id="unavailable" class="unavailable-msg" style="display:none">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10">
-            <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
-          </circle>
-        </svg>
-        No instances ready. Waiting for pool to warm up...
+      <div id="empty-state" class="empty-state">
+        <div class="empty-scene">
+          <div class="empty-balloon-group">
+            <svg class="balloon-logo" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="64" height="82">
+              <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#E54D00"/>
+              <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#E54D00"/>
+            </svg>
+            <div class="balloon-string-upper">
+              <svg width="20" height="40" viewBox="0 0 20 40" fill="none">
+                <path d="M10 0 Q13 14 8 25 Q6 33 10 40" stroke="#D4D4D4" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+              </svg>
+              <div class="balloon-string-lower">
+                <svg width="20" height="35" viewBox="0 0 20 35" fill="none">
+                  <path d="M10 0 Q14 15 8 35" stroke="#D4D4D4" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="empty-text">Hang in there</div>
+        <div class="empty-sub">No assistants available right now.<br>Check back a little later.</div>
       </div>
 
       <form id="f">
@@ -746,7 +854,7 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
-      <div class="footer-note">Your assistant will be live in about 30 seconds</div>
+      <div class="footer-note" id="footer-note">Your assistant will be live in about 30 seconds</div>
     </div>
   </div>
 
@@ -780,6 +888,7 @@ app.get("/", (req, res) => {
 
   <script>
     var DEV_MODE=${devMode};
+    var SHOW_DEV_BAR=${showDevBar};
     var API_KEY='${POOL_API_KEY}';
     var POOL_ENV='${POOL_ENVIRONMENT}';
     var RAILWAY_PROJECT='${process.env.RAILWAY_PROJECT_ID || ""}';
@@ -804,14 +913,14 @@ app.get("/", (req, res) => {
     function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 
     // Pool status
-    var unavail=document.getElementById('unavailable'),btn=document.getElementById('btn');
+    var emptyState=document.getElementById('empty-state'),formEl=document.getElementById('f'),btn=document.getElementById('btn'),footerNote=document.getElementById('footer-note');
     var launching=false;
 
     async function refreshStatus(){
       try{
         var res=await fetch('/api/pool/counts');
         var c=await res.json();
-        if(DEV_MODE){
+        if(SHOW_DEV_BAR){
           document.getElementById('s-idle').textContent=c.idle;
           document.getElementById('s-starting').textContent=c.starting;
           document.getElementById('s-claimed').textContent=c.claimed;
@@ -820,8 +929,8 @@ app.get("/", (req, res) => {
           else{sw.style.display='none';}
         }
         if(!launching){
-          if(c.idle>0){btn.disabled=false;unavail.style.display='none'}
-          else{btn.disabled=true;unavail.style.display='block'}
+          if(c.idle>0){btn.disabled=false;emptyState.style.display='none';formEl.style.display='';footerNote.style.display=''}
+          else{btn.disabled=true;emptyState.style.display='block';formEl.style.display='none';footerNote.style.display='none'}
         }
       }catch{}
     }
@@ -830,7 +939,7 @@ app.get("/", (req, res) => {
     var claimedCache=[],crashedCache=[];
 
     async function refreshFeed(){
-      if(!DEV_MODE)return;
+      if(!SHOW_DEV_BAR)return;
       try{
         var res=await fetch('/api/pool/agents');
         var data=await res.json();
@@ -841,7 +950,7 @@ app.get("/", (req, res) => {
     }
 
     function renderFeed(){
-      if(!DEV_MODE)return;
+      if(!SHOW_DEV_BAR)return;
       var feed=document.getElementById('feed');
       var dc=document.getElementById('dropdown-count');
       var total=claimedCache.length+crashedCache.length;
@@ -1025,8 +1134,15 @@ app.get("/", (req, res) => {
       }finally{launching=false;btn.textContent=joinUrlInput.value.trim()?'Join Conversation':'Launch Assistant';refreshStatus();}
     };
 
-    // Dev mode: dropdown toggle, pool controls, agent actions
-    if(DEV_MODE){
+    // Dev bar: env toggle, dropdown, pool controls, agent actions
+    if(SHOW_DEV_BAR){
+      // Env tag toggles the bar
+      var devBar=document.getElementById('dev-bar');
+      var envToggle=document.getElementById('env-toggle');
+      envToggle.addEventListener('click',function(){
+        devBar.classList.toggle('collapsed');
+      });
+
       var toggle=document.getElementById('claimed-toggle');
       var dropdown=document.getElementById('agents-dropdown');
       var backdrop=document.getElementById('dropdown-backdrop');
