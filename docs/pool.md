@@ -63,7 +63,7 @@ pnpm start
 | `RAILWAY_API_TOKEN` | Railway project-scoped API token |
 | `RAILWAY_PROJECT_ID` | Railway project ID |
 | `RAILWAY_ENVIRONMENT_ID` | Railway environment ID |
-| `RAILWAY_RUNTIME_IMAGE` | Pre-built GHCR image (e.g. `ghcr.io/xmtplabs/convos-runtime:scaling`). See [runtime.md](./runtime.md) |
+| `RAILWAY_RUNTIME_IMAGE` | Override runtime image (defaults to `ghcr.io/xmtplabs/convos-runtime:latest`). See [runtime.md](./runtime.md) |
 | **OpenRouter** | |
 | `OPENROUTER_MANAGEMENT_KEY` | Management key for creating per-instance API keys |
 | `OPENROUTER_KEY_LIMIT` | USD spend limit per key (default `20`) |
