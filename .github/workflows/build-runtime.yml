@@ -9,6 +9,7 @@ on:
     branches: [scaling, dev, staging, main]
     paths:
       - 'runtime/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
