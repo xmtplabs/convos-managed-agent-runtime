@@ -131,13 +131,11 @@ Images are built and pushed by `.github/workflows/build-runtime.yml`:
 
 | Trigger | Tag | Example |
 |---------|-----|---------|
-| Push to `scaling` | `:scaling` | `ghcr.io/xmtplabs/convos-runtime:scaling` |
-| Push to `staging` | `:staging` | `ghcr.io/xmtplabs/convos-runtime:staging` |
-| Push to `main` | `:production` | `ghcr.io/xmtplabs/convos-runtime:production` |
-| PR | `:pr-N` | `ghcr.io/xmtplabs/convos-runtime:pr-98` |
+| `workflow_dispatch` (manual) | `:latest` | `ghcr.io/xmtplabs/convos-runtime:latest` |
+| PR touching `runtime/**` | `:pr-N` | `ghcr.io/xmtplabs/convos-runtime:pr-98` |
 | All | `:sha-<7chars>` | `ghcr.io/xmtplabs/convos-runtime:sha-b53321d` |
 
-The pool manager pulls the image via `RAILWAY_RUNTIME_IMAGE` env var.
+All Railway environments use `:latest`. The `:pr-N` tag is only used by the CI QA job. Workflow: tweak runtime → PR auto-builds `:pr-N` → QA validates → merge → manual dispatch → `:latest` updated.
 
 ## Pool integration
 
