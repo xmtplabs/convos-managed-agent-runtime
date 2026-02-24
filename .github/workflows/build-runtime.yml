@@ -41,8 +41,6 @@ jobs:
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             TAG="pr-${{ github.event.number }}"
-          elif [ "$GITHUB_REF_NAME" = "main" ]; then
-            TAG="production"
           else
             TAG="$GITHUB_REF_NAME"
           fi

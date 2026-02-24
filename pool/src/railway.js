@@ -33,9 +33,10 @@ export async function createService(name, variables = {}) {
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!environmentId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
 
-  const image = process.env.RAILWAY_RUNTIME_IMAGE || "ghcr.io/xmtplabs/convos-runtime:scaling";
+  const branch = process.env.RAILWAY_ENVIRONMENT_NAME 
+  const image = process.env.RAILWAY_RUNTIME_IMAGE || `ghcr.io/xmtplabs/convos-runtime:${branch}`;
 
-  // Create service WITHOUT variables to avoid triggering a deploy before image is set.
+  // Create service (no variables, no source — no deploy triggered).
   const input = { projectId, environmentId, name };
 
   console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);
@@ -49,13 +50,13 @@ export async function createService(name, variables = {}) {
 
   const serviceId = data.serviceCreate.id;
 
-  // Set image + start command BEFORE adding variables (which triggers the deploy).
+  // Set image + start command BEFORE variables — this triggers the deploy.
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server.js",
       source: { image },
     });
-    console.log(`[railway]   Configured: image=${image}, startCommand=node scripts/pool-server.js`);
+    console.log(`[railway]   Configured: image=${image}`);
   } catch (err) {
     console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
   }
@@ -63,15 +64,15 @@ export async function createService(name, variables = {}) {
   // Set resource limits.
   await setResourceLimits(serviceId);
 
-  // Now upsert variables — this triggers the first deploy with the image already configured.
+  // Upsert variables with skipDeploys to avoid a second deploy.
   if (Object.keys(variables).length > 0) {
-    await upsertVariables(serviceId, variables);
+    await upsertVariables(serviceId, variables, { skipDeploys: true });
   }
 
   return serviceId;
 }
 
-export async function upsertVariables(serviceId, variables) {
+export async function upsertVariables(serviceId, variables, { skipDeploys = false } = {}) {
   const projectId = process.env.RAILWAY_PROJECT_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
 
@@ -79,7 +80,7 @@ export async function upsertVariables(serviceId, variables) {
     `mutation($input: VariableCollectionUpsertInput!) {
       variableCollectionUpsert(input: $input)
     }`,
-    { input: { projectId, environmentId, serviceId, variables } }
+    { input: { projectId, environmentId, serviceId, variables, skipDeploys } }
   );
 }
 
