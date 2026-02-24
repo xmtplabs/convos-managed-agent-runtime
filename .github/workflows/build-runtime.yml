@@ -3,6 +3,8 @@ name: Build Runtime Image
 on:
   push:
     branches: [scaling, staging, main]
+  pull_request:
+    branches: [scaling, staging, main]
 
 permissions:
   contents: read
@@ -43,7 +45,8 @@ jobs:
         with:
           context: .
           file: runtime/Dockerfile
-          push: true
+          push: ${{ github.event_name == 'push' }}
+          load: ${{ github.event_name == 'pull_request' }}
           platforms: linux/amd64
           tags: |
             ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.tag }}

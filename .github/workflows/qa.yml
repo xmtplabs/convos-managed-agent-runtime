@@ -2,7 +2,7 @@ name: QA Smoke Tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: [scaling, staging, main]
 
 jobs:
   qa:
