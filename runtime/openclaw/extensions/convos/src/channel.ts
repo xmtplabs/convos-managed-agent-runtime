@@ -435,6 +435,15 @@ async function handleInboundMessage(
     },
   });
 
+  // System events (group updates, reactions) are recorded in the session above
+  // so the agent has context, but should not trigger a reply.
+  if (msg.contentType === "group_updated" || msg.contentType === "reaction") {
+    if (account.debug) {
+      debugLog(`[${account.accountId}] Skipping reply dispatch for ${msg.contentType} message`);
+    }
+    return;
+  }
+
   const tableMode = runtime.channel.text.resolveMarkdownTableMode({
     cfg,
     channel: "convos",
