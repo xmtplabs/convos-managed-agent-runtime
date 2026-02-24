@@ -90,7 +90,8 @@ jobs:
             -e PRIVATE_WALLET_KEY="${{ secrets.PRIVATE_WALLET_KEY }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
-            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.tag }}
+            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.tag }} \
+            node scripts/pool-server.js
 
       - name: Wait for health check
         run: |
