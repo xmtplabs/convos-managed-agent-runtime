@@ -1,6 +1,6 @@
 # Phase 0 — GHCR CI Pipeline
 
-[Back to plan](./plan.md) | [Architecture](./architecture.md) | Next: [Phase 1 — Monorepo Foundation](./phase-1-monorepo.md)
+[Back to plan](./plan.md) | [Architecture](./architecture.md) | Next: [Phase 1 — DB Migration](./phase-1-db-migration.md)
 
 ---
 
