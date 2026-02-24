@@ -30,4 +30,5 @@ xmtp-*.db3-wal
 # OS
 .DS_Store
 
-migration-plan
+migration-plan/
+migration-plan/*
