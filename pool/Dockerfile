@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim
 
-RUN corepack enable && corepack prepare pnpm@8.7.5 --activate
+RUN npm install -g pnpm@9
 
 WORKDIR /app
 

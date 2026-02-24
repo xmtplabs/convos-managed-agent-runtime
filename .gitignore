@@ -1,7 +1,7 @@
 # Node
 node_modules
 extensions/*/node_modules
-openclaw/extensions/*/pnpm-lock.yaml
+runtime/openclaw/extensions/*/pnpm-lock.yaml
 .yarn
 npm-debug.log*
 # Local env — never commit secrets
@@ -29,3 +29,5 @@ xmtp-*.db3-wal
 
 # OS
 .DS_Store
+
+migration-plan

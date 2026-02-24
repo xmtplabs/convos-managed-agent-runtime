@@ -1,0 +1,52 @@
+name: Build Runtime Image
+
+on:
+  push:
+    branches: [scaling, staging, main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Determine image tag
+        id: meta
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+          SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
+          if [ "$BRANCH" = "main" ]; then
+            TAG="production"
+          else
+            TAG="$BRANCH"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runtime/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.tag }}
+            ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
