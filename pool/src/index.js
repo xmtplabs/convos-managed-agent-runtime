@@ -1388,7 +1388,7 @@ app.get("/", (req, res) => {
 <body>
   ${showDevTools ? `
   <div class="dropdown-backdrop" id="dropdown-backdrop"></div>
-  <div class="dev-bar${showDevTools ? "" : " collapsed"}" id="dev-bar">
+  <div class="dev-bar collapsed" id="dev-bar">
     <span class="env-tag env-${POOL_ENVIRONMENT}" id="env-toggle">${POOL_ENVIRONMENT}</span>
     <div class="bar-content">
       <span class="sep"></span>
@@ -1426,8 +1426,8 @@ app.get("/", (req, res) => {
         </div>
         <span class="brand-name">Convos</span>
       </div>
-      <h1 class="page-title" id="page-title">${showDevTools ? "Launch your assistant" : "Invite an assistant"}</h1>
-      <p class="page-subtitle" id="page-subtitle">${showDevTools ? "Create an AI assistant and drop it into any Convos conversation." : "Paste a link and an AI assistant will join your Convos conversation."}</p>
+      <h1 class="page-title" id="page-title">Invite an assistant</h1>
+      <p class="page-subtitle" id="page-subtitle">Paste a link and an AI assistant will join your Convos conversation.</p>
 
       <div id="empty-state" class="empty-state">
         <div class="empty-scene">
@@ -1453,7 +1453,7 @@ app.get("/", (req, res) => {
       </div>
 
       ${showDevTools ? `
-      <form id="f">
+      <form id="f" style="display:none">
         <div class="field-group">
           <label class="field-label" for="name">Assistant Name</label>
           <input id="name" name="name" class="field-input" placeholder="Give your assistant a name" required />
@@ -1472,7 +1472,7 @@ app.get("/", (req, res) => {
       </form>
       ` : ''}
 
-      <div id="paste-view"${showDevTools ? ' style="display:none"' : ''}>
+      <div id="paste-view">
         <div class="joining-overlay" id="joining-overlay" aria-live="polite">
           <div class="joining-scene">
             <div class="joining-particle"></div>
@@ -1530,20 +1530,21 @@ app.get("/", (req, res) => {
           </div>
         </div>
 
-        <div class="prompt-store" id="prompt-store">
-          <div class="ps-header">
-            <span class="ps-title">Try an assistant</span>
-          </div>
-          <p class="ps-intro">Below find our 100+ favorite group agent skills &mdash; Simply copy and paste any instructions into the chat and you now have an incredibly powerful new group agent.</p>
-          <div class="ps-search-wrap">
-            <span class="ps-search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
-            <input class="ps-search" placeholder="Search assistants..." id="ps-search" aria-label="Search assistants" />
-          </div>
-          <div class="ps-filters" id="ps-filters"></div>
-          <div class="ps-no-results" id="ps-no-results">No assistants match your search</div>
-          <div class="ps-list" id="ps-list"></div>
-          <button class="ps-show-more" id="ps-show-more">Show all assistants</button>
+      </div>
+
+      <div class="prompt-store" id="prompt-store">
+        <div class="ps-header">
+          <span class="ps-title">Try an assistant</span>
         </div>
+        <p class="ps-intro">Below find our 100+ favorite group agent skills &mdash; Simply copy and paste any instructions into the chat and you now have an incredibly powerful new group agent.</p>
+        <div class="ps-search-wrap">
+          <span class="ps-search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
+          <input class="ps-search" placeholder="Search assistants..." id="ps-search" aria-label="Search assistants" />
+        </div>
+        <div class="ps-filters" id="ps-filters"></div>
+        <div class="ps-no-results" id="ps-no-results">No assistants match your search</div>
+        <div class="ps-list" id="ps-list"></div>
+        <button class="ps-show-more" id="ps-show-more">Show all assistants</button>
       </div>
 
       <div class="ps-modal-overlay" id="ps-modal">
@@ -1573,7 +1574,7 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
-      ${showDevTools ? '<div class="footer-note" id="footer-note">Your assistant will be live in about 30 seconds</div>' : ''}
+      ${showDevTools ? '<div class="footer-note" id="footer-note" style="display:none">Your assistant will be live in about 30 seconds</div>' : ''}
     </div>
   </div>
 
@@ -1628,7 +1629,7 @@ app.get("/", (req, res) => {
       return '<1m';
     }
 
-    function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+    function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 
     // Pool status
     var emptyState=document.getElementById('empty-state');
@@ -1647,7 +1648,7 @@ app.get("/", (req, res) => {
     var pageTitle=document.getElementById('page-title');
     var pageSubtitle=document.getElementById('page-subtitle');
     var launching=false;
-    var devToolsActive=SHOW_DEV_TOOLS;
+    var devToolsActive=false;
 
     function setDevToolsActive(active){
       devToolsActive=active;
@@ -2113,7 +2114,7 @@ app.get("/", (req, res) => {
 
     // ===== Prompt Store =====
     (function(){
-      var CATALOG=${AGENT_CATALOG_JSON};
+      var CATALOG=${AGENT_CATALOG_JSON.replace(/<\//g, '<\\/')};
 
       var PS_LIMIT=10;
       var psExpanded=false;
@@ -2231,7 +2232,8 @@ app.get("/", (req, res) => {
         fetchPrompt(pageId,function(err,data){
           if(err){psModalText.textContent='Failed to load prompt. Try again later.';return;}
           psModalText.textContent=data.prompt||'(No prompt content found)';
-          psModalCopy.onclick=function(){copyToClipboard(data.prompt,psModalCopy,'Copy full prompt');};
+          if(data.prompt){psModalCopy.onclick=function(){copyToClipboard(data.prompt,psModalCopy,'Copy full prompt');};}
+          else{psModalCopy.disabled=true;}
         });
       }
 
@@ -2321,6 +2323,12 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   if (joinUrl && typeof joinUrl !== "string") {
     return res.status(400).json({ error: "joinUrl must be a string if provided" });
   }
+  if (agentName && typeof agentName !== "string") {
+    return res.status(400).json({ error: "agentName must be a string if provided" });
+  }
+  if (instructions && typeof instructions !== "string") {
+    return res.status(400).json({ error: "instructions must be a string if provided" });
+  }
   if (joinUrl && POOL_ENVIRONMENT === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     return res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" });
   }
@@ -2402,16 +2410,18 @@ async function fetchNotionPrompt(pageId) {
   const blocksData = await blocksRes.json();
   let text = "";
   for (const block of blocksData.results || []) {
-    const rt = block[block.type]?.rich_text;
-    if (rt) text += rt.map(t => t.plain_text).join("") + "\n";
-    else if (block.type === "divider") text += "---\n";
-    else if (block.type === "heading_1" || block.type === "heading_2" || block.type === "heading_3") {
+    if (block.type === "heading_1" || block.type === "heading_2" || block.type === "heading_3") {
       const prefix = block.type === "heading_1" ? "# " : block.type === "heading_2" ? "## " : "### ";
       const ht = block[block.type]?.rich_text;
       if (ht) text += prefix + ht.map(t => t.plain_text).join("") + "\n";
     } else if (block.type === "bulleted_list_item" || block.type === "numbered_list_item") {
       const lt = block[block.type]?.rich_text;
       if (lt) text += "- " + lt.map(t => t.plain_text).join("") + "\n";
+    } else if (block.type === "divider") {
+      text += "---\n";
+    } else {
+      const rt = block[block.type]?.rich_text;
+      if (rt) text += rt.map(t => t.plain_text).join("") + "\n";
     }
   }
   const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, { headers });
