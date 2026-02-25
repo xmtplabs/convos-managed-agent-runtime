@@ -145,6 +145,11 @@ async function backfillAndCleanPool() {
 
     // ── Cleanup pool DB ──────────────────────────────────────────────
 
+    // Drop services tables that were accidentally created in pool DB (shared DB era)
+    await poolDb.query("DROP TABLE IF EXISTS instance_services");
+    await poolDb.query("DROP TABLE IF EXISTS instance_infra");
+    console.log("[migrate] Dropped instance_infra/instance_services from pool DB (if existed).");
+
     // Drop legacy agent_metadata table
     await poolDb.query("DROP TABLE IF EXISTS agent_metadata");
     console.log("[migrate] Dropped agent_metadata from pool DB (if existed).");
