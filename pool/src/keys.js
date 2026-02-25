@@ -1,48 +1,29 @@
 /**
- * Instance key provisioning. Pool manager reads INSTANCE_* env vars and passes
- * them to Railway services (warm-up and claim). Set these in the pool manager's .env.
+ * Instance key provisioning. Pool manager reads env vars and passes
+ * them to Railway services at creation time.
  */
 
 import { randomBytes } from "crypto";
-
-const POOL_API_KEY = process.env.POOL_API_KEY;
-const INSTANCE_VAR_MAP = {
-  OPENCLAW_PRIMARY_MODEL: "INSTANCE_OPENCLAW_PRIMARY_MODEL",
-  OPENCLAW_GATEWAY_TOKEN: "INSTANCE_OPENCLAW_GATEWAY_TOKEN",
-  SETUP_PASSWORD: "INSTANCE_SETUP_PASSWORD",
-  XMTP_ENV: "INSTANCE_XMTP_ENV",
-  AGENTMAIL_API_KEY: "INSTANCE_AGENTMAIL_API_KEY",
-  BANKR_API_KEY: "INSTANCE_BANKR_API_KEY",
-  TELNYX_API_KEY: "INSTANCE_TELNYX_API_KEY",
-  TELNYX_PHONE_NUMBER: "INSTANCE_TELNYX_PHONE_NUMBER",
-  TELNYX_MESSAGING_PROFILE_ID: "INSTANCE_TELNYX_MESSAGING_PROFILE_ID",
-};
 
 function getEnv(name, fallback = "") {
   const val = process.env[name];
   return val != null && val !== "" ? val : fallback;
 }
 
-/** Build env vars for instance (warm-up and claim). Omit OPENCLAW_GATEWAY_TOKEN and SETUP_PASSWORD when INSTANCE_* are unset so provision does not overwrite warmup-generated values. */
+/** Build env vars for a new runtime instance. */
 export function instanceEnvVars() {
-  const gatewayToken = getEnv(INSTANCE_VAR_MAP.OPENCLAW_GATEWAY_TOKEN);
-  const setupPassword = getEnv(INSTANCE_VAR_MAP.SETUP_PASSWORD);
-  const vars = {
+  return {
     OPENCLAW_STATE_DIR: "/app",
-    OPENCLAW_PRIMARY_MODEL: getEnv(INSTANCE_VAR_MAP.OPENCLAW_PRIMARY_MODEL),
-    OPENROUTER_API_KEY: getEnv(INSTANCE_VAR_MAP.OPENROUTER_API_KEY),
-    XMTP_ENV: getEnv(INSTANCE_VAR_MAP.XMTP_ENV, "dev"),
+    OPENCLAW_PRIMARY_MODEL: getEnv("OPENCLAW_PRIMARY_MODEL"),
+    XMTP_ENV: getEnv("XMTP_ENV", "dev"),
     CHROMIUM_PATH: "/usr/bin/chromium",
-    POOL_API_KEY: POOL_API_KEY || "",
-    AGENTMAIL_API_KEY: getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY),
-    BANKR_API_KEY: getEnv(INSTANCE_VAR_MAP.BANKR_API_KEY),
-    TELNYX_API_KEY: getEnv(INSTANCE_VAR_MAP.TELNYX_API_KEY),
-    TELNYX_PHONE_NUMBER: getEnv(INSTANCE_VAR_MAP.TELNYX_PHONE_NUMBER),
-    TELNYX_MESSAGING_PROFILE_ID: getEnv(INSTANCE_VAR_MAP.TELNYX_MESSAGING_PROFILE_ID),
+    POOL_API_KEY: getEnv("POOL_API_KEY"),
+    AGENTMAIL_API_KEY: getEnv("AGENTMAIL_API_KEY"),
+    BANKR_API_KEY: getEnv("BANKR_API_KEY"),
+    TELNYX_API_KEY: getEnv("TELNYX_API_KEY"),
+    TELNYX_PHONE_NUMBER: getEnv("TELNYX_PHONE_NUMBER"),
+    TELNYX_MESSAGING_PROFILE_ID: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
   };
-  if (gatewayToken) vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
-  if (setupPassword) vars.SETUP_PASSWORD = setupPassword;
-  return vars;
 }
 
 /** Generate a random gateway token (64 hex chars, like openssl rand -hex 32). */
@@ -63,7 +44,7 @@ export function generatePrivateWalletKey() {
 /** Create a per-instance AgentMail inbox via the API.
  *  Returns { inboxId, perInstance } — perInstance is always true when an inbox is created. */
 export async function resolveAgentMailInbox(instanceId) {
-  const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
+  const apiKey = getEnv("AGENTMAIL_API_KEY");
   if (!apiKey) return { inboxId: "", perInstance: false };
   return createAgentMailInbox(apiKey, instanceId);
 }
@@ -92,7 +73,7 @@ async function createAgentMailInbox(apiKey, instanceId) {
 
 /** Delete an AgentMail inbox. Best-effort — logs and swallows errors. */
 export async function deleteAgentMailInbox(inboxId) {
-  const apiKey = getEnv(INSTANCE_VAR_MAP.AGENTMAIL_API_KEY);
+  const apiKey = getEnv("AGENTMAIL_API_KEY");
   if (!apiKey || !inboxId) return;
 
   try {
@@ -111,11 +92,12 @@ export async function deleteAgentMailInbox(inboxId) {
   }
 }
 
-/** Resolve OPENROUTER_API_KEY. Priority: 1) 2) create via OPENROUTER_MANAGEMENT_KEY.
- *  Returns { key, hash } — hash is null for shared keys or when no key is available. */
+/** Resolve OPENROUTER_API_KEY. If OPENROUTER_API_KEY is set, use it directly.
+ *  Otherwise create a per-instance key via OPENROUTER_MANAGEMENT_KEY.
+ *  Returns { key, hash } — hash is null for shared keys. */
 export async function resolveOpenRouterApiKey(instanceId) {
-  const existing = getEnv(INSTANCE_VAR_MAP.OPENROUTER_API_KEY);
-  if (existing) return { key: existing, hash: null }; // never create when shared key is configured
+  const existing = getEnv("OPENROUTER_API_KEY");
+  if (existing) return { key: existing, hash: null };
   if (!process.env.OPENROUTER_MANAGEMENT_KEY) return { key: "", hash: null };
   return createOpenRouterKey(instanceId);
 }

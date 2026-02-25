@@ -1,7 +1,6 @@
 import { nanoid } from "nanoid";
 import * as db from "./db/pool.js";
 import * as railway from "./railway.js";
-import * as cache from "./cache.js";
 import { deriveStatus } from "./status.js";
 import { ensureVolume, fetchAllVolumesByService } from "./volumes.js";
 import { instanceEnvVars, resolveOpenRouterApiKey, resolveAgentMailInbox, generatePrivateWalletKey, generateGatewayToken, generateSetupPassword } from "./keys.js";
@@ -30,17 +29,7 @@ async function healthCheck(url) {
   }
 }
 
-// Resolve a Railway service's public URL from its domain.
-async function getServiceUrl(serviceId) {
-  try {
-    const domain = await railway.getServiceDomain(serviceId);
-    return domain ? `https://${domain}` : null;
-  } catch {
-    return null;
-  }
-}
-
-// Create a single new Railway service (no DB write).
+// Create a single new Railway service and insert into DB.
 export async function createInstance() {
   const id = nanoid(12);
   const name = `convos-agent-${id}`;
@@ -48,14 +37,13 @@ export async function createInstance() {
   console.log(`[pool] Creating instance ${name}...`);
 
   const vars = { ...instanceEnvVars() };
-  if (vars.OPENCLAW_GATEWAY_TOKEN === undefined) vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
-  if (vars.SETUP_PASSWORD === undefined) vars.SETUP_PASSWORD = generateSetupPassword();
+  vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
+  vars.SETUP_PASSWORD = generateSetupPassword();
+  vars.PRIVATE_WALLET_KEY = generatePrivateWalletKey();
   const { key: openRouterKey, hash: openRouterKeyHash } = await resolveOpenRouterApiKey(id);
   if (openRouterKey) vars.OPENROUTER_API_KEY = openRouterKey;
   const { inboxId: agentMailInboxId } = await resolveAgentMailInbox(id);
   if (agentMailInboxId) vars.AGENTMAIL_INBOX_ID = agentMailInboxId;
-  const privateWalletKey = generatePrivateWalletKey();
-  vars.PRIVATE_WALLET_KEY = privateWalletKey;
 
   const serviceId = await railway.createService(name, vars);
   console.log(`[pool]   Railway service created: ${serviceId}`);
@@ -64,30 +52,33 @@ export async function createInstance() {
   const hasVolume = await ensureVolume(serviceId);
   if (!hasVolume) console.warn(`[pool]   Volume creation failed for ${serviceId}, will retry in tick`);
 
-  const domain = await railway.createDomain(serviceId);
-  const url = `https://${domain}`;
-  console.log(`[pool]   Domain: ${url}`);
+  let url = null;
+  try {
+    const domain = await railway.createDomain(serviceId);
+    url = `https://${domain}`;
+    console.log(`[pool]   Domain: ${url}`);
+  } catch (err) {
+    console.warn(`[pool]   Domain creation failed for ${serviceId}, will retry in tick: ${err.message}`);
+  }
 
-  // Add to cache immediately as starting (gatewayToken so claim response can return it for Control UI auth)
-  cache.set(serviceId, {
-    serviceId,
+  // Insert into DB as starting
+  await db.upsertInstance({
     id,
+    serviceId,
     name,
     url,
     status: "starting",
-    createdAt: new Date().toISOString(),
     deployStatus: "BUILDING",
-    openRouterApiKey: openRouterKey || undefined,
-    openRouterKeyHash: openRouterKeyHash || undefined,
-    agentMailInboxId: agentMailInboxId || undefined,
-    privateWalletKey,
+    createdAt: new Date().toISOString(),
+    openrouterKeyHash: openRouterKeyHash || null,
+    agentmailInboxId: agentMailInboxId || null,
     gatewayToken: vars.OPENCLAW_GATEWAY_TOKEN,
   });
 
   return { id, serviceId, url, name };
 }
 
-// Unified tick: rebuild cache from Railway, health-check, replenish.
+// Unified tick: rebuild instance state from Railway, health-check, replenish.
 export async function tick() {
   const myEnvId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!myEnvId) {
@@ -110,50 +101,61 @@ export async function tick() {
       s.environmentIds.includes(myEnvId)
   );
 
-  // Load metadata rows for enrichment
-  const metadataRows = await db.listAll();
-  const metadataByServiceId = new Map(metadataRows.map((r) => [r.railway_service_id, r]));
+  // Load all DB rows for reconciliation
+  const dbRows = await db.listAll();
+  const dbByServiceId = new Map(dbRows.map((r) => [r.service_id, r]));
 
   // Log deploy statuses for agent services
   for (const svc of agentServices) {
-    const meta = metadataByServiceId.get(svc.id);
-    console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${meta ? " (claimed)" : ""}`);
+    const row = dbByServiceId.get(svc.id);
+    console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimed_at ? " (claimed)" : ""}`);
   }
 
   // Health-check all SUCCESS services in parallel
   const successServices = agentServices.filter((s) => s.deployStatus === "SUCCESS");
 
-  // Get URLs for services (we need domains to health-check)
-  // For services already in cache, reuse their URL
+  // Get URLs for services — prefer DB url, then batched domain from listProjectServices
   const urlMap = new Map();
   for (const svc of successServices) {
-    const cached = cache.get(svc.id);
-    if (cached?.url) {
-      urlMap.set(svc.id, cached.url);
+    const row = dbByServiceId.get(svc.id);
+    if (row?.url) {
+      urlMap.set(svc.id, row.url);
+    } else if (svc.domain) {
+      urlMap.set(svc.id, `https://${svc.domain}`);
     }
   }
 
-  // For services not in cache, fetch domains in parallel
-  const needUrls = successServices.filter((s) => !urlMap.has(s.id));
-  if (needUrls.length > 0) {
-    const urlResults = await Promise.allSettled(
-      needUrls.map(async (svc) => {
-        const url = await getServiceUrl(svc.id);
-        return { id: svc.id, url };
+  // For services still without a domain, try creating one
+  const needDomains = successServices.filter((s) => !urlMap.has(s.id));
+  if (needDomains.length > 0) {
+    const domainResults = await Promise.allSettled(
+      needDomains.map(async (svc) => {
+        try {
+          const domain = await railway.createDomain(svc.id);
+          if (domain) {
+            const url = `https://${domain}`;
+            console.log(`[tick] Created missing domain for ${svc.name}: ${url}`);
+            return { id: svc.id, url };
+          }
+        } catch (err) {
+          console.warn(`[tick] Failed to create domain for ${svc.name}: ${err.message}`);
+        }
+        return { id: svc.id, url: null };
       })
     );
-    for (const r of urlResults) {
+    for (const r of domainResults) {
       if (r.status === "fulfilled" && r.value.url) {
         urlMap.set(r.value.id, r.value.url);
       }
     }
   }
 
-  // Health-check SUCCESS services in parallel
+  // Health-check SUCCESS services in parallel (skip instances being claimed)
   const healthResults = new Map();
-  const toCheck = successServices.filter(
-    (s) => urlMap.has(s.id) && !cache.isBeingClaimed(s.id)
-  );
+  const toCheck = successServices.filter((s) => {
+    const row = dbByServiceId.get(s.id);
+    return urlMap.has(s.id) && row?.status !== "claiming";
+  });
 
   const checks = await Promise.allSettled(
     toCheck.map(async (svc) => {
@@ -168,94 +170,61 @@ export async function tick() {
     }
   }
 
-  // Rebuild cache and take action on dead/sleeping services
+  // Reconcile state and take action on dead/sleeping services
   const toDelete = [];
 
   for (const svc of agentServices) {
+    const dbRow = dbByServiceId.get(svc.id);
+
     // Skip services being claimed right now
-    if (cache.isBeingClaimed(svc.id)) continue;
+    if (dbRow?.status === "claiming") continue;
 
     const hc = healthResults.get(svc.id) || null;
-    const metadata = metadataByServiceId.get(svc.id);
+    const isClaimed = !!dbRow?.agent_name;
     const status = deriveStatus({
       deployStatus: svc.deployStatus,
       healthCheck: hc,
       createdAt: svc.createdAt,
-      hasMetadata: !!metadata,
+      isClaimed,
     });
-    const url = urlMap.get(svc.id) || cache.get(svc.id)?.url || null;
+    const url = urlMap.get(svc.id) || dbRow?.url || null;
 
     if (status === "dead" || status === "sleeping") {
-      if (metadata) {
-        // Was claimed — mark as crashed in cache for dashboard (preserve gatewayToken)
-        const existing = cache.get(svc.id);
-        cache.set(svc.id, {
-          serviceId: svc.id,
-          id: metadata.id,
-          name: svc.name,
-          url,
-          status: "crashed",
-          createdAt: svc.createdAt,
-          deployStatus: svc.deployStatus,
-          agentName: metadata.agent_name,
-          instructions: metadata.instructions,
-          inviteUrl: metadata.invite_url,
-          conversationId: metadata.conversation_id,
-          claimedAt: metadata.claimed_at,
-          sourceBranch: metadata.source_branch,
-          ...(existing?.gatewayToken && { gatewayToken: existing.gatewayToken }),
-        });
+      if (isClaimed) {
+        // Was claimed — mark as crashed in DB
+        await db.updateStatus(svc.id, { status: "crashed", deployStatus: svc.deployStatus, url });
       } else {
-        // Was idle/provisioning — delete silently
-        const cached = cache.get(svc.id);
-        toDelete.push({ svc, cached });
-        cache.remove(svc.id);
+        // Was idle/starting — delete silently
+        toDelete.push({ svc, dbRow });
+        await db.deleteByServiceId(svc.id);
       }
       continue;
     }
 
-    // Build cache entry (preserve openRouterApiKey from create)
-    const existing = cache.get(svc.id);
-    const entry = {
+    // Upsert into DB — preserve existing metadata fields via COALESCE
+    const instId = dbRow?.id || svc.name.replace("convos-agent-", "");
+    await db.upsertInstance({
+      id: instId,
       serviceId: svc.id,
-      id: metadata?.id || svc.name.replace("convos-agent-", ""),
       name: svc.name,
       url,
       status,
-      createdAt: svc.createdAt,
       deployStatus: svc.deployStatus,
-    };
-    if (existing?.openRouterApiKey) entry.openRouterApiKey = existing.openRouterApiKey;
-    if (existing?.privateWalletKey) entry.privateWalletKey = existing.privateWalletKey;
-    if (existing?.gatewayToken) entry.gatewayToken = existing.gatewayToken;
-
-    // Enrich with metadata
-    if (metadata) {
-      entry.agentName = metadata.agent_name;
-      entry.instructions = metadata.instructions;
-      entry.inviteUrl = metadata.invite_url;
-      entry.conversationId = metadata.conversation_id;
-      entry.claimedAt = metadata.claimed_at;
-      entry.sourceBranch = metadata.source_branch;
-    }
-
-    cache.set(svc.id, entry);
+      createdAt: svc.createdAt,
+      runtimeImage: svc.image || null,
+      // Metadata fields: pass null to preserve existing via COALESCE
+      agentName: dbRow?.agent_name || null,
+      conversationId: dbRow?.conversation_id || null,
+      inviteUrl: dbRow?.invite_url || null,
+      instructions: dbRow?.instructions || null,
+      claimedAt: dbRow?.claimed_at || null,
+      sourceBranch: dbRow?.source_branch || null,
+    });
   }
 
-  // Remove cache entries for services no longer in Railway (keep "starting" — may not be listed yet)
-  const railwayServiceIds = new Set(agentServices.map((s) => s.id));
-  for (const inst of cache.getAll()) {
-    if (
-      !railwayServiceIds.has(inst.serviceId) &&
-      !cache.isBeingClaimed(inst.serviceId) &&
-      inst.status !== "starting"
-    ) {
-      cache.remove(inst.serviceId);
-    }
-  }
-
-  // Clean DB metadata for services that no longer exist on Railway
-  await db.deleteOrphaned([...railwayServiceIds]).catch((err) =>
+  // Remove DB rows for services no longer in Railway (skip starting/claiming)
+  const railwayServiceIds = agentServices.map((s) => s.id);
+  await db.deleteOrphaned(railwayServiceIds).catch((err) =>
     console.warn(`[tick] deleteOrphaned failed: ${err.message}`)
   );
 
@@ -279,12 +248,12 @@ export async function tick() {
   }
 
   // Replenish
-  const counts = cache.getCounts();
-  const total = counts.starting + counts.idle + counts.claimed;
-  const deficit = MIN_IDLE - (counts.idle + counts.starting);
+  const counts = await db.getCounts();
+  const total = (counts.starting || 0) + (counts.idle || 0) + (counts.claimed || 0);
+  const deficit = MIN_IDLE - ((counts.idle || 0) + (counts.starting || 0));
 
   console.log(
-    `[tick] ${counts.idle} idle, ${counts.starting} starting, ${counts.claimed} claimed, ${counts.crashed || 0} crashed (total: ${total})`
+    `[tick] ${counts.idle || 0} idle, ${counts.starting || 0} starting, ${counts.claimed || 0} claimed, ${counts.crashed || 0} crashed (total: ${total})`
   );
 
   if (deficit > 0) {
@@ -305,28 +274,23 @@ export { provision } from "./provision.js";
 
 // Drain unclaimed instances only (idle, starting, dead — never claimed/crashed).
 export async function drainPool(count) {
-  const CLAIMED_STATUSES = new Set(["claimed", "crashed"]);
-  const isUnclaimed = (i) => !CLAIMED_STATUSES.has(i.status) && !cache.isBeingClaimed(i.serviceId);
-  let unclaimed = cache
-    .getAll()
-    .filter(isUnclaimed)
-    .slice(0, count);
-  if (unclaimed.length === 0) return [];
+  const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
+  const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
+  let toDrain = unclaimed.slice(0, count);
+  if (toDrain.length === 0) return [];
 
-  // Re-filter right before drain in case status changed (e.g. claim completed).
-  unclaimed = unclaimed.filter(isUnclaimed);
-  if (unclaimed.length === 0) return [];
-
-  const ids = unclaimed.map((i) => i.id);
-  console.log(`[pool] Draining ${unclaimed.length} unclaimed instance(s): ${ids.join(", ")}`);
+  const ids = toDrain.map((i) => i.id);
+  console.log(`[pool] Draining ${toDrain.length} unclaimed instance(s): ${ids.join(", ")}`);
   const volumeMap = await fetchAllVolumesByService();
-  console.log(`[pool] Triggered delete for ${unclaimed.length} instance(s): ${ids.join(", ")}`);
-  // Only destroy if still unclaimed (may have been claimed during volume fetch).
+  console.log(`[pool] Triggered delete for ${toDrain.length} instance(s): ${ids.join(", ")}`);
+
+  // Re-check status from DB before destroying (may have been claimed during volume fetch)
   const settled = await Promise.allSettled(
-    unclaimed.map((inst) => {
-      if (!isUnclaimed(inst)) {
+    toDrain.map(async (inst) => {
+      const current = await db.findByServiceId(inst.service_id);
+      if (!current || CLAIMED_STATUSES.has(current.status)) {
         console.log(`[pool]   Skipping ${inst.id} (no longer unclaimed)`);
-        return Promise.resolve({ skipped: true });
+        return { skipped: true };
       }
       return destroyInstance(inst, volumeMap);
     })
@@ -335,7 +299,7 @@ export async function drainPool(count) {
   const results = [];
   let failed = 0;
   let skipped = 0;
-  unclaimed.forEach((inst, i) => {
+  toDrain.forEach((inst, i) => {
     const s = settled[i];
     if (s.status === "fulfilled" && s.value?.skipped) {
       skipped++;
@@ -356,18 +320,18 @@ export async function drainPool(count) {
 
 // Kill a specific instance.
 export async function killInstance(id) {
-  const inst = cache.getAll().find((i) => i.id === id);
+  const inst = await db.findById(id);
   if (!inst) return; // Already gone (e.g. duplicate kill request)
 
-  console.log(`[pool] Killing instance ${inst.id} (${inst.agentName || inst.name})`);
+  console.log(`[pool] Killing instance ${inst.id} (${inst.agent_name || inst.name})`);
   await destroyInstance(inst);
 }
 
 // Dismiss a crashed agent (user-initiated from dashboard).
 export async function dismissCrashed(id) {
-  const inst = cache.getAll().find((i) => i.id === id && i.status === "crashed");
-  if (!inst) throw new Error(`Crashed instance ${id} not found`);
+  const inst = await db.findById(id);
+  if (!inst || inst.status !== "crashed") throw new Error(`Crashed instance ${id} not found`);
 
-  console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agentName || inst.name})`);
+  console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agent_name || inst.name})`);
   await destroyInstance(inst);
 }
