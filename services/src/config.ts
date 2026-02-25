@@ -14,7 +14,7 @@ export const config = {
   servicesApiKey: getEnv("SERVICES_API_KEY"),
 
   // Database
-  databaseUrl: getEnv("DATABASE_URL"),
+  databaseUrl: getEnv("SERVICE_DATABASE_URL"),
   poolDatabaseUrl: getEnv("POOL_DATABASE_URL"),
 
   // Railway

@@ -19,7 +19,7 @@ statusRouter.post("/status/batch", async (req, res) => {
       return;
     }
 
-    const envId = process.env.RAILWAY_ENVIRONMENT_ID;
+    const envId = config.railwayEnvironmentId;
 
     // Filter to convos-agent-* in current environment
     let agents = allServices.filter(

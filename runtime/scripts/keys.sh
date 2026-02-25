@@ -28,15 +28,32 @@ if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
     tools_json="[$(echo "$tools" | sed 's/,$//')]"
     echo "  🔧 Requesting tools from services: $tools_json"
 
-    resp=$(curl -s -w '\n%{http_code}' -X POST "$SERVICES_URL/provision-local" \
-      -H "Authorization: Bearer $SERVICES_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d "{\"tools\": $tools_json}")
-    http_code=$(echo "$resp" | tail -n1)
-    body=$(echo "$resp" | sed '$d')
+    max_retries=3
+    retry_delay=5
+    attempt=1
+    provisioned=false
 
-    if [ "$http_code" = "200" ]; then
-      # Extract env vars from response
+    while [ "$attempt" -le "$max_retries" ]; do
+      resp=$(curl -s -w '\n%{http_code}' --connect-timeout 5 -X POST "$SERVICES_URL/provision-local" \
+        -H "Authorization: Bearer $SERVICES_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "{\"tools\": $tools_json}" 2>/dev/null) || true
+      http_code=$(echo "$resp" | tail -n1)
+      body=$(echo "$resp" | sed '$d')
+
+      if [ "$http_code" = "200" ]; then
+        provisioned=true
+        break
+      fi
+
+      if [ "$attempt" -lt "$max_retries" ]; then
+        echo "  ⚠️  Services unreachable (attempt $attempt/$max_retries), retrying in ${retry_delay}s..." >&2
+        sleep "$retry_delay"
+      fi
+      attempt=$((attempt + 1))
+    done
+
+    if [ "$provisioned" = "true" ]; then
       or_key=$(echo "$body" | jq -r '.env.OPENROUTER_API_KEY // empty')
       inbox_id=$(echo "$body" | jq -r '.env.AGENTMAIL_INBOX_ID // empty')
       telnyx_num=$(echo "$body" | jq -r '.env.TELNYX_PHONE_NUMBER // empty')
@@ -59,11 +76,18 @@ if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
         echo "  🔧 TELNYX_MESSAGING_PROFILE_ID → provisioned via services"
       fi
     else
-      echo "  ⚠️  Services provisioning failed (http=$http_code): $body" >&2
+      echo "  ⚠️  Services provisioning failed after $max_retries attempts (http=$http_code)" >&2
     fi
   else
     echo "  ✅ All tool keys present in env"
   fi
+fi
+
+# ── Hard dependency: agent needs a model key to function ───────────────────
+
+if [ -z "$OPENROUTER_API_KEY" ]; then
+  echo "  ❌ OPENROUTER_API_KEY is required but not set (services may be down)" >&2
+  exit 1
 fi
 
 # ── Secrets: use env if set, generate locally as fallback ──────────────────

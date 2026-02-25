@@ -50,6 +50,41 @@ export async function deleteKey(hash: string): Promise<boolean> {
   }
 }
 
+/** Get account-level credits from OpenRouter. */
+export async function getCredits(): Promise<{ totalCredits: number; totalUsage: number }> {
+  const mgmtKey = config.openrouterManagementKey;
+  if (!mgmtKey) throw new Error("OPENROUTER_MANAGEMENT_KEY not set");
+
+  const res = await fetch("https://openrouter.ai/api/v1/credits", {
+    headers: { Authorization: `Bearer ${mgmtKey}` },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`OpenRouter credits request failed: ${res.status} ${body}`);
+  }
+  const body = await res.json() as any;
+  return {
+    totalCredits: body?.data?.total_credits ?? 0,
+    totalUsage: body?.data?.total_usage ?? 0,
+  };
+}
+
+/** List all provisioned API keys with usage info. */
+export async function listKeys(): Promise<any[]> {
+  const mgmtKey = config.openrouterManagementKey;
+  if (!mgmtKey) throw new Error("OPENROUTER_MANAGEMENT_KEY not set");
+
+  const res = await fetch("https://openrouter.ai/api/v1/keys", {
+    headers: { Authorization: `Bearer ${mgmtKey}` },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`OpenRouter list keys failed: ${res.status} ${body}`);
+  }
+  const body = await res.json() as any;
+  return body?.data ?? [];
+}
+
 /** Lookup an OpenRouter key hash by name. Returns hash or null. */
 export async function findKeyHash(name: string): Promise<string | null> {
   const mgmtKey = config.openrouterManagementKey;
