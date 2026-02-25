@@ -185,7 +185,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
         });
       }
     },
-    [refreshCounts],
+    [refreshCounts, envLabel],
   );
 
   const handleDismiss = useCallback(
@@ -214,7 +214,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
         });
       }
     },
-    [refreshCounts, refreshAgents],
+    [refreshCounts, refreshAgents, envLabel],
   );
 
   const handleReplenish = useCallback(async () => {
@@ -271,7 +271,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
     } finally {
       setDraining(false);
     }
-  }, [refreshCounts]);
+  }, [refreshCounts, envLabel]);
 
   // -----------------------------------------------------------------------
   // Dropdown helpers
