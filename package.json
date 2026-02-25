@@ -4,6 +4,9 @@
     "pool": "node pool/src/index.js",
     "pool:dev": "node --env-file=pool/.env --watch pool/src/index.js",
     "pool:test": "node --env-file=pool/.env --test pool/src/**/*.test.js",
-    "pool:db:migrate": "node --env-file=pool/.env pool/src/db/migrate.js"
+    "pool:db:migrate": "node --env-file=pool/.env pool/src/db/migrate.js",
+    "dashboard:dev": "cd dashboard && pnpm dev",
+    "dashboard:build": "cd dashboard && pnpm build",
+    "dashboard:test:parity": "cd dashboard && pnpm test:parity"
   }
 }

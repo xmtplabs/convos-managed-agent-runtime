@@ -30,6 +30,9 @@ xmtp-*.db3-wal
 # Claude design scratch
 .claude-design/
 
+# Flow task tracking (local state)
+.flow/
+
 # OS
 .DS_Store
 

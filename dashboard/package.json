@@ -1,0 +1,31 @@
+{
+  "name": "convos-template-site",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test:parity": "playwright test"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "@vercel/og": "^0.9.0",
+    "next": "^15.1.0",
+    "postcss": "^8.5.6",
+    "qrcode": "^1.5.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "express": "^4.21.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
