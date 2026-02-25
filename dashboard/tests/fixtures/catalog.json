@@ -1,0 +1,1229 @@
+[
+  {
+    "slug": "the-racket-club-manager",
+    "name": "The Racket Club Manager",
+    "description": "Coordinates padel/tennis/pickleball sessions. Finds players, checks weather, books courts, tracks scores, roasts people who bail.",
+    "category": "Sports",
+    "emoji": "🎾",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281f080b4c728c79ec582"
+  },
+  {
+    "slug": "the-friendly-wager-manager",
+    "name": "The Friendly Wager Manager",
+    "description": "keep track of whatever game we're playing, who owes who what, and what the score is. Keep everyone in the loop. Roast people if they're losing badly, and always help people know who owes who at the end and what the payout should be. And ask specific questions if you really need details about the rules of the game and if you don't understand them.",
+    "category": "Sports",
+    "emoji": "🎾",
+    "skills": [],
+    "status": "planned",
+    "notionPageId": null
+  },
+  {
+    "slug": "the-tee-time-wrangler",
+    "name": "The Tee Time Wrangler",
+    "description": "Golf foursome coordination. Polls availability, books tee times, tracks handicaps, rotates who buys drinks at the turn, keeps track of who owes who in whatever the bet game is they are playing.",
+    "category": "Sports",
+    "emoji": "🎾",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92812780f0f46c942e3acc"
+  },
+  {
+    "slug": "the-pickup-game-finder",
+    "name": "The Pickup Game Finder",
+    "description": "Basketball/soccer/volleyball crews. Manages headcounts, finds open courts/fields, balances teams, tracks win streaks.",
+    "category": "Sports",
+    "emoji": "🎾",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281ef913fc1e820c4cc84"
+  },
+  {
+    "slug": "the-run-club-captain",
+    "name": "The Run Club Captain",
+    "description": "Running group coordinator. Plans routes, tracks pace goals, coordinates group runs, shares weather conditions, celebrates PRs.",
+    "category": "Sports",
+    "emoji": "🎾",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92811cb79cd59204255a4e"
+  },
+  {
+    "slug": "the-fantasy-commissioner",
+    "name": "The Fantasy Commissioner",
+    "description": "Fantasy sports league manager. Tracks trades, posts standings, sends deadline reminders, roasts last place, settles disputes.",
+    "category": "Sports",
+    "emoji": "🎾",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281f7ae15cc7c299446f1"
+  },
+  {
+    "slug": "the-cycle-club-captain",
+    "name": "The Cycle Club Captain",
+    "description": "Cycling group coordinator. Route planning, meeting point optimizer, weather intelligence, Strava integration, ride calendar, group logistics.",
+    "category": "Sports",
+    "emoji": "🎾",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281e0b452ed615ec64d37"
+  },
+  {
+    "slug": "the-dinner-club-concierge",
+    "name": "The Dinner Club Concierge",
+    "description": "Rotating dinner group. Suggests restaurants, polls preferences, handles reservations, tracks whose turn to pick, splits the check.",
+    "category": "Food",
+    "emoji": "🍽️",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281a4802efcfe14ab4a95"
+  },
+  {
+    "slug": "the-supper-club-host",
+    "name": "The Supper Club Host",
+    "description": "Home dinner party rotation. Manages hosting schedule, collects dietary needs, suggests menus, sends reminders, tracks who hosted last.",
+    "category": "Food",
+    "emoji": "🍽️",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281888082e2f30e137002"
+  },
+  {
+    "slug": "the-somm",
+    "name": "The Somm",
+    "description": "Wine club curator. Suggests bottles for the theme, tracks what the group's tried, shares tasting notes, manages buy-ins, remembers everyone's palate.",
+    "category": "Food",
+    "emoji": "🍽️",
+    "skills": [
+      "Search"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92817f9514d2211bd31954"
+  },
+  {
+    "slug": "the-meal-train-dispatcher",
+    "name": "The Meal Train Dispatcher",
+    "description": "Coordinates meals for someone in need (new baby, illness, loss). Sign-up slots, dietary restrictions, delivery schedule, thank-you tracking.",
+    "category": "Food",
+    "emoji": "🍽️",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92818381fdc682b0a8d91b"
+  },
+  {
+    "slug": "the-potluck-planner",
+    "name": "The Potluck Planner",
+    "description": "Group gathering food coordination. Prevents 8 people from bringing chips. Assigns categories, tracks commitments, day-of reminders.",
+    "category": "Food",
+    "emoji": "🍽️",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281589bdefe2e6236ea20"
+  },
+  {
+    "slug": "the-family-meal-planner",
+    "name": "The Family Meal Planner",
+    "description": "Weekly meal planning for families, couples, and roommates. Personalized plans, smart grocery lists, leftover management, budget optimization, on-demand recipe help.",
+    "category": "Food",
+    "emoji": "🍽️",
+    "skills": [
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce92816aab31e0fd7f905f1d"
+  },
+  {
+    "slug": "the-trip-architect",
+    "name": "The Trip Architect",
+    "description": "End-to-end group travel planning. Destination research, accommodation search, itinerary building, budget tracking, calendar invites for everyone.",
+    "category": "Travel",
+    "emoji": "✈️",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281698c13e1424376d8ec"
+  },
+  {
+    "slug": "the-bach-party-commander",
+    "name": "The Bach Party Commander",
+    "description": "Bachelor/bachelorette coordination. Budget collection, activity booking, surprise logistics, travel coordination, who's-responsible-for-what.",
+    "category": "Travel",
+    "emoji": "✈️",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928108856cf822cffd7c67"
+  },
+  {
+    "slug": "the-ski-house-manager",
+    "name": "The Ski House Manager",
+    "description": "Group ski trip organizer. Books lodging, tracks lift ticket deals, manages room assignments, monitors snow reports, coordinates carpool.",
+    "category": "Travel",
+    "emoji": "✈️",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92816fa65dd7ee8a9a3747"
+  },
+  {
+    "slug": "the-camping-quartermaster",
+    "name": "The Camping Quartermaster",
+    "description": "Outdoor group trips. Manages gear checklist (who's bringing what), campsite reservations, weather, meal planning, trail selection.",
+    "category": "Travel",
+    "emoji": "✈️",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92811784c7d14fea6fefad"
+  },
+  {
+    "slug": "the-annual-getaway-keeper",
+    "name": "The Annual Getaway Keeper",
+    "description": "For friend groups with yearly trips. Maintains traditions, proposes dates months out, tracks vacation calendars, remembers what worked last year.",
+    "category": "Travel",
+    "emoji": "✈️",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92817aba75ece36bdfdb94"
+  },
+  {
+    "slug": "the-carpool-dispatcher",
+    "name": "The Carpool Dispatcher",
+    "description": "School/activity ride coordination. Driver rotation, last-minute swaps, pickup/dropoff confirmations, who-drove-last tracking.",
+    "category": "Kids",
+    "emoji": "👨‍👩‍👧‍👦",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281fab898e82dca3d8cfc"
+  },
+  {
+    "slug": "the-playdate-matcher",
+    "name": "The Playdate Matcher",
+    "description": "Kid hangout scheduler. Polls family availability, suggests locations, manages RSVPs, sends reminders with addresses.",
+    "category": "Kids",
+    "emoji": "👨‍👩‍👧‍👦",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281528f66c8ba3a3e2ef8"
+  },
+  {
+    "slug": "the-team-parent",
+    "name": "The Team Parent",
+    "description": "Youth sports coordination. Snack rotation, practice/game reminders, carpool to away games, photo sharing prompts, end-of-season party planning.",
+    "category": "Kids",
+    "emoji": "👨‍👩‍👧‍👦",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281768e0cd1c73dc6234d"
+  },
+  {
+    "slug": "the-party-planner-kids-edition",
+    "name": "The Party Planner (Kids Edition)",
+    "description": "Birthday party coordination. Guest list RSVPs, venue research, theme coordination, gift registry, day-of timeline.",
+    "category": "Kids",
+    "emoji": "👨‍👩‍👧‍👦",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281eeb45bcb5ea2b4c7ec"
+  },
+  {
+    "slug": "the-school-volunteer-wrangler",
+    "name": "The School Volunteer Wrangler",
+    "description": "Classroom/PTA help. Sign-up sheets, volunteer reminders, hour tracking, event coordination for book fairs and field trips.",
+    "category": "Kids",
+    "emoji": "👨‍👩‍👧‍👦",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281d0a504f482232943b5"
+  },
+  {
+    "slug": "the-service-rolodex",
+    "name": "The Service Rolodex",
+    "description": "Shared CRM for babysitters, house cleaners, tutors, and every service provider your family hires. Profiles, ratings, availability tracking, one-tap booking via phone, recurring scheduling, expense tracking.",
+    "category": "Kids",
+    "emoji": "👨‍👩‍👧‍👦",
+    "skills": [
+      "Phone",
+      "Scheduling",
+      "Web Search",
+      "Email"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281a58bfcf49f29a2df66"
+  },
+  {
+    "slug": "the-watch-list",
+    "name": "The Watch List",
+    "description": "Movies and shows across all platforms and networks. Tracks everything you’re watching, have watched, want to watch. Both partners’ ratings plus Rotten Tomatoes + IMDb scores, platform availability, weekly Sunday Drop with top 3 picks. Learns each person’s taste and finds the overlap.",
+    "category": "Kids",
+    "emoji": "👨‍👩‍👧‍👦",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "planned",
+    "notionPageId": "30930823ce928111b556d56c087ec913"
+  },
+  {
+    "slug": "the-investment-club-analyst",
+    "name": "The Investment Club Analyst",
+    "description": "Group investment research. Surfaces news, tracks portfolio picks, manages meeting agendas, records buy/sell decisions, monitors performance.",
+    "category": "Money",
+    "emoji": "💰",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281f0b651c94b0179a025"
+  },
+  {
+    "slug": "the-deal-scout",
+    "name": "The Deal Scout",
+    "description": "Real estate investment group. Monitors listings, runs comps, tracks deal pipeline, due diligence checklists, market updates.",
+    "category": "Money",
+    "emoji": "💰",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281fbad99d3147a15d465"
+  },
+  {
+    "slug": "the-savings-challenge-coach",
+    "name": "The Savings Challenge Coach",
+    "description": "Group financial goals. Manages challenge rules, tracks progress, sends encouragement, celebrates milestones, holds people accountable.",
+    "category": "Money",
+    "emoji": "💰",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928124aadfe4289bb6bd7a"
+  },
+  {
+    "slug": "the-expense-ledger",
+    "name": "The Expense Ledger",
+    "description": "Ongoing group expense tracker. For roommates, shared houses, or recurring activities. Who paid what, running balances, monthly recaps.",
+    "category": "Money",
+    "emoji": "💰",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92814f9ba3d51521fa8abe"
+  },
+  {
+    "slug": "the-bet-keeper",
+    "name": "The Bet Keeper",
+    "description": "Friendly wager and prediction tracker. Records bets, verifies outcomes via search, maintains leaderboard, manages stakes.",
+    "category": "Money",
+    "emoji": "💰",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281f9b269eeca416a62bd"
+  },
+  {
+    "slug": "the-group-tab",
+    "name": "The Group Tab",
+    "description": "Real-time group expense tracking. Natural language logging, receipt photos, smart splitting, settlement engine, spending reports, ongoing tab mode.",
+    "category": "Money",
+    "emoji": "💰",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce928173a228ca09339e4d77"
+  },
+  {
+    "slug": "the-book-club-librarian",
+    "name": "The Book Club Librarian",
+    "description": "Reading group manager. Book selection votes, reading progress, discussion questions, meeting scheduling, tracks what the group has read.",
+    "category": "Entertainment",
+    "emoji": "🎬",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281a2aef2fc28c1160f6d"
+  },
+  {
+    "slug": "the-concert-scout",
+    "name": "The Concert Scout",
+    "description": "Music/festival group. Monitors tour dates, compares ticket prices, coordinates group purchases, pre/post-show logistics.",
+    "category": "Entertainment",
+    "emoji": "🎬",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928140a18ce2565ee87f16"
+  },
+  {
+    "slug": "the-movie-night-curator",
+    "name": "The Movie Night Curator",
+    "description": "Film selection and scheduling. Suggests based on group taste, manages voting, tracks watched list, coordinates streaming or theater times.",
+    "category": "Entertainment",
+    "emoji": "🎬",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92813abe2dcf3437e8b97b"
+  },
+  {
+    "slug": "the-game-night-host",
+    "name": "The Game Night Host",
+    "description": "Board game/card game groups. Manages game rotation, teaches rules for new ones, schedules sessions, tracks winners, suggests new games.",
+    "category": "Entertainment",
+    "emoji": "🎬",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281b59b85cd571770e3dd"
+  },
+  {
+    "slug": "the-binge-watch-coordinator",
+    "name": "The Binge Watch Coordinator",
+    "description": "Group TV watching. Tracks where everyone is in a series (NO SPOILERS), coordinates watch-together times, per-episode discussion.",
+    "category": "Entertainment",
+    "emoji": "🎬",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281d6a2ffec646ad48510"
+  },
+  {
+    "slug": "the-block-captain",
+    "name": "The Block Captain",
+    "description": "Neighborhood hub. Community events, local alerts, block cleanup coordination, neighbor requests and favors.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928116a28dd58faa988f29"
+  },
+  {
+    "slug": "the-local-scout",
+    "name": "The Local Scout",
+    "description": "Area discovery. Monitors new openings, local events, deals, happy hours, community happenings. Surfaces what the group actually cares about.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281a2835dc6eaf99ec422"
+  },
+  {
+    "slug": "the-building-super",
+    "name": "The Building Super",
+    "description": "Apartment/condo groups. Logs maintenance requests, tracks resolution, coordinates package pickups, building announcements.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92818f8401fdde1b470ad3"
+  },
+  {
+    "slug": "the-block-party-planner",
+    "name": "The Block Party Planner",
+    "description": "Community event organizer. Permits, sign-ups, food/drink coordination, entertainment booking, neighbor invitations, day-of logistics.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281088286c09fd3ef73c0"
+  },
+  {
+    "slug": "the-pet-parent-network",
+    "name": "The Pet Parent Network",
+    "description": "Neighborhood pet owners. Pet-sitting swaps, vet recs, lost pet alerts, dog walk groups, play date scheduling.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928107be7bedc5c8b19344"
+  },
+  {
+    "slug": "the-hoa-manager",
+    "name": "The HOA Manager",
+    "description": "Complete HOA governance brain. CC&Rs lookup, board tracking, directory, budgets, voting, issue management, meeting support.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce928117b2ebc57925238a40"
+  },
+  {
+    "slug": "the-house-manager",
+    "name": "The House Manager",
+    "description": "Home service provider directory and maintenance manager. Provider profiles, ratings, costs, referrals, maintenance schedules, partner collaboration.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce92810ea9dcd9d3706ac34a"
+  },
+  {
+    "slug": "the-home-remote",
+    "name": "The Home Remote",
+    "description": "Smart home control via group chat. Natural language commands for lights, locks, thermostat, cameras. Scenes, routines, multi-resident permissions, energy awareness.",
+    "category": "Local",
+    "emoji": "🏘️",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce928174950dd19ccc2013b1"
+  },
+  {
+    "slug": "the-accountability-coach",
+    "name": "The Accountability Coach",
+    "description": "Fitness goal tracking. Each member sets goals, agent tracks progress, sends check-ins, celebrates wins, nudges when someone goes quiet.",
+    "category": "Wellness",
+    "emoji": "💪",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92819aa4cacc42a38cfc72"
+  },
+  {
+    "slug": "the-challenge-master",
+    "name": "The Challenge Master",
+    "description": "Group challenges. Step challenges, workout streaks, hydration goals. Leaderboards, daily updates, crowns weekly winners.",
+    "category": "Wellness",
+    "emoji": "💪",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281898ea3d9573dc3639a"
+  },
+  {
+    "slug": "the-nutrition-navigator",
+    "name": "The Nutrition Navigator",
+    "description": "Meal planning and diet groups. Recipes, meal prep commitments, grocery lists, dietary support, streak celebrations.",
+    "category": "Wellness",
+    "emoji": "💪",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281059da2e603649f0318"
+  },
+  {
+    "slug": "the-training-partner",
+    "name": "The Training Partner",
+    "description": "Marathon/race training groups. Training plan adherence, weekly mileage, group runs, weather monitoring, race-day prep and hype.",
+    "category": "Wellness",
+    "emoji": "💪",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92812ebe2de06f5417c7f9"
+  },
+  {
+    "slug": "the-wellness-circle",
+    "name": "The Wellness Circle",
+    "description": "Mindfulness/meditation groups. Daily prompts, group check-ins, meditation streaks, guided session suggestions. Holds space without being preachy.",
+    "category": "Wellness",
+    "emoji": "💪",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928135bc2cdd38a6be7fdf"
+  },
+  {
+    "slug": "the-fitness-tracker",
+    "name": "The Fitness Tracker",
+    "description": "Calorie and macro tracking via text and food photos. Personal targets, restaurant menus, daily dashboards, weekly reports, workout logging. Group accountability with leaderboards.",
+    "category": "Wellness",
+    "emoji": "💪",
+    "skills": [
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281aa9dfbcd0df4145f46"
+  },
+  {
+    "slug": "the-mastermind-facilitator",
+    "name": "The Mastermind Facilitator",
+    "description": "Business mastermind groups. Hot seat rotation, action item tracking, prep reminders, structured feedback facilitation.",
+    "category": "Work",
+    "emoji": "💼",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928125bb6afd967d745159"
+  },
+  {
+    "slug": "the-study-group-tutor",
+    "name": "The Study Group Tutor",
+    "description": "Student groups. Session scheduling, topic tracking, group quizzes, resource sharing, exam countdowns.",
+    "category": "Work",
+    "emoji": "💼",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92816ca024edf94a952468"
+  },
+  {
+    "slug": "the-job-hunt-squad",
+    "name": "The Job Hunt Squad",
+    "description": "Job search support. Relevant listings, application tracking, mock interview scheduling, encouragement, offer celebrations.",
+    "category": "Work",
+    "emoji": "💼",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281e58248d7c898b06997"
+  },
+  {
+    "slug": "the-startup-board",
+    "name": "The Startup Board",
+    "description": "Founder/advisor groups. Milestone tracking, meeting notes, competitor monitoring, weekly metric check-ins, decision log.",
+    "category": "Work",
+    "emoji": "💼",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281189596cee49a550562"
+  },
+  {
+    "slug": "the-skill-swap",
+    "name": "The Skill Swap",
+    "description": "Peer teaching groups. Who's teaching what and when, session scheduling, feedback collection, skills-learned tracking.",
+    "category": "Work",
+    "emoji": "💼",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281a78fccd328a2cbc196"
+  },
+  {
+    "slug": "the-property-manager",
+    "name": "The Property Manager",
+    "description": "Rental and commercial property management. Tenant tracking, maintenance requests, lease timelines, rent collection monitoring, vendor coordination, turnover checklists, financial summaries.",
+    "category": "Work",
+    "emoji": "💼",
+    "skills": [
+      "Web Search",
+      "Email",
+      "Scheduling",
+      "Browsing"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce92814b8c23ca4f80df5dde"
+  },
+  {
+    "slug": "the-wedding-crew-chief",
+    "name": "The Wedding Crew Chief",
+    "description": "Wedding party coordination. Bridesmaids/groomsmen tasks, deadline tracking (fittings, speeches, gifts), bachelor/bachelorette coordination, rehearsal logistics.",
+    "category": "Events",
+    "emoji": "🎉",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928181901ccf21e1dcd52b"
+  },
+  {
+    "slug": "the-reunion-planner",
+    "name": "The Reunion Planner",
+    "description": "Family or class reunions. RSVPs across a large group, venue research, lodging blocks, update emails, dietary tracking.",
+    "category": "Events",
+    "emoji": "🎉",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92815d8056e068ca5dafd2"
+  },
+  {
+    "slug": "the-secret-santa-elf",
+    "name": "The Secret Santa Elf",
+    "description": "Gift exchange coordinator. Random secret assignments, wishlist tracking, budget reminders, exchange logistics, reveal management.",
+    "category": "Events",
+    "emoji": "🎉",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281b88abcfda0effd1603"
+  },
+  {
+    "slug": "the-milestone-keeper",
+    "name": "The Milestone Keeper",
+    "description": "Group birthday/anniversary tracker. Remembers every date, sends advance reminders, coordinates group gifts, suggests celebration ideas.",
+    "category": "Events",
+    "emoji": "🎉",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92812eb264ca52477b2e2d"
+  },
+  {
+    "slug": "the-graduation-planner",
+    "name": "The Graduation Planner",
+    "description": "Graduation party coordinator. Guest RSVPs, group gifts, venue/catering research, photo sharing, party-day logistics.",
+    "category": "Events",
+    "emoji": "🎉",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce928110a165f3ccff9118fe"
+  },
+  {
+    "slug": "the-photo-dump",
+    "name": "The Photo Dump",
+    "description": "Group photo collection and album builder. Collects photos from everyone, organizes albums, tracks participation, handles print/share prep.",
+    "category": "Events",
+    "emoji": "🎉",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce92811990cade9ed30739d7"
+  },
+  {
+    "slug": "the-event-commander",
+    "name": "The Event Commander",
+    "description": "Major event operations center. Super Bowl, Olympics, World Cup, concerts. Handles schedules, food coordination, brackets, betting pools, countdowns, and live updates.",
+    "category": "Events",
+    "emoji": "🎉",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281fab326db0fece22f6a"
+  },
+  {
+    "slug": "the-photo-walk-guide",
+    "name": "The Photo Walk Guide",
+    "description": "Photography groups. Scouts locations, plans routes, shares golden hour times, manages gear sharing, creates photo challenge themes.",
+    "category": "Hobbies",
+    "emoji": "🎨",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce92810f8ffed469126b34dc"
+  },
+  {
+    "slug": "the-garden-club-advisor",
+    "name": "The Garden Club Advisor",
+    "description": "Gardening groups. Planting calendars, local weather, seed/plant swaps, tracks what everyone's growing, seasonal tips.",
+    "category": "Hobbies",
+    "emoji": "🎨",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281519a0fcf2333c4e558"
+  },
+  {
+    "slug": "the-gear-garage",
+    "name": "The Gear Garage",
+    "description": "Car/motorcycle enthusiasts. Cars & coffee events, project build tracking, meet schedules, group drive coordination, parts sourcing.",
+    "category": "Hobbies",
+    "emoji": "🎨",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281d88284ef5128d14be8"
+  },
+  {
+    "slug": "the-craft-circle",
+    "name": "The Craft Circle",
+    "description": "DIY/maker groups. Project showcases, supply group buys, craft session scheduling, tutorial sharing, completed project tracking.",
+    "category": "Hobbies",
+    "emoji": "🎨",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281c5b417d759fa81534f"
+  },
+  {
+    "slug": "the-vinyl-crate",
+    "name": "The Vinyl Crate",
+    "description": "Music collector groups. New release monitoring, group wishlists, record shop visits, listening party scheduling, review sharing.",
+    "category": "Hobbies",
+    "emoji": "🎨",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "notionPageId": "30730823ce9281138cf2dd734c06a422"
+  },
+  {
+    "slug": "the-maintenance-agent",
+    "name": "The Maintenance Agent",
+    "description": "Car, motorcycle, and bike maintenance tracking. Service schedules, diagnostic assistance, quote checking, recall monitoring, seasonal alerts, DIY guides.",
+    "category": "Hobbies",
+    "emoji": "🎨",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling",
+      "Email"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281bf8d1ef23ad275d93c"
+  },
+  {
+    "slug": "the-songwriting-manager",
+    "name": "The Songwriting Manager",
+    "description": "Deep-listening creative partner for songwriting groups. Connects dots across conversations, maintains song database (titles, lyrics, structures, vibes, demos), generates Suno demos from concepts, learns your writing style through influence training. Complete songwriting admin.",
+    "category": "Music",
+    "emoji": "🎵",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281b1939dcc142287b34f"
+  },
+  {
+    "slug": "hide-my-email",
+    "name": "Hide My Email",
+    "description": "Disposable email addresses for any situation. Spins up unique emails, filters incoming, auto-responds, summarizes, destroys when done.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Email",
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281578c6af8673adddfa1"
+  },
+  {
+    "slug": "hide-my-phone",
+    "name": "Hide My Phone",
+    "description": "Disposable phone numbers on demand. Call screening, text management, voicemail transcription, verification code fast-pass, destroy when done.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Phone",
+      "Voice",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "notionPageId": "30730823ce928186aea4e6bb17d44a71"
+  },
+  {
+    "slug": "my-receptionist",
+    "name": "My Receptionist",
+    "description": "AI receptionist that answers calls in your voice. Screens, takes messages, books appointments, routes emergencies.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Phone",
+      "Voice",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "notionPageId": "30730823ce92812690daf60a50004de5"
+  },
+  {
+    "slug": "my-web-watcher",
+    "name": "My Web Watcher",
+    "description": "Monitors any URL for changes you care about. Price drops, restocks, new listings, content changes. Alerts the second something happens.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce928161a153e0a7988ba6af"
+  },
+  {
+    "slug": "my-form-filler",
+    "name": "My Form Filler",
+    "description": "Manages identity profiles for web forms. Auto-fills with masked data, manages accounts, tracks free trials, cleans up when done.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Browsing",
+      "Email",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281e2a132c219fbd7876d"
+  },
+  {
+    "slug": "my-payment-shield",
+    "name": "My Payment Shield",
+    "description": "Virtual credit cards for every purchase. Spending limits, subscription tracking, merchant blocking, expense reports.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Payments",
+      "Email",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "notionPageId": "30730823ce9281298e77c4119a24e328"
+  },
+  {
+    "slug": "my-digital-bouncer",
+    "name": "My Digital Bouncer",
+    "description": "Unified gatekeeper across email, phone, and text. Priority routing, cross-channel intelligence, daily briefings, VIP/blocked lists.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Email",
+      "Phone",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "notionPageId": "30730823ce9281e78275ff97886190c8"
+  },
+  {
+    "slug": "my-subscription-manager",
+    "name": "My Subscription Manager",
+    "description": "Finds every subscription you pay for, reminds before renewals, helps cancel what you forgot. Monthly reports, group cost splitting.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Email",
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281f494cad56ac6f4197b"
+  },
+  {
+    "slug": "my-price-scout",
+    "name": "My Price Scout",
+    "description": "Watches the internet for your target price on any item. Comparison shopping, deal analysis, restock alerts, group buy coordination.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling",
+      "Email"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce92811db052c80c7dfefddb"
+  },
+  {
+    "slug": "my-background-runner",
+    "name": "My Background Runner",
+    "description": "Pure scheduling engine. Recurring tasks, daily briefings, accountability check-ins, deadline countdowns, automated group workflows.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Scheduling",
+      "Web Search",
+      "Browsing",
+      "Email"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281df82e4d47d44760123"
+  },
+  {
+    "slug": "no-more-algorithms",
+    "name": "No More Algorithms",
+    "description": "Anti-algorithm social media agent. Monitors public profiles across all platforms, daily digest with photos and links, weekly wrapped, group mode.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce928115bb4ed4324634778e"
+  },
+  {
+    "slug": "the-banker",
+    "name": "The Banker",
+    "description": "Personal finance coach for individuals and couples. Budget tracking, expense logging, weekly coaching check-ins, goal tracking, monthly reports, partner mode.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Email",
+      "Scheduling",
+      "Web Search"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce928177a901e254c1a012e0"
+  },
+  {
+    "slug": "bankr",
+    "name": "Bankr",
+    "description": "On-chain crypto agent. Multi-chain wallet management, trading with safety layer, prediction markets, DeFi, portfolio tracking, group trading floor.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Payments",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce92813486a4ce2d2a6d0270"
+  },
+  {
+    "slug": "the-prediction-manager",
+    "name": "The Prediction Manager",
+    "description": "Prediction market tracker and group opinion manager. Market monitoring, group consensus, resolution scoring, leaderboards, category tracking.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281ed9699df4d3afb1fd2"
+  },
+  {
+    "slug": "the-emergency-manager",
+    "name": "The Emergency Manager",
+    "description": "Crisis command center for disasters. Real-time monitoring, people tracking, resource directories, SMS/email alerts, post-crisis reporting.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Email",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30730823ce9281b2894fcaaf0c3ea6e8"
+  },
+  {
+    "slug": "the-bill-fighter",
+    "name": "The Bill Fighter",
+    "description": "Audits bills, negotiates rates, fights unfair charges, tracks savings across the group. Full dispute playbook.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Email",
+      "Phone",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281df82fcdec3b80bfe91"
+  },
+  {
+    "slug": "the-memory-box",
+    "name": "The Memory Box",
+    "description": "Screenshot and photo-based memory system. OCR extraction, categorized database, smart reminders. Remembers everything you photograph.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce928177842ecfd157d79abb"
+  },
+  {
+    "slug": "the-voice-caller",
+    "name": "The Voice Caller",
+    "description": "Makes phone calls so you don't have to. Restaurants, insurance, airlines, complaints. Reports back with full debrief. Holds on hold for you.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Phone",
+      "Voice",
+      "Email",
+      "Web Search"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281588cf3fa147b5571bf"
+  },
+  {
+    "slug": "the-survey-taker",
+    "name": "The Survey Taker",
+    "description": "Fills out surveys and forms on your behalf. Translates your sentiment into proper responses. Reviews before submitting.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Browsing",
+      "Email",
+      "Web Search"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce9281c482a4f446a76abe67"
+  },
+  {
+    "slug": "the-email-monitor",
+    "name": "The Email Monitor",
+    "description": "Watches your inbox and alerts you when something important arrives. Custom rules, sender monitoring, keyword alerts, digest mode.",
+    "category": "Superpowers",
+    "emoji": "⚡",
+    "skills": [
+      "Email",
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "notionPageId": "30830823ce92818aabf3ea1a3a8722ec"
+  }
+]

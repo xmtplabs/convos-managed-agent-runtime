@@ -27,6 +27,12 @@ xmtp-*.db3-wal
 # dmux worktrees
 .dmux/
 
+# Claude design scratch
+.claude-design/
+
+# Flow task tracking (local state)
+.flow/
+
 # OS
 .DS_Store
 
