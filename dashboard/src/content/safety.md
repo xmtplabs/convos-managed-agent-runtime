@@ -1,17 +1,17 @@
 ---
 title: Safety & Privacy
-description: How Convos AI assistants handle your messages, what data is shared, and how your privacy is protected.
+description: How Convos assistants handle your messages, what data is shared, and how your privacy is protected.
 ---
 
 # Safety & Privacy
 
-## How Convos AI assistants handle your messages and protect your privacy.
+## How Convos assistants handle your messages and protect your privacy.
 
-**Convos the app** is open source, end-to-end encrypted, and built so that nobody — including us — can read your messages. It is the most secure messaging app available.
+**Convos the app** is open source, end-to-end encrypted, and collects no data — not even contact info. Your messages move on the [XMTP protocol](https://xmtp.org), and nobody — including us — can read them.
 
-**AI assistants** are a separate, hosted service layered on top. When you add an assistant to a group conversation, that assistant processes your messages in order to respond and take actions. This data is processed on infrastructure operated by XMTP Labs.
+**Convos assistants** — the ones you add through the Convos app or this website — are a separate, hosted service layered on top. When you add one to a group conversation, that assistant processes your messages in order to respond and take actions. This data is processed on infrastructure operated by XMTP Labs. Everything on this page applies specifically to these assistants.
 
-> Treat assistants the same way you'd treat any AI platform — ChatGPT, Gemini, Claude — your conversations with them are processed by the service provider. Don't put anything in front of an assistant that you wouldn't put in front of any other AI service.
+> You can add any AI agent to a Convos chat — we can't vouch for the privacy practices of third-party agents. When you add a Convos assistant, the guarantees described here apply. Treat all assistants the same way you'd treat any AI platform — don't put anything in front of one that you wouldn't put in front of ChatGPT, Gemini, or Claude.
 
 ## What the assistant can see
 
@@ -65,4 +65,4 @@ Because anyone in the group can interact with the assistant, be mindful before s
 
 ---
 
-**Bottom line:** Convos = private, encrypted, open source. AI assistants = hosted service with the same trust model as any other AI platform. Use them for what they're great at, but don't put anything in front of an assistant that you wouldn't put in front of any other AI service.
+**Bottom line:** Convos = private, encrypted, open source, no data collected. Convos assistants = hosted service with the same trust model as any other AI platform. Use them for what they're great at, but don't put anything in front of one that you wouldn't put in front of any other AI service.
