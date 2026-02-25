@@ -18,11 +18,16 @@ app.use((_req, res, next) => {
 // --- Fixture data ---
 
 const CATALOG = (() => {
+  const fixturePath = resolve(__dirname, "fixtures/catalog.json");
   try {
-    const raw = JSON.parse(readFileSync(resolve(__dirname, "fixtures/catalog.json"), "utf8"));
+    const raw = JSON.parse(readFileSync(fixturePath, "utf8"));
+    if (!Array.isArray(raw) || raw.length === 0) {
+      console.error(`[mock-pool] WARNING: catalog fixture at ${fixturePath} is empty or not an array`);
+    }
     return raw;
-  } catch {
-    return [];
+  } catch (err) {
+    console.error(`[mock-pool] FATAL: Could not load catalog fixture at ${fixturePath}:`, err);
+    throw new Error(`Missing or invalid catalog fixture: ${fixturePath}`);
   }
 })();
 
@@ -45,6 +50,8 @@ const CLAIM_RESPONSES: Record<string, { status: number; body: object }> = {
   error:     { status: 500, body: { error: "Connection failed" } },
   "qr-modal": { status: 200, body: { joined: false, inviteUrl: "https://converse.xyz/dm/mock-invite", agentName: "Meal Planner" } },
 };
+
+const EXPECTED_API_KEY = process.env.MOCK_API_KEY || "mock-key";
 
 // --- Mutable state ---
 
@@ -79,7 +86,12 @@ app.get("/api/pool/templates/:slug", (req, res) => {
   res.json(t);
 });
 
-app.post("/api/pool/claim", (_req, res) => {
+app.post("/api/pool/claim", (req, res) => {
+  // Validate authorization header (mirrors real Pool auth check)
+  const auth = req.headers.authorization;
+  if (!auth || auth !== `Bearer ${EXPECTED_API_KEY}`) {
+    return res.status(401).json({ error: "Unauthorized: missing or invalid API key" });
+  }
   const response = CLAIM_RESPONSES[currentState] || CLAIM_RESPONSES.idle;
   res.status(response.status).json(response.body);
 });
@@ -94,5 +106,5 @@ app.get("/api/prompts/:pageId", (req, res) => {
 // --- Start server ---
 
 const PORT = parseInt(process.env.MOCK_POOL_PORT || "3002", 10);
-app.listen(PORT, () => console.log(`[mock-pool] listening on :${PORT}`));
+app.listen(PORT, () => console.log(`[mock-pool] listening on :${PORT} (${CATALOG.length} templates loaded)`));
 export { app };

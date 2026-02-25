@@ -3,6 +3,8 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   outputDir: "./test-results",
+  // Serialize tests to prevent race conditions on shared mock server state
+  workers: 1,
   use: {
     baseURL: "http://localhost:3000",
   },
@@ -28,6 +30,12 @@ export default defineConfig({
       },
     },
   ],
+  expect: {
+    toHaveScreenshot: {
+      // Allow 0.5% pixel difference for anti-aliasing variance
+      maxDiffPixelRatio: 0.005,
+    },
+  },
   projects: [
     { name: "desktop", use: { viewport: { width: 1280, height: 800 } } },
     { name: "mobile", use: { viewport: { width: 375, height: 812 } } },
