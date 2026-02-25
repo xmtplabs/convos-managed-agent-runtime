@@ -77,15 +77,15 @@ test.describe("Template page SSR", () => {
       .getAttribute("content");
     expect(ogDescription).toBeTruthy();
 
-    const ogImage = await page
-      .locator('meta[property="og:image"]')
+    const ogType = await page
+      .locator('meta[property="og:type"]')
       .getAttribute("content");
-    expect(ogImage).toContain(`/og/${KNOWN_SLUG}`);
+    expect(ogType).toBe("website");
 
     const twitterCard = await page
       .locator('meta[name="twitter:card"]')
       .getAttribute("content");
-    expect(twitterCard).toBe("summary_large_image");
+    expect(twitterCard).toBe("summary");
   });
 
   test("has Convos branding header with link to homepage", async ({

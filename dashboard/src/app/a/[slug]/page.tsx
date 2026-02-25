@@ -29,25 +29,21 @@ export async function generateMetadata({
   const title = `${template.emoji} ${template.name} - Convos Assistant`;
   const description = template.description;
 
-  // OG image is served by /og/[slug]/route.tsx (Task 9).
-  // The URL is set here so metadata is ready when the route is deployed.
-  const ogImageUrl = `/og/${encodeURIComponent(slug)}`;
-
+  // NOTE: OG images will be added by Task 9 (/og/[slug] route).
+  // Until then, social previews use title + description only (no image).
   return {
     title,
     description,
     openGraph: {
       title,
       description,
-      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
       type: "website",
       siteName: "Convos Assistants",
     },
     twitter: {
-      card: "summary_large_image",
+      card: "summary",
       title,
       description,
-      images: [ogImageUrl],
     },
   };
 }
