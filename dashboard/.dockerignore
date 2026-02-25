@@ -1,9 +1,0 @@
-node_modules
-.next
-.env*
-!.env.example
-test-results
-playwright-report
-screenshots
-tests
-playwright.config.ts
