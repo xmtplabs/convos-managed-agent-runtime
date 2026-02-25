@@ -19,7 +19,10 @@ xmtp-*.db3-wal
 .openclaw/
 
 # Build artifacts
-/dist
+dist/
+
+# Root lockfile (each package has its own)
+/pnpm-lock.yaml
 
 # Backup exports
 *.tar.gz
