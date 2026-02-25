@@ -3,13 +3,13 @@
 set -e
 
 . "$(dirname "$0")/lib/init.sh"
-. "$ROOT/cli/scripts/lib/env-load.sh"
+. "$ROOT/scripts/lib/env-load.sh"
 
 echo ""
 echo "  🧠 Uploading brain"
 echo "  ═══════════════════"
 
-. "$ROOT/cli/scripts/lib/sync-openclaw.sh"
+. "$ROOT/scripts/lib/sync-openclaw.sh"
 
 mkdir -p "$STATE_DIR"
 

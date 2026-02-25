@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.13 — 2026-02-25
+
+- **Pool: DB-backed instance state.** Replace in-memory cache with Postgres `instances` table. All instance state (status, urls, keys, metadata) persisted in DB. Atomic claiming via `FOR UPDATE SKIP LOCKED`. Tick loop reconciles DB with Railway on every cycle. Delete `cache.js`.
+- **Pool: enrich script.** Add `pnpm db:enrich` to backfill existing instances from Railway API (url, deploy_status, gateway_token, agentmail_inbox_id, runtime_image). Supports `--dry-run` and `--all` flags. Works across environments via `RAILWAY_ENVIRONMENT_NAME`.
+- **Pool: Railway API helpers.** Add `getServiceVariables()` (fetch env vars), `getServiceImage()` (fetch source image), `resolveEnvironmentId()` (resolve env name to ID).
+- **Pool: runtime_image tracking.** New `runtime_image` column records which Docker image each instance was deployed from.
+- **Pool: migration.** Migrate `agent_metadata` rows into `instances` table with Railway API enrichment for url, deploy_status, gateway_token.
+
 ## 0.0.12 — 2026-02-20
 
 - **Convos: agent serve migration.** Rewrite convos extension from two child processes (`conversation stream` + `process-join-requests --watch`) to a single `convos agent serve` process with ndjson stdin/stdout protocol. Operations (send, react, rename, lock, unlock, explode) now go through stdin commands instead of separate CLI exec calls. Self-echo filtering handled by CLI, not JS.

@@ -1,30 +1,9 @@
 {
-  "name": "convos-agents",
-  "version": "0.0.11",
   "private": true,
-  "engines": {
-    "node": ">=22"
-  },
   "scripts": {
-    "cli": "node cli/index.cjs",
-    "start": "pnpm cli init",
-    "ngrok": "ngrok http 18789 --url   https://3b63484a39c2.ngrok.app",
     "pool": "node pool/src/index.js",
     "pool:dev": "node --env-file=pool/.env --watch pool/src/index.js",
     "pool:test": "node --env-file=pool/.env --test pool/src/**/*.test.js",
-    "pool:db:migrate": "node --env-file=pool/.env pool/src/db/migrate.js",
-    "pool:install": "cd pool && pnpm install"
-  },
-  "dependencies": {
-    "@bankr/cli": "^0.1.0-beta.12",
-    "@telnyx/api-cli": "^1.1.0",
-    "@xmtp/convos-cli": "^0.3.1",
-    "agentmail": "^0.2.17",
-    "commander": "^12.0.0",
-    "dotenv": "^16.4.5",
-    "ethers": "^6.13.4",
-    "openclaw": "2026.2.15",
-    "pg": "^8.18.0"
-  },
-  "packageManager": "pnpm@8.7.5+sha1.735d4d0e6fc66c4d2d64b269b08e5995b19230ca"
+    "pool:db:migrate": "node --env-file=pool/.env pool/src/db/migrate.js"
+  }
 }

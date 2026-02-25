@@ -109,15 +109,15 @@ RAILWAY_API_TOKEN=your-railway-api-token
 # OpenRouter (pool creates per-instance keys from this)
 OPENROUTER_MANAGEMENT_KEY=sk-or-v1-...
 
-# Instance defaults (injected into each pool instance)
-INSTANCE_OPENCLAW_PRIMARY_MODEL=openrouter/openai/gpt-oss-20b
-INSTANCE_XMTP_ENV=dev
-INSTANCE_AGENTMAIL_API_KEY=am_...
+# Agent keys (passed to runtime instances)
+OPENCLAW_PRIMARY_MODEL=openrouter/anthropic/claude-sonnet-4-6
+XMTP_ENV=dev
+AGENTMAIL_API_KEY=am_...
 AGENTMAIL_DOMAIN=mail.convos.org
-INSTANCE_BANKR_API_KEY=bk_...
-INSTANCE_TELNYX_API_KEY=KEY...
-INSTANCE_TELNYX_PHONE_NUMBER=+14193792549
-INSTANCE_TELNYX_MESSAGING_PROFILE_ID=40019c66-c84a-459f-8553-0ef16775fb29
+BANKR_API_KEY=bk_...
+TELNYX_API_KEY=KEY...
+TELNYX_PHONE_NUMBER=+14193792549
+TELNYX_MESSAGING_PROFILE_ID=40019c66-c84a-459f-8553-0ef16775fb29
 ```
 
 ### Pool API (authenticated with Bearer `POOL_API_KEY`)
