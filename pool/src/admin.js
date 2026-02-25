@@ -277,6 +277,9 @@ export function adminPage({
       gap: 6px;
       margin-bottom: 6px;
     }
+    .stat-card { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .stat-card:hover { border-color: #CCC; }
+    .stat-card.active { border-color: #000; box-shadow: 0 0 0 1px #000; }
     .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
     .stat-dot.green { background: #34C759; }
     .stat-dot.orange { background: #FF9500; }
@@ -613,19 +616,19 @@ export function adminPage({
 
   <div class="content">
     <div class="stats">
-      <div class="stat-card">
+      <div class="stat-card" data-filter="idle">
         <div class="stat-label"><span class="stat-dot green"></span> Ready</div>
         <div class="stat-value" id="s-idle">-</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" data-filter="starting">
         <div class="stat-label"><span class="stat-dot orange"></span> Starting</div>
         <div class="stat-value" id="s-starting">-</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" data-filter="running">
         <div class="stat-label"><span class="stat-dot blue"></span> Claimed</div>
         <div class="stat-value" id="s-claimed">-</div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" data-filter="crashed">
         <div class="stat-label"><span class="stat-dot red"></span> Crashed</div>
         <div class="stat-value" id="s-crashed">-</div>
       </div>
@@ -714,8 +717,24 @@ export function adminPage({
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
 
     var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
+    var statusFilter = null; // null = show all, 'idle' | 'starting' | 'running' | 'crashed'
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+    // --- Stat card filter ---
+    document.querySelector('.stats').addEventListener('click', function (e) {
+      var card = e.target.closest('.stat-card[data-filter]');
+      if (!card) return;
+      var filter = card.getAttribute('data-filter');
+      if (statusFilter === filter) {
+        statusFilter = null; // toggle off
+      } else {
+        statusFilter = filter;
+      }
+      document.querySelectorAll('.stat-card').forEach(function (c) { c.classList.remove('active'); });
+      if (statusFilter) card.classList.add('active');
+      renderAgents();
+    });
 
     function timeAgo(dateStr) {
       if (!dateStr) return '';
@@ -769,8 +788,22 @@ export function adminPage({
       if (crashedCache.length) parts.push(crashedCache.length + ' crashed');
       count.textContent = parts.join(', ') || '';
 
+      // Apply filter
+      var showCrashed = !statusFilter || statusFilter === 'crashed';
+      var showClaimed = !statusFilter || statusFilter === 'running';
+      var showIdle = !statusFilter || statusFilter === 'idle';
+      var showStarting = !statusFilter || statusFilter === 'starting';
+      var filtered = (showCrashed ? crashedCache : [])
+        .concat(showClaimed ? claimedCache : [])
+        .concat(showIdle ? idleCache : [])
+        .concat(showStarting ? startingCache : []);
+
       if (!all.length) {
         body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
+        return;
+      }
+      if (!filtered.length) {
+        body.innerHTML = '<tr><td class="empty-row" colspan="6">No matching instances</td></tr>';
         return;
       }
 
@@ -786,20 +819,20 @@ export function adminPage({
           + '<td><div class="action-btns">' + actions + '</div></td></tr>';
       }
 
-      crashedCache.forEach(function (a) {
+      if (showCrashed) crashedCache.forEach(function (a) {
         renderRow(a, 'crashed', 'Crashed',
           '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
           + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
       });
-      claimedCache.forEach(function (a) {
+      if (showClaimed) claimedCache.forEach(function (a) {
         renderRow(a, 'running', 'Running',
           '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
           + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
-      idleCache.forEach(function (a) {
+      if (showIdle) idleCache.forEach(function (a) {
         renderRow(a, 'idle', 'Ready', '');
       });
-      startingCache.forEach(function (a) {
+      if (showStarting) startingCache.forEach(function (a) {
         renderRow(a, 'starting', 'Starting', '');
       });
       body.innerHTML = html;
