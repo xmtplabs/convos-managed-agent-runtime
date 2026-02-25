@@ -48,7 +48,11 @@ export function adminLogout(req, res) {
   const raw = req.headers.cookie || "";
   const match = raw.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
   if (match) sessions.delete(match[1]);
-  res.clearCookie(COOKIE_NAME);
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 }
 
 // --- Login page HTML ---
@@ -692,10 +696,10 @@ export function adminPage({
   </div>
 
   <script>
-    var API_KEY = '${poolApiKey}';
-    var POOL_ENV = '${poolEnvironment}';
-    var RAILWAY_PROJECT = '${railwayProjectId}';
-    var RAILWAY_ENV = '${railwayEnvironmentId}';
+    var API_KEY = ${JSON.stringify(poolApiKey)};
+    var POOL_ENV = ${JSON.stringify(poolEnvironment)};
+    var RAILWAY_PROJECT = ${JSON.stringify(railwayProjectId)};
+    var RAILWAY_ENV = ${JSON.stringify(railwayEnvironmentId)};
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
 
     var claimedCache = [], crashedCache = [];
