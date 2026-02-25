@@ -124,6 +124,8 @@ export function JoinFlow({
   const joiningAutoHideTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  // Track all subsidiary timeouts so they can be cleared on unmount
+  const pendingTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const launchingRef = useRef(launching);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -153,8 +155,18 @@ export function JoinFlow({
     return () => clearInterval(interval);
   }, [poolApiUrl]);
 
+  // Helper: schedule a timeout that auto-removes itself and is cleared on unmount
+  const scheduleTimer = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      pendingTimers.current.delete(id);
+      fn();
+    }, ms);
+    pendingTimers.current.add(id);
+    return id;
+  }, []);
+
   // -----------------------------------------------------------------------
-  // Cleanup timers on unmount
+  // Cleanup all timers on unmount
   // -----------------------------------------------------------------------
 
   useEffect(() => {
@@ -162,6 +174,10 @@ export function JoinFlow({
       if (joiningAutoHideTimer.current) {
         clearTimeout(joiningAutoHideTimer.current);
       }
+      for (const id of pendingTimers.current) {
+        clearTimeout(id);
+      }
+      pendingTimers.current.clear();
     };
   }, []);
 
@@ -183,10 +199,10 @@ export function JoinFlow({
       setConfettiPieces([]);
       if (!skipFocus) {
         // Focus the input on next render
-        setTimeout(() => inputRef.current?.focus(), 0);
+        scheduleTimer(() => inputRef.current?.focus(), 0);
       }
     },
-    [setActiveStep],
+    [setActiveStep, scheduleTimer],
   );
 
   // -----------------------------------------------------------------------
@@ -228,7 +244,7 @@ export function JoinFlow({
 
           // Keep launching=true until success animation finishes (1800ms),
           // so refreshStatus won't flash the empty state during the transition.
-          setTimeout(() => {
+          scheduleTimer(() => {
             setLaunching(false);
           }, 1800);
 
@@ -242,7 +258,7 @@ export function JoinFlow({
             setConfettiPieces([]);
 
             // T=300: scroll to skills, flash + pulse
-            setTimeout(() => {
+            scheduleTimer(() => {
               if (skillBrowserRef?.current) {
                 skillBrowserRef.current.scrollIntoView({
                   behavior: "smooth",
@@ -256,10 +272,10 @@ export function JoinFlow({
             }, 300);
 
             // T=3000: hide toast
-            setTimeout(() => setToastVisible(false), 3000);
+            scheduleTimer(() => setToastVisible(false), 3000);
 
             // T=5000: remove pulses
-            setTimeout(() => {
+            scheduleTimer(() => {
               if (skillBrowserRef?.current) {
                 skillBrowserRef.current
                   .querySelectorAll(".ps-agent-row.pulsing")
@@ -285,7 +301,7 @@ export function JoinFlow({
         setLaunching(false);
       }
     },
-    [poolEnvironment, skillBrowserRef, setActiveStep, hideJoiningOverlay, onShowQr],
+    [poolEnvironment, skillBrowserRef, setActiveStep, hideJoiningOverlay, onShowQr, scheduleTimer],
   );
 
   // -----------------------------------------------------------------------
