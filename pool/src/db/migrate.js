@@ -122,6 +122,9 @@ export async function migrate() {
     console.log("instances table already exists.");
   }
 
+  // Add columns if missing (idempotent)
+  await sql`ALTER TABLE instances ADD COLUMN IF NOT EXISTS runtime_image TEXT`;
+
 }
 
 // Run as standalone script: node src/db/migrate.js
