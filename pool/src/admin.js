@@ -277,9 +277,26 @@ export function adminPage({
       gap: 6px;
       margin-bottom: 6px;
     }
-    .stat-card { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
-    .stat-card:hover { border-color: #CCC; }
-    .stat-card.active { border-color: #000; box-shadow: 0 0 0 1px #000; }
+    /* --- Filter pills --- */
+    .filter-pills {
+      display: flex;
+      gap: 6px;
+    }
+    .filter-pill {
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid #EBEBEB;
+      background: #fff;
+      color: #666;
+      transition: all 0.15s;
+    }
+    .filter-pill:hover { background: #F5F5F5; border-color: #CCC; }
+    .filter-pill.active { background: #000; color: #fff; border-color: #000; }
+    .filter-pill .pill-count { margin-left: 3px; opacity: 0.5; }
     .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
     .stat-dot.green { background: #34C759; }
     .stat-dot.orange { background: #FF9500; }
@@ -616,19 +633,19 @@ export function adminPage({
 
   <div class="content">
     <div class="stats">
-      <div class="stat-card" data-filter="idle">
+      <div class="stat-card">
         <div class="stat-label"><span class="stat-dot green"></span> Ready</div>
         <div class="stat-value" id="s-idle">-</div>
       </div>
-      <div class="stat-card" data-filter="starting">
+      <div class="stat-card">
         <div class="stat-label"><span class="stat-dot orange"></span> Starting</div>
         <div class="stat-value" id="s-starting">-</div>
       </div>
-      <div class="stat-card" data-filter="running">
+      <div class="stat-card">
         <div class="stat-label"><span class="stat-dot blue"></span> Claimed</div>
         <div class="stat-value" id="s-claimed">-</div>
       </div>
-      <div class="stat-card" data-filter="crashed">
+      <div class="stat-card">
         <div class="stat-label"><span class="stat-dot red"></span> Crashed</div>
         <div class="stat-value" id="s-crashed">-</div>
       </div>
@@ -676,8 +693,17 @@ export function adminPage({
 
     <div class="table-card">
       <div class="table-header">
-        <span class="table-title">Agents</span>
-        <span class="table-count" id="table-count"></span>
+        <div>
+          <span class="table-title">Agents</span>
+          <span class="table-count" id="table-count"></span>
+        </div>
+        <div class="filter-pills" id="filter-pills">
+          <button class="filter-pill active" data-filter="">All</button>
+          <button class="filter-pill" data-filter="running">Running</button>
+          <button class="filter-pill" data-filter="idle">Ready</button>
+          <button class="filter-pill" data-filter="starting">Starting</button>
+          <button class="filter-pill" data-filter="crashed">Crashed</button>
+        </div>
       </div>
       <table>
         <thead>
@@ -721,18 +747,13 @@ export function adminPage({
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 
-    // --- Stat card filter ---
-    document.querySelector('.stats').addEventListener('click', function (e) {
-      var card = e.target.closest('.stat-card[data-filter]');
-      if (!card) return;
-      var filter = card.getAttribute('data-filter');
-      if (statusFilter === filter) {
-        statusFilter = null; // toggle off
-      } else {
-        statusFilter = filter;
-      }
-      document.querySelectorAll('.stat-card').forEach(function (c) { c.classList.remove('active'); });
-      if (statusFilter) card.classList.add('active');
+    // --- Filter pills ---
+    document.getElementById('filter-pills').addEventListener('click', function (e) {
+      var pill = e.target.closest('.filter-pill');
+      if (!pill) return;
+      statusFilter = pill.getAttribute('data-filter') || null;
+      document.querySelectorAll('.filter-pill').forEach(function (p) { p.classList.remove('active'); });
+      pill.classList.add('active');
       renderAgents();
     });
 
