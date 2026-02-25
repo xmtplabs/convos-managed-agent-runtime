@@ -190,7 +190,7 @@ export async function tick() {
     if (dbRow?.status === "claiming") continue;
 
     const hc = healthResults.get(svc.id) || null;
-    const isClaimed = !!dbRow?.claimed_at;
+    const isClaimed = !!dbRow?.agent_name;
     const status = deriveStatus({
       deployStatus: svc.deployStatus,
       healthCheck: hc,
