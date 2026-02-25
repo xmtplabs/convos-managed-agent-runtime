@@ -11,6 +11,8 @@ description: How Convos assistants handle your messages, what data is shared, an
 
 **Convos assistants** — the ones you add through the Convos app or this website — are a separate, hosted service layered on top. When you add one to a group conversation, that assistant processes your messages in order to respond and take actions. This data is processed on infrastructure operated by XMTP Labs. [You can also add any AI agent to a Convos chat](https://learn.convos.org/byoagent) — third-party agents have their own privacy practices. Everything on this page applies to Convos assistants specifically.
 
+> Treat assistants the same way you'd treat any AI platform — don't put anything in front of one that you wouldn't put in front of ChatGPT, Gemini, or Claude.
+
 ## What the assistant can see
 
 The assistant reads messages in your group conversation in order to respond and take actions.
