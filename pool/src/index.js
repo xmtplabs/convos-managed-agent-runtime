@@ -34,7 +34,10 @@ const AGENT_CATALOG_JSON = (() => {
       const m = url.match(/([a-f0-9]{32})/);
       const catParts = (a.category || "").split(" — ");
       const emoji = catParts[0].trim().split(" ")[0];
-      const catName = catParts[0].trim().replace(/^\S+\s/, "");
+      let catName = catParts[0].trim().replace(/^\S+\s/, "").replace(/\s*&\s*.+$/, "");
+      if (catName === "Superpower Agents") catName = "Superpowers";
+      if (catName === "Neighborhood") catName = "Local";
+      if (catName === "Professional") catName = "Work";
       return { n: a.name, d: a.description, c: catName, e: emoji, p: m ? m[1] : "", s: a.status };
     }).filter(a => a.n && a.p);
     return JSON.stringify(compact);
@@ -101,6 +104,7 @@ app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
   }
 });
 
+
 // Dashboard page — mode determined by POOL_ENVIRONMENT + ?mode= query param
 app.get("/", (req, res) => {
   const showDevTools = POOL_ENVIRONMENT !== "production";
@@ -150,7 +154,7 @@ app.get("/", (req, res) => {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 56px;
+      margin-bottom: 32px;
     }
 
     .brand-icon {
@@ -178,7 +182,7 @@ app.get("/", (req, res) => {
     .page-subtitle {
       font-size: 16px;
       color: #999;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
       line-height: 1.5;
     }
 
@@ -187,12 +191,27 @@ app.get("/", (req, res) => {
       max-width: 460px;
       width: 100%;
       position: relative;
-      margin-bottom: 56px;
+      margin-bottom: 0;
     }
+
+    .paste-input-label {
+      position: absolute;
+      top: 12px;
+      left: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0;
+      color: #B2B2B2;
+      pointer-events: none;
+      z-index: 1;
+      transition: color 0.25s ease;
+    }
+
+    .paste-input-wrap:focus-within .paste-input-label { color: #FC4F37; }
 
     .paste-input {
       width: 100%;
-      padding: 18px 24px 18px 48px;
+      padding: 30px 20px 12px 20px;
       border: 1.5px solid #EBEBEB;
       border-radius: 14px;
       font-size: 15px;
@@ -212,6 +231,7 @@ app.get("/", (req, res) => {
     .paste-input::placeholder { color: #D4D4D4; }
     .paste-input.invalid { border-color: #DC2626; }
     .paste-input.invalid:focus { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.06); }
+    .paste-input.invalid ~ .paste-input-label { color: #DC2626; }
 
     .paste-input-icon {
       position: absolute;
@@ -233,11 +253,54 @@ app.get("/", (req, res) => {
 
     .paste-error.visible { display: block; }
 
+    .paste-hint {
+      font-size: 12px;
+      color: #CCC;
+      margin-top: 8px;
+    }
+
+    /* --- How it works steps --- */
+    .steps {
+      margin-top: 32px;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #F5F5F5;
+      color: #999;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    .step-text {
+      font-size: 13px;
+      color: #999;
+      line-height: 1.55;
+    }
+
     /* --- Stories (end-user mode) --- */
     .stories {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 48px;
+      gap: 40px;
+      margin-top: 36px;
     }
 
     .story-label {
@@ -261,6 +324,85 @@ app.get("/", (req, res) => {
       color: #B2B2B2;
       text-decoration: underline;
       text-underline-offset: 2px;
+    }
+
+    /* --- Get Convos strip --- */
+    .get-convos {
+      margin-top: 36px;
+      padding: 20px 24px;
+      border: 1px solid #F0F0F0;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .get-convos-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .get-convos-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .get-convos-icon svg { width: 20px; height: 26px; }
+
+    .get-convos-text {
+      min-width: 0;
+    }
+
+    .get-convos-tagline {
+      font-size: 12px;
+      font-weight: 600;
+      color: #B2B2B2;
+      line-height: 1.3;
+    }
+
+    .get-convos-sub {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      color: #000;
+      margin-top: 2px;
+    }
+
+    .get-convos-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 20px;
+      background: #FC4F37;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      letter-spacing: -0.1px;
+    }
+
+    .get-convos-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .get-convos-btn:active { transform: scale(0.98); }
+
+    .get-convos-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .get-convos { padding: 20px 16px; gap: 16px; }
+      .get-convos-tagline { font-size: 13px; }
     }
 
     .field-group { margin-bottom: 28px; }
@@ -843,6 +985,9 @@ app.get("/", (req, res) => {
       padding: 8px 16px;
       font-size: 12px;
       color: #999;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
 
     .dev-bar.collapsed {
@@ -1105,28 +1250,31 @@ app.get("/", (req, res) => {
 
     /* --- Prompt Store --- */
     .prompt-store {
-      margin-top: 48px;
-      padding-top: 32px;
-      border-top: 1px solid #F5F5F5;
+      margin-top: 40px;
+      padding-top: 28px;
+      border-top: 1px solid #F0F0F0;
+    }
+
+    .ps-header {
+      margin-bottom: 14px;
     }
 
     .ps-title {
       font-size: 18px;
       font-weight: 700;
       letter-spacing: -0.3px;
-      margin-bottom: 8px;
     }
 
     .ps-intro {
       font-size: 13px;
       color: #B2B2B2;
       line-height: 1.5;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
 
     .ps-search-wrap {
       position: relative;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
     }
 
     .ps-search {
@@ -1165,7 +1313,7 @@ app.get("/", (req, res) => {
       display: flex;
       gap: 4px;
       flex-wrap: wrap;
-      margin-bottom: 16px;
+      margin-bottom: 28px;
     }
 
     .ps-filter-pill {
@@ -1199,7 +1347,7 @@ app.get("/", (req, res) => {
     .ps-agent-row {
       display: flex;
       align-items: center;
-      padding: 12px 0;
+      padding: 14px 0;
       border-bottom: 1px solid #F5F5F5;
       cursor: pointer;
       transition: background 0.1s;
@@ -1381,8 +1529,7 @@ app.get("/", (req, res) => {
       .form-wrapper { padding: 32px 16px; }
       .page-title { font-size: 24px; }
       .agents-dropdown { width: calc(100vw - 32px); left: -8px; }
-      .stories { grid-template-columns: 1fr; gap: 32px; }
-      .paste-input-wrap { margin-bottom: 40px; }
+      .stories { grid-template-columns: 1fr; gap: 28px; }
     }
   </style>
 </head>
@@ -1427,8 +1574,8 @@ app.get("/", (req, res) => {
         </div>
         <span class="brand-name">Convos</span>
       </div>
-      <h1 class="page-title" id="page-title">Invite an assistant</h1>
-      <p class="page-subtitle" id="page-subtitle">Paste a link and an AI assistant will join your Convos conversation.</p>
+      <h1 class="page-title" id="page-title">Invite an assistant to a private group chat</h1>
+      <p class="page-subtitle" id="page-subtitle">Paste a Convos Invite Link and an AI assistant will join your convo</p>
 
       <div id="empty-state" class="empty-state">
         <div class="empty-scene">
@@ -1514,30 +1661,53 @@ app.get("/", (req, res) => {
           <button class="joining-dismiss-btn" id="joining-dismiss" style="display:none"></button>
         </div>
         <div class="paste-input-wrap">
-          <span class="paste-input-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-          </span>
           <input id="paste-input" class="paste-input" placeholder="${POOL_ENVIRONMENT === "production" ? "popup.convos.org/..." : "dev.convos.org/..."}" />
+          <span class="paste-input-label">Paste the invite link for your convo</span>
           <div class="paste-error" id="paste-error"></div>
+          <div class="paste-hint">To get your invite link, tap Share in the app</div>
         </div>
-        <div class="stories">
-          <div>
-            <div class="story-label">Built in</div>
-            <p class="story-text">Convos AI Assistants can browse the web and use email, SMS, and crypto wallets to help your group with scheduling, reservations, payments, and more.<br><a href="#">Built with OpenClaw 🦞</a></p>
+        <div class="steps">
+          <div class="step">
+            <span class="step-num">1</span>
+            <span class="step-text">Paste your invite link above to add an assistant.</span>
           </div>
-          <div>
-            <div class="story-label">Safe by default</div>
-            <p class="story-text">Convos keeps conversations separate and encrypted by default. Each assistant you add is unique to that conversation and can never access other chats, contacts, or profiles.<br><a href="#">Learn more</a></p>
+          <div class="step">
+            <span class="step-num">2</span>
+            <span class="step-text">Copy a skill below and send it in your chat to give it superpowers.</span>
+          </div>
+          <div class="step">
+            <span class="step-num">3</span>
+            <span class="step-text">Talk to it. Tell it what you like, what to change — it learns from you.</span>
           </div>
         </div>
+      </div>
 
+      <div class="get-convos">
+        <div class="get-convos-left">
+          <div class="get-convos-text">
+            <div class="get-convos-tagline">Get the Convos app</div>
+            <div class="get-convos-sub">Everyday private chat for the AI world</div>
+          </div>
+        </div>
+        <a class="get-convos-btn" href="https://convos.org/app" target="_blank" rel="noopener">Get</a>
+      </div>
+
+      <div class="stories">
+        <div>
+          <div class="story-label">Built in</div>
+          <p class="story-text">Convos AI Assistants can browse the web and use email, SMS, and crypto wallets to help your group with scheduling, reservations, payments, and more.<br><a href="#">Built with OpenClaw 🦞</a></p>
+        </div>
+        <div>
+          <div class="story-label">Safe by default</div>
+          <p class="story-text">Convos keeps conversations separate and encrypted by default. Each assistant you add is unique to that conversation and can never access other chats, contacts, or profiles.<br><a href="#">Learn more</a></p>
+        </div>
       </div>
 
       <div class="prompt-store" id="prompt-store">
         <div class="ps-header">
-          <span class="ps-title">Try an assistant</span>
+          <span class="ps-title">Try out assistant skills</span>
         </div>
-        <p class="ps-intro">Below find our 100+ favorite group agent skills &mdash; Simply copy and paste any instructions into the chat and you now have an incredibly powerful new group agent.</p>
+        <p class="ps-intro">Copy any of our 89 favorite skills into the chat, tweak it however you want, or write your own from scratch. Go crazy, try anything &mdash; if it doesn&rsquo;t work, just tell it to forget and start over.</p>
         <div class="ps-search-wrap">
           <span class="ps-search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
           <input class="ps-search" placeholder="Search assistants..." id="ps-search" aria-label="Search assistants" />
@@ -1656,8 +1826,8 @@ app.get("/", (req, res) => {
       if(formEl)formEl.style.display=active?'':'none';
       if(footerNote)footerNote.style.display=active?'':'none';
       if(pasteView)pasteView.style.display=active?'none':'';
-      pageTitle.textContent=active?'Launch your assistant':'Invite an assistant';
-      pageSubtitle.textContent=active?'Create an AI assistant and drop it into any Convos conversation.':'Paste a link and an AI assistant will join your Convos conversation.';
+      pageTitle.textContent=active?'Launch your assistant':'Invite an assistant to a private group chat';
+      pageSubtitle.textContent=active?'Create an AI assistant and drop it into any Convos conversation.':'Paste a Convos Invite Link and an AI assistant will join your convo';
       refreshStatus();
     }
 
