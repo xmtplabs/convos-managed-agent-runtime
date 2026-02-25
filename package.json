@@ -1,16 +1,13 @@
 {
   "private": true,
   "scripts": {
-    "pool": "node pool/src/index.js",
-    "pool:dev": "node --env-file=pool/.env --watch pool/src/index.js",
-    "pool:test": "node --env-file=pool/.env --test pool/src/**/*.test.js",
-    "pool:db:migrate": "node --env-file=pool/.env pool/src/db/migrate.js",
+    "pool": "cd pool && pnpm start",
+    "pool:dev": "cd pool && pnpm dev",
+    "pool:build": "cd pool && pnpm build",
+    "pool:test": "cd pool && pnpm test",
+    "pool:db:migrate": "cd pool && pnpm db:migrate",
     "dashboard:dev": "cd dashboard && pnpm dev",
     "dashboard:build": "cd dashboard && pnpm build",
-    "dashboard:test:parity": "cd dashboard && pnpm test:parity",
-    "services": "node services/dist/index.js",
-    "services:build": "cd services && pnpm build",
-    "services:dev": "cd services && pnpm build && node --env-file=.env --watch dist/index.js",
-    "services:test": "cd services && pnpm build && pnpm test"
+    "dashboard:test:parity": "cd dashboard && pnpm test:parity"
   }
 }

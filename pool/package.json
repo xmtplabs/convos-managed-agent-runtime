@@ -6,14 +6,23 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node --env-file=.env --watch src/index.js",
-    "start": "node src/index.js",
-    "test": "node --env-file=.env --test src/**/*.test.js",
-    "db:migrate": "node --env-file=.env src/db/migrate.js"
+    "build": "tsc",
+    "dev": "tsx --env-file=.env --watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "test": "tsx --env-file=.env --test src/**/*.test.ts",
+    "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
+    "db:migrate:drop": "tsx --env-file=.env src/db/migrate.ts --drop"
   },
   "dependencies": {
     "express": "^5.1.0",
     "nanoid": "^5.1.5",
     "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
   }
 }
