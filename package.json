@@ -7,6 +7,10 @@
     "pool:db:migrate": "node --env-file=pool/.env pool/src/db/migrate.js",
     "dashboard:dev": "cd dashboard && pnpm dev",
     "dashboard:build": "cd dashboard && pnpm build",
-    "dashboard:test:parity": "cd dashboard && pnpm test:parity"
+    "dashboard:test:parity": "cd dashboard && pnpm test:parity",
+    "services": "node services/dist/index.js",
+    "services:build": "cd services && pnpm build",
+    "services:dev": "cd services && pnpm build && node --env-file=.env --watch dist/index.js",
+    "services:test": "cd services && pnpm build && pnpm test"
   }
 }

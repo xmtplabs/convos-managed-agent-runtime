@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 /**
  * Delete orphaned AgentMail inboxes and OpenRouter keys not tied to active
- * instances. Queries both the DB (claimed instances) and Railway (warm/idle
- * instances) to build the active set, then lists what will be deleted and
- * asks for confirmation.
+ * instances. Queries instance_infra + instance_services tables to build the
+ * active set, then lists what will be deleted and asks for confirmation.
+ *
+ * Usage:
+ *   node --env-file=../.env.scaling scripts/clean-providers.mjs
+ *   CLEAN_TARGET=email node --env-file=../.env.scaling scripts/clean-providers.mjs
+ *   CLEAN_TARGET=openrouter node --env-file=../.env.scaling scripts/clean-providers.mjs
  */
 
 import { createInterface } from "readline";
-import { connect, getActiveInboxIds, getActiveKeyHashes, disconnect } from "./lib/db.mjs";
+import pg from "pg";
 
 const TAG = "[clean-providers]";
-const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
 function confirm(question) {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -22,59 +25,32 @@ function confirm(question) {
   });
 }
 
-// ── Railway: find active instance IDs (warm + claimed) ───────────────────────
+// ── DB helpers ──────────────────────────────────────────────────────────────
 
-async function getActiveInstanceIds() {
-  const token = process.env.RAILWAY_API_TOKEN;
-  const projectId = process.env.RAILWAY_PROJECT_ID;
-  const envId = process.env.RAILWAY_ENVIRONMENT_ID;
-  if (!token || !projectId) {
-    console.log(`${TAG} RAILWAY_API_TOKEN/RAILWAY_PROJECT_ID not set — using DB only (warm instances not protected)`);
-    return new Set();
-  }
-
-  const res = await fetch(RAILWAY_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      query: `query($id: String!) {
-        project(id: $id) {
-          services(first: 500) {
-            edges { node { id name serviceInstances { edges { node { environmentId } } } } }
-          }
-        }
-      }`,
-      variables: { id: projectId },
-    }),
+function connect() {
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set");
+  return new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 2,
+    idleTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,
   });
-
-  const body = await res.json();
-  const edges = body?.data?.project?.services?.edges ?? [];
-
-  // Filter to convos-agent-* services in our environment, extract instance IDs
-  const ids = new Set();
-  for (const { node } of edges) {
-    if (!node.name.startsWith("convos-agent-") || node.name === "convos-agent-pool-manager") continue;
-    if (envId) {
-      const envIds = (node.serviceInstances?.edges || []).map((e) => e.node.environmentId);
-      if (!envIds.includes(envId)) continue;
-    }
-    // Instance ID is the suffix after "convos-agent-" (before any rename with agent name)
-    // For warm instances: "convos-agent-{id}", for claimed: "convos-agent-{agentName}-{id}"
-    const parts = node.name.replace("convos-agent-", "");
-    // The nanoid is the last 12-char segment
-    const id = parts.split("-").pop();
-    if (id) ids.add(id);
-  }
-
-  console.log(`${TAG} Railway: ${ids.size} active instance(s)`);
-  return ids;
 }
 
-// ── AgentMail ────────────────────────────────────────────────────────────────
+async function getActiveResourceIds(pool, toolId) {
+  const { rows } = await pool.query(
+    "SELECT resource_id FROM instance_services WHERE tool_id = $1 AND status = 'active'",
+    [toolId],
+  );
+  return new Set(rows.map((r) => r.resource_id));
+}
+
+async function getActiveInstanceIds(pool) {
+  const { rows } = await pool.query("SELECT instance_id FROM instance_infra");
+  return new Set(rows.map((r) => r.instance_id));
+}
+
+// ── AgentMail ───────────────────────────────────────────────────────────────
 
 async function findOrphanedInboxes(activeInboxIds, activeInstanceIds) {
   const apiKey = process.env.AGENTMAIL_API_KEY;
@@ -95,22 +71,19 @@ async function findOrphanedInboxes(activeInboxIds, activeInstanceIds) {
   const inboxes = body?.inboxes ?? body?.data ?? [];
 
   const managed = inboxes.filter(
-    (i) => i.client_id?.startsWith("convos-agent-") || i.username?.startsWith("convos-agent-")
+    (i) => i.client_id?.startsWith("convos-agent-") || i.username?.startsWith("convos-agent-"),
   );
 
-  // Skip: inboxes in DB, inboxes whose instance is still on Railway, local dev inbox
-  const localInboxId = process.env.AGENTMAIL_INBOX_ID;
   const orphaned = managed.filter((i) => {
     if (activeInboxIds.has(i.inbox_id)) return false;
-    if (i.inbox_id === localInboxId) return false;
-    // Check if the instance ID (from client_id) is still running on Railway
+    // Check if the instance ID (from client_id) is still active
     const instanceId = (i.client_id || "").replace("convos-agent-", "");
     if (instanceId && activeInstanceIds.has(instanceId)) return false;
     return true;
   });
 
   console.log(
-    `${TAG} AgentMail: ${inboxes.length} total, ${managed.length} managed, ${orphaned.length} orphaned`
+    `${TAG} AgentMail: ${inboxes.length} total, ${managed.length} managed, ${orphaned.length} orphaned`,
   );
 
   return { orphaned, apiKey };
@@ -135,7 +108,7 @@ async function deleteInboxes(orphaned, apiKey) {
   }
 }
 
-// ── OpenRouter ───────────────────────────────────────────────────────────────
+// ── OpenRouter ──────────────────────────────────────────────────────────────
 
 async function findOrphanedKeys(activeKeyHashes, activeInstanceIds) {
   const mgmtKey = process.env.OPENROUTER_MANAGEMENT_KEY;
@@ -162,14 +135,13 @@ async function findOrphanedKeys(activeKeyHashes, activeInstanceIds) {
     if (!k.hash) return false;
     if (activeKeyHashes.has(k.hash)) return false;
     if (k.name === skipName) return false;
-    // Check if the instance ID (from key name) is still running on Railway
     const instanceId = (k.name || "").replace("convos-agent-", "");
     if (instanceId && activeInstanceIds.has(instanceId)) return false;
     return true;
   });
 
   console.log(
-    `${TAG} OpenRouter: ${keys.length} total, ${managed.length} managed, ${orphaned.length} orphaned`
+    `${TAG} OpenRouter: ${keys.length} total, ${managed.length} managed, ${orphaned.length} orphaned`,
   );
 
   return { orphaned, mgmtKey };
@@ -193,7 +165,7 @@ async function deleteKeys(orphaned, mgmtKey) {
   }
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// ── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
   const target = (process.env.CLEAN_TARGET || "all").toLowerCase();
@@ -208,12 +180,12 @@ async function main() {
   const pool = connect();
   try {
     const [activeInboxIds, activeKeyHashes, activeInstanceIds] = await Promise.all([
-      doEmail ? getActiveInboxIds(pool) : Promise.resolve(new Set()),
-      doOpenRouter ? getActiveKeyHashes(pool) : Promise.resolve(new Set()),
-      getActiveInstanceIds(),
+      doEmail ? getActiveResourceIds(pool, "agentmail") : Promise.resolve(new Set()),
+      doOpenRouter ? getActiveResourceIds(pool, "openrouter") : Promise.resolve(new Set()),
+      getActiveInstanceIds(pool),
     ]);
     console.log(
-      `${TAG} DB: ${activeInboxIds.size} active inbox(es), ${activeKeyHashes.size} active key(s)`
+      `${TAG} DB: ${activeInboxIds.size} active inbox(es), ${activeKeyHashes.size} active key(s), ${activeInstanceIds.size} active instance(s)`,
     );
 
     // Discover orphans
@@ -257,7 +229,7 @@ async function main() {
 
     console.log(`${TAG} Done.`);
   } finally {
-    await disconnect(pool);
+    await pool.end();
   }
 }
 

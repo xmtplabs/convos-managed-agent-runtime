@@ -1,8 +1,8 @@
 # Convos agents
 
-OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config. Pre-warmed instances are provisioned via a pool; users claim an agent and it’s live in seconds.
+OpenClaw gateway + Convos (XMTP) channel plugin. Pre-warmed agent instances are provisioned via a pool; users claim an agent and it's live in seconds.
 
-See `docs/` for design, QA, changelog, pool details, **convos extension** (`docs/convos-extension.md`), and workarounds.
+See `docs/` for design, QA, changelog, and workarounds.
 
 ## Repo structure
 
@@ -15,14 +15,23 @@ docs/          Design docs, QA, changelog, convos extension docs
 
 ---
 
-## High-level flow
+## Repo structure
+
+```
+convos-agents/
+├── runtime/       # Agent runtime image (OpenClaw + config + extensions + skills)
+├── pool/          # Pool manager service (Express API + Postgres)
+├── services/      # Provider services API (Railway, OpenRouter, AgentMail, Telnyx)
+├── docs/          # Design docs, QA, changelog, pool details
+└── .env.example   # Runtime env template
+```
+
+Each service has its own `Dockerfile` and is deployed independently on Railway.
+
+## Architecture
 
 ```mermaid
 flowchart LR
-  subgraph tooling["tooling"]
-    T1[CLI: init / apply / key-provision]
-    T2[QA: email, sms, bankr, search, browser]
-  end
   subgraph runtime["runtime"]
     R1[OpenClaw gateway]
     R2[convos extension]
@@ -35,49 +44,40 @@ flowchart LR
     P3[Claim → provision]
     P1 --> P2 --> P3
   end
-  subgraph providers["providers"]
-    V1[OpenRouter]
-    V2[Agentmail / Telnyx / Bankr]
-    V3[Railway]
+  subgraph services["services"]
+    S1[Railway]
+    S2[OpenRouter]
+    S3[AgentMail]
+    S4[Telnyx]
   end
-  tooling --> runtime
-  pool --> runtime
-  runtime --> providers
+  pool --> services
+  services --> runtime
+  runtime -.-> S2
+  runtime -.-> S3
+  runtime -.-> S4
 ```
 
----
+Pool delegates all provider interactions to Services via internal HTTP. Services manages Railway infrastructure, OpenRouter key lifecycle, AgentMail inbox provisioning, and Telnyx phone numbers.
 
-## Tooling (CLI)
+## Services
 
-Run with: `pnpm cli <command>`. Help: `pnpm cli help`.
+### Runtime (`runtime/`)
 
-| Command | Description |
-|--------|-------------|
-| `check` | Log root, workspace, state dir, config and openclaw paths |
-| `key-provision` | Generate OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, WALLET_PRIVATE_KEY; create/reuse OpenRouter key; write .env |
-| `apply` | Sync workspace/skills/extensions and copy config template to state dir |
-| `install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
-| `gateway run` | Start the gateway |
-| `init` | key-provision (if missing) → apply → install-deps → gateway run |
-| `reset <target>` | Reset state. Targets: `sessions`, `chrome`, `convos` |
-| `qa [suite]` | QA smoke test. Suites: `email`, `sms`, `bankr`, `search`, `browser`, `all` (default) |
+The agent runtime image — OpenClaw gateway + config, workspace, extensions, and skills. Each agent instance runs as a container on Railway.
 
-**Quick start:** Copy `.env.example` to `.env`, set any keys you have, then `pnpm cli init`.
+See [`runtime/README.md`](runtime/README.md) for scripts, OpenClaw layout, and environment setup.
 
-### Environment
+### Pool (`pool/`)
 
-Key env vars (see `.env.example` for full list):
+Pool manager that keeps pre-warmed instances on Railway. Handles claim, provision, replenish, drain, and reconcile operations. Includes a dashboard UI.
 
-- **Model:** `OPENCLAW_PRIMARY_MODEL` (e.g. `openrouter/openai/gpt-5.1-codex-mini`)
-- **OpenRouter:** `OPENROUTER_API_KEY` or `OPENROUTER_MANAGEMENT_KEY`
-- **XMTP:** `XMTP_ENV` (`dev` | `production`)
-- **Skills:** `AGENTMAIL_API_KEY`, `AGENTMAIL_DOMAIN` (custom inbox domain, e.g. `mail.convos.org`), `BANKR_API_KEY`, `TELNYX_API_KEY`
-- **State:** `OPENCLAW_STATE_DIR` (default `~/.openclaw`; Docker often uses `/app`)
-- **Browser:** `CHROMIUM_PATH` (Docker: `/usr/bin/chromium`)
+See [`pool/README.md`](pool/README.md) for commands, API, configuration, and environments.
 
-`key-provision` fills in `OPENCLAW_GATEWAY_TOKEN`, `SETUP_PASSWORD`, and optional `AGENTMAIL_INBOX_ID`, `TELNYX_PHONE_NUMBER`, etc. `POOL_API_KEY` and `SETUP_PASSWORD` are optional for pool/convos HTTP auth; when unset, those endpoints allow unauthenticated access.
+### Services (`services/`)
 
----
+Provider services API — manages Railway infrastructure, per-instance OpenRouter keys, AgentMail inboxes, and Telnyx phone numbers. Pool talks to Services over private networking.
+
+See [`services/README.md`](services/README.md) for API routes, configuration, and deployment.
 
 ## Pool
 
@@ -215,10 +215,8 @@ Pool manager uses these endpoints to provision claimed instances. Full API, conf
 
 | Provider | Role |
 |----------|------|
-| **OpenRouter** | Models (e.g. Claude, GPT) + Perplexity search. One key per agent on provision; spending caps; dashboard per key. |
-| **Railway** | Compute. Each agent runs as a container (ephemeral fs, local Chromium, scoped env). |
-| **Agentmail** | Email. Per-agent inbox (`convos-<hex>@agentmail.to`) for calendar invites and transactional email. |
-| **Telnyx** | SMS. Per-agent US number and messaging profile; `telnyx-cli` skill for send/receive. |
-| **Bankr** | Crypto payments. Per-agent wallet; API key in env. |
-
-OpenRouter keys are created at provision (or via `key-provision` locally). Agentmail inbox and Telnyx number are created during `key-provision` when the corresponding API keys are set.
+| **OpenRouter** | LLM models + search. Per-agent keys with spending caps. |
+| **Railway** | Compute. Each agent runs as a container. |
+| **Agentmail** | Email. Per-agent inbox for calendar invites and transactional email. |
+| **Telnyx** | SMS. Per-agent US number and messaging profile. |
+| **Bankr** | Crypto payments. Per-agent wallet. |

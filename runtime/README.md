@@ -27,6 +27,5 @@ Health check: `http://localhost:8080/pool/health`
 | `pnpm gateway` | Start the gateway |
 | `pnpm qa` | QA smoke tests (email, sms, bankr, convos, browser) |
 | `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
-| `pnpm clean-providers` | Delete orphaned AgentMail inboxes / OpenRouter keys |
 | `pnpm build` | Build Docker image locally |
 | `pnpm build:run` | Build and run with .env from repo root |

@@ -1,5 +1,8 @@
 #!/bin/sh
-# Write OPENROUTER_API_KEY, BANKR_API_KEY (if set), random OPENCLAW_GATEWAY_TOKEN, SETUP_PASSWORD, and PRIVATE_WALLET_KEY to repo .env.
+# Provision keys. Three modes:
+#   1. Pool-managed: all keys arrive as env vars (nothing to do, just write .env)
+#   2. Local dev with services: calls POST /provision-local to get keys from services API
+#   3. Standalone: generates secrets locally, no external tools provisioned
 set -e
 
 . "$(dirname "$0")/lib/init.sh"
@@ -10,6 +13,60 @@ if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; f
 echo ""
 echo "  🔑 Provisioning keys"
 echo "  ═══════════════════"
+
+# ── Provision tools via services API if available and keys are missing ──────
+
+if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
+  # Build the tools list based on what's missing
+  tools=""
+  if [ -z "$OPENROUTER_API_KEY" ]; then tools="$tools\"openrouter\","; fi
+  if [ -z "$AGENTMAIL_INBOX_ID" ]; then tools="$tools\"agentmail\","; fi
+  if [ -z "$TELNYX_PHONE_NUMBER" ] && [ -n "$TELNYX_API_KEY" ]; then tools="$tools\"telnyx\","; fi
+
+  if [ -n "$tools" ]; then
+    # Strip trailing comma, wrap in array
+    tools_json="[$(echo "$tools" | sed 's/,$//')]"
+    echo "  🔧 Requesting tools from services: $tools_json"
+
+    resp=$(curl -s -w '\n%{http_code}' -X POST "$SERVICES_URL/provision-local" \
+      -H "Authorization: Bearer $SERVICES_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{\"tools\": $tools_json}")
+    http_code=$(echo "$resp" | tail -n1)
+    body=$(echo "$resp" | sed '$d')
+
+    if [ "$http_code" = "200" ]; then
+      # Extract env vars from response
+      or_key=$(echo "$body" | jq -r '.env.OPENROUTER_API_KEY // empty')
+      inbox_id=$(echo "$body" | jq -r '.env.AGENTMAIL_INBOX_ID // empty')
+      telnyx_num=$(echo "$body" | jq -r '.env.TELNYX_PHONE_NUMBER // empty')
+      telnyx_prof=$(echo "$body" | jq -r '.env.TELNYX_MESSAGING_PROFILE_ID // empty')
+
+      if [ -n "$or_key" ]; then
+        export OPENROUTER_API_KEY="$or_key"
+        echo "  🔧 OPENROUTER_API_KEY      → provisioned via services"
+      fi
+      if [ -n "$inbox_id" ]; then
+        export AGENTMAIL_INBOX_ID="$inbox_id"
+        echo "  🔧 AGENTMAIL_INBOX_ID      → provisioned via services"
+      fi
+      if [ -n "$telnyx_num" ]; then
+        export TELNYX_PHONE_NUMBER="$telnyx_num"
+        echo "  🔧 TELNYX_PHONE_NUMBER     → provisioned via services"
+      fi
+      if [ -n "$telnyx_prof" ]; then
+        export TELNYX_MESSAGING_PROFILE_ID="$telnyx_prof"
+        echo "  🔧 TELNYX_MESSAGING_PROFILE_ID → provisioned via services"
+      fi
+    else
+      echo "  ⚠️  Services provisioning failed (http=$http_code): $body" >&2
+    fi
+  else
+    echo "  ✅ All tool keys present in env"
+  fi
+fi
+
+# ── Secrets: use env if set, generate locally as fallback ──────────────────
 
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
   gateway_token="$OPENCLAW_GATEWAY_TOKEN"
@@ -35,6 +92,8 @@ else
   echo "  🔧 PRIVATE_WALLET_KEY      → generated"
 fi
 
+# ── Report status of remaining keys ───────────────────────────────────────
+
 if [ -n "$OPENCLAW_PRIMARY_MODEL" ]; then
   echo "  ✅ OPENCLAW_PRIMARY_MODEL  → $OPENCLAW_PRIMARY_MODEL"
 else
@@ -47,136 +106,19 @@ else
   echo "  ⬚  XMTP_ENV               → not set"
 fi
 
-key=""
-if [ -n "$OPENROUTER_API_KEY" ]; then
-  key="$OPENROUTER_API_KEY"
-  echo "  ✅ OPENROUTER_API_KEY      → from env"
-elif [ -n "$OPENROUTER_MANAGEMENT_KEY" ]; then
-  name="convos-local-$(date +%s)"
-  limit="${OPENROUTER_KEY_LIMIT:-20}"
-  limit_reset="${OPENROUTER_KEY_LIMIT_RESET:-monthly}"
-  payload=$(jq -n --arg name "$name" --arg limit "$limit" --arg limit_reset "$limit_reset" \
-    '{name: $name, limit: ($limit | tonumber), limit_reset: $limit_reset}')
-  resp=$(curl -s -w '\n%{http_code}' -X POST "https://openrouter.ai/api/v1/keys" \
-    -H "Authorization: Bearer $OPENROUTER_MANAGEMENT_KEY" \
-    -H "Content-Type: application/json" \
-    -d "$payload")
-  http_code=$(echo "$resp" | tail -n1)
-  body=$(echo "$resp" | sed '$d')
-  key=$(echo "$body" | jq -r '.key // empty')
-  if [ -z "$key" ] || [ "$key" = "null" ]; then
-    echo "  ❌ OPENROUTER_API_KEY      → failed to create (http=$http_code): $body" >&2
-    exit 1
-  fi
-  echo "  🔧 OPENROUTER_API_KEY      → created via management key"
-else
-  echo "  ⬚  OPENROUTER_API_KEY      → not set"
-fi
+[ -n "$OPENROUTER_API_KEY" ] && echo "  ✅ OPENROUTER_API_KEY      → set" || echo "  ⬚  OPENROUTER_API_KEY      → not set"
+[ -n "$AGENTMAIL_INBOX_ID" ] && echo "  ✅ AGENTMAIL_INBOX_ID      → $AGENTMAIL_INBOX_ID" || echo "  ⬚  AGENTMAIL_INBOX_ID      → not set"
+[ -n "$BANKR_API_KEY" ] && echo "  ✅ BANKR_API_KEY           → set" || echo "  ⬚  BANKR_API_KEY           → not set"
+[ -n "$TELNYX_PHONE_NUMBER" ] && echo "  ✅ TELNYX_PHONE_NUMBER     → $TELNYX_PHONE_NUMBER" || echo "  ⬚  TELNYX_PHONE_NUMBER     → not set"
+[ -n "$TELNYX_MESSAGING_PROFILE_ID" ] && echo "  ✅ TELNYX_MESSAGING_PROFILE_ID → set" || echo "  ⬚  TELNYX_MESSAGING_PROFILE_ID → not set"
 
-agentmail_inbox=""
-if [ -n "$AGENTMAIL_API_KEY" ]; then
-  echo "  ✅ AGENTMAIL_API_KEY       → from env"
-  if [ -n "$AGENTMAIL_INBOX_ID" ]; then
-    agentmail_inbox="$AGENTMAIL_INBOX_ID"
-    echo "  ✅ AGENTMAIL_INBOX_ID      → from env"
-  else
-    echo "  🔧 AGENTMAIL_INBOX_ID      → provisioning..."
-    inbox_username="convos-$(openssl rand -hex 4)"
-    inbox_client_id="convos-agent-$(hostname -s 2>/dev/null || echo local)"
-    inbox_payload=$(jq -n --arg u "$inbox_username" --arg cid "$inbox_client_id" --arg dom "${AGENTMAIL_DOMAIN:-}" \
-        '{username: $u, display_name: "Convos Agent", client_id: $cid} + (if ($dom | length) > 0 then {domain: $dom} else {} end)')
-    inbox_resp=$(curl -s -X POST "https://api.agentmail.to/v0/inboxes" \
-      -H "Authorization: Bearer $AGENTMAIL_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d "$inbox_payload")
-    agentmail_inbox=$(echo "$inbox_resp" | jq -r '.inbox_id // empty')
-    if [ -z "$agentmail_inbox" ]; then
-      echo "  ❌ AGENTMAIL_INBOX_ID      → failed: $inbox_resp" >&2
-    else
-      echo "  🔧 AGENTMAIL_INBOX_ID      → created: $agentmail_inbox"
-    fi
-  fi
-else
-  echo "  ⬚  AGENTMAIL_API_KEY       → not set"
-fi
+# ── Write .env ─────────────────────────────────────────────────────────────
 
-bankr_key=""
-if [ -n "$BANKR_API_KEY" ]; then
-  bankr_key="$BANKR_API_KEY"
-  echo "  ✅ BANKR_API_KEY           → from env"
-else
-  echo "  ⬚  BANKR_API_KEY           → not set"
-fi
-
-telnyx_phone=""
-telnyx_profile=""
-if [ -n "$TELNYX_API_KEY" ]; then
-  echo "  ✅ TELNYX_API_KEY          → from env"
-  if [ -n "$TELNYX_PHONE_NUMBER" ]; then
-    telnyx_phone="$TELNYX_PHONE_NUMBER"
-    telnyx_profile="$TELNYX_MESSAGING_PROFILE_ID"
-    echo "  ✅ TELNYX_PHONE_NUMBER     → from env"
-    if [ -n "$telnyx_profile" ]; then
-      echo "  ✅ TELNYX_MESSAGING_PROFILE_ID → from env"
-    else
-      echo "  ⬚  TELNYX_MESSAGING_PROFILE_ID → not set"
-    fi
-  else
-    echo "  🔧 TELNYX_PHONE_NUMBER     → provisioning..."
-    # Search for an available US SMS-enabled number
-    search_resp=$(curl -s -g -X GET "https://api.telnyx.com/v2/available_phone_numbers?filter[country_code]=US&filter[features][]=sms&filter[limit]=1" \
-      -H "Authorization: Bearer $TELNYX_API_KEY" \
-      -H "Content-Type: application/json")
-    avail_number=$(echo "$search_resp" | jq -r '.data[0].phone_number // empty')
-    if [ -z "$avail_number" ]; then
-      echo "  ❌ TELNYX_PHONE_NUMBER     → no numbers available: $search_resp" >&2
-    else
-      # Purchase the number first (no profile yet)
-      order_resp=$(curl -s -X POST "https://api.telnyx.com/v2/number_orders" \
-        -H "Authorization: Bearer $TELNYX_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d "$(jq -n --arg num "$avail_number" \
-          '{phone_numbers: [{phone_number: $num}]}')")
-      ordered_number=$(echo "$order_resp" | jq -r '.data.phone_numbers[0].phone_number // empty')
-      if [ -z "$ordered_number" ]; then
-        echo "  ❌ TELNYX_PHONE_NUMBER     → failed to purchase: $order_resp" >&2
-      else
-        telnyx_phone="$ordered_number"
-        echo "  🔧 TELNYX_PHONE_NUMBER     → purchased: $telnyx_phone"
-        # Reuse existing messaging profile (env → API lookup → create)
-        if [ -n "$TELNYX_MESSAGING_PROFILE_ID" ]; then
-          telnyx_profile="$TELNYX_MESSAGING_PROFILE_ID"
-        else
-          existing_profile=$(curl -s -X GET "https://api.telnyx.com/v2/messaging_profiles?page[size]=1" \
-            -H "Authorization: Bearer $TELNYX_API_KEY" \
-            -H "Content-Type: application/json" | jq -r '.data[0].id // empty')
-          if [ -n "$existing_profile" ]; then
-            telnyx_profile="$existing_profile"
-          else
-            profile_resp=$(curl -s -X POST "https://api.telnyx.com/v2/messaging_profiles" \
-              -H "Authorization: Bearer $TELNYX_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"convos-sms","whitelisted_destinations":["US"]}')
-            telnyx_profile=$(echo "$profile_resp" | jq -r '.data.id // empty')
-            if [ -z "$telnyx_profile" ]; then
-              echo "  ❌ TELNYX_MESSAGING_PROFILE → failed: $profile_resp" >&2
-            fi
-          fi
-        fi
-        # Assign the number to the messaging profile
-        if [ -n "$telnyx_profile" ]; then
-          curl -s -X PATCH "https://api.telnyx.com/v2/phone_numbers/$telnyx_phone" \
-            -H "Authorization: Bearer $TELNYX_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg pid "$telnyx_profile" \
-              '{messaging_profile_id: $pid}')" > /dev/null
-        fi
-      fi
-    fi
-  fi
-else
-  echo "  ⬚  TELNYX_API_KEY          → not set"
-fi
+key="${OPENROUTER_API_KEY:-}"
+agentmail_inbox="${AGENTMAIL_INBOX_ID:-}"
+bankr_key="${BANKR_API_KEY:-}"
+telnyx_phone="${TELNYX_PHONE_NUMBER:-}"
+telnyx_profile="${TELNYX_MESSAGING_PROFILE_ID:-}"
 
 touch "$ENV_FILE"
 tmp=$(mktemp)

@@ -1,0 +1,27 @@
+{
+  "name": "convos-agents-services",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "node --env-file=.env --watch dist/index.js",
+    "start": "node dist/index.js",
+    "db:migrate": "node --env-file=.env dist/db/migrate.js",
+    "test": "node --env-file=.env --test dist/smoke.test.js",
+    "clean-providers": "node --env-file=.env scripts/clean-providers.mjs"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "nanoid": "^5.1.5",
+    "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "typescript": "^5.7.0"
+  }
+}

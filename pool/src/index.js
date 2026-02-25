@@ -4,7 +4,6 @@ import { dirname, join, resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import * as pool from "./pool.js";
 import * as db from "./db/pool.js";
-import { deleteOrphanAgentVolumes } from "./volumes.js";
 import { migrate } from "./db/migrate.js";
 import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin.js";
 
@@ -385,10 +384,8 @@ setInterval(() => {
   pool.tick().catch((err) => console.error("[tick] Error:", err));
 }, TICK_INTERVAL);
 
-// Run migrations (idempotent), clean up orphan volumes, then initial tick
+// Run migrations (idempotent), then initial tick
 migrate()
-  .then(() => deleteOrphanAgentVolumes())
-  .catch((err) => console.warn("[startup] Orphan volume cleanup failed:", err.message))
   .then(() => pool.tick())
   .catch((err) => console.error("[tick] Initial tick error:", err));
 
