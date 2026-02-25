@@ -6,6 +6,7 @@ import { JoinFlow } from "@/components/join-flow";
 import { SkillBrowser } from "@/components/skill-browser";
 import { PromptModal } from "@/components/prompt-modal";
 import { QrModal } from "@/components/qr-modal";
+import { DevBar } from "@/components/dev-bar";
 import type { AgentSkill } from "@/lib/types";
 
 const POOL_API_URL =
@@ -74,7 +75,11 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="form-wrapper">
+    <>
+      {POOL_ENVIRONMENT !== "production" && (
+        <DevBar onShowQr={handleShowQr} />
+      )}
+      <div className="form-wrapper">
       <div className="form-center">
         {/* Brand */}
         <div className="brand">
@@ -172,5 +177,6 @@ export default function Home() {
         />
       </div>
     </div>
+    </>
   );
 }
