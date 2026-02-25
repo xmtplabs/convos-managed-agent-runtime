@@ -20,7 +20,8 @@ export async function gql(query, variables = {}) {
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error(`Railway API returned non-JSON (${res.status}): ${text.slice(0, 120)}`);
+    throw new Error(`Railway API error: ${res.status}${res.status === 429 ? " (rate limited — wait a few minutes)" : ""}`);
+
   }
   if (json.errors) {
     throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
