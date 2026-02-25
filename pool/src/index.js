@@ -133,7 +133,9 @@ function camelRow(row) {
 app.get("/api/pool/agents", async (_req, res) => {
   const claimed = (await db.getByStatus("claimed")).map(camelRow);
   const crashed = (await db.getByStatus("crashed")).map(camelRow);
-  res.json({ claimed, crashed });
+  const idle = (await db.getByStatus("idle")).map(camelRow);
+  const starting = (await db.getByStatus("starting")).map(camelRow);
+  res.json({ claimed, crashed, idle, starting });
 });
 
 // Template catalog (no auth — public-facing for template site)
