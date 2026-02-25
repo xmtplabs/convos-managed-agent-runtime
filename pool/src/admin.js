@@ -147,6 +147,7 @@ export function adminPage({
   railwayServiceId,
   railwayEnvironmentId,
   poolApiKey,
+  adminUrls = [],
 }) {
   const railwayLink = railwayProjectId && railwayServiceId
     ? `https://railway.com/project/${railwayProjectId}/service/${railwayServiceId}${railwayEnvironmentId ? "?environmentId=" + railwayEnvironmentId : ""}`
@@ -204,6 +205,9 @@ export function adminPage({
     .env-dev { background: #DBEAFE; color: #1D4ED8; }
     .env-staging { background: #FEF3C7; color: #92400E; }
     .env-production { background: #FEE2E2; color: #991B1B; }
+    a.env-tag { text-decoration: none; opacity: 0.45; transition: opacity 0.15s; }
+    a.env-tag:hover { opacity: 0.85; }
+    .env-tag.active { opacity: 1; cursor: default; }
     .header-right {
       display: flex;
       align-items: center;
@@ -575,7 +579,11 @@ export function adminPage({
   <div class="header">
     <div class="header-left">
       <span class="header-title">Pool Admin</span>
-      <span class="env-tag env-${poolEnvironment}">${poolEnvironment}</span>
+      ${adminUrls.length ? adminUrls.map((e) =>
+        e.env === poolEnvironment
+          ? `<span class="env-tag env-${e.env} active">${e.env}</span>`
+          : `<a class="env-tag env-${e.env}" href="${e.url}/admin">${e.env}</a>`
+      ).join("") : `<span class="env-tag env-${poolEnvironment}">${poolEnvironment}</span>`}
     </div>
     <div class="header-right">
       <span class="chip">branch: ${deployBranch}</span>

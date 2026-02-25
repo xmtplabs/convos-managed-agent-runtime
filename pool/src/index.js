@@ -183,6 +183,12 @@ app.get("/", (_req, res) => {
   res.redirect(302, process.env.TEMPLATE_SITE_URL || "https://assistants.convos.org");
 });
 
+// Admin environment links
+const POOL_ADMIN_URLS = (process.env.POOL_ADMIN_URLS || "dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app").split(",").filter(Boolean).map((entry) => {
+  const [env, url] = entry.split("=", 2);
+  return { env: env.trim(), url: url.trim() };
+}).filter((e) => e.env && e.url);
+
 // --- Admin dashboard (password-protected) ---
 app.get("/admin", (req, res) => {
   if (!isAuthenticated(req)) return res.type("html").send(loginPage());
@@ -194,6 +200,7 @@ app.get("/admin", (req, res) => {
     railwayServiceId: RAILWAY_SERVICE_ID,
     railwayEnvironmentId: RAILWAY_ENVIRONMENT_ID,
     poolApiKey: POOL_API_KEY,
+    adminUrls: POOL_ADMIN_URLS,
   }));
 });
 
