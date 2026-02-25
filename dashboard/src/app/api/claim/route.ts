@@ -13,6 +13,17 @@ export async function POST(request: NextRequest) {
     },
     body: JSON.stringify(body),
   });
+
+  // Guard against non-JSON upstream responses (e.g. 502 HTML from proxy)
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    const text = await res.text();
+    return NextResponse.json(
+      { error: text || "Upstream returned non-JSON response" },
+      { status: res.status }
+    );
+  }
+
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }

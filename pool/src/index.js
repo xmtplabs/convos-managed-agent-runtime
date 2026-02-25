@@ -70,7 +70,7 @@ const AGENT_CATALOG = (() => {
         category: catName, emoji, skills: a.skills || [], status: a.status,
         notionPageId: m ? m[1] : null,
       };
-    });
+    }).filter((a) => a.notionPageId);
   } catch (e) {
     console.warn("[pool] Could not load agents catalog:", e.message);
     return [];
