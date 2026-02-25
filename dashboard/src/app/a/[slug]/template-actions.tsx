@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,6 +22,16 @@ export function TemplateActions({
   agentName,
 }: TemplateActionsProps) {
   const [copyState, setCopyState] = useState<"idle" | "loading" | "copied" | "error">("idle");
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timer on unmount to prevent state updates after unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   // -----------------------------------------------------------------------
   // Copy prompt handler
@@ -37,22 +47,25 @@ export function TemplateActions({
       const data = await res.json();
       await navigator.clipboard.writeText(data.prompt);
       setCopyState("copied");
-      setTimeout(() => setCopyState("idle"), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
     } catch {
       setCopyState("error");
-      setTimeout(() => setCopyState("idle"), 2000);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
     }
   }, [notionPageId, copyState]);
 
   // -----------------------------------------------------------------------
-  // Template page URL for QR
+  // QR code via external API (same provider as QrModal).
+  // A dedicated /qr/:slug route is created in Task 10.
   // -----------------------------------------------------------------------
 
   const templateUrl = typeof window !== "undefined"
     ? `${window.location.origin}/a/${encodeURIComponent(slug)}`
-    : `/a/${encodeURIComponent(slug)}`;
+    : `https://assistants.convos.org/a/${encodeURIComponent(slug)}`;
 
-  const qrImageUrl = `/qr/${encodeURIComponent(slug)}`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(templateUrl)}`;
 
   // -----------------------------------------------------------------------
   // Render

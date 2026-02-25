@@ -48,6 +48,16 @@ test.describe("Template page SSR", () => {
   });
 
   test("renders QR code section", async ({ page }) => {
+    // Stub external QR API with a 1x1 transparent PNG for deterministic tests
+    const TRANSPARENT_PNG = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB" +
+        "Nl7BfgAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    await page.route("**/api.qrserver.com/**", (route) =>
+      route.fulfill({ status: 200, contentType: "image/png", body: TRANSPARENT_PNG }),
+    );
+
     await page.goto(`/a/${KNOWN_SLUG}`);
     await expect(page.getByText("Share this assistant")).toBeVisible();
     await expect(
