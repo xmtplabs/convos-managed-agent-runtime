@@ -100,12 +100,17 @@ test.describe("Responsive layout", () => {
     await expect(page.locator(".form-wrapper")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    const padding = await page.locator(".form-wrapper").evaluate(
-      (el) => getComputedStyle(el).padding,
-    );
     if (page.viewportSize()!.width <= 640) {
-      // 32px top/bottom, 16px left/right
-      expect(padding).toBe("32px 16px");
+      // 32px top/bottom, 16px left/right -- assert individual sides
+      // to avoid browser differences in shorthand serialization
+      const paddingTop = await page.locator(".form-wrapper").evaluate(
+        (el) => getComputedStyle(el).paddingTop,
+      );
+      const paddingRight = await page.locator(".form-wrapper").evaluate(
+        (el) => getComputedStyle(el).paddingRight,
+      );
+      expect(paddingTop).toBe("32px");
+      expect(paddingRight).toBe("16px");
     }
   });
 });
