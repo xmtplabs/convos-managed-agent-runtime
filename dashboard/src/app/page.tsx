@@ -148,7 +148,7 @@ export default function Home() {
               assistant you add is unique to that conversation and can never
               access other chats, contacts, or profiles.
               <br />
-              <a href="#">Learn more</a>
+              <a href="/safety">Learn more</a>
             </p>
           </div>
         </div>

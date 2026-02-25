@@ -1,0 +1,185 @@
+/* ==========================================================
+   article.css — Reusable markdown-style article layout.
+   Apply the `.article` class to an <article> element and
+   write plain semantic HTML inside it.
+   ========================================================== */
+
+.article {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 60px 24px 80px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: #111;
+}
+
+/* --- Header link (logo + brand) --- */
+.article-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  margin-bottom: 48px;
+}
+
+.article-header span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  letter-spacing: -0.3px;
+}
+
+/* --- Typography --- */
+.article h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+  margin: 0 0 12px;
+}
+
+.article h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin: 48px 0 16px;
+}
+
+/* Subtitle: h2 directly after h1 */
+.article h1 + h2 {
+  font-size: 17px;
+  font-weight: 400;
+  color: #888;
+  line-height: 1.6;
+  letter-spacing: 0;
+  margin: 0 0 48px;
+}
+
+.article p {
+  font-size: 16px;
+  color: #444;
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+
+.article strong {
+  color: #222;
+}
+
+/* --- Links --- */
+.article a {
+  color: #444;
+  text-decoration-color: #CCC;
+  text-underline-offset: 2px;
+}
+
+.article a:hover {
+  text-decoration-color: #888;
+}
+
+/* --- Lists --- */
+.article ul {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.article li {
+  font-size: 16px;
+  color: #555;
+  line-height: 1.6;
+}
+
+/* --- Blockquote / callout --- */
+.article blockquote {
+  background: #FFFBF5;
+  border: 1px solid #F0E4CC;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 0 0 16px;
+}
+
+.article blockquote p {
+  font-size: 15px;
+  color: #8B6914;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* --- Table --- */
+.article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 16px;
+  font-size: 15px;
+}
+
+.article th {
+  text-align: left;
+  padding: 10px 12px 10px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #E5E5E5;
+}
+
+.article td {
+  padding: 12px 12px 12px 0;
+  vertical-align: top;
+  border-bottom: 1px solid #F0F0F0;
+  font-size: 15px;
+  color: #444;
+  line-height: 1.5;
+}
+
+.article td strong {
+  color: #111;
+}
+
+/* --- Horizontal rule --- */
+.article hr {
+  border: none;
+  border-top: 1px solid #F0F0F0;
+  margin: 48px 0 32px;
+}
+
+/* --- Footer --- */
+.article-footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid #F0F0F0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: #CCC;
+}
+
+.article-footer a {
+  color: #B2B2B2;
+  text-decoration: none;
+}
+
+.article-footer a:hover {
+  color: #666;
+}
+
+.article-footer .dot {
+  color: #E5E5E5;
+}
+
+/* --- Responsive --- */
+@media (max-width: 640px) {
+  .article {
+    padding: 32px 16px 60px;
+  }
+
+  .article h1 {
+    font-size: 26px;
+  }
+}
