@@ -471,8 +471,8 @@ export function adminPage({
       border-collapse: collapse;
       table-layout: fixed;
     }
-    col.col-name { width: 24%; }
-    col.col-status { width: 10%; }
+    col.col-name { width: 21%; }
+    col.col-status { width: 13%; }
     col.col-instance { width: 22%; }
     col.col-branch { width: 16%; }
     col.col-uptime { width: 10%; }
@@ -512,6 +512,13 @@ export function adminPage({
     .status-idle { background: #DBEAFE; color: #1D4ED8; }
     .status-starting { background: #FEF3C7; color: #92400E; }
     tr.idle td, tr.starting td { color: #999; }
+    tr.starting td { font-style: italic; }
+    tr.starting .agent-name-cell { font-weight: 400; }
+    tr.starting { animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
     .instance-link {
       font-family: 'SF Mono', Monaco, 'Courier New', monospace;
       font-size: 11px;
