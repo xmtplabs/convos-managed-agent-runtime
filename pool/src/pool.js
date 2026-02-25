@@ -211,6 +211,7 @@ export async function tick() {
       status,
       deployStatus: svc.deployStatus,
       createdAt: svc.createdAt,
+      runtimeImage: svc.image || null,
       // Metadata fields: pass null to preserve existing via COALESCE
       agentName: dbRow?.agent_name || null,
       conversationId: dbRow?.conversation_id || null,
