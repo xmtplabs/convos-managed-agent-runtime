@@ -28,15 +28,25 @@ export async function migrate({ drop = false } = {}) {
     console.log("instances table already exists.");
 
     if (drop) {
-      // Drop columns that now live in services DB
-      for (const col of ["service_id", "deploy_status", "volume_id", "runtime_image"]) {
+      // Drop columns that now live in services DB or are unused
+      const dropCols = [
+        "service_id",          // moved to services instance_infra
+        "deploy_status",       // fetched from batch status API
+        "volume_id",           // moved to services instance_infra
+        "runtime_image",       // fetched from batch status API
+        "openrouter_key_hash", // moved to services instance_services
+        "agentmail_inbox_id",  // moved to services instance_services
+        "gateway_token",       // generated at runtime
+        "source_branch",       // unused
+      ];
+      for (const col of dropCols) {
         await sql.unsafe(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
       }
 
       // Drop index that referenced service_id
       await sql`DROP INDEX IF EXISTS idx_instances_service_id`;
 
-      console.log("Dropped legacy columns (service_id, deploy_status, volume_id, runtime_image) (--drop).");
+      console.log(`Dropped legacy columns (${dropCols.join(", ")}) (--drop).`);
     }
   }
 }
