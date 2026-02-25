@@ -20,7 +20,8 @@ export async function gql(query, variables = {}) {
   try {
     json = JSON.parse(text);
   } catch {
-    throw new Error(`Railway API returned non-JSON (${res.status}): ${text.slice(0, 120)}`);
+    throw new Error(`Railway API error: ${res.status}${res.status === 429 ? " (rate limited — wait a few minutes)" : ""}`);
+
   }
   if (json.errors) {
     throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
@@ -32,19 +33,13 @@ export async function createService(name, variables = {}) {
   const projectId = process.env.RAILWAY_PROJECT_ID;
   const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
   if (!environmentId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
-  // Default to the same repo/branch the pool manager was deployed from
-  const repo = process.env.RAILWAY_SOURCE_REPO
-    || (process.env.RAILWAY_GIT_REPO_OWNER && process.env.RAILWAY_GIT_REPO_NAME
-      ? `${process.env.RAILWAY_GIT_REPO_OWNER}/${process.env.RAILWAY_GIT_REPO_NAME}`
-      : null);
-  const branch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
-  if (!repo) throw new Error("RAILWAY_SOURCE_REPO not set and could not be derived from RAILWAY_GIT_* vars");
 
-  // Create service WITHOUT source to prevent auto-deploy.
-  // Connecting the repo happens later, after all config is set.
-  const input = { projectId, environmentId, name, variables };
+  const image = process.env.RAILWAY_RUNTIME_IMAGE || "ghcr.io/xmtplabs/convos-runtime:latest";
 
-  console.log(`[railway] createService: ${name}, branch=${branch || "(default)"}, env=${environmentId}`);
+  // Create service (no variables, no source — no deploy triggered).
+  const input = { projectId, environmentId, name };
+
+  console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);
 
   const data = await gql(
     `mutation($input: ServiceCreateInput!) {
@@ -55,44 +50,38 @@ export async function createService(name, variables = {}) {
 
   const serviceId = data.serviceCreate.id;
 
-  // Step 1: Set startCommand (no repo connected, no auto-deploy).
+  // Set image + start command BEFORE variables — this triggers the deploy.
   try {
-    await updateServiceInstance(serviceId, { startCommand: "node cli/pool-server.js" });
-    console.log(`[railway]   Set startCommand: node cli/pool-server.js`);
+    await updateServiceInstance(serviceId, {
+      startCommand: "node scripts/pool-server.js",
+      source: { image },
+    });
+    console.log(`[railway]   Configured: image=${image}`);
   } catch (err) {
-    console.warn(`[railway] Failed to set startCommand for ${serviceId}:`, err);
+    console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
   }
 
-  // Step 2: Set resource limits (no repo connected, no auto-deploy).
+  // Set resource limits.
   await setResourceLimits(serviceId);
 
-  // Step 4: Connect repo — triggers a single deploy with all config already set.
-  const connectInput = { repo };
-  if (branch) connectInput.branch = branch;
-  try {
-    await gql(
-      `mutation($id: String!, $input: ServiceConnectInput!) {
-        serviceConnect(id: $id, input: $input) { id }
-      }`,
-      { id: serviceId, input: connectInput }
-    );
-    console.log(`[railway]   Connected repo ${repo} (branch: ${branch || "default"}) — deploying`);
-  } catch (err) {
-    console.warn(`[railway] Failed to connect repo for ${serviceId}:`, err);
-  }
-
-  // Step 5: Disconnect repo to prevent auto-deploys from future pushes.
-  try {
-    await gql(
-      `mutation($id: String!) { serviceDisconnect(id: $id) { id } }`,
-      { id: serviceId }
-    );
-    console.log(`[railway]   Disconnected repo (auto-deploys disabled)`);
-  } catch (err) {
-    console.warn(`[railway] Failed to disconnect repo for ${serviceId}:`, err);
+  // Upsert variables with skipDeploys to avoid a second deploy.
+  if (Object.keys(variables).length > 0) {
+    await upsertVariables(serviceId, variables, { skipDeploys: true });
   }
 
   return serviceId;
+}
+
+export async function upsertVariables(serviceId, variables, { skipDeploys = false } = {}) {
+  const projectId = process.env.RAILWAY_PROJECT_ID;
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
+
+  await gql(
+    `mutation($input: VariableCollectionUpsertInput!) {
+      variableCollectionUpsert(input: $input)
+    }`,
+    { input: { projectId, environmentId, serviceId, variables, skipDeploys } }
+  );
 }
 
 export async function createDomain(serviceId) {
@@ -166,10 +155,11 @@ export async function deleteService(serviceId) {
   );
 }
 
-// List all services in the project with environment info and deploy status.
-// Returns [{ id, name, createdAt, environmentIds, deployStatus }] or null on API error.
+// List all services in the project with environment info, deploy status, domains, and images.
+// Returns [{ id, name, createdAt, environmentIds, deployStatus, domain, image }] or null on API error.
 export async function listProjectServices() {
   const projectId = process.env.RAILWAY_PROJECT_ID;
+  const envId = process.env.RAILWAY_ENVIRONMENT_ID;
   try {
     const data = await gql(
       `query($id: String!) {
@@ -180,7 +170,15 @@ export async function listProjectServices() {
                 id
                 name
                 createdAt
-                serviceInstances { edges { node { environmentId } } }
+                serviceInstances {
+                  edges {
+                    node {
+                      environmentId
+                      domains { serviceDomains { domain } customDomains { domain } }
+                      source { image }
+                    }
+                  }
+                }
                 deployments(first: 1) {
                   edges { node { id status } }
                 }
@@ -193,13 +191,25 @@ export async function listProjectServices() {
     );
     const edges = data.project?.services?.edges;
     if (!edges) return null;
-    return edges.map((e) => ({
-      id: e.node.id,
-      name: e.node.name,
-      createdAt: e.node.createdAt,
-      environmentIds: (e.node.serviceInstances?.edges || []).map((si) => si.node.environmentId),
-      deployStatus: e.node.deployments?.edges?.[0]?.node?.status || null,
-    }));
+    return edges.map((e) => {
+      const instances = e.node.serviceInstances?.edges || [];
+      const myInstance = envId
+        ? instances.find((si) => si.node.environmentId === envId)
+        : instances[0];
+      const domainData = myInstance?.node?.domains;
+      const domain = domainData?.customDomains?.[0]?.domain
+        || domainData?.serviceDomains?.[0]?.domain
+        || null;
+      return {
+        id: e.node.id,
+        name: e.node.name,
+        createdAt: e.node.createdAt,
+        environmentIds: instances.map((si) => si.node.environmentId),
+        deployStatus: e.node.deployments?.edges?.[0]?.node?.status || null,
+        domain,
+        image: myInstance?.node?.source?.image || null,
+      };
+    });
   } catch (err) {
     console.warn(`[railway] listProjectServices failed: ${err.message}`);
     return null;
@@ -226,6 +236,75 @@ export async function getServiceDomain(serviceId) {
     console.warn(`[railway] getServiceDomain(${serviceId}) failed: ${err.message}`);
     return null;
   }
+}
+
+// Get the source image for a service instance. Returns image string or null.
+export async function getServiceImage(serviceId) {
+  try {
+    const data = await gql(
+      `query($id: String!) {
+        service(id: $id) {
+          serviceInstances {
+            edges { node { source { image } } }
+          }
+        }
+      }`,
+      { id: serviceId }
+    );
+    return data.service?.serviceInstances?.edges?.[0]?.node?.source?.image || null;
+  } catch (err) {
+    console.warn(`[railway] getServiceImage(${serviceId}) failed: ${err.message}`);
+    return null;
+  }
+}
+
+// Fetch environment variables for a service. Returns { KEY: "value", ... } or null.
+export async function getServiceVariables(serviceId) {
+  const projectId = process.env.RAILWAY_PROJECT_ID;
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
+  try {
+    const data = await gql(
+      `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+        variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+      }`,
+      { projectId, environmentId, serviceId }
+    );
+    return data.variables || null;
+  } catch (err) {
+    console.warn(`[railway] getServiceVariables(${serviceId}) failed: ${err.message}`);
+    return null;
+  }
+}
+
+// Resolve RAILWAY_ENVIRONMENT_ID from RAILWAY_ENVIRONMENT_NAME if only the name is set.
+// Returns the environment ID or throws.
+export async function resolveEnvironmentId() {
+  if (process.env.RAILWAY_ENVIRONMENT_ID) return process.env.RAILWAY_ENVIRONMENT_ID;
+
+  const name = process.env.RAILWAY_ENVIRONMENT_NAME;
+  if (!name) throw new Error("Neither RAILWAY_ENVIRONMENT_ID nor RAILWAY_ENVIRONMENT_NAME is set");
+
+  const projectId = process.env.RAILWAY_PROJECT_ID;
+  const data = await gql(
+    `query($id: String!) {
+      project(id: $id) {
+        environments { edges { node { id name } } }
+      }
+    }`,
+    { id: projectId }
+  );
+
+  const envs = data.project?.environments?.edges || [];
+  const match = envs.find((e) => e.node.name.toLowerCase() === name.toLowerCase());
+  if (!match) {
+    const available = envs.map((e) => e.node.name).join(", ");
+    throw new Error(`Environment "${name}" not found. Available: ${available}`);
+  }
+
+  // Cache it for subsequent calls
+  process.env.RAILWAY_ENVIRONMENT_ID = match.node.id;
+  console.log(`[railway] Resolved environment "${name}" → ${match.node.id}`);
+  return match.node.id;
 }
 
 // Check if a service still exists on Railway. Returns { id, name } or null.

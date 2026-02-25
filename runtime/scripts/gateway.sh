@@ -3,26 +3,35 @@ set -e
 
 . "$(dirname "$0")/lib/init.sh"
 cd "$ROOT"
-. "$ROOT/cli/scripts/lib/env-load.sh"
+. "$ROOT/scripts/lib/env-load.sh"
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
 
-. "$ROOT/cli/scripts/lib/node-path.sh"
+. "$ROOT/scripts/lib/node-path.sh"
 
 CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
 RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
 
 # --- Clean up any previous gateway processes ---
-$ENTRY gateway stop 2>/dev/null || true
-# Kill stale gateway.sh wrapper scripts (excluding ourselves) so their restart
-# loops don't respawn the gateway we're about to kill.
+$ENTRY gateway stop >/dev/null 2>&1 || true
+
+# Kill stale gateway.sh wrapper scripts (excluding ourselves and ancestors) so
+# their restart loops don't respawn the gateway we're about to kill.
 _my_pid=$$
+# Collect ancestor PIDs so we never kill our own process tree (pnpm → sh chain)
+_ancestors=" $$ "
+_ap=$$
+while true; do
+  _ap=$(ps -o ppid= -p "$_ap" 2>/dev/null | tr -d ' ') || break
+  [ -z "$_ap" ] || [ "$_ap" = "0" ] || [ "$_ap" = "1" ] && break
+  _ancestors="$_ancestors$_ap "
+done
 for _pid in $(pgrep -f "gateway\.sh" 2>/dev/null); do
-  [ "$_pid" = "$_my_pid" ] && continue
+  case "$_ancestors" in *" $_pid "*) continue ;; esac
   kill -9 "$_pid" 2>/dev/null || true
 done
-unset _my_pid _pid
+unset _my_pid _pid _ap _ancestors
 # Kill stale openclaw processes by name so Bonjour registrations are released
 pkill -9 -f "openclaw-gateway" 2>/dev/null || true
 pkill -9 -f "openclaw gateway" 2>/dev/null || true
