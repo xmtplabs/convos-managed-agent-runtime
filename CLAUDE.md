@@ -5,6 +5,7 @@
 - dont tour core convos extension
 - always use pnpm
 - PRIVATE_WALLET_KEY does nothing to do with Convos!
+- dont rush into action. ask 
 
 # Branch Strategy
 
