@@ -41,10 +41,19 @@ app.get("/api/pool/counts", async (_req, res) => {
   res.json(await db.getCounts());
 });
 
+// Convert snake_case DB row to camelCase for the frontend.
+function camelRow(row) {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) {
+    out[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = v;
+  }
+  return out;
+}
+
 // List launched agents (no auth — used by the page)
 app.get("/api/pool/agents", async (_req, res) => {
-  const claimed = await db.getByStatus("claimed");
-  const crashed = await db.getByStatus("crashed");
+  const claimed = (await db.getByStatus("claimed")).map(camelRow);
+  const crashed = (await db.getByStatus("crashed")).map(camelRow);
   res.json({ claimed, crashed });
 });
 
