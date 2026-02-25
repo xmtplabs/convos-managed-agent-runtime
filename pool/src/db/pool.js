@@ -1,28 +1,20 @@
 import { sql, pool as pgPool } from "./connection.js";
 
-// Upsert an instance row (keyed by service_id).
-export async function upsertInstance({ id, serviceId, name, url, status, deployStatus, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt, runtimeImage }) {
+// Upsert an instance row (keyed by id).
+export async function upsertInstance({ id, name, url, status, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt }) {
   await sql`
-    INSERT INTO instances (id, service_id, name, url, status, deploy_status, agent_name, conversation_id, invite_url, instructions, created_at, claimed_at, runtime_image)
-    VALUES (${id}, ${serviceId}, ${name}, ${url || null}, ${status}, ${deployStatus || null}, ${agentName || null}, ${conversationId || null}, ${inviteUrl || null}, ${instructions || null}, ${createdAt || new Date().toISOString()}, ${claimedAt || null}, ${runtimeImage || null})
-    ON CONFLICT (service_id) DO UPDATE SET
+    INSERT INTO instances (id, name, url, status, agent_name, conversation_id, invite_url, instructions, created_at, claimed_at)
+    VALUES (${id}, ${name}, ${url || null}, ${status}, ${agentName || null}, ${conversationId || null}, ${inviteUrl || null}, ${instructions || null}, ${createdAt || new Date().toISOString()}, ${claimedAt || null})
+    ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
       url = COALESCE(EXCLUDED.url, instances.url),
       status = EXCLUDED.status,
-      deploy_status = EXCLUDED.deploy_status,
       agent_name = COALESCE(EXCLUDED.agent_name, instances.agent_name),
       conversation_id = COALESCE(EXCLUDED.conversation_id, instances.conversation_id),
       invite_url = COALESCE(EXCLUDED.invite_url, instances.invite_url),
       instructions = COALESCE(EXCLUDED.instructions, instances.instructions),
-      claimed_at = COALESCE(EXCLUDED.claimed_at, instances.claimed_at),
-      runtime_image = COALESCE(EXCLUDED.runtime_image, instances.runtime_image)
+      claimed_at = COALESCE(EXCLUDED.claimed_at, instances.claimed_at)
   `;
-}
-
-// Find instance by Railway service ID.
-export async function findByServiceId(serviceId) {
-  const result = await sql`SELECT * FROM instances WHERE service_id = ${serviceId}`;
-  return result.rows[0] || null;
 }
 
 // Find instance by instance ID.
@@ -61,8 +53,8 @@ export async function claimIdle() {
     await client.query("BEGIN");
     const result = await client.query(`
       UPDATE instances SET status = 'claiming'
-      WHERE service_id = (
-        SELECT service_id FROM instances
+      WHERE id = (
+        SELECT id FROM instances
         WHERE status = 'idle'
         ORDER BY created_at
         LIMIT 1
@@ -81,7 +73,7 @@ export async function claimIdle() {
 }
 
 // Complete a claim — set status to 'claimed' and fill in metadata fields.
-export async function completeClaim(serviceId, { agentName, conversationId, inviteUrl, instructions }) {
+export async function completeClaim(instanceId, { agentName, conversationId, inviteUrl, instructions }) {
   await sql`
     UPDATE instances SET
       status = 'claimed',
@@ -90,29 +82,23 @@ export async function completeClaim(serviceId, { agentName, conversationId, invi
       invite_url = ${inviteUrl || null},
       instructions = ${instructions || null},
       claimed_at = NOW()
-    WHERE service_id = ${serviceId}
+    WHERE id = ${instanceId}
   `;
 }
 
 // Release a claim (on provision failure) — reset to idle.
-export async function releaseClaim(serviceId) {
-  await sql`UPDATE instances SET status = 'idle' WHERE service_id = ${serviceId} AND status = 'claiming'`;
+export async function releaseClaim(instanceId) {
+  await sql`UPDATE instances SET status = 'idle' WHERE id = ${instanceId} AND status = 'claiming'`;
 }
 
-// Update status and optional fields for a service.
-export async function updateStatus(serviceId, { status, deployStatus, url }) {
+// Update status and optional fields for an instance.
+export async function updateStatus(instanceId, { status, url }) {
   await sql`
     UPDATE instances SET
       status = COALESCE(${status || null}, instances.status),
-      deploy_status = COALESCE(${deployStatus || null}, instances.deploy_status),
       url = COALESCE(${url || null}, instances.url)
-    WHERE service_id = ${serviceId}
+    WHERE id = ${instanceId}
   `;
-}
-
-// Delete instance by Railway service ID.
-export async function deleteByServiceId(serviceId) {
-  await sql`DELETE FROM instances WHERE service_id = ${serviceId}`;
 }
 
 // Delete instance by instance ID.
@@ -121,11 +107,11 @@ export async function deleteById(id) {
 }
 
 // Delete orphaned instances not in the active set (skip starting/claiming to avoid race).
-export async function deleteOrphaned(activeServiceIds) {
-  if (!activeServiceIds || activeServiceIds.length === 0) return;
+export async function deleteOrphaned(activeInstanceIds) {
+  if (!activeInstanceIds || activeInstanceIds.length === 0) return;
   const result = await sql`
     DELETE FROM instances
-    WHERE service_id != ALL(${activeServiceIds})
+    WHERE id != ALL(${activeInstanceIds})
       AND status NOT IN ('starting', 'claiming')
   `;
   const count = result.rowCount || 0;

@@ -3,6 +3,7 @@ export interface InfraRow {
   provider: string;
   provider_service_id: string;
   provider_env_id: string;
+  provider_project_id: string | null;
   url: string | null;
   deploy_status: string | null;
   runtime_image: string | null;
@@ -52,6 +53,7 @@ export interface DestroyResult {
 }
 
 export interface BatchStatusResponse {
+  projectId: string;
   services: Array<{
     instanceId: string;
     serviceId: string;

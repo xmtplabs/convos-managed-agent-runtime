@@ -4,7 +4,7 @@
  * Mocks all external fetch calls (Railway GQL, OpenRouter, AgentMail, Telnyx)
  * but uses a real Postgres DB and real Express server.
  *
- * Requires: DATABASE_URL in env (or .env file).
+ * Requires: SERVICE_DATABASE_URL in env (or .env file).
  * Run:  node --env-file=.env --test dist/smoke.test.js
  */
 
@@ -372,6 +372,7 @@ describe("services smoke test", () => {
     assert.equal(infra.rows.length, 1);
     assert.equal(infra.rows[0].provider, "railway");
     assert.equal(infra.rows[0].provider_service_id, FAKE_SERVICE_ID);
+    assert.equal(infra.rows[0].provider_project_id, FAKE_PROJECT_ID);
     assert.equal(infra.rows[0].url, `https://${FAKE_DOMAIN}`);
 
     const svcs = await sql`SELECT * FROM instance_services WHERE instance_id = ${INSTANCE_ID} ORDER BY tool_id`;
@@ -382,9 +383,10 @@ describe("services smoke test", () => {
 
   // ── 5. Status batch ───────────────────────────────────────────────────
 
-  it("POST /status/batch returns agent services", async () => {
+  it("POST /status/batch returns agent services with projectId", async () => {
     const { status, body } = await api("POST", "/status/batch", {});
     assert.equal(status, 200);
+    assert.equal(body.projectId, FAKE_PROJECT_ID);
     assert.ok(Array.isArray(body.services));
     // Our mocked Railway returns one convos-agent- service
     const svc = body.services.find((s: any) => s.instanceId === INSTANCE_ID);

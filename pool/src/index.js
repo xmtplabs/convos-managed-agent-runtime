@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import * as pool from "./pool.js";
 import * as db from "./db/pool.js";
+import * as servicesClient from "./services-client.js";
 import { migrate } from "./db/migrate.js";
 import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin.js";
 
@@ -129,6 +130,7 @@ function camelRow(row) {
 }
 
 // List launched agents (no auth — used by the page)
+// Enriches with serviceId + projectId from batch status for Railway links.
 app.get("/api/pool/agents", async (_req, res) => {
   const claimed = (await db.getByStatus("claimed")).map(camelRow);
   const crashed = (await db.getByStatus("crashed")).map(camelRow);

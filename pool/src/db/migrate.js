@@ -11,25 +11,31 @@ export async function migrate() {
     await sql`
       CREATE TABLE instances (
         id TEXT PRIMARY KEY,
-        service_id TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         url TEXT,
         status TEXT NOT NULL DEFAULT 'starting',
-        deploy_status TEXT,
         agent_name TEXT,
         conversation_id TEXT,
         invite_url TEXT,
         instructions TEXT,
-        runtime_image TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         claimed_at TIMESTAMPTZ
       )
     `;
     await sql`CREATE INDEX idx_instances_status ON instances (status)`;
-    await sql`CREATE INDEX idx_instances_service_id ON instances (service_id)`;
     console.log("Created instances table.");
   } else {
     console.log("instances table already exists.");
+
+    // Drop columns that now live in services DB
+    for (const col of ["service_id", "deploy_status", "volume_id", "runtime_image"]) {
+      await sql.unsafe(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
+    }
+
+    // Drop index that referenced service_id
+    await sql`DROP INDEX IF EXISTS idx_instances_service_id`;
+
+    console.log("Ensured legacy columns (service_id, deploy_status, volume_id, runtime_image) are dropped.");
   }
 }
 

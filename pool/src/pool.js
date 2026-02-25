@@ -52,11 +52,9 @@ export async function createInstance() {
   // Insert into DB as starting
   await db.upsertInstance({
     id,
-    serviceId: result.serviceId,
     name,
     url: result.url,
     status: "starting",
-    deployStatus: "BUILDING",
     createdAt: new Date().toISOString(),
   });
 
@@ -84,11 +82,16 @@ export async function tick() {
 
   // Load all DB rows for reconciliation
   const dbRows = await db.listAll();
-  const dbByServiceId = new Map(dbRows.map((r) => [r.service_id, r]));
+  const dbById = new Map(dbRows.map((r) => [r.id, r]));
+
+  // Build instanceId lookup from batch status
+  const svcByInstanceId = new Map(
+    agentServices.map((s) => [s.instanceId, s])
+  );
 
   // Log deploy statuses for agent services
   for (const svc of agentServices) {
-    const row = dbByServiceId.get(svc.serviceId);
+    const row = dbById.get(svc.instanceId);
     console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimed_at ? " (claimed)" : ""}`);
   }
 
@@ -98,26 +101,26 @@ export async function tick() {
   // Get URLs for services — prefer DB url, then domain from batch status
   const urlMap = new Map();
   for (const svc of successServices) {
-    const row = dbByServiceId.get(svc.serviceId);
+    const row = dbById.get(svc.instanceId);
     if (row?.url) {
-      urlMap.set(svc.serviceId, row.url);
+      urlMap.set(svc.instanceId, row.url);
     } else if (svc.domain) {
-      urlMap.set(svc.serviceId, `https://${svc.domain}`);
+      urlMap.set(svc.instanceId, `https://${svc.domain}`);
     }
   }
 
   // Health-check SUCCESS services in parallel (skip instances being claimed)
   const healthResults = new Map();
   const toCheck = successServices.filter((s) => {
-    const row = dbByServiceId.get(s.serviceId);
-    return urlMap.has(s.serviceId) && row?.status !== "claiming";
+    const row = dbById.get(s.instanceId);
+    return urlMap.has(s.instanceId) && row?.status !== "claiming";
   });
 
   const checks = await Promise.allSettled(
     toCheck.map(async (svc) => {
-      const result = await healthCheck(urlMap.get(svc.serviceId));
+      const result = await healthCheck(urlMap.get(svc.instanceId));
       if (!result?.ready) console.log(`[tick] ${svc.name} health=${JSON.stringify(result)}`);
-      return { id: svc.serviceId, result };
+      return { id: svc.instanceId, result };
     })
   );
   for (const c of checks) {
@@ -130,14 +133,14 @@ export async function tick() {
   const toDelete = [];
 
   for (const svc of agentServices) {
-    const dbRow = dbByServiceId.get(svc.serviceId);
+    const instId = svc.instanceId;
+    const dbRow = dbById.get(instId);
 
     // Skip services being claimed right now
     if (dbRow?.status === "claiming") continue;
 
-    const hc = healthResults.get(svc.serviceId) || null;
+    const hc = healthResults.get(instId) || null;
     const isClaimed = !!dbRow?.agent_name;
-    // Use svc.createdAt if available, otherwise fall back to DB
     const createdAt = dbRow?.created_at || new Date().toISOString();
     const status = deriveStatus({
       deployStatus: svc.deployStatus,
@@ -145,31 +148,27 @@ export async function tick() {
       createdAt,
       isClaimed,
     });
-    const url = urlMap.get(svc.serviceId) || dbRow?.url || null;
+    const url = urlMap.get(instId) || dbRow?.url || null;
 
     if (status === "dead" || status === "sleeping") {
       if (isClaimed) {
         // Was claimed — mark as crashed in DB
-        await db.updateStatus(svc.serviceId, { status: "crashed", deployStatus: svc.deployStatus, url });
+        await db.updateStatus(instId, { status: "crashed", url });
       } else {
         // Was idle/starting — delete silently
         toDelete.push({ svc, dbRow });
-        await db.deleteByServiceId(svc.serviceId);
+        await db.deleteById(instId);
       }
       continue;
     }
 
     // Upsert into DB — preserve existing metadata fields via COALESCE
-    const instId = dbRow?.id || svc.name.replace("convos-agent-", "");
     await db.upsertInstance({
       id: instId,
-      serviceId: svc.serviceId,
       name: svc.name,
       url,
       status,
-      deployStatus: svc.deployStatus,
       createdAt,
-      runtimeImage: svc.image || null,
       agentName: dbRow?.agent_name || null,
       conversationId: dbRow?.conversation_id || null,
       inviteUrl: dbRow?.invite_url || null,
@@ -178,15 +177,15 @@ export async function tick() {
     });
   }
 
-  // Remove DB rows for services no longer in Railway (skip starting/claiming)
-  const railwayServiceIds = agentServices.map((s) => s.serviceId);
-  await db.deleteOrphaned(railwayServiceIds).catch((err) =>
+  // Remove DB rows for instances no longer in Railway (skip starting/claiming)
+  const activeInstanceIds = agentServices.map((s) => s.instanceId);
+  await db.deleteOrphaned(activeInstanceIds).catch((err) =>
     console.warn(`[tick] deleteOrphaned failed: ${err.message}`)
   );
 
   // Delete dead services via services API
   for (const { svc, dbRow } of toDelete) {
-    const instanceId = dbRow?.id || svc.name.replace("convos-agent-", "");
+    const instanceId = dbRow?.id || svc.instanceId;
     try {
       await safeDestroy(instanceId);
       console.log(`[tick] Destroyed dead instance ${instanceId}`);
@@ -233,13 +232,13 @@ export async function drainPool(count) {
   // Re-check status from DB before destroying (may have been claimed)
   const settled = await Promise.allSettled(
     toDrain.map(async (inst) => {
-      const current = await db.findByServiceId(inst.service_id);
+      const current = await db.findById(inst.id);
       if (!current || CLAIMED_STATUSES.has(current.status)) {
         console.log(`[pool]   Skipping ${inst.id} (no longer unclaimed)`);
         return { skipped: true };
       }
       await safeDestroy(inst.id);
-      await db.deleteByServiceId(inst.service_id).catch(() => {});
+      await db.deleteById(inst.id).catch(() => {});
       return { skipped: false };
     })
   );
@@ -273,7 +272,7 @@ export async function killInstance(id) {
 
   console.log(`[pool] Killing instance ${inst.id} (${inst.agent_name || inst.name})`);
   await safeDestroy(inst.id);
-  await db.deleteByServiceId(inst.service_id).catch(() => {});
+  await db.deleteById(inst.id).catch(() => {});
 }
 
 // Dismiss a crashed agent (user-initiated from dashboard).
@@ -283,5 +282,5 @@ export async function dismissCrashed(id) {
 
   console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agent_name || inst.name})`);
   await safeDestroy(inst.id);
-  await db.deleteByServiceId(inst.service_id).catch(() => {});
+  await db.deleteById(inst.id).catch(() => {});
 }

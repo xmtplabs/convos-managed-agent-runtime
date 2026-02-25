@@ -1,8 +1,6 @@
 /**
- * Standalone script to enrich existing `instances` rows with data from Railway API.
- *
- * NOTE: This script now uses the services API via services-client instead of
- * talking to Railway directly (railway.js was removed in Phase 3 extraction).
+ * Standalone script to enrich existing `instances` rows with data from the
+ * services batch status API.
  *
  * Usage:
  *   node --env-file=.env src/db/enrich-instances.js            # enrich rows missing any field
@@ -18,8 +16,8 @@ const DRY_RUN = args.has("--dry-run");
 const ALL = args.has("--all");
 
 async function main() {
-  if (!process.env.DATABASE_URL) {
-    console.error("Missing env var: DATABASE_URL");
+  if (!process.env.POOL_DATABASE_URL) {
+    console.error("Missing env var: POOL_DATABASE_URL");
     process.exit(1);
   }
   if (!process.env.SERVICES_URL) {
@@ -33,7 +31,7 @@ async function main() {
   console.log("Fetching service status...");
   const batchResult = await servicesClient.fetchBatchStatus();
   const services = batchResult.services || [];
-  const serviceMap = new Map(services.map((s) => [s.serviceId, s]));
+  const serviceMap = new Map(services.map((s) => [s.instanceId, s]));
   console.log(`  Found ${services.length} total services\n`);
 
   // 2. Load instances to enrich
@@ -41,7 +39,7 @@ async function main() {
     ? await sql`SELECT * FROM instances ORDER BY created_at`
     : await sql`
         SELECT * FROM instances
-        WHERE url IS NULL OR deploy_status IS NULL
+        WHERE url IS NULL
            OR (claimed_at IS NULL AND status = 'claimed')
         ORDER BY created_at`;
 
@@ -60,10 +58,10 @@ async function main() {
 
   for (const row of rows.rows) {
     const label = `${row.id} (${row.agent_name || row.name || "unclaimed"})`;
-    const svc = serviceMap.get(row.service_id);
+    const svc = serviceMap.get(row.id);
 
     if (!svc) {
-      console.log(`  SKIP ${label} — service ${row.service_id} not found`);
+      console.log(`  SKIP ${label} — instance ${row.id} not found in batch status`);
       skipped++;
       continue;
     }
@@ -71,7 +69,6 @@ async function main() {
     try {
       const domain = svc.domain || null;
       const url = domain ? `https://${domain}` : null;
-      const deployStatus = svc.deployStatus || null;
       const name = svc.name || null;
 
       // For claimed instances with no claimed_at, default to created_at
@@ -80,7 +77,6 @@ async function main() {
       // Detect changes
       const changes = [];
       if (url && url !== row.url) changes.push(`url=${domain}`);
-      if (deployStatus && deployStatus !== row.deploy_status) changes.push(`deploy=${deployStatus}`);
       if (name && name !== row.name) changes.push(`name=${name}`);
       if (claimedAt) changes.push(`claimed_at=${claimedAt.toISOString?.() || claimedAt}`);
 
@@ -96,10 +92,9 @@ async function main() {
         await sql`
           UPDATE instances SET
             url = COALESCE(${url}, url),
-            deploy_status = COALESCE(${deployStatus}, deploy_status),
             name = COALESCE(${name}, name),
             claimed_at = COALESCE(${claimedAt}, claimed_at)
-          WHERE service_id = ${row.service_id}
+          WHERE id = ${row.id}
         `;
       }
 

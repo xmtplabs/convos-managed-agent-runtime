@@ -43,7 +43,7 @@ export async function provision(opts) {
     const result = await provisionRes.json();
 
     // Complete the claim in DB
-    await db.completeClaim(instance.service_id, {
+    await db.completeClaim(instance.id, {
       agentName,
       conversationId: result.conversationId,
       inviteUrl: result.inviteUrl || joinUrl || null,
@@ -61,7 +61,7 @@ export async function provision(opts) {
     };
   } catch (err) {
     // Release claim on failure — reset back to idle
-    await db.releaseClaim(instance.service_id);
+    await db.releaseClaim(instance.id);
     throw err;
   }
 }

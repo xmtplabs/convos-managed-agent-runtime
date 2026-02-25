@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as railway from "../providers/railway.js";
+import { config } from "../config.js";
 import type { BatchStatusResponse } from "../types.js";
 
 export const statusRouter = Router();
@@ -38,6 +39,7 @@ statusRouter.post("/status/batch", async (req, res) => {
     }
 
     const response: BatchStatusResponse = {
+      projectId: config.railwayProjectId,
       services: agents.map((s) => ({
         instanceId: s.name.replace("convos-agent-", ""),
         serviceId: s.id,
