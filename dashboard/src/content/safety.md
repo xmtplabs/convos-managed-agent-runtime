@@ -9,9 +9,9 @@ description: How Convos assistants handle your messages, what data is shared, an
 
 **Convos the app** is open source, end-to-end encrypted, and collects no data — not even contact info. Your messages move on the [XMTP protocol](https://xmtp.org), and nobody — including us — can read them.
 
-**Convos assistants** — the ones you add through the Convos app or this website — are a separate, hosted service layered on top. When you add one to a group conversation, that assistant processes your messages in order to respond and take actions. This data is processed on infrastructure operated by XMTP Labs. Everything on this page applies specifically to these assistants.
+**Convos assistants** — the ones you add through the Convos app or this website — are a separate, hosted service layered on top. When you add one to a group conversation, that assistant processes your messages in order to respond and take actions. This data is processed on infrastructure operated by XMTP Labs. [You can also add any AI agent to a Convos chat](https://learn.convos.org/byoagent) — third-party agents have their own privacy practices. Everything on this page applies to Convos assistants specifically.
 
-> [You can add any AI agent to a Convos chat](https://learn.convos.org/byoagent) — third-party agents have their own privacy practices. Everything on this page applies to Convos assistants specifically. Treat all assistants the same way you'd treat any AI platform — don't put anything in front of one that you wouldn't put in front of ChatGPT, Gemini, or Claude.
+> Treat assistants the same way you'd treat any AI platform — don't put anything in front of one that you wouldn't put in front of ChatGPT, Gemini, or Claude.
 
 ## What the assistant can see
 
