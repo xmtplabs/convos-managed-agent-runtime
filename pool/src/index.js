@@ -591,28 +591,20 @@ app.get("/", (req, res) => {
       line-height: 1.5;
     }
 
-    /* --- Joining overlay (balloon scene) --- */
-    .joining-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,0.97);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease;
-      z-index: 10;
+    /* --- Joining inline (balloon scene) --- */
+    .joining-inline {
+      display: none;
+      text-align: center;
+      padding: 40px 16px;
     }
 
-    .joining-overlay.active { opacity: 1; pointer-events: auto; }
+    .joining-inline.active { display: block; }
 
     .joining-scene {
       position: relative;
       width: 200px;
       height: 240px;
-      margin-bottom: 24px;
+      margin: 0 auto 24px;
     }
 
     .joining-balloon-group {
@@ -675,7 +667,7 @@ app.get("/", (req, res) => {
     .joining-particle:nth-child(6) { left: 60%; top: 70%; }
 
     /* Joining state: inflate + float + particles */
-    .joining-overlay.joining .joining-balloon-group {
+    .joining-inline.joining .joining-balloon-group {
       animation: joining-inflate 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
                  joining-float 3s 1.5s ease-in-out infinite;
     }
@@ -693,7 +685,7 @@ app.get("/", (req, res) => {
       75% { transform: translateX(-50%) translateY(-10px) rotate(0deg); }
     }
 
-    .joining-overlay.joining .joining-particle {
+    .joining-inline.joining .joining-particle {
       animation: joining-particle-float 3s ease-in-out infinite;
     }
 
@@ -712,7 +704,7 @@ app.get("/", (req, res) => {
     }
 
     /* Success state: bounce + confetti */
-    .joining-overlay.success .joining-balloon-group {
+    .joining-inline.success .joining-balloon-group {
       animation: joining-success-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
                  joining-float 3s 0.6s ease-in-out infinite;
     }
@@ -724,11 +716,11 @@ app.get("/", (req, res) => {
       100% { transform: translateX(-50%) scale(1); }
     }
 
-    .joining-overlay.success .joining-balloon-group svg.joining-balloon-svg {
+    .joining-inline.success .joining-balloon-group svg.joining-balloon-svg {
       filter: drop-shadow(0 8px 32px rgba(229,77,0,0.35));
     }
 
-    .joining-overlay.success .joining-particle { animation: none; opacity: 0; }
+    .joining-inline.success .joining-particle { animation: none; opacity: 0; }
 
     .joining-confetti {
       position: absolute;
@@ -743,7 +735,7 @@ app.get("/", (req, res) => {
       opacity: 0;
     }
 
-    .joining-overlay.success .joining-confetti-piece {
+    .joining-inline.success .joining-confetti-piece {
       animation: joining-confetti-rain 1.5s ease-out forwards;
     }
 
@@ -753,7 +745,7 @@ app.get("/", (req, res) => {
     }
 
     /* Error state: gentle droop */
-    .joining-overlay.error .joining-balloon-group {
+    .joining-inline.error .joining-balloon-group {
       animation: joining-error-droop 1.2s ease-out forwards;
       transform-origin: center 70px;
     }
@@ -764,11 +756,11 @@ app.get("/", (req, res) => {
       100% { transform: translateX(-50%) scale(0.9, 0.82) rotate(8deg) translateY(10px); opacity: 0.75; }
     }
 
-    .joining-overlay.error .joining-balloon-group svg.joining-balloon-svg {
+    .joining-inline.error .joining-balloon-group svg.joining-balloon-svg {
       filter: drop-shadow(0 3px 10px rgba(220,38,38,0.18));
     }
 
-    .joining-overlay.error .joining-particle { animation: none; opacity: 0; }
+    .joining-inline.error .joining-particle { animation: none; opacity: 0; }
 
     /* Status text */
     .joining-status-text {
@@ -785,8 +777,8 @@ app.get("/", (req, res) => {
       text-align: center;
     }
 
-    .joining-overlay.success .joining-status-text { color: #16A34A; }
-    .joining-overlay.error .joining-status-text { color: #DC2626; }
+    .joining-inline.success .joining-status-text { color: #16A34A; }
+    .joining-inline.error .joining-status-text { color: #DC2626; }
 
     /* Dismiss button */
     .joining-dismiss-btn {
@@ -807,8 +799,8 @@ app.get("/", (req, res) => {
 
     .joining-dismiss-btn:hover { background: #F5F5F5; border-color: #CCC; }
 
-    .joining-overlay.success .joining-dismiss-btn,
-    .joining-overlay.error .joining-dismiss-btn {
+    .joining-inline.success .joining-dismiss-btn,
+    .joining-inline.error .joining-dismiss-btn {
       animation: joining-btn-in 0.3s 0.6s ease-out forwards;
     }
 
@@ -816,18 +808,74 @@ app.get("/", (req, res) => {
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .joining-overlay.error .joining-dismiss-btn {
+    .joining-inline.error .joining-dismiss-btn {
       border-color: #FECACA;
       color: #DC2626;
     }
 
-    .joining-overlay.error .joining-dismiss-btn:hover { background: #FEF2F2; }
+    .joining-inline.error .joining-dismiss-btn:hover { background: #FEF2F2; }
+
+    /* Success toast */
+    .success-toast {
+      display: none;
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #16A34A;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border-radius: 20px;
+      z-index: 15;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(22,163,74,0.25);
+      align-items: center;
+      gap: 8px;
+    }
+    .success-toast.visible {
+      display: flex;
+      animation: toast-in 0.3s ease-out;
+    }
+    @keyframes toast-in {
+      0% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+      100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* Step 2 highlight after join */
+    .step.highlight .step-num {
+      background: #E54D00;
+      color: #fff;
+    }
+    .step.highlight .step-text {
+      color: #333;
+      font-weight: 500;
+    }
+
+    /* Skill card pulse after join */
+    .ps-agent-row.pulsing {
+      animation: skill-pulse 1.5s ease-in-out 3;
+    }
+    @keyframes skill-pulse {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: 0 0 0 3px rgba(229,77,0,0.1); }
+    }
+
+    /* Skills section highlight flash */
+    .prompt-store.highlighted {
+      animation: skills-highlight 2s ease-out;
+    }
+    @keyframes skills-highlight {
+      0% { background: rgba(229, 77, 0, 0.06); border-radius: 14px; }
+      100% { background: transparent; }
+    }
 
     /* Reduced motion: disable animations, show static states */
     @media (prefers-reduced-motion: reduce) {
-      .joining-overlay.joining .joining-balloon-group,
-      .joining-overlay.success .joining-balloon-group,
-      .joining-overlay.error .joining-balloon-group {
+      .joining-inline.joining .joining-balloon-group,
+      .joining-inline.success .joining-balloon-group,
+      .joining-inline.error .joining-balloon-group {
         animation: none;
         transform: translateX(-50%) scale(1);
         opacity: 1;
@@ -836,7 +884,10 @@ app.get("/", (req, res) => {
       .joining-confetti-piece { animation: none !important; opacity: 0 !important; }
       .joining-string-upper, .joining-string-lower { animation: none; }
       .joining-dismiss-btn { animation: none; opacity: 1; transform: none; }
-      .joining-overlay { transition: none; }
+      .joining-inline { transition: none; }
+      .success-toast { animation: none; }
+      .ps-agent-row.pulsing { animation: none; box-shadow: 0 0 0 3px rgba(229,77,0,0.1); }
+      .prompt-store.highlighted { animation: none; }
     }
 
     .error-message {
@@ -1347,8 +1398,10 @@ app.get("/", (req, res) => {
     .ps-agent-row {
       display: flex;
       align-items: center;
-      padding: 14px 0;
+      padding: 14px 8px;
+      margin: 0 -8px;
       border-bottom: 1px solid #F5F5F5;
+      border-radius: 8px;
       cursor: pointer;
       transition: background 0.1s;
       gap: 12px;
@@ -1356,9 +1409,6 @@ app.get("/", (req, res) => {
 
     .ps-agent-row:hover {
       background: #FAFAFA;
-      margin: 0 -8px;
-      padding: 12px 8px;
-      border-radius: 8px;
     }
 
     .ps-agent-info { flex: 1; min-width: 0; }
@@ -1403,7 +1453,7 @@ app.get("/", (req, res) => {
     }
 
     .ps-btn.primary:hover { opacity: 0.9; }
-    .ps-btn.copied { background: #16A34A; color: #fff; border-color: #16A34A; }
+    .ps-btn.copied { background: #E54D00; color: #fff; border-color: #E54D00; }
     .ps-btn.loading { opacity: 0.6; cursor: wait; }
 
     .ps-show-more {
@@ -1621,7 +1671,17 @@ app.get("/", (req, res) => {
       ` : ''}
 
       <div id="paste-view">
-        <div class="joining-overlay" id="joining-overlay" aria-live="polite">
+        <div class="success-toast" id="success-toast" aria-live="polite">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+          Assistant joined!
+        </div>
+        <div class="paste-input-wrap" id="paste-input-wrap">
+          <input id="paste-input" class="paste-input" placeholder="${POOL_ENVIRONMENT === "production" ? "popup.convos.org/..." : "dev.convos.org/..."}" />
+          <span class="paste-input-label">Paste the invite link for your convo</span>
+          <div class="paste-error" id="paste-error"></div>
+          <div class="paste-hint">To get your invite link, tap Share in the app</div>
+        </div>
+        <div class="joining-inline" id="joining-inline" aria-live="polite">
           <div class="joining-scene">
             <div class="joining-particle"></div>
             <div class="joining-particle"></div>
@@ -1660,14 +1720,8 @@ app.get("/", (req, res) => {
           <div class="joining-status-sub" id="joining-sub"></div>
           <button class="joining-dismiss-btn" id="joining-dismiss" style="display:none"></button>
         </div>
-        <div class="paste-input-wrap">
-          <input id="paste-input" class="paste-input" placeholder="${POOL_ENVIRONMENT === "production" ? "popup.convos.org/..." : "dev.convos.org/..."}" />
-          <span class="paste-input-label">Paste the invite link for your convo</span>
-          <div class="paste-error" id="paste-error"></div>
-          <div class="paste-hint">To get your invite link, tap Share in the app</div>
-        </div>
-        <div class="steps">
-          <div class="step">
+        <div class="steps" id="joining-steps">
+          <div class="step highlight">
             <span class="step-num">1</span>
             <span class="step-text">Paste your invite link above to add an assistant.</span>
           </div>
@@ -1810,11 +1864,14 @@ app.get("/", (req, res) => {
     var pasteView=document.getElementById('paste-view');
     var pasteInput=document.getElementById('paste-input');
     var pasteError=document.getElementById('paste-error');
-    var joiningOverlay=document.getElementById('joining-overlay');
+    var joiningInline=document.getElementById('joining-inline');
     var joiningText=document.getElementById('joining-text');
     var joiningSub=document.getElementById('joining-sub');
     var joiningDismiss=document.getElementById('joining-dismiss');
     var joiningConfetti=document.getElementById('joining-confetti');
+    var successToast=document.getElementById('success-toast');
+    var pasteInputWrap=document.getElementById('paste-input-wrap');
+    var joiningSteps=document.getElementById('joining-steps');
     var joiningAutoHideTimer=null;
     var pageTitle=document.getElementById('page-title');
     var pageSubtitle=document.getElementById('page-subtitle');
@@ -2086,11 +2143,14 @@ app.get("/", (req, res) => {
     });
     function showJoiningOverlay(state,text,sub){
       if(joiningAutoHideTimer){clearTimeout(joiningAutoHideTimer);joiningAutoHideTimer=null;}
-      joiningOverlay.className='joining-overlay active '+state;
+      // Hide paste input and steps, show inline animation
+      pasteInputWrap.style.display='none';
+      joiningSteps.style.display='none';
+      joiningInline.className='joining-inline active '+state;
       joiningText.textContent=text;
       joiningSub.textContent=sub;
-      joiningDismiss.style.display=(state==='success'||state==='error')?'':'none';
-      joiningDismiss.textContent=state==='success'?'Paste another link':'Try again';
+      joiningDismiss.style.display=(state==='error')?'':'none';
+      joiningDismiss.textContent='Try again';
       if(state==='success'){
         // Generate dynamic confetti particles
         var colors=['#FC4F37','#FBBF24','#34D399','#60A5FA','#E54D00'];
@@ -2106,16 +2166,51 @@ app.get("/", (req, res) => {
           p.style.borderRadius=Math.random()>0.5?'50%':'2px';
           joiningConfetti.appendChild(p);
         }
+        // After confetti, dismiss and scroll to skills
+        joiningAutoHideTimer=setTimeout(function(){
+          hideJoiningOverlay(true);
+          // Show success toast
+          successToast.classList.add('visible');
+          // Swap highlight from step 1 to step 2
+          var stepEls=document.querySelectorAll('.step');
+          if(stepEls[0])stepEls[0].classList.remove('highlight');
+          if(stepEls[1])stepEls[1].classList.add('highlight');
+          // Scroll to skills section after a beat
+          setTimeout(function(){
+            var ps=document.getElementById('prompt-store');
+            if(ps){
+              ps.scrollIntoView({behavior:'smooth',block:'start'});
+              ps.classList.add('highlighted');
+              var rows=ps.querySelectorAll('.ps-agent-row');
+              for(var j=0;j<rows.length;j++)rows[j].classList.add('pulsing');
+            }
+          },300);
+          // Hide toast after 3s
+          setTimeout(function(){successToast.classList.remove('visible');},3000);
+          // Clean up pulses
+          setTimeout(function(){
+            var rows=document.querySelectorAll('.ps-agent-row.pulsing');
+            for(var j=0;j<rows.length;j++)rows[j].classList.remove('pulsing');
+          },5000);
+        },1500);
       }
     }
 
-    function hideJoiningOverlay(){
+    function hideJoiningOverlay(skipFocus){
       if(joiningAutoHideTimer){clearTimeout(joiningAutoHideTimer);joiningAutoHideTimer=null;}
-      joiningOverlay.className='joining-overlay';
+      joiningInline.className='joining-inline';
       joiningDismiss.style.display='none';
+      successToast.classList.remove('visible');
+      // Restore paste input and steps
+      pasteInputWrap.style.display='';
+      joiningSteps.style.display='';
+      // Reset step highlights back to step 1
+      var stepEls=document.querySelectorAll('.step');
+      if(stepEls[0])stepEls[0].classList.add('highlight');
+      if(stepEls[1])stepEls[1].classList.remove('highlight');
       pasteInput.value='';
       pasteInput.disabled=false;
-      pasteInput.focus();
+      if(!skipFocus)pasteInput.focus();
     }
 
     if(joiningDismiss){
@@ -2144,17 +2239,19 @@ app.get("/", (req, res) => {
           if(!r.ok)throw new Error(r.data.error||'Failed to join');
           if(r.data.joined){
             showJoiningOverlay('success','Your assistant has arrived!','They\u2019re now in your conversation');
-            joiningAutoHideTimer=setTimeout(function(){hideJoiningOverlay();},2500);
+            // Keep launching=true until success animation finishes,
+            // so refreshStatus won't hide paste-view for "hang in there"
+            setTimeout(function(){launching=false;refreshStatus();},1800);
           }else{
             hideJoiningOverlay();
             showQr(r.data.agentName||'Assistant',r.data.inviteUrl);
+            launching=false;
+            refreshStatus();
           }
           refreshFeed();
         })
         .catch(function(err){
           showJoiningOverlay('error','Couldn\u2019t reach your conversation',err.message||'Check the link and try again');
-        })
-        .then(function(){
           launching=false;
           refreshStatus();
         });
@@ -2389,6 +2486,12 @@ app.get("/", (req, res) => {
           btn.classList.add('copied');
           btn.textContent='Copied!';
           setTimeout(function(){btn.classList.remove('copied');btn.textContent=label||'Copy';},1500);
+          // Advance highlight to step 3 (only if already on step 2)
+          var stepEls=document.querySelectorAll('.step');
+          if(stepEls[1]&&stepEls[1].classList.contains('highlight')){
+            stepEls[1].classList.remove('highlight');
+            if(stepEls[2])stepEls[2].classList.add('highlight');
+          }
         });
       }
 
