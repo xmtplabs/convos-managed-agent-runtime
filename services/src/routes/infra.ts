@@ -83,8 +83,8 @@ infraRouter.post("/create-instance", async (req, res) => {
 
     // Insert into instance_infra
     await sql`
-      INSERT INTO instance_infra (instance_id, provider, provider_service_id, provider_env_id, url, deploy_status, runtime_image, gateway_token, setup_password, wallet_key)
-      VALUES (${instanceId}, 'railway', ${serviceId}, ${environmentId}, ${url}, 'BUILDING', ${config.railwayRuntimeImage}, ${gatewayToken}, ${setupPassword}, ${walletKey})
+      INSERT INTO instance_infra (instance_id, provider, provider_service_id, provider_env_id, url, deploy_status, runtime_image)
+      VALUES (${instanceId}, 'railway', ${serviceId}, ${environmentId}, ${url}, 'BUILDING', ${config.railwayRuntimeImage})
     `;
 
     // Insert instance_services rows
@@ -111,7 +111,6 @@ infraRouter.post("/create-instance", async (req, res) => {
       instanceId,
       serviceId,
       url,
-      gatewayToken,
       services,
     };
 

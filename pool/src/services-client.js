@@ -28,7 +28,7 @@ async function request(method, path, body = null) {
   return json;
 }
 
-/** Create a new instance via services. Returns { instanceId, serviceId, url, gatewayToken, services }. */
+/** Create a new instance via services. Returns { instanceId, serviceId, url, services }. */
 export async function createInstance(instanceId, name, tools = ["openrouter", "agentmail"]) {
   return request("POST", "/create-instance", { instanceId, name, tools });
 }

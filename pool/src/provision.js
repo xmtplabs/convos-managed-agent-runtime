@@ -57,7 +57,6 @@ export async function provision(opts) {
       conversationId: result.conversationId,
       instanceId: instance.id,
       joined: result.joined,
-      gatewayToken: instance.gateway_token || null,
       gatewayUrl: instance.url || null,
     };
   } catch (err) {

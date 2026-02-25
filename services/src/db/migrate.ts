@@ -1,5 +1,5 @@
 import pg from "pg";
-import { sql } from "./connection.js";
+import { sql, pool as servicesPool } from "./connection.js";
 import { config } from "../config.js";
 
 export async function migrate() {
@@ -22,9 +22,6 @@ export async function migrate() {
         deploy_status       TEXT,
         runtime_image       TEXT,
         volume_id           TEXT,
-        gateway_token       TEXT,
-        setup_password      TEXT,
-        wallet_key          TEXT,
         created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
@@ -58,6 +55,11 @@ export async function migrate() {
     console.log("[migrate] Created instance_services table.");
   } else {
     console.log("[migrate] instance_services table already exists.");
+  }
+
+  // Drop secret columns from instance_infra (generated at runtime, no need to persist)
+  for (const col of ["gateway_token", "setup_password", "wallet_key"]) {
+    await servicesPool.query(`ALTER TABLE instance_infra DROP COLUMN IF EXISTS ${col}`);
   }
 
   // ── Pool DB: backfill + cleanup ────────────────────────────────────────
@@ -97,7 +99,7 @@ async function backfillAndCleanPool() {
       if (poolCols.has("service_id")) {
         const baseCols = ["id", "service_id", "name", "url", "status", "deploy_status", "created_at"]
           .filter((c) => poolCols.has(c));
-        const optCols = ["runtime_image", "openrouter_key_hash", "agentmail_inbox_id", "gateway_token"]
+        const optCols = ["runtime_image", "openrouter_key_hash", "agentmail_inbox_id"]
           .filter((c) => poolCols.has(c));
 
         const { rows } = await poolDb.query(
@@ -110,8 +112,8 @@ async function backfillAndCleanPool() {
 
         for (const row of rows) {
           await sql`
-            INSERT INTO instance_infra (instance_id, provider, provider_service_id, provider_env_id, url, deploy_status, runtime_image, gateway_token, created_at)
-            VALUES (${row.id}, 'railway', ${row.service_id}, ${envId}, ${row.url}, ${row.deploy_status}, ${row.runtime_image || null}, ${row.gateway_token || null}, ${row.created_at})
+            INSERT INTO instance_infra (instance_id, provider, provider_service_id, provider_env_id, url, deploy_status, runtime_image, created_at)
+            VALUES (${row.id}, 'railway', ${row.service_id}, ${envId}, ${row.url}, ${row.deploy_status}, ${row.runtime_image || null}, ${row.created_at})
             ON CONFLICT (instance_id) DO NOTHING
           `;
           infraCount++;

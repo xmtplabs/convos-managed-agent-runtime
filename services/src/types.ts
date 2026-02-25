@@ -7,9 +7,6 @@ export interface InfraRow {
   deploy_status: string | null;
   runtime_image: string | null;
   volume_id: string | null;
-  gateway_token: string | null;
-  setup_password: string | null;
-  wallet_key: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -36,7 +33,6 @@ export interface CreateInstanceResponse {
   instanceId: string;
   serviceId: string;
   url: string | null;
-  gatewayToken: string;
   services: {
     openrouter?: { resourceId: string };
     agentmail?: { resourceId: string };

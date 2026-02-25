@@ -343,9 +343,6 @@ describe("services smoke test", () => {
     assert.equal(body.instanceId, INSTANCE_ID);
     assert.equal(body.serviceId, FAKE_SERVICE_ID);
     assert.equal(body.url, `https://${FAKE_DOMAIN}`);
-    assert.ok(body.gatewayToken, "gatewayToken should be set");
-    assert.equal(body.gatewayToken.length, 64, "gatewayToken should be 64 hex chars");
-
     // OpenRouter provisioned
     assert.ok(body.services.openrouter);
     assert.equal(body.services.openrouter.resourceId, FAKE_OR_HASH);
@@ -376,9 +373,6 @@ describe("services smoke test", () => {
     assert.equal(infra.rows[0].provider, "railway");
     assert.equal(infra.rows[0].provider_service_id, FAKE_SERVICE_ID);
     assert.equal(infra.rows[0].url, `https://${FAKE_DOMAIN}`);
-    assert.ok(infra.rows[0].gateway_token);
-    assert.ok(infra.rows[0].setup_password);
-    assert.ok(infra.rows[0].wallet_key?.startsWith("0x"));
 
     const svcs = await sql`SELECT * FROM instance_services WHERE instance_id = ${INSTANCE_ID} ORDER BY tool_id`;
     assert.equal(svcs.rows.length, 2);
