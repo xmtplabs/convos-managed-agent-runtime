@@ -1,4 +1,4 @@
-import { sql } from "./connection.js";
+import { sql, pool } from "./connection.js";
 
 export async function migrate() {
   // If old table exists, rename and clean up
@@ -122,8 +122,18 @@ export async function migrate() {
     console.log("instances table already exists.");
   }
 
-  // Add columns if missing (idempotent)
-  await sql`ALTER TABLE instances ADD COLUMN IF NOT EXISTS runtime_image TEXT`;
+  // --- Phase 3 cleanup: drop legacy table + services-owned columns ---
+
+  // Drop agent_metadata (superseded by instances table)
+  await pool.query("DROP TABLE IF EXISTS agent_metadata");
+  console.log("Dropped agent_metadata table (if it existed).");
+
+  // Remove services-owned columns from instances (now tracked in services DB)
+  const serviceCols = ["openrouter_key_hash", "agentmail_inbox_id", "gateway_token", "runtime_image"];
+  for (const col of serviceCols) {
+    await pool.query(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
+  }
+  console.log("Removed services-owned columns from instances table.");
 
 }
 

@@ -88,10 +88,19 @@ async function backfillFromPool() {
   });
 
   try {
+    // Query pool columns dynamically — some may already be dropped
+    const colCheck = await poolDb.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name = 'instances'"
+    );
+    const poolCols = new Set(colCheck.rows.map((r: any) => r.column_name));
+
+    const selectCols = ["id", "service_id", "name", "url", "status", "deploy_status", "created_at"]
+      .filter((c) => poolCols.has(c));
+    const optionalCols = ["runtime_image", "openrouter_key_hash", "agentmail_inbox_id", "gateway_token"]
+      .filter((c) => poolCols.has(c));
+
     const { rows } = await poolDb.query(
-      "SELECT id, service_id, name, url, status, deploy_status, runtime_image, " +
-      "openrouter_key_hash, agentmail_inbox_id, gateway_token, created_at " +
-      "FROM instances WHERE service_id IS NOT NULL"
+      `SELECT ${[...selectCols, ...optionalCols].join(", ")} FROM instances WHERE service_id IS NOT NULL`
     );
 
     if (rows.length === 0) {

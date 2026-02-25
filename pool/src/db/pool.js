@@ -1,10 +1,10 @@
 import { sql, pool as pgPool } from "./connection.js";
 
 // Upsert an instance row (keyed by service_id).
-export async function upsertInstance({ id, serviceId, name, url, status, deployStatus, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt, sourceBranch, openrouterKeyHash, agentmailInboxId, gatewayToken, runtimeImage }) {
+export async function upsertInstance({ id, serviceId, name, url, status, deployStatus, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt, sourceBranch }) {
   await sql`
-    INSERT INTO instances (id, service_id, name, url, status, deploy_status, agent_name, conversation_id, invite_url, instructions, created_at, claimed_at, source_branch, openrouter_key_hash, agentmail_inbox_id, gateway_token, runtime_image)
-    VALUES (${id}, ${serviceId}, ${name}, ${url || null}, ${status}, ${deployStatus || null}, ${agentName || null}, ${conversationId || null}, ${inviteUrl || null}, ${instructions || null}, ${createdAt || new Date().toISOString()}, ${claimedAt || null}, ${sourceBranch || null}, ${openrouterKeyHash || null}, ${agentmailInboxId || null}, ${gatewayToken || null}, ${runtimeImage || null})
+    INSERT INTO instances (id, service_id, name, url, status, deploy_status, agent_name, conversation_id, invite_url, instructions, created_at, claimed_at, source_branch)
+    VALUES (${id}, ${serviceId}, ${name}, ${url || null}, ${status}, ${deployStatus || null}, ${agentName || null}, ${conversationId || null}, ${inviteUrl || null}, ${instructions || null}, ${createdAt || new Date().toISOString()}, ${claimedAt || null}, ${sourceBranch || null})
     ON CONFLICT (service_id) DO UPDATE SET
       name = EXCLUDED.name,
       url = COALESCE(EXCLUDED.url, instances.url),
@@ -15,11 +15,7 @@ export async function upsertInstance({ id, serviceId, name, url, status, deployS
       invite_url = COALESCE(EXCLUDED.invite_url, instances.invite_url),
       instructions = COALESCE(EXCLUDED.instructions, instances.instructions),
       claimed_at = COALESCE(EXCLUDED.claimed_at, instances.claimed_at),
-      source_branch = COALESCE(EXCLUDED.source_branch, instances.source_branch),
-      openrouter_key_hash = COALESCE(EXCLUDED.openrouter_key_hash, instances.openrouter_key_hash),
-      agentmail_inbox_id = COALESCE(EXCLUDED.agentmail_inbox_id, instances.agentmail_inbox_id),
-      gateway_token = COALESCE(EXCLUDED.gateway_token, instances.gateway_token),
-      runtime_image = COALESCE(EXCLUDED.runtime_image, instances.runtime_image)
+      source_branch = COALESCE(EXCLUDED.source_branch, instances.source_branch)
   `;
 }
 

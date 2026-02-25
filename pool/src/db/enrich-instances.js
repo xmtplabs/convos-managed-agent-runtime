@@ -41,9 +41,7 @@ async function main() {
     ? await sql`SELECT * FROM instances ORDER BY created_at`
     : await sql`
         SELECT * FROM instances
-        WHERE url IS NULL OR deploy_status IS NULL OR gateway_token IS NULL
-           OR agentmail_inbox_id IS NULL OR runtime_image IS NULL
-           OR (openrouter_key_hash IS NULL AND status = 'claimed')
+        WHERE url IS NULL OR deploy_status IS NULL
            OR (claimed_at IS NULL AND status = 'claimed')
         ORDER BY created_at`;
 
@@ -72,7 +70,6 @@ async function main() {
 
     try {
       const domain = svc.domain || null;
-      const runtimeImage = svc.image || null;
       const url = domain ? `https://${domain}` : null;
       const deployStatus = svc.deployStatus || null;
       const name = svc.name || null;
@@ -85,7 +82,6 @@ async function main() {
       if (url && url !== row.url) changes.push(`url=${domain}`);
       if (deployStatus && deployStatus !== row.deploy_status) changes.push(`deploy=${deployStatus}`);
       if (name && name !== row.name) changes.push(`name=${name}`);
-      if (runtimeImage && runtimeImage !== row.runtime_image) changes.push(`image=${runtimeImage}`);
       if (claimedAt) changes.push(`claimed_at=${claimedAt.toISOString?.() || claimedAt}`);
 
       if (changes.length === 0) {
@@ -102,7 +98,6 @@ async function main() {
             url = COALESCE(${url}, url),
             deploy_status = COALESCE(${deployStatus}, deploy_status),
             name = COALESCE(${name}, name),
-            runtime_image = COALESCE(${runtimeImage}, runtime_image),
             claimed_at = COALESCE(${claimedAt}, claimed_at)
           WHERE service_id = ${row.service_id}
         `;

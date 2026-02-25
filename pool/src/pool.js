@@ -58,9 +58,6 @@ export async function createInstance() {
     status: "starting",
     deployStatus: "BUILDING",
     createdAt: new Date().toISOString(),
-    openrouterKeyHash: result.services.openrouter?.resourceId || null,
-    agentmailInboxId: result.services.agentmail?.resourceId || null,
-    gatewayToken: result.gatewayToken,
   });
 
   return { id, serviceId: result.serviceId, url: result.url, name };
@@ -172,8 +169,6 @@ export async function tick() {
       status,
       deployStatus: svc.deployStatus,
       createdAt,
-      runtimeImage: svc.image || null,
-      // Metadata fields: pass null to preserve existing via COALESCE
       agentName: dbRow?.agent_name || null,
       conversationId: dbRow?.conversation_id || null,
       inviteUrl: dbRow?.invite_url || null,
