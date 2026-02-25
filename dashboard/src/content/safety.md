@@ -7,7 +7,7 @@ description: How Convos assistants handle your messages, what data is shared, an
 
 ## How Convos assistants handle your messages and protect your privacy.
 
-**Convos the app** is open source, end-to-end encrypted, and collects no data — not even contact info. Your messages move on the [XMTP protocol](https://xmtp.org), and nobody — including us — can read them.
+**Convos the app** is open source, end-to-end encrypted, and collects no data — not even contact info. There are no accounts, no phone numbers, no usernames. You're identified by a key stored on your device, and every conversation gives you a fresh identity. Nobody — including us — can read your messages or connect your conversations to each other.
 
 **Convos assistants** — the ones you add through the Convos app or this website — are a separate, hosted service layered on top. When you add one to a group conversation, that assistant processes your messages in order to respond and take actions. This data is processed on infrastructure operated by XMTP Labs.
 
@@ -21,9 +21,9 @@ The assistant reads messages in your group conversation in order to respond and 
 
 **Messages in the group.** The assistant can see messages sent by anyone in the conversation. It uses these to understand context and respond helpfully.
 
-**Only that group.** Each assistant is fully isolated. It cannot see other conversations, contacts, profiles, or any data outside the group it was added to.
+**Only that group.** Each assistant is fully isolated. It cannot see other conversations, contacts, profiles, or any data outside the group it was added to. Because Convos gives you a fresh identity in every conversation, the assistant has no way to correlate you across groups — even if you use assistants in multiple conversations.
 
-**Nothing else.** No cross-pollination between groups. No access to your other chats. No shared memory across different conversations.
+**Nothing else.** No cross-pollination between groups. No access to your other chats. No shared memory across different conversations. No persistent profile of you.
 
 ## One conversation per assistant
 
