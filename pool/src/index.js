@@ -2217,6 +2217,7 @@ app.get("/", (req, res) => {
       var stepEls=document.querySelectorAll('.step');
       if(stepEls[0])stepEls[0].classList.add('highlight');
       if(stepEls[1])stepEls[1].classList.remove('highlight');
+      if(stepEls[2])stepEls[2].classList.remove('highlight');
       pasteInput.value='';
       pasteInput.disabled=false;
       if(!skipFocus)pasteInput.focus();
