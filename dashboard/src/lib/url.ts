@@ -10,17 +10,28 @@
  * 5. Hardcoded production fallback.
  */
 export function getSiteUrl(request: Request): string {
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+  const forwardedHostRaw = request.headers.get("x-forwarded-host");
+  const forwardedProtoRaw = request.headers.get("x-forwarded-proto");
 
-  if (forwardedHost) {
+  if (forwardedHostRaw) {
+    // x-forwarded-host/proto can be comma-separated when multiple proxies
+    // are involved. Use the first (client-facing) value.
+    const forwardedHost = forwardedHostRaw.split(",")[0].trim();
+    const forwardedProto = forwardedProtoRaw
+      ? forwardedProtoRaw.split(",")[0].trim()
+      : "https";
     return `${forwardedProto}://${forwardedHost}`;
   }
 
   const host = request.headers.get("host");
   if (host) {
-    // Local dev typically runs on http; deployed environments on https.
-    const proto = host.startsWith("localhost") ? "http" : "https";
+    // Local dev (localhost, 127.0.0.1, 0.0.0.0) runs on http; deployed
+    // environments use https.
+    const isLocal =
+      host.startsWith("localhost") ||
+      host.startsWith("127.0.0.1") ||
+      host.startsWith("0.0.0.0");
+    const proto = isLocal ? "http" : "https";
     return `${proto}://${host}`;
   }
 
