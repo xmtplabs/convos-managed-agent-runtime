@@ -68,10 +68,10 @@ export async function migrate() {
     `;
   }
 
-  // TODO: re-enable later — drop secret columns from instance_infra (generated at runtime)
-  // for (const col of ["gateway_token", "setup_password", "wallet_key"]) {
-  //   await servicesPool.query(`ALTER TABLE instance_infra DROP COLUMN IF EXISTS ${col}`);
-  // }
+  // Drop legacy secret columns from instance_infra (generated at runtime, never needed in DB)
+  for (const col of ["gateway_token", "setup_password", "wallet_key"]) {
+    await servicesPool.query(`ALTER TABLE instance_infra DROP COLUMN IF EXISTS ${col}`);
+  }
 
   // ── Pool DB: backfill + cleanup ────────────────────────────────────────
 
