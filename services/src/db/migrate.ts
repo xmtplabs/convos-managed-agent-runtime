@@ -3,7 +3,8 @@ import { sql } from "./connection.js";
 import { config } from "../config.js";
 
 export async function migrate() {
-  // instance_infra: tracks provider-level infrastructure per instance
+  // ── Services tables ────────────────────────────────────────────────────
+
   const infraTable = await sql`
     SELECT 1 FROM information_schema.tables
     WHERE table_name = 'instance_infra'
@@ -33,7 +34,6 @@ export async function migrate() {
     console.log("[migrate] instance_infra table already exists.");
   }
 
-  // instance_services: tracks per-tool provisioned resources
   const servicesTable = await sql`
     SELECT 1 FROM information_schema.tables
     WHERE table_name = 'instance_services'
@@ -60,27 +60,19 @@ export async function migrate() {
     console.log("[migrate] instance_services table already exists.");
   }
 
-  // Backfill from pool DB if POOL_DATABASE_URL is set and instance_infra is empty
-  await backfillFromPool();
+  // ── Pool DB: backfill + cleanup ────────────────────────────────────────
+
+  if (config.poolDatabaseUrl) {
+    await backfillAndCleanPool();
+  }
 }
 
 /**
- * One-time backfill: reads pool's `instances` table and populates
- * instance_infra + instance_services for pre-extraction instances.
- * Only runs when POOL_DATABASE_URL is set. Skips rows that already exist.
+ * Connects to pool DB, backfills instance_infra/instance_services from
+ * pool's instances table, then cleans up legacy tables and columns.
+ * Idempotent — skips backfill if instance_infra already has rows.
  */
-async function backfillFromPool() {
-  if (!config.poolDatabaseUrl) return;
-
-  const existing = await sql`SELECT COUNT(*) AS cnt FROM instance_infra`;
-  const count = parseInt(existing.rows[0].cnt, 10);
-  if (count > 0) {
-    console.log(`[migrate] instance_infra already has ${count} row(s), skipping backfill.`);
-    return;
-  }
-
-  console.log("[migrate] POOL_DATABASE_URL set, backfilling from pool DB...");
-
+async function backfillAndCleanPool() {
   const poolDb = new pg.Pool({
     connectionString: config.poolDatabaseUrl,
     max: 2,
@@ -88,63 +80,83 @@ async function backfillFromPool() {
   });
 
   try {
-    // Query pool columns dynamically — some may already be dropped
-    const colCheck = await poolDb.query(
-      "SELECT column_name FROM information_schema.columns WHERE table_name = 'instances'"
-    );
-    const poolCols = new Set(colCheck.rows.map((r: any) => r.column_name));
+    // ── Backfill ──────────────────────────────────────────────────────
 
-    const selectCols = ["id", "service_id", "name", "url", "status", "deploy_status", "created_at"]
-      .filter((c) => poolCols.has(c));
-    const optionalCols = ["runtime_image", "openrouter_key_hash", "agentmail_inbox_id", "gateway_token"]
-      .filter((c) => poolCols.has(c));
+    const existing = await sql`SELECT COUNT(*) AS cnt FROM instance_infra`;
+    const count = parseInt(existing.rows[0].cnt, 10);
 
-    const { rows } = await poolDb.query(
-      `SELECT ${[...selectCols, ...optionalCols].join(", ")} FROM instances WHERE service_id IS NOT NULL`
-    );
+    if (count === 0) {
+      console.log("[migrate] Backfilling from pool DB...");
 
-    if (rows.length === 0) {
-      console.log("[migrate] No instances found in pool DB.");
-      return;
+      // Check which columns exist (some may already be dropped)
+      const colCheck = await poolDb.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'instances'"
+      );
+      const poolCols = new Set(colCheck.rows.map((r: any) => r.column_name));
+
+      if (poolCols.has("service_id")) {
+        const baseCols = ["id", "service_id", "name", "url", "status", "deploy_status", "created_at"]
+          .filter((c) => poolCols.has(c));
+        const optCols = ["runtime_image", "openrouter_key_hash", "agentmail_inbox_id", "gateway_token"]
+          .filter((c) => poolCols.has(c));
+
+        const { rows } = await poolDb.query(
+          `SELECT ${[...baseCols, ...optCols].join(", ")} FROM instances WHERE service_id IS NOT NULL`
+        );
+
+        const envId = config.railwayEnvironmentId || "unknown";
+        let infraCount = 0;
+        let svcCount = 0;
+
+        for (const row of rows) {
+          await sql`
+            INSERT INTO instance_infra (instance_id, provider, provider_service_id, provider_env_id, url, deploy_status, runtime_image, gateway_token, created_at)
+            VALUES (${row.id}, 'railway', ${row.service_id}, ${envId}, ${row.url}, ${row.deploy_status}, ${row.runtime_image || null}, ${row.gateway_token || null}, ${row.created_at})
+            ON CONFLICT (instance_id) DO NOTHING
+          `;
+          infraCount++;
+
+          if (row.openrouter_key_hash) {
+            await sql`
+              INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value)
+              VALUES (${row.id}, 'openrouter', ${row.openrouter_key_hash}, 'OPENROUTER_API_KEY', NULL)
+              ON CONFLICT (instance_id, tool_id) DO NOTHING
+            `;
+            svcCount++;
+          }
+
+          if (row.agentmail_inbox_id) {
+            await sql`
+              INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value)
+              VALUES (${row.id}, 'agentmail', ${row.agentmail_inbox_id}, 'AGENTMAIL_INBOX_ID', ${row.agentmail_inbox_id})
+              ON CONFLICT (instance_id, tool_id) DO NOTHING
+            `;
+            svcCount++;
+          }
+        }
+
+        console.log(`[migrate] Backfilled ${infraCount} instance_infra, ${svcCount} instance_services row(s).`);
+      } else {
+        console.log("[migrate] Pool instances table has no service_id column, skipping backfill.");
+      }
+    } else {
+      console.log(`[migrate] instance_infra already has ${count} row(s), skipping backfill.`);
     }
 
-    const envId = config.railwayEnvironmentId || "unknown";
-    let infraCount = 0;
-    let svcCount = 0;
+    // ── Cleanup pool DB ──────────────────────────────────────────────
 
-    for (const row of rows) {
-      // Insert instance_infra
-      await sql`
-        INSERT INTO instance_infra (instance_id, provider, provider_service_id, provider_env_id, url, deploy_status, runtime_image, gateway_token, created_at)
-        VALUES (${row.id}, 'railway', ${row.service_id}, ${envId}, ${row.url}, ${row.deploy_status}, ${row.runtime_image}, ${row.gateway_token}, ${row.created_at})
-        ON CONFLICT (instance_id) DO NOTHING
-      `;
-      infraCount++;
+    // Drop legacy agent_metadata table
+    await poolDb.query("DROP TABLE IF EXISTS agent_metadata");
+    console.log("[migrate] Dropped agent_metadata from pool DB (if existed).");
 
-      // Insert instance_services for openrouter
-      if (row.openrouter_key_hash) {
-        await sql`
-          INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value)
-          VALUES (${row.id}, 'openrouter', ${row.openrouter_key_hash}, 'OPENROUTER_API_KEY', NULL)
-          ON CONFLICT (instance_id, tool_id) DO NOTHING
-        `;
-        svcCount++;
-      }
-
-      // Insert instance_services for agentmail
-      if (row.agentmail_inbox_id) {
-        await sql`
-          INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value)
-          VALUES (${row.id}, 'agentmail', ${row.agentmail_inbox_id}, 'AGENTMAIL_INBOX_ID', ${row.agentmail_inbox_id})
-          ON CONFLICT (instance_id, tool_id) DO NOTHING
-        `;
-        svcCount++;
-      }
+    // Remove services-owned columns from pool's instances table
+    const serviceCols = ["openrouter_key_hash", "agentmail_inbox_id", "gateway_token", "runtime_image"];
+    for (const col of serviceCols) {
+      await poolDb.query(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
     }
-
-    console.log(`[migrate] Backfilled ${infraCount} instance_infra row(s), ${svcCount} instance_services row(s).`);
+    console.log("[migrate] Removed services-owned columns from pool instances table.");
   } catch (err: any) {
-    console.warn(`[migrate] Backfill failed (non-fatal): ${err.message}`);
+    console.warn(`[migrate] Pool DB backfill/cleanup failed (non-fatal): ${err.message}`);
   } finally {
     await poolDb.end();
   }
