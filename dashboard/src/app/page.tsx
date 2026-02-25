@@ -6,14 +6,13 @@ import { JoinFlow } from "@/components/join-flow";
 import { SkillBrowser } from "@/components/skill-browser";
 import { PromptModal } from "@/components/prompt-modal";
 import { QrModal } from "@/components/qr-modal";
-import { DevBar } from "@/components/dev-bar";
 import type { AgentSkill } from "@/lib/types";
 
 export default function Home() {
   const skillBrowserRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(1);
   const [skills, setSkills] = useState<AgentSkill[]>([]);
-  const [poolEnvironment, setPoolEnvironment] = useState("dev");
+  const [poolEnvironment, setPoolEnvironment] = useState("production");
 
   // Prompt modal state
   const [promptModalPageId, setPromptModalPageId] = useState<string | null>(
@@ -83,9 +82,6 @@ export default function Home() {
 
   return (
     <>
-      {poolEnvironment !== "production" && (
-        <DevBar onShowQr={handleShowQr} />
-      )}
       <div className="form-wrapper">
       <div className="form-center">
         {/* Brand */}
