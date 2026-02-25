@@ -643,6 +643,12 @@ body {
 
 /* Reduced motion: disable animations, show static states */
 @media (prefers-reduced-motion: reduce) {
+  /* Empty-state balloon */
+  .empty-balloon-group { animation: none; transform: translateX(-50%) rotate(10deg); }
+  .balloon-string-upper { animation: none; }
+  .balloon-string-lower { animation: none; }
+
+  /* Joining balloon states */
   .joining-inline.joining .joining-balloon-group,
   .joining-inline.success .joining-balloon-group,
   .joining-inline.error .joining-balloon-group {
@@ -658,6 +664,16 @@ body {
   .success-toast { animation: none; }
   .ps-agent-row.pulsing { animation: none; box-shadow: 0 0 0 3px rgba(229,77,0,0.1); }
   .prompt-store.highlighted { animation: none; }
+
+  /* Suppress transitions on interactive elements */
+  .paste-input,
+  .ps-filter-pill,
+  .ps-btn,
+  .ps-search,
+  .get-convos-btn,
+  .ps-show-more,
+  .ps-modal-copy,
+  .modal .invite-row { transition: none; }
 }
 
 .error-message {
