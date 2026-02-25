@@ -44,9 +44,16 @@ async function main() {
   const used = limit && remaining ? `${Number(limit) - Number(remaining)}` : "unknown";
   console.log(`  Used:      ${used}`);
   if (reset) {
-    const resetDate = new Date(Number(reset) * 1000);
-    const minsLeft = Math.round((resetDate - Date.now()) / 60000);
-    console.log(`  Resets at: ${resetDate.toLocaleTimeString()} (${minsLeft > 0 ? `in ${minsLeft}m` : "now"})`);
+    // Railway may send unix seconds, unix ms, or ISO string
+    let resetDate = new Date(reset);
+    if (isNaN(resetDate)) resetDate = new Date(Number(reset) * 1000);
+    if (isNaN(resetDate)) resetDate = new Date(Number(reset));
+    if (!isNaN(resetDate)) {
+      const minsLeft = Math.round((resetDate - Date.now()) / 60000);
+      console.log(`  Resets at: ${resetDate.toLocaleTimeString()} (${minsLeft > 0 ? `in ${minsLeft}m` : "now"})`);
+    } else {
+      console.log(`  Reset:     ${reset}`);
+    }
   }
   if (retryAfter) {
     const hrs = (Number(retryAfter) / 3600).toFixed(1);
