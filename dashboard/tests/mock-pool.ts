@@ -76,6 +76,8 @@ app.get("/api/pool/counts", (_req, res) => {
   res.json(COUNTS[currentState] || COUNTS.idle);
 });
 
+// Templates and counts are intentionally public (no auth) -- mirrors the real
+// Pool where the catalog and availability are public-facing for the template site.
 app.get("/api/pool/templates", (_req, res) => {
   res.json(CATALOG);
 });
