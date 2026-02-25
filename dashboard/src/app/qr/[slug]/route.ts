@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { getSkill } from "@/lib/api";
+import { getSiteUrl } from "@/lib/url";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -16,7 +17,7 @@ const CACHE_MAX_AGE = 86400;
 // ---------------------------------------------------------------------------
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
@@ -26,8 +27,7 @@ export async function GET(
     return new Response("Template not found", { status: 404 });
   }
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org";
+  const siteUrl = getSiteUrl(request);
   const templateUrl = `${siteUrl}/a/${encodeURIComponent(slug)}`;
 
   const pngBuffer = await QRCode.toBuffer(templateUrl, {

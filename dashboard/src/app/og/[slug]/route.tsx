@@ -1,5 +1,6 @@
 import { ImageResponse } from "@vercel/og";
 import { getSkill } from "@/lib/api";
+import { getSiteUrl } from "@/lib/url";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -15,7 +16,7 @@ const HEIGHT = 630;
 // ---------------------------------------------------------------------------
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
@@ -32,8 +33,7 @@ export async function GET(
       : template.description;
 
   // Build QR code URL pointing to the template page
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org";
+  const siteUrl = getSiteUrl(request);
   const templateUrl = `${siteUrl}/a/${encodeURIComponent(slug)}`;
   const qrUrl = `${siteUrl}/qr/${encodeURIComponent(slug)}`;
 
