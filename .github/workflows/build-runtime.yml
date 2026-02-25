@@ -14,6 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
+      pending: ${{ steps.meta.outputs.pending }}
       tag: ${{ steps.meta.outputs.tag }}
       sha: ${{ steps.meta.outputs.sha }}
     steps:
@@ -30,7 +31,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Determine image tag
+      - name: Determine image tags
         id: meta
         run: |
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
@@ -39,19 +40,18 @@ jobs:
           else
             TAG="latest"
           fi
+          echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
+      - name: Build and push (pending tag only)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: runtime/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: |
-            ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.tag }}
-            ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.sha }}
+          tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -69,7 +69,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.tag }}
+        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
 
       - name: Start container
         run: |
@@ -88,7 +88,7 @@ jobs:
             -e PRIVATE_WALLET_KEY="${{ secrets.PRIVATE_WALLET_KEY }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
-            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.tag }} \
+            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
             node scripts/pool-server.js
 
       - name: Wait for health check
@@ -115,3 +115,29 @@ jobs:
       - name: Dump container logs on failure
         if: failure()
         run: docker logs qa-runtime
+
+  publish:
+    needs: [build, qa]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull pending image
+        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
+
+      - name: Retag and push final tags
+        run: |
+          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          PENDING="${{ needs.build.outputs.pending }}"
+          TAG="${{ needs.build.outputs.tag }}"
+          SHA="${{ needs.build.outputs.sha }}"
+
+          docker tag "$IMAGE:$PENDING" "$IMAGE:$TAG"
+          docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
+          docker push "$IMAGE:$TAG"
+          docker push "$IMAGE:$SHA"
