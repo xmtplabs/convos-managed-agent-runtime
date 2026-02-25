@@ -4,6 +4,19 @@ import * as servicesClient from "./services-client.js";
 import { deriveStatus } from "./status.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
+
+// Destroy via services, treating 404 as success (pre-extraction instances).
+async function safeDestroy(instanceId) {
+  try {
+    await servicesClient.destroyInstance(instanceId);
+  } catch (err) {
+    if (err.message?.includes("404")) {
+      console.warn(`[pool] Instance ${instanceId} not in services DB (pre-extraction), removing from pool DB only`);
+      return;
+    }
+    throw err;
+  }
+}
 const MIN_IDLE = parseInt(process.env.POOL_MIN_IDLE || "3", 10);
 
 // Health-check a single instance via /pool/health.
@@ -180,7 +193,7 @@ export async function tick() {
   for (const { svc, dbRow } of toDelete) {
     const instanceId = dbRow?.id || svc.name.replace("convos-agent-", "");
     try {
-      await servicesClient.destroyInstance(instanceId);
+      await safeDestroy(instanceId);
       console.log(`[tick] Destroyed dead instance ${instanceId}`);
     } catch (err) {
       console.warn(`[tick] Failed to destroy ${instanceId}: ${err.message}`);
@@ -230,7 +243,7 @@ export async function drainPool(count) {
         console.log(`[pool]   Skipping ${inst.id} (no longer unclaimed)`);
         return { skipped: true };
       }
-      await servicesClient.destroyInstance(inst.id);
+      await safeDestroy(inst.id);
       await db.deleteByServiceId(inst.service_id).catch(() => {});
       return { skipped: false };
     })
@@ -264,7 +277,7 @@ export async function killInstance(id) {
   if (!inst) return; // Already gone
 
   console.log(`[pool] Killing instance ${inst.id} (${inst.agent_name || inst.name})`);
-  await servicesClient.destroyInstance(inst.id);
+  await safeDestroy(inst.id);
   await db.deleteByServiceId(inst.service_id).catch(() => {});
 }
 
@@ -274,6 +287,6 @@ export async function dismissCrashed(id) {
   if (!inst || inst.status !== "crashed") throw new Error(`Crashed instance ${id} not found`);
 
   console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agent_name || inst.name})`);
-  await servicesClient.destroyInstance(inst.id);
+  await safeDestroy(inst.id);
   await db.deleteByServiceId(inst.service_id).catch(() => {});
 }
