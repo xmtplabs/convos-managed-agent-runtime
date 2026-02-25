@@ -1,0 +1,1229 @@
+[
+  {
+    "category": "🎾 Sports & Rec — Groups That Play Together",
+    "number": 1,
+    "globalNumber": 1,
+    "name": "The Racket Club Manager",
+    "description": "Coordinates padel/tennis/pickleball sessions. Finds players, checks weather, books courts, tracks scores, roasts people who bail.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281f080b4c728c79ec582"
+  },
+  {
+    "category": "🎾 Sports & Rec — Groups That Play Together",
+    "number": 2,
+    "globalNumber": null,
+    "name": "The Friendly Wager Manager",
+    "description": "keep track of whatever game we're playing, who owes who what, and what the score is. Keep everyone in the loop. Roast people if they're losing badly, and always help people know who owes who at the end and what the payout should be. And ask specific questions if you really need details about the rules of the game and if you don't understand them.",
+    "skills": [],
+    "status": "planned",
+    "subPageUrl": null
+  },
+  {
+    "category": "🎾 Sports & Rec — Groups That Play Together",
+    "number": 3,
+    "globalNumber": 2,
+    "name": "The Tee Time Wrangler",
+    "description": "Golf foursome coordination. Polls availability, books tee times, tracks handicaps, rotates who buys drinks at the turn, keeps track of who owes who in whatever the bet game is they are playing.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92812780f0f46c942e3acc"
+  },
+  {
+    "category": "🎾 Sports & Rec — Groups That Play Together",
+    "number": 4,
+    "globalNumber": 3,
+    "name": "The Pickup Game Finder",
+    "description": "Basketball/soccer/volleyball crews. Manages headcounts, finds open courts/fields, balances teams, tracks win streaks.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281ef913fc1e820c4cc84"
+  },
+  {
+    "category": "🎾 Sports & Rec — Groups That Play Together",
+    "number": 5,
+    "globalNumber": 4,
+    "name": "The Run Club Captain",
+    "description": "Running group coordinator. Plans routes, tracks pace goals, coordinates group runs, shares weather conditions, celebrates PRs.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92811cb79cd59204255a4e"
+  },
+  {
+    "category": "🎾 Sports & Rec — Groups That Play Together",
+    "number": 6,
+    "globalNumber": 5,
+    "name": "The Fantasy Commissioner",
+    "description": "Fantasy sports league manager. Tracks trades, posts standings, sends deadline reminders, roasts last place, settles disputes.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281f7ae15cc7c299446f1"
+  },
+  {
+    "category": "🎾 Sports & Rec — Groups That Play Together",
+    "number": 7,
+    "globalNumber": 69,
+    "name": "The Cycle Club Captain",
+    "description": "Cycling group coordinator. Route planning, meeting point optimizer, weather intelligence, Strava integration, ride calendar, group logistics.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281e0b452ed615ec64d37"
+  },
+  {
+    "category": "🍽️ Food & Dining — Groups That Eat Together",
+    "number": 1,
+    "globalNumber": 6,
+    "name": "The Dinner Club Concierge",
+    "description": "Rotating dinner group. Suggests restaurants, polls preferences, handles reservations, tracks whose turn to pick, splits the check.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281a4802efcfe14ab4a95"
+  },
+  {
+    "category": "🍽️ Food & Dining — Groups That Eat Together",
+    "number": 2,
+    "globalNumber": 7,
+    "name": "The Supper Club Host",
+    "description": "Home dinner party rotation. Manages hosting schedule, collects dietary needs, suggests menus, sends reminders, tracks who hosted last.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281888082e2f30e137002"
+  },
+  {
+    "category": "🍽️ Food & Dining — Groups That Eat Together",
+    "number": 3,
+    "globalNumber": 8,
+    "name": "The Somm",
+    "description": "Wine club curator. Suggests bottles for the theme, tracks what the group's tried, shares tasting notes, manages buy-ins, remembers everyone's palate.",
+    "skills": [
+      "Search"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92817f9514d2211bd31954"
+  },
+  {
+    "category": "🍽️ Food & Dining — Groups That Eat Together",
+    "number": 4,
+    "globalNumber": 9,
+    "name": "The Meal Train Dispatcher",
+    "description": "Coordinates meals for someone in need (new baby, illness, loss). Sign-up slots, dietary restrictions, delivery schedule, thank-you tracking.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92818381fdc682b0a8d91b"
+  },
+  {
+    "category": "🍽️ Food & Dining — Groups That Eat Together",
+    "number": 5,
+    "globalNumber": 10,
+    "name": "The Potluck Planner",
+    "description": "Group gathering food coordination. Prevents 8 people from bringing chips. Assigns categories, tracks commitments, day-of reminders.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281589bdefe2e6236ea20"
+  },
+  {
+    "category": "🍽️ Food & Dining — Groups That Eat Together",
+    "number": 6,
+    "globalNumber": 83,
+    "name": "The Family Meal Planner",
+    "description": "Weekly meal planning for families, couples, and roommates. Personalized plans, smart grocery lists, leftover management, budget optimization, on-demand recipe help.",
+    "skills": [
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce92816aab31e0fd7f905f1d"
+  },
+  {
+    "category": "✈️ Travel & Adventures — Groups That Go Places Together",
+    "number": 1,
+    "globalNumber": 11,
+    "name": "The Trip Architect",
+    "description": "End-to-end group travel planning. Destination research, accommodation search, itinerary building, budget tracking, calendar invites for everyone.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281698c13e1424376d8ec"
+  },
+  {
+    "category": "✈️ Travel & Adventures — Groups That Go Places Together",
+    "number": 2,
+    "globalNumber": 12,
+    "name": "The Bach Party Commander",
+    "description": "Bachelor/bachelorette coordination. Budget collection, activity booking, surprise logistics, travel coordination, who's-responsible-for-what.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928108856cf822cffd7c67"
+  },
+  {
+    "category": "✈️ Travel & Adventures — Groups That Go Places Together",
+    "number": 3,
+    "globalNumber": 13,
+    "name": "The Ski House Manager",
+    "description": "Group ski trip organizer. Books lodging, tracks lift ticket deals, manages room assignments, monitors snow reports, coordinates carpool.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92816fa65dd7ee8a9a3747"
+  },
+  {
+    "category": "✈️ Travel & Adventures — Groups That Go Places Together",
+    "number": 4,
+    "globalNumber": 14,
+    "name": "The Camping Quartermaster",
+    "description": "Outdoor group trips. Manages gear checklist (who's bringing what), campsite reservations, weather, meal planning, trail selection.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92811784c7d14fea6fefad"
+  },
+  {
+    "category": "✈️ Travel & Adventures — Groups That Go Places Together",
+    "number": 5,
+    "globalNumber": 15,
+    "name": "The Annual Getaway Keeper",
+    "description": "For friend groups with yearly trips. Maintains traditions, proposes dates months out, tracks vacation calendars, remembers what worked last year.",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92817aba75ece36bdfdb94"
+  },
+  {
+    "category": "👨‍👩‍👧‍👦 Kids & Family — Parents Coordinating Together",
+    "number": 1,
+    "globalNumber": 16,
+    "name": "The Carpool Dispatcher",
+    "description": "School/activity ride coordination. Driver rotation, last-minute swaps, pickup/dropoff confirmations, who-drove-last tracking.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281fab898e82dca3d8cfc"
+  },
+  {
+    "category": "👨‍👩‍👧‍👦 Kids & Family — Parents Coordinating Together",
+    "number": 2,
+    "globalNumber": 17,
+    "name": "The Playdate Matcher",
+    "description": "Kid hangout scheduler. Polls family availability, suggests locations, manages RSVPs, sends reminders with addresses.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281528f66c8ba3a3e2ef8"
+  },
+  {
+    "category": "👨‍👩‍👧‍👦 Kids & Family — Parents Coordinating Together",
+    "number": 3,
+    "globalNumber": 18,
+    "name": "The Team Parent",
+    "description": "Youth sports coordination. Snack rotation, practice/game reminders, carpool to away games, photo sharing prompts, end-of-season party planning.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281768e0cd1c73dc6234d"
+  },
+  {
+    "category": "👨‍👩‍👧‍👦 Kids & Family — Parents Coordinating Together",
+    "number": 4,
+    "globalNumber": 19,
+    "name": "The Party Planner (Kids Edition)",
+    "description": "Birthday party coordination. Guest list RSVPs, venue research, theme coordination, gift registry, day-of timeline.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281eeb45bcb5ea2b4c7ec"
+  },
+  {
+    "category": "👨‍👩‍👧‍👦 Kids & Family — Parents Coordinating Together",
+    "number": 5,
+    "globalNumber": 20,
+    "name": "The School Volunteer Wrangler",
+    "description": "Classroom/PTA help. Sign-up sheets, volunteer reminders, hour tracking, event coordination for book fairs and field trips.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281d0a504f482232943b5"
+  },
+  {
+    "category": "👨‍👩‍👧‍👦 Kids & Family — Parents Coordinating Together",
+    "number": 6,
+    "globalNumber": 88,
+    "name": "The Service Rolodex",
+    "description": "Shared CRM for babysitters, house cleaners, tutors, and every service provider your family hires. Profiles, ratings, availability tracking, one-tap booking via phone, recurring scheduling, expense tracking.",
+    "skills": [
+      "Phone",
+      "Scheduling",
+      "Web Search",
+      "Email"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281a58bfcf49f29a2df66"
+  },
+  {
+    "category": "👨‍👩‍👧‍👦 Kids & Family — Parents Coordinating Together",
+    "number": 7,
+    "globalNumber": 89,
+    "name": "The Watch List",
+    "description": "Movies and shows across all platforms and networks. Tracks everything you’re watching, have watched, want to watch. Both partners’ ratings plus Rotten Tomatoes + IMDb scores, platform availability, weekly Sunday Drop with top 3 picks. Learns each person’s taste and finds the overlap.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30930823ce928111b556d56c087ec913"
+  },
+  {
+    "category": "💰 Money & Investing — Groups That Build Wealth Together",
+    "number": 1,
+    "globalNumber": 21,
+    "name": "The Investment Club Analyst",
+    "description": "Group investment research. Surfaces news, tracks portfolio picks, manages meeting agendas, records buy/sell decisions, monitors performance.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281f0b651c94b0179a025"
+  },
+  {
+    "category": "💰 Money & Investing — Groups That Build Wealth Together",
+    "number": 2,
+    "globalNumber": 22,
+    "name": "The Deal Scout",
+    "description": "Real estate investment group. Monitors listings, runs comps, tracks deal pipeline, due diligence checklists, market updates.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281fbad99d3147a15d465"
+  },
+  {
+    "category": "💰 Money & Investing — Groups That Build Wealth Together",
+    "number": 3,
+    "globalNumber": 23,
+    "name": "The Savings Challenge Coach",
+    "description": "Group financial goals. Manages challenge rules, tracks progress, sends encouragement, celebrates milestones, holds people accountable.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928124aadfe4289bb6bd7a"
+  },
+  {
+    "category": "💰 Money & Investing — Groups That Build Wealth Together",
+    "number": 4,
+    "globalNumber": 24,
+    "name": "The Expense Ledger",
+    "description": "Ongoing group expense tracker. For roommates, shared houses, or recurring activities. Who paid what, running balances, monthly recaps.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92814f9ba3d51521fa8abe"
+  },
+  {
+    "category": "💰 Money & Investing — Groups That Build Wealth Together",
+    "number": 5,
+    "globalNumber": 25,
+    "name": "The Bet Keeper",
+    "description": "Friendly wager and prediction tracker. Records bets, verifies outcomes via search, maintains leaderboard, manages stakes.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281f9b269eeca416a62bd"
+  },
+  {
+    "category": "💰 Money & Investing — Groups That Build Wealth Together",
+    "number": 6,
+    "globalNumber": 66,
+    "name": "The Group Tab",
+    "description": "Real-time group expense tracking. Natural language logging, receipt photos, smart splitting, settlement engine, spending reports, ongoing tab mode.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce928173a228ca09339e4d77"
+  },
+  {
+    "category": "🎬 Entertainment & Culture — Groups That Enjoy Together",
+    "number": 1,
+    "globalNumber": 26,
+    "name": "The Book Club Librarian",
+    "description": "Reading group manager. Book selection votes, reading progress, discussion questions, meeting scheduling, tracks what the group has read.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281a2aef2fc28c1160f6d"
+  },
+  {
+    "category": "🎬 Entertainment & Culture — Groups That Enjoy Together",
+    "number": 2,
+    "globalNumber": 27,
+    "name": "The Concert Scout",
+    "description": "Music/festival group. Monitors tour dates, compares ticket prices, coordinates group purchases, pre/post-show logistics.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928140a18ce2565ee87f16"
+  },
+  {
+    "category": "🎬 Entertainment & Culture — Groups That Enjoy Together",
+    "number": 3,
+    "globalNumber": 28,
+    "name": "The Movie Night Curator",
+    "description": "Film selection and scheduling. Suggests based on group taste, manages voting, tracks watched list, coordinates streaming or theater times.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92813abe2dcf3437e8b97b"
+  },
+  {
+    "category": "🎬 Entertainment & Culture — Groups That Enjoy Together",
+    "number": 4,
+    "globalNumber": 29,
+    "name": "The Game Night Host",
+    "description": "Board game/card game groups. Manages game rotation, teaches rules for new ones, schedules sessions, tracks winners, suggests new games.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281b59b85cd571770e3dd"
+  },
+  {
+    "category": "🎬 Entertainment & Culture — Groups That Enjoy Together",
+    "number": 5,
+    "globalNumber": 30,
+    "name": "The Binge Watch Coordinator",
+    "description": "Group TV watching. Tracks where everyone is in a series (NO SPOILERS), coordinates watch-together times, per-episode discussion.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281d6a2ffec646ad48510"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 1,
+    "globalNumber": 31,
+    "name": "The Block Captain",
+    "description": "Neighborhood hub. Community events, local alerts, block cleanup coordination, neighbor requests and favors.",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928116a28dd58faa988f29"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 2,
+    "globalNumber": 32,
+    "name": "The Local Scout",
+    "description": "Area discovery. Monitors new openings, local events, deals, happy hours, community happenings. Surfaces what the group actually cares about.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281a2835dc6eaf99ec422"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 3,
+    "globalNumber": 33,
+    "name": "The Building Super",
+    "description": "Apartment/condo groups. Logs maintenance requests, tracks resolution, coordinates package pickups, building announcements.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92818f8401fdde1b470ad3"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 4,
+    "globalNumber": 34,
+    "name": "The Block Party Planner",
+    "description": "Community event organizer. Permits, sign-ups, food/drink coordination, entertainment booking, neighbor invitations, day-of logistics.",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281088286c09fd3ef73c0"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 5,
+    "globalNumber": 35,
+    "name": "The Pet Parent Network",
+    "description": "Neighborhood pet owners. Pet-sitting swaps, vet recs, lost pet alerts, dog walk groups, play date scheduling.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928107be7bedc5c8b19344"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 6,
+    "globalNumber": 67,
+    "name": "The HOA Manager",
+    "description": "Complete HOA governance brain. CC&Rs lookup, board tracking, directory, budgets, voting, issue management, meeting support.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce928117b2ebc57925238a40"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 7,
+    "globalNumber": 68,
+    "name": "The House Manager",
+    "description": "Home service provider directory and maintenance manager. Provider profiles, ratings, costs, referrals, maintenance schedules, partner collaboration.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Email",
+      "Schedule"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce92810ea9dcd9d3706ac34a"
+  },
+  {
+    "category": "🏘️ Neighborhood & Local — People Who Live Near Each Other",
+    "number": 8,
+    "globalNumber": 81,
+    "name": "The Home Remote",
+    "description": "Smart home control via group chat. Natural language commands for lights, locks, thermostat, cameras. Scenes, routines, multi-resident permissions, energy awareness.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce928174950dd19ccc2013b1"
+  },
+  {
+    "category": "💪 Wellness & Fitness — Groups Getting Healthy Together",
+    "number": 1,
+    "globalNumber": 36,
+    "name": "The Accountability Coach",
+    "description": "Fitness goal tracking. Each member sets goals, agent tracks progress, sends check-ins, celebrates wins, nudges when someone goes quiet.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92819aa4cacc42a38cfc72"
+  },
+  {
+    "category": "💪 Wellness & Fitness — Groups Getting Healthy Together",
+    "number": 2,
+    "globalNumber": 37,
+    "name": "The Challenge Master",
+    "description": "Group challenges. Step challenges, workout streaks, hydration goals. Leaderboards, daily updates, crowns weekly winners.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281898ea3d9573dc3639a"
+  },
+  {
+    "category": "💪 Wellness & Fitness — Groups Getting Healthy Together",
+    "number": 3,
+    "globalNumber": 38,
+    "name": "The Nutrition Navigator",
+    "description": "Meal planning and diet groups. Recipes, meal prep commitments, grocery lists, dietary support, streak celebrations.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281059da2e603649f0318"
+  },
+  {
+    "category": "💪 Wellness & Fitness — Groups Getting Healthy Together",
+    "number": 4,
+    "globalNumber": 39,
+    "name": "The Training Partner",
+    "description": "Marathon/race training groups. Training plan adherence, weekly mileage, group runs, weather monitoring, race-day prep and hype.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92812ebe2de06f5417c7f9"
+  },
+  {
+    "category": "💪 Wellness & Fitness — Groups Getting Healthy Together",
+    "number": 5,
+    "globalNumber": 40,
+    "name": "The Wellness Circle",
+    "description": "Mindfulness/meditation groups. Daily prompts, group check-ins, meditation streaks, guided session suggestions. Holds space without being preachy.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928135bc2cdd38a6be7fdf"
+  },
+  {
+    "category": "💪 Wellness & Fitness — Groups Getting Healthy Together",
+    "number": 6,
+    "globalNumber": 82,
+    "name": "The Fitness Tracker",
+    "description": "Calorie and macro tracking via text and food photos. Personal targets, restaurant menus, daily dashboards, weekly reports, workout logging. Group accountability with leaderboards.",
+    "skills": [
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281aa9dfbcd0df4145f46"
+  },
+  {
+    "category": "💼 Professional & Learning — Groups Growing Together",
+    "number": 1,
+    "globalNumber": 41,
+    "name": "The Mastermind Facilitator",
+    "description": "Business mastermind groups. Hot seat rotation, action item tracking, prep reminders, structured feedback facilitation.",
+    "skills": [
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928125bb6afd967d745159"
+  },
+  {
+    "category": "💼 Professional & Learning — Groups Growing Together",
+    "number": 2,
+    "globalNumber": 42,
+    "name": "The Study Group Tutor",
+    "description": "Student groups. Session scheduling, topic tracking, group quizzes, resource sharing, exam countdowns.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92816ca024edf94a952468"
+  },
+  {
+    "category": "💼 Professional & Learning — Groups Growing Together",
+    "number": 3,
+    "globalNumber": 43,
+    "name": "The Job Hunt Squad",
+    "description": "Job search support. Relevant listings, application tracking, mock interview scheduling, encouragement, offer celebrations.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281e58248d7c898b06997"
+  },
+  {
+    "category": "💼 Professional & Learning — Groups Growing Together",
+    "number": 4,
+    "globalNumber": 44,
+    "name": "The Startup Board",
+    "description": "Founder/advisor groups. Milestone tracking, meeting notes, competitor monitoring, weekly metric check-ins, decision log.",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281189596cee49a550562"
+  },
+  {
+    "category": "💼 Professional & Learning — Groups Growing Together",
+    "number": 5,
+    "globalNumber": 45,
+    "name": "The Skill Swap",
+    "description": "Peer teaching groups. Who's teaching what and when, session scheduling, feedback collection, skills-learned tracking.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281a78fccd328a2cbc196"
+  },
+  {
+    "category": "💼 Professional & Learning — Groups Growing Together",
+    "number": 6,
+    "globalNumber": 84,
+    "name": "The Property Manager",
+    "description": "Rental and commercial property management. Tenant tracking, maintenance requests, lease timelines, rent collection monitoring, vendor coordination, turnover checklists, financial summaries.",
+    "skills": [
+      "Web Search",
+      "Email",
+      "Scheduling",
+      "Browsing"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce92814b8c23ca4f80df5dde"
+  },
+  {
+    "category": "🎉 Events & Occasions — Groups Celebrating Together",
+    "number": 1,
+    "globalNumber": 46,
+    "name": "The Wedding Crew Chief",
+    "description": "Wedding party coordination. Bridesmaids/groomsmen tasks, deadline tracking (fittings, speeches, gifts), bachelor/bachelorette coordination, rehearsal logistics.",
+    "skills": [
+      "Search",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928181901ccf21e1dcd52b"
+  },
+  {
+    "category": "🎉 Events & Occasions — Groups Celebrating Together",
+    "number": 2,
+    "globalNumber": 47,
+    "name": "The Reunion Planner",
+    "description": "Family or class reunions. RSVPs across a large group, venue research, lodging blocks, update emails, dietary tracking.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92815d8056e068ca5dafd2"
+  },
+  {
+    "category": "🎉 Events & Occasions — Groups Celebrating Together",
+    "number": 3,
+    "globalNumber": 48,
+    "name": "The Secret Santa Elf",
+    "description": "Gift exchange coordinator. Random secret assignments, wishlist tracking, budget reminders, exchange logistics, reveal management.",
+    "skills": [
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281b88abcfda0effd1603"
+  },
+  {
+    "category": "🎉 Events & Occasions — Groups Celebrating Together",
+    "number": 4,
+    "globalNumber": 49,
+    "name": "The Milestone Keeper",
+    "description": "Group birthday/anniversary tracker. Remembers every date, sends advance reminders, coordinates group gifts, suggests celebration ideas.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92812eb264ca52477b2e2d"
+  },
+  {
+    "category": "🎉 Events & Occasions — Groups Celebrating Together",
+    "number": 5,
+    "globalNumber": 50,
+    "name": "The Graduation Planner",
+    "description": "Graduation party coordinator. Guest RSVPs, group gifts, venue/catering research, photo sharing, party-day logistics.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule",
+      "Email"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce928110a165f3ccff9118fe"
+  },
+  {
+    "category": "🎉 Events & Occasions — Groups Celebrating Together",
+    "number": 6,
+    "globalNumber": 77,
+    "name": "The Photo Dump",
+    "description": "Group photo collection and album builder. Collects photos from everyone, organizes albums, tracks participation, handles print/share prep.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce92811990cade9ed30739d7"
+  },
+  {
+    "category": "🎉 Events & Occasions — Groups Celebrating Together",
+    "number": 7,
+    "globalNumber": 85,
+    "name": "The Event Commander",
+    "description": "Major event operations center. Super Bowl, Olympics, World Cup, concerts. Handles schedules, food coordination, brackets, betting pools, countdowns, and live updates.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281fab326db0fece22f6a"
+  },
+  {
+    "category": "🎨 Hobbies & Interests — Groups With Shared Passions",
+    "number": 1,
+    "globalNumber": 51,
+    "name": "The Photo Walk Guide",
+    "description": "Photography groups. Scouts locations, plans routes, shares golden hour times, manages gear sharing, creates photo challenge themes.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce92810f8ffed469126b34dc"
+  },
+  {
+    "category": "🎨 Hobbies & Interests — Groups With Shared Passions",
+    "number": 2,
+    "globalNumber": 52,
+    "name": "The Garden Club Advisor",
+    "description": "Gardening groups. Planting calendars, local weather, seed/plant swaps, tracks what everyone's growing, seasonal tips.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281519a0fcf2333c4e558"
+  },
+  {
+    "category": "🎨 Hobbies & Interests — Groups With Shared Passions",
+    "number": 3,
+    "globalNumber": 53,
+    "name": "The Gear Garage",
+    "description": "Car/motorcycle enthusiasts. Cars & coffee events, project build tracking, meet schedules, group drive coordination, parts sourcing.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281d88284ef5128d14be8"
+  },
+  {
+    "category": "🎨 Hobbies & Interests — Groups With Shared Passions",
+    "number": 4,
+    "globalNumber": 54,
+    "name": "The Craft Circle",
+    "description": "DIY/maker groups. Project showcases, supply group buys, craft session scheduling, tutorial sharing, completed project tracking.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281c5b417d759fa81534f"
+  },
+  {
+    "category": "🎨 Hobbies & Interests — Groups With Shared Passions",
+    "number": 5,
+    "globalNumber": 55,
+    "name": "The Vinyl Crate",
+    "description": "Music collector groups. New release monitoring, group wishlists, record shop visits, listening party scheduling, review sharing.",
+    "skills": [
+      "Search",
+      "Schedule"
+    ],
+    "status": "planned",
+    "subPageUrl": "https://www.notion.so/30730823ce9281138cf2dd734c06a422"
+  },
+  {
+    "category": "🎨 Hobbies & Interests — Groups With Shared Passions",
+    "number": 6,
+    "globalNumber": 80,
+    "name": "The Maintenance Agent",
+    "description": "Car, motorcycle, and bike maintenance tracking. Service schedules, diagnostic assistance, quote checking, recall monitoring, seasonal alerts, DIY guides.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling",
+      "Email"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281bf8d1ef23ad275d93c"
+  },
+  {
+    "category": "🎵 Music & Creative — Groups That Create Together",
+    "number": 1,
+    "globalNumber": 75,
+    "name": "The Songwriting Manager",
+    "description": "Deep-listening creative partner for songwriting groups. Connects dots across conversations, maintains song database (titles, lyrics, structures, vibes, demos), generates Suno demos from concepts, learns your writing style through influence training. Complete songwriting admin.",
+    "skills": [
+      "Search",
+      "Browse",
+      "Schedule"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281b1939dcc142287b34f"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 1,
+    "globalNumber": 56,
+    "name": "Hide My Email",
+    "description": "Disposable email addresses for any situation. Spins up unique emails, filters incoming, auto-responds, summarizes, destroys when done.",
+    "skills": [
+      "Email",
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281578c6af8673adddfa1"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 2,
+    "globalNumber": 57,
+    "name": "Hide My Phone",
+    "description": "Disposable phone numbers on demand. Call screening, text management, voicemail transcription, verification code fast-pass, destroy when done.",
+    "skills": [
+      "Phone",
+      "Voice",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "subPageUrl": "https://www.notion.so/30730823ce928186aea4e6bb17d44a71"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 3,
+    "globalNumber": 58,
+    "name": "My Receptionist",
+    "description": "AI receptionist that answers calls in your voice. Screens, takes messages, books appointments, routes emergencies.",
+    "skills": [
+      "Phone",
+      "Voice",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "subPageUrl": "https://www.notion.so/30730823ce92812690daf60a50004de5"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 4,
+    "globalNumber": 59,
+    "name": "My Web Watcher",
+    "description": "Monitors any URL for changes you care about. Price drops, restocks, new listings, content changes. Alerts the second something happens.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce928161a153e0a7988ba6af"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 5,
+    "globalNumber": 60,
+    "name": "My Form Filler",
+    "description": "Manages identity profiles for web forms. Auto-fills with masked data, manages accounts, tracks free trials, cleans up when done.",
+    "skills": [
+      "Browsing",
+      "Email",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281e2a132c219fbd7876d"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 6,
+    "globalNumber": 61,
+    "name": "My Payment Shield",
+    "description": "Virtual credit cards for every purchase. Spending limits, subscription tracking, merchant blocking, expense reports.",
+    "skills": [
+      "Payments",
+      "Email",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "subPageUrl": "https://www.notion.so/30730823ce9281298e77c4119a24e328"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 7,
+    "globalNumber": 62,
+    "name": "My Digital Bouncer",
+    "description": "Unified gatekeeper across email, phone, and text. Priority routing, cross-channel intelligence, daily briefings, VIP/blocked lists.",
+    "skills": [
+      "Email",
+      "Phone",
+      "Scheduling"
+    ],
+    "status": "in_progress",
+    "subPageUrl": "https://www.notion.so/30730823ce9281e78275ff97886190c8"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 8,
+    "globalNumber": 63,
+    "name": "My Subscription Manager",
+    "description": "Finds every subscription you pay for, reminds before renewals, helps cancel what you forgot. Monthly reports, group cost splitting.",
+    "skills": [
+      "Email",
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281f494cad56ac6f4197b"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 9,
+    "globalNumber": 64,
+    "name": "My Price Scout",
+    "description": "Watches the internet for your target price on any item. Comparison shopping, deal analysis, restock alerts, group buy coordination.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling",
+      "Email"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce92811db052c80c7dfefddb"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 10,
+    "globalNumber": 65,
+    "name": "My Background Runner",
+    "description": "Pure scheduling engine. Recurring tasks, daily briefings, accountability check-ins, deadline countdowns, automated group workflows.",
+    "skills": [
+      "Scheduling",
+      "Web Search",
+      "Browsing",
+      "Email"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281df82e4d47d44760123"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 11,
+    "globalNumber": 70,
+    "name": "No More Algorithms",
+    "description": "Anti-algorithm social media agent. Monitors public profiles across all platforms, daily digest with photos and links, weekly wrapped, group mode.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce928115bb4ed4324634778e"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 12,
+    "globalNumber": 71,
+    "name": "The Banker",
+    "description": "Personal finance coach for individuals and couples. Budget tracking, expense logging, weekly coaching check-ins, goal tracking, monthly reports, partner mode.",
+    "skills": [
+      "Email",
+      "Scheduling",
+      "Web Search"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce928177a901e254c1a012e0"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 13,
+    "globalNumber": 72,
+    "name": "Bankr",
+    "description": "On-chain crypto agent. Multi-chain wallet management, trading with safety layer, prediction markets, DeFi, portfolio tracking, group trading floor.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Payments",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce92813486a4ce2d2a6d0270"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 14,
+    "globalNumber": 73,
+    "name": "The Prediction Manager",
+    "description": "Prediction market tracker and group opinion manager. Market monitoring, group consensus, resolution scoring, leaderboards, category tracking.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281ed9699df4d3afb1fd2"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 15,
+    "globalNumber": 74,
+    "name": "The Emergency Manager",
+    "description": "Crisis command center for disasters. Real-time monitoring, people tracking, resource directories, SMS/email alerts, post-crisis reporting.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Email",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30730823ce9281b2894fcaaf0c3ea6e8"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 16,
+    "globalNumber": 76,
+    "name": "The Bill Fighter",
+    "description": "Audits bills, negotiates rates, fights unfair charges, tracks savings across the group. Full dispute playbook.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Email",
+      "Phone",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281df82fcdec3b80bfe91"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 17,
+    "globalNumber": 78,
+    "name": "The Memory Box",
+    "description": "Screenshot and photo-based memory system. OCR extraction, categorized database, smart reminders. Remembers everything you photograph.",
+    "skills": [
+      "Web Search",
+      "Browsing",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce928177842ecfd157d79abb"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 18,
+    "globalNumber": 79,
+    "name": "The Voice Caller",
+    "description": "Makes phone calls so you don't have to. Restaurants, insurance, airlines, complaints. Reports back with full debrief. Holds on hold for you.",
+    "skills": [
+      "Phone",
+      "Voice",
+      "Email",
+      "Web Search"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281588cf3fa147b5571bf"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 19,
+    "globalNumber": 86,
+    "name": "The Survey Taker",
+    "description": "Fills out surveys and forms on your behalf. Translates your sentiment into proper responses. Reviews before submitting.",
+    "skills": [
+      "Browsing",
+      "Email",
+      "Web Search"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce9281c482a4f446a76abe67"
+  },
+  {
+    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
+    "number": 20,
+    "globalNumber": 87,
+    "name": "The Email Monitor",
+    "description": "Watches your inbox and alerts you when something important arrives. Custom rules, sender monitoring, keyword alerts, digest mode.",
+    "skills": [
+      "Email",
+      "Web Search",
+      "Scheduling"
+    ],
+    "status": "written",
+    "subPageUrl": "https://www.notion.so/30830823ce92818aabf3ea1a3a8722ec"
+  }
+]
