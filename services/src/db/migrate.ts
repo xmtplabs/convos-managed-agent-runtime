@@ -3,7 +3,7 @@ import { sql, pool as servicesPool } from "./connection.js";
 import { config } from "../config.js";
 import { fetchAllVolumesByService } from "../providers/railway.js";
 
-export async function migrate() {
+export async function migrate({ drop = false } = {}) {
   // ── Services tables ────────────────────────────────────────────────────
 
   const infraTable = await sql`
@@ -69,8 +69,11 @@ export async function migrate() {
   }
 
   // Drop legacy secret columns from instance_infra (generated at runtime, never needed in DB)
-  for (const col of ["gateway_token", "setup_password", "wallet_key"]) {
-    await servicesPool.query(`ALTER TABLE instance_infra DROP COLUMN IF EXISTS ${col}`);
+  if (drop) {
+    for (const col of ["gateway_token", "setup_password", "wallet_key"]) {
+      await servicesPool.query(`ALTER TABLE instance_infra DROP COLUMN IF EXISTS ${col}`);
+    }
+    console.log("[migrate] Dropped legacy secret columns from instance_infra (--drop).");
   }
 
   // ── Pool DB: backfill + cleanup ────────────────────────────────────────
@@ -212,7 +215,9 @@ async function backfillAndCleanPool() {
 // Run as standalone script
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  migrate()
+  const drop = process.argv.includes("--drop");
+  if (drop) console.log("[migrate] Running with --drop (destructive column drops enabled)");
+  migrate({ drop })
     .then(() => process.exit(0))
     .catch((err) => {
       console.error("[migrate] Failed:", err);

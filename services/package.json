@@ -9,7 +9,8 @@
     "build": "tsc",
     "dev": "node --env-file=.env --watch dist/index.js",
     "start": "node dist/index.js",
-    "db:migrate": "node --env-file=.env dist/db/migrate.js",
+    "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
+    "db:migrate:drop": "tsx --env-file=.env src/db/migrate.ts --drop",
     "test": "node --env-file=.env --test dist/smoke.test.js",
     "clean-providers": "node --env-file=.env scripts/clean-providers.mjs"
   },
@@ -22,6 +23,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0"
   }
 }

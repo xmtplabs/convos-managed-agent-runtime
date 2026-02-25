@@ -1,6 +1,6 @@
 import { sql } from "./connection.js";
 
-export async function migrate() {
+export async function migrate({ drop = false } = {}) {
   const exists = await sql`
     SELECT 1 FROM information_schema.tables
     WHERE table_name = 'instances'
@@ -27,22 +27,26 @@ export async function migrate() {
   } else {
     console.log("instances table already exists.");
 
-    // Drop columns that now live in services DB
-    for (const col of ["service_id", "deploy_status", "volume_id", "runtime_image"]) {
-      await sql.unsafe(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
+    if (drop) {
+      // Drop columns that now live in services DB
+      for (const col of ["service_id", "deploy_status", "volume_id", "runtime_image"]) {
+        await sql.unsafe(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
+      }
+
+      // Drop index that referenced service_id
+      await sql`DROP INDEX IF EXISTS idx_instances_service_id`;
+
+      console.log("Dropped legacy columns (service_id, deploy_status, volume_id, runtime_image) (--drop).");
     }
-
-    // Drop index that referenced service_id
-    await sql`DROP INDEX IF EXISTS idx_instances_service_id`;
-
-    console.log("Ensured legacy columns (service_id, deploy_status, volume_id, runtime_image) are dropped.");
   }
 }
 
-// Run as standalone script: node src/db/migrate.js
+// Run as standalone script: node src/db/migrate.js [--drop]
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
-  migrate()
+  const drop = process.argv.includes("--drop");
+  if (drop) console.log("[migrate] Running with --drop (destructive column drops enabled)");
+  migrate({ drop })
     .then(() => process.exit(0))
     .catch((err) => {
       console.error("Migration failed:", err);
