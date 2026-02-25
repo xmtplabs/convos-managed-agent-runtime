@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const POOL_API_URL = process.env.POOL_API_URL || "http://localhost:3001";
 const POOL_API_KEY = process.env.POOL_API_KEY || "";
-const POOL_ENVIRONMENT = process.env.NEXT_PUBLIC_POOL_ENVIRONMENT || "staging";
+// Fail closed: default to "production" so routes are disabled unless explicitly configured
+const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "production";
 
 export async function POST(request: NextRequest) {
   if (POOL_ENVIRONMENT === "production") {

@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 
 const POOL_API_URL = process.env.POOL_API_URL || "http://localhost:3001";
+// Fail closed: default to "production" so routes are disabled unless explicitly configured
+const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "production";
 
 export async function GET() {
+  if (POOL_ENVIRONMENT === "production") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const res = await fetch(`${POOL_API_URL}/api/pool/agents`);
 
   const contentType = res.headers.get("content-type") || "";
