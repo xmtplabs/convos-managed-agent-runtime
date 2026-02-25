@@ -1,59 +1,105 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import type { PoolCounts } from "@/lib/types";
-
-const POOL_API_URL =
-  typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_POOL_API_URL || "http://localhost:3001")
-    : "http://localhost:3001";
+import { ConvosLogo } from "@/components/convos-logo";
 
 export default function Home() {
-  const [counts, setCounts] = useState<PoolCounts | null>(null);
-
-  useEffect(() => {
-    async function fetchCounts() {
-      try {
-        const res = await fetch(`${POOL_API_URL}/api/pool/counts`);
-        if (res.ok) {
-          setCounts(await res.json());
-        }
-      } catch {
-        // Silently fail on fetch errors during initial load
-      }
-    }
-    fetchCounts();
-  }, []);
-
-  const hasIdle = counts !== null && counts.idle > 0;
-  const isEmpty = counts !== null && counts.idle === 0;
-
   return (
-    <main className="form-wrapper">
+    <div className="form-wrapper">
       <div className="form-center">
-        {/* Paste input area - shown when pool has idle instances */}
-        {hasIdle && (
-          <div className="paste-input-wrap">
-            <input
-              className="paste-input"
-              type="text"
-              placeholder="Paste a group chat link to add an assistant"
-              disabled
-            />
+        {/* Brand */}
+        <div className="brand">
+          <div className="brand-icon">
+            <ConvosLogo />
           </div>
-        )}
+          <span className="brand-name">Convos</span>
+        </div>
 
-        {/* Empty state - shown when pool has no idle instances.
-            The CSS sets display:none by default; override with inline style
-            to match how the original Pool page toggles visibility. */}
-        {isEmpty && (
-          <div className="empty-state" style={{ display: "block" }}>
-            <div className="empty-scene">
-              <p>No assistants available right now</p>
+        {/* Hero */}
+        <h1 className="page-title" id="page-title">
+          Invite an assistant to a private group chat
+        </h1>
+        <p className="page-subtitle" id="page-subtitle">
+          Paste a Convos Invite Link and an AI assistant will join your convo
+        </p>
+
+        {/* Empty state placeholder (Task 3: join-flow component) */}
+        {/* <div id="empty-state" className="empty-state">...</div> */}
+
+        {/* Paste view with steps (Task 3 will add paste input + joining animation) */}
+        <div id="paste-view">
+          <div className="steps" id="joining-steps">
+            <div className="step highlight">
+              <span className="step-num">1</span>
+              <span className="step-text">
+                Paste your invite link above to add an assistant.
+              </span>
+            </div>
+            <div className="step">
+              <span className="step-num">2</span>
+              <span className="step-text">
+                Copy a skill below and send it in your chat to give it
+                superpowers.
+              </span>
+            </div>
+            <div className="step">
+              <span className="step-num">3</span>
+              <span className="step-text">
+                Talk to it. Tell it what you like, what to change — it learns
+                from you.
+              </span>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Get Convos strip */}
+        <div className="get-convos">
+          <div className="get-convos-left">
+            <div className="get-convos-text">
+              <div className="get-convos-tagline">Get the Convos app</div>
+              <div className="get-convos-sub">
+                Everyday private chat for the AI world
+              </div>
+            </div>
+          </div>
+          <a
+            className="get-convos-btn"
+            href="https://convos.org/app"
+            target="_blank"
+            rel="noopener"
+          >
+            Get
+          </a>
+        </div>
+
+        {/* Stories */}
+        <div className="stories">
+          <div>
+            <div className="story-label">Built in</div>
+            <p className="story-text">
+              Convos AI Assistants can browse the web and use email, SMS, and
+              crypto wallets to help your group with scheduling, reservations,
+              payments, and more.
+              <br />
+              <a href="#">Built with OpenClaw 🦞</a>
+            </p>
+          </div>
+          <div>
+            <div className="story-label">Safe by default</div>
+            <p className="story-text">
+              Convos keeps conversations separate and encrypted by default. Each
+              assistant you add is unique to that conversation and can never
+              access other chats, contacts, or profiles.
+              <br />
+              <a href="#">Learn more</a>
+            </p>
+          </div>
+        </div>
+
+        {/* Prompt store placeholder (Task 4: skill-browser component) */}
+        {/* <div className="prompt-store" id="prompt-store">...</div> */}
+
+        {/* Modals placeholder (Task 5: prompt-modal + qr-modal) */}
+        {/* <div className="ps-modal-overlay" id="ps-modal">...</div> */}
+        {/* <div className="modal-overlay" id="qr-modal">...</div> */}
       </div>
-    </main>
+    </div>
   );
 }
