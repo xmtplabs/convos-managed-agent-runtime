@@ -5,3 +5,4 @@ out/
 test-results/
 playwright-report/
 screenshots/
+tsconfig.tsbuildinfo

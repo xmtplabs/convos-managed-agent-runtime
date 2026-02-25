@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 const POOL_API_URL = process.env.POOL_API_URL || "http://localhost:3001";
 const POOL_API_KEY = process.env.POOL_API_KEY || "";
+const POOL_ENVIRONMENT = process.env.NEXT_PUBLIC_POOL_ENVIRONMENT || "staging";
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (POOL_ENVIRONMENT === "production") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { id } = await params;
   const res = await fetch(`${POOL_API_URL}/api/pool/instances/${encodeURIComponent(id)}`, {
     method: "DELETE",
