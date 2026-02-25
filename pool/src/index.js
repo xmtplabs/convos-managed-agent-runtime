@@ -1,6 +1,6 @@
 import express from "express";
 import * as pool from "./pool.js";
-import * as cache from "./cache.js";
+import * as db from "./db/pool.js";
 import { deleteOrphanAgentVolumes } from "./volumes.js";
 import { migrate } from "./db/migrate.js";
 
@@ -33,18 +33,18 @@ function requireAuth(req, res, next) {
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 // Version — check this to verify what code is deployed.
-const BUILD_VERSION = "2026-02-12T01:cache-v1";
+const BUILD_VERSION = "2026-02-24T01:db-instances-v1";
 app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: POOL_ENVIRONMENT }));
 
 // Pool counts (no auth — used by the launch form)
-app.get("/api/pool/counts", (_req, res) => {
-  res.json(cache.getCounts());
+app.get("/api/pool/counts", async (_req, res) => {
+  res.json(await db.getCounts());
 });
 
 // List launched agents (no auth — used by the page)
-app.get("/api/pool/agents", (_req, res) => {
-  const claimed = cache.getByStatus("claimed");
-  const crashed = cache.getByStatus("crashed");
+app.get("/api/pool/agents", async (_req, res) => {
+  const claimed = await db.getByStatus("claimed");
+  const crashed = await db.getByStatus("crashed");
   res.json({ claimed, crashed });
 });
 
@@ -1268,9 +1268,9 @@ app.get("/", (_req, res) => {
 });
 
 // Pool status overview
-app.get("/api/pool/status", requireAuth, (_req, res) => {
-  const counts = cache.getCounts();
-  const instances = cache.getAll();
+app.get("/api/pool/status", requireAuth, async (_req, res) => {
+  const counts = await db.getCounts();
+  const instances = await db.listAll();
   res.json({ counts, instances });
 });
 
@@ -1325,10 +1325,10 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
           console.error(`[pool] Failed to create instance:`, err);
         }
       }
-      return res.json({ ok: true, created: results.length, counts: cache.getCounts() });
+      return res.json({ ok: true, created: results.length, counts: await db.getCounts() });
     }
     await pool.tick();
-    res.json({ ok: true, counts: cache.getCounts() });
+    res.json({ ok: true, counts: await db.getCounts() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1338,7 +1338,7 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
 app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
   try {
     await pool.tick();
-    res.json({ ok: true, counts: cache.getCounts() });
+    res.json({ ok: true, counts: await db.getCounts() });
   } catch (err) {
     console.error("[api] Tick failed:", err);
     res.status(500).json({ error: err.message });
@@ -1350,7 +1350,7 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 1, 20);
     const drained = await pool.drainPool(count);
-    res.json({ ok: true, drained: drained.length, counts: cache.getCounts() });
+    res.json({ ok: true, drained: drained.length, counts: await db.getCounts() });
   } catch (err) {
     console.error("[api] Drain failed:", err);
     res.status(500).json({ error: err.message });
@@ -1358,7 +1358,7 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
 });
 
 // --- Background tick ---
-// Rebuild cache from Railway + health checks every 30 seconds.
+// Reconcile DB from Railway + health checks every 30 seconds.
 const TICK_INTERVAL = parseInt(process.env.TICK_INTERVAL_MS || "30000", 10);
 setInterval(() => {
   pool.tick().catch((err) => console.error("[tick] Error:", err));
