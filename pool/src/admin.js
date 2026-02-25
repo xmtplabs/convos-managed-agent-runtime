@@ -11,6 +11,14 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 // Simple in-memory session store (survives restarts via fresh login)
 const sessions = new Map();
 
+// Prune expired sessions every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, expiry] of sessions) {
+    if (now > expiry) sessions.delete(token);
+  }
+}, 60 * 60 * 1000).unref();
+
 function generateToken() {
   return crypto.randomBytes(32).toString("hex");
 }

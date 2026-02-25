@@ -186,7 +186,7 @@ app.get("/", (_req, res) => {
 // Admin environment links
 const POOL_ADMIN_URLS = (process.env.POOL_ADMIN_URLS || "dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app").split(",").filter(Boolean).map((entry) => {
   const [env, url] = entry.split("=", 2);
-  return { env: env.trim(), url: url.trim() };
+  return { env: env?.trim() || "", url: url?.trim() || "" };
 }).filter((e) => e.env && e.url);
 
 // --- Admin dashboard (password-protected) ---
