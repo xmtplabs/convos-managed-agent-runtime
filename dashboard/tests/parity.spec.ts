@@ -72,15 +72,30 @@ test.describe("Visual parity", () => {
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
+    // Intercept the claim API to delay the response so the joining animation
+    // is visible long enough to capture a screenshot.
+    let resolveClaim: (() => void) | null = null;
+    await page.route("**/api/claim", async (route) => {
+      // Hold the request; it will be fulfilled after the screenshot
+      await new Promise<void>((resolve) => {
+        resolveClaim = resolve;
+      });
+      await route.continue();
+    });
+
     // Paste a URL and press Enter to trigger joining state
     await page.locator(".paste-input").fill(TEST_INVITE_URL);
     await page.locator(".paste-input").press("Enter");
-    // Capture during animation (500ms into joining)
+    // Wait for the joining animation to be visible
+    await expect(page.locator(".joining-inline.active")).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(500);
     await expect(page).toHaveScreenshot("joining.png", {
       // Animation frames may vary slightly
       maxDiffPixelRatio: 0.02,
     });
+
+    // Release the held claim request so the test can clean up
+    resolveClaim?.();
   });
 
   // 4. success
@@ -104,12 +119,16 @@ test.describe("Visual parity", () => {
     await setMockState("success");
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    // Wait for the skill browser to render (templates fetch must complete)
+    await expect(page.locator(".prompt-store")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
     await page.locator(".paste-input").fill(TEST_INVITE_URL);
     await page.locator(".paste-input").press("Enter");
     // Wait 2500ms: overlay dismissed, toast visible, skills scrolled into view
     await page.waitForTimeout(2500);
+    // Verify toast appeared and skill browser is still visible after scroll
+    await expect(page.locator(".prompt-store")).toBeVisible();
     await expect(page).toHaveScreenshot("post-success.png", {
       maxDiffPixelRatio: 0.02,
     });
