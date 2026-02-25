@@ -67,15 +67,15 @@
   color: #222;
 }
 
-/* --- Links --- */
-.article a {
+/* --- Links (body content only, not header/footer) --- */
+.article a:not(.article-header) {
   color: #111;
   text-decoration: underline;
   text-decoration-color: #999;
   text-underline-offset: 2px;
 }
 
-.article a:hover {
+.article a:not(.article-header):hover {
   text-decoration-color: #111;
 }
 
