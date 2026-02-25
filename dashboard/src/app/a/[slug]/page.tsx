@@ -29,8 +29,10 @@ export async function generateMetadata({
   const title = `${template.emoji} ${template.name} - Convos Assistant`;
   const description = template.description;
 
-  // NOTE: OG images will be added by Task 9 (/og/[slug] route).
-  // Until then, social previews use title + description only (no image).
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org";
+  const ogImageUrl = `${siteUrl}/og/${encodeURIComponent(slug)}`;
+
   return {
     title,
     description,
@@ -39,11 +41,20 @@ export async function generateMetadata({
       description,
       type: "website",
       siteName: "Convos Assistants",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${template.emoji} ${template.name}`,
+        },
+      ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
+      images: [ogImageUrl],
     },
   };
 }
