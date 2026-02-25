@@ -226,20 +226,14 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 // Launch an agent — claim an idle instance and provision it with instructions.
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
   const { agentName, instructions, joinUrl } = req.body || {};
-  if (!joinUrl && (!instructions || typeof instructions !== "string")) {
-    return res.status(400).json({ error: "instructions (string) is required" });
-  }
-  if (!joinUrl && (!agentName || typeof agentName !== "string")) {
-    return res.status(400).json({ error: "agentName (string) is required" });
-  }
-  if (joinUrl && typeof joinUrl !== "string") {
-    return res.status(400).json({ error: "joinUrl must be a string if provided" });
+  if (instructions && typeof instructions !== "string") {
+    return res.status(400).json({ error: "instructions must be a string if provided" });
   }
   if (agentName && typeof agentName !== "string") {
     return res.status(400).json({ error: "agentName must be a string if provided" });
   }
-  if (instructions && typeof instructions !== "string") {
-    return res.status(400).json({ error: "instructions must be a string if provided" });
+  if (joinUrl && typeof joinUrl !== "string") {
+    return res.status(400).json({ error: "joinUrl must be a string if provided" });
   }
   if (joinUrl && POOL_ENVIRONMENT === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     return res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" });
