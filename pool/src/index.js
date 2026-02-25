@@ -126,6 +126,17 @@ app.get("/api/pool/agents", (_req, res) => {
 });
 
 // Template catalog (no auth — public-facing for template site)
+app.get("/api/pool/info", (_req, res) => {
+  res.json({
+    environment: POOL_ENVIRONMENT,
+    branch: DEPLOY_BRANCH,
+    model: INSTANCE_MODEL,
+    railwayProjectId: RAILWAY_PROJECT_ID,
+    railwayServiceId: RAILWAY_SERVICE_ID,
+    railwayEnvironmentId: RAILWAY_ENVIRONMENT_ID,
+  });
+});
+
 app.get("/api/pool/templates", (_req, res) => { res.json(AGENT_CATALOG); });
 app.get("/api/pool/templates/:slug", (req, res) => {
   const t = AGENT_CATALOG.find((a) => a.slug === req.params.slug);

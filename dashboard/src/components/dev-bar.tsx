@@ -26,22 +26,18 @@ interface DevBarProps {
 }
 
 // ---------------------------------------------------------------------------
-// Environment config (NEXT_PUBLIC_ vars available at build time)
+// Environment config
 // ---------------------------------------------------------------------------
 
-const POOL_ENVIRONMENT =
-  process.env.NEXT_PUBLIC_POOL_ENVIRONMENT || "staging";
-const DEPLOY_BRANCH =
-  process.env.NEXT_PUBLIC_DEPLOY_BRANCH || "unknown";
-const INSTANCE_MODEL =
-  process.env.NEXT_PUBLIC_INSTANCE_MODEL || "unknown";
-const RAILWAY_PROJECT_ID =
-  process.env.NEXT_PUBLIC_RAILWAY_PROJECT_ID || "";
-const RAILWAY_SERVICE_ID =
-  process.env.NEXT_PUBLIC_RAILWAY_SERVICE_ID || "";
-const RAILWAY_ENVIRONMENT_ID =
-  process.env.NEXT_PUBLIC_RAILWAY_ENVIRONMENT_ID || "";
 
+interface PoolInfo {
+  environment: string;
+  branch: string;
+  model: string;
+  railwayProjectId: string;
+  railwayServiceId: string;
+  railwayEnvironmentId: string;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,26 +56,22 @@ function timeAgo(dateStr?: string): string {
   return "<1m";
 }
 
-function railwayUrl(serviceId?: string): string | null {
-  if (!RAILWAY_PROJECT_ID || !serviceId) return null;
-  const base = `https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${serviceId}`;
-  return RAILWAY_ENVIRONMENT_ID ? `${base}?environmentId=${RAILWAY_ENVIRONMENT_ID}` : base;
+function railwayUrl(info: PoolInfo | null, serviceId?: string): string | null {
+  if (!info?.railwayProjectId || !serviceId) return null;
+  const base = `https://railway.com/project/${info.railwayProjectId}/service/${serviceId}`;
+  return info.railwayEnvironmentId ? `${base}?environmentId=${info.railwayEnvironmentId}` : base;
 }
 
-function railwayProjectUrl(): string | null {
-  if (!RAILWAY_PROJECT_ID) return null;
-  return `https://railway.com/project/${RAILWAY_PROJECT_ID}`;
-}
-
-function serviceLink(): { href: string; label: string } | null {
-  if (!RAILWAY_PROJECT_ID || !RAILWAY_SERVICE_ID) {
-    return RAILWAY_SERVICE_ID
-      ? { href: "#", label: RAILWAY_SERVICE_ID.slice(0, 8) }
+function getServiceLink(info: PoolInfo | null): { href: string; label: string } | null {
+  if (!info) return null;
+  if (!info.railwayProjectId || !info.railwayServiceId) {
+    return info.railwayServiceId
+      ? { href: "#", label: info.railwayServiceId.slice(0, 8) }
       : null;
   }
-  const base = `https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}`;
-  const href = RAILWAY_ENVIRONMENT_ID ? `${base}?environmentId=${RAILWAY_ENVIRONMENT_ID}` : base;
-  return { href, label: RAILWAY_SERVICE_ID.slice(0, 8) };
+  const base = `https://railway.com/project/${info.railwayProjectId}/service/${info.railwayServiceId}`;
+  const href = info.railwayEnvironmentId ? `${base}?environmentId=${info.railwayEnvironmentId}` : base;
+  return { href, label: info.railwayServiceId.slice(0, 8) };
 }
 
 // ---------------------------------------------------------------------------
@@ -89,6 +81,7 @@ function serviceLink(): { href: string; label: string } | null {
 export function DevBar({ onShowQr }: DevBarProps) {
   // State
   const [collapsed, setCollapsed] = useState(true);
+  const [poolInfo, setPoolInfo] = useState<PoolInfo | null>(null);
   const [counts, setCounts] = useState<PoolCounts>({ idle: 0, starting: 0, claimed: 0, crashed: 0 });
   const [claimedAgents, setClaimedAgents] = useState<Agent[]>([]);
   const [crashedAgents, setCrashedAgents] = useState<Agent[]>([]);
@@ -99,6 +92,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
   const [destroyingIds, setDestroyingIds] = useState<Set<string>>(new Set());
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const envLabel = poolInfo?.environment || "dev";
 
   // -----------------------------------------------------------------------
   // Data fetching
@@ -142,6 +136,14 @@ export function DevBar({ onShowQr }: DevBarProps) {
   // -----------------------------------------------------------------------
 
   useEffect(() => {
+    // Fetch pool info once on mount (branch, model, Railway IDs)
+    (async () => {
+      try {
+        const res = await fetch("/api/pool/info");
+        if (res.ok) setPoolInfo(await res.json());
+      } catch { /* ignore */ }
+    })();
+
     refreshCounts();
     refreshAgents();
     pollRef.current = setInterval(() => {
@@ -159,7 +161,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
 
   const handleKill = useCallback(
     async (id: string, name: string) => {
-      const prefix = POOL_ENVIRONMENT === "production" ? "[PRODUCTION] " : "";
+      const prefix = envLabel === "production" ? "[PRODUCTION] " : "";
       const msg = `${prefix}Kill "${name}"? This deletes the Railway service.`;
       if (!window.confirm(msg)) return;
 
@@ -188,7 +190,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
 
   const handleDismiss = useCallback(
     async (id: string, name: string) => {
-      const prefix = POOL_ENVIRONMENT === "production" ? "[PRODUCTION] " : "";
+      const prefix = envLabel === "production" ? "[PRODUCTION] " : "";
       const msg = `${prefix}Dismiss crashed "${name}"?`;
       if (!window.confirm(msg)) return;
 
@@ -248,7 +250,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
         return;
       }
 
-      const prefix = POOL_ENVIRONMENT === "production" ? "[PRODUCTION] " : "";
+      const prefix = envLabel === "production" ? "[PRODUCTION] " : "";
       const msg = `${prefix}Drain ${n} unclaimed instance(s)?`;
       if (!window.confirm(msg)) {
         setDraining(false);
@@ -295,8 +297,10 @@ export function DevBar({ onShowQr }: DevBarProps) {
   if (claimedAgents.length) countParts.push(`${claimedAgents.length} running`);
   if (crashedAgents.length) countParts.push(`${crashedAgents.length} crashed`);
 
-  const svcLink = serviceLink();
-  const projectUrl = railwayProjectUrl();
+  const svcLink = getServiceLink(poolInfo);
+  const projectUrl = poolInfo?.railwayProjectId
+    ? `https://railway.com/project/${poolInfo.railwayProjectId}`
+    : null;
 
   // -----------------------------------------------------------------------
   // Render
@@ -314,10 +318,10 @@ export function DevBar({ onShowQr }: DevBarProps) {
       <div className={`dev-bar${collapsed ? " collapsed" : ""}`}>
         {/* Environment tag (always visible, click to expand/collapse) */}
         <span
-          className={`env-tag env-${POOL_ENVIRONMENT}`}
+          className={`env-tag env-${envLabel}`}
           onClick={() => setCollapsed((prev) => !prev)}
         >
-          {POOL_ENVIRONMENT}
+          {envLabel}
         </span>
 
         {/* Bar content (hidden when collapsed) */}
@@ -361,7 +365,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
                     {/* Crashed agents first */}
                     {crashedAgents.map((a) => {
                       const name = a.agentName || a.id;
-                      const rUrl = railwayUrl(a.serviceId);
+                      const rUrl = railwayUrl(poolInfo, a.serviceId);
                       const isDestroying = destroyingIds.has(a.id);
                       return (
                         <div
@@ -410,7 +414,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
                     {/* Live (claimed) agents */}
                     {claimedAgents.map((a) => {
                       const name = a.agentName || a.id;
-                      const rUrl = railwayUrl(a.serviceId);
+                      const rUrl = railwayUrl(poolInfo, a.serviceId);
                       const isDestroying = destroyingIds.has(a.id);
                       return (
                         <div
@@ -495,8 +499,12 @@ export function DevBar({ onShowQr }: DevBarProps) {
           <span className="spacer" />
 
           {/* Info chips */}
-          <span className="chip">branch: {DEPLOY_BRANCH}</span>
-          <span className="chip">model: {INSTANCE_MODEL}</span>
+          {poolInfo?.branch && poolInfo.branch !== "unknown" && (
+            <span className="chip">branch: {poolInfo.branch}</span>
+          )}
+          {poolInfo?.model && poolInfo.model !== "unknown" && (
+            <span className="chip">model: {poolInfo.model}</span>
+          )}
           {svcLink && (
             <span className="chip">
               service:{" "}

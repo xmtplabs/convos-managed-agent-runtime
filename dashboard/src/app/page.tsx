@@ -9,13 +9,11 @@ import { QrModal } from "@/components/qr-modal";
 import { DevBar } from "@/components/dev-bar";
 import type { AgentSkill } from "@/lib/types";
 
-const POOL_ENVIRONMENT =
-  process.env.NEXT_PUBLIC_POOL_ENVIRONMENT || "staging";
-
 export default function Home() {
   const skillBrowserRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(1);
   const [skills, setSkills] = useState<AgentSkill[]>([]);
+  const [poolEnvironment, setPoolEnvironment] = useState("dev");
 
   // Prompt modal state
   const [promptModalPageId, setPromptModalPageId] = useState<string | null>(
@@ -39,7 +37,18 @@ export default function Home() {
         // Silently ignore fetch errors
       }
     }
+    async function loadPoolInfo() {
+      try {
+        const res = await fetch("/api/pool/info");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.environment) setPoolEnvironment(data.environment);
+      } catch {
+        // Silently ignore
+      }
+    }
     loadSkills();
+    loadPoolInfo();
   }, []);
 
   // -----------------------------------------------------------------------
@@ -74,7 +83,7 @@ export default function Home() {
 
   return (
     <>
-      {POOL_ENVIRONMENT !== "production" && (
+      {poolEnvironment !== "production" && (
         <DevBar onShowQr={handleShowQr} />
       )}
       <div className="form-wrapper">
@@ -97,7 +106,7 @@ export default function Home() {
 
         {/* Join flow: empty state + paste input + joining animation + steps */}
         <JoinFlow
-          poolEnvironment={POOL_ENVIRONMENT}
+          poolEnvironment={poolEnvironment}
           skillBrowserRef={skillBrowserRef}
           activeStep={activeStep}
           setActiveStep={setActiveStep}
