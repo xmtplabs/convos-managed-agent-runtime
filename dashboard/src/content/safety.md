@@ -33,7 +33,7 @@ When the conversation ends, the assistant and all its data are destroyed. No res
 
 ## What each assistant is made of
 
-Every assistant runs on [OpenClaw](https://github.com/xmtplabs/openclaw), an open-source agent runtime built by XMTP Labs. When you add an assistant to a conversation, it gets provisioned with its own isolated set of credentials for the following services:
+Every assistant runs on [OpenClaw](https://openclaw.ai), an open-source agent runtime. When you add an assistant to a conversation, it gets provisioned with its own isolated set of credentials for the following services:
 
 | Service | Provider | What it does |
 | --- | --- | --- |
