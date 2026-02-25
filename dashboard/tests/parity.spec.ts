@@ -1,47 +1,206 @@
 import { test, expect } from "@playwright/test";
 import { setMockState } from "./helpers";
 
-// Screenshot states and the mock state each needs.
-// More states added as tasks progress -- joining, success, post-success, error
-// require Playwright page interactions after setMockState.
+// ---------------------------------------------------------------------------
+// Screenshot-parity test suite
+//
+// Each of the 12 visual states is captured at desktop (1280x800) and mobile
+// (375x812) viewports. The tests use the mock-pool server to control backend
+// responses so the Next.js app deterministically renders every state.
+// ---------------------------------------------------------------------------
 
 /** Wait for web fonts to finish loading before taking screenshots. */
 async function waitForFonts(page: import("@playwright/test").Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
+// ===== Visual parity: 12 states =============================================
+
 test.describe("Visual parity", () => {
   test.beforeEach(async () => {
-    // Reset to idle before each test
     await setMockState("idle");
   });
 
+  // 1. idle
   test("idle state loads and renders paste input", async ({ page }) => {
     await setMockState("idle");
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    // Wait for pool counts fetch to resolve and UI to update
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
-    // Capture screenshot for visual regression baseline.
-    // Run with --update-snapshots to generate initial baselines.
     await expect(page).toHaveScreenshot("idle.png");
   });
 
+  // 2. empty
   test("empty state shows balloon", async ({ page }) => {
     await setMockState("empty");
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    // Wait for pool counts fetch to resolve and UI to update
     await expect(page.locator(".empty-state")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
-    // Capture screenshot for visual regression baseline.
-    // Run with --update-snapshots to generate initial baselines.
     await expect(page).toHaveScreenshot("empty.png");
+  });
+
+  // 3. joining
+  test("joining state shows animation", async ({ page }) => {
+    await setMockState("success");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    // Paste a URL and press Enter to trigger joining state
+    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").press("Enter");
+    // Capture during animation (500ms into joining)
+    await page.waitForTimeout(500);
+    await expect(page).toHaveScreenshot("joining.png", {
+      // Animation frames may vary slightly
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  // 4. success
+  test("success state shows confetti", async ({ page }) => {
+    await setMockState("success");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").press("Enter");
+    // Wait 1000ms for confetti to be visible
+    await page.waitForTimeout(1000);
+    await expect(page).toHaveScreenshot("success.png", {
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  // 5. post-success
+  test("post-success state shows toast and skill highlight", async ({ page }) => {
+    await setMockState("success");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").press("Enter");
+    // Wait 2500ms: overlay dismissed, toast visible, skills scrolled into view
+    await page.waitForTimeout(2500);
+    await expect(page).toHaveScreenshot("post-success.png", {
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  // 6. error
+  test("error state shows droop and try again", async ({ page }) => {
+    await setMockState("error");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").press("Enter");
+    // Wait 1500ms for error state (droop + "Try again" visible)
+    await page.waitForTimeout(1500);
+    await expect(page.locator(".joining-dismiss-btn")).toBeVisible();
+    await expect(page).toHaveScreenshot("error.png", {
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
+  // 7. skill-browser-default
+  test("skill browser default view", async ({ page }) => {
+    await setMockState("idle");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    // Scroll to the skill browser
+    await page.locator(".prompt-store").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveScreenshot("skill-browser-default.png");
+  });
+
+  // 8. skill-browser-expanded
+  test("skill browser expanded view", async ({ page }) => {
+    await setMockState("idle");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    // Click "Show all" to expand
+    await page.locator(".ps-show-more").click();
+    await page.waitForTimeout(300);
+    await page.locator(".prompt-store").scrollIntoViewIfNeeded();
+    await expect(page).toHaveScreenshot("skill-browser-expanded.png");
+  });
+
+  // 9. skill-browser-filtered
+  test("skill browser filtered by category", async ({ page }) => {
+    await setMockState("idle");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    // Click the second category pill (first non-"All" pill)
+    const pills = page.locator(".ps-filter-pill");
+    const pillCount = await pills.count();
+    if (pillCount > 1) {
+      await pills.nth(1).click();
+    }
+    await page.waitForTimeout(300);
+    await page.locator(".prompt-store").scrollIntoViewIfNeeded();
+    await expect(page).toHaveScreenshot("skill-browser-filtered.png");
+  });
+
+  // 10. skill-browser-search
+  test("skill browser with search query", async ({ page }) => {
+    await setMockState("idle");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    // Type into search input
+    await page.locator(".ps-search").fill("meal");
+    await page.waitForTimeout(300);
+    await page.locator(".prompt-store").scrollIntoViewIfNeeded();
+    await expect(page).toHaveScreenshot("skill-browser-search.png");
+  });
+
+  // 11. prompt-modal
+  test("prompt modal opens on view click", async ({ page }) => {
+    await setMockState("idle");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    // Click "View" on the first skill row that has a View button
+    const viewBtn = page.locator(".ps-view-btn").first();
+    await viewBtn.click();
+    // Wait for the modal to load the prompt
+    await page.waitForTimeout(500);
+    await expect(page).toHaveScreenshot("prompt-modal.png", {
+      maxDiffPixelRatio: 0.01,
+    });
+  });
+
+  // 12. qr-modal
+  test("qr modal opens after non-join claim", async ({ page }) => {
+    await setMockState("qr-modal");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
+    await waitForFonts(page);
+
+    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").press("Enter");
+    // Wait 2000ms for QR modal to open
+    await page.waitForTimeout(2000);
+    await expect(page).toHaveScreenshot("qr-modal.png", {
+      // QR image loaded from external URL may vary
+      maxDiffPixelRatio: 0.02,
+    });
   });
 });
 
-// ---------------------------------------------------------------------------
-// Responsive layout tests (mobile viewport comes from the "mobile" project)
-// ---------------------------------------------------------------------------
+// ===== Responsive layout tests (mobile viewport from the "mobile" project) ==
 
 test.describe("Responsive layout", () => {
   test.beforeEach(async () => {
@@ -53,10 +212,8 @@ test.describe("Responsive layout", () => {
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    // On mobile (<= 640px), stories grid should be 1 column
     const stories = page.locator(".stories");
     const style = await stories.evaluate((el) => getComputedStyle(el).gridTemplateColumns);
-    // When viewport is 375px (mobile project), should be a single column
     const colCount = style.split(" ").length;
     if (page.viewportSize()!.width <= 640) {
       expect(colCount).toBe(1);
@@ -71,7 +228,6 @@ test.describe("Responsive layout", () => {
     await waitForFonts(page);
 
     const filters = page.locator(".ps-filters");
-    // Only check scrollable behavior on mobile viewports
     if (page.viewportSize()!.width <= 640) {
       const flexWrap = await filters.evaluate((el) => getComputedStyle(el).flexWrap);
       expect(flexWrap).toBe("nowrap");
@@ -101,8 +257,6 @@ test.describe("Responsive layout", () => {
     await waitForFonts(page);
 
     if (page.viewportSize()!.width <= 640) {
-      // 32px top/bottom, 16px left/right -- assert individual sides
-      // to avoid browser differences in shorthand serialization
       const paddingTop = await page.locator(".form-wrapper").evaluate(
         (el) => getComputedStyle(el).paddingTop,
       );
@@ -115,9 +269,7 @@ test.describe("Responsive layout", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Reduced motion tests
-// ---------------------------------------------------------------------------
+// ===== Reduced motion tests ==================================================
 
 test.describe("Reduced motion", () => {
   test.beforeEach(async () => {
@@ -131,7 +283,6 @@ test.describe("Reduced motion", () => {
     await expect(page.locator(".empty-state")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    // The balloon-droop animation should be suppressed
     const anim = await page.locator(".empty-balloon-group").evaluate(
       (el) => getComputedStyle(el).animationName,
     );
@@ -144,7 +295,6 @@ test.describe("Reduced motion", () => {
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    // Paste input transition should be none
     const transition = await page.locator(".paste-input").evaluate(
       (el) => getComputedStyle(el).transitionDuration,
     );

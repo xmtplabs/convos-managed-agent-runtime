@@ -156,8 +156,13 @@ app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
 });
 
 
+// Root redirect — template site handles the public-facing homepage
+app.get("/", (_req, res) => {
+  res.redirect(302, process.env.TEMPLATE_SITE_URL || "https://assistants.convos.org");
+});
+
 // Dashboard page — mode determined by POOL_ENVIRONMENT + ?mode= query param
-app.get("/", (req, res) => {
+app.get("/dashboard", (req, res) => {
   const showDevTools = POOL_ENVIRONMENT !== "production";
   const serviceLink = RAILWAY_PROJECT_ID && RAILWAY_SERVICE_ID
     ? `<a href="https://railway.com/project/${RAILWAY_PROJECT_ID}/service/${RAILWAY_SERVICE_ID}${RAILWAY_ENVIRONMENT_ID ? "?environmentId=" + RAILWAY_ENVIRONMENT_ID : ""}" target="_blank" rel="noopener">${RAILWAY_SERVICE_ID.slice(0, 8)}</a>`

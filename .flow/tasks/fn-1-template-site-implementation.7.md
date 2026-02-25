@@ -7,9 +7,8 @@ TBD
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Added reduced-motion CSS rules for empty-state balloon animations and interactive element transitions, plus Playwright tests verifying responsive layout (mobile single-column stories, scrollable filter pills, smaller title, reduced padding) and reduced-motion behavior (no animations, suppressed transitions, screenshot baselines).
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a4efebc, 5ba225a
+- Tests: pnpm build
 - PRs:
