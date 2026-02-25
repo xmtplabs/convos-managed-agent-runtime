@@ -113,8 +113,8 @@ jobs:
       - name: QA smoke tests
         run: docker exec qa-runtime timeout 120 pnpm qa
 
-      - name: Dump container logs on failure
-        if: failure()
+      - name: Dump container logs
+        if: always()
         run: docker logs qa-runtime
 
   publish:
