@@ -50,6 +50,12 @@ export function PromptModal({
   // -----------------------------------------------------------------------
 
   useEffect(() => {
+    // Clear any pending copy timer when pageId changes to prevent stale setState
+    if (copyTimer.current) {
+      clearTimeout(copyTimer.current);
+      copyTimer.current = null;
+    }
+
     if (!pageId) {
       setState("closed");
       setPromptText("");

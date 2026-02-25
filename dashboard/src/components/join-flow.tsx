@@ -23,8 +23,6 @@ interface ConfettiPiece {
 }
 
 interface JoinFlowProps {
-  /** URL for the Pool API (client-side calls go to Next.js proxy) */
-  poolApiUrl: string;
   /** e.g. "production" | "staging" | "development" */
   poolEnvironment: string;
   /** Ref to the skill browser element for scroll-to + pulse on post-success */
@@ -105,7 +103,6 @@ function generateConfetti(): ConfettiPiece[] {
 // ---------------------------------------------------------------------------
 
 export function JoinFlow({
-  poolApiUrl,
   poolEnvironment,
   skillBrowserRef,
   activeStep,
@@ -141,7 +138,7 @@ export function JoinFlow({
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch(`${poolApiUrl}/api/pool/counts`);
+        const res = await fetch("/api/pool/counts");
         const counts = await res.json();
         if (!launchingRef.current) {
           setAvailable(counts.idle > 0);
@@ -153,7 +150,7 @@ export function JoinFlow({
     poll();
     const interval = setInterval(poll, 15000);
     return () => clearInterval(interval);
-  }, [poolApiUrl]);
+  }, []);
 
   // Helper: schedule a timeout that auto-removes itself and is cleared on unmount
   const scheduleTimer = useCallback((fn: () => void, ms: number) => {

@@ -9,8 +9,6 @@ import { QrModal } from "@/components/qr-modal";
 import { DevBar } from "@/components/dev-bar";
 import type { AgentSkill } from "@/lib/types";
 
-const POOL_API_URL =
-  process.env.NEXT_PUBLIC_POOL_API_URL || "http://localhost:3001";
 const POOL_ENVIRONMENT =
   process.env.NEXT_PUBLIC_POOL_ENVIRONMENT || "staging";
 
@@ -33,7 +31,7 @@ export default function Home() {
   useEffect(() => {
     async function loadSkills() {
       try {
-        const res = await fetch(`${POOL_API_URL}/api/pool/templates`);
+        const res = await fetch("/api/pool/templates");
         if (!res.ok) return;
         const data: AgentSkill[] = await res.json();
         setSkills(data);
@@ -99,7 +97,6 @@ export default function Home() {
 
         {/* Join flow: empty state + paste input + joining animation + steps */}
         <JoinFlow
-          poolApiUrl={POOL_API_URL}
           poolEnvironment={POOL_ENVIRONMENT}
           skillBrowserRef={skillBrowserRef}
           activeStep={activeStep}

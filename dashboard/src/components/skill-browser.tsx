@@ -37,22 +37,32 @@ interface CategoryInfo {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Prompt cache shared across copy actions within the component lifetime. */
+/** Prompt cache + in-flight promise deduplication. */
 const promptCache: Record<string, { prompt: string }> = {};
+const pendingFetches: Record<string, Promise<{ prompt: string } | null>> = {};
 
 async function fetchPrompt(
   pageId: string,
 ): Promise<{ prompt: string } | null> {
   if (promptCache[pageId]) return promptCache[pageId];
-  try {
-    const res = await fetch(`/api/prompts/${pageId}`);
-    if (!res.ok) throw new Error("Failed");
-    const data = await res.json();
-    promptCache[pageId] = data;
-    return data;
-  } catch {
-    return null;
-  }
+  if (pageId in pendingFetches) return pendingFetches[pageId];
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(`/api/prompts/${pageId}`);
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      promptCache[pageId] = data;
+      return data;
+    } catch {
+      return null;
+    } finally {
+      delete pendingFetches[pageId];
+    }
+  })();
+
+  pendingFetches[pageId] = promise;
+  return promise;
 }
 
 // ---------------------------------------------------------------------------

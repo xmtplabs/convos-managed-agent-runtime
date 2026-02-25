@@ -42,8 +42,6 @@ const RAILWAY_SERVICE_ID =
 const RAILWAY_ENVIRONMENT_ID =
   process.env.NEXT_PUBLIC_RAILWAY_ENVIRONMENT_ID || "";
 
-const POOL_API_URL =
-  process.env.NEXT_PUBLIC_POOL_API_URL || "http://localhost:3001";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -108,7 +106,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
 
   const refreshCounts = useCallback(async () => {
     try {
-      const res = await fetch(`${POOL_API_URL}/api/pool/counts`);
+      const res = await fetch("/api/pool/counts");
       if (res.ok) {
         const data: PoolCounts = await res.json();
         setCounts(data);
@@ -240,7 +238,7 @@ export function DevBar({ onShowQr }: DevBarProps) {
     setDraining(true);
     try {
       // First fetch current counts to know how many to drain
-      const countsRes = await fetch(`${POOL_API_URL}/api/pool/counts`);
+      const countsRes = await fetch("/api/pool/counts");
       const c: PoolCounts = await countsRes.json();
       const n = Math.min((c.idle || 0) + (c.starting || 0), 20);
 

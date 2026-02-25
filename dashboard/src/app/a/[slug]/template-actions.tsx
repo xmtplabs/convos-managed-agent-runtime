@@ -26,10 +26,13 @@ export function TemplateActions({
 }: TemplateActionsProps) {
   const [copyState, setCopyState] = useState<"idle" | "loading" | "copied" | "error">("idle");
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-  // Cleanup timer on unmount to prevent state updates after unmount
+  // Track mount state and cleanup timer on unmount
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (copyTimerRef.current) {
         clearTimeout(copyTimerRef.current);
       }
@@ -43,19 +46,24 @@ export function TemplateActions({
   const handleCopyPrompt = useCallback(async () => {
     if (!notionPageId || copyState === "loading") return;
 
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     setCopyState("loading");
     try {
       const res = await fetch(`/api/prompts/${notionPageId}`);
       if (!res.ok) throw new Error("Failed to fetch prompt");
       const data = await res.json();
       await navigator.clipboard.writeText(data.prompt);
+      if (!mountedRef.current) return;
       setCopyState("copied");
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
+      copyTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopyState("idle");
+      }, 2000);
     } catch {
+      if (!mountedRef.current) return;
       setCopyState("error");
-      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = setTimeout(() => setCopyState("idle"), 2000);
+      copyTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) setCopyState("idle");
+      }, 2000);
     }
   }, [notionPageId, copyState]);
 
