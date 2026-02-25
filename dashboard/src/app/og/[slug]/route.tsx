@@ -35,7 +35,7 @@ export async function GET(
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org";
   const templateUrl = `${siteUrl}/a/${encodeURIComponent(slug)}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(templateUrl)}`;
+  const qrUrl = `${siteUrl}/qr/${encodeURIComponent(slug)}`;
 
   return new ImageResponse(
     (

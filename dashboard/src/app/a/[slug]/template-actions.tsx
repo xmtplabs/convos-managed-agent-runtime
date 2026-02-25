@@ -60,15 +60,12 @@ export function TemplateActions({
   }, [notionPageId, copyState]);
 
   // -----------------------------------------------------------------------
-  // QR code via external API (same provider as QrModal).
-  // A dedicated /qr/:slug route is created in Task 10.
+  // QR code via our self-hosted /qr/:slug route (Task 10).
   // -----------------------------------------------------------------------
 
-  const templateUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/a/${encodeURIComponent(slug)}`
-    : `${siteUrl}/a/${encodeURIComponent(slug)}`;
-
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(templateUrl)}`;
+  const qrImageUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/qr/${encodeURIComponent(slug)}`
+    : `${siteUrl}/qr/${encodeURIComponent(slug)}`;
 
   // -----------------------------------------------------------------------
   // Render
