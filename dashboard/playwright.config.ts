@@ -30,9 +30,12 @@ export default defineConfig({
       },
     },
   ],
+  // Use platform-independent snapshot paths so baselines work across macOS/Linux CI.
+  // The {projectName} suffix differentiates desktop vs mobile.
+  snapshotPathTemplate: "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
   expect: {
     toHaveScreenshot: {
-      // Allow 0.5% pixel difference for anti-aliasing variance
+      // Allow 0.5% pixel difference for anti-aliasing/cross-platform variance
       maxDiffPixelRatio: 0.005,
     },
   },
