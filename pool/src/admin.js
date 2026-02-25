@@ -470,6 +470,9 @@ export function adminPage({
     }
     .status-running { background: #D1FAE5; color: #065F46; }
     .status-crashed { background: #FEE2E2; color: #991B1B; }
+    .status-idle { background: #DBEAFE; color: #1D4ED8; }
+    .status-starting { background: #FEF3C7; color: #92400E; }
+    tr.idle td, tr.starting td { color: #999; }
     .instance-link {
       font-family: 'SF Mono', Monaco, 'Courier New', monospace;
       font-size: 11px;
@@ -710,7 +713,7 @@ export function adminPage({
     var RAILWAY_ENV = ${JSON.stringify(railwayEnvironmentId)};
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
 
-    var claimedCache = [], crashedCache = [];
+    var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 
@@ -749,6 +752,8 @@ export function adminPage({
         var data = await res.json();
         claimedCache = (data.claimed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
         crashedCache = (data.crashed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+        idleCache = (data.idle || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+        startingCache = (data.starting || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
         renderAgents();
       } catch (e) {}
     }
@@ -756,43 +761,46 @@ export function adminPage({
     function renderAgents() {
       var body = document.getElementById('agents-body');
       var count = document.getElementById('table-count');
-      var all = crashedCache.concat(claimedCache);
+      var all = crashedCache.concat(claimedCache).concat(idleCache).concat(startingCache);
       var parts = [];
       if (claimedCache.length) parts.push(claimedCache.length + ' running');
+      if (idleCache.length) parts.push(idleCache.length + ' ready');
+      if (startingCache.length) parts.push(startingCache.length + ' starting');
       if (crashedCache.length) parts.push(crashedCache.length + ' crashed');
       count.textContent = parts.join(', ') || '';
 
       if (!all.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="6">No agents running</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
         return;
       }
 
       var html = '';
-      crashedCache.forEach(function (a) {
+      function renderRow(a, status, badge, actions) {
         var rUrl = railwayUrl(a.serviceId);
-        html += '<tr class="crashed" id="row-' + a.id + '">'
-          + '<td class="agent-name-cell">' + esc(a.agentName || a.id) + '</td>'
-          + '<td><span class="status-badge status-crashed">Crashed</span></td>'
+        html += '<tr class="' + status + '" id="row-' + a.id + '">'
+          + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
+          + '<td><span class="status-badge status-' + status + '">' + badge + '</span></td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
           + '<td class="branch-tag">' + esc(a.sourceBranch || '') + '</td>'
-          + '<td class="uptime">' + timeAgo(a.claimedAt) + '</td>'
-          + '<td><div class="action-btns">'
-          + '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>'
-          + '</div></td></tr>';
+          + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
+          + '<td><div class="action-btns">' + actions + '</div></td></tr>';
+      }
+
+      crashedCache.forEach(function (a) {
+        renderRow(a, 'crashed', 'Crashed',
+          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+          + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
       });
       claimedCache.forEach(function (a) {
-        var rUrl = railwayUrl(a.serviceId);
-        html += '<tr id="row-' + a.id + '">'
-          + '<td class="agent-name-cell">' + esc(a.agentName || a.id) + '</td>'
-          + '<td><span class="status-badge status-running">Running</span></td>'
-          + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
-          + '<td class="branch-tag">' + esc(a.sourceBranch || '') + '</td>'
-          + '<td class="uptime">' + timeAgo(a.claimedAt) + '</td>'
-          + '<td><div class="action-btns">'
-          + '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>'
-          + '</div></td></tr>';
+        renderRow(a, 'running', 'Running',
+          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+      });
+      idleCache.forEach(function (a) {
+        renderRow(a, 'idle', 'Ready', '');
+      });
+      startingCache.forEach(function (a) {
+        renderRow(a, 'starting', 'Starting', '');
       });
       body.innerHTML = html;
     }
