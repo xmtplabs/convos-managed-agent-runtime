@@ -1,6 +1,18 @@
+"use client";
+
+import { useRef, useState } from "react";
 import { ConvosLogo } from "@/components/convos-logo";
+import { JoinFlow } from "@/components/join-flow";
+
+const POOL_API_URL =
+  process.env.NEXT_PUBLIC_POOL_API_URL || "http://localhost:3001";
+const POOL_ENVIRONMENT =
+  process.env.NEXT_PUBLIC_POOL_ENVIRONMENT || "staging";
 
 export default function Home() {
+  const skillBrowserRef = useRef<HTMLDivElement>(null);
+  const [activeStep, setActiveStep] = useState(1);
+
   return (
     <div className="form-wrapper">
       <div className="form-center">
@@ -20,34 +32,14 @@ export default function Home() {
           Paste a Convos Invite Link and an AI assistant will join your convo
         </p>
 
-        {/* Empty state placeholder (Task 3: join-flow component) */}
-        {/* <div id="empty-state" className="empty-state">...</div> */}
-
-        {/* Paste view with steps (Task 3 will add paste input + joining animation) */}
-        <div id="paste-view">
-          <div className="steps" id="joining-steps">
-            <div className="step highlight">
-              <span className="step-num">1</span>
-              <span className="step-text">
-                Paste your invite link above to add an assistant.
-              </span>
-            </div>
-            <div className="step">
-              <span className="step-num">2</span>
-              <span className="step-text">
-                Copy a skill below and send it in your chat to give it
-                superpowers.
-              </span>
-            </div>
-            <div className="step">
-              <span className="step-num">3</span>
-              <span className="step-text">
-                Talk to it. Tell it what you like, what to change — it learns
-                from you.
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* Join flow: empty state + paste input + joining animation + steps */}
+        <JoinFlow
+          poolApiUrl={POOL_API_URL}
+          poolEnvironment={POOL_ENVIRONMENT}
+          skillBrowserRef={skillBrowserRef}
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
+        />
 
         {/* Get Convos strip */}
         <div className="get-convos">
@@ -94,7 +86,7 @@ export default function Home() {
         </div>
 
         {/* Prompt store placeholder (Task 4: skill-browser component) */}
-        {/* <div className="prompt-store" id="prompt-store">...</div> */}
+        {/* <div className="prompt-store" id="prompt-store" ref={skillBrowserRef}>...</div> */}
 
         {/* Modals placeholder (Task 5: prompt-modal + qr-modal) */}
         {/* <div className="ps-modal-overlay" id="ps-modal">...</div> */}
