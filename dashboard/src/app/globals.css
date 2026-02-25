@@ -1,1 +1,9 @@
+@import "tailwindcss" layer(tw);
 @import "./pool.css";
+
+/*
+ * Pool.css provides its own global reset and base styles for the homepage.
+ * By importing Tailwind into a custom @layer(tw), all pool.css rules win over
+ * Tailwind's preflight, preventing subtle visual regressions on the homepage.
+ * Tailwind utility classes still work normally on the /a/:slug template pages.
+ */
