@@ -79,7 +79,7 @@ export async function migrate({ drop = false } = {}) {
   // ── Pool DB: backfill + cleanup ────────────────────────────────────────
 
   if (config.poolDatabaseUrl) {
-    await backfillAndCleanPool();
+    await backfillAndCleanPool(drop);
   }
 }
 
@@ -88,7 +88,7 @@ export async function migrate({ drop = false } = {}) {
  * pool's instances table, then cleans up legacy tables and columns.
  * Idempotent — skips backfill if instance_infra already has rows.
  */
-async function backfillAndCleanPool() {
+async function backfillAndCleanPool(drop: boolean) {
   const poolDb = new pg.Pool({
     connectionString: config.poolDatabaseUrl,
     max: 2,
@@ -202,6 +202,25 @@ async function backfillAndCleanPool() {
       } else {
         console.log("[migrate] No volumes returned from Railway (missing RAILWAY_API_TOKEN or no volumes).");
       }
+    }
+
+    // ── Drop legacy columns from pool instances ─────────────────────
+    if (drop) {
+      const dropCols = [
+        "service_id",          // moved to services instance_infra
+        "deploy_status",       // fetched from batch status API
+        "volume_id",           // moved to services instance_infra
+        "runtime_image",       // fetched from batch status API
+        "openrouter_key_hash", // moved to services instance_services
+        "agentmail_inbox_id",  // moved to services instance_services
+        "gateway_token",       // generated at runtime
+        "source_branch",       // unused
+      ];
+      for (const col of dropCols) {
+        await poolDb.query(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
+      }
+      await poolDb.query("DROP INDEX IF EXISTS idx_instances_service_id");
+      console.log(`[migrate] Dropped pool legacy columns: ${dropCols.join(", ")} (--drop).`);
     }
 
     console.log("[migrate] Pool DB backfill/cleanup complete.");
