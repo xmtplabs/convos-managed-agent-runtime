@@ -7,11 +7,37 @@ import { setMockState } from "./helpers";
 // Each of the 12 visual states is captured at desktop (1280x800) and mobile
 // (375x812) viewports. The tests use the mock-pool server to control backend
 // responses so the Next.js app deterministically renders every state.
+//
+// The test env defaults to POOL_ENVIRONMENT=staging, so we use dev.convos.org
+// links (popup.convos.org is rejected in non-production environments).
 // ---------------------------------------------------------------------------
+
+/** A valid invite URL accepted in the staging/dev environment. */
+const TEST_INVITE_URL = "https://dev.convos.org/v2?test=1";
 
 /** Wait for web fonts to finish loading before taking screenshots. */
 async function waitForFonts(page: import("@playwright/test").Page) {
   await page.evaluate(() => document.fonts.ready);
+}
+
+/**
+ * Stub the external QR image API so screenshots are deterministic.
+ * Replaces api.qrserver.com responses with a 1x1 transparent PNG.
+ */
+async function stubQrImage(page: import("@playwright/test").Page) {
+  // 1x1 transparent PNG as base64
+  const TRANSPARENT_PNG = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQAB" +
+    "Nl7BcQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  await page.route("**/api.qrserver.com/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: TRANSPARENT_PNG,
+    }),
+  );
 }
 
 // ===== Visual parity: 12 states =============================================
@@ -47,7 +73,7 @@ test.describe("Visual parity", () => {
     await waitForFonts(page);
 
     // Paste a URL and press Enter to trigger joining state
-    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").fill(TEST_INVITE_URL);
     await page.locator(".paste-input").press("Enter");
     // Capture during animation (500ms into joining)
     await page.waitForTimeout(500);
@@ -64,7 +90,7 @@ test.describe("Visual parity", () => {
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").fill(TEST_INVITE_URL);
     await page.locator(".paste-input").press("Enter");
     // Wait 1000ms for confetti to be visible
     await page.waitForTimeout(1000);
@@ -80,7 +106,7 @@ test.describe("Visual parity", () => {
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").fill(TEST_INVITE_URL);
     await page.locator(".paste-input").press("Enter");
     // Wait 2500ms: overlay dismissed, toast visible, skills scrolled into view
     await page.waitForTimeout(2500);
@@ -96,7 +122,7 @@ test.describe("Visual parity", () => {
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").fill(TEST_INVITE_URL);
     await page.locator(".paste-input").press("Enter");
     // Wait 1500ms for error state (droop + "Try again" visible)
     await page.waitForTimeout(1500);
@@ -184,17 +210,18 @@ test.describe("Visual parity", () => {
 
   // 12. qr-modal
   test("qr modal opens after non-join claim", async ({ page }) => {
+    // Stub external QR image API for deterministic screenshots
+    await stubQrImage(page);
     await setMockState("qr-modal");
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".paste-input")).toBeVisible({ timeout: 10000 });
     await waitForFonts(page);
 
-    await page.locator(".paste-input").fill("https://popup.convos.org/v2?test=1");
+    await page.locator(".paste-input").fill(TEST_INVITE_URL);
     await page.locator(".paste-input").press("Enter");
     // Wait 2000ms for QR modal to open
     await page.waitForTimeout(2000);
     await expect(page).toHaveScreenshot("qr-modal.png", {
-      // QR image loaded from external URL may vary
       maxDiffPixelRatio: 0.02,
     });
   });
