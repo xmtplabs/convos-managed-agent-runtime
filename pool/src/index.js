@@ -85,7 +85,7 @@ app.use(express.json());
 app.use((req, res, next) => {
   const origin = req.headers.origin || "";
   const allowed = (process.env.TEMPLATE_SITE_ORIGINS || "http://localhost:3000").split(",").map((u) => u.trim());
-  if (allowed.some((u) => origin.startsWith(u))) {
+  if (origin && allowed.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
