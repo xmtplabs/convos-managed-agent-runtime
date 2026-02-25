@@ -6,7 +6,7 @@ import { migrate } from "./db/migrate.js";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
-const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || "staging";
+const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || process.RAILWAY_ENVIRONMENT_NAME || "undefined";
 // Deploy context shown in dashboard info tags
 const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
 const INSTANCE_MODEL = process.env.OPENCLAW_PRIMARY_MODEL || "unknown";
