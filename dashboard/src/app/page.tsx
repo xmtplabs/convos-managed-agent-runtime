@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConvosLogo } from "@/components/convos-logo";
 import { JoinFlow } from "@/components/join-flow";
+import { SkillBrowser } from "@/components/skill-browser";
+import type { AgentSkill } from "@/lib/types";
 
 const POOL_API_URL =
   process.env.NEXT_PUBLIC_POOL_API_URL || "http://localhost:3001";
@@ -12,6 +14,22 @@ const POOL_ENVIRONMENT =
 export default function Home() {
   const skillBrowserRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(1);
+  const [skills, setSkills] = useState<AgentSkill[]>([]);
+
+  // Fetch skills catalog on mount
+  useEffect(() => {
+    async function loadSkills() {
+      try {
+        const res = await fetch(`${POOL_API_URL}/api/pool/templates`);
+        if (!res.ok) return;
+        const data: AgentSkill[] = await res.json();
+        setSkills(data);
+      } catch {
+        // Silently ignore fetch errors
+      }
+    }
+    loadSkills();
+  }, []);
 
   return (
     <div className="form-wrapper">
@@ -85,8 +103,16 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Prompt store placeholder (Task 4: skill-browser component) */}
-        {/* <div className="prompt-store" id="prompt-store" ref={skillBrowserRef}>...</div> */}
+        {/* Skill browser */}
+        <SkillBrowser
+          ref={skillBrowserRef}
+          skills={skills}
+          onOpenModal={() => {
+            // Task 5 will implement the prompt modal
+          }}
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
+        />
 
         {/* Modals placeholder (Task 5: prompt-modal + qr-modal) */}
         {/* <div className="ps-modal-overlay" id="ps-modal">...</div> */}
