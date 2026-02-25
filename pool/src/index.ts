@@ -360,9 +360,8 @@ setInterval(() => {
   pool.tick().catch((err: any) => console.error("[tick] Error:", err));
 }, config.tickIntervalMs);
 
-migrate()
-  .then(() => pool.tick())
-  .catch((err: any) => console.error("[tick] Initial tick error:", err));
+// Initial tick (migrations run separately via `pnpm db:migrate`)
+pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
 
 setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
 
