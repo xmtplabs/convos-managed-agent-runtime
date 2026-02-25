@@ -27,7 +27,7 @@ Copy `.env.example` to `.env`. See `.env.example` for all required variables.
 
 Key groups:
 - **SERVICES_API_KEY** — Bearer token for pool → services auth
-- **DATABASE_URL** — Same Postgres as pool
+- **DATABASE_URL** — Separate Postgres instance (services owns its own DB)
 - **RAILWAY_*** — Railway API token, project/environment IDs, runtime image
 - **OPENROUTER_MANAGEMENT_KEY** — Creates per-instance keys with spending caps
 - **AGENTMAIL_API_KEY** — Creates per-instance inboxes
@@ -73,7 +73,7 @@ All routes require Bearer `SERVICES_API_KEY` except `/healthz`.
 
 ## Database
 
-Services creates two tables in the shared Postgres (via `migrate()`):
+Services creates two tables in its own Postgres (via `migrate()`):
 
 - **instance_infra** — Provider-level infrastructure per instance (Railway service ID, URL, secrets)
 - **instance_services** — Per-tool provisioned resources (OpenRouter key hash, AgentMail inbox ID, Telnyx phone number)
