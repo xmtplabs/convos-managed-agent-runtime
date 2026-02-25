@@ -20,9 +20,9 @@ export async function migrate() {
         conversation_id TEXT,
         invite_url TEXT,
         instructions TEXT,
+        runtime_image TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        claimed_at TIMESTAMPTZ,
-        source_branch TEXT
+        claimed_at TIMESTAMPTZ
       )
     `;
     await sql`CREATE INDEX idx_instances_status ON instances (status)`;

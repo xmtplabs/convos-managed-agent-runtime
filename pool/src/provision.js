@@ -43,13 +43,11 @@ export async function provision(opts) {
     const result = await provisionRes.json();
 
     // Complete the claim in DB
-    const sourceBranch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
     await db.completeClaim(instance.service_id, {
       agentName,
       conversationId: result.conversationId,
       inviteUrl: result.inviteUrl || joinUrl || null,
       instructions,
-      sourceBranch,
     });
 
     console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);

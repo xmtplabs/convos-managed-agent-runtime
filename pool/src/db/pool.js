@@ -1,10 +1,10 @@
 import { sql, pool as pgPool } from "./connection.js";
 
 // Upsert an instance row (keyed by service_id).
-export async function upsertInstance({ id, serviceId, name, url, status, deployStatus, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt, sourceBranch }) {
+export async function upsertInstance({ id, serviceId, name, url, status, deployStatus, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt, runtimeImage }) {
   await sql`
-    INSERT INTO instances (id, service_id, name, url, status, deploy_status, agent_name, conversation_id, invite_url, instructions, created_at, claimed_at, source_branch)
-    VALUES (${id}, ${serviceId}, ${name}, ${url || null}, ${status}, ${deployStatus || null}, ${agentName || null}, ${conversationId || null}, ${inviteUrl || null}, ${instructions || null}, ${createdAt || new Date().toISOString()}, ${claimedAt || null}, ${sourceBranch || null})
+    INSERT INTO instances (id, service_id, name, url, status, deploy_status, agent_name, conversation_id, invite_url, instructions, created_at, claimed_at, runtime_image)
+    VALUES (${id}, ${serviceId}, ${name}, ${url || null}, ${status}, ${deployStatus || null}, ${agentName || null}, ${conversationId || null}, ${inviteUrl || null}, ${instructions || null}, ${createdAt || new Date().toISOString()}, ${claimedAt || null}, ${runtimeImage || null})
     ON CONFLICT (service_id) DO UPDATE SET
       name = EXCLUDED.name,
       url = COALESCE(EXCLUDED.url, instances.url),
@@ -15,7 +15,7 @@ export async function upsertInstance({ id, serviceId, name, url, status, deployS
       invite_url = COALESCE(EXCLUDED.invite_url, instances.invite_url),
       instructions = COALESCE(EXCLUDED.instructions, instances.instructions),
       claimed_at = COALESCE(EXCLUDED.claimed_at, instances.claimed_at),
-      source_branch = COALESCE(EXCLUDED.source_branch, instances.source_branch)
+      runtime_image = COALESCE(EXCLUDED.runtime_image, instances.runtime_image)
   `;
 }
 
@@ -81,7 +81,7 @@ export async function claimIdle() {
 }
 
 // Complete a claim — set status to 'claimed' and fill in metadata fields.
-export async function completeClaim(serviceId, { agentName, conversationId, inviteUrl, instructions, sourceBranch }) {
+export async function completeClaim(serviceId, { agentName, conversationId, inviteUrl, instructions }) {
   await sql`
     UPDATE instances SET
       status = 'claimed',
@@ -89,8 +89,7 @@ export async function completeClaim(serviceId, { agentName, conversationId, invi
       conversation_id = ${conversationId || null},
       invite_url = ${inviteUrl || null},
       instructions = ${instructions || null},
-      claimed_at = NOW(),
-      source_branch = ${sourceBranch || null}
+      claimed_at = NOW()
     WHERE service_id = ${serviceId}
   `;
 }

@@ -154,12 +154,14 @@ async function backfillAndCleanPool() {
     await poolDb.query("DROP TABLE IF EXISTS agent_metadata");
     console.log("[migrate] Dropped agent_metadata from pool DB (if existed).");
 
-    // Remove services-owned columns from pool's instances table
-    const serviceCols = ["openrouter_key_hash", "agentmail_inbox_id", "gateway_token", "runtime_image"];
-    for (const col of serviceCols) {
+    // Remove services-owned and unused columns from pool's instances table
+    const dropCols = ["openrouter_key_hash", "agentmail_inbox_id", "gateway_token", "source_branch"];
+    for (const col of dropCols) {
       await poolDb.query(`ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
     }
-    console.log("[migrate] Removed services-owned columns from pool instances table.");
+    // Ensure runtime_image column exists (pool-owned, used for deploy tracking)
+    await poolDb.query("ALTER TABLE instances ADD COLUMN IF NOT EXISTS runtime_image TEXT");
+    console.log("[migrate] Cleaned up pool instances table.");
   } catch (err: any) {
     console.warn(`[migrate] Pool DB backfill/cleanup failed (non-fatal): ${err.message}`);
   } finally {

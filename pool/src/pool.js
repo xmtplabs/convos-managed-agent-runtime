@@ -169,12 +169,12 @@ export async function tick() {
       status,
       deployStatus: svc.deployStatus,
       createdAt,
+      runtimeImage: svc.image || null,
       agentName: dbRow?.agent_name || null,
       conversationId: dbRow?.conversation_id || null,
       inviteUrl: dbRow?.invite_url || null,
       instructions: dbRow?.instructions || null,
       claimedAt: dbRow?.claimed_at || null,
-      sourceBranch: dbRow?.source_branch || null,
     });
   }
 
