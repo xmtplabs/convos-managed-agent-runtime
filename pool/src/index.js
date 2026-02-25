@@ -47,9 +47,52 @@ const AGENT_CATALOG_JSON = (() => {
   }
 })();
 
+// --- Agent catalog for template site (full objects, not compact) ---
+function slugify(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+const AGENT_CATALOG = (() => {
+  try {
+    const catalogPath = resolve(__dirname, "agents-data.json");
+    const raw = JSON.parse(readFileSync(catalogPath, "utf8"));
+    return raw.filter((a) => a.name).map((a) => {
+      const url = a.subPageUrl || "";
+      const m = url.match(/([a-f0-9]{32})/);
+      const catParts = (a.category || "").split(" — ");
+      const emoji = catParts[0].trim().split(" ")[0];
+      let catName = catParts[0].trim().replace(/^\S+\s/, "").replace(/\s*&\s*.+$/, "");
+      if (catName === "Superpower Agents") catName = "Superpowers";
+      if (catName === "Neighborhood") catName = "Local";
+      if (catName === "Professional") catName = "Work";
+      return {
+        slug: slugify(a.name), name: a.name, description: a.description,
+        category: catName, emoji, skills: a.skills || [], status: a.status,
+        notionPageId: m ? m[1] : null,
+      };
+    });
+  } catch (e) {
+    console.warn("[pool] Could not load agents catalog:", e.message);
+    return [];
+  }
+})();
+
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json());
+
+// --- CORS for template site ---
+app.use((req, res, next) => {
+  const origin = req.headers.origin || "";
+  const allowed = (process.env.TEMPLATE_SITE_ORIGINS || "http://localhost:3000").split(",").map((u) => u.trim());
+  if (allowed.some((u) => origin.startsWith(u))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 
 // --- Auth middleware ---
 function requireAuth(req, res, next) {
@@ -80,6 +123,14 @@ app.get("/api/pool/agents", (_req, res) => {
   const claimed = cache.getByStatus("claimed");
   const crashed = cache.getByStatus("crashed");
   res.json({ claimed, crashed });
+});
+
+// Template catalog (no auth — public-facing for template site)
+app.get("/api/pool/templates", (_req, res) => { res.json(AGENT_CATALOG); });
+app.get("/api/pool/templates/:slug", (req, res) => {
+  const t = AGENT_CATALOG.find((a) => a.slug === req.params.slug);
+  if (!t) return res.status(404).json({ error: "Template not found" });
+  res.json(t);
 });
 
 // Kill a launched instance

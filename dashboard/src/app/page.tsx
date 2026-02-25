@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface PoolCounts {
-  idle: number;
-  starting: number;
-  claimed: number;
-  crashed: number;
-}
+import type { PoolCounts } from "@/lib/types";
 
 const POOL_API_URL =
   typeof window !== "undefined"
@@ -49,9 +43,11 @@ export default function Home() {
           </div>
         )}
 
-        {/* Empty state - shown when pool has no idle instances */}
+        {/* Empty state - shown when pool has no idle instances.
+            The CSS sets display:none by default; override with inline style
+            to match how the original Pool page toggles visibility. */}
         {isEmpty && (
-          <div className="empty-state">
+          <div className="empty-state" style={{ display: "block" }}>
             <div className="empty-scene">
               <p>No assistants available right now</p>
             </div>
