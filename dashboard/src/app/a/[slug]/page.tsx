@@ -119,6 +119,7 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
             slug={template.slug}
             notionPageId={template.notionPageId}
             agentName={template.name}
+            siteUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org"}
           />
         </div>
       </main>

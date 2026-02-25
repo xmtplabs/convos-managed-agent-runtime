@@ -10,6 +10,8 @@ interface TemplateActionsProps {
   slug: string;
   notionPageId: string | null;
   agentName: string;
+  /** Base site URL passed from the server to avoid hardcoding in SSR fallback. */
+  siteUrl: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -20,6 +22,7 @@ export function TemplateActions({
   slug,
   notionPageId,
   agentName,
+  siteUrl,
 }: TemplateActionsProps) {
   const [copyState, setCopyState] = useState<"idle" | "loading" | "copied" | "error">("idle");
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,7 +66,7 @@ export function TemplateActions({
 
   const templateUrl = typeof window !== "undefined"
     ? `${window.location.origin}/a/${encodeURIComponent(slug)}`
-    : `https://assistants.convos.org/a/${encodeURIComponent(slug)}`;
+    : `${siteUrl}/a/${encodeURIComponent(slug)}`;
 
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(templateUrl)}`;
 
