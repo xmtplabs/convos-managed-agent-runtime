@@ -684,6 +684,9 @@ export function adminPage({
         <label>Drain unclaimed</label>
         <button class="btn btn-danger" id="drain-btn">Drain</button>
       </div>
+      <div class="control-group">
+        <button class="btn btn-danger" id="kill-all-btn">Kill All</button>
+      </div>
       <div class="controls-spacer"></div>
       <span class="last-updated" id="last-updated"></span>
     </div>
@@ -985,6 +988,33 @@ export function adminPage({
         refreshCounts();
       } catch (err) { alert('Failed: ' + err.message); }
       finally { btn.disabled = false; btn.textContent = 'Drain'; }
+    });
+
+    // --- Kill All ---
+    document.getElementById('kill-all-btn').addEventListener('click', async function () {
+      var all = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache);
+      if (!all.length) { alert('No instances to kill.'); return; }
+      var key = prompt((POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'This will destroy all ' + all.length + ' instance(s) and their Railway services.\\n\\nEnter the API key to confirm:');
+      if (!key) return;
+      if (key !== API_KEY) { alert('Incorrect API key.'); return; }
+      var btn = this;
+      btn.disabled = true; btn.textContent = 'Killing...';
+      var failed = 0;
+      for (var i = 0; i < all.length; i++) {
+        var a = all[i];
+        markDestroying(a.id);
+        try {
+          var endpoint = (a.status === 'crashed' || crashedCache.some(function (c) { return c.id === a.id; }))
+            ? '/api/pool/crashed/' + a.id
+            : '/api/pool/instances/' + a.id;
+          var res = await fetch(endpoint, { method: 'DELETE', headers: authHeaders });
+          if (!res.ok) failed++;
+        } catch (e) { failed++; }
+      }
+      if (failed) alert(failed + ' instance(s) failed to delete.');
+      refreshCounts();
+      refreshAgents();
+      btn.disabled = false; btn.textContent = 'Kill All';
     });
 
     // --- QR Modal ---
