@@ -2,6 +2,7 @@
 
 import {
   useState,
+  useEffect,
   useMemo,
   useCallback,
   useRef,
@@ -69,6 +70,15 @@ export const SkillBrowser = forwardRef<HTMLDivElement, SkillBrowserProps>(
       Record<string, "idle" | "loading" | "copied" | "error">
     >({});
     const copyTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+    // Clear all copy timers on unmount to prevent setState on unmounted component
+    useEffect(() => {
+      return () => {
+        for (const id of Object.values(copyTimers.current)) {
+          clearTimeout(id);
+        }
+      };
+    }, []);
 
     // Inner div ref for forwarding
     const innerRef = useRef<HTMLDivElement>(null);
