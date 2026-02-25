@@ -15,6 +15,7 @@ export const config = {
 
   // Database
   databaseUrl: getEnv("DATABASE_URL"),
+  poolDatabaseUrl: getEnv("POOL_DATABASE_URL"),
 
   // Railway
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),
