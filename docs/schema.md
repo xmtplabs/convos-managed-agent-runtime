@@ -73,9 +73,9 @@ Pool → DELETE /destroy/:instanceId
 Pool: DELETE FROM instances WHERE id = :instanceId
 ```
 
-## API (Pool → Services)
+## Internal API (Services Routes)
 
-Auth: `Authorization: Bearer SERVICES_API_KEY`
+Auth: `Authorization: Bearer POOL_API_KEY`
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|

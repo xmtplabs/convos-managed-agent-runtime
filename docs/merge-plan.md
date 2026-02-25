@@ -18,13 +18,13 @@ Pool and services are two separate Express apps with separate databases and depl
 
 ## Phase 1: Unified database
 
-Single `DATABASE_URL` env var (falls back to `POOL_DATABASE_URL` for backward compat).
+Single `DATABASE_URL` env var.
 
 - Rewrite `pool/src/db/connection.ts` — single `pg.Pool` using `DATABASE_URL`
 - Merge migrations into `pool/src/db/migrate.ts` — creates all 3 tables: `instances`, `instance_infra`, `instance_services` (idempotent, checks existence before CREATE)
 - Keep `pool/src/db/pool.ts` for instances queries (unchanged)
 
-**Deployment migration:** Use the services DB as target (already has 2 of 3 tables). Copy `instances` rows from pool DB into it. Set `DATABASE_URL` to what was `SERVICE_DATABASE_URL`. Run during maintenance window with `POOL_MIN_IDLE=0`.
+**Deployment migration:** Use the services DB as target (already has 2 of 3 tables). Copy `instances` rows into it. Set `DATABASE_URL` to point at it. Run during maintenance window with `POOL_MIN_IDLE=0`.
 
 ## Phase 2: Move services code into pool
 
@@ -102,8 +102,8 @@ Bearer:     All API routes (pool + services)
 
 ## Env var changes
 
-**Removed:** `SERVICES_URL`, `SERVICES_API_KEY`, `SERVICE_DATABASE_URL`
-**Renamed:** `POOL_DATABASE_URL` → `DATABASE_URL` (with fallback)
+**Removed:** `SERVICES_URL`, `SERVICES_API_KEY`, `SERVICE_DATABASE_URL`, `POOL_DATABASE_URL`
+**Renamed:** `DATABASE_URL` (single unified connection string)
 **Added to pool:** `RAILWAY_API_TOKEN`, `RAILWAY_RUNTIME_IMAGE`, `OPENROUTER_MANAGEMENT_KEY`, `OPENROUTER_KEY_LIMIT`, `AGENTMAIL_API_KEY`, `AGENTMAIL_DOMAIN`, `TELNYX_API_KEY`, `TELNYX_MESSAGING_PROFILE_ID`, `OPENCLAW_PRIMARY_MODEL`, `XMTP_ENV`, `BANKR_API_KEY`, `TELNYX_PHONE_NUMBER`
 
 ## Railway deployment procedure

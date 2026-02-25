@@ -89,12 +89,9 @@ cd services && pnpm db:migrate:drop   # drops legacy columns from both services 
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
-| `POOL_DATABASE_URL` | Railway postgres connection string |
-| **Services API** | |
-| `SERVICES_URL` | Services API base URL (e.g. `http://services.railway.internal:3002`) |
-| `SERVICES_API_KEY` | Shared secret for services API auth |
-| **Railway** (dashboard links only) | |
-| `RAILWAY_PROJECT_ID` | Railway project ID (for pool manager's own dashboard link) |
+| `DATABASE_URL` | Postgres connection string (unified DB) |
+| **Railway** | |
+| `RAILWAY_PROJECT_ID` | Railway project ID |
 | `RAILWAY_ENVIRONMENT_ID` | Railway environment ID (for tick loop + dashboard links) |
 
 ## Database

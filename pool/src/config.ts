@@ -8,7 +8,7 @@ export const config = {
   poolApiKey: getEnv("POOL_API_KEY"),
 
   // Database — single unified DB
-  databaseUrl: getEnv("DATABASE_URL") || getEnv("POOL_DATABASE_URL"),
+  databaseUrl: getEnv("DATABASE_URL"),
 
   // Pool behavior
   poolMinIdle: parseInt(getEnv("POOL_MIN_IDLE", "3"), 10),
