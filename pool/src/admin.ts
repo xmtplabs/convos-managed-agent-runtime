@@ -469,10 +469,10 @@ export function adminPage({
       border-collapse: collapse;
       table-layout: fixed;
     }
-    col.col-name { width: 22%; }
-    col.col-status { width: 11%; }
-    col.col-instance { width: 20%; }
-    col.col-usage { width: 18%; }
+    col.col-name { width: 21%; }
+    col.col-status { width: 13%; }
+    col.col-instance { width: 22%; }
+    col.col-branch { width: 16%; }
     col.col-uptime { width: 10%; }
     col.col-actions { width: 19%; }
     th {
