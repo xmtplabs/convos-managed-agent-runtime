@@ -14,9 +14,9 @@ echo ""
 echo "  🔑 Provisioning keys"
 echo "  ═══════════════════"
 
-# ── Provision tools via services API if available and keys are missing ──────
+# ── Provision tools via pool API if available and keys are missing ──────
 
-if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
+if [ -n "$POOL_URL" ] && [ -n "$POOL_API_KEY" ]; then
   # Build the tools list based on what's missing
   tools=""
   if [ -z "$OPENROUTER_API_KEY" ]; then tools="$tools\"openrouter\","; fi
@@ -26,7 +26,7 @@ if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
   if [ -n "$tools" ]; then
     # Strip trailing comma, wrap in array
     tools_json="[$(echo "$tools" | sed 's/,$//')]"
-    echo "  🔧 Requesting tools from services: $tools_json"
+    echo "  🔧 Requesting tools from pool: $tools_json"
 
     max_retries=3
     retry_delay=5
@@ -34,8 +34,8 @@ if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
     provisioned=false
 
     while [ "$attempt" -le "$max_retries" ]; do
-      resp=$(curl -s -w '\n%{http_code}' --connect-timeout 5 -X POST "$SERVICES_URL/provision-local" \
-        -H "Authorization: Bearer $SERVICES_API_KEY" \
+      resp=$(curl -s -w '\n%{http_code}' --connect-timeout 5 -X POST "$POOL_URL/provision-local" \
+        -H "Authorization: Bearer $POOL_API_KEY" \
         -H "Content-Type: application/json" \
         -d "{\"tools\": $tools_json}" 2>/dev/null) || true
       http_code=$(echo "$resp" | tail -n1)
@@ -47,7 +47,7 @@ if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
       fi
 
       if [ "$attempt" -lt "$max_retries" ]; then
-        echo "  ⚠️  Services unreachable (attempt $attempt/$max_retries), retrying in ${retry_delay}s..." >&2
+        echo "  ⚠️  Pool unreachable (attempt $attempt/$max_retries), retrying in ${retry_delay}s..." >&2
         sleep "$retry_delay"
       fi
       attempt=$((attempt + 1))
@@ -61,22 +61,22 @@ if [ -n "$SERVICES_URL" ] && [ -n "$SERVICES_API_KEY" ]; then
 
       if [ -n "$or_key" ]; then
         export OPENROUTER_API_KEY="$or_key"
-        echo "  🔧 OPENROUTER_API_KEY      → provisioned via services"
+        echo "  🔧 OPENROUTER_API_KEY      → provisioned via pool"
       fi
       if [ -n "$inbox_id" ]; then
         export AGENTMAIL_INBOX_ID="$inbox_id"
-        echo "  🔧 AGENTMAIL_INBOX_ID      → provisioned via services"
+        echo "  🔧 AGENTMAIL_INBOX_ID      → provisioned via pool"
       fi
       if [ -n "$telnyx_num" ]; then
         export TELNYX_PHONE_NUMBER="$telnyx_num"
-        echo "  🔧 TELNYX_PHONE_NUMBER     → provisioned via services"
+        echo "  🔧 TELNYX_PHONE_NUMBER     → provisioned via pool"
       fi
       if [ -n "$telnyx_prof" ]; then
         export TELNYX_MESSAGING_PROFILE_ID="$telnyx_prof"
-        echo "  🔧 TELNYX_MESSAGING_PROFILE_ID → provisioned via services"
+        echo "  🔧 TELNYX_MESSAGING_PROFILE_ID → provisioned via pool"
       fi
     else
-      echo "  ⚠️  Services provisioning failed after $max_retries attempts (http=$http_code)" >&2
+      echo "  ⚠️  Pool provisioning failed after $max_retries attempts (http=$http_code)" >&2
     fi
   else
     echo "  ✅ All tool keys present in env"
@@ -86,7 +86,7 @@ fi
 # ── Hard dependency: agent needs a model key to function ───────────────────
 
 if [ -z "$OPENROUTER_API_KEY" ]; then
-  echo "  ❌ OPENROUTER_API_KEY is required but not set (services may be down)" >&2
+  echo "  ❌ OPENROUTER_API_KEY is required but not set (pool may be down)" >&2
   exit 1
 fi
 

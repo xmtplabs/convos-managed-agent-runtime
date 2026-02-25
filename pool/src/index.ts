@@ -276,12 +276,12 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
 });
 
 // --- Services routes (previously separate service, now local) ---
+app.use(registryRouter); // registry is public
+app.use(dashboardRouter); // dashboard is public (served inside admin page)
 app.use(requireAuth, infraRouter);
 app.use(requireAuth, statusRouter);
 app.use(requireAuth, configureRouter);
 app.use(requireAuth, toolsRouter);
-app.use(registryRouter); // registry is public
-app.use(dashboardRouter); // dashboard has its own auth
 
 // --- Notion prompt fetching ---
 const promptCache = new Map<string, { data: { name: string; prompt: string }; ts: number }>();

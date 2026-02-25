@@ -9,19 +9,19 @@ import crypto from "node:crypto";
 const COOKIE_NAME = "pool_admin_session";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// Simple in-memory session store (survives restarts via fresh login)
-const sessions = new Map();
+/** Stateless token: HMAC of the API key + expiry. Survives server restarts. */
+function makeToken(expiry) {
+  const secret = process.env.POOL_API_KEY || "";
+  return crypto.createHmac("sha256", secret).update(String(expiry)).digest("hex") + "." + expiry;
+}
 
-// Prune expired sessions every hour
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, expiry] of sessions) {
-    if (now > expiry) sessions.delete(token);
-  }
-}, 60 * 60 * 1000).unref();
-
-function generateToken() {
-  return crypto.randomBytes(32).toString("hex");
+function verifyToken(token) {
+  const dot = token.lastIndexOf(".");
+  if (dot === -1) return false;
+  const expiry = Number(token.slice(dot + 1));
+  if (!expiry || Date.now() > expiry) return false;
+  const expected = makeToken(expiry);
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
 }
 
 export function adminLogin(password, res) {
@@ -29,8 +29,7 @@ export function adminLogin(password, res) {
   if (!adminPassword || password !== adminPassword) {
     return false;
   }
-  const token = generateToken();
-  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  const token = makeToken(Date.now() + SESSION_TTL_MS);
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -44,19 +43,10 @@ export function isAuthenticated(req) {
   const raw = req.headers.cookie || "";
   const match = raw.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
   if (!match) return false;
-  const token = match[1];
-  const expiry = sessions.get(token);
-  if (!expiry || Date.now() > expiry) {
-    sessions.delete(token);
-    return false;
-  }
-  return true;
+  return verifyToken(match[1]);
 }
 
 export function adminLogout(req, res) {
-  const raw = req.headers.cookie || "";
-  const match = raw.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
-  if (match) sessions.delete(match[1]);
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     sameSite: "lax",
@@ -257,7 +247,13 @@ export function adminPage({
     /* --- Stat cards --- */
     .stats {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .stats-credits {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
       margin-bottom: 24px;
     }
@@ -472,12 +468,12 @@ export function adminPage({
       border-collapse: collapse;
       table-layout: fixed;
     }
-    col.col-name { width: 21%; }
-    col.col-status { width: 13%; }
-    col.col-instance { width: 22%; }
-    col.col-branch { width: 16%; }
+    col.col-name { width: 22%; }
+    col.col-status { width: 11%; }
+    col.col-instance { width: 20%; }
+    col.col-usage { width: 18%; }
     col.col-uptime { width: 10%; }
-    col.col-actions { width: 18%; }
+    col.col-actions { width: 19%; }
     th {
       text-align: left;
       font-size: 10px;
@@ -527,10 +523,6 @@ export function adminPage({
       text-decoration: none;
     }
     .instance-link:hover { text-decoration: underline; }
-    .branch-tag {
-      font-size: 11px;
-      color: #999;
-    }
     .uptime {
       font-size: 12px;
       color: #999;
@@ -626,9 +618,81 @@ export function adminPage({
     .modal .invite-url-row.copied .invite-url-text { color: #065F46; }
     .modal .invite-url-row.copied .copy-label { color: #065F46; }
 
+    .usage-bar-wrap {
+      width: 100%;
+      height: 4px;
+      background: #F0F0F0;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .usage-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: #34C759;
+      transition: width 0.3s;
+    }
+    .usage-bar.warn { background: #FF9500; }
+    .usage-bar.danger { background: #DC2626; }
+    .usage-cell {
+      font-size: 11px;
+      color: #666;
+    }
+
+    /* --- Expand row (inline detail below agent) --- */
+    .expand-row td {
+      padding: 0 !important;
+      border-bottom: 1px solid #EBEBEB;
+      background: #FAFAFA;
+    }
+    .expand-inner {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 16px 20px;
+      font-size: 12px;
+    }
+    .expand-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .expand-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #999;
+    }
+    .expand-value {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .expand-value.mono {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 11px;
+      color: #666;
+    }
+    .expand-bar {
+      grid-column: 1 / -1;
+      height: 4px;
+      background: #F0F0F0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .expand-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: #34C759;
+    }
+    .expand-bar-fill.warn { background: #FF9500; }
+    .expand-bar-fill.danger { background: #DC2626; }
+    .action-btn.credits { color: #6B21A8; border-color: #DDD6FE; }
+    .action-btn.credits:hover { background: #FAF5FF; }
+
     /* --- Responsive --- */
     @media (max-width: 640px) {
-      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stats, .stats-credits { grid-template-columns: repeat(2, 1fr); }
       .header { flex-wrap: wrap; gap: 8px; }
       .header-right { flex-wrap: wrap; }
       .controls { flex-wrap: wrap; }
@@ -648,7 +712,6 @@ export function adminPage({
       ).join("") : `<span class="env-tag env-${poolEnvironment}">${poolEnvironment}</span>`}
     </div>
     <div class="header-right">
-      <span class="chip">branch: ${deployBranch}</span>
       <span class="chip">model: ${instanceModel}</span>
       ${railwayLink ? `<span class="chip"><a href="${railwayLink}" target="_blank" rel="noopener">service: ${railwayServiceId.slice(0, 8)}</a></span>` : ""}
       ${railwayProjectLink ? `<span class="chip"><a href="${railwayProjectLink}" target="_blank" rel="noopener">Railway</a></span>` : ""}
@@ -675,6 +738,20 @@ export function adminPage({
       <div class="stat-card">
         <div class="stat-label"><span class="stat-dot red"></span> Crashed</div>
         <div class="stat-value" id="s-crashed">-</div>
+      </div>
+    </div>
+    <div class="stats-credits">
+      <div class="stat-card">
+        <div class="stat-label">Balance</div>
+        <div class="stat-value" id="s-balance">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Used</div>
+        <div class="stat-value" id="s-used">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Credits</div>
+        <div class="stat-value" id="s-total">-</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Templates</div>
@@ -737,7 +814,7 @@ export function adminPage({
           <col class="col-name">
           <col class="col-status">
           <col class="col-instance">
-          <col class="col-branch">
+          <col class="col-usage">
           <col class="col-uptime">
           <col class="col-actions">
         </colgroup>
@@ -746,7 +823,7 @@ export function adminPage({
             <th>Name</th>
             <th>Status</th>
             <th>Instance</th>
-            <th>Branch</th>
+            <th>Usage</th>
             <th>Uptime</th>
             <th>Actions</th>
           </tr>
@@ -756,6 +833,7 @@ export function adminPage({
         </tbody>
       </table>
     </div>
+
   </div>
 
   <!-- QR Modal -->
@@ -778,6 +856,7 @@ export function adminPage({
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
 
     var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
+    var svcKeyMap = {}; // keyed by key name e.g. 'convos-agent-xxxxx'
     var statusFilter = null; // null = show all, 'idle' | 'starting' | 'running' | 'crashed'
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -870,13 +949,30 @@ export function adminPage({
       }
 
       var html = '';
+      function creditsBtn(id) {
+        var key = svcKeyMap['convos-agent-' + id];
+        return key ? '<button class="action-btn credits" data-credits="' + id + '">&#128179;</button>' : '';
+      }
       function renderRow(a, status, badge, actions) {
         var rUrl = railwayUrl(a.serviceId);
+        var key = svcKeyMap['convos-agent-' + a.id];
+        var usageCell = '';
+        if (key) {
+          var usage = key.usage || 0;
+          var limit = key.limit || 0;
+          var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
+          var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+          usageCell = '<td class="usage-cell">'
+            + fmtDollars(usage) + ' / ' + fmtDollars(limit)
+            + '<div class="usage-bar-wrap"><div class="usage-bar ' + barClass + '" style="width:' + pct + '%"></div></div></td>';
+        } else {
+          usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
+        }
         html += '<tr class="' + status + '" id="row-' + a.id + '">'
           + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
           + '<td><span class="status-badge status-' + status + '">' + badge + '</span></td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
-          + '<td class="branch-tag">' + esc(a.sourceBranch || '') + '</td>'
+          + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
           + '<td><div class="action-btns">' + actions + '</div></td></tr>';
       }
@@ -884,18 +980,20 @@ export function adminPage({
       if (showCrashed) crashedCache.forEach(function (a) {
         renderRow(a, 'crashed', 'Crashed',
           '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+          + creditsBtn(a.id)
           + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
       });
       if (showClaimed) claimedCache.forEach(function (a) {
         renderRow(a, 'running', 'Running',
           '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+          + creditsBtn(a.id)
           + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       if (showIdle) idleCache.forEach(function (a) {
-        renderRow(a, 'idle', 'Ready', '');
+        renderRow(a, 'idle', 'Ready', creditsBtn(a.id));
       });
       if (showStarting) startingCache.forEach(function (a) {
-        renderRow(a, 'starting', 'Starting', '');
+        renderRow(a, 'starting', 'Starting', creditsBtn(a.id));
       });
       body.innerHTML = html;
     }
@@ -911,7 +1009,13 @@ export function adminPage({
       var killId = e.target.getAttribute('data-kill');
       if (killId) { killAgent(killId); return; }
       var dismissId = e.target.getAttribute('data-dismiss');
-      if (dismissId) dismissAgent(dismissId);
+      if (dismissId) { dismissAgent(dismissId); return; }
+
+      // Credits button → toggle expand row
+      var creditsId = e.target.closest('[data-credits]');
+      if (creditsId) {
+        toggleExpand(creditsId.getAttribute('data-credits'));
+      }
     });
 
     function markDestroying(id) {
@@ -1078,10 +1182,81 @@ export function adminPage({
       document.getElementById('s-templates').textContent = Array.isArray(d) ? d.length : '-';
     }).catch(function () {});
 
+    // --- Credits ---
+    function fmtDollars(n) {
+      if (n == null) return '-';
+      return '$' + Math.round(Number(n));
+    }
+
+    async function refreshCredits() {
+      try {
+        var res = await fetch('/dashboard/credits', { headers: authHeaders });
+        var data = await res.json();
+        var credits = data.credits || {};
+        var keys = data.keys || [];
+
+        // Build lookup map
+        svcKeyMap = {};
+        keys.forEach(function (k) { if (k.name) svcKeyMap[k.name] = k; });
+
+        var total = credits.totalCredits || 0;
+        var used = credits.totalUsage || 0;
+        var remaining = total - used;
+        document.getElementById('s-balance').textContent = fmtDollars(remaining);
+        document.getElementById('s-used').textContent = fmtDollars(used);
+        document.getElementById('s-total').textContent = fmtDollars(total);
+
+        // Re-render agents table so usage column picks up fresh data
+        renderAgents();
+      } catch (e) {
+        document.getElementById('s-balance').textContent = '-';
+        document.getElementById('s-used').textContent = '-';
+        document.getElementById('s-total').textContent = '-';
+      }
+    }
+
+    // --- Expand row (inline details below agent) ---
+    function toggleExpand(instanceId) {
+      var existing = document.getElementById('expand-' + instanceId);
+      if (existing) { existing.remove(); return; }
+
+      // Close any other open expand row
+      document.querySelectorAll('.expand-row').forEach(function (r) { r.remove(); });
+
+      var key = svcKeyMap['convos-agent-' + instanceId];
+      if (!key) return;
+
+      var usage = key.usage || 0;
+      var limit = key.limit || 0;
+      var remaining = limit > 0 ? Math.max(0, limit - usage) : null;
+      var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
+      var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+
+      var html = '<td colspan="6"><div class="expand-inner">'
+        + '<div class="expand-item"><span class="expand-label">Used</span><span class="expand-value">' + fmtDollars(usage) + '</span></div>'
+        + '<div class="expand-item"><span class="expand-label">Limit</span><span class="expand-value">' + fmtDollars(limit) + '</span></div>'
+        + '<div class="expand-item"><span class="expand-label">Remaining</span><span class="expand-value">' + (remaining != null ? fmtDollars(remaining) : '-') + '</span></div>'
+        + '<div class="expand-bar"><div class="expand-bar-fill ' + barClass + '" style="width:' + pct + '%"></div></div>'
+        + '<div class="expand-item"><span class="expand-label">Hash</span><span class="expand-value mono">' + esc(key.hash || '-') + '</span></div>'
+        + '<div class="expand-item"><span class="expand-label">Label</span><span class="expand-value mono">' + esc(key.label || '-') + '</span></div>'
+        + '<div class="expand-item"><span class="expand-label">Created</span><span class="expand-value">' + (key.created_at ? new Date(key.created_at).toLocaleString() : '-') + '</span></div>'
+        + '</div></td>';
+
+      var tr = document.createElement('tr');
+      tr.id = 'expand-' + instanceId;
+      tr.className = 'expand-row';
+      tr.innerHTML = html;
+
+      var parentRow = document.getElementById('row-' + instanceId);
+      if (parentRow) parentRow.after(tr);
+    }
+
     // --- Init + polling ---
     refreshCounts();
     refreshAgents();
+    refreshCredits();
     setInterval(function () { refreshCounts(); refreshAgents(); }, 15000);
+    setInterval(refreshCredits, 60000);
   </script>
 </body>
 </html>`;
