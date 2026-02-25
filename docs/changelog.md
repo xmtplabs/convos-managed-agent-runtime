@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.14 — 2026-02-25
+
+- **Pool/Services DB separation.** Pool `instances` table trimmed to identity + claim state only (10 columns). Infra details (service IDs, deploy status, volumes, images, tool resources) live in the services DB (`instance_infra` + `instance_services`). Pool no longer stores `service_id`, `deploy_status`, `volume_id`, `runtime_image`, `openrouter_key_hash`, `agentmail_inbox_id`, `gateway_token`, or `source_branch`.
+- **Pool: id-based operations.** All DB operations (upsert, claim, status, delete, orphan cleanup) now key on `instances.id` instead of `service_id`. Tick loop reconciles by `instanceId` from the services batch status API.
+- **Services: `provider_project_id`.** New column on `instance_infra` for future per-agent Railway projects. Backfilled from `RAILWAY_PROJECT_ID`. Returned as `projectId` in `/status/batch` response.
+- **Pool: dashboard enrichment.** `/api/pool/agents` fetches batch status and joins `serviceId` + `projectId` into the response. Railway links in the dashboard now work via enriched batch data instead of hardcoded env vars. Graceful degradation if batch status fails.
+- **Migration: `--drop` flag.** `pnpm db:migrate:drop` (in services) drops legacy columns from both services and pool DBs. Normal `pnpm db:migrate` is safe — only creates tables, adds columns, backfills.
+- **Remove enrich script.** Delete `pool/src/db/enrich-instances.js` and `db:enrich` script — no longer needed with services owning all infra data.
+- **Remove unused `runtime/scripts/lib/db.mjs`.**
+- **Docs:** New `services.md`, updated `pool.md` DB schema and env vars.
+
 ## 0.0.13 — 2026-02-25
 
 - **Pool: DB-backed instance state.** Replace in-memory cache with Postgres `instances` table. All instance state (status, urls, keys, metadata) persisted in DB. Atomic claiming via `FOR UPDATE SKIP LOCKED`. Tick loop reconciles DB with Railway on every cycle. Delete `cache.js`.

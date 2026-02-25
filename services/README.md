@@ -20,6 +20,7 @@ Or from `services/`:
 | `pnpm start` | Start server (from dist/) |
 | `pnpm dev` | Start with watch + `.env` |
 | `pnpm db:migrate` | Run DB migrations |
+| `pnpm db:migrate:drop` | Migrate + drop legacy columns from both services + pool DBs |
 
 ## Configuration
 
@@ -27,7 +28,7 @@ Copy `.env.example` to `.env`. See `.env.example` for all required variables.
 
 Key groups:
 - **SERVICES_API_KEY** — Bearer token for pool → services auth
-- **DATABASE_URL** — Separate Postgres instance (services owns its own DB)
+- **SERVICE_DATABASE_URL** — Separate Postgres instance (services owns its own DB)
 - **RAILWAY_*** — Railway API token, project/environment IDs, runtime image
 - **OPENROUTER_MANAGEMENT_KEY** — Creates per-instance keys with spending caps
 - **AGENTMAIL_API_KEY** — Creates per-instance inboxes

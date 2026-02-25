@@ -35,7 +35,6 @@ Or from `pool/`:
 | `pnpm start` | Start server |
 | `pnpm test` | Run tests |
 | `pnpm db:migrate` | Run DB migrations |
-| `pnpm db:enrich` | Backfill instance metadata from services API |
 
 ## Configuration
 
@@ -47,7 +46,7 @@ PORT=3001
 POOL_API_KEY=your-shared-pool-secret
 POOL_ENVIRONMENT=staging          # "staging" or "production"
 POOL_MIN_IDLE=1
-DATABASE_URL=postgresql://...
+POOL_DATABASE_URL=postgresql://...
 
 # Services API
 SERVICES_URL=http://services.railway.internal:3002

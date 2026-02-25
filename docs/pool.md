@@ -19,10 +19,11 @@ Manages pre-warmed [OpenClaw](https://github.com/xmtplabs/openclaw) agent instan
     └──────────────┘   └──────────────┘     └──────────────┘
 ```
 
-1. Creates Railway services from a pre-built GHCR image (`ghcr.io/xmtplabs/convos-runtime`, see [runtime.md](./runtime.md))
+1. Delegates to the **services API** to create Railway services, provision tools (OpenRouter keys, AgentMail inboxes), and manage infra
 2. Health-checks `/pool/health` until `ready`, then marks the instance **idle**
 3. On `POST /api/pool/claim`, provisions a Convos conversation on the instance and backfills the pool
 4. All instance state lives in a Postgres `instances` table — no in-memory cache
+5. Infra details (service IDs, deploy status, volumes, images) live in the **services DB** — pool only tracks instance identity and claim state
 
 ## Instance lifecycle
 
@@ -32,10 +33,10 @@ starting  →  idle  →  claimed
 ```
 
 The background tick runs every 30 seconds:
-1. Fetches all services from Railway, reconciles with the `instances` DB table
+1. Fetches batch status from the **services API** (deploy status, domains, images), reconciles with the `instances` DB table by `instanceId`
 2. Health-checks deployed instances — if `/pool/health` returns `ready`, marks them `idle`
-3. Dead/stuck unclaimed instances are deleted; dead claimed instances are marked `crashed`
-4. Orphaned DB rows (service gone from Railway) are cleaned up
+3. Dead/stuck unclaimed instances are deleted via services API; dead claimed instances are marked `crashed`
+4. Orphaned DB rows (instance gone from Railway) are cleaned up
 5. If idle + starting < `POOL_MIN_IDLE`, creates new instances to fill the gap
 
 ## Setup
@@ -45,22 +46,14 @@ Requires Node.js 22+ and a [Railway](https://railway.com) Postgres database.
 ```sh
 cp pool/.env.example pool/.env
 pnpm install
-pnpm run db:migrate    # creates instances + agent_metadata tables
+pnpm run db:migrate    # creates instances table
 pnpm start
 ```
 
-To backfill existing instances with data from Railway API (url, gateway_token, agentmail_inbox_id, runtime_image):
+To drop legacy columns from an existing DB (after deploying the new code):
 
 ```sh
-pnpm run db:enrich             # fill missing fields
-pnpm run db:enrich --dry-run   # preview changes
-pnpm run db:enrich --all       # re-fetch all rows
-```
-
-The enrich script supports `RAILWAY_ENVIRONMENT_NAME` (e.g. `scaling`, `dev`) as an alternative to `RAILWAY_ENVIRONMENT_ID`. You can also chain env files for cross-environment runs:
-
-```sh
-node --env-file=.env --env-file=../.env.dev src/db/enrich-instances.js --dry-run
+cd services && pnpm db:migrate:drop   # drops legacy columns from both services + pool DBs
 ```
 
 ## Environment variables
@@ -74,50 +67,30 @@ node --env-file=.env --env-file=../.env.dev src/db/enrich-instances.js --dry-run
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
-| `DATABASE_URL` | Railway postgres connection string |
-| **Railway** | |
-| `RAILWAY_API_TOKEN` | Railway project-scoped API token |
-| `RAILWAY_PROJECT_ID` | Railway project ID |
-| `RAILWAY_ENVIRONMENT_ID` | Railway environment ID (or use `RAILWAY_ENVIRONMENT_NAME`) |
-| `RAILWAY_ENVIRONMENT_NAME` | Environment name (e.g. `scaling`, `dev`) — resolved to ID automatically |
-| `RAILWAY_RUNTIME_IMAGE` | Override runtime image (defaults to `ghcr.io/xmtplabs/convos-runtime:latest`). See [runtime.md](./runtime.md) |
-| **OpenRouter** | |
-| `OPENROUTER_MANAGEMENT_KEY` | Management key for creating per-instance API keys |
-| `OPENROUTER_KEY_LIMIT` | USD spend limit per key (default `20`) |
-| `OPENROUTER_KEY_LIMIT_RESET` | Limit reset period (default `monthly`) |
-| **Agent keys** | Passed directly to runtime instances |
-| `OPENCLAW_PRIMARY_MODEL` | Primary model for the agent |
-| `XMTP_ENV` | XMTP environment (`dev` or `production`) |
-| `AGENTMAIL_API_KEY` | AgentMail API key (per-instance inboxes created automatically) |
-| `AGENTMAIL_DOMAIN` | Custom domain for inboxes (e.g. `mail.convos.org`); defaults to `agentmail.to` |
-| `BANKR_API_KEY` | Bankr API key |
-| `TELNYX_API_KEY` | Telnyx API key |
-| `TELNYX_PHONE_NUMBER` | Telnyx phone number |
-| `TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile ID |
+| `POOL_DATABASE_URL` | Railway postgres connection string |
+| **Services API** | |
+| `SERVICES_URL` | Services API base URL (e.g. `http://services.railway.internal:3002`) |
+| `SERVICES_API_KEY` | Shared secret for services API auth |
+| **Railway** (dashboard links only) | |
+| `RAILWAY_PROJECT_ID` | Railway project ID (for pool manager's own dashboard link) |
+| `RAILWAY_ENVIRONMENT_ID` | Railway environment ID (for tick loop + dashboard links) |
 
 ## Database
 
-All instance state is stored in a Postgres `instances` table. The tick loop reconciles it with Railway on every cycle.
+Pool instance state is stored in a Postgres `instances` table. The tick loop reconciles it with the services batch status API on every cycle. Infra details (service IDs, deploy status, volumes, images) live in the **services DB** — see [services.md](./services.md).
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | TEXT PK | Instance ID (12-char nanoid) |
-| `service_id` | TEXT UNIQUE | Railway service ID |
 | `name` | TEXT | Service name (`convos-agent-{id}`) |
 | `url` | TEXT | Public HTTPS URL |
 | `status` | TEXT | `starting`, `idle`, `claiming`, `claimed`, `crashed` |
-| `deploy_status` | TEXT | Railway deploy status (`BUILDING`, `SUCCESS`, etc.) |
 | `agent_name` | TEXT | Name given at claim time |
 | `conversation_id` | TEXT | Convos conversation ID |
 | `invite_url` | TEXT | Join/invite URL (QR code) |
 | `instructions` | TEXT | Custom agent instructions |
 | `created_at` | TIMESTAMPTZ | Creation timestamp |
 | `claimed_at` | TIMESTAMPTZ | Claim timestamp |
-| `source_branch` | TEXT | Git branch at claim time |
-| `runtime_image` | TEXT | Docker image used (e.g. `ghcr.io/.../convos-runtime:latest`) |
-| `openrouter_key_hash` | TEXT | OpenRouter key hash (for cleanup) |
-| `agentmail_inbox_id` | TEXT | AgentMail inbox address |
-| `gateway_token` | TEXT | Gateway auth token |
 
 Claiming is atomic via `SELECT ... FOR UPDATE SKIP LOCKED` — no double-claims possible.
 
