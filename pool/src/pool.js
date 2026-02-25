@@ -29,16 +29,6 @@ async function healthCheck(url) {
   }
 }
 
-// Resolve a Railway service's public URL from its domain.
-async function getServiceUrl(serviceId) {
-  try {
-    const domain = await railway.getServiceDomain(serviceId);
-    return domain ? `https://${domain}` : null;
-  } catch {
-    return null;
-  }
-}
-
 // Create a single new Railway service and insert into DB.
 export async function createInstance() {
   const id = nanoid(12);
@@ -124,36 +114,36 @@ export async function tick() {
   // Health-check all SUCCESS services in parallel
   const successServices = agentServices.filter((s) => s.deployStatus === "SUCCESS");
 
-  // Get URLs for services — prefer DB url, then fetch from Railway
+  // Get URLs for services — prefer DB url, then batched domain from listProjectServices
   const urlMap = new Map();
   for (const svc of successServices) {
     const row = dbByServiceId.get(svc.id);
     if (row?.url) {
       urlMap.set(svc.id, row.url);
+    } else if (svc.domain) {
+      urlMap.set(svc.id, `https://${svc.domain}`);
     }
   }
 
-  // For services not in DB (or without URL), fetch domains in parallel
-  const needUrls = successServices.filter((s) => !urlMap.has(s.id));
-  if (needUrls.length > 0) {
-    const urlResults = await Promise.allSettled(
-      needUrls.map(async (svc) => {
-        let url = await getServiceUrl(svc.id);
-        if (!url) {
-          try {
-            const domain = await railway.createDomain(svc.id);
-            if (domain) {
-              url = `https://${domain}`;
-              console.log(`[tick] Created missing domain for ${svc.name}: ${url}`);
-            }
-          } catch (err) {
-            console.warn(`[tick] Failed to create domain for ${svc.name}: ${err.message}`);
+  // For services still without a domain, try creating one
+  const needDomains = successServices.filter((s) => !urlMap.has(s.id));
+  if (needDomains.length > 0) {
+    const domainResults = await Promise.allSettled(
+      needDomains.map(async (svc) => {
+        try {
+          const domain = await railway.createDomain(svc.id);
+          if (domain) {
+            const url = `https://${domain}`;
+            console.log(`[tick] Created missing domain for ${svc.name}: ${url}`);
+            return { id: svc.id, url };
           }
+        } catch (err) {
+          console.warn(`[tick] Failed to create domain for ${svc.name}: ${err.message}`);
         }
-        return { id: svc.id, url };
+        return { id: svc.id, url: null };
       })
     );
-    for (const r of urlResults) {
+    for (const r of domainResults) {
       if (r.status === "fulfilled" && r.value.url) {
         urlMap.set(r.value.id, r.value.url);
       }
@@ -221,6 +211,7 @@ export async function tick() {
       status,
       deployStatus: svc.deployStatus,
       createdAt: svc.createdAt,
+      runtimeImage: svc.image || null,
       // Metadata fields: pass null to preserve existing via COALESCE
       agentName: dbRow?.agent_name || null,
       conversationId: dbRow?.conversation_id || null,

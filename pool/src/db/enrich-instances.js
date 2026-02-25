@@ -9,7 +9,7 @@
  */
 
 import { sql, pool as pgPool } from "./connection.js";
-import { listProjectServices, getServiceDomain, getServiceVariables, getServiceImage, resolveEnvironmentId } from "../railway.js";
+import { listProjectServices, getServiceVariables, resolveEnvironmentId } from "../railway.js";
 
 const args = new Set(process.argv.slice(2));
 const DRY_RUN = args.has("--dry-run");
@@ -77,20 +77,22 @@ async function main() {
     }
 
     try {
-      // Fetch domain, env vars, and image from Railway
-      const [domain, vars, runtimeImage] = await Promise.all([
-        getServiceDomain(row.service_id),
-        getServiceVariables(row.service_id),
-        getServiceImage(row.service_id),
-      ]);
-
+      // Use domain and image from batched listProjectServices() result
+      const domain = svc.domain || null;
+      const runtimeImage = svc.image || null;
       const url = domain ? `https://${domain}` : null;
       const deployStatus = svc.deployStatus || null;
       const name = svc.name || null;
 
-      // Pull directly from instance env vars
-      const gatewayToken = vars?.OPENCLAW_GATEWAY_TOKEN || null;
-      const agentmailInboxId = vars?.AGENTMAIL_INBOX_ID || null;
+      // Only fetch env vars if we're missing gateway_token or agentmail_inbox_id
+      let gatewayToken = null;
+      let agentmailInboxId = null;
+      const needVars = ALL || !row.gateway_token || !row.agentmail_inbox_id;
+      if (needVars) {
+        const vars = await getServiceVariables(row.service_id);
+        gatewayToken = vars?.OPENCLAW_GATEWAY_TOKEN || null;
+        agentmailInboxId = vars?.AGENTMAIL_INBOX_ID || null;
+      }
 
       // For claimed instances with no claimed_at, default to created_at
       const claimedAt = (!row.claimed_at && row.status === "claimed") ? row.created_at : null;
