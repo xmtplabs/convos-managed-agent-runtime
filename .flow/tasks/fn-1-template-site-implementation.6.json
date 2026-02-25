@@ -1,0 +1,14 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-02-25T07:05:50.201850Z",
+  "depends_on": [],
+  "epic": "fn-1-template-site-implementation",
+  "id": "fn-1-template-site-implementation.6",
+  "priority": null,
+  "spec_path": ".flow/tasks/fn-1-template-site-implementation.6.md",
+  "status": "todo",
+  "title": "Task 5: Prompt modal + QR modal",
+  "updated_at": "2026-02-25T07:05:50.202002Z"
+}

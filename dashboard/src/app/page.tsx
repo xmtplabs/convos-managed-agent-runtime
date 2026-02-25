@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConvosLogo } from "@/components/convos-logo";
 import { JoinFlow } from "@/components/join-flow";
 import { SkillBrowser } from "@/components/skill-browser";
+import { PromptModal } from "@/components/prompt-modal";
+import { QrModal } from "@/components/qr-modal";
 import type { AgentSkill } from "@/lib/types";
 
 const POOL_API_URL =
@@ -15,6 +17,16 @@ export default function Home() {
   const skillBrowserRef = useRef<HTMLDivElement>(null);
   const [activeStep, setActiveStep] = useState(1);
   const [skills, setSkills] = useState<AgentSkill[]>([]);
+
+  // Prompt modal state
+  const [promptModalPageId, setPromptModalPageId] = useState<string | null>(
+    null,
+  );
+  const [promptModalName, setPromptModalName] = useState("");
+
+  // QR modal state
+  const [qrAgentName, setQrAgentName] = useState<string | null>(null);
+  const [qrInviteUrl, setQrInviteUrl] = useState("");
 
   // Fetch skills catalog on mount
   useEffect(() => {
@@ -29,6 +41,36 @@ export default function Home() {
       }
     }
     loadSkills();
+  }, []);
+
+  // -----------------------------------------------------------------------
+  // Modal callbacks
+  // -----------------------------------------------------------------------
+
+  const handleOpenPromptModal = useCallback(
+    (pageId: string, name: string) => {
+      setPromptModalPageId(pageId);
+      setPromptModalName(name);
+    },
+    [],
+  );
+
+  const handleClosePromptModal = useCallback(() => {
+    setPromptModalPageId(null);
+    setPromptModalName("");
+  }, []);
+
+  const handleShowQr = useCallback(
+    (agentName: string, inviteUrl: string) => {
+      setQrAgentName(agentName);
+      setQrInviteUrl(inviteUrl);
+    },
+    [],
+  );
+
+  const handleCloseQr = useCallback(() => {
+    setQrAgentName(null);
+    setQrInviteUrl("");
   }, []);
 
   return (
@@ -57,6 +99,7 @@ export default function Home() {
           skillBrowserRef={skillBrowserRef}
           activeStep={activeStep}
           setActiveStep={setActiveStep}
+          onShowQr={handleShowQr}
         />
 
         {/* Get Convos strip */}
@@ -107,16 +150,26 @@ export default function Home() {
         <SkillBrowser
           ref={skillBrowserRef}
           skills={skills}
-          onOpenModal={() => {
-            // Task 5 will implement the prompt modal
-          }}
+          onOpenModal={handleOpenPromptModal}
           activeStep={activeStep}
           setActiveStep={setActiveStep}
         />
 
-        {/* Modals placeholder (Task 5: prompt-modal + qr-modal) */}
-        {/* <div className="ps-modal-overlay" id="ps-modal">...</div> */}
-        {/* <div className="modal-overlay" id="qr-modal">...</div> */}
+        {/* Prompt modal */}
+        <PromptModal
+          pageId={promptModalPageId}
+          agentName={promptModalName}
+          onClose={handleClosePromptModal}
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
+        />
+
+        {/* QR modal */}
+        <QrModal
+          agentName={qrAgentName}
+          inviteUrl={qrInviteUrl}
+          onClose={handleCloseQr}
+        />
       </div>
     </div>
   );
