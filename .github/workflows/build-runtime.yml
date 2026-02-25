@@ -135,10 +135,17 @@ jobs:
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           PENDING="${{ needs.build.outputs.pending }}"
-          TAG="${{ needs.build.outputs.tag }}"
           SHA="${{ needs.build.outputs.sha }}"
 
-          docker tag "$IMAGE:$PENDING" "$IMAGE:$TAG"
+          # sha tag always gets pushed
           docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
-          docker push "$IMAGE:$TAG"
           docker push "$IMAGE:$SHA"
+
+          # PRs get pr-N tag only, never latest
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
+            docker push "$IMAGE:pr-${{ github.event.number }}"
+          else
+            docker tag "$IMAGE:$PENDING" "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+          fi
