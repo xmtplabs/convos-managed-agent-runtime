@@ -216,6 +216,75 @@ export async function getServiceDomain(serviceId) {
   }
 }
 
+// Get the source image for a service instance. Returns image string or null.
+export async function getServiceImage(serviceId) {
+  try {
+    const data = await gql(
+      `query($id: String!) {
+        service(id: $id) {
+          serviceInstances {
+            edges { node { source { image } } }
+          }
+        }
+      }`,
+      { id: serviceId }
+    );
+    return data.service?.serviceInstances?.edges?.[0]?.node?.source?.image || null;
+  } catch (err) {
+    console.warn(`[railway] getServiceImage(${serviceId}) failed: ${err.message}`);
+    return null;
+  }
+}
+
+// Fetch environment variables for a service. Returns { KEY: "value", ... } or null.
+export async function getServiceVariables(serviceId) {
+  const projectId = process.env.RAILWAY_PROJECT_ID;
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
+  try {
+    const data = await gql(
+      `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+        variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+      }`,
+      { projectId, environmentId, serviceId }
+    );
+    return data.variables || null;
+  } catch (err) {
+    console.warn(`[railway] getServiceVariables(${serviceId}) failed: ${err.message}`);
+    return null;
+  }
+}
+
+// Resolve RAILWAY_ENVIRONMENT_ID from RAILWAY_ENVIRONMENT_NAME if only the name is set.
+// Returns the environment ID or throws.
+export async function resolveEnvironmentId() {
+  if (process.env.RAILWAY_ENVIRONMENT_ID) return process.env.RAILWAY_ENVIRONMENT_ID;
+
+  const name = process.env.RAILWAY_ENVIRONMENT_NAME;
+  if (!name) throw new Error("Neither RAILWAY_ENVIRONMENT_ID nor RAILWAY_ENVIRONMENT_NAME is set");
+
+  const projectId = process.env.RAILWAY_PROJECT_ID;
+  const data = await gql(
+    `query($id: String!) {
+      project(id: $id) {
+        environments { edges { node { id name } } }
+      }
+    }`,
+    { id: projectId }
+  );
+
+  const envs = data.project?.environments?.edges || [];
+  const match = envs.find((e) => e.node.name.toLowerCase() === name.toLowerCase());
+  if (!match) {
+    const available = envs.map((e) => e.node.name).join(", ");
+    throw new Error(`Environment "${name}" not found. Available: ${available}`);
+  }
+
+  // Cache it for subsequent calls
+  process.env.RAILWAY_ENVIRONMENT_ID = match.node.id;
+  console.log(`[railway] Resolved environment "${name}" → ${match.node.id}`);
+  return match.node.id;
+}
+
 // Check if a service still exists on Railway. Returns { id, name } or null.
 export async function getServiceInfo(serviceId) {
   try {

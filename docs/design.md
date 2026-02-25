@@ -46,7 +46,7 @@ At deploy (Docker/Railway): `pnpm cli apply` patches `agents.defaults.workspace`
 
 **How it works:**
 
-- The **pool manager** (Express + Railway Postgres) maintains a pool of pre-warmed Railway containers. Background loops replenish idle instances every 30s and reconcile against Railway every 5min.
+- The **pool manager** (Express + Railway Postgres) maintains a pool of pre-warmed Railway containers. A unified tick loop (every 30s) reconciles instance state from Railway, health-checks, and replenishes. All state is in a Postgres `instances` table with atomic claiming.
 - Each **container** (railway template) builds openclaw from source, runs it as an internal gateway on `127.0.0.1:18789`, and reverse-proxies through Express on port 8080. On boot it creates an XMTP identity, then waits for a provision call.
 - On **claim**, the pool manager picks an idle instance and calls `POST /pool/provision` with `{ instructions, name?, joinUrl? }`. The instance creates or joins a conversation, writes `INSTRUCTIONS.md`, and is immediately live.
 

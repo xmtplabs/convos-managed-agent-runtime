@@ -11,17 +11,16 @@
  */
 
 import * as db from "./db/pool.js";
-import * as cache from "./cache.js";
 
 const POOL_API_KEY = process.env.POOL_API_KEY;
 
 export async function provision(opts) {
   const { agentName, instructions, joinUrl } = opts;
 
-  const instance = cache.findClaimable();
+  // Atomic claim — no double-claim possible
+  const instance = await db.claimIdle();
   if (!instance) return null;
 
-  cache.startClaim(instance.serviceId);
   try {
     console.log(`[provision] Claiming ${instance.id} for "${agentName}"${joinUrl ? " (join)" : ""}`);
 
@@ -43,29 +42,14 @@ export async function provision(opts) {
     }
     const result = await provisionRes.json();
 
-    // Insert metadata row (persist resource IDs from cache so destroy can read them from DB)
+    // Complete the claim in DB
     const sourceBranch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
-    await db.insertMetadata({
-      id: instance.id,
-      railwayServiceId: instance.serviceId,
+    await db.completeClaim(instance.service_id, {
       agentName,
       conversationId: result.conversationId,
       inviteUrl: result.inviteUrl || joinUrl || null,
       instructions,
       sourceBranch,
-      openrouterKeyHash: instance.openRouterKeyHash || null,
-      agentmailInboxId: instance.agentMailInboxId || null,
-    });
-
-    // Update cache
-    cache.set(instance.serviceId, {
-      ...instance,
-      status: "claimed",
-      agentName,
-      conversationId: result.conversationId,
-      inviteUrl: result.inviteUrl || joinUrl || null,
-      instructions,
-      claimedAt: new Date().toISOString(),
     });
 
     console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
@@ -75,10 +59,12 @@ export async function provision(opts) {
       conversationId: result.conversationId,
       instanceId: instance.id,
       joined: result.joined,
-      gatewayToken: instance.gatewayToken || null,
+      gatewayToken: instance.gateway_token || null,
       gatewayUrl: instance.url || null,
     };
-  } finally {
-    cache.endClaim(instance.serviceId);
+  } catch (err) {
+    // Release claim on failure — reset back to idle
+    await db.releaseClaim(instance.service_id);
+    throw err;
   }
 }
