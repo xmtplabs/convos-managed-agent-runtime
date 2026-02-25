@@ -296,7 +296,18 @@ export function adminPage({
     }
     .filter-pill:hover { background: #F5F5F5; border-color: #CCC; }
     .filter-pill.active { background: #000; color: #fff; border-color: #000; }
-    .filter-pill .pill-count { margin-left: 3px; opacity: 0.5; }
+    .filter-pill .pill-count {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 10px;
+      min-width: 16px;
+      text-align: center;
+      padding: 0 4px;
+      border-radius: 4px;
+      background: #F0F0F0;
+      color: #999;
+    }
+    .filter-pill.active .pill-count { background: rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); }
     .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
     .stat-dot.green { background: #34C759; }
     .stat-dot.orange { background: #FF9500; }
@@ -458,7 +469,14 @@ export function adminPage({
     table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
     }
+    col.col-name { width: 24%; }
+    col.col-status { width: 10%; }
+    col.col-instance { width: 22%; }
+    col.col-branch { width: 16%; }
+    col.col-uptime { width: 10%; }
+    col.col-actions { width: 18%; }
     th {
       text-align: left;
       font-size: 10px;
@@ -478,6 +496,7 @@ export function adminPage({
     }
     tr:last-child td { border-bottom: none; }
     tr.crashed td { background: #FFF5F5; }
+    td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .agent-name-cell {
       font-weight: 600;
       letter-spacing: -0.2px;
@@ -698,14 +717,22 @@ export function adminPage({
           <span class="table-count" id="table-count"></span>
         </div>
         <div class="filter-pills" id="filter-pills">
-          <button class="filter-pill active" data-filter="">All</button>
-          <button class="filter-pill" data-filter="running">Running</button>
-          <button class="filter-pill" data-filter="idle">Ready</button>
-          <button class="filter-pill" data-filter="starting">Starting</button>
-          <button class="filter-pill" data-filter="crashed">Crashed</button>
+          <button class="filter-pill active" data-filter="">All <span class="pill-count">-</span></button>
+          <button class="filter-pill" data-filter="running">Running <span class="pill-count">-</span></button>
+          <button class="filter-pill" data-filter="idle">Ready <span class="pill-count">-</span></button>
+          <button class="filter-pill" data-filter="starting">Starting <span class="pill-count">-</span></button>
+          <button class="filter-pill" data-filter="crashed">Crashed <span class="pill-count">-</span></button>
         </div>
       </div>
       <table>
+        <colgroup>
+          <col class="col-name">
+          <col class="col-status">
+          <col class="col-instance">
+          <col class="col-branch">
+          <col class="col-uptime">
+          <col class="col-actions">
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
@@ -798,16 +825,22 @@ export function adminPage({
       } catch (e) {}
     }
 
+    function updatePillCounts() {
+      var total = claimedCache.length + crashedCache.length + idleCache.length + startingCache.length;
+      var counts = { '': total, running: claimedCache.length, idle: idleCache.length, starting: startingCache.length, crashed: crashedCache.length };
+      document.querySelectorAll('.filter-pill').forEach(function (pill) {
+        var f = pill.getAttribute('data-filter');
+        var span = pill.querySelector('.pill-count');
+        if (span) span.textContent = counts[f] || 0;
+      });
+    }
+
     function renderAgents() {
       var body = document.getElementById('agents-body');
       var count = document.getElementById('table-count');
       var all = crashedCache.concat(claimedCache).concat(idleCache).concat(startingCache);
-      var parts = [];
-      if (claimedCache.length) parts.push(claimedCache.length + ' running');
-      if (idleCache.length) parts.push(idleCache.length + ' ready');
-      if (startingCache.length) parts.push(startingCache.length + ' starting');
-      if (crashedCache.length) parts.push(crashedCache.length + ' crashed');
-      count.textContent = parts.join(', ') || '';
+      updatePillCounts();
+      count.textContent = '';
 
       // Apply filter
       var showCrashed = !statusFilter || statusFilter === 'crashed';
