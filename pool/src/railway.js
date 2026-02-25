@@ -155,10 +155,11 @@ export async function deleteService(serviceId) {
   );
 }
 
-// List all services in the project with environment info and deploy status.
-// Returns [{ id, name, createdAt, environmentIds, deployStatus }] or null on API error.
+// List all services in the project with environment info, deploy status, domains, and images.
+// Returns [{ id, name, createdAt, environmentIds, deployStatus, domain, image }] or null on API error.
 export async function listProjectServices() {
   const projectId = process.env.RAILWAY_PROJECT_ID;
+  const envId = process.env.RAILWAY_ENVIRONMENT_ID;
   try {
     const data = await gql(
       `query($id: String!) {
@@ -169,7 +170,15 @@ export async function listProjectServices() {
                 id
                 name
                 createdAt
-                serviceInstances { edges { node { environmentId } } }
+                serviceInstances {
+                  edges {
+                    node {
+                      environmentId
+                      domains { serviceDomains { domain } customDomains { domain } }
+                      source { image }
+                    }
+                  }
+                }
                 deployments(first: 1) {
                   edges { node { id status } }
                 }
@@ -182,13 +191,25 @@ export async function listProjectServices() {
     );
     const edges = data.project?.services?.edges;
     if (!edges) return null;
-    return edges.map((e) => ({
-      id: e.node.id,
-      name: e.node.name,
-      createdAt: e.node.createdAt,
-      environmentIds: (e.node.serviceInstances?.edges || []).map((si) => si.node.environmentId),
-      deployStatus: e.node.deployments?.edges?.[0]?.node?.status || null,
-    }));
+    return edges.map((e) => {
+      const instances = e.node.serviceInstances?.edges || [];
+      const myInstance = envId
+        ? instances.find((si) => si.node.environmentId === envId)
+        : instances[0];
+      const domainData = myInstance?.node?.domains;
+      const domain = domainData?.customDomains?.[0]?.domain
+        || domainData?.serviceDomains?.[0]?.domain
+        || null;
+      return {
+        id: e.node.id,
+        name: e.node.name,
+        createdAt: e.node.createdAt,
+        environmentIds: instances.map((si) => si.node.environmentId),
+        deployStatus: e.node.deployments?.edges?.[0]?.node?.status || null,
+        domain,
+        image: myInstance?.node?.source?.image || null,
+      };
+    });
   } catch (err) {
     console.warn(`[railway] listProjectServices failed: ${err.message}`);
     return null;
