@@ -4,6 +4,15 @@ OpenClaw gateway + Convos (XMTP) channel plugin. Single agent, managed config. P
 
 See `docs/` for design, QA, changelog, pool details, **convos extension** (`docs/convos-extension.md`), and workarounds.
 
+## Repo structure
+
+```
+pool/          Pool manager — Express API + admin dashboard on Railway
+dashboard/     Template site — Next.js app at assistants.convos.org
+runtime/       Agent runtime — Docker image (OpenClaw gateway + workspace + extensions)
+docs/          Design docs, QA, changelog, convos extension docs
+```
+
 ---
 
 ## High-level flow
@@ -76,13 +85,23 @@ The **pool manager** (`pool/`) keeps a set of pre-warmed OpenClaw instances on R
 
 ```mermaid
 flowchart LR
-  A[provisioning] --> B[idle]
+  A[starting] --> B[idle/ready]
   B --> C[claimed]
 ```
 
-- **provisioning** → container building, gateway starting, XMTP identity created.
-- **idle** → instance reports `ready` at `/convos/status`, available for claim.
+- **starting** → container building, gateway starting, XMTP identity created.
+- **idle/ready** → instance reports `ready` at `/convos/status`, available for claim.
 - **claimed** → manager calls `/pool/provision` (or `/convos/conversation` / `/convos/join`), instance is bound to a conversation.
+
+### Admin dashboard
+
+Password-protected at `/admin` on each pool environment. Authenticates with `POOL_API_KEY` via session cookie.
+
+- View instance counts (ready, starting, claimed, crashed) with filter pills
+- Launch/join agents directly from the dashboard
+- Kill running instances, dismiss crashed ones, replenish or drain the pool
+- QR code modal with invite URL for claimed agents
+- Environment switcher across dev/staging/production
 
 ### Pool commands
 
@@ -120,17 +139,40 @@ TELNYX_PHONE_NUMBER=+14193792549
 TELNYX_MESSAGING_PROFILE_ID=40019c66-c84a-459f-8553-0ef16775fb29
 ```
 
-### Pool API (authenticated with Bearer `POOL_API_KEY`)
+### Pool API
 
-| Endpoint | Purpose |
-|----------|---------|
-| `GET /api/pool/counts` | Idle / provisioning / claimed counts (no auth) |
-| `POST /api/pool/claim` | Claim idle instance, provision with instructions or `joinUrl` |
-| `POST /api/pool/replenish` | Add N instances |
-| `POST /api/pool/drain` | Remove N idle instances |
-| `POST /api/pool/reconcile` | Sync DB with Railway |
+Authenticated endpoints require Bearer `POOL_API_KEY` header.
 
-Environments: **staging** (`convos-agents-dev.up.railway.app`, XMTP dev), **production** (`convos-agents.up.railway.app`, XMTP production). See `docs/pool.md`.
+| Endpoint | Auth | Purpose |
+|----------|------|---------|
+| `GET /api/pool/counts` | No | Idle / starting / claimed / crashed counts |
+| `GET /api/pool/agents` | No | List all instances by status (claimed, crashed, idle, starting) |
+| `GET /api/pool/info` | No | Environment, branch, model, Railway IDs |
+| `GET /api/pool/templates` | No | Agent template catalog |
+| `GET /api/pool/templates/:slug` | No | Single template by slug |
+| `GET /api/prompts/:pageId` | No | Fetch agent prompt from Notion (cached 1h) |
+| `POST /api/pool/claim` | Yes | Claim idle instance; `agentName` and `instructions` are optional, `joinUrl` joins existing convo |
+| `POST /api/pool/replenish` | Yes | Add N instances (max 20) |
+| `POST /api/pool/drain` | Yes | Remove N idle instances (max 20) |
+| `POST /api/pool/reconcile` | Yes | Trigger a tick (sync DB with Railway) |
+| `DELETE /api/pool/instances/:id` | Yes | Kill a running instance |
+| `DELETE /api/pool/crashed/:id` | Yes | Dismiss a crashed instance |
+| `GET /admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
+
+Environments: **dev** (`convos-agents-dev.up.railway.app`), **staging** (`convos-agents-staging.up.railway.app`), **production** (`convos-agents-production.up.railway.app`). See `docs/pool.md`.
+
+---
+
+## Template site (dashboard)
+
+Next.js app deployed to Vercel at `assistants.convos.org`. Provides the public-facing experience for browsing and launching agents.
+
+- Browse agent catalog with category filters and skill tags
+- Template detail pages with OG image generation and QR codes
+- Join flow with guided steps for connecting via XMTP
+- Proxies pool API calls through Next.js API routes
+
+See `dashboard/README.md` for setup and development.
 
 ---
 
