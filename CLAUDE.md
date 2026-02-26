@@ -8,6 +8,13 @@
 - dont rush into action. ask
 - **NEVER add automatic cleanup/destroy logic to the tick loop.** The tick must never auto-delete Railway projects, services, or volumes. Dead/crashed instances get marked in the DB and must be cleaned up manually via the dashboard. Only explicit user actions (kill, drain, dismiss) may destroy infrastructure.
 
+# Security Rules
+
+- **Every new Express router must be mounted with `requireAuth` middleware** unless it is explicitly public. No exceptions.
+- **Never use `SELECT *` in queries that reach the browser.** Always use explicit column lists and exclude secrets (`gateway_token`, `env_value`, API keys, tokens).
+- **Never embed secrets (API keys, tokens) in HTML/JS.** Use httpOnly session cookies for browser auth. The admin page must never contain `POOL_API_KEY` or any secret in its source.
+- **Never pass secrets as URL query params** (`?key=`). They leak in logs, referer headers, and browser history.
+
 # Branch Strategy
 
 Changes flow through branches in this order:
