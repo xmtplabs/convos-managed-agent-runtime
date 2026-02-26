@@ -58,7 +58,7 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
     `mutation($input: ProjectCreateInput!) {
       projectCreate(input: $input) { id }
     }`,
-    { input: { name, teamId: tid } },
+    { input: { name, workspaceId: tid } },
   );
 
   const projectId = data.projectCreate.id;
