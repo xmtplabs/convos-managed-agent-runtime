@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 import { ConvosLogo } from "@/components/convos-logo";
@@ -150,7 +151,7 @@ export default function Home() {
               assistant you add is unique to that conversation and can never
               access other chats, contacts, or profiles.
               <br />
-              <a href="/safety">Learn more</a>
+              <Link href="/safety">Learn more</Link>
             </p>
           </div>
         </div>
