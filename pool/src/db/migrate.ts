@@ -182,15 +182,14 @@ export async function runMigrations() {
         console.log(`[migrate] instance_infra already has ${count} row(s), skipping backfill.`);
       }
 
-      // ── 5. Drop legacy columns from instances ──────────────────────
-      // TODO: uncomment once all environments are on the new schema
-      // console.log("[migrate] Dropping legacy columns from instances...");
-      // const legacyCols = ["service_id", "deploy_status", "source_branch", "openrouter_key_hash", "agentmail_inbox_id", "gateway_token"];
-      // for (const col of legacyCols) {
-      //   await query(pool, `ALTER TABLE instances DROP COLUMN IF EXISTS ${col}`);
-      // }
-      // await query(pool, `DROP INDEX IF EXISTS idx_instances_service_id`);
-      // console.log("[migrate] Legacy columns dropped.");
+      // ── 5. Relax NOT NULL on legacy columns so new code can coexist ──
+      const legacyCols = ["service_id", "deploy_status", "source_branch", "openrouter_key_hash", "agentmail_inbox_id", "gateway_token"];
+      for (const col of legacyCols) {
+        if (cols.has(col)) {
+          await query(pool, `ALTER TABLE instances ALTER COLUMN ${col} DROP NOT NULL`);
+        }
+      }
+      console.log("[migrate] Relaxed NOT NULL on legacy columns.");
     } else {
       console.log("[migrate] instances table already has new schema (no service_id), skipping backfill.");
     }
