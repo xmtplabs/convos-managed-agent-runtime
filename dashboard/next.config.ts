@@ -3,6 +3,7 @@ import createMDX from "@next/mdx";
 import remarkGfm from "remark-gfm";
 
 const nextConfig: NextConfig = {
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   pageExtensions: ["ts", "tsx", "md", "mdx"],
 };
 
