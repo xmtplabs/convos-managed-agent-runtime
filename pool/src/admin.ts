@@ -219,6 +219,7 @@ export function adminPage({
     .env-switcher-btn.env-dev { background: #DBEAFE; color: #1D4ED8; }
     .env-switcher-btn.env-staging { background: #FEF3C7; color: #92400E; }
     .env-switcher-btn.env-scaling { background: #E0E7FF; color: #3730A3; }
+    .env-switcher-btn.env-vibe { background: #F3E8FF; color: #6B21A8; }
     .env-switcher-btn.env-production { background: #FEE2E2; color: #991B1B; }
     .env-dropdown {
       display: none;
@@ -256,6 +257,7 @@ export function adminPage({
     .env-dot.dev { background: #1D4ED8; }
     .env-dot.staging { background: #92400E; }
     .env-dot.scaling { background: #3730A3; }
+    .env-dot.vibe { background: #6B21A8; }
     .env-dot.production { background: #991B1B; }
     .header-right {
       display: flex;
