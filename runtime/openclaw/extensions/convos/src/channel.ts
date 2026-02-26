@@ -29,6 +29,11 @@ type RuntimeLogger = {
   warn?: (msg: string) => void;
 };
 
+// Captured resolve function from the startAccount blocking promise.
+// selfDestruct() calls this to unblock startAccount after stopping the instance,
+// preventing the gateway from becoming a zombie process.
+let resolveStartAccountBlock: (() => void) | null = null;
+
 const meta = {
   id: "convos",
   label: "Convos",
@@ -281,9 +286,11 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         `[${account.accountId}] Convos provider started (conversation: ${inst.conversationId.slice(0, 12)}...)`,
       );
 
-      // Block until abort signal fires
+      // Block until abort signal fires or selfDestruct() resolves the promise.
       await new Promise<void>((resolve) => {
+        resolveStartAccountBlock = resolve;
         const onAbort = () => {
+          resolveStartAccountBlock = null;
           void stopInstance(account.accountId, log).finally(resolve);
         };
         if (abortSignal?.aborted) {
@@ -615,5 +622,49 @@ async function stopInstance(accountId: string, log?: RuntimeLogger) {
       log?.error(`[${accountId}] Error stopping instance: ${String(err)}`);
     }
     setConvosInstance(null);
+  }
+}
+
+/**
+ * Request self-destruction of this pool-managed instance.
+ * Calls pool-server's /pool/self-destruct endpoint (which relays to the pool
+ * manager), stops the Convos instance, and unblocks the startAccount promise
+ * so the gateway can exit cleanly.
+ */
+export async function selfDestruct(reason?: string): Promise<void> {
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
+  const poolApiKey = process.env.POOL_API_KEY;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (poolApiKey) headers["Authorization"] = `Bearer ${poolApiKey}`;
+
+  console.log(`[convos] Self-destruct requested${reason ? `: ${reason}` : ""}`);
+
+  try {
+    const res = await fetch(`http://localhost:${port}/pool/self-destruct`, {
+      method: "POST",
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+    const data = await res.json();
+    console.log(`[convos] Self-destruct response:`, data);
+  } catch (err) {
+    console.error(`[convos] Self-destruct call failed: ${String(err)}`);
+  }
+
+  // Stop the Convos instance and unblock startAccount so the gateway exits
+  const inst = getConvosInstance();
+  if (inst) {
+    try {
+      await inst.stop();
+    } catch (err) {
+      console.error(`[convos] Error stopping instance during self-destruct: ${String(err)}`);
+    }
+    setConvosInstance(null);
+  }
+
+  if (resolveStartAccountBlock) {
+    const resolve = resolveStartAccountBlock;
+    resolveStartAccountBlock = null;
+    resolve();
   }
 }

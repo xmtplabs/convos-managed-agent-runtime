@@ -120,6 +120,16 @@ export async function deleteByServiceId(serviceId) {
   await sql`DELETE FROM instances WHERE service_id = ${serviceId}`;
 }
 
+// Find an instance by ID, but only if the gateway token matches.
+// Returns the instance row or null.
+export async function findInstanceByToken(instanceId, gatewayToken) {
+  const result = await sql`
+    SELECT * FROM instances
+    WHERE id = ${instanceId} AND gateway_token = ${gatewayToken}
+  `;
+  return result.rows[0] || null;
+}
+
 // Delete instance by instance ID.
 export async function deleteById(id) {
   await sql`DELETE FROM instances WHERE id = ${id}`;

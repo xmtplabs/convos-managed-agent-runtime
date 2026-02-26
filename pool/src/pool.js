@@ -37,6 +37,7 @@ export async function createInstance() {
   console.log(`[pool] Creating instance ${name}...`);
 
   const vars = { ...instanceEnvVars() };
+  vars.INSTANCE_ID = id;
   vars.OPENCLAW_GATEWAY_TOKEN = generateGatewayToken();
   vars.SETUP_PASSWORD = generateSetupPassword();
   vars.PRIVATE_WALLET_KEY = generatePrivateWalletKey();

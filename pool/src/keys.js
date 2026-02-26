@@ -18,6 +18,7 @@ export function instanceEnvVars() {
     XMTP_ENV: getEnv("XMTP_ENV", "dev"),
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_API_KEY: getEnv("POOL_API_KEY"),
+    POOL_URL: getEnv("POOL_URL"),
     AGENTMAIL_API_KEY: getEnv("AGENTMAIL_API_KEY"),
     BANKR_API_KEY: getEnv("BANKR_API_KEY"),
     TELNYX_API_KEY: getEnv("TELNYX_API_KEY"),
