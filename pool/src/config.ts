@@ -16,12 +16,11 @@ export const config = {
   stuckTimeoutMs: parseInt(getEnv("POOL_STUCK_TIMEOUT_MS", String(15 * 60 * 1000)), 10),
 
   // Pool environment context
-  poolEnvironment: getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "undefined"),
+  poolEnvironment:
+    getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "undefined"),
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
   instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
-  railwayProjectId: getEnv("RAILWAY_PROJECT_ID"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
-  railwayEnvironmentId: getEnv("RAILWAY_ENVIRONMENT_ID"),
   railwayEnvironmentName: getEnv("RAILWAY_ENVIRONMENT_NAME"),
 
   // Template site

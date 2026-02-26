@@ -112,9 +112,7 @@ app.get("/api/pool/info", (_req, res) => {
     environment: config.poolEnvironment,
     branch: config.deployBranch,
     model: config.instanceModel,
-    railwayProjectId: config.railwayProjectId,
     railwayServiceId: config.railwayServiceId,
-    railwayEnvironmentId: config.railwayEnvironmentId,
   });
 });
 
@@ -163,9 +161,7 @@ app.get("/admin", (req, res) => {
     poolEnvironment: config.poolEnvironment,
     deployBranch: config.deployBranch,
     instanceModel: config.instanceModel,
-    railwayProjectId: config.railwayProjectId,
     railwayServiceId: config.railwayServiceId,
-    railwayEnvironmentId: config.railwayEnvironmentId,
     poolApiKey: config.poolApiKey,
     bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,

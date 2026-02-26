@@ -146,19 +146,13 @@ export function adminPage({
   poolEnvironment,
   deployBranch,
   instanceModel,
-  railwayProjectId,
   railwayServiceId,
-  railwayEnvironmentId,
   poolApiKey,
   bankrConfigured = false,
   adminUrls = [],
 }) {
-  const railwayLink = railwayProjectId && railwayServiceId
-    ? `https://railway.com/project/${railwayProjectId}/service/${railwayServiceId}${railwayEnvironmentId ? "?environmentId=" + railwayEnvironmentId : ""}`
-    : "";
-  const railwayProjectLink = railwayProjectId
-    ? `https://railway.com/project/${railwayProjectId}`
-    : "";
+  const railwayLink = "";
+  const railwayProjectLink = "";
 
   return `<!doctype html>
 <html lang="en">
@@ -990,8 +984,6 @@ export function adminPage({
   <script>
     var API_KEY = ${JSON.stringify(poolApiKey)};
     var POOL_ENV = ${JSON.stringify(poolEnvironment)};
-    var RAILWAY_PROJECT = ${JSON.stringify(railwayProjectId)};
-    var RAILWAY_ENV = ${JSON.stringify(railwayEnvironmentId)};
     var BANKR_KEY = ${JSON.stringify(bankrConfigured)};
     var INSTANCE_MODEL = ${JSON.stringify(instanceModel)};
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
@@ -1036,9 +1028,13 @@ export function adminPage({
       return '<1m';
     }
 
-    function railwayUrl(serviceId) {
-      if (!RAILWAY_PROJECT || !serviceId) return null;
-      return 'https://railway.com/project/' + RAILWAY_PROJECT + '/service/' + serviceId + (RAILWAY_ENV ? '?environmentId=' + RAILWAY_ENV : '');
+    function railwayUrl(serviceId, instanceId) {
+      if (!serviceId) return null;
+      var infra = instanceId ? (infraMap[instanceId] || {}) : {};
+      var projectId = infra.provider_project_id;
+      if (!projectId) return null;
+      var envId = infra.provider_env_id;
+      return 'https://railway.com/project/' + projectId + '/service/' + serviceId + (envId ? '?environmentId=' + envId : '');
     }
 
     // --- Refresh counts ---
@@ -1114,7 +1110,7 @@ export function adminPage({
       var html = '';
       function renderRow(a, status, badge, actions) {
         var isKilling = !!killingSet[a.id];
-        var rUrl = railwayUrl(a.serviceId);
+        var rUrl = railwayUrl(a.serviceId, a.id);
         var key = svcKeyMap['convos-agent-' + a.id];
         var usageCell = '';
         if (key) {
@@ -1482,8 +1478,8 @@ export function adminPage({
         + '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(INSTANCE_MODEL) + '</span></div>'
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
-          + (railwayUrl(infra.provider_service_id)
-            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id) + '" target="_blank" rel="noopener">' + esc(infra.provider_service_id.slice(0, 12)) + '</a>'
+          + (railwayUrl(infra.provider_service_id, instanceId)
+            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">' + esc(infra.provider_service_id.slice(0, 12)) + '</a>'
             : '<span class="expand-val mono">' + esc(infra.provider_service_id.slice(0, 12)) + '</span>')
           + '</div>' : '')
         + '</div>';

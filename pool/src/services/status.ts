@@ -1,7 +1,6 @@
 import { db } from "../db/connection";
 import { instanceInfra } from "../db/schema";
 import * as railway from "./providers/railway";
-import { config } from "../config";
 import type { BatchStatusResponse } from "../types";
 
 const STATUS_CONCURRENCY = 10;
@@ -9,7 +8,6 @@ const STATUS_CONCURRENCY = 10;
 /**
  * Fetch batch status for all agent services.
  * DB-driven: queries instance_infra, then fetches each service's status individually.
- * Works for both shared-project (legacy) and per-project (sharded) instances.
  */
 export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchStatusResponse> {
   // Get all infra rows from DB
@@ -51,16 +49,5 @@ export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchSta
     }
   }
 
-  return {
-    projectId: config.railwayProjectId,
-    services: results,
-  };
-}
-
-/**
- * List services in the shared project (for orphan detection).
- * Only returns services in the shared/legacy project, not per-agent projects.
- */
-export async function listSharedProjectServices() {
-  return railway.listProjectServices(config.railwayProjectId);
+  return { services: results };
 }

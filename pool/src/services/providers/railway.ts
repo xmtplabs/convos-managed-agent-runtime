@@ -36,14 +36,14 @@ interface ProjectEnvOpts {
 }
 
 function resolveProjectId(opts?: ProjectEnvOpts): string {
-  const id = opts?.projectId || config.railwayProjectId;
-  if (!id) throw new Error("RAILWAY_PROJECT_ID not set");
+  const id = opts?.projectId;
+  if (!id) throw new Error("projectId is required");
   return id;
 }
 
 function resolveEnvironmentId(opts?: ProjectEnvOpts): string {
-  const id = opts?.environmentId || config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID;
-  if (!id) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
+  const id = opts?.environmentId;
+  if (!id) throw new Error("environmentId is required");
   return id;
 }
 
@@ -107,7 +107,7 @@ export async function fetchServiceStatus(
   domain: string | null;
   image: string | null;
 } | null> {
-  const envId = environmentId || resolveEnvironmentId();
+  const envId = environmentId;
   try {
     const data = await gql(
       `query($id: String!) {
@@ -347,8 +347,8 @@ export async function ensureVolume(
 }
 
 /** Fetch all project volumes grouped by serviceId. */
-export async function fetchAllVolumesByService(projectId?: string): Promise<Map<string, string[]> | null> {
-  const pid = projectId || config.railwayProjectId;
+export async function fetchAllVolumesByService(projectId: string): Promise<Map<string, string[]> | null> {
+  const pid = projectId;
   try {
     const data = await gql(
       `query($id: String!) {
@@ -408,9 +408,9 @@ interface ListedService {
 }
 
 /** List all services in a project with environment info, deploy status, domains, and images. */
-export async function listProjectServices(projectId?: string): Promise<ListedService[] | null> {
-  const pid = projectId || config.railwayProjectId;
-  const envId = config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID;
+export async function listProjectServices(projectId: string, environmentId?: string): Promise<ListedService[] | null> {
+  const pid = projectId;
+  const envId = environmentId;
   try {
     const data = await gql(
       `query($id: String!) {
@@ -467,37 +467,3 @@ export async function listProjectServices(projectId?: string): Promise<ListedSer
   }
 }
 
-/** Resolve RAILWAY_ENVIRONMENT_ID from RAILWAY_ENVIRONMENT_NAME if only the name is set. */
-export async function resolveEnvironmentIdFromName(): Promise<string> {
-  if (config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID) {
-    return config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID!;
-  }
-
-  const name = config.railwayEnvironmentName;
-  if (!name) throw new Error("Neither RAILWAY_ENVIRONMENT_ID nor RAILWAY_ENVIRONMENT_NAME is set");
-
-  const projectId = config.railwayProjectId;
-  const data = await gql(
-    `query($id: String!) {
-      project(id: $id) {
-        environments { edges { node { id name } } }
-      }
-    }`,
-    { id: projectId },
-  );
-
-  const envs = data.project?.environments?.edges || [];
-  const match = envs.find((e: any) => e.node.name.toLowerCase() === name.toLowerCase());
-  if (!match) {
-    const available = envs.map((e: any) => e.node.name).join(", ");
-    throw new Error(`Environment "${name}" not found. Available: ${available}`);
-  }
-
-  // Cache it
-  process.env.RAILWAY_ENVIRONMENT_ID = match.node.id;
-  console.log(`[railway] Resolved environment "${name}" → ${match.node.id}`);
-  return match.node.id;
-}
-
-// Keep the old name as an alias for backward compatibility
-export { resolveEnvironmentIdFromName as resolveEnvironmentId };

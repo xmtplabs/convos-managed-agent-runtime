@@ -73,44 +73,32 @@ export async function createInstance(
   }
 
   // ── Sharded: create a dedicated Railway project for this instance ──
-  let projectId: string;
+  if (!config.railwayTeamId) throw new Error("RAILWAY_TEAM_ID not set — required for instance creation");
+
+  const proj = await railway.projectCreate(`agent-${instanceId}`);
+  const projectId = proj.projectId;
+
   let environmentId: string;
-  let isOwnProject = false;
-
-  if (config.railwayTeamId) {
-    // Sharded path: one project per agent
-    const proj = await railway.projectCreate(`agent-${instanceId}`);
-    projectId = proj.projectId;
-    isOwnProject = true;
-
-    try {
-      environmentId = await railway.getProjectEnvironmentId(projectId);
-    } catch (err) {
-      console.error(`[infra] Failed to resolve env for project ${projectId}, deleting orphan project...`);
-      await railway.projectDelete(projectId).catch((e: any) =>
-        console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
-      throw err;
-    }
-  } else {
-    // Legacy shared-project path
-    projectId = config.railwayProjectId;
-    environmentId = config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID || "";
-    if (!environmentId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
+  try {
+    environmentId = await railway.getProjectEnvironmentId(projectId);
+  } catch (err) {
+    console.error(`[infra] Failed to resolve env for project ${projectId}, deleting orphan project...`);
+    await railway.projectDelete(projectId).catch((e: any) =>
+      console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
+    throw err;
   }
 
   const opts = { projectId, environmentId };
 
-  // Create Railway service in the (new or shared) project
+  // Create Railway service in the new project
   let serviceId: string;
   try {
     serviceId = await railway.createService(name, vars, opts);
     console.log(`[infra] Railway service created: ${serviceId}`);
   } catch (err) {
-    if (isOwnProject) {
-      console.error(`[infra] Service creation failed, deleting orphan project ${projectId}...`);
-      await railway.projectDelete(projectId).catch((e: any) =>
-        console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
-    }
+    console.error(`[infra] Service creation failed, deleting orphan project ${projectId}...`);
+    await railway.projectDelete(projectId).catch((e: any) =>
+      console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
     throw err;
   }
 
@@ -120,11 +108,9 @@ export async function createInstance(
     hasVolume = await railway.ensureVolume(serviceId, "/data", opts);
     if (!hasVolume) console.warn(`[infra] Volume creation failed for ${serviceId}`);
   } catch (err) {
-    if (isOwnProject) {
-      console.error(`[infra] Volume failed, deleting orphan project ${projectId}...`);
-      await railway.projectDelete(projectId).catch((e: any) =>
-        console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
-    }
+    console.error(`[infra] Volume failed, deleting orphan project ${projectId}...`);
+    await railway.projectDelete(projectId).catch((e: any) =>
+      console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
     throw err;
   }
 
@@ -182,14 +168,14 @@ export async function createInstance(
     });
   }
 
-  console.log(`[infra] Instance ${instanceId} created successfully (project=${projectId}, sharded=${isOwnProject})`);
+  console.log(`[infra] Instance ${instanceId} created successfully (project=${projectId})`);
   return { instanceId, serviceId, url, services };
 }
 
 /**
  * Destroy an instance and all its resources.
- * Sharded instances (own project) → projectDelete cascades service + volumes.
- * Legacy instances (shared project) → delete volumes + service individually.
+ * Instances with providerProjectId → projectDelete cascades service + volumes.
+ * Old DB rows without providerProjectId → service-level cleanup fallback.
  */
 export async function destroyInstance(instanceId: string): Promise<DestroyResult> {
   const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
@@ -221,14 +207,11 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
     }
   }
 
-  const isOwnProject = infra.providerProjectId
-    && infra.providerProjectId !== config.railwayProjectId;
-
-  if (isOwnProject) {
+  if (infra.providerProjectId) {
     // Sharded: delete the entire project (cascades service + volumes)
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await railway.projectDelete(infra.providerProjectId!);
+        await railway.projectDelete(infra.providerProjectId);
         destroyed.service = true;
         destroyed.volumes = true;
         break;
@@ -238,27 +221,14 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
       }
     }
   } else {
-    // Legacy shared project: delete volumes then service individually
-    const serviceId = infra.providerServiceId;
-    try {
-      const volumeMap = await railway.fetchAllVolumesByService(infra.providerProjectId || undefined);
-      const volumeIds = volumeMap?.get(serviceId) || [];
-      for (const volId of volumeIds) {
-        await railway.deleteVolume(volId, serviceId);
-      }
-      destroyed.volumes = true;
-    } catch (err: any) {
-      console.warn(`[infra] Volume cleanup failed for ${instanceId}:`, err.message);
-    }
-
-    // Delete Railway service (3x retry)
+    // Fallback: no project ID on record — delete service directly
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await railway.deleteService(serviceId);
+        await railway.deleteService(infra.providerServiceId);
         destroyed.service = true;
         break;
       } catch (err: any) {
-        console.warn(`[infra] Delete service attempt ${attempt}/3 failed for ${serviceId}: ${err.message}`);
+        console.warn(`[infra] deleteService attempt ${attempt}/3 for ${infra.providerServiceId}: ${err.message}`);
         if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
       }
     }
@@ -267,6 +237,6 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
   // Delete DB rows (cascade handles instance_services)
   await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
 
-  console.log(`[infra] Instance ${instanceId} destroyed (sharded=${!!isOwnProject})`);
+  console.log(`[infra] Instance ${instanceId} destroyed`);
   return { instanceId, destroyed };
 }
