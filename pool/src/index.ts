@@ -2,35 +2,28 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { readFileSync } from "node:fs";
-import * as pool from "./pool.js";
-import * as db from "./db/pool.js";
-import { deleteOrphanAgentVolumes } from "./volumes.js";
-import { migrate } from "./db/migrate.js";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin.js";
+import * as pool from "./pool";
+import * as db from "./db/pool";
+import { config } from "./config";
+import { requireAuth } from "./middleware/auth";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
+
+// Services routes (now local, no HTTP)
+import { infraRouter } from "./services/routes/infra";
+import { statusRouter } from "./services/routes/status";
+import { configureRouter } from "./services/routes/configure";
+import { toolsRouter } from "./services/routes/tools";
+import { dashboardRouter } from "./services/routes/dashboard";
+import { registryRouter } from "./services/routes/registry";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const PORT = parseInt(process.env.PORT || "3001", 10);
-const POOL_API_KEY = process.env.POOL_API_KEY;
-const POOL_ENVIRONMENT = process.env.POOL_ENVIRONMENT || process.env.RAILWAY_ENVIRONMENT_NAME || "undefined";
-// Deploy context shown in dashboard info tags
-const DEPLOY_BRANCH = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || "unknown";
-const INSTANCE_MODEL = process.env.OPENCLAW_PRIMARY_MODEL || "unknown";
-const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || "";
-const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || "";
-const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || "";
-const NOTION_API_KEY = process.env.NOTION_API_KEY || "";
-
-// --- Notion prompt cache (1 hour TTL) ---
-const promptCache = new Map();
-const PROMPT_CACHE_TTL = 60 * 60 * 1000;
 
 // --- Agent catalog for prompt store ---
 const AGENT_CATALOG_JSON = (() => {
   try {
     const catalogPath = resolve(__dirname, "agents-data.json");
     const raw = JSON.parse(readFileSync(catalogPath, "utf8"));
-    const compact = raw.map(a => {
+    const compact = raw.map((a: any) => {
       const url = a.subPageUrl || "";
       const m = url.match(/([a-f0-9]{32})/);
       const catParts = (a.category || "").split(" — ");
@@ -40,16 +33,15 @@ const AGENT_CATALOG_JSON = (() => {
       if (catName === "Neighborhood") catName = "Local";
       if (catName === "Professional") catName = "Work";
       return { n: a.name, d: a.description, c: catName, e: emoji, p: m ? m[1] : "", s: a.status };
-    }).filter(a => a.n && a.p);
+    }).filter((a: any) => a.n && a.p);
     return JSON.stringify(compact);
-  } catch (e) {
+  } catch (e: any) {
     console.warn("[pool] Could not load agents catalog:", e.message);
     return "[]";
   }
 })();
 
-// --- Agent catalog for template site (full objects, not compact) ---
-function slugify(name) {
+function slugify(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
@@ -57,7 +49,7 @@ const AGENT_CATALOG = (() => {
   try {
     const catalogPath = resolve(__dirname, "agents-data.json");
     const raw = JSON.parse(readFileSync(catalogPath, "utf8"));
-    return raw.filter((a) => a.name).map((a) => {
+    return raw.filter((a: any) => a.name).map((a: any) => {
       const url = a.subPageUrl || "";
       const m = url.match(/([a-f0-9]{32})/);
       const catParts = (a.category || "").split(" — ");
@@ -71,8 +63,8 @@ const AGENT_CATALOG = (() => {
         category: catName, emoji, skills: a.skills || [], status: a.status,
         notionPageId: m ? m[1] : null,
       };
-    }).filter((a) => a.notionPageId);
-  } catch (e) {
+    }).filter((a: any) => a.notionPageId);
+  } catch (e: any) {
     console.warn("[pool] Could not load agents catalog:", e.message);
     return [];
   }
@@ -86,129 +78,103 @@ app.use(express.urlencoded({ extended: false }));
 // --- CORS for template site ---
 app.use((req, res, next) => {
   const origin = req.headers.origin || "";
-  const allowed = (process.env.TEMPLATE_SITE_ORIGINS || "http://localhost:3000").split(",").map((u) => u.trim());
+  const allowed = config.templateSiteOrigins.split(",").map((u) => u.trim());
   if (origin && allowed.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   }
-  if (req.method === "OPTIONS") return res.sendStatus(204);
+  if (req.method === "OPTIONS") { res.sendStatus(204); return; }
   next();
 });
 
-// --- Auth middleware ---
-function requireAuth(req, res, next) {
-  const header = req.headers.authorization || "";
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match || match[1] !== POOL_API_KEY) {
-    return res.status(401).json({ error: "Invalid or missing API key" });
-  }
-  return next();
-}
-
-// --- Routes ---
-
+// --- Public routes ---
 app.get("/favicon.ico", (_req, res) => res.sendFile(join(__dirname, "favicon.ico")));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
-// Version — check this to verify what code is deployed.
-const BUILD_VERSION = "2026-02-24T01:db-instances-v1";
-app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: POOL_ENVIRONMENT }));
+const BUILD_VERSION = "2026-02-25T01:unified-pool-v1";
+app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: config.poolEnvironment }));
 
-// Pool counts (no auth — used by the launch form)
 app.get("/api/pool/counts", async (_req, res) => {
   res.json(await db.getCounts());
 });
 
-// Convert snake_case DB row to camelCase for the frontend.
-function camelRow(row) {
-  const out = {};
-  for (const [k, v] of Object.entries(row)) {
-    out[k.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] = v;
-  }
-  return out;
-}
-
-// List launched agents (no auth — used by the page)
 app.get("/api/pool/agents", async (_req, res) => {
-  const claimed = (await db.getByStatus("claimed")).map(camelRow);
-  const crashed = (await db.getByStatus("crashed")).map(camelRow);
-  const idle = (await db.getByStatus("idle")).map(camelRow);
-  const starting = (await db.getByStatus("starting")).map(camelRow);
+  const claimed = await db.getByStatus("claimed");
+  const crashed = await db.getByStatus("crashed");
+  const idle = await db.getByStatus("idle");
+  const starting = await db.getByStatus("starting");
   res.json({ claimed, crashed, idle, starting });
 });
 
-// Template catalog (no auth — public-facing for template site)
 app.get("/api/pool/info", (_req, res) => {
   res.json({
-    environment: POOL_ENVIRONMENT,
-    branch: DEPLOY_BRANCH,
-    model: INSTANCE_MODEL,
-    railwayProjectId: RAILWAY_PROJECT_ID,
-    railwayServiceId: RAILWAY_SERVICE_ID,
-    railwayEnvironmentId: RAILWAY_ENVIRONMENT_ID,
+    environment: config.poolEnvironment,
+    branch: config.deployBranch,
+    model: config.instanceModel,
+    railwayProjectId: config.railwayProjectId,
+    railwayServiceId: config.railwayServiceId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
   });
 });
 
 app.get("/api/pool/templates", (_req, res) => { res.json(AGENT_CATALOG); });
 app.get("/api/pool/templates/:slug", (req, res) => {
-  const t = AGENT_CATALOG.find((a) => a.slug === req.params.slug);
-  if (!t) return res.status(404).json({ error: "Template not found" });
+  const t = AGENT_CATALOG.find((a: any) => a.slug === req.params.slug);
+  if (!t) { res.status(404).json({ error: "Template not found" }); return; }
   res.json(t);
 });
 
-// Kill a launched instance
+// --- Auth-protected pool API ---
 app.delete("/api/pool/instances/:id", requireAuth, async (req, res) => {
   try {
-    await pool.killInstance(req.params.id);
+    await pool.killInstance(req.params.id as string);
     res.json({ ok: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[api] Kill failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Dismiss a crashed agent
 app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
   try {
-    await pool.dismissCrashed(req.params.id);
+    await pool.dismissCrashed(req.params.id as string);
     res.json({ ok: true });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[api] Dismiss failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-
-// Root redirect — template site handles the public-facing homepage
+// Root redirect
 app.get("/", (_req, res) => {
-  res.redirect(302, process.env.TEMPLATE_SITE_URL || "https://assistants.convos.org");
+  res.redirect(302, config.templateSiteUrl);
 });
 
-// Admin environment links
-const POOL_ADMIN_URLS = (process.env.POOL_ADMIN_URLS || "dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app").split(",").filter(Boolean).map((entry) => {
+// --- Admin dashboard (password-protected) ---
+const POOL_ADMIN_URLS = config.poolAdminUrls.split(",").filter(Boolean).map((entry) => {
   const [env, url] = entry.split("=", 2);
   return { env: env?.trim() || "", url: url?.trim() || "" };
-}).filter((e) => e.env && e.url);
+}).filter((e): e is { env: string; url: string } => !!e.env && !!e.url);
 
-// --- Admin dashboard (password-protected) ---
 app.get("/admin", (req, res) => {
-  if (!isAuthenticated(req)) return res.type("html").send(loginPage());
+  if (!isAuthenticated(req)) { res.type("html").send(loginPage(null)); return; }
   res.type("html").send(adminPage({
-    poolEnvironment: POOL_ENVIRONMENT,
-    deployBranch: DEPLOY_BRANCH,
-    instanceModel: INSTANCE_MODEL,
-    railwayProjectId: RAILWAY_PROJECT_ID,
-    railwayServiceId: RAILWAY_SERVICE_ID,
-    railwayEnvironmentId: RAILWAY_ENVIRONMENT_ID,
-    poolApiKey: POOL_API_KEY,
-    adminUrls: POOL_ADMIN_URLS,
+    poolEnvironment: config.poolEnvironment,
+    deployBranch: config.deployBranch,
+    instanceModel: config.instanceModel,
+    railwayProjectId: config.railwayProjectId,
+    railwayServiceId: config.railwayServiceId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
+    poolApiKey: config.poolApiKey,
+    bankrConfigured: !!config.bankrApiKey,
+    adminUrls: POOL_ADMIN_URLS as any,
   }));
 });
 
 app.post("/admin/login", (req, res) => {
   const { password } = req.body || {};
-  if (adminLogin(password, res)) return res.redirect(302, "/admin");
+  if (adminLogin(password, res)) { res.redirect(302, "/admin"); return; }
   res.type("html").send(loginPage("Invalid API key"));
 });
 
@@ -217,31 +183,29 @@ app.post("/admin/logout", (req, res) => {
   res.redirect(302, "/admin");
 });
 
-
-// Pool status overview
+// --- Pool management API ---
 app.get("/api/pool/status", requireAuth, async (_req, res) => {
   const counts = await db.getCounts();
   const instances = await db.listAll();
   res.json({ counts, instances });
 });
 
-// Launch an agent — claim an idle instance and provision it with instructions.
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
   const { agentName, instructions, joinUrl } = req.body || {};
   if (instructions && typeof instructions !== "string") {
-    return res.status(400).json({ error: "instructions must be a string if provided" });
+    res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
   if (agentName && typeof agentName !== "string") {
-    return res.status(400).json({ error: "agentName must be a string if provided" });
+    res.status(400).json({ error: "agentName must be a string if provided" }); return;
   }
   if (joinUrl && typeof joinUrl !== "string") {
-    return res.status(400).json({ error: "joinUrl must be a string if provided" });
+    res.status(400).json({ error: "joinUrl must be a string if provided" }); return;
   }
-  if (joinUrl && POOL_ENVIRONMENT === "production" && /dev\.convos\.org/i.test(joinUrl)) {
-    return res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" });
+  if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
+    res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
   }
-  if (joinUrl && POOL_ENVIRONMENT !== "production" && /popup\.convos\.org/i.test(joinUrl)) {
-    return res.status(400).json({ error: `popup.convos.org links cannot be used in the ${POOL_ENVIRONMENT} environment` });
+  if (joinUrl && config.poolEnvironment !== "production" && /popup\.convos\.org/i.test(joinUrl)) {
+    res.status(400).json({ error: `popup.convos.org links cannot be used in the ${config.poolEnvironment} environment` }); return;
   }
 
   try {
@@ -251,18 +215,15 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       joinUrl: joinUrl || undefined,
     });
     if (!result) {
-      return res.status(503).json({
-        error: "No idle instances available. Try again in a few minutes.",
-      });
+      res.status(503).json({ error: "No idle instances available. Try again in a few minutes." }); return;
     }
     res.json(result);
-  } catch (err) {
+  } catch (err: any) {
     console.error("[api] Launch failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Manually trigger a replenish cycle, optionally creating N instances
 app.post("/api/pool/replenish", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 0, 20);
@@ -272,90 +233,98 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
         try {
           const inst = await pool.createInstance();
           results.push(inst);
-        } catch (err) {
+        } catch (err: any) {
           console.error(`[pool] Failed to create instance:`, err);
         }
       }
-      return res.json({ ok: true, created: results.length, counts: await db.getCounts() });
+      res.json({ ok: true, created: results.length, instances: results, counts: await db.getCounts() }); return;
     }
     await pool.tick();
     res.json({ ok: true, counts: await db.getCounts() });
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Manually trigger a tick (replaces old reconcile endpoint)
 app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
   try {
     await pool.tick();
     res.json({ ok: true, counts: await db.getCounts() });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[api] Tick failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Drain unclaimed instances from the pool
 app.post("/api/pool/drain", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 1, 20);
     const drained = await pool.drainPool(count);
-    res.json({ ok: true, drained: drained.length, counts: await db.getCounts() });
-  } catch (err) {
+    res.json({ ok: true, drained: drained.length, drainedIds: drained, counts: await db.getCounts() });
+  } catch (err: any) {
     console.error("[api] Drain failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
+// --- Services routes (previously separate service, now local) ---
+app.use(registryRouter); // registry is public
+app.use(dashboardRouter); // dashboard is public (served inside admin page)
+app.use(requireAuth, infraRouter);
+app.use(requireAuth, statusRouter);
+app.use(requireAuth, configureRouter);
+app.use(requireAuth, toolsRouter);
+
 // --- Notion prompt fetching ---
-async function fetchNotionPrompt(pageId) {
+const promptCache = new Map<string, { data: { name: string; prompt: string }; ts: number }>();
+const PROMPT_CACHE_TTL = 60 * 60 * 1000;
+
+async function fetchNotionPrompt(pageId: string) {
   const cached = promptCache.get(pageId);
   if (cached && Date.now() - cached.ts < PROMPT_CACHE_TTL) return cached.data;
-  const headers = { "Authorization": `Bearer ${NOTION_API_KEY}`, "Notion-Version": "2022-06-28" };
+  const headers: Record<string, string> = { "Authorization": `Bearer ${config.notionApiKey}`, "Notion-Version": "2022-06-28" };
   const blocksRes = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`, { headers });
   if (!blocksRes.ok) throw new Error(`Notion API ${blocksRes.status}`);
-  const blocksData = await blocksRes.json();
+  const blocksData = await blocksRes.json() as any;
   let text = "";
   for (const block of blocksData.results || []) {
     if (block.type === "heading_1" || block.type === "heading_2" || block.type === "heading_3") {
       const prefix = block.type === "heading_1" ? "# " : block.type === "heading_2" ? "## " : "### ";
       const ht = block[block.type]?.rich_text;
-      if (ht) text += prefix + ht.map(t => t.plain_text).join("") + "\n";
+      if (ht) text += prefix + ht.map((t: any) => t.plain_text).join("") + "\n";
     } else if (block.type === "bulleted_list_item" || block.type === "numbered_list_item") {
       const lt = block[block.type]?.rich_text;
-      if (lt) text += "- " + lt.map(t => t.plain_text).join("") + "\n";
+      if (lt) text += "- " + lt.map((t: any) => t.plain_text).join("") + "\n";
     } else if (block.type === "divider") {
       text += "---\n";
     } else {
       const rt = block[block.type]?.rich_text;
-      if (rt) text += rt.map(t => t.plain_text).join("") + "\n";
+      if (rt) text += rt.map((t: any) => t.plain_text).join("") + "\n";
     }
   }
   const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, { headers });
   let name = "";
   if (pageRes.ok) {
-    const pageData = await pageRes.json();
-    const titleProp = Object.values(pageData.properties || {}).find(p => p.type === "title");
-    if (titleProp) name = titleProp.title?.map(t => t.plain_text).join("") || "";
+    const pageData = await pageRes.json() as any;
+    const titleProp = Object.values(pageData.properties || {}).find((p: any) => p.type === "title") as any;
+    if (titleProp) name = titleProp.title?.map((t: any) => t.plain_text).join("") || "";
   }
   const result = { name, prompt: text.trim() };
   promptCache.set(pageId, { data: result, ts: Date.now() });
   return result;
 }
 
-// Prefetch all agent prompts in background (3 concurrent)
 async function prefetchAllPrompts() {
-  if (!NOTION_API_KEY) return;
+  if (!config.notionApiKey) return;
   const catalog = JSON.parse(AGENT_CATALOG_JSON);
-  const ids = catalog.map(a => a.p).filter(Boolean);
-  const uncached = ids.filter(id => !promptCache.has(id));
+  const ids = catalog.map((a: any) => a.p).filter(Boolean);
+  const uncached = ids.filter((id: string) => !promptCache.has(id));
   if (!uncached.length) return;
   console.log(`[prompts] Prefetching ${uncached.length} prompts...`);
   let done = 0;
   for (let i = 0; i < uncached.length; i += 3) {
     const batch = uncached.slice(i, i + 3);
-    await Promise.allSettled(batch.map(async id => {
+    await Promise.allSettled(batch.map(async (id: string) => {
       try { await fetchNotionPrompt(id); done++; } catch {}
     }));
   }
@@ -365,36 +334,29 @@ async function prefetchAllPrompts() {
 app.get("/api/prompts/:pageId", async (req, res) => {
   const { pageId } = req.params;
   if (!pageId || !/^[a-f0-9]{32}$/.test(pageId)) {
-    return res.status(400).json({ error: "Invalid page ID" });
+    res.status(400).json({ error: "Invalid page ID" }); return;
   }
-  if (!NOTION_API_KEY) {
-    return res.status(503).json({ error: "Notion API not configured" });
+  if (!config.notionApiKey) {
+    res.status(503).json({ error: "Notion API not configured" }); return;
   }
   try {
     res.json(await fetchNotionPrompt(pageId));
-  } catch (err) {
+  } catch (err: any) {
     console.error("[api] Notion fetch failed:", err);
     res.status(502).json({ error: "Failed to fetch prompt from Notion" });
   }
 });
 
 // --- Background tick ---
-// Reconcile DB from Railway + health checks every 30 seconds.
-const TICK_INTERVAL = parseInt(process.env.TICK_INTERVAL_MS || "30000", 10);
 setInterval(() => {
-  pool.tick().catch((err) => console.error("[tick] Error:", err));
-}, TICK_INTERVAL);
+  pool.tick().catch((err: any) => console.error("[tick] Error:", err));
+}, config.tickIntervalMs);
 
-// Run migrations (idempotent), clean up orphan volumes, then initial tick
-migrate()
-  .then(() => deleteOrphanAgentVolumes())
-  .catch((err) => console.warn("[startup] Orphan volume cleanup failed:", err.message))
-  .then(() => pool.tick())
-  .catch((err) => console.error("[tick] Initial tick error:", err));
+// Initial tick (migrations run separately via `pnpm db:migrate`)
+pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
 
-// Prefetch all Notion prompts in background so Copy is instant
 setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
 
-app.listen(PORT, () => {
-  console.log(`Pool manager listening on :${PORT}`);
+app.listen(config.port, () => {
+  console.log(`Pool manager listening on :${config.port}`);
 });
