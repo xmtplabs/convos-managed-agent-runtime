@@ -7,11 +7,11 @@ export default function ArticleLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#fff" }}>
+    <div style={{ minHeight: "100vh", background: "var(--color-surface)" }}>
       <article className="article">
         <a href="/" className="article-header">
           <ConvosLogo width={18} height={23} />
-          <span>Convos</span>
+          <span>Convos <span style={{ fontWeight: 400, color: "var(--color-foreground-secondary)" }}>Playroom</span></span>
         </a>
 
         {children}

@@ -1,0 +1,40 @@
+import { ImageResponse } from "next/og";
+
+export const size = { width: 32, height: 32 };
+export const contentType = "image/png";
+
+export default function Icon() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "transparent",
+        }}
+      >
+        {/* Balloon SVG scaled to fit with ~12% padding on each side */}
+        <svg
+          viewBox="0 0 28 36"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="31"
+        >
+          <path
+            d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z"
+            fill="#FC4F37"
+          />
+          <path
+            d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z"
+            fill="#FC4F37"
+          />
+        </svg>
+      </div>
+    ),
+    { ...size },
+  );
+}

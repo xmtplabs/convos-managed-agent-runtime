@@ -86,7 +86,7 @@ export function TemplateActions({
         {/* Add to group chat button */}
         <a
           href={`/?agent=${encodeURIComponent(slug)}`}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-[#E54D00] rounded-xl no-underline hover:bg-[#cc4400] transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand rounded-xl no-underline hover:bg-brand-hover transition-colors"
         >
           <svg
             width="18"
@@ -108,7 +108,7 @@ export function TemplateActions({
           <button
             onClick={handleCopyPrompt}
             disabled={copyState === "loading"}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-medium text-[#555] bg-white rounded-xl border border-[#ddd] hover:bg-[#f9f9f9] transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-medium text-foreground-secondary bg-white rounded-xl border border-edge hover:bg-surface-hover transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             <svg
               width="16"
@@ -135,8 +135,8 @@ export function TemplateActions({
       </div>
 
       {/* QR code section */}
-      <div className="pt-6 border-t border-[#eee]">
-        <h2 className="text-xs font-semibold text-[#999] uppercase tracking-wider mb-3">
+      <div className="pt-6 border-t border-edge-muted">
+        <h2 className="text-xs font-semibold text-foreground-inverted-secondary uppercase tracking-wider mb-3">
           Share this assistant
         </h2>
         <div className="flex items-center gap-4">
@@ -145,9 +145,9 @@ export function TemplateActions({
             alt={`QR code for ${agentName}`}
             width={96}
             height={96}
-            className="rounded-lg border border-[#e5e5e5]"
+            className="rounded-lg border border-edge"
           />
-          <p className="text-sm text-[#666] leading-relaxed">
+          <p className="text-sm text-foreground-secondary leading-relaxed">
             Scan this QR code to open this assistant page on another device.
           </p>
         </div>
