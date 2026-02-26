@@ -1,35 +1,26 @@
-/**
- * Provisioning: claim an idle instance and set up convos identity + conversation.
- *
- * Flow:
- *   1. POST /pool/provision — write AGENTS.md + invite/join convos
- *
- * The pool-server handles the full convos flow (invite or join) internally,
- * using the channel client's auto-created identity (persisted in state-dir).
- *
- * To disable convos provisioning, comment out the import in pool.js.
- */
+import * as db from "./db/pool";
+import { config } from "./config";
 
-import * as db from "./db/pool.js";
+interface ProvisionOpts {
+  agentName: string;
+  instructions: string;
+  joinUrl?: string;
+}
 
-const POOL_API_KEY = process.env.POOL_API_KEY;
-
-export async function provision(opts) {
+export async function provision(opts: ProvisionOpts) {
   const { agentName, instructions, joinUrl } = opts;
 
-  // Atomic claim — no double-claim possible
   const instance = await db.claimIdle();
   if (!instance) return null;
 
   try {
     console.log(`[provision] Claiming ${instance.id} for "${agentName}"${joinUrl ? " (join)" : ""}`);
 
-    const headers = {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${POOL_API_KEY}`,
+      Authorization: `Bearer ${config.poolApiKey}`,
     };
 
-    // Write instructions + invite/join convos via pool API
     const provisionRes = await fetch(`${instance.url}/pool/provision`, {
       method: "POST",
       headers,
@@ -40,16 +31,13 @@ export async function provision(opts) {
       const text = await provisionRes.text();
       throw new Error(`Provision failed on ${instance.id}: ${provisionRes.status} ${text}`);
     }
-    const result = await provisionRes.json();
+    const result = await provisionRes.json() as { conversationId: string; inviteUrl?: string; joined?: boolean };
 
-    // Complete the claim in DB
-    const sourceBranch = process.env.RAILWAY_SOURCE_BRANCH || process.env.RAILWAY_GIT_BRANCH || null;
-    await db.completeClaim(instance.service_id, {
+    await db.completeClaim(instance.id, {
       agentName,
       conversationId: result.conversationId,
       inviteUrl: result.inviteUrl || joinUrl || null,
       instructions,
-      sourceBranch,
     });
 
     console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
@@ -59,12 +47,10 @@ export async function provision(opts) {
       conversationId: result.conversationId,
       instanceId: instance.id,
       joined: result.joined,
-      gatewayToken: instance.gateway_token || null,
       gatewayUrl: instance.url || null,
     };
   } catch (err) {
-    // Release claim on failure — reset back to idle
-    await db.releaseClaim(instance.service_id);
+    await db.releaseClaim(instance.id);
     throw err;
   }
 }

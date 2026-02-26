@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Pool Admin — self-contained HTML admin page for pool management.
  * Password-protected via ADMIN_PASSWORD env var + session cookie.
@@ -8,19 +9,19 @@ import crypto from "node:crypto";
 const COOKIE_NAME = "pool_admin_session";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
-// Simple in-memory session store (survives restarts via fresh login)
-const sessions = new Map();
+/** Stateless token: HMAC of the API key + expiry. Survives server restarts. */
+function makeToken(expiry) {
+  const secret = process.env.POOL_API_KEY || "";
+  return crypto.createHmac("sha256", secret).update(String(expiry)).digest("hex") + "." + expiry;
+}
 
-// Prune expired sessions every hour
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, expiry] of sessions) {
-    if (now > expiry) sessions.delete(token);
-  }
-}, 60 * 60 * 1000).unref();
-
-function generateToken() {
-  return crypto.randomBytes(32).toString("hex");
+function verifyToken(token) {
+  const dot = token.lastIndexOf(".");
+  if (dot === -1) return false;
+  const expiry = Number(token.slice(dot + 1));
+  if (!expiry || Date.now() > expiry) return false;
+  const expected = makeToken(expiry);
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
 }
 
 export function adminLogin(password, res) {
@@ -28,8 +29,7 @@ export function adminLogin(password, res) {
   if (!adminPassword || password !== adminPassword) {
     return false;
   }
-  const token = generateToken();
-  sessions.set(token, Date.now() + SESSION_TTL_MS);
+  const token = makeToken(Date.now() + SESSION_TTL_MS);
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -43,19 +43,10 @@ export function isAuthenticated(req) {
   const raw = req.headers.cookie || "";
   const match = raw.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
   if (!match) return false;
-  const token = match[1];
-  const expiry = sessions.get(token);
-  if (!expiry || Date.now() > expiry) {
-    sessions.delete(token);
-    return false;
-  }
-  return true;
+  return verifyToken(match[1]);
 }
 
 export function adminLogout(req, res) {
-  const raw = req.headers.cookie || "";
-  const match = raw.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
-  if (match) sessions.delete(match[1]);
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     sameSite: "lax",
@@ -159,6 +150,7 @@ export function adminPage({
   railwayServiceId,
   railwayEnvironmentId,
   poolApiKey,
+  bankrConfigured = false,
   adminUrls = [],
 }) {
   const railwayLink = railwayProjectId && railwayServiceId
@@ -255,6 +247,12 @@ export function adminPage({
 
     /* --- Stat cards --- */
     .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .stats-credits {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 12px;
@@ -471,12 +469,12 @@ export function adminPage({
       border-collapse: collapse;
       table-layout: fixed;
     }
-    col.col-name { width: 24%; }
-    col.col-status { width: 10%; }
-    col.col-instance { width: 22%; }
-    col.col-branch { width: 16%; }
+    col.col-name { width: 22%; }
+    col.col-status { width: 11%; }
+    col.col-instance { width: 20%; }
+    col.col-usage { width: 18%; }
     col.col-uptime { width: 10%; }
-    col.col-actions { width: 18%; }
+    col.col-actions { width: 19%; }
     th {
       text-align: left;
       font-size: 10px;
@@ -512,6 +510,13 @@ export function adminPage({
     .status-idle { background: #DBEAFE; color: #1D4ED8; }
     .status-starting { background: #FEF3C7; color: #92400E; }
     tr.idle td, tr.starting td { color: #999; }
+    tr.starting td { font-style: italic; }
+    tr.starting .agent-name-cell { font-weight: 400; }
+    tr.starting { animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
     .instance-link {
       font-family: 'SF Mono', Monaco, 'Courier New', monospace;
       font-size: 11px;
@@ -519,10 +524,6 @@ export function adminPage({
       text-decoration: none;
     }
     .instance-link:hover { text-decoration: underline; }
-    .branch-tag {
-      font-size: 11px;
-      color: #999;
-    }
     .uptime {
       font-size: 12px;
       color: #999;
@@ -549,6 +550,8 @@ export function adminPage({
     .action-btn.kill:hover { background: #FEF2F2; }
     .action-btn.dismiss { color: #F59E0B; border-color: #FDE68A; }
     .action-btn.dismiss:hover { background: #FFFBEB; }
+    .action-btn.drain { color: #2563EB; border-color: #BFDBFE; }
+    .action-btn.drain:hover { background: #EFF6FF; }
     tr.destroying td { opacity: 0.4; }
     .empty-row {
       text-align: center;
@@ -618,9 +621,212 @@ export function adminPage({
     .modal .invite-url-row.copied .invite-url-text { color: #065F46; }
     .modal .invite-url-row.copied .copy-label { color: #065F46; }
 
+    .usage-bar-wrap {
+      width: 100%;
+      height: 4px;
+      background: #F0F0F0;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .usage-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: #34C759;
+      transition: width 0.3s;
+    }
+    .usage-bar.warn { background: #FF9500; }
+    .usage-bar.danger { background: #DC2626; }
+    .usage-cell {
+      font-size: 11px;
+      color: #666;
+    }
+
+    /* --- Row expand indicator --- */
+    tr[data-expand] td:first-child::before {
+      content: '\\25B8';
+      color: #C0C0C0;
+      font-size: 9px;
+      margin-right: 6px;
+      display: inline-block;
+      transition: transform 0.15s ease;
+    }
+    tr[data-expand].expanded td:first-child::before {
+      transform: rotate(90deg);
+      color: #666;
+    }
+    tr[data-expand]:hover td { background: #FAFBFC; }
+
+    /* --- Expand row (inline detail below agent) --- */
+    .expand-row td {
+      padding: 0 !important;
+      border-bottom: 1px solid #EBEBEB;
+      background: #F8F8FA;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
+    }
+    .expand-inner {
+      display: flex;
+      align-items: stretch;
+      padding: 0;
+    }
+    .expand-col {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .expand-col-left {
+      flex: 0 0 50%;
+      border-right: 1px solid #EBEBEB;
+    }
+    .expand-col-right {
+      flex: 1;
+    }
+    .expand-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 16px;
+      font-size: 11px;
+      min-width: 0;
+      border-right: 1px solid #EBEBEB;
+    }
+    .expand-col-left .expand-section { border-right: none; flex: none; }
+    .expand-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .expand-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #9CA3AF;
+      white-space: nowrap;
+    }
+    .expand-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .expand-status-dot.active { background: #34C759; }
+    .expand-status-dot.inactive { background: #DC2626; }
+    .expand-kv-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .expand-kv {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #374151;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    .expand-label {
+      font-size: 10px;
+      color: #B0B0B0;
+      font-weight: 500;
+    }
+    .expand-link {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 10px;
+      color: #007AFF;
+      text-decoration: none;
+    }
+    .expand-link:hover { text-decoration: underline; }
+    .expand-val {
+      font-size: 11px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .expand-val.mono {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      color: #555;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .expand-val.active { color: #059669; }
+    .expand-val.inactive { color: #DC2626; }
+    .expand-bar-wrap {
+      width: 100%;
+      height: 3px;
+      background: #F0F0F0;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 2px;
+    }
+    .expand-bar-wrap > div {
+      height: 100%;
+      border-radius: 2px;
+      background: #34C759;
+    }
+    .expand-bar-wrap > div.warn { background: #FF9500; }
+    .expand-bar-wrap > div.danger { background: #DC2626; }
+    .expand-topup {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .expand-topup input {
+      width: 56px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-family: inherit;
+      border: 1px solid #E5E7EB;
+      border-radius: 4px;
+      text-align: center;
+      background: #fff;
+    }
+    .expand-topup input:focus { outline: none; border-color: #999; }
+    .expand-topup button {
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid #E5E7EB;
+      background: #fff;
+      color: #374151;
+      transition: all 0.15s;
+    }
+    .expand-topup button:hover:not(:disabled) { background: #F5F5F5; border-color: #CCC; }
+    .expand-topup button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .expand-topup .topup-msg {
+      font-size: 10px;
+      font-weight: 500;
+    }
+    .expand-topup .topup-msg.success { color: #059669; }
+    .expand-topup .topup-msg.error { color: #DC2626; }
+    .expand-empty {
+      font-size: 11px;
+      color: #9CA3AF;
+      padding: 12px 16px;
+    }
+    .search-input {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      border: 1px solid #EBEBEB;
+      border-radius: 6px;
+      background: #fff;
+      min-width: 180px;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { outline: none; border-color: #999; }
+
     /* --- Responsive --- */
     @media (max-width: 640px) {
-      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stats, .stats-credits { grid-template-columns: repeat(2, 1fr); }
       .header { flex-wrap: wrap; gap: 8px; }
       .header-right { flex-wrap: wrap; }
       .controls { flex-wrap: wrap; }
@@ -640,7 +846,6 @@ export function adminPage({
       ).join("") : `<span class="env-tag env-${poolEnvironment}">${poolEnvironment}</span>`}
     </div>
     <div class="header-right">
-      <span class="chip">branch: ${deployBranch}</span>
       <span class="chip">model: ${instanceModel}</span>
       ${railwayLink ? `<span class="chip"><a href="${railwayLink}" target="_blank" rel="noopener">service: ${railwayServiceId.slice(0, 8)}</a></span>` : ""}
       ${railwayProjectLink ? `<span class="chip"><a href="${railwayProjectLink}" target="_blank" rel="noopener">Railway</a></span>` : ""}
@@ -667,6 +872,24 @@ export function adminPage({
       <div class="stat-card">
         <div class="stat-label"><span class="stat-dot red"></span> Crashed</div>
         <div class="stat-value" id="s-crashed">-</div>
+      </div>
+    </div>
+    <div class="stats-credits">
+      <div class="stat-card">
+        <div class="stat-label">Balance</div>
+        <div class="stat-value" id="s-balance">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Used</div>
+        <div class="stat-value" id="s-used">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Credits</div>
+        <div class="stat-value" id="s-total">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Inboxes</div>
+        <div class="stat-value" id="s-inboxes">-</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Templates</div>
@@ -716,38 +939,42 @@ export function adminPage({
           <span class="table-title">Agents</span>
           <span class="table-count" id="table-count"></span>
         </div>
-        <div class="filter-pills" id="filter-pills">
-          <button class="filter-pill active" data-filter="">All <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="running">Running <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="idle">Ready <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="starting">Starting <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="crashed">Crashed <span class="pill-count">-</span></button>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input class="search-input" id="search-input" type="text" placeholder="Search instances..." />
+          <div class="filter-pills" id="filter-pills">
+            <button class="filter-pill active" data-filter="">All <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="running">Running <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="idle">Ready <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="starting">Starting <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="crashed">Crashed <span class="pill-count">-</span></button>
+          </div>
         </div>
       </div>
       <table>
-        <colgroup>
-          <col class="col-name">
-          <col class="col-status">
-          <col class="col-instance">
-          <col class="col-branch">
-          <col class="col-uptime">
-          <col class="col-actions">
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Instance</th>
-            <th>Branch</th>
-            <th>Uptime</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="agents-body">
-          <tr><td class="empty-row" colspan="6">Loading...</td></tr>
-        </tbody>
-      </table>
+          <colgroup>
+            <col class="col-name">
+            <col class="col-status">
+            <col class="col-instance">
+            <col class="col-usage">
+            <col class="col-uptime">
+            <col class="col-actions">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Instance</th>
+              <th>Usage</th>
+              <th>Uptime</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="agents-body">
+            <tr><td class="empty-row" colspan="6">Loading...</td></tr>
+          </tbody>
+        </table>
     </div>
+
   </div>
 
   <!-- QR Modal -->
@@ -767,12 +994,29 @@ export function adminPage({
     var POOL_ENV = ${JSON.stringify(poolEnvironment)};
     var RAILWAY_PROJECT = ${JSON.stringify(railwayProjectId)};
     var RAILWAY_ENV = ${JSON.stringify(railwayEnvironmentId)};
+    var BANKR_KEY = ${JSON.stringify(bankrConfigured)};
+    var INSTANCE_MODEL = ${JSON.stringify(instanceModel)};
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
 
     var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
+    var svcKeyMap = {}; // keyed by key name e.g. 'convos-agent-xxxxx'
+    var svcToolsMap = {}; // keyed by instance_id → tools array from instance_services
+    var infraMap = {}; // keyed by instance_id → infra row from instance_infra
     var statusFilter = null; // null = show all, 'idle' | 'starting' | 'running' | 'crashed'
+    var searchQuery = '';
+    var searchTimer = null;
+    var expandedInstanceId = null; // track currently expanded row
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+    // --- Search input (debounced) ---
+    document.getElementById('search-input').addEventListener('input', function (e) {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        searchQuery = e.target.value.trim().toLowerCase();
+        renderAgents();
+      }, 200);
+    });
 
     // --- Filter pills ---
     document.getElementById('filter-pills').addEventListener('click', function (e) {
@@ -852,6 +1096,14 @@ export function adminPage({
         .concat(showIdle ? idleCache : [])
         .concat(showStarting ? startingCache : []);
 
+      // Apply search filter
+      if (searchQuery) {
+        filtered = filtered.filter(function (a) {
+          var text = ((a.agentName || '') + ' ' + (a.name || '') + ' ' + (a.id || '')).toLowerCase();
+          return text.indexOf(searchQuery) !== -1;
+        });
+      }
+
       if (!all.length) {
         body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
         return;
@@ -863,33 +1115,56 @@ export function adminPage({
 
       var html = '';
       function renderRow(a, status, badge, actions) {
+        var isKilling = !!killingSet[a.id];
         var rUrl = railwayUrl(a.serviceId);
-        html += '<tr class="' + status + '" id="row-' + a.id + '">'
+        var key = svcKeyMap['convos-agent-' + a.id];
+        var usageCell = '';
+        if (key) {
+          var usage = key.usage || 0;
+          var limit = key.limit || 0;
+          var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
+          var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+          usageCell = '<td class="usage-cell">'
+            + fmtDollars(usage) + ' / ' + fmtDollars(limit)
+            + '<div class="usage-bar-wrap"><div class="usage-bar ' + barClass + '" style="width:' + pct + '%"></div></div></td>';
+        } else {
+          usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
+        }
+        var rowClass = status + (isKilling ? ' destroying' : '');
+        var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
+        var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
+        html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
-          + '<td><span class="status-badge status-' + status + '">' + badge + '</span></td>'
+          + '<td>' + rowBadge + '</td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
-          + '<td class="branch-tag">' + esc(a.sourceBranch || '') + '</td>'
+          + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
-          + '<td><div class="action-btns">' + actions + '</div></td></tr>';
+          + '<td><div class="action-btns">' + rowActions + '</div></td></tr>';
       }
 
-      if (showCrashed) crashedCache.forEach(function (a) {
-        renderRow(a, 'crashed', 'Crashed',
-          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
-      });
-      if (showClaimed) claimedCache.forEach(function (a) {
-        renderRow(a, 'running', 'Running',
-          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
-      });
-      if (showIdle) idleCache.forEach(function (a) {
-        renderRow(a, 'idle', 'Ready', '');
-      });
-      if (showStarting) startingCache.forEach(function (a) {
-        renderRow(a, 'starting', 'Starting', '');
+      filtered.forEach(function (a) {
+        var isCrashed = crashedCache.indexOf(a) !== -1;
+        var isClaimed = claimedCache.indexOf(a) !== -1;
+        var isIdle = idleCache.indexOf(a) !== -1;
+        if (isCrashed) {
+          renderRow(a, 'crashed', 'Crashed',
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
+        } else if (isClaimed) {
+          renderRow(a, 'running', 'Running',
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        } else if (isIdle) {
+          renderRow(a, 'idle', 'Ready',
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        } else {
+          renderRow(a, 'starting', 'Starting',
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        }
       });
       body.innerHTML = html;
+      // Re-expand previously open row
+      if (expandedInstanceId) toggleExpand(expandedInstanceId, true);
     }
 
     // --- Actions ---
@@ -903,19 +1178,35 @@ export function adminPage({
       var killId = e.target.getAttribute('data-kill');
       if (killId) { killAgent(killId); return; }
       var dismissId = e.target.getAttribute('data-dismiss');
-      if (dismissId) dismissAgent(dismissId);
+      if (dismissId) { dismissAgent(dismissId); return; }
+
+      // Row click → toggle expand row (ignore if clicking a button/link)
+      if (e.target.closest('button') || e.target.closest('a')) return;
+      var expandRow = e.target.closest('[data-expand]');
+      if (expandRow) {
+        toggleExpand(expandRow.getAttribute('data-expand'));
+      }
     });
+
+    var killingSet = {};
 
     function markDestroying(id) {
       var row = document.getElementById('row-' + id);
       if (row) row.classList.add('destroying');
+      // Disable all buttons in this row
+      if (row) row.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+      // Also collapse expand row
+      var expand = document.getElementById('expand-' + id);
+      if (expand) expand.remove();
     }
 
     async function killAgent(id) {
+      if (killingSet[id]) return;
       var row = document.getElementById('row-' + id);
       var name = row ? row.querySelector('.agent-name-cell').textContent.trim() : id;
       var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Kill "' + name + '"? This deletes the Railway service.';
       if (!confirm(msg)) return;
+      killingSet[id] = true;
       markDestroying(id);
       try {
         var res = await fetch('/api/pool/instances/' + id, { method: 'DELETE', headers: authHeaders });
@@ -925,6 +1216,28 @@ export function adminPage({
         refreshAgents();
       } catch (err) {
         alert('Failed to kill: ' + err.message);
+        var r = document.getElementById('row-' + id);
+        if (r) r.classList.remove('destroying');
+        if (r) r.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+      } finally {
+        delete killingSet[id];
+      }
+    }
+
+    async function drainAgent(id) {
+      var a = idleCache.concat(startingCache).find(function (x) { return x.id === id; });
+      var name = a ? (a.agentName || a.name || a.id) : id;
+      var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Drain "' + name + '"? This deletes the Railway service.';
+      if (!confirm(msg)) return;
+      markDestroying(id);
+      try {
+        var res = await fetch('/api/pool/instances/' + id, { method: 'DELETE', headers: authHeaders });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Drain failed');
+        refreshCounts();
+        refreshAgents();
+      } catch (err) {
+        alert('Failed to drain: ' + err.message);
         var r = document.getElementById('row-' + id);
         if (r) r.classList.remove('destroying');
       }
@@ -958,7 +1271,24 @@ export function adminPage({
         var res = await fetch('/api/pool/replenish', { method: 'POST', headers: authHeaders, body: JSON.stringify({ count: n }) });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
+        // Inject new instances into startingCache immediately
+        (data.instances || []).forEach(function (inst) {
+          var exists = startingCache.some(function (a) { return a.id === inst.id; });
+          if (!exists) {
+            startingCache.unshift({
+              id: inst.id,
+              name: inst.name,
+              url: inst.url,
+              serviceId: inst.serviceId,
+              status: 'starting',
+              createdAt: new Date().toISOString(),
+            });
+          }
+        });
+        renderAgents();
         refreshCounts();
+        refreshCredits();
+        refreshInstances();
       } catch (err) { alert('Failed: ' + err.message); }
       finally { btn.disabled = false; btn.textContent = '+ Add'; }
     });
@@ -978,13 +1308,25 @@ export function adminPage({
       var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Drain ' + n + ' unclaimed instance(s)?';
       if (!confirm(msg)) return;
       btn.disabled = true; btn.textContent = 'Draining...';
+      // Mark all unclaimed rows as destroying
+      idleCache.concat(startingCache).forEach(function (a) { killingSet[a.id] = true; });
+      renderAgents();
       try {
         var res = await fetch('/api/pool/drain', { method: 'POST', headers: authHeaders, body: JSON.stringify({ count: n }) });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
+        // Clear killing state for drained IDs
+        (data.drainedIds || []).forEach(function (id) { delete killingSet[id]; });
         refreshCounts();
-      } catch (err) { alert('Failed: ' + err.message); }
-      finally { btn.disabled = false; btn.textContent = 'Drain'; }
+        refreshAgents();
+      } catch (err) {
+        // Clear all killing state on failure
+        idleCache.concat(startingCache).forEach(function (a) { delete killingSet[a.id]; });
+        renderAgents();
+        alert('Failed: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Drain';
+      }
     });
 
     // --- QR Modal ---
@@ -1070,10 +1412,227 @@ export function adminPage({
       document.getElementById('s-templates').textContent = Array.isArray(d) ? d.length : '-';
     }).catch(function () {});
 
+    // --- Inboxes count ---
+    function refreshInboxes() {
+      fetch('/dashboard/inboxes', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (d) {
+        document.getElementById('s-inboxes').textContent = d.count != null ? d.count : '-';
+      }).catch(function () {});
+    }
+
+    // --- Credits ---
+    function fmtDollars(n) {
+      if (n == null) return '-';
+      return '$' + Math.round(Number(n));
+    }
+
+    async function refreshCredits() {
+      try {
+        var res = await fetch('/dashboard/credits', { headers: authHeaders });
+        var data = await res.json();
+        var credits = data.credits || {};
+        var keys = data.keys || [];
+
+        // Build lookup map
+        svcKeyMap = {};
+        keys.forEach(function (k) { if (k.name) svcKeyMap[k.name] = k; });
+
+        var total = credits.totalCredits || 0;
+        var used = credits.totalUsage || 0;
+        var remaining = total - used;
+        document.getElementById('s-balance').textContent = fmtDollars(remaining);
+        document.getElementById('s-used').textContent = fmtDollars(used);
+        document.getElementById('s-total').textContent = fmtDollars(total);
+
+        // Re-render agents table so usage column picks up fresh data
+        renderAgents();
+      } catch (e) {
+        document.getElementById('s-balance').textContent = '-';
+        document.getElementById('s-used').textContent = '-';
+        document.getElementById('s-total').textContent = '-';
+      }
+    }
+
+    async function refreshInstances() {
+      try {
+        var res = await fetch('/dashboard/instances', { headers: authHeaders });
+        var data = await res.json();
+        svcToolsMap = {};
+        infraMap = {};
+        (Array.isArray(data) ? data : []).forEach(function (inst) {
+          if (inst.instance_id) {
+            if (Array.isArray(inst.tools)) svcToolsMap[inst.instance_id] = inst.tools;
+            infraMap[inst.instance_id] = inst;
+          }
+        });
+      } catch (e) {}
+    }
+
+    // --- Expand row (inline details below agent) ---
+    function toggleExpand(instanceId, force) {
+      var existing = document.getElementById('expand-' + instanceId);
+      if (existing && !force) {
+        existing.remove();
+        var prev = document.getElementById('row-' + instanceId);
+        if (prev) prev.classList.remove('expanded');
+        expandedInstanceId = null;
+        return;
+      }
+      if (existing) existing.remove();
+
+      // Close any other open expand row
+      document.querySelectorAll('.expand-row').forEach(function (r) { r.remove(); });
+      document.querySelectorAll('tr.expanded').forEach(function (r) { r.classList.remove('expanded'); });
+
+      var tools = svcToolsMap[instanceId] || [];
+      var key = svcKeyMap['convos-agent-' + instanceId];
+      var infra = infraMap[instanceId] || {};
+      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
+
+      var html = '<td colspan="6"><div class="expand-inner">';
+      var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
+      var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
+      var hasSections = key || mailTool || telnyxTool;
+
+      // LEFT COLUMN — Instance + AgentMail (50%)
+      var instanceUrl = (agent && agent.url) || infra.url || '';
+      html += '<div class="expand-col expand-col-left">';
+      html += '<div class="expand-section">'
+        + '<div class="expand-section-header"><span class="expand-section-title">Instance</span>'
+        + (instanceUrl ? '<span class="expand-status-dot active"></span>' : '<span class="expand-status-dot inactive"></span>') + '</div>'
+        + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\\/\\//, '')) + '</a></div>' : '')
+        + '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(INSTANCE_MODEL) + '</span></div>'
+        + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
+        + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
+          + (railwayUrl(infra.provider_service_id)
+            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id) + '" target="_blank" rel="noopener">' + esc(infra.provider_service_id.slice(0, 12)) + '</a>'
+            : '<span class="expand-val mono">' + esc(infra.provider_service_id.slice(0, 12)) + '</span>')
+          + '</div>' : '')
+        + '</div>';
+
+      // AgentMail (below Instance)
+      if (mailTool) {
+        html += '<div class="expand-section" style="border-top:1px solid #EBEBEB">'
+          + '<div class="expand-section-header"><span class="expand-section-title">AgentMail</span>'
+          + '<span class="expand-status-dot ' + (mailTool.status === 'active' ? 'active' : 'inactive') + '"></span></div>'
+          + '<div class="expand-kv"><span class="expand-val mono">' + esc(mailTool.env_value || mailTool.resource_id || '-') + '</span></div>'
+          + '</div>';
+      }
+
+      html += '</div>'; // close left column
+
+      // RIGHT COLUMN — OpenRouter, Bankr, Telnyx (stacked)
+      html += '<div class="expand-col expand-col-right">';
+
+      // OpenRouter credits
+      if (key) {
+        var usage = key.usage || 0;
+        var limit = key.limit || 0;
+        var remaining = limit > 0 ? Math.max(0, limit - usage) : null;
+        var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
+        var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+        var keyHash = key.hash || '';
+        html += '<div class="expand-section" style="border-right:none">'
+          + '<div class="expand-section-header">'
+          + '<a class="expand-link" href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">OpenRouter</a>'
+          + '</div>'
+          + '<div class="expand-kv-row">'
+          + '<div class="expand-kv"><span class="expand-label">Used</span> <span class="expand-val">' + fmtDollars(usage) + '</span></div>'
+          + '<div class="expand-kv"><span class="expand-label">Limit</span> <span class="expand-val">' + fmtDollars(limit) + '</span></div>'
+          + '<div class="expand-kv"><span class="expand-label">Left</span> <span class="expand-val">' + (remaining != null ? fmtDollars(remaining) : '-') + '</span></div>'
+          + '</div>'
+          + '<div class="expand-bar-wrap"><div class="' + barClass + '" style="width:' + pct + '%"></div></div>'
+          + '<div class="expand-topup">'
+          + '<input type="number" min="1" placeholder="20" value="20" data-topup-input="' + esc(keyHash) + '" data-current-limit="' + limit + '" />'
+          + '<button data-topup-btn="' + esc(keyHash) + '" data-instance="' + esc(instanceId) + '">Top up</button>'
+          + '<span class="topup-msg" data-topup-msg="' + esc(keyHash) + '"></span>'
+          + '</div>'
+          + '</div>';
+      }
+
+      // Bankr
+      html += '<div class="expand-section" style="border-top:1px solid #EBEBEB;border-right:none">'
+        + '<div class="expand-section-header"><span class="expand-section-title">Bankr</span>'
+        + '<span class="expand-status-dot ' + (BANKR_KEY ? 'active' : 'inactive') + '"></span></div>'
+        + '<div class="expand-kv"><span class="expand-val" style="color:#9CA3AF">' + (BANKR_KEY ? 'Configured' : 'Not set') + '</span></div>'
+        + '</div>';
+
+      // Telnyx
+      html += '<div class="expand-section" style="border-top:1px solid #EBEBEB;border-right:none">'
+        + '<div class="expand-section-header"><span class="expand-section-title">Telnyx</span>'
+        + (telnyxTool
+          ? '<span class="expand-status-dot ' + (telnyxTool.status === 'active' ? 'active' : 'inactive') + '"></span></div>'
+            + '<div class="expand-kv"><span class="expand-val mono">' + esc(telnyxTool.resource_id || '-') + '</span></div>'
+          : '<span class="expand-status-dot inactive"></span></div>'
+            + '<div class="expand-kv"><span class="expand-val" style="color:#9CA3AF">Not provisioned</span></div>')
+        + '</div>';
+
+      html += '</div>'; // close right column
+
+      if (!hasSections) {
+        html += '<div class="expand-empty">No service details available</div>';
+      }
+
+      html += '</div></td>';
+
+      var tr = document.createElement('tr');
+      tr.id = 'expand-' + instanceId;
+      tr.className = 'expand-row';
+      tr.innerHTML = html;
+
+      expandedInstanceId = instanceId;
+      var parentRow = document.getElementById('row-' + instanceId);
+      if (parentRow) {
+        parentRow.classList.add('expanded');
+        parentRow.after(tr);
+      }
+    }
+
+    // --- Top-up handler (delegated) ---
+    document.addEventListener('click', async function (e) {
+      var btn = e.target.closest('[data-topup-btn]');
+      if (!btn) return;
+      var hash = btn.getAttribute('data-topup-btn');
+      var instanceId = btn.getAttribute('data-instance');
+      var input = document.querySelector('[data-topup-input="' + hash + '"]');
+      var msgEl = document.querySelector('[data-topup-msg="' + hash + '"]');
+      var addAmount = parseFloat(input && input.value);
+      if (!addAmount || addAmount <= 0) {
+        if (msgEl) { msgEl.className = 'topup-msg error'; msgEl.textContent = 'Enter an amount'; }
+        return;
+      }
+      var currentLimit = parseFloat(input.getAttribute('data-current-limit')) || 0;
+      var newLimit = currentLimit + addAmount;
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+      if (msgEl) msgEl.textContent = '';
+      try {
+        var res = await fetch('/dashboard/topup/' + hash, {
+          method: 'PATCH',
+          headers: authHeaders,
+          body: JSON.stringify({ limit: newLimit }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        await refreshCredits();
+        toggleExpand(instanceId, true);
+        var newMsg = document.querySelector('[data-topup-msg="' + hash + '"]');
+        if (newMsg) { newMsg.className = 'topup-msg success'; newMsg.textContent = '+$' + addAmount + ' added'; }
+      } catch (err) {
+        if (msgEl) { msgEl.className = 'topup-msg error'; msgEl.textContent = err.message; }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Top up';
+      }
+    });
+
     // --- Init + polling ---
     refreshCounts();
     refreshAgents();
+    refreshCredits();
+    refreshInstances();
+    refreshInboxes();
     setInterval(function () { refreshCounts(); refreshAgents(); }, 15000);
+    setInterval(function () { refreshCredits(); refreshInstances(); refreshInboxes(); }, 60000);
   </script>
 </body>
 </html>`;
