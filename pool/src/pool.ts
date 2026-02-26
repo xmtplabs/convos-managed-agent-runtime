@@ -1,30 +1,45 @@
 import { nanoid } from "nanoid";
 import * as db from "./db/pool";
 import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance } from "./services/infra";
-import { fetchBatchStatus } from "./services/status";
+import { fetchBatchStatus, listSharedProjectServices } from "./services/status";
 import { deriveStatus } from "./status";
 import { config } from "./config";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
+let tickCount = 0;
+const ORPHAN_SCAN_INTERVAL = 10; // Run orphan scan every N ticks
+
 // Destroy via services. If not in infra DB but we have a Railway serviceId, delete that directly.
-async function safeDestroy(instanceId: string, railwayServiceId?: string) {
+// For orphans found in the shared project, cleans up service + volumes + OpenRouter key.
+async function safeDestroy(instanceId: string, railwayServiceId?: string, projectId?: string) {
   try {
     await infraDestroyInstance(instanceId);
   } catch (err: any) {
     if (err.status === 404 || err.message?.includes("not found")) {
-      // Not in infra DB — clean up Railway service + OpenRouter key directly if we can
+      // Not in infra DB — clean up directly if we can
       if (railwayServiceId) {
-        console.log(`[pool] Orphan ${instanceId}: deleting Railway service ${railwayServiceId} directly`);
-        try {
-          const volumeMap = await railway.fetchAllVolumesByService();
-          for (const volId of volumeMap?.get(railwayServiceId) || []) {
-            await railway.deleteVolume(volId, railwayServiceId).catch(() => {});
-          }
-        } catch {}
-        await railway.deleteService(railwayServiceId).catch((e: any) =>
-          console.warn(`[pool] Failed to delete orphan service ${railwayServiceId}: ${e.message}`)
-        );
+        const isOwnProject = projectId && projectId !== config.railwayProjectId;
+
+        if (isOwnProject) {
+          // Orphan with own project: delete entire project
+          console.log(`[pool] Orphan ${instanceId}: deleting project ${projectId}`);
+          await railway.projectDelete(projectId).catch((e: any) =>
+            console.warn(`[pool] Failed to delete orphan project ${projectId}: ${e.message}`));
+        } else {
+          // Orphan in shared project: delete volumes + service
+          console.log(`[pool] Orphan ${instanceId}: deleting Railway service ${railwayServiceId} directly`);
+          try {
+            const volumeMap = await railway.fetchAllVolumesByService();
+            for (const volId of volumeMap?.get(railwayServiceId) || []) {
+              await railway.deleteVolume(volId, railwayServiceId).catch(() => {});
+            }
+          } catch {}
+          await railway.deleteService(railwayServiceId).catch((e: any) =>
+            console.warn(`[pool] Failed to delete orphan service ${railwayServiceId}: ${e.message}`)
+          );
+        }
+
         // Best-effort delete the OpenRouter key by name
         const keyHash = await openrouter.findKeyHash(`convos-agent-${instanceId}`);
         if (keyHash) await openrouter.deleteKey(keyHash).catch(() => {});
@@ -63,7 +78,7 @@ export async function createInstance() {
 
   console.log(`[pool] Creating instance ${name}...`);
 
-  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail"]);
+  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"]);
   console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
   await db.upsertInstance({
@@ -77,12 +92,45 @@ export async function createInstance() {
   return { id, serviceId: result.serviceId, url: result.url, name };
 }
 
+// Scan the shared project for orphan services (services with no DB row).
+async function scanSharedProjectOrphans() {
+  if (!config.railwayProjectId) return;
+
+  console.log(`[tick] Running orphan scan on shared project...`);
+  const sharedServices = await listSharedProjectServices();
+  if (!sharedServices) return;
+
+  const agents = sharedServices.filter(
+    (s) => s.name.startsWith("convos-agent-") && s.name !== "convos-agent-pool-manager",
+  );
+
+  const dbRows = await db.listAll();
+  const dbIds = new Set(dbRows.map((r: any) => r.id));
+
+  let orphanCount = 0;
+  for (const svc of agents) {
+    const instId = svc.name.replace("convos-agent-", "");
+    if (!dbIds.has(instId)) {
+      orphanCount++;
+      console.log(`[tick] Orphan in shared project: ${svc.name} (${svc.id})`);
+      try {
+        await safeDestroy(instId, svc.id);
+      } catch (err: any) {
+        console.warn(`[tick] Failed to clean orphan ${instId}: ${err.message}`);
+      }
+    }
+  }
+  if (orphanCount === 0) console.log(`[tick] No orphans found in shared project`);
+}
+
 // Unified tick: rebuild instance state from services, health-check, replenish.
 export async function tick() {
   if (!config.railwayEnvironmentId) {
     console.warn(`[tick] RAILWAY_ENVIRONMENT_ID not set, skipping tick`);
     return;
   }
+
+  tickCount++;
 
   let batchResult;
   try {
@@ -187,10 +235,15 @@ export async function tick() {
     });
   }
 
-  const activeInstanceIds = agentServices.map((s) => s.instanceId);
-  await db.deleteOrphaned(activeInstanceIds).catch((err: any) =>
-    console.warn(`[tick] deleteOrphaned failed: ${err.message}`)
-  );
+  // DB-driven: no need for deleteOrphaned based on Railway service list.
+  // Instead, periodically scan the shared project for orphans.
+  if (tickCount % ORPHAN_SCAN_INTERVAL === 0) {
+    try {
+      await scanSharedProjectOrphans();
+    } catch (err: any) {
+      console.warn(`[tick] Orphan scan failed: ${err.message}`);
+    }
+  }
 
   for (const { svc, dbRow } of toDelete) {
     const instanceId = dbRow?.id || svc.instanceId;

@@ -1,42 +1,66 @@
+import { db } from "../db/connection";
+import { instanceInfra } from "../db/schema";
 import * as railway from "./providers/railway";
 import { config } from "../config";
 import type { BatchStatusResponse } from "../types";
 
+const STATUS_CONCURRENCY = 10;
+
 /**
  * Fetch batch status for all agent services.
- * Extracted from POST /status/batch route handler.
+ * DB-driven: queries instance_infra, then fetches each service's status individually.
+ * Works for both shared-project (legacy) and per-project (sharded) instances.
  */
 export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchStatusResponse> {
-  const allServices = await railway.listProjectServices();
-  if (allServices === null) throw new Error("Failed to fetch services from Railway");
+  // Get all infra rows from DB
+  let infraRows = await db.select().from(instanceInfra);
 
-  const envId = config.railwayEnvironmentId;
-
-  let agents = allServices.filter(
-    (s) =>
-      s.name.startsWith("convos-agent-") &&
-      s.name !== "convos-agent-pool-manager" &&
-      (!envId || s.environmentIds.includes(envId)),
-  );
-
+  // Filter to requested instanceIds if provided
   if (instanceIds && instanceIds.length > 0) {
     const idSet = new Set(instanceIds);
-    agents = agents.filter((s) => {
-      const instId = s.name.replace("convos-agent-", "");
-      return idSet.has(instId);
-    });
+    infraRows = infraRows.filter((r) => idSet.has(r.instanceId));
+  }
+
+  // Fetch status for each service with bounded concurrency
+  const results: BatchStatusResponse["services"] = [];
+
+  for (let i = 0; i < infraRows.length; i += STATUS_CONCURRENCY) {
+    const batch = infraRows.slice(i, i + STATUS_CONCURRENCY);
+    const settled = await Promise.allSettled(
+      batch.map(async (row) => {
+        const status = await railway.fetchServiceStatus(
+          row.providerServiceId,
+          row.providerEnvId,
+        );
+        return {
+          instanceId: row.instanceId,
+          serviceId: row.providerServiceId,
+          name: `convos-agent-${row.instanceId}`,
+          deployStatus: status?.deployStatus || row.deployStatus || null,
+          domain: status?.domain || (row.url ? row.url.replace("https://", "") : null),
+          image: status?.image || row.runtimeImage || null,
+          environmentIds: row.providerEnvId ? [row.providerEnvId] : [],
+        };
+      }),
+    );
+
+    for (const s of settled) {
+      if (s.status === "fulfilled") {
+        results.push(s.value);
+      }
+    }
   }
 
   return {
     projectId: config.railwayProjectId,
-    services: agents.map((s) => ({
-      instanceId: s.name.replace("convos-agent-", ""),
-      serviceId: s.id,
-      name: s.name,
-      deployStatus: s.deployStatus,
-      domain: s.domain,
-      image: s.image,
-      environmentIds: s.environmentIds,
-    })),
+    services: results,
   };
+}
+
+/**
+ * List services in the shared project (for orphan detection).
+ * Only returns services in the shared/legacy project, not per-agent projects.
+ */
+export async function listSharedProjectServices() {
+  return railway.listProjectServices(config.railwayProjectId);
 }
