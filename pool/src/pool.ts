@@ -121,7 +121,9 @@ export async function tick() {
   const healthResults = new Map<string, { ready: boolean } | null>();
   const toCheck = successServices.filter((s) => {
     const row = dbById.get(s.instanceId);
-    return urlMap.has(s.instanceId) && row?.status !== "claiming";
+    // Skip health checks for already-idle instances — they proved healthy once
+    // and Railway may have slept them (waking takes >5s, causing false "dead").
+    return urlMap.has(s.instanceId) && row?.status !== "claiming" && row?.status !== "idle";
   });
 
   const checks = await Promise.allSettled(
@@ -148,7 +150,12 @@ export async function tick() {
     const hc = healthResults.get(instId) || null;
     const isClaimed = !!dbRow?.agentName;
     const createdAt = dbRow?.createdAt || new Date().toISOString();
-    const status = deriveStatus({
+
+    // If instance was already idle and deploy is still SUCCESS, trust it —
+    // Railway may have slept it, so no health check was performed.
+    const wasIdle = dbRow?.status === "idle" && svc.deployStatus === "SUCCESS";
+
+    const status = wasIdle ? "idle" : deriveStatus({
       deployStatus: svc.deployStatus,
       healthCheck: hc,
       createdAt,
