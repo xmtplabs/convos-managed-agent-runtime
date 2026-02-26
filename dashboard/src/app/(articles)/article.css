@@ -11,7 +11,7 @@
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
     'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #111;
+  color: var(--color-foreground);
 }
 
 /* --- Header link (logo + brand) --- */
@@ -26,7 +26,7 @@
 .article-header span {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-foreground);
   letter-spacing: -0.3px;
 }
 
@@ -50,7 +50,7 @@
 .article h1 + h2 {
   font-size: 17px;
   font-weight: 400;
-  color: #888;
+  color: var(--color-foreground-secondary);
   line-height: 1.6;
   letter-spacing: 0;
   margin: 0 0 48px;
@@ -58,25 +58,25 @@
 
 .article p {
   font-size: 16px;
-  color: #444;
+  color: var(--color-foreground-secondary);
   line-height: 1.7;
   margin: 0 0 16px;
 }
 
 .article strong {
-  color: #222;
+  color: var(--color-foreground);
 }
 
 /* --- Links (body content only, not header/footer) --- */
 .article a:not(.article-header) {
-  color: #111;
+  color: var(--color-foreground);
   text-decoration: underline;
-  text-decoration-color: #999;
+  text-decoration-color: var(--color-foreground-tertiary);
   text-underline-offset: 2px;
 }
 
 .article a:not(.article-header):hover {
-  text-decoration-color: #111;
+  text-decoration-color: var(--color-foreground);
 }
 
 /* --- Lists --- */
@@ -90,7 +90,7 @@
 
 .article li {
   font-size: 16px;
-  color: #555;
+  color: var(--color-foreground-secondary);
   line-height: 1.6;
 }
 
@@ -131,29 +131,29 @@
   padding: 10px 12px 10px 0;
   font-size: 12px;
   font-weight: 600;
-  color: #999;
+  color: var(--color-foreground-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #E5E5E5;
+  border-bottom: 1px solid var(--color-edge);
 }
 
 .article td {
   padding: 12px 12px 12px 0;
   vertical-align: top;
-  border-bottom: 1px solid #F0F0F0;
+  border-bottom: 1px solid var(--color-edge-muted);
   font-size: 15px;
-  color: #444;
+  color: var(--color-foreground-secondary);
   line-height: 1.5;
 }
 
 .article td strong {
-  color: #111;
+  color: var(--color-foreground);
 }
 
 /* --- Horizontal rule --- */
 .article hr {
   border: none;
-  border-top: 1px solid #F0F0F0;
+  border-top: 1px solid var(--color-edge-muted);
   margin: 48px 0 32px;
 }
 
@@ -161,25 +161,25 @@
 .article-footer {
   margin-top: 64px;
   padding-top: 24px;
-  border-top: 1px solid #F0F0F0;
+  border-top: 1px solid var(--color-edge-muted);
   display: flex;
   align-items: center;
   gap: 16px;
   font-size: 13px;
-  color: #CCC;
+  color: var(--color-foreground-tertiary);
 }
 
 .article-footer a {
-  color: #B2B2B2;
+  color: var(--color-foreground-tertiary);
   text-decoration: none;
 }
 
 .article-footer a:hover {
-  color: #666;
+  color: var(--color-foreground-secondary);
 }
 
 .article-footer .dot {
-  color: #E5E5E5;
+  color: var(--color-edge);
 }
 
 /* --- Responsive --- */

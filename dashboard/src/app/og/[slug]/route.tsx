@@ -1,3 +1,6 @@
+// Brand color tokens are defined in globals.css (@theme block).
+// Satori (@vercel/og) does not support CSS variables, so we use raw hex values here.
+// Canonical brand color: #FC4F37 (--color-brand in globals.css)
 import { ImageResponse } from "@vercel/og";
 import { getSkill } from "@/lib/api";
 import { getSiteUrl } from "@/lib/url";
@@ -68,11 +71,11 @@ export async function GET(
           >
             <path
               d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z"
-              fill="#E54D00"
+              fill="#FC4F37"
             />
             <path
               d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z"
-              fill="#E54D00"
+              fill="#FC4F37"
             />
           </svg>
           <span
@@ -83,7 +86,8 @@ export async function GET(
               letterSpacing: "-0.3px",
             }}
           >
-            Convos
+            Convos{" "}
+            <span style={{ fontWeight: 400, color: "#666666" }}>Playroom</span>
           </span>
         </div>
 
@@ -141,7 +145,7 @@ export async function GET(
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                backgroundColor: "#E54D00",
+                backgroundColor: "#FC4F37",
                 color: "#fff",
                 fontSize: "18px",
                 fontWeight: 600,

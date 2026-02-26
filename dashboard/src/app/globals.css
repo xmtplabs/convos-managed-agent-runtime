@@ -1,9 +1,52 @@
 @import "tailwindcss" layer(tw);
-@import "./pool.css";
+@import "./homepage.css";
 
 /*
- * Pool.css provides its own global reset and base styles for the homepage.
- * By importing Tailwind into a custom @layer(tw), all pool.css rules win over
- * Tailwind's preflight, preventing subtle visual regressions on the homepage.
+ * homepage.css provides its own global reset and base styles for the homepage.
+ * By importing Tailwind into a custom @layer(tw), all homepage.css rules win
+ * over Tailwind's preflight, preventing subtle visual regressions on the homepage.
  * Tailwind utility classes still work normally on the /a/:slug template pages.
+ */
+
+@theme {
+  /* Brand */
+  --color-brand: #FC4F37;
+  --color-brand-hover: #D9412D;
+
+  /* Text (light mode) */
+  --color-foreground: #000000;
+  --color-foreground-secondary: #666666;
+  --color-foreground-tertiary: #B2B2B2;
+  --color-foreground-inactive: #D9D9D9;
+
+  /* Text inverted (light mode) */
+  --color-foreground-inverted: #FFFFFF;
+  --color-foreground-inverted-secondary: #999999;
+  --color-foreground-inverted-inactive: #333333;
+
+  /* Surfaces */
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F5F5F5;
+  --color-surface-hover: #FAFAFA;
+
+  /* Borders */
+  --color-edge: #EBEBEB;
+  --color-edge-muted: #F0F0F0;
+
+  /* Semantic */
+  --color-error: #DC2626;
+  --color-error-bg: #FEE2E2;
+  --color-success: #16A34A;
+  --color-success-bg: #F0FDF4;
+}
+
+/*
+ * DARK MODE VALUES (documented for future activation):
+ * --color-foreground: #FFFFFF
+ * --color-foreground-secondary: #999999
+ * --color-foreground-tertiary: #4D4D4D
+ * --color-foreground-inactive: #333333
+ * --color-foreground-inverted: #000000
+ * --color-foreground-inverted-secondary: #666666
+ * --color-foreground-inverted-inactive: #D9D9D9
  */

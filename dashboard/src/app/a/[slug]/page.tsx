@@ -72,13 +72,13 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex flex-col items-center font-[Inter,sans-serif]">
+    <div className="min-h-screen bg-surface-muted flex flex-col items-center font-[Inter,sans-serif]">
       {/* Header */}
       <header className="w-full max-w-2xl px-6 pt-8 pb-4">
         <a href="/" className="inline-flex items-center gap-2 no-underline">
           <ConvosLogo width={18} height={23} />
-          <span className="text-sm font-semibold text-[#333] tracking-[-0.3px]">
-            Convos
+          <span className="text-sm font-semibold text-foreground tracking-[-0.3px]">
+            Convos <span className="font-normal text-foreground-secondary">Playroom</span>
           </span>
         </a>
       </header>
@@ -92,31 +92,31 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
               {template.emoji}
             </span>
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-[#111] tracking-[-0.5px] m-0">
+              <h1 className="text-2xl font-bold text-foreground tracking-[-0.5px] m-0">
                 {template.name}
               </h1>
-              <span className="inline-block mt-1.5 px-2.5 py-0.5 text-xs font-medium text-[#666] bg-[#f0f0f0] rounded-full">
+              <span className="inline-block mt-1.5 px-2.5 py-0.5 text-xs font-medium text-foreground-secondary bg-edge-muted rounded-full">
                 {template.category}
               </span>
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-base text-[#444] leading-relaxed mb-6">
+          <p className="text-base text-foreground-secondary leading-relaxed mb-6">
             {template.description}
           </p>
 
           {/* Skills */}
           {template.skills.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-xs font-semibold text-[#999] uppercase tracking-wider mb-3">
+              <h2 className="text-xs font-semibold text-foreground-inverted-secondary uppercase tracking-wider mb-3">
                 Skills
               </h2>
               <div className="flex flex-wrap gap-2">
                 {template.skills.map((skill) => (
                   <span
                     key={skill}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-[#555] bg-[#f5f5f5] rounded-lg border border-[#e5e5e5]"
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-foreground-secondary bg-surface-muted rounded-lg border border-edge"
                   >
                     {skill}
                   </span>

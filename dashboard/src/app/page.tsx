@@ -89,7 +89,7 @@ export default function Home() {
           <div className="brand-icon">
             <ConvosLogo />
           </div>
-          <span className="brand-name">Convos</span>
+          <span className="brand-name">Convos <span className="brand-name-labs">Playroom</span></span>
         </div>
 
         {/* Hero */}
