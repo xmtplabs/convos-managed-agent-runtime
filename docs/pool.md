@@ -71,6 +71,7 @@ node --env-file=.env --env-file=../.env.dev src/db/enrich-instances.js --dry-run
 | `PORT` | Server port (default `3001`) |
 | `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
 | `POOL_ENVIRONMENT` | `"staging"`, `"dev"`, or `"production"` |
+| `POOL_URL` | Public URL of this pool manager (injected into instances for self-destruct) |
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
@@ -135,6 +136,7 @@ All endpoints except `GET /` and `GET /healthz` require `Authorization: Bearer <
 | POST | `/api/pool/replenish` | Trigger poll + replenish; `{"count": N}` to create N directly |
 | POST | `/api/pool/drain` | Remove up to N idle instances: `{"count": N}` |
 | POST | `/api/pool/reconcile` | Reconcile DB against Railway, clean up orphans |
+| POST | `/api/pool/self-destruct` | Instance requests own destruction (per-instance token auth, no `POOL_API_KEY`) |
 
 ### `POST /api/pool/claim`
 
