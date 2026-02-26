@@ -158,7 +158,6 @@ export async function createInstance(
   }
 
   // Insert into instance_infra
-  onProgress?.("db-insert", "active");
   await db.insert(instanceInfra).values({
     instanceId,
     provider: "railway",
@@ -201,7 +200,6 @@ export async function createInstance(
     });
   }
 
-  onProgress?.("db-insert", "ok");
   onProgress?.("done", "ok");
 
   console.log(`[infra] Instance ${instanceId} created successfully (project=${projectId})`);

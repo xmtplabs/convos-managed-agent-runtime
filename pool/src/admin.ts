@@ -1459,7 +1459,6 @@ export function adminPage({
       { key: 'railway-project', label: 'Railway project' },
       { key: 'railway-service', label: 'Railway service + volume' },
       { key: 'railway-domain', label: 'Railway domain' },
-      { key: 'db-insert', label: 'DB insert' },
     ];
 
     var provisionTotal = 0;

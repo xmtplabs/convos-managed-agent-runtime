@@ -187,7 +187,7 @@ SSE endpoint that streams real-time provisioning progress. Used by the admin das
 | `instance` | `instanceNum`, `instance` | Instance successfully created |
 | `complete` | `created`, `failed`, `counts` | All instances finished |
 
-Step names: `openrouter`, `agentmail`, `telnyx`, `railway-project`, `railway-service`, `railway-domain`, `db-insert`, `done`.
+Step names: `openrouter`, `agentmail`, `telnyx`, `railway-project`, `railway-service`, `railway-domain`, `done`.
 
 Status values: `active` (in progress), `ok` (success), `fail` (error), `skip` (not configured).
 
