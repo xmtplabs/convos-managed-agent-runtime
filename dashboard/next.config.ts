@@ -3,7 +3,6 @@ import createMDX from "@next/mdx";
 import remarkGfm from "remark-gfm";
 
 const nextConfig: NextConfig = {
-  basePath: "/assistants",
   pageExtensions: ["ts", "tsx", "md", "mdx"],
 };
 
