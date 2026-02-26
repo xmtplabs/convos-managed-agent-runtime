@@ -13,7 +13,6 @@
     "gateway": "sh scripts/gateway.sh",
     "qa": "sh scripts/qa.sh",
     "pool-server": "node scripts/pool-server.js",
-    "clean-providers": "node scripts/clean-providers.mjs",
     "build": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local .",
     "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
     "build:run": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local"

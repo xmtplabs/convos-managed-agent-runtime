@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { deriveStatus } from "./status.js";
+import { deriveStatus } from "./status";
 
 describe("deriveStatus", () => {
   const STUCK_MS = 15 * 60 * 1000;
-  const young = new Date(Date.now() - 60_000).toISOString(); // 1 min old
-  const old = new Date(Date.now() - STUCK_MS - 60_000).toISOString(); // 16 min old
+  const young = new Date(Date.now() - 60_000).toISOString();
+  const old = new Date(Date.now() - STUCK_MS - 60_000).toISOString();
 
   it("BUILDING → starting", () => {
     assert.equal(deriveStatus({ deployStatus: "BUILDING", createdAt: young }), "starting");
@@ -63,7 +63,6 @@ describe("deriveStatus", () => {
     assert.equal(deriveStatus({ deployStatus: null, createdAt: young }), "starting");
   });
 
-  // Claimed instances (isClaimed) should preserve status through redeploys
   it("BUILDING + isClaimed → claimed", () => {
     assert.equal(deriveStatus({ deployStatus: "BUILDING", createdAt: young, isClaimed: true }), "claimed");
   });
