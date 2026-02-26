@@ -237,7 +237,7 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
           console.error(`[pool] Failed to create instance:`, err);
         }
       }
-      res.json({ ok: true, created: results.length, counts: await db.getCounts() }); return;
+      res.json({ ok: true, created: results.length, instances: results, counts: await db.getCounts() }); return;
     }
     await pool.tick();
     res.json({ ok: true, counts: await db.getCounts() });
@@ -260,7 +260,7 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 1, 20);
     const drained = await pool.drainPool(count);
-    res.json({ ok: true, drained: drained.length, counts: await db.getCounts() });
+    res.json({ ok: true, drained: drained.length, drainedIds: drained, counts: await db.getCounts() });
   } catch (err: any) {
     console.error("[api] Drain failed:", err);
     res.status(500).json({ error: err.message });

@@ -1250,7 +1250,24 @@ export function adminPage({
         var res = await fetch('/api/pool/replenish', { method: 'POST', headers: authHeaders, body: JSON.stringify({ count: n }) });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
+        // Inject new instances into startingCache immediately
+        (data.instances || []).forEach(function (inst) {
+          var exists = startingCache.some(function (a) { return a.id === inst.id; });
+          if (!exists) {
+            startingCache.unshift({
+              id: inst.id,
+              name: inst.name,
+              url: inst.url,
+              serviceId: inst.serviceId,
+              status: 'starting',
+              createdAt: new Date().toISOString(),
+            });
+          }
+        });
+        renderAgents();
         refreshCounts();
+        refreshCredits();
+        refreshInstances();
       } catch (err) { alert('Failed: ' + err.message); }
       finally { btn.disabled = false; btn.textContent = '+ Add'; }
     });
@@ -1270,13 +1287,25 @@ export function adminPage({
       var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Drain ' + n + ' unclaimed instance(s)?';
       if (!confirm(msg)) return;
       btn.disabled = true; btn.textContent = 'Draining...';
+      // Mark all unclaimed rows as destroying
+      idleCache.concat(startingCache).forEach(function (a) { killingSet[a.id] = true; });
+      renderAgents();
       try {
         var res = await fetch('/api/pool/drain', { method: 'POST', headers: authHeaders, body: JSON.stringify({ count: n }) });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
+        // Clear killing state for drained IDs
+        (data.drainedIds || []).forEach(function (id) { delete killingSet[id]; });
         refreshCounts();
-      } catch (err) { alert('Failed: ' + err.message); }
-      finally { btn.disabled = false; btn.textContent = 'Drain'; }
+        refreshAgents();
+      } catch (err) {
+        // Clear all killing state on failure
+        idleCache.concat(startingCache).forEach(function (a) { delete killingSet[a.id]; });
+        renderAgents();
+        alert('Failed: ' + err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Drain';
+      }
     });
 
     // --- QR Modal ---
