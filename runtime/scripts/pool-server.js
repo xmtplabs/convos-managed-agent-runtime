@@ -297,9 +297,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   // POST /pool/self-destruct — extension requests instance self-destruction.
-  // Calls the pool manager's authenticated self-destruct endpoint, then exits.
+  // Localhost-only: prevents cross-instance attacks via shared POOL_API_KEY.
+  // External callers should use DELETE /api/pool/instances/:id on the pool manager.
   if (req.method === "POST" && req.url === "/pool/self-destruct") {
-    if (!checkAuth(req, res)) return;
+    const remoteAddr = req.socket.remoteAddress;
+    if (remoteAddr !== "127.0.0.1" && remoteAddr !== "::1" && remoteAddr !== "::ffff:127.0.0.1") {
+      json(res, 403, { error: "Self-destruct is localhost-only" });
+      return;
+    }
 
     if (!INSTANCE_ID || !POOL_URL || !GATEWAY_TOKEN) {
       console.log("[pool-server] Self-destruct skipped: INSTANCE_ID, POOL_URL, or GATEWAY_TOKEN not set");
