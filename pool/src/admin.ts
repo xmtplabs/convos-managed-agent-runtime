@@ -1853,7 +1853,7 @@ export function adminPage({
         var total = credits.totalCredits || 0;
         var used = credits.totalUsage || 0;
         var remaining = total - used;
-        document.getElementById('s-credits').innerHTML = fmtDollars(remaining) + '<div style="font-size:0.5em;opacity:0.6;margin-top:2px">' + fmtDollars(used) + ' / ' + fmtDollars(total) + ' used</div>';
+        document.getElementById('s-credits').innerHTML = fmtDollars(remaining) + '<div style="font-size:0.5em;opacity:0.6;margin-top:2px">' + fmtDollars(used) + ' used</div>';
 
         // Re-render agents table so usage column picks up fresh data
         renderAgents();
