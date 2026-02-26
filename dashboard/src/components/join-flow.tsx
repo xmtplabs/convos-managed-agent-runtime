@@ -25,7 +25,7 @@ interface ConfettiPiece {
 interface JoinFlowProps {
   /** e.g. "production" | "staging" | "development" */
   poolEnvironment: string;
-  /** Ref to the skill browser element for scroll-to + pulse on post-success */
+  /** Ref to the skill browser element for scroll-to on post-success */
   skillBrowserRef?: React.RefObject<HTMLDivElement | null>;
   /** Callback to expose activeStep to parent/siblings */
   activeStep: number;
@@ -80,7 +80,7 @@ const CONFETTI_COLORS = [
   "#FBBF24",
   "#34D399",
   "#60A5FA",
-  "#E54D00",
+  "#A855F7",
 ];
 
 function generateConfetti(): ConfettiPiece[] {
@@ -254,31 +254,18 @@ export function JoinFlow({
             setInputValue("");
             setConfettiPieces([]);
 
-            // T=300: scroll to skills, flash + pulse
+            // T=300: scroll to skills
             scheduleTimer(() => {
               if (skillBrowserRef?.current) {
                 skillBrowserRef.current.scrollIntoView({
                   behavior: "smooth",
                   block: "start",
                 });
-                skillBrowserRef.current.classList.add("highlighted");
-                skillBrowserRef.current
-                  .querySelectorAll(".ps-agent-row")
-                  .forEach((r) => r.classList.add("pulsing"));
               }
             }, 300);
 
             // T=3000: hide toast
             scheduleTimer(() => setToastVisible(false), 3000);
-
-            // T=5000: remove pulses
-            scheduleTimer(() => {
-              if (skillBrowserRef?.current) {
-                skillBrowserRef.current
-                  .querySelectorAll(".ps-agent-row.pulsing")
-                  .forEach((r) => r.classList.remove("pulsing"));
-              }
-            }, 5000);
           }, 1500);
         } else {
           // --- QR modal flow (joined: false) ---
