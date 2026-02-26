@@ -1,6 +1,5 @@
 import { eq, and, sql, notInArray, inArray } from "drizzle-orm";
 import { db } from "./connection";
-import { pool as pgPool } from "./connection";
 import { instances } from "./schema";
 import type { InstanceRow, InstanceStatus } from "./schema";
 
@@ -73,10 +72,8 @@ export async function getCounts(): Promise<Record<InstanceStatus, number>> {
 
 /** Atomically claim one idle instance using FOR UPDATE SKIP LOCKED. */
 export async function claimIdle(): Promise<InstanceRow | null> {
-  const client = await pgPool.connect();
-  try {
-    await client.query("BEGIN");
-    const result = await client.query(`
+  return db.transaction(async (tx) => {
+    const result = await tx.execute(sql`
       UPDATE instances SET status = 'claiming'
       WHERE id = (
         SELECT id FROM instances
@@ -85,29 +82,18 @@ export async function claimIdle(): Promise<InstanceRow | null> {
         LIMIT 1
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING *
+      RETURNING
+        id, name, url, status,
+        agent_name    AS "agentName",
+        conversation_id AS "conversationId",
+        invite_url    AS "inviteUrl",
+        instructions,
+        created_at    AS "createdAt",
+        claimed_at    AS "claimedAt"
     `);
-    await client.query("COMMIT");
     const row = result.rows[0];
-    if (!row) return null;
-    return {
-      id: row.id,
-      name: row.name,
-      url: row.url,
-      status: row.status,
-      agentName: row.agent_name,
-      conversationId: row.conversation_id,
-      inviteUrl: row.invite_url,
-      instructions: row.instructions,
-      createdAt: row.created_at,
-      claimedAt: row.claimed_at,
-    } as InstanceRow;
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+    return (row as InstanceRow) ?? null;
+  });
 }
 
 export async function completeClaim(instanceId: string, { agentName, conversationId, inviteUrl, instructions }: { agentName: string; conversationId?: string | null; inviteUrl?: string | null; instructions?: string | null }) {
