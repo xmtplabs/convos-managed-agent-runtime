@@ -2,31 +2,17 @@
 
 OpenClaw gateway + Convos (XMTP) channel plugin. Pre-warmed agent instances are provisioned via a pool; users claim an agent and it's live in seconds.
 
-See `docs/` for design, QA, changelog, and workarounds.
-
-## Repo structure
-
-```
-pool/          Pool manager — Express API + admin dashboard on Railway
-dashboard/     Template site — Next.js app at assistants.convos.org
-runtime/       Agent runtime — Docker image (OpenClaw gateway + workspace + extensions)
-docs/          Design docs, QA, changelog, convos extension docs
-```
-
----
+See `docs/` for architecture, QA, changelog, and workarounds.
 
 ## Repo structure
 
 ```
 convos-agents/
 ├── runtime/       # Agent runtime image (OpenClaw + config + extensions + skills)
-├── pool/          # Pool manager service (Express API + Postgres)
-├── services/      # Provider services API (Railway, OpenRouter, AgentMail, Telnyx)
-├── docs/          # Design docs, QA, changelog, pool details
-└── .env.example   # Runtime env template
+├── pool/          # Pool manager + provider services (Express API + Postgres)
+├── dashboard/     # Template site — Next.js app at assistants.convos.org
+└── docs/          # Schema, QA, changelog, convos extension docs
 ```
-
-Each service has its own `Dockerfile` and is deployed independently on Railway.
 
 ## Architecture
 
@@ -38,28 +24,26 @@ flowchart LR
     R3[workspace + skills]
     R1 --> R2 --> R3
   end
-  subgraph pool["pool"]
+  subgraph pool["pool (unified)"]
     P1[Pool manager]
     P2[Idle instances]
     P3[Claim → provision]
+    P4[Railway provider]
+    P5[OpenRouter provider]
+    P6[AgentMail provider]
+    P7[Telnyx provider]
     P1 --> P2 --> P3
+    P1 --> P4 & P5 & P6 & P7
   end
-  subgraph services["services"]
-    S1[Railway]
-    S2[OpenRouter]
-    S3[AgentMail]
-    S4[Telnyx]
-  end
-  pool --> services
-  services --> runtime
-  runtime -.-> S2
-  runtime -.-> S3
-  runtime -.-> S4
+  pool --> runtime
+  runtime -.-> P5
+  runtime -.-> P6
+  runtime -.-> P7
 ```
 
-Pool delegates all provider interactions to Services via internal HTTP. Services manages Railway infrastructure, OpenRouter key lifecycle, AgentMail inbox provisioning, and Telnyx phone numbers.
+Pool is a single unified service that manages instance lifecycle and all provider interactions (Railway infrastructure, OpenRouter key lifecycle, AgentMail inbox provisioning, Telnyx phone numbers). Everything runs in one process with a single Postgres database.
 
-## Services
+## Components
 
 ### Runtime (`runtime/`)
 
@@ -69,15 +53,9 @@ See [`runtime/README.md`](runtime/README.md) for scripts, OpenClaw layout, and e
 
 ### Pool (`pool/`)
 
-Pool manager that keeps pre-warmed instances on Railway. Handles claim, provision, replenish, drain, and reconcile operations. Includes a dashboard UI.
+Pool manager that keeps pre-warmed instances on Railway. Handles claim, provision, replenish, drain, and reconcile operations. Includes provider services (Railway, OpenRouter, AgentMail, Telnyx) and a dashboard UI.
 
 See [`pool/README.md`](pool/README.md) for commands, API, configuration, and environments.
-
-### Services (`services/`)
-
-Provider services API — manages Railway infrastructure, per-instance OpenRouter keys, AgentMail inboxes, and Telnyx phone numbers. Pool talks to Services over private networking.
-
-See [`services/README.md`](services/README.md) for API routes, configuration, and deployment.
 
 ## Pool
 
@@ -90,7 +68,7 @@ flowchart LR
 ```
 
 - **starting** → container building, gateway starting, XMTP identity created.
-- **idle/ready** → instance reports `ready` at `/convos/status`, available for claim.
+- **idle/ready** → instance reports `ready` at `/pool/health`, available for claim.
 - **claimed** → manager calls `/pool/provision` (or `/convos/conversation` / `/convos/join`), instance is bound to a conversation.
 
 ### Admin dashboard
@@ -159,7 +137,7 @@ Authenticated endpoints require Bearer `POOL_API_KEY` header.
 | `DELETE /api/pool/crashed/:id` | Yes | Dismiss a crashed instance |
 | `GET /admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
 
-Environments: **dev** (`convos-agents-dev.up.railway.app`), **staging** (`convos-agents-staging.up.railway.app`), **production** (`convos-agents-production.up.railway.app`). See `docs/pool.md`.
+Environments: **dev** (`convos-agents-dev.up.railway.app`), **staging** (`convos-agents-staging.up.railway.app`), **production** (`convos-agents-production.up.railway.app`). See [`pool/README.md`](pool/README.md).
 
 ---
 
@@ -178,7 +156,7 @@ See `dashboard/README.md` for setup and development.
 
 ## Runtime (OpenClaw)
 
-The **runtime** is the OpenClaw gateway plus this repo’s config, workspace, extensions, and skills. `pnpm cli apply` syncs `openclaw/` into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`).
+The **runtime** is the OpenClaw gateway plus this repo's config, workspace, extensions, and skills. `pnpm cli apply` syncs `openclaw/` into `~/.openclaw/` (or `OPENCLAW_STATE_DIR`).
 
 ### Layout
 
@@ -220,5 +198,3 @@ Pool manager uses these endpoints to provision claimed instances. Full API, conf
 | **Agentmail** | Email. Per-agent inbox for calendar invites and transactional email. |
 | **Telnyx** | SMS. Per-agent US number and messaging profile. |
 | **Bankr** | Crypto payments. Per-agent wallet. |
-
-.

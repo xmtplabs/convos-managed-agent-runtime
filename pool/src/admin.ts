@@ -990,10 +990,14 @@ export function adminPage({
           + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       if (showIdle) idleCache.forEach(function (a) {
-        renderRow(a, 'idle', 'Ready', creditsBtn(a.id));
+        renderRow(a, 'idle', 'Ready',
+          creditsBtn(a.id)
+          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       if (showStarting) startingCache.forEach(function (a) {
-        renderRow(a, 'starting', 'Starting', creditsBtn(a.id));
+        renderRow(a, 'starting', 'Starting',
+          creditsBtn(a.id)
+          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       body.innerHTML = html;
     }

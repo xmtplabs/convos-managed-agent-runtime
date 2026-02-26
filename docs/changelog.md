@@ -1,15 +1,24 @@
 # Changelog
 
+## 0.0.15 — 2026-02-25
+
+- **Merge services into pool.** Services is no longer a separate directory or HTTP service — provider modules (Railway, OpenRouter, AgentMail, Telnyx) now live at `pool/src/services/` and are imported directly. Single process, single Postgres database, single Dockerfile. All inter-service HTTP calls replaced with direct function imports.
+- **TypeScript migration.** Pool codebase converted from JavaScript to TypeScript. New `pool/tsconfig.json`, all `.js` files replaced with `.ts` equivalents.
+- **Unified config.** Single `pool/src/config.ts` replaces separate pool and services env configs. One `DATABASE_URL` for all three tables (`instances`, `instance_infra`, `instance_services`).
+- **Admin: stateless auth + credits.** Admin dashboard uses HMAC-based stateless session tokens (no server-side session store). OpenRouter credit balance shown in dashboard.
+- **Admin: orphan cleanup.** Dashboard can detect and clean up orphaned Railway services that exist in Railway but not in the pool DB.
+- **Drain/kill deletes Railway services.** `POST /api/pool/drain` and `DELETE /api/pool/instances/:id` now fully destroy Railway services and provisioned tools, not just remove pool DB rows.
+- **Docs:** Updated README, pool README, and `docs/schema.md` to reflect unified architecture. Removed stale `docs/design.md` and `docs/runtime.md`.
+
 ## 0.0.14 — 2026-02-25
 
-- **Pool/Services DB separation.** Pool `instances` table trimmed to identity + claim state only (10 columns). Infra details (service IDs, deploy status, volumes, images, tool resources) live in the services DB (`instance_infra` + `instance_services`). Pool no longer stores `service_id`, `deploy_status`, `volume_id`, `runtime_image`, `openrouter_key_hash`, `agentmail_inbox_id`, `gateway_token`, or `source_branch`.
-- **Pool: id-based operations.** All DB operations (upsert, claim, status, delete, orphan cleanup) now key on `instances.id` instead of `service_id`. Tick loop reconciles by `instanceId` from the services batch status API.
-- **Services: `provider_project_id`.** New column on `instance_infra` for future per-agent Railway projects. Backfilled from `RAILWAY_PROJECT_ID`. Returned as `projectId` in `/status/batch` response.
+- **Pool/Services DB separation.** Pool `instances` table trimmed to identity + claim state only (10 columns). Infra details (service IDs, deploy status, volumes, images, tool resources) live in separate tables (`instance_infra` + `instance_services`). Pool no longer stores `service_id`, `deploy_status`, `volume_id`, `runtime_image`, `openrouter_key_hash`, `agentmail_inbox_id`, `gateway_token`, or `source_branch`.
+- **Pool: id-based operations.** All DB operations (upsert, claim, status, delete, orphan cleanup) now key on `instances.id` instead of `service_id`. Tick loop reconciles by `instanceId` from batch status.
+- **`provider_project_id`.** New column on `instance_infra` for future per-agent Railway projects. Backfilled from `RAILWAY_PROJECT_ID`. Returned as `projectId` in `/status/batch` response.
 - **Pool: dashboard enrichment.** `/api/pool/agents` fetches batch status and joins `serviceId` + `projectId` into the response. Railway links in the dashboard now work via enriched batch data instead of hardcoded env vars. Graceful degradation if batch status fails.
-- **Migration: `--drop` flag.** `pnpm db:migrate:drop` (in services) drops legacy columns from both services and pool DBs. Normal `pnpm db:migrate` is safe — only creates tables, adds columns, backfills.
-- **Remove enrich script.** Delete `pool/src/db/enrich-instances.js` and `db:enrich` script — no longer needed with services owning all infra data.
+- **Migration: `--drop` flag.** `pnpm db:migrate:drop` drops legacy columns. Normal `pnpm db:migrate` is safe — only creates tables, adds columns, backfills.
+- **Remove enrich script.** Delete `pool/src/db/enrich-instances.js` and `db:enrich` script — no longer needed with infra data in dedicated tables.
 - **Remove unused `runtime/scripts/lib/db.mjs`.**
-- **Docs:** New `services.md`, updated `pool.md` DB schema and env vars.
 
 ## 0.0.13 — 2026-02-25
 

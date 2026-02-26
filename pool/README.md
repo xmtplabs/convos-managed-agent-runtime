@@ -2,7 +2,7 @@
 
 Manages pre-warmed [OpenClaw](https://github.com/xmtplabs/openclaw) agent instances on [Railway](https://railway.com). Instances are created ahead of time so claiming one takes seconds, not minutes.
 
-Pool delegates all provider interactions (Railway, OpenRouter, AgentMail, Telnyx) to the [services API](../services/README.md).
+Pool is a unified service — instance lifecycle management and all provider interactions (Railway, OpenRouter, AgentMail, Telnyx) run in a single process with a single Postgres database.
 
 ## How it works
 
@@ -11,7 +11,7 @@ Pool delegates all provider interactions (Railway, OpenRouter, AgentMail, Telnyx
                          │  Pool Manager │
                          │  (this repo)  │
                          └──┬───┬───┬───┘
-               creates      │   │   │      polls /convos/status
+               creates      │   │   │      polls /pool/health
             ┌───────────────┘   │   └───────────────┐
             ▼                   ▼                    ▼
     ┌──────────────┐   ┌──────────────┐     ┌──────────────┐
@@ -21,11 +21,10 @@ Pool delegates all provider interactions (Railway, OpenRouter, AgentMail, Telnyx
     └──────────────┘   └──────────────┘     └──────────────┘
 ```
 
-1. Delegates to the **services API** to create Railway services, provision tools (OpenRouter keys, AgentMail inboxes), and manage infra
+1. Creates Railway services, provisions tools (OpenRouter keys, AgentMail inboxes, Telnyx numbers), and manages infra — all internally via provider modules in `src/services/`
 2. Health-checks `/pool/health` until `ready`, then marks the instance **idle**
 3. On `POST /api/pool/claim`, provisions a Convos conversation on the instance and backfills the pool
-4. All instance state lives in a Postgres `instances` table — no in-memory cache
-5. Infra details (service IDs, deploy status, volumes, images) live in the **services DB** — pool only tracks instance identity and claim state
+4. All state lives in a single Postgres database — `instances` (pool lifecycle), `instance_infra` (Railway service details), and `instance_services` (provisioned tools)
 
 ## Instance lifecycle
 
@@ -35,9 +34,9 @@ starting  →  idle  →  claimed
 ```
 
 The background tick runs every 30 seconds:
-1. Fetches batch status from the **services API** (deploy status, domains, images), reconciles with the `instances` DB table by `instanceId`
+1. Fetches batch status from Railway (deploy status, domains, images), reconciles with the `instances` DB table by `instanceId`
 2. Health-checks deployed instances — if `/pool/health` returns `ready`, marks them `idle`
-3. Dead/stuck unclaimed instances are deleted via services API; dead claimed instances are marked `crashed`
+3. Dead/stuck unclaimed instances are deleted (Railway service + tools destroyed); dead claimed instances are marked `crashed`
 4. Orphaned DB rows (instance gone from Railway) are cleaned up
 5. If idle + starting < `POOL_MIN_IDLE`, creates new instances to fill the gap
 
@@ -60,6 +59,7 @@ Or from `pool/`:
 | `pnpm start` | Start server |
 | `pnpm test` | Run tests |
 | `pnpm db:migrate` | Run DB migrations |
+| `pnpm db:migrate:drop` | Run migrations + drop legacy columns |
 
 ## Setup
 
@@ -68,14 +68,14 @@ Requires Node.js 22+ and a [Railway](https://railway.com) Postgres database.
 ```sh
 cp pool/.env.example pool/.env
 pnpm install
-pnpm run db:migrate    # creates instances table
+cd pool && pnpm db:migrate    # creates instances, instance_infra, instance_services tables
 pnpm start
 ```
 
 To drop legacy columns from an existing DB (after deploying the new code):
 
 ```sh
-cd services && pnpm db:migrate:drop   # drops legacy columns from both services + pool DBs
+cd pool && pnpm db:migrate:drop
 ```
 
 ## Environment variables
@@ -89,14 +89,24 @@ cd services && pnpm db:migrate:drop   # drops legacy columns from both services 
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
-| `DATABASE_URL` | Postgres connection string (unified DB) |
+| `DATABASE_URL` | Postgres connection string |
 | **Railway** | |
 | `RAILWAY_PROJECT_ID` | Railway project ID |
 | `RAILWAY_ENVIRONMENT_ID` | Railway environment ID (for tick loop + dashboard links) |
+| `RAILWAY_API_TOKEN` | Railway API token for managing services |
+| `RAILWAY_RUNTIME_IMAGE` | Runtime Docker image (default `ghcr.io/xmtplabs/convos-runtime:latest`) |
+| **Providers** | |
+| `OPENROUTER_MANAGEMENT_KEY` | OpenRouter provisioning key (creates per-instance keys) |
+| `AGENTMAIL_API_KEY` | AgentMail API key (provisions per-instance inboxes) |
+| `AGENTMAIL_DOMAIN` | AgentMail inbox domain |
+| `TELNYX_API_KEY` | Telnyx API key (provisions per-instance phone numbers) |
+| `TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile |
 
 ## Database
 
-Pool instance state is stored in a Postgres `instances` table. The tick loop reconciles it with the services batch status API on every cycle. Infra details (service IDs, deploy status, volumes, images) live in the **services DB** — see [services README](../services/README.md).
+All state is stored in a single Postgres database with three tables. See [`docs/schema.md`](../docs/schema.md) for the full schema.
+
+**`instances`** — pool lifecycle (identity + claim state)
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -111,26 +121,34 @@ Pool instance state is stored in a Postgres `instances` table. The tick loop rec
 | `created_at` | TIMESTAMPTZ | Creation timestamp |
 | `claimed_at` | TIMESTAMPTZ | Claim timestamp |
 
+**`instance_infra`** — Railway service details (service IDs, deploy status, volumes, images)
+
+**`instance_services`** — provisioned tools (OpenRouter keys, AgentMail inboxes, Telnyx numbers)
+
 Claiming is atomic via `SELECT ... FOR UPDATE SKIP LOCKED` — no double-claims possible.
 
 ## API
 
-All endpoints except `GET /` and `GET /healthz` require `Authorization: Bearer <POOL_API_KEY>`.
+Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/pool/counts`, `GET /api/pool/agents`, `GET /api/pool/info`, `GET /api/pool/templates`, `GET /api/prompts/:pageId`. All other endpoints require `Authorization: Bearer <POOL_API_KEY>`.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Web dashboard |
-| GET | `/healthz` | Health check (`{"ok": true}`) |
-| GET | `/version` | Build version and environment |
-| GET | `/api/pool/status` | Pool counts + all instances |
-| GET | `/api/pool/counts` | Pool counts only (no auth) |
-| GET | `/api/pool/agents` | List claimed and crashed agents (no auth) |
-| POST | `/api/pool/claim` | Claim an idle instance |
-| POST | `/api/pool/replenish` | Trigger poll + replenish; `{"count": N}` to create N directly |
-| POST | `/api/pool/drain` | Remove up to N idle instances: `{"count": N}` |
-| POST | `/api/pool/reconcile` | Reconcile DB against Railway, clean up orphans |
-| DELETE | `/api/pool/instances/:id` | Kill a launched instance |
-| DELETE | `/api/pool/crashed/:id` | Dismiss a crashed agent |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/healthz` | No | Health check (`{"ok": true}`) |
+| GET | `/version` | No | Build version and environment |
+| GET | `/api/pool/counts` | No | Pool counts only |
+| GET | `/api/pool/agents` | No | List all instances by status |
+| GET | `/api/pool/info` | No | Environment, branch, model, Railway IDs |
+| GET | `/api/pool/templates` | No | Agent template catalog |
+| GET | `/api/pool/templates/:slug` | No | Single template by slug |
+| GET | `/api/prompts/:pageId` | No | Fetch agent prompt from Notion (cached 1h) |
+| GET | `/api/pool/status` | Yes | Pool counts + all instances |
+| POST | `/api/pool/claim` | Yes | Claim an idle instance |
+| POST | `/api/pool/replenish` | Yes | Trigger poll + replenish; `{"count": N}` to create N directly |
+| POST | `/api/pool/drain` | Yes | Remove up to N idle instances: `{"count": N}` |
+| POST | `/api/pool/reconcile` | Yes | Reconcile DB against Railway, clean up orphans |
+| DELETE | `/api/pool/instances/:id` | Yes | Kill a launched instance |
+| DELETE | `/api/pool/crashed/:id` | Yes | Dismiss a crashed agent |
+| GET | `/admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
 
 ### `POST /api/pool/claim`
 
@@ -164,5 +182,5 @@ Response:
 | Environment | Pool Manager URL | XMTP Network | Source Branch |
 |-------------|-----------------|---------------|---------------|
 | dev | `convos-agents-dev.up.railway.app` | dev | *(your branch)* |
-| staging | `convos-agents-dev.up.railway.app` | dev | `staging` |
+| staging | `convos-agents-staging.up.railway.app` | dev | `staging` |
 | production | `convos-agents.up.railway.app` | production | `main` |
