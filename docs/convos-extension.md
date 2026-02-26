@@ -117,3 +117,19 @@ Pool manager calls:
 3. Instance writes `INSTRUCTIONS.md` to workspace when `instructions` is provided; starts streaming and is live.
 
 See `docs/schema.md` and `pool/README.md` for pool architecture.
+
+---
+
+## Self-destruct
+
+The extension exports `selfDestruct(reason?)` from `src/channel.ts` — a primitive for agents to terminate themselves and release all pool resources (Railway service, volumes, API keys, AgentMail inbox, DB row).
+
+```
+selfDestruct()  →  pool-server /pool/self-destruct  →  pool manager /api/pool/self-destruct  →  destroyInstance()
+```
+
+- Authenticated with per-instance `gateway_token` (not the shared `POOL_API_KEY`), so an instance can only destroy itself.
+- After calling the pool manager, stops the XMTP child process and unblocks the `startAccount` promise so the gateway exits cleanly.
+- On non-pool instances (missing `INSTANCE_ID` / `POOL_URL`), the call is a no-op — the instance stays alive.
+
+This is the primitive only. Detection policies (group exploded, agent removed, credits exhausted) are consumers that call `selfDestruct()` when appropriate.

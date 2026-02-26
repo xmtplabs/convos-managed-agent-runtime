@@ -1,6 +1,6 @@
 import { eq, and, sql, notInArray, inArray } from "drizzle-orm";
 import { db } from "./connection";
-import { instances } from "./schema";
+import { instances, instanceInfra } from "./schema";
 import type { InstanceRow, InstanceStatus } from "./schema";
 
 interface UpsertInstanceOpts {
@@ -116,6 +116,14 @@ export async function updateStatus(instanceId: string, { status, url }: { status
     status: sql`COALESCE(${status || null}, ${instances.status})`,
     url: sql`COALESCE(${url || null}, ${instances.url})`,
   }).where(eq(instances.id, instanceId));
+}
+
+/** Verify an instance ID + gateway token pair. Used by self-destruct auth. */
+export async function findInstanceByToken(instanceId: string, gatewayToken: string): Promise<boolean> {
+  const rows = await db.select({ id: instanceInfra.instanceId })
+    .from(instanceInfra)
+    .where(and(eq(instanceInfra.instanceId, instanceId), eq(instanceInfra.gatewayToken, gatewayToken)));
+  return rows.length > 0;
 }
 
 export async function deleteById(id: string) {
