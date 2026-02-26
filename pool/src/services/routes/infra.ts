@@ -38,6 +38,7 @@ infraRouter.post("/create-instance", async (req, res) => {
 
     // Build env vars
     const vars: Record<string, string> = { ...buildInstanceEnv() };
+    vars.INSTANCE_ID = instanceId;
     vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
     vars.SETUP_PASSWORD = setupPassword;
     vars.PRIVATE_WALLET_KEY = walletKey;
@@ -93,6 +94,7 @@ infraRouter.post("/create-instance", async (req, res) => {
       url,
       deployStatus: "BUILDING",
       runtimeImage: config.railwayRuntimeImage,
+      gatewayToken,
     });
 
     // Insert instance_services rows

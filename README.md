@@ -133,6 +133,7 @@ Authenticated endpoints require Bearer `POOL_API_KEY` header.
 | `POST /api/pool/replenish` | Yes | Add N instances (max 20) |
 | `POST /api/pool/drain` | Yes | Remove N idle instances (max 20) |
 | `POST /api/pool/reconcile` | Yes | Trigger a tick (sync DB with Railway) |
+| `POST /api/pool/self-destruct` | Token | Instance requests its own destruction (per-instance gateway token auth) |
 | `DELETE /api/pool/instances/:id` | Yes | Kill a running instance |
 | `DELETE /api/pool/crashed/:id` | Yes | Dismiss a crashed instance |
 | `GET /admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
