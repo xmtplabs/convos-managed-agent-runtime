@@ -11,6 +11,7 @@
     "start": "tsx src/index.ts",
     "test": "tsx --env-file=.env --test src/**/*.test.ts",
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
+    "telnyx:test": "tsx --env-file=.env src/scripts/telnyx-test.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
