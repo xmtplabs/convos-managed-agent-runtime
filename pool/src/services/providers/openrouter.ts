@@ -108,6 +108,27 @@ export async function listKeys(): Promise<any[]> {
   return body?.data ?? [];
 }
 
+/** Count total provisioned API keys (paginates with offset). */
+export async function countKeys(): Promise<number> {
+  const mgmtKey = config.openrouterManagementKey;
+  if (!mgmtKey) return 0;
+
+  let total = 0;
+  let offset = 0;
+  while (true) {
+    const res = await fetch(`https://openrouter.ai/api/v1/keys?offset=${offset}`, {
+      headers: { Authorization: `Bearer ${mgmtKey}` },
+    });
+    if (!res.ok) break;
+    const body = await res.json() as any;
+    const keys: any[] = body?.data ?? [];
+    if (keys.length === 0) break;
+    total += keys.length;
+    offset += keys.length;
+  }
+  return total;
+}
+
 /** Lookup an OpenRouter key hash by name. Returns hash or null. */
 export async function findKeyHash(name: string): Promise<string | null> {
   const mgmtKey = config.openrouterManagementKey;
