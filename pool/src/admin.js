@@ -556,6 +556,8 @@ export function adminPage({
     .action-btn.kill:hover { background: #FEF2F2; }
     .action-btn.dismiss { color: #F59E0B; border-color: #FDE68A; }
     .action-btn.dismiss:hover { background: #FFFBEB; }
+    .action-btn.drain { color: #2563EB; border-color: #BFDBFE; }
+    .action-btn.drain:hover { background: #EFF6FF; }
     tr.destroying td { opacity: 0.4; }
     .empty-row {
       text-align: center;
@@ -891,10 +893,12 @@ export function adminPage({
           + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       if (showIdle) idleCache.forEach(function (a) {
-        renderRow(a, 'idle', 'Ready', '');
+        renderRow(a, 'idle', 'Ready',
+          '<button class="action-btn drain" data-drain="' + a.id + '">Drain</button>');
       });
       if (showStarting) startingCache.forEach(function (a) {
-        renderRow(a, 'starting', 'Starting', '');
+        renderRow(a, 'starting', 'Starting',
+          '<button class="action-btn drain" data-drain="' + a.id + '">Drain</button>');
       });
       body.innerHTML = html;
     }
@@ -911,6 +915,8 @@ export function adminPage({
       if (killId) { killAgent(killId); return; }
       var dismissId = e.target.getAttribute('data-dismiss');
       if (dismissId) dismissAgent(dismissId);
+      var drainId = e.target.getAttribute('data-drain');
+      if (drainId) drainAgent(drainId);
     });
 
     function markDestroying(id) {
@@ -932,6 +938,25 @@ export function adminPage({
         refreshAgents();
       } catch (err) {
         alert('Failed to kill: ' + err.message);
+        var r = document.getElementById('row-' + id);
+        if (r) r.classList.remove('destroying');
+      }
+    }
+
+    async function drainAgent(id) {
+      var a = idleCache.concat(startingCache).find(function (x) { return x.id === id; });
+      var name = a ? (a.agentName || a.name || a.id) : id;
+      var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Drain "' + name + '"? This deletes the Railway service.';
+      if (!confirm(msg)) return;
+      markDestroying(id);
+      try {
+        var res = await fetch('/api/pool/instances/' + id, { method: 'DELETE', headers: authHeaders });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Drain failed');
+        refreshCounts();
+        refreshAgents();
+      } catch (err) {
+        alert('Failed to drain: ' + err.message);
         var r = document.getElementById('row-' + id);
         if (r) r.classList.remove('destroying');
       }
