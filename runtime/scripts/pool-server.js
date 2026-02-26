@@ -318,10 +318,17 @@ const server = http.createServer(async (req, res) => {
         signal: AbortSignal.timeout(10_000),
       });
       console.log(`[pool-server] Pool manager responded: ${pmRes.status}`);
+      if (!pmRes.ok) {
+        const text = await pmRes.text().catch(() => "");
+        console.error(`[pool-server] Pool manager rejected self-destruct: ${pmRes.status} ${text}`);
+        json(res, 200, { ok: false, error: `Pool manager returned ${pmRes.status}` });
+        return;
+      }
       json(res, 200, { ok: true });
     } catch (err) {
       console.error(`[pool-server] Self-destruct call failed: ${err.message}`);
       json(res, 200, { ok: false, error: err.message });
+      return;
     }
 
     // Exit after responding — Railway will kill the service once pool manager destroys it
