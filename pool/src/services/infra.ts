@@ -75,7 +75,7 @@ export async function createInstance(
   // ── Sharded: create a dedicated Railway project for this instance ──
   if (!config.railwayTeamId) throw new Error("RAILWAY_TEAM_ID not set — required for instance creation");
 
-  const proj = await railway.projectCreate(`agent-${instanceId}`);
+  const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
   const projectId = proj.projectId;
 
   let environmentId: string;
