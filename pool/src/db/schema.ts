@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, index, serial, jsonb, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, index, serial, jsonb, unique, integer } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export type InstanceStatus = "starting" | "idle" | "claimed" | "crashed" | "claiming" | "dead" | "sleeping";
@@ -49,6 +49,18 @@ export const instanceServices = pgTable("instance_services", {
   unique().on(table.instanceId, table.toolId),
 ]);
 
+// ── phone_number_pool ─────────────────────────────────────────────────────────
+export type PhonePoolStatus = "available" | "assigned";
+
+export const phoneNumberPool = pgTable("phone_number_pool", {
+  id: serial("id").primaryKey(),
+  phoneNumber: text("phone_number").unique().notNull(),
+  messagingProfileId: text("messaging_profile_id").notNull(),
+  status: text("status").$type<PhonePoolStatus>().notNull().default("available"),
+  instanceId: text("instance_id"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
+
 // ── Inferred types ─────────────────────────────────────────────────────────────
 export type InstanceRow = InferSelectModel<typeof instances>;
 export type NewInstance = InferInsertModel<typeof instances>;
@@ -56,3 +68,5 @@ export type InfraRow = InferSelectModel<typeof instanceInfra>;
 export type NewInfra = InferInsertModel<typeof instanceInfra>;
 export type ServiceRow = InferSelectModel<typeof instanceServices>;
 export type NewService = InferInsertModel<typeof instanceServices>;
+export type PhonePoolRow = InferSelectModel<typeof phoneNumberPool>;
+export type NewPhonePool = InferInsertModel<typeof phoneNumberPool>;

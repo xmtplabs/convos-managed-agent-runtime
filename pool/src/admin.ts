@@ -146,19 +146,13 @@ export function adminPage({
   poolEnvironment,
   deployBranch,
   instanceModel,
-  railwayProjectId,
   railwayServiceId,
-  railwayEnvironmentId,
   poolApiKey,
   bankrConfigured = false,
   adminUrls = [],
 }) {
-  const railwayLink = railwayProjectId && railwayServiceId
-    ? `https://railway.com/project/${railwayProjectId}/service/${railwayServiceId}${railwayEnvironmentId ? "?environmentId=" + railwayEnvironmentId : ""}`
-    : "";
-  const railwayProjectLink = railwayProjectId
-    ? `https://railway.com/project/${railwayProjectId}`
-    : "";
+  const railwayLink = "";
+  const railwayProjectLink = "";
 
   return `<!doctype html>
 <html lang="en">
@@ -198,20 +192,73 @@ export function adminPage({
       font-weight: 700;
       letter-spacing: -0.3px;
     }
-    .env-tag {
+    .env-switcher {
+      position: relative;
+      display: inline-flex;
+    }
+    .env-switcher-btn {
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 2px 8px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
-    .env-dev { background: #DBEAFE; color: #1D4ED8; }
-    .env-staging { background: #FEF3C7; color: #92400E; }
-    .env-production { background: #FEE2E2; color: #991B1B; }
-    a.env-tag { text-decoration: none; opacity: 0.45; transition: opacity 0.15s; }
-    a.env-tag:hover { opacity: 0.85; }
-    .env-tag.active { opacity: 1; cursor: default; }
+    .env-switcher-btn::after {
+      content: '';
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-top: 4px solid currentColor;
+      opacity: 0.6;
+    }
+    .env-switcher-btn.env-dev { background: #DBEAFE; color: #1D4ED8; }
+    .env-switcher-btn.env-staging { background: #FEF3C7; color: #92400E; }
+    .env-switcher-btn.env-scaling { background: #E0E7FF; color: #3730A3; }
+    .env-switcher-btn.env-vibe { background: #F3E8FF; color: #6B21A8; }
+    .env-switcher-btn.env-production { background: #FEE2E2; color: #991B1B; }
+    .env-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      min-width: 140px;
+      z-index: 100;
+      overflow: hidden;
+    }
+    .env-switcher.open .env-dropdown { display: block; }
+    .env-dropdown a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      color: #374151;
+      transition: background 0.1s;
+    }
+    .env-dropdown a:hover { background: #F9FAFB; }
+    .env-dropdown a.current { background: #F3F4F6; cursor: default; }
+    .env-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .env-dot.dev { background: #1D4ED8; }
+    .env-dot.staging { background: #92400E; }
+    .env-dot.scaling { background: #3730A3; }
+    .env-dot.vibe { background: #6B21A8; }
+    .env-dot.production { background: #991B1B; }
     .header-right {
       display: flex;
       align-items: center;
@@ -822,6 +869,151 @@ export function adminPage({
     }
     .search-input:focus { outline: none; border-color: #999; }
 
+    /* --- Provision Log Panel --- */
+    .provision-log {
+      background: #fff;
+      border: 1px solid #EBEBEB;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      display: none;
+    }
+    .provision-log.visible { display: block; }
+    .provision-log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid #EBEBEB;
+      cursor: pointer;
+      user-select: none;
+    }
+    .provision-log-header:hover { background: #FAFAFA; }
+    .provision-log-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provision-log-title .prov-count {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #F5F5F5;
+      color: #999;
+    }
+    .provision-log-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provision-log-toggle {
+      font-size: 11px;
+      font-weight: 500;
+      color: #999;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .provision-log-toggle:hover { color: #666; }
+    .provision-log-close {
+      font-size: 16px;
+      line-height: 1;
+      color: #CCC;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .provision-log-close:hover { color: #999; }
+    .provision-log-body {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .provision-log.collapsed .provision-log-body { display: none; }
+    .provision-instance {
+      background: #FAFAFA;
+      border: 1px solid #F0F0F0;
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .provision-instance-header {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provision-instance-header .prov-status {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .provision-instance-header .prov-status.in-progress { background: #FEF3C7; color: #92400E; }
+    .provision-instance-header .prov-status.success { background: #D1FAE5; color: #065F46; }
+    .provision-instance-header .prov-status.failed { background: #FEE2E2; color: #991B1B; }
+    .prov-railway-link {
+      font-size: 10px;
+      font-weight: 600;
+      color: #007AFF;
+      text-decoration: none;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #EFF6FF;
+      margin-left: auto;
+    }
+    .prov-railway-link:hover { text-decoration: underline; background: #DBEAFE; }
+    .provision-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .provision-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+    .provision-step.active { color: #92400E; font-weight: 500; }
+    .provision-step.ok { color: #065F46; }
+    .provision-step.fail { color: #991B1B; }
+    .provision-step.skip { color: #999; }
+    .provision-step-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+    .provision-step.pending .provision-step-icon::after { content: '\\25CB'; color: #DDD; }
+    .provision-step.active .provision-step-icon { animation: prov-spin 0.8s linear infinite; }
+    .provision-step.active .provision-step-icon::after { content: '\\25E0'; color: #F59E0B; }
+    .provision-step.ok .provision-step-icon::after { content: '\\2713'; color: #16A34A; font-weight: 700; }
+    .provision-step.fail .provision-step-icon::after { content: '\\2717'; color: #DC2626; font-weight: 700; }
+    .provision-step.skip .provision-step-icon::after { content: '\\2014'; color: #CCC; }
+    @keyframes prov-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .provision-step-label { flex: 1; }
+    .provision-step-msg {
+      font-size: 11px;
+      color: #999;
+      font-style: italic;
+    }
+
     /* --- Responsive --- */
     @media (max-width: 640px) {
       .stats, .stats-credits { grid-template-columns: repeat(2, 1fr); }
@@ -837,11 +1029,16 @@ export function adminPage({
   <div class="header">
     <div class="header-left">
       <span class="header-title">Pool Admin</span>
-      ${adminUrls.length ? adminUrls.map((e) =>
-        e.env === poolEnvironment
-          ? `<span class="env-tag env-${e.env} active">${e.env}</span>`
-          : `<a class="env-tag env-${e.env}" href="${e.url}/admin">${e.env}</a>`
-      ).join("") : `<span class="env-tag env-${poolEnvironment}">${poolEnvironment}</span>`}
+      <div class="env-switcher" onclick="this.classList.toggle('open')">
+        <button class="env-switcher-btn env-${poolEnvironment}">${poolEnvironment}</button>
+        <div class="env-dropdown">
+          ${adminUrls.length ? adminUrls.map((e) =>
+            e.env === poolEnvironment
+              ? `<a class="current"><span class="env-dot ${e.env}"></span>${e.env}</a>`
+              : `<a href="${e.url}/admin"><span class="env-dot ${e.env}"></span>${e.env}</a>`
+          ).join("") : `<a class="current"><span class="env-dot ${poolEnvironment}"></span>${poolEnvironment}</a>`}
+        </div>
+      </div>
     </div>
     <div class="header-right">
       <span class="chip">model: ${instanceModel}</span>
@@ -907,6 +1104,17 @@ export function adminPage({
       </div>
       <div class="controls-spacer"></div>
       <span class="last-updated" id="last-updated"></span>
+    </div>
+
+    <div class="provision-log" id="provision-log">
+      <div class="provision-log-header" onclick="toggleProvisionLog()">
+        <span class="provision-log-title">Provisioning <span class="prov-count" id="prov-count">0/0</span></span>
+        <div class="provision-log-actions">
+          <button class="provision-log-toggle" id="prov-toggle">Collapse</button>
+          <button class="provision-log-close" onclick="event.stopPropagation(); closeProvisionLog()">&times;</button>
+        </div>
+      </div>
+      <div class="provision-log-body" id="provision-log-body"></div>
     </div>
 
     <div class="launch-card">
@@ -990,8 +1198,6 @@ export function adminPage({
   <script>
     var API_KEY = ${JSON.stringify(poolApiKey)};
     var POOL_ENV = ${JSON.stringify(poolEnvironment)};
-    var RAILWAY_PROJECT = ${JSON.stringify(railwayProjectId)};
-    var RAILWAY_ENV = ${JSON.stringify(railwayEnvironmentId)};
     var BANKR_KEY = ${JSON.stringify(bankrConfigured)};
     var INSTANCE_MODEL = ${JSON.stringify(instanceModel)};
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
@@ -1036,9 +1242,13 @@ export function adminPage({
       return '<1m';
     }
 
-    function railwayUrl(serviceId) {
-      if (!RAILWAY_PROJECT || !serviceId) return null;
-      return 'https://railway.com/project/' + RAILWAY_PROJECT + '/service/' + serviceId + (RAILWAY_ENV ? '?environmentId=' + RAILWAY_ENV : '');
+    function railwayUrl(serviceId, instanceId) {
+      if (!serviceId) return null;
+      var infra = instanceId ? (infraMap[instanceId] || {}) : {};
+      var projectId = infra.provider_project_id;
+      if (!projectId) return null;
+      var envId = infra.provider_env_id;
+      return 'https://railway.com/project/' + projectId + '/service/' + serviceId + (envId ? '?environmentId=' + envId : '');
     }
 
     // --- Refresh counts ---
@@ -1114,7 +1324,7 @@ export function adminPage({
       var html = '';
       function renderRow(a, status, badge, actions) {
         var isKilling = !!killingSet[a.id];
-        var rUrl = railwayUrl(a.serviceId);
+        var rUrl = railwayUrl(a.serviceId, a.id);
         var key = svcKeyMap['convos-agent-' + a.id];
         var usageCell = '';
         if (key) {
@@ -1241,35 +1451,223 @@ export function adminPage({
       }
     }
 
-    // --- Replenish ---
-    document.getElementById('replenish-btn').addEventListener('click', async function () {
+    // --- Provision log helpers ---
+    var PROV_STEPS = [
+      { key: 'openrouter', label: 'OpenRouter key' },
+      { key: 'agentmail', label: 'AgentMail inbox' },
+      { key: 'telnyx', label: 'Telnyx phone' },
+      { key: 'railway-project', label: 'Railway project' },
+      { key: 'railway-service', label: 'Railway service + volume' },
+      { key: 'railway-domain', label: 'Railway domain' },
+      { key: 'deploy', label: 'Deploy + health check' },
+    ];
+
+    var provisionTotal = 0;
+    var provisionDone = 0;
+
+    function showProvisionLog(count) {
+      provisionTotal = count;
+      provisionDone = 0;
+      var panel = document.getElementById('provision-log');
+      var body = document.getElementById('provision-log-body');
+      body.innerHTML = '';
+      panel.classList.add('visible');
+      panel.classList.remove('collapsed');
+      document.getElementById('prov-toggle').textContent = 'Collapse';
+      document.getElementById('prov-count').textContent = '0/' + count;
+
+      for (var i = 1; i <= count; i++) {
+        var card = document.createElement('div');
+        card.className = 'provision-instance';
+        card.id = 'prov-inst-' + i;
+        var stepsHtml = '';
+        PROV_STEPS.forEach(function (s) {
+          stepsHtml += '<div class="provision-step pending" id="prov-step-' + i + '-' + s.key + '">'
+            + '<span class="provision-step-icon"></span>'
+            + '<span class="provision-step-label">' + s.label + '</span>'
+            + '<span class="provision-step-msg"></span>'
+            + '</div>';
+        });
+        card.innerHTML = '<div class="provision-instance-header">Instance ' + i
+          + ' <span class="prov-status in-progress" id="prov-inst-status-' + i + '">Pending</span></div>'
+          + '<div class="provision-steps">' + stepsHtml + '</div>';
+        body.appendChild(card);
+      }
+    }
+
+    function updateProvisionStep(instanceNum, step, status, message) {
+      var el = document.getElementById('prov-step-' + instanceNum + '-' + step);
+      if (!el) return;
+      el.className = 'provision-step ' + status;
+      var msgEl = el.querySelector('.provision-step-msg');
+      if (msgEl && message && step !== 'railway-project') msgEl.textContent = message;
+
+      // When railway-project succeeds, message contains the projectId — add deeplink to instance header
+      if (step === 'railway-project' && status === 'ok' && message) {
+        var header = document.querySelector('#prov-inst-' + instanceNum + ' .provision-instance-header');
+        if (header && !header.querySelector('.prov-railway-link')) {
+          var link = document.createElement('a');
+          link.className = 'prov-railway-link';
+          link.href = 'https://railway.com/project/' + message;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = 'Railway';
+          header.appendChild(link);
+        }
+      }
+    }
+
+    // Map instanceNum → instanceId for deploy polling
+    var provisionInstanceIds = {};
+
+    function markProvisionInstance(instanceNum, success, instanceId) {
+      if (!success) {
+        provisionDone++;
+        document.getElementById('prov-count').textContent = provisionDone + '/' + provisionTotal;
+        var statusEl = document.getElementById('prov-inst-status-' + instanceNum);
+        if (statusEl) {
+          statusEl.className = 'prov-status failed';
+          statusEl.textContent = 'Failed';
+        }
+        return;
+      }
+      // Infra created — start deploy polling
+      updateProvisionStep(instanceNum, 'deploy', 'active', 'Building...');
+      var statusEl2 = document.getElementById('prov-inst-status-' + instanceNum);
+      if (statusEl2) {
+        statusEl2.className = 'prov-status in-progress';
+        statusEl2.textContent = 'Deploying';
+      }
+      if (instanceId) provisionInstanceIds[instanceNum] = instanceId;
+    }
+
+    function markProvisionDeploy(instanceNum, status, message) {
+      provisionDone++;
+      document.getElementById('prov-count').textContent = provisionDone + '/' + provisionTotal;
+      updateProvisionStep(instanceNum, 'deploy', status, message || '');
+      var statusEl = document.getElementById('prov-inst-status-' + instanceNum);
+      if (statusEl) {
+        if (status === 'ok') {
+          statusEl.className = 'prov-status success';
+          statusEl.textContent = 'Ready';
+        } else {
+          statusEl.className = 'prov-status failed';
+          statusEl.textContent = 'Deploy failed';
+        }
+      }
+    }
+
+    function pollDeployStatus() {
+      var pending = Object.keys(provisionInstanceIds);
+      if (pending.length === 0) return;
+
+      var pollInterval = setInterval(async function () {
+        try {
+          var res = await fetch('/api/pool/agents');
+          var data = await res.json();
+          var allInstances = [].concat(data.idle || [], data.claimed || [], data.crashed || [], data.starting || []);
+
+          var remaining = 0;
+          pending.forEach(function (num) {
+            var id = provisionInstanceIds[num];
+            if (!id) return;
+            var inst = allInstances.find(function (a) { return a.id === id; });
+            if (!inst) { remaining++; return; }
+
+            if (inst.status === 'idle') {
+              markProvisionDeploy(num, 'ok', 'Ready');
+              delete provisionInstanceIds[num];
+            } else if (inst.status === 'crashed' || inst.status === 'dead') {
+              markProvisionDeploy(num, 'fail', 'Deploy crashed');
+              delete provisionInstanceIds[num];
+            } else {
+              remaining++;
+            }
+          });
+
+          // Refresh the agents table while we wait
+          claimedCache = (data.claimed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          crashedCache = (data.crashed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          idleCache = (data.idle || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+          startingCache = (data.starting || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+          renderAgents();
+          refreshCounts();
+
+          if (remaining === 0) clearInterval(pollInterval);
+        } catch (e) {}
+      }, 10000); // poll every 10s
+    }
+
+    function toggleProvisionLog() {
+      var panel = document.getElementById('provision-log');
+      panel.classList.toggle('collapsed');
+      document.getElementById('prov-toggle').textContent = panel.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+    }
+
+    function closeProvisionLog() {
+      var panel = document.getElementById('provision-log');
+      panel.classList.remove('visible');
+    }
+
+    // --- Replenish (SSE streaming) ---
+    document.getElementById('replenish-btn').addEventListener('click', function () {
       var btn = this;
       var n = parseInt(document.getElementById('replenish-count').value) || 1;
       btn.disabled = true; btn.textContent = 'Adding...';
-      try {
-        var res = await fetch('/api/pool/replenish', { method: 'POST', headers: authHeaders, body: JSON.stringify({ count: n }) });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-        // Inject new instances into startingCache immediately
-        (data.instances || []).forEach(function (inst) {
-          var exists = startingCache.some(function (a) { return a.id === inst.id; });
-          if (!exists) {
-            startingCache.unshift({
-              id: inst.id,
-              name: inst.name,
-              url: inst.url,
-              serviceId: inst.serviceId,
-              status: 'starting',
-              createdAt: new Date().toISOString(),
-            });
+      showProvisionLog(n);
+
+      var lastInstanceId = {};
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&key=' + encodeURIComponent(API_KEY));
+      es.onmessage = function (ev) {
+        try {
+          var data = JSON.parse(ev.data);
+
+          if (data.type === 'step') {
+            if (data.step === 'done') {
+              markProvisionInstance(data.instanceNum, true, lastInstanceId[data.instanceNum]);
+            } else if (data.step === 'error') {
+              markProvisionInstance(data.instanceNum, false);
+            } else {
+              updateProvisionStep(data.instanceNum, data.step, data.status, data.message);
+            }
+          } else if (data.type === 'instance') {
+            var inst = data.instance;
+            if (inst) {
+              lastInstanceId[data.instanceNum] = inst.id;
+              var exists = startingCache.some(function (a) { return a.id === inst.id; });
+              if (!exists) {
+                startingCache.unshift({
+                  id: inst.id,
+                  name: inst.name,
+                  url: inst.url,
+                  serviceId: inst.serviceId,
+                  status: 'starting',
+                  createdAt: new Date().toISOString(),
+                });
+                renderAgents();
+              }
+            }
+          } else if (data.type === 'complete') {
+            es.close();
+            btn.disabled = false;
+            btn.textContent = '+ Add';
+            refreshCounts();
+            refreshCredits();
+            refreshInstances();
+            // Start polling for deploy completion
+            pollDeployStatus();
           }
-        });
-        renderAgents();
+        } catch (e) {}
+      };
+      es.onerror = function () {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = '+ Add';
         refreshCounts();
         refreshCredits();
         refreshInstances();
-      } catch (err) { alert('Failed: ' + err.message); }
-      finally { btn.disabled = false; btn.textContent = '+ Add'; }
+        pollDeployStatus();
+      };
     });
 
     // --- Drain ---
@@ -1482,9 +1880,9 @@ export function adminPage({
         + '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(INSTANCE_MODEL) + '</span></div>'
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
-          + (railwayUrl(infra.provider_service_id)
-            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id) + '" target="_blank" rel="noopener">' + esc(infra.provider_service_id.slice(0, 12)) + '</a>'
-            : '<span class="expand-val mono">' + esc(infra.provider_service_id.slice(0, 12)) + '</span>')
+          + (railwayUrl(infra.provider_service_id, instanceId)
+            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">convos-agent-' + esc(instanceId) + '</a>'
+            : '<span class="expand-val mono">convos-agent-' + esc(instanceId) + '</span>')
           + '</div>' : '')
         + '</div>';
 
@@ -1565,6 +1963,12 @@ export function adminPage({
         parentRow.after(tr);
       }
     }
+
+    // --- Close env dropdown on outside click ---
+    document.addEventListener('click', function (e) {
+      var switcher = document.querySelector('.env-switcher');
+      if (switcher && !switcher.contains(e.target)) switcher.classList.remove('open');
+    });
 
     // --- Top-up handler (delegated) ---
     document.addEventListener('click', async function (e) {

@@ -112,9 +112,7 @@ app.get("/api/pool/info", (_req, res) => {
     environment: config.poolEnvironment,
     branch: config.deployBranch,
     model: config.instanceModel,
-    railwayProjectId: config.railwayProjectId,
     railwayServiceId: config.railwayServiceId,
-    railwayEnvironmentId: config.railwayEnvironmentId,
   });
 });
 
@@ -163,9 +161,7 @@ app.get("/admin", (req, res) => {
     poolEnvironment: config.poolEnvironment,
     deployBranch: config.deployBranch,
     instanceModel: config.instanceModel,
-    railwayProjectId: config.railwayProjectId,
     railwayServiceId: config.railwayServiceId,
-    railwayEnvironmentId: config.railwayEnvironmentId,
     poolApiKey: config.poolApiKey,
     bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,
@@ -222,6 +218,44 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
     console.error("[api] Launch failed:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// --- SSE streaming endpoint for provisioning with real-time progress ---
+app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
+  const count = Math.min(parseInt(req.query.count as string) || 1, 20);
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  let created = 0;
+  let failed = 0;
+
+  for (let i = 0; i < count; i++) {
+    const instanceNum = i + 1;
+    try {
+      const inst = await pool.createInstance((step, status, message) => {
+        if (step === "done") return; // handled below after instance event
+        send({ type: "step", instanceNum, step, status, message: message || "" });
+      });
+      send({ type: "instance", instanceNum, instance: inst });
+      send({ type: "step", instanceNum, instanceId: inst.id, step: "done", status: "ok", message: "" });
+      created++;
+    } catch (err: any) {
+      send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
+      failed++;
+    }
+  }
+
+  const counts = await db.getCounts();
+  send({ type: "complete", created, failed, counts });
+  res.end();
 });
 
 app.post("/api/pool/replenish", requireAuth, async (req, res) => {
@@ -347,15 +381,25 @@ app.get("/api/prompts/:pageId", async (req, res) => {
   }
 });
 
-// --- Background tick ---
-setInterval(() => {
-  pool.tick().catch((err: any) => console.error("[tick] Error:", err));
-}, config.tickIntervalMs);
+// --- Startup: migrate, then tick loop ---
+import { runMigrations } from "./db/migrate";
 
-// Initial tick (migrations run separately via `pnpm db:migrate`)
-pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
+runMigrations()
+  .then(() => {
+    // Background tick
+    setInterval(() => {
+      pool.tick().catch((err: any) => console.error("[tick] Error:", err));
+    }, config.tickIntervalMs);
 
-setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
+    // Initial tick
+    pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
+
+    setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
+  })
+  .catch((err) => {
+    console.error("[startup] Migration failed:", err);
+    process.exit(1);
+  });
 
 app.listen(config.port, () => {
   console.log(`Pool manager listening on :${config.port}`);
