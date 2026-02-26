@@ -28,15 +28,140 @@ export async function gql(query: string, variables: Record<string, unknown> = {}
   return json.data;
 }
 
-function getEnvironmentId(): string {
-  const envId = config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID;
-  if (!envId) throw new Error("RAILWAY_ENVIRONMENT_ID not set");
-  return envId;
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+interface ProjectEnvOpts {
+  projectId?: string;
+  environmentId?: string;
 }
 
-export async function createService(name: string, variables: Record<string, string> = {}): Promise<string> {
-  const projectId = config.railwayProjectId;
-  const environmentId = getEnvironmentId();
+function resolveProjectId(opts?: ProjectEnvOpts): string {
+  const id = opts?.projectId;
+  if (!id) throw new Error("projectId is required");
+  return id;
+}
+
+function resolveEnvironmentId(opts?: ProjectEnvOpts): string {
+  const id = opts?.environmentId;
+  if (!id) throw new Error("environmentId is required");
+  return id;
+}
+
+// ── Project lifecycle (sharding) ──────────────────────────────────────────────
+
+/** Create a new Railway project in the team. Returns { projectId }. */
+export async function projectCreate(name: string, teamId?: string): Promise<{ projectId: string }> {
+  const tid = teamId || config.railwayTeamId;
+  if (!tid) throw new Error("RAILWAY_TEAM_ID not set — required for sharded project creation");
+
+  const data = await gql(
+    `mutation($input: ProjectCreateInput!) {
+      projectCreate(input: $input) { id }
+    }`,
+    { input: { name, workspaceId: tid } },
+  );
+
+  const projectId = data.projectCreate.id;
+  console.log(`[railway] Created project "${name}" → ${projectId}`);
+  return { projectId };
+}
+
+/** Delete an entire Railway project (cascades services, volumes). */
+export async function projectDelete(projectId: string): Promise<void> {
+  await gql(
+    `mutation($id: String!) {
+      projectDelete(id: $id)
+    }`,
+    { id: projectId },
+  );
+  console.log(`[railway] Deleted project ${projectId}`);
+}
+
+/** Get the default environment ID for a newly created project. */
+export async function getProjectEnvironmentId(projectId: string): Promise<string> {
+  const data = await gql(
+    `query($id: String!) {
+      project(id: $id) {
+        environments { edges { node { id name } } }
+      }
+    }`,
+    { id: projectId },
+  );
+
+  const envs = data.project?.environments?.edges || [];
+  if (envs.length === 0) throw new Error(`No environments found in project ${projectId}`);
+
+  // Prefer "production" env, fall back to first
+  const prod = envs.find((e: any) => e.node.name.toLowerCase() === "production");
+  const env = prod || envs[0];
+  console.log(`[railway] Resolved environment for project ${projectId}: "${env.node.name}" → ${env.node.id}`);
+  return env.node.id;
+}
+
+/** Fetch status of a single service by ID (for DB-driven status checks). */
+export async function fetchServiceStatus(
+  serviceId: string,
+  environmentId?: string,
+): Promise<{
+  deployStatus: string | null;
+  domain: string | null;
+  image: string | null;
+} | null> {
+  const envId = environmentId;
+  try {
+    const data = await gql(
+      `query($id: String!) {
+        service(id: $id) {
+          serviceInstances {
+            edges {
+              node {
+                environmentId
+                domains { serviceDomains { domain } customDomains { domain } }
+                source { image }
+              }
+            }
+          }
+          deployments(first: 1) {
+            edges { node { id status } }
+          }
+        }
+      }`,
+      { id: serviceId },
+    );
+
+    const svc = data.service;
+    if (!svc) return null;
+
+    const instances = svc.serviceInstances?.edges || [];
+    const myInstance = envId
+      ? instances.find((si: any) => si.node.environmentId === envId)
+      : instances[0];
+
+    const domainData = myInstance?.node?.domains;
+    const domain = domainData?.customDomains?.[0]?.domain
+      || domainData?.serviceDomains?.[0]?.domain
+      || null;
+
+    return {
+      deployStatus: svc.deployments?.edges?.[0]?.node?.status || null,
+      domain,
+      image: myInstance?.node?.source?.image || null,
+    };
+  } catch (err: any) {
+    console.warn(`[railway] fetchServiceStatus(${serviceId}) failed: ${err.message}`);
+    return null;
+  }
+}
+
+// ── Service CRUD (parameterized) ──────────────────────────────────────────────
+
+export async function createService(
+  name: string,
+  variables: Record<string, string> = {},
+  opts?: ProjectEnvOpts,
+): Promise<string> {
+  const projectId = resolveProjectId(opts);
+  const environmentId = resolveEnvironmentId(opts);
   const image = config.railwayRuntimeImage;
 
   const input = { projectId, environmentId, name };
@@ -56,18 +181,18 @@ export async function createService(name: string, variables: Record<string, stri
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",
       source: { image },
-    });
+    }, opts);
     console.log(`[railway]   Configured: image=${image}`);
   } catch (err: any) {
     console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
   }
 
   // Set resource limits
-  await setResourceLimits(serviceId);
+  await setResourceLimits(serviceId, undefined, opts);
 
   // Upsert variables with skipDeploys
   if (Object.keys(variables).length > 0) {
-    await upsertVariables(serviceId, variables, { skipDeploys: true });
+    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
   }
 
   return serviceId;
@@ -86,9 +211,10 @@ export async function upsertVariables(
   serviceId: string,
   variables: Record<string, string>,
   { skipDeploys = false } = {},
+  opts?: ProjectEnvOpts,
 ): Promise<void> {
-  const projectId = config.railwayProjectId;
-  const environmentId = getEnvironmentId();
+  const projectId = resolveProjectId(opts);
+  const environmentId = resolveEnvironmentId(opts);
 
   await gql(
     `mutation($input: VariableCollectionUpsertInput!) {
@@ -98,8 +224,8 @@ export async function upsertVariables(
   );
 }
 
-export async function createDomain(serviceId: string): Promise<string> {
-  const environmentId = getEnvironmentId();
+export async function createDomain(serviceId: string, opts?: ProjectEnvOpts): Promise<string> {
+  const environmentId = resolveEnvironmentId(opts);
 
   const data = await gql(
     `mutation($input: ServiceDomainCreateInput!) {
@@ -111,8 +237,12 @@ export async function createDomain(serviceId: string): Promise<string> {
   return data.serviceDomainCreate.domain;
 }
 
-export async function updateServiceInstance(serviceId: string, settings: Record<string, unknown> = {}): Promise<void> {
-  const environmentId = getEnvironmentId();
+export async function updateServiceInstance(
+  serviceId: string,
+  settings: Record<string, unknown> = {},
+  opts?: ProjectEnvOpts,
+): Promise<void> {
+  const environmentId = resolveEnvironmentId(opts);
 
   await gql(
     `mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
@@ -122,8 +252,8 @@ export async function updateServiceInstance(serviceId: string, settings: Record<
   );
 }
 
-export async function redeployService(serviceId: string): Promise<void> {
-  const environmentId = getEnvironmentId();
+export async function redeployService(serviceId: string, opts?: ProjectEnvOpts): Promise<void> {
+  const environmentId = resolveEnvironmentId(opts);
   const data = await gql(
     `query($id: String!) {
       service(id: $id) {
@@ -144,9 +274,11 @@ export async function redeployService(serviceId: string): Promise<void> {
 
 export async function setResourceLimits(
   serviceId: string,
-  { cpu = 4, memoryGB = 8 } = {},
+  limits?: { cpu?: number; memoryGB?: number },
+  opts?: ProjectEnvOpts,
 ): Promise<void> {
-  const environmentId = getEnvironmentId();
+  const { cpu = 4, memoryGB = 8 } = limits || {};
+  const environmentId = resolveEnvironmentId(opts);
   try {
     await gql(
       `mutation($environmentId: String!, $patch: EnvironmentConfig!, $commitMessage: String) {
@@ -177,9 +309,13 @@ export async function setResourceLimits(
   }
 }
 
-export async function createVolume(serviceId: string, mountPath = "/data"): Promise<{ id: string; name: string }> {
-  const projectId = config.railwayProjectId;
-  const environmentId = getEnvironmentId();
+export async function createVolume(
+  serviceId: string,
+  mountPath = "/data",
+  opts?: ProjectEnvOpts,
+): Promise<{ id: string; name: string }> {
+  const projectId = resolveProjectId(opts);
+  const environmentId = resolveEnvironmentId(opts);
 
   const data = await gql(
     `mutation($input: VolumeCreateInput!) {
@@ -192,10 +328,14 @@ export async function createVolume(serviceId: string, mountPath = "/data"): Prom
 }
 
 /** Try to create a volume for a service. Returns true on success. */
-export async function ensureVolume(serviceId: string): Promise<boolean> {
+export async function ensureVolume(
+  serviceId: string,
+  mountPath = "/data",
+  opts?: ProjectEnvOpts,
+): Promise<boolean> {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const vol = await createVolume(serviceId, "/data");
+      const vol = await createVolume(serviceId, mountPath, opts);
       console.log(`[railway] Created volume: ${vol.id}`);
       return true;
     } catch (err: any) {
@@ -207,8 +347,8 @@ export async function ensureVolume(serviceId: string): Promise<boolean> {
 }
 
 /** Fetch all project volumes grouped by serviceId. */
-export async function fetchAllVolumesByService(): Promise<Map<string, string[]> | null> {
-  const projectId = config.railwayProjectId;
+export async function fetchAllVolumesByService(projectId: string): Promise<Map<string, string[]> | null> {
+  const pid = projectId;
   try {
     const data = await gql(
       `query($id: String!) {
@@ -223,7 +363,7 @@ export async function fetchAllVolumesByService(): Promise<Map<string, string[]> 
           }
         }
       }`,
-      { id: projectId },
+      { id: pid },
     );
     const map = new Map<string, string[]>();
     for (const edge of data.project?.volumes?.edges || []) {
@@ -267,10 +407,10 @@ interface ListedService {
   image: string | null;
 }
 
-/** List all services in the project with environment info, deploy status, domains, and images. */
-export async function listProjectServices(): Promise<ListedService[] | null> {
-  const projectId = config.railwayProjectId;
-  const envId = getEnvironmentId();
+/** List all services in a project with environment info, deploy status, domains, and images. */
+export async function listProjectServices(projectId: string, environmentId?: string): Promise<ListedService[] | null> {
+  const pid = projectId;
+  const envId = environmentId;
   try {
     const data = await gql(
       `query($id: String!) {
@@ -298,7 +438,7 @@ export async function listProjectServices(): Promise<ListedService[] | null> {
           }
         }
       }`,
-      { id: projectId },
+      { id: pid },
     );
     const edges = data.project?.services?.edges;
     if (!edges) return null;
@@ -327,34 +467,3 @@ export async function listProjectServices(): Promise<ListedService[] | null> {
   }
 }
 
-/** Resolve RAILWAY_ENVIRONMENT_ID from RAILWAY_ENVIRONMENT_NAME if only the name is set. */
-export async function resolveEnvironmentId(): Promise<string> {
-  if (config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID) {
-    return config.railwayEnvironmentId || process.env.RAILWAY_ENVIRONMENT_ID!;
-  }
-
-  const name = config.railwayEnvironmentName;
-  if (!name) throw new Error("Neither RAILWAY_ENVIRONMENT_ID nor RAILWAY_ENVIRONMENT_NAME is set");
-
-  const projectId = config.railwayProjectId;
-  const data = await gql(
-    `query($id: String!) {
-      project(id: $id) {
-        environments { edges { node { id name } } }
-      }
-    }`,
-    { id: projectId },
-  );
-
-  const envs = data.project?.environments?.edges || [];
-  const match = envs.find((e: any) => e.node.name.toLowerCase() === name.toLowerCase());
-  if (!match) {
-    const available = envs.map((e: any) => e.node.name).join(", ");
-    throw new Error(`Environment "${name}" not found. Available: ${available}`);
-  }
-
-  // Cache it
-  process.env.RAILWAY_ENVIRONMENT_ID = match.node.id;
-  console.log(`[railway] Resolved environment "${name}" → ${match.node.id}`);
-  return match.node.id;
-}
