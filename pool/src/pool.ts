@@ -177,23 +177,10 @@ export async function tick() {
 
   const counts = await db.getCounts();
   const total = (counts.starting || 0) + (counts.idle || 0) + (counts.claimed || 0);
-  const deficit = config.poolMinIdle - ((counts.idle || 0) + (counts.starting || 0));
 
   console.log(
     `[tick] ${counts.idle || 0} idle, ${counts.starting || 0} starting, ${counts.claimed || 0} claimed, ${counts.crashed || 0} crashed (total: ${total})`
   );
-
-  if (deficit > 0) {
-    console.log(`[tick] Creating ${deficit} new instance(s)...`);
-    const settled = await Promise.allSettled(
-      Array.from({ length: deficit }, () => createInstance())
-    );
-    settled.forEach((r) => {
-      if (r.status === "rejected") {
-        console.error(`[tick] Failed to create instance:`, r.reason);
-      }
-    });
-  }
 }
 
 export { provision } from "./provision";

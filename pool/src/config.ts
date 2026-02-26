@@ -11,7 +11,6 @@ export const config = {
   databaseUrl: getEnv("DATABASE_URL"),
 
   // Pool behavior
-  poolMinIdle: parseInt(getEnv("POOL_MIN_IDLE", "3"), 10),
   tickIntervalMs: parseInt(getEnv("TICK_INTERVAL_MS", "30000"), 10),
   stuckTimeoutMs: parseInt(getEnv("POOL_STUCK_TIMEOUT_MS", String(15 * 60 * 1000)), 10),
 

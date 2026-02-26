@@ -38,7 +38,7 @@ The background tick runs every 30 seconds:
 2. Health-checks deployed instances — if `/pool/health` returns `ready`, marks them `idle`
 3. Dead/stuck unclaimed instances are deleted (Railway service + tools destroyed); dead claimed instances are marked `crashed`
 4. Orphaned DB rows (instance gone from Railway) are cleaned up
-5. If idle + starting < `POOL_MIN_IDLE`, creates new instances to fill the gap
+5. New instances are created manually via the admin dashboard or `POST /api/pool/replenish`
 
 ## Commands
 
@@ -85,7 +85,6 @@ cd pool && pnpm db:migrate:drop
 | **Pool manager** | |
 | `PORT` | Server port (default `3001`) |
 | `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
-| `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
 | `DATABASE_URL` | Postgres connection string |
