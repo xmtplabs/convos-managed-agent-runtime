@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 import { ConvosLogo } from "@/components/convos-logo";
 import { JoinFlow } from "@/components/join-flow";
 import { SkillBrowser } from "@/components/skill-browser";
@@ -28,7 +30,7 @@ export default function Home() {
   useEffect(() => {
     async function loadSkills() {
       try {
-        const res = await fetch("/api/pool/templates");
+        const res = await fetch(`${basePath}/api/pool/templates`);
         if (!res.ok) return;
         const data: AgentSkill[] = await res.json();
         setSkills(data);
@@ -38,7 +40,7 @@ export default function Home() {
     }
     async function loadPoolInfo() {
       try {
-        const res = await fetch("/api/pool/info");
+        const res = await fetch(`${basePath}/api/pool/info`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.environment) setPoolEnvironment(data.environment);

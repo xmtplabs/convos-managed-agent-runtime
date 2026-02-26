@@ -7,6 +7,8 @@ import {
   BalloonStringLower,
 } from "./balloon-scene";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -138,7 +140,7 @@ export function JoinFlow({
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch("/api/pool/counts");
+        const res = await fetch(`${basePath}/api/pool/counts`);
         const counts = await res.json();
         if (!launchingRef.current) {
           setAvailable(counts.idle > 0);
@@ -223,7 +225,7 @@ export function JoinFlow({
       setJoinState("joining");
 
       try {
-        const res = await fetch(`/api/claim`, {
+        const res = await fetch(`${basePath}/api/claim`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ joinUrl: url }),
