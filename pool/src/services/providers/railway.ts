@@ -176,7 +176,15 @@ export async function createService(
 
   const serviceId = data.serviceCreate.id;
 
-  // Set image + start command before variables
+  // Set resource limits
+  await setResourceLimits(serviceId, undefined, opts);
+
+  // Upsert variables BEFORE setting the image (image triggers the first deploy)
+  if (Object.keys(variables).length > 0) {
+    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
+  }
+
+  // Set image + start command last — this triggers the first deploy
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",
@@ -185,14 +193,6 @@ export async function createService(
     console.log(`[railway]   Configured: image=${image}`);
   } catch (err: any) {
     console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
-  }
-
-  // Set resource limits
-  await setResourceLimits(serviceId, undefined, opts);
-
-  // Upsert variables with skipDeploys
-  if (Object.keys(variables).length > 0) {
-    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
   }
 
   return serviceId;
