@@ -20,7 +20,6 @@ const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10)
 const POOL_API_KEY = process.env.POOL_API_KEY;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const POOL_URL = process.env.POOL_URL;
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const ROOT = path.resolve(__dirname, "..");
 
 let gatewayReady = false;
@@ -306,7 +305,8 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (!INSTANCE_ID || !POOL_URL || !GATEWAY_TOKEN) {
+    const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+    if (!INSTANCE_ID || !POOL_URL || !gatewayToken) {
       console.log("[pool-server] Self-destruct skipped: INSTANCE_ID, POOL_URL, or GATEWAY_TOKEN not set");
       json(res, 200, { ok: false, reason: "not a pool-managed instance" });
       return;
@@ -319,7 +319,7 @@ const server = http.createServer(async (req, res) => {
       const pmRes = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instanceId: INSTANCE_ID, gatewayToken: GATEWAY_TOKEN }),
+        body: JSON.stringify({ instanceId: INSTANCE_ID, gatewayToken }),
         signal: AbortSignal.timeout(10_000),
       });
       console.log(`[pool-server] Pool manager responded: ${pmRes.status}`);
