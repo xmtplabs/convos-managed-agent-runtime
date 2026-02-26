@@ -128,7 +128,7 @@ Claiming is atomic via `SELECT ... FOR UPDATE SKIP LOCKED` — no double-claims 
 
 ## API
 
-Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/pool/counts`, `GET /api/pool/agents`, `GET /api/pool/info`, `GET /api/pool/templates`, `GET /api/prompts/:pageId`. All other endpoints require `Authorization: Bearer <POOL_API_KEY>`.
+Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/pool/counts`, `GET /api/pool/agents`, `GET /api/pool/info`, `GET /api/pool/templates`, `GET /api/prompts/:pageId`. All other endpoints require `Authorization: Bearer <POOL_API_KEY>` (or `?key=<POOL_API_KEY>` query param for SSE/EventSource endpoints that can't set headers).
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
@@ -143,6 +143,7 @@ Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/p
 | GET | `/api/pool/status` | Yes | Pool counts + all instances |
 | POST | `/api/pool/claim` | Yes | Claim an idle instance |
 | POST | `/api/pool/replenish` | Yes | Trigger poll + replenish; `{"count": N}` to create N directly |
+| GET | `/api/pool/replenish/stream?count=N` | Yes | SSE stream of provisioning progress (used by admin dashboard) |
 | POST | `/api/pool/drain` | Yes | Remove up to N idle instances: `{"count": N}` |
 | POST | `/api/pool/reconcile` | Yes | Reconcile DB against Railway, clean up orphans |
 | DELETE | `/api/pool/instances/:id` | Yes | Kill a launched instance |
@@ -175,6 +176,20 @@ Response:
   "gatewayUrl": "https://convos-agent-xxx.up.railway.app"
 }
 ```
+
+### `GET /api/pool/replenish/stream?count=N`
+
+SSE endpoint that streams real-time provisioning progress. Used by the admin dashboard "+ Add" button. Each SSE message is a JSON object:
+
+| Event type | Fields | Description |
+|------------|--------|-------------|
+| `step` | `instanceNum`, `step`, `status`, `message` | Progress update for a provisioning step |
+| `instance` | `instanceNum`, `instance` | Instance successfully created |
+| `complete` | `created`, `failed`, `counts` | All instances finished |
+
+Step names: `openrouter`, `agentmail`, `telnyx`, `railway-project`, `railway-service`, `railway-domain`, `db-insert`, `done`.
+
+Status values: `active` (in progress), `ok` (success), `fail` (error), `skip` (not configured).
 
 ## Environments
 

@@ -84,7 +84,12 @@ export async function createInstance(
         console.warn(`[infra] Rollback telnyx failed: ${e.message}`);
       }
     }
-    onProgress?.((err as any)._failedStep || "openrouter", "fail", (err as Error).message);
+    // Determine which tool was being provisioned when it failed:
+    // the last tool that got "active" but never got "ok"
+    const failedStep = !services.telnyx && tools.includes("telnyx") && config.telnyxApiKey ? "telnyx"
+      : !services.agentmail && tools.includes("agentmail") && config.agentmailApiKey ? "agentmail"
+      : "openrouter";
+    onProgress?.(failedStep, "fail", (err as Error).message);
     throw err;
   }
 
