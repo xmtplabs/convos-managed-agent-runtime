@@ -220,6 +220,43 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   }
 });
 
+// --- SSE streaming endpoint for provisioning with real-time progress ---
+app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
+  const count = Math.min(parseInt(req.query.count as string) || 1, 20);
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  let created = 0;
+  let failed = 0;
+
+  for (let i = 0; i < count; i++) {
+    const instanceNum = i + 1;
+    try {
+      const inst = await pool.createInstance((step, status, message) => {
+        send({ type: "step", instanceNum, step, status, message: message || "" });
+      });
+      send({ type: "step", instanceNum, instanceId: inst.id, step: "done", status: "ok", message: "" });
+      send({ type: "instance", instanceNum, instance: inst });
+      created++;
+    } catch (err: any) {
+      send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
+      failed++;
+    }
+  }
+
+  const counts = await db.getCounts();
+  send({ type: "complete", created, failed, counts });
+  res.end();
+});
+
 app.post("/api/pool/replenish", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 0, 20);

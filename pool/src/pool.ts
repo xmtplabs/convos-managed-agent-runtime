@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import * as db from "./db/pool";
-import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance } from "./services/infra";
+import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance, type ProgressCallback } from "./services/infra";
 import { fetchBatchStatus } from "./services/status";
 import { deriveStatus } from "./status";
 import { config } from "./config";
@@ -58,13 +58,13 @@ async function healthCheck(url: string) {
 }
 
 // Create a single new instance via services and insert into DB.
-export async function createInstance() {
+export async function createInstance(onProgress?: ProgressCallback) {
   const id = nanoid(12);
   const name = `convos-agent-${id}`;
 
   console.log(`[pool] Creating instance ${name}...`);
 
-  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"]);
+  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress);
   console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
   await db.upsertInstance({

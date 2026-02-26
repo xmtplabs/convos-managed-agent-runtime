@@ -869,6 +869,151 @@ export function adminPage({
     }
     .search-input:focus { outline: none; border-color: #999; }
 
+    /* --- Provision Log Panel --- */
+    .provision-log {
+      background: #fff;
+      border: 1px solid #EBEBEB;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      display: none;
+    }
+    .provision-log.visible { display: block; }
+    .provision-log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid #EBEBEB;
+      cursor: pointer;
+      user-select: none;
+    }
+    .provision-log-header:hover { background: #FAFAFA; }
+    .provision-log-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provision-log-title .prov-count {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #F5F5F5;
+      color: #999;
+    }
+    .provision-log-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provision-log-toggle {
+      font-size: 11px;
+      font-weight: 500;
+      color: #999;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .provision-log-toggle:hover { color: #666; }
+    .provision-log-close {
+      font-size: 16px;
+      line-height: 1;
+      color: #CCC;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .provision-log-close:hover { color: #999; }
+    .provision-log-body {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .provision-log.collapsed .provision-log-body { display: none; }
+    .provision-instance {
+      background: #FAFAFA;
+      border: 1px solid #F0F0F0;
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .provision-instance-header {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provision-instance-header .prov-status {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .provision-instance-header .prov-status.in-progress { background: #FEF3C7; color: #92400E; }
+    .provision-instance-header .prov-status.success { background: #D1FAE5; color: #065F46; }
+    .provision-instance-header .prov-status.failed { background: #FEE2E2; color: #991B1B; }
+    .prov-railway-link {
+      font-size: 10px;
+      font-weight: 600;
+      color: #007AFF;
+      text-decoration: none;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #EFF6FF;
+      margin-left: auto;
+    }
+    .prov-railway-link:hover { text-decoration: underline; background: #DBEAFE; }
+    .provision-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .provision-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+    .provision-step.active { color: #92400E; font-weight: 500; }
+    .provision-step.ok { color: #065F46; }
+    .provision-step.fail { color: #991B1B; }
+    .provision-step.skip { color: #999; }
+    .provision-step-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+    .provision-step.pending .provision-step-icon::after { content: '\\25CB'; color: #DDD; }
+    .provision-step.active .provision-step-icon { animation: prov-spin 0.8s linear infinite; }
+    .provision-step.active .provision-step-icon::after { content: '\\25E0'; color: #F59E0B; }
+    .provision-step.ok .provision-step-icon::after { content: '\\2713'; color: #16A34A; font-weight: 700; }
+    .provision-step.fail .provision-step-icon::after { content: '\\2717'; color: #DC2626; font-weight: 700; }
+    .provision-step.skip .provision-step-icon::after { content: '\\2014'; color: #CCC; }
+    @keyframes prov-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .provision-step-label { flex: 1; }
+    .provision-step-msg {
+      font-size: 11px;
+      color: #999;
+      font-style: italic;
+    }
+
     /* --- Responsive --- */
     @media (max-width: 640px) {
       .stats, .stats-credits { grid-template-columns: repeat(2, 1fr); }
@@ -959,6 +1104,17 @@ export function adminPage({
       </div>
       <div class="controls-spacer"></div>
       <span class="last-updated" id="last-updated"></span>
+    </div>
+
+    <div class="provision-log" id="provision-log">
+      <div class="provision-log-header" onclick="toggleProvisionLog()">
+        <span class="provision-log-title">Provisioning <span class="prov-count" id="prov-count">0/0</span></span>
+        <div class="provision-log-actions">
+          <button class="provision-log-toggle" id="prov-toggle">Collapse</button>
+          <button class="provision-log-close" onclick="event.stopPropagation(); closeProvisionLog()">&times;</button>
+        </div>
+      </div>
+      <div class="provision-log-body" id="provision-log-body"></div>
     </div>
 
     <div class="launch-card">
@@ -1295,35 +1451,147 @@ export function adminPage({
       }
     }
 
-    // --- Replenish ---
-    document.getElementById('replenish-btn').addEventListener('click', async function () {
+    // --- Provision log helpers ---
+    var PROV_STEPS = [
+      { key: 'openrouter', label: 'OpenRouter key' },
+      { key: 'agentmail', label: 'AgentMail inbox' },
+      { key: 'telnyx', label: 'Telnyx phone' },
+      { key: 'railway-project', label: 'Railway project' },
+      { key: 'railway-service', label: 'Railway service + volume' },
+      { key: 'railway-domain', label: 'Railway domain' },
+      { key: 'db-insert', label: 'DB insert' },
+    ];
+
+    var provisionTotal = 0;
+    var provisionDone = 0;
+
+    function showProvisionLog(count) {
+      provisionTotal = count;
+      provisionDone = 0;
+      var panel = document.getElementById('provision-log');
+      var body = document.getElementById('provision-log-body');
+      body.innerHTML = '';
+      panel.classList.add('visible');
+      panel.classList.remove('collapsed');
+      document.getElementById('prov-toggle').textContent = 'Collapse';
+      document.getElementById('prov-count').textContent = '0/' + count;
+
+      for (var i = 1; i <= count; i++) {
+        var card = document.createElement('div');
+        card.className = 'provision-instance';
+        card.id = 'prov-inst-' + i;
+        var stepsHtml = '';
+        PROV_STEPS.forEach(function (s) {
+          stepsHtml += '<div class="provision-step pending" id="prov-step-' + i + '-' + s.key + '">'
+            + '<span class="provision-step-icon"></span>'
+            + '<span class="provision-step-label">' + s.label + '</span>'
+            + '<span class="provision-step-msg"></span>'
+            + '</div>';
+        });
+        card.innerHTML = '<div class="provision-instance-header">Instance ' + i
+          + ' <span class="prov-status in-progress" id="prov-inst-status-' + i + '">Pending</span></div>'
+          + '<div class="provision-steps">' + stepsHtml + '</div>';
+        body.appendChild(card);
+      }
+    }
+
+    function updateProvisionStep(instanceNum, step, status, message) {
+      var el = document.getElementById('prov-step-' + instanceNum + '-' + step);
+      if (!el) return;
+      el.className = 'provision-step ' + status;
+      var msgEl = el.querySelector('.provision-step-msg');
+      if (msgEl && message && step !== 'railway-project') msgEl.textContent = message;
+
+      // When railway-project succeeds, message contains the projectId — add deeplink to instance header
+      if (step === 'railway-project' && status === 'ok' && message) {
+        var header = document.querySelector('#prov-inst-' + instanceNum + ' .provision-instance-header');
+        if (header && !header.querySelector('.prov-railway-link')) {
+          var link = document.createElement('a');
+          link.className = 'prov-railway-link';
+          link.href = 'https://railway.com/project/' + message;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = 'Railway';
+          header.appendChild(link);
+        }
+      }
+    }
+
+    function markProvisionInstance(instanceNum, success) {
+      provisionDone++;
+      document.getElementById('prov-count').textContent = provisionDone + '/' + provisionTotal;
+      var statusEl = document.getElementById('prov-inst-status-' + instanceNum);
+      if (statusEl) {
+        statusEl.className = 'prov-status ' + (success ? 'success' : 'failed');
+        statusEl.textContent = success ? 'Done' : 'Failed';
+      }
+    }
+
+    function toggleProvisionLog() {
+      var panel = document.getElementById('provision-log');
+      panel.classList.toggle('collapsed');
+      document.getElementById('prov-toggle').textContent = panel.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+    }
+
+    function closeProvisionLog() {
+      var panel = document.getElementById('provision-log');
+      panel.classList.remove('visible');
+    }
+
+    // --- Replenish (SSE streaming) ---
+    document.getElementById('replenish-btn').addEventListener('click', function () {
       var btn = this;
       var n = parseInt(document.getElementById('replenish-count').value) || 1;
       btn.disabled = true; btn.textContent = 'Adding...';
-      try {
-        var res = await fetch('/api/pool/replenish', { method: 'POST', headers: authHeaders, body: JSON.stringify({ count: n }) });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-        // Inject new instances into startingCache immediately
-        (data.instances || []).forEach(function (inst) {
-          var exists = startingCache.some(function (a) { return a.id === inst.id; });
-          if (!exists) {
-            startingCache.unshift({
-              id: inst.id,
-              name: inst.name,
-              url: inst.url,
-              serviceId: inst.serviceId,
-              status: 'starting',
-              createdAt: new Date().toISOString(),
-            });
+      showProvisionLog(n);
+
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&key=' + encodeURIComponent(API_KEY));
+      es.onmessage = function (ev) {
+        try {
+          var data = JSON.parse(ev.data);
+
+          if (data.type === 'step') {
+            if (data.step === 'done') {
+              markProvisionInstance(data.instanceNum, true);
+            } else if (data.step === 'error') {
+              markProvisionInstance(data.instanceNum, false);
+            } else {
+              updateProvisionStep(data.instanceNum, data.step, data.status, data.message);
+            }
+          } else if (data.type === 'instance') {
+            var inst = data.instance;
+            if (inst) {
+              var exists = startingCache.some(function (a) { return a.id === inst.id; });
+              if (!exists) {
+                startingCache.unshift({
+                  id: inst.id,
+                  name: inst.name,
+                  url: inst.url,
+                  serviceId: inst.serviceId,
+                  status: 'starting',
+                  createdAt: new Date().toISOString(),
+                });
+                renderAgents();
+              }
+            }
+          } else if (data.type === 'complete') {
+            es.close();
+            btn.disabled = false;
+            btn.textContent = '+ Add';
+            refreshCounts();
+            refreshCredits();
+            refreshInstances();
           }
-        });
-        renderAgents();
+        } catch (e) {}
+      };
+      es.onerror = function () {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = '+ Add';
         refreshCounts();
         refreshCredits();
         refreshInstances();
-      } catch (err) { alert('Failed: ' + err.message); }
-      finally { btn.disabled = false; btn.textContent = '+ Add'; }
+      };
     });
 
     // --- Drain ---

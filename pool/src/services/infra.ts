@@ -10,6 +10,8 @@ import { buildInstanceEnv } from "./providers/env";
 import { config } from "../config";
 import type { CreateInstanceResponse, DestroyResult } from "../types";
 
+export type ProgressCallback = (step: string, status: string, message?: string) => void;
+
 /**
  * Create a new instance: own Railway project + service + tools + DB rows.
  */
@@ -17,6 +19,7 @@ export async function createInstance(
   instanceId: string,
   name: string,
   tools: string[] = ["openrouter", "agentmail"],
+  onProgress?: ProgressCallback,
 ): Promise<CreateInstanceResponse> {
   // Generate secrets
   const gatewayToken = wallet.generateGatewayToken();
@@ -34,23 +37,35 @@ export async function createInstance(
 
   try {
     if (tools.includes("openrouter") && config.openrouterManagementKey) {
+      onProgress?.("openrouter", "active");
       const keyName = `convos-agent-${instanceId}`;
       const { key, hash } = await openrouter.createKey(keyName);
       vars.OPENROUTER_API_KEY = key;
       services.openrouter = { resourceId: hash };
+      onProgress?.("openrouter", "ok");
+    } else {
+      onProgress?.("openrouter", "skip", "Not configured");
     }
 
     if (tools.includes("agentmail") && config.agentmailApiKey) {
+      onProgress?.("agentmail", "active");
       const inboxId = await agentmail.createInbox(instanceId);
       vars.AGENTMAIL_INBOX_ID = inboxId;
       services.agentmail = { resourceId: inboxId };
+      onProgress?.("agentmail", "ok");
+    } else {
+      onProgress?.("agentmail", "skip", "Not configured");
     }
 
     if (tools.includes("telnyx") && config.telnyxApiKey) {
+      onProgress?.("telnyx", "active");
       const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
       vars.TELNYX_PHONE_NUMBER = phoneNumber;
       vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
       services.telnyx = { resourceId: phoneNumber };
+      onProgress?.("telnyx", "ok");
+    } else {
+      onProgress?.("telnyx", "skip", "Not configured");
     }
   } catch (err) {
     console.error(`[infra] Provisioning failed for ${instanceId}, rolling back...`);
@@ -69,14 +84,17 @@ export async function createInstance(
         console.warn(`[infra] Rollback telnyx failed: ${e.message}`);
       }
     }
+    onProgress?.((err as any)._failedStep || "openrouter", "fail", (err as Error).message);
     throw err;
   }
 
   // ── Sharded: create a dedicated Railway project for this instance ──
   if (!config.railwayTeamId) throw new Error("RAILWAY_TEAM_ID not set — required for instance creation");
 
+  onProgress?.("railway-project", "active");
   const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
   const projectId = proj.projectId;
+  onProgress?.("railway-project", "ok", projectId);
 
   let environmentId: string;
   try {
@@ -90,42 +108,52 @@ export async function createInstance(
 
   const opts = { projectId, environmentId };
 
-  // Create Railway service in the new project
+  // Create Railway service + volume in the new project
+  onProgress?.("railway-service", "active");
   let serviceId: string;
   try {
     serviceId = await railway.createService(name, vars, opts);
     console.log(`[infra] Railway service created: ${serviceId}`);
   } catch (err) {
+    onProgress?.("railway-service", "fail", (err as Error).message);
     console.error(`[infra] Service creation failed, deleting orphan project ${projectId}...`);
     await railway.projectDelete(projectId).catch((e: any) =>
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
     throw err;
   }
 
-  // Create volume
+  // Attach volume to service
   let hasVolume = false;
   try {
     hasVolume = await railway.ensureVolume(serviceId, "/data", opts);
-    if (!hasVolume) console.warn(`[infra] Volume creation failed for ${serviceId}`);
+    if (!hasVolume) {
+      console.warn(`[infra] Volume creation failed for ${serviceId}`);
+    }
   } catch (err) {
+    onProgress?.("railway-service", "fail", (err as Error).message);
     console.error(`[infra] Volume failed, deleting orphan project ${projectId}...`);
     await railway.projectDelete(projectId).catch((e: any) =>
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
     throw err;
   }
+  onProgress?.("railway-service", "ok");
 
   // Create domain
+  onProgress?.("railway-domain", "active");
   let url: string | null = null;
   try {
     const domain = await railway.createDomain(serviceId, opts);
     url = `https://${domain}`;
     console.log(`[infra] Domain: ${url}`);
+    onProgress?.("railway-domain", "ok");
   } catch (err: any) {
     console.warn(`[infra] Domain creation failed for ${serviceId}: ${err.message}`);
+    onProgress?.("railway-domain", "fail", err.message);
     // Non-fatal — continue without domain
   }
 
   // Insert into instance_infra
+  onProgress?.("db-insert", "active");
   await db.insert(instanceInfra).values({
     instanceId,
     provider: "railway",
@@ -167,6 +195,9 @@ export async function createInstance(
       resourceMeta: { messagingProfileId: vars.TELNYX_MESSAGING_PROFILE_ID },
     });
   }
+
+  onProgress?.("db-insert", "ok");
+  onProgress?.("done", "ok");
 
   console.log(`[infra] Instance ${instanceId} created successfully (project=${projectId})`);
   return { instanceId, serviceId, url, services };
