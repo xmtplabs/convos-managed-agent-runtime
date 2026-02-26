@@ -63,7 +63,7 @@ export async function createInstance() {
 
   console.log(`[pool] Creating instance ${name}...`);
 
-  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail"]);
+  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"]);
   console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
   await db.upsertInstance({
