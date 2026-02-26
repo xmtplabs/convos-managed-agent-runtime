@@ -8,23 +8,24 @@ import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
 // Destroy via services. If not in infra DB but we have a Railway serviceId, delete that directly.
-async function safeDestroy(instanceId: string, railwayServiceId?: string) {
+async function safeDestroy(instanceId: string, railwayServiceId?: string, projectId?: string) {
   try {
     await infraDestroyInstance(instanceId);
   } catch (err: any) {
     if (err.status === 404 || err.message?.includes("not found")) {
-      // Not in infra DB — clean up Railway service + OpenRouter key directly if we can
+      // Not in infra DB — clean up directly if we can
       if (railwayServiceId) {
-        console.log(`[pool] Orphan ${instanceId}: deleting Railway service ${railwayServiceId} directly`);
-        try {
-          const volumeMap = await railway.fetchAllVolumesByService();
-          for (const volId of volumeMap?.get(railwayServiceId) || []) {
-            await railway.deleteVolume(volId, railwayServiceId).catch(() => {});
-          }
-        } catch {}
-        await railway.deleteService(railwayServiceId).catch((e: any) =>
-          console.warn(`[pool] Failed to delete orphan service ${railwayServiceId}: ${e.message}`)
-        );
+        if (projectId) {
+          console.log(`[pool] Orphan ${instanceId}: deleting project ${projectId}`);
+          await railway.projectDelete(projectId).catch((e: any) =>
+            console.warn(`[pool] Failed to delete orphan project ${projectId}: ${e.message}`));
+        } else {
+          console.log(`[pool] Orphan ${instanceId}: deleting Railway service ${railwayServiceId} directly`);
+          await railway.deleteService(railwayServiceId).catch((e: any) =>
+            console.warn(`[pool] Failed to delete orphan service ${railwayServiceId}: ${e.message}`)
+          );
+        }
+
         // Best-effort delete the OpenRouter key by name
         const keyHash = await openrouter.findKeyHash(`convos-agent-${instanceId}`);
         if (keyHash) await openrouter.deleteKey(keyHash).catch(() => {});
@@ -79,10 +80,6 @@ export async function createInstance() {
 
 // Unified tick: rebuild instance state from services, health-check, replenish.
 export async function tick() {
-  if (!config.railwayEnvironmentId) {
-    console.warn(`[tick] RAILWAY_ENVIRONMENT_ID not set, skipping tick`);
-    return;
-  }
 
   let batchResult;
   try {
@@ -96,10 +93,6 @@ export async function tick() {
 
   const dbRows = await db.listAll();
   const dbById = new Map(dbRows.map((r: any) => [r.id, r]));
-
-  const svcByInstanceId = new Map(
-    agentServices.map((s) => [s.instanceId, s])
-  );
 
   for (const svc of agentServices) {
     const row = dbById.get(svc.instanceId);
@@ -139,8 +132,6 @@ export async function tick() {
     }
   }
 
-  const toDelete: Array<{ svc: typeof agentServices[0]; dbRow: any }> = [];
-
   for (const svc of agentServices) {
     const instId = svc.instanceId;
     const dbRow = dbById.get(instId);
@@ -163,13 +154,10 @@ export async function tick() {
     });
     const url = urlMap.get(instId) || dbRow?.url || null;
 
+    // Never auto-destroy — just update status in DB.
+    // Dead/crashed instances must be cleaned up manually via dashboard.
     if (status === "dead" || status === "sleeping") {
-      if (isClaimed) {
-        await db.updateStatus(instId, { status: "crashed", url });
-      } else {
-        toDelete.push({ svc, dbRow });
-        await db.deleteById(instId);
-      }
+      await db.updateStatus(instId, { status: isClaimed ? "crashed" : "dead", url });
       continue;
     }
 
@@ -185,22 +173,6 @@ export async function tick() {
       instructions: dbRow?.instructions || null,
       claimedAt: dbRow?.claimedAt || null,
     });
-  }
-
-  const activeInstanceIds = agentServices.map((s) => s.instanceId);
-  await db.deleteOrphaned(activeInstanceIds).catch((err: any) =>
-    console.warn(`[tick] deleteOrphaned failed: ${err.message}`)
-  );
-
-  for (const { svc, dbRow } of toDelete) {
-    const instanceId = dbRow?.id || svc.instanceId;
-    try {
-      await safeDestroy(instanceId, svc.serviceId);
-      await db.deleteById(instanceId).catch(() => {});
-      console.log(`[tick] Destroyed dead instance ${instanceId}`);
-    } catch (err: any) {
-      console.warn(`[tick] Failed to destroy ${instanceId}: ${err.message}`);
-    }
   }
 
   const counts = await db.getCounts();

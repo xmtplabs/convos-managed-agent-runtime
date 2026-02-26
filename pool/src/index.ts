@@ -112,9 +112,7 @@ app.get("/api/pool/info", (_req, res) => {
     environment: config.poolEnvironment,
     branch: config.deployBranch,
     model: config.instanceModel,
-    railwayProjectId: config.railwayProjectId,
     railwayServiceId: config.railwayServiceId,
-    railwayEnvironmentId: config.railwayEnvironmentId,
   });
 });
 
@@ -163,9 +161,7 @@ app.get("/admin", (req, res) => {
     poolEnvironment: config.poolEnvironment,
     deployBranch: config.deployBranch,
     instanceModel: config.instanceModel,
-    railwayProjectId: config.railwayProjectId,
     railwayServiceId: config.railwayServiceId,
-    railwayEnvironmentId: config.railwayEnvironmentId,
     poolApiKey: config.poolApiKey,
     bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,
@@ -347,15 +343,25 @@ app.get("/api/prompts/:pageId", async (req, res) => {
   }
 });
 
-// --- Background tick ---
-setInterval(() => {
-  pool.tick().catch((err: any) => console.error("[tick] Error:", err));
-}, config.tickIntervalMs);
+// --- Startup: migrate, then tick loop ---
+import { runMigrations } from "./db/migrate";
 
-// Initial tick (migrations run separately via `pnpm db:migrate`)
-pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
+runMigrations()
+  .then(() => {
+    // Background tick
+    setInterval(() => {
+      pool.tick().catch((err: any) => console.error("[tick] Error:", err));
+    }, config.tickIntervalMs);
 
-setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
+    // Initial tick
+    pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
+
+    setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
+  })
+  .catch((err) => {
+    console.error("[startup] Migration failed:", err);
+    process.exit(1);
+  });
 
 app.listen(config.port, () => {
   console.log(`Pool manager listening on :${config.port}`);
