@@ -176,6 +176,7 @@ app.get("/admin", (req, res) => {
     railwayServiceId: config.railwayServiceId,
     railwayEnvironmentId: config.railwayEnvironmentId,
     poolApiKey: config.poolApiKey,
+    bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
 });

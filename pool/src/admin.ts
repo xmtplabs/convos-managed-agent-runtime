@@ -150,6 +150,7 @@ export function adminPage({
   railwayServiceId,
   railwayEnvironmentId,
   poolApiKey,
+  bankrConfigured = false,
   adminUrls = [],
 }) {
   const railwayLink = railwayProjectId && railwayServiceId
@@ -253,7 +254,7 @@ export function adminPage({
     }
     .stats-credits {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 12px;
       margin-bottom: 24px;
     }
@@ -639,56 +640,101 @@ export function adminPage({
       color: #666;
     }
 
+    /* --- Row expand indicator --- */
+    tr[data-expand] td:first-child::before {
+      content: '\\25B8';
+      color: #C0C0C0;
+      font-size: 9px;
+      margin-right: 6px;
+      display: inline-block;
+      transition: transform 0.15s ease;
+    }
+    tr[data-expand].expanded td:first-child::before {
+      transform: rotate(90deg);
+      color: #666;
+    }
+    tr[data-expand]:hover td { background: #FAFBFC; }
+
     /* --- Expand row (inline detail below agent) --- */
     .expand-row td {
       padding: 0 !important;
       border-bottom: 1px solid #EBEBEB;
-      background: #FAFAFA;
+      background: #F8F8FA;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
     }
     .expand-inner {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      padding: 16px 20px;
-      font-size: 12px;
-    }
-    .expand-item {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 20px;
     }
+    .expand-section {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #FFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+    .expand-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: #6B7280;
+      margin-right: 2px;
+      white-space: nowrap;
+    }
+    .expand-kv {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      color: #374151;
+      white-space: nowrap;
+    }
+    .expand-kv + .expand-kv { border-left: 1px solid #E5E7EB; padding-left: 6px; }
     .expand-label {
       font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #999;
-    }
-    .expand-value {
-      font-size: 13px;
+      color: #9CA3AF;
       font-weight: 500;
     }
-    .expand-value.mono {
-      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    .expand-val {
       font-size: 11px;
-      color: #666;
+      font-weight: 600;
+      color: #111827;
     }
-    .expand-bar {
-      grid-column: 1 / -1;
-      height: 4px;
+    .expand-val.mono {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 10px;
+      font-weight: 500;
+      color: #6B7280;
+    }
+    .expand-val.active { color: #059669; }
+    .expand-val.inactive { color: #DC2626; }
+    .expand-bar-inline {
+      width: 48px;
+      height: 3px;
       background: #F0F0F0;
       border-radius: 2px;
       overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 4px;
     }
-    .expand-bar-fill {
+    .expand-bar-inline > div {
       height: 100%;
       border-radius: 2px;
       background: #34C759;
     }
-    .expand-bar-fill.warn { background: #FF9500; }
-    .expand-bar-fill.danger { background: #DC2626; }
-    .action-btn.credits { color: #6B21A8; border-color: #DDD6FE; }
-    .action-btn.credits:hover { background: #FAF5FF; }
+    .expand-bar-inline > div.warn { background: #FF9500; }
+    .expand-bar-inline > div.danger { background: #DC2626; }
+    .expand-empty {
+      font-size: 11px;
+      color: #9CA3AF;
+      padding: 2px 0;
+    }
 
     /* --- Responsive --- */
     @media (max-width: 640px) {
@@ -754,6 +800,10 @@ export function adminPage({
         <div class="stat-value" id="s-total">-</div>
       </div>
       <div class="stat-card">
+        <div class="stat-label">Inboxes</div>
+        <div class="stat-value" id="s-inboxes">-</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-label">Templates</div>
         <div class="stat-value" id="s-templates">-</div>
       </div>
@@ -810,28 +860,28 @@ export function adminPage({
         </div>
       </div>
       <table>
-        <colgroup>
-          <col class="col-name">
-          <col class="col-status">
-          <col class="col-instance">
-          <col class="col-usage">
-          <col class="col-uptime">
-          <col class="col-actions">
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Status</th>
-            <th>Instance</th>
-            <th>Usage</th>
-            <th>Uptime</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="agents-body">
-          <tr><td class="empty-row" colspan="6">Loading...</td></tr>
-        </tbody>
-      </table>
+          <colgroup>
+            <col class="col-name">
+            <col class="col-status">
+            <col class="col-instance">
+            <col class="col-usage">
+            <col class="col-uptime">
+            <col class="col-actions">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Instance</th>
+              <th>Usage</th>
+              <th>Uptime</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="agents-body">
+            <tr><td class="empty-row" colspan="6">Loading...</td></tr>
+          </tbody>
+        </table>
     </div>
 
   </div>
@@ -853,10 +903,12 @@ export function adminPage({
     var POOL_ENV = ${JSON.stringify(poolEnvironment)};
     var RAILWAY_PROJECT = ${JSON.stringify(railwayProjectId)};
     var RAILWAY_ENV = ${JSON.stringify(railwayEnvironmentId)};
+    var BANKR_KEY = ${JSON.stringify(bankrConfigured)};
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
 
     var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
     var svcKeyMap = {}; // keyed by key name e.g. 'convos-agent-xxxxx'
+    var svcToolsMap = {}; // keyed by instance_id → tools array from instance_services
     var statusFilter = null; // null = show all, 'idle' | 'starting' | 'running' | 'crashed'
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -949,10 +1001,6 @@ export function adminPage({
       }
 
       var html = '';
-      function creditsBtn(id) {
-        var key = svcKeyMap['convos-agent-' + id];
-        return key ? '<button class="action-btn credits" data-credits="' + id + '">&#128179;</button>' : '';
-      }
       function renderRow(a, status, badge, actions) {
         var rUrl = railwayUrl(a.serviceId);
         var key = svcKeyMap['convos-agent-' + a.id];
@@ -968,7 +1016,7 @@ export function adminPage({
         } else {
           usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
         }
-        html += '<tr class="' + status + '" id="row-' + a.id + '">'
+        html += '<tr class="' + status + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
           + '<td><span class="status-badge status-' + status + '">' + badge + '</span></td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
@@ -980,24 +1028,20 @@ export function adminPage({
       if (showCrashed) crashedCache.forEach(function (a) {
         renderRow(a, 'crashed', 'Crashed',
           '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + creditsBtn(a.id)
           + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
       });
       if (showClaimed) claimedCache.forEach(function (a) {
         renderRow(a, 'running', 'Running',
           '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + creditsBtn(a.id)
           + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       if (showIdle) idleCache.forEach(function (a) {
         renderRow(a, 'idle', 'Ready',
-          creditsBtn(a.id)
-          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+          '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       if (showStarting) startingCache.forEach(function (a) {
         renderRow(a, 'starting', 'Starting',
-          creditsBtn(a.id)
-          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+          '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
       });
       body.innerHTML = html;
     }
@@ -1015,10 +1059,11 @@ export function adminPage({
       var dismissId = e.target.getAttribute('data-dismiss');
       if (dismissId) { dismissAgent(dismissId); return; }
 
-      // Credits button → toggle expand row
-      var creditsId = e.target.closest('[data-credits]');
-      if (creditsId) {
-        toggleExpand(creditsId.getAttribute('data-credits'));
+      // Row click → toggle expand row (ignore if clicking a button/link)
+      if (e.target.closest('button') || e.target.closest('a')) return;
+      var expandRow = e.target.closest('[data-expand]');
+      if (expandRow) {
+        toggleExpand(expandRow.getAttribute('data-expand'));
       }
     });
 
@@ -1186,6 +1231,13 @@ export function adminPage({
       document.getElementById('s-templates').textContent = Array.isArray(d) ? d.length : '-';
     }).catch(function () {});
 
+    // --- Inboxes count ---
+    function refreshInboxes() {
+      fetch('/dashboard/inboxes', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (d) {
+        document.getElementById('s-inboxes').textContent = d.count != null ? d.count : '-';
+      }).catch(function () {});
+    }
+
     // --- Credits ---
     function fmtDollars(n) {
       if (n == null) return '-';
@@ -1219,32 +1271,85 @@ export function adminPage({
       }
     }
 
+    async function refreshInstances() {
+      try {
+        var res = await fetch('/dashboard/instances', { headers: authHeaders });
+        var data = await res.json();
+        svcToolsMap = {};
+        (Array.isArray(data) ? data : []).forEach(function (inst) {
+          if (inst.instance_id && Array.isArray(inst.tools)) {
+            svcToolsMap[inst.instance_id] = inst.tools;
+          }
+        });
+      } catch (e) {}
+    }
+
     // --- Expand row (inline details below agent) ---
     function toggleExpand(instanceId) {
       var existing = document.getElementById('expand-' + instanceId);
-      if (existing) { existing.remove(); return; }
+      if (existing) {
+        existing.remove();
+        var prev = document.getElementById('row-' + instanceId);
+        if (prev) prev.classList.remove('expanded');
+        return;
+      }
 
       // Close any other open expand row
       document.querySelectorAll('.expand-row').forEach(function (r) { r.remove(); });
+      document.querySelectorAll('tr.expanded').forEach(function (r) { r.classList.remove('expanded'); });
 
+      var tools = svcToolsMap[instanceId] || [];
       var key = svcKeyMap['convos-agent-' + instanceId];
-      if (!key) return;
 
-      var usage = key.usage || 0;
-      var limit = key.limit || 0;
-      var remaining = limit > 0 ? Math.max(0, limit - usage) : null;
-      var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
-      var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+      var html = '<td colspan="6"><div class="expand-inner">';
 
-      var html = '<td colspan="6"><div class="expand-inner">'
-        + '<div class="expand-item"><span class="expand-label">Used</span><span class="expand-value">' + fmtDollars(usage) + '</span></div>'
-        + '<div class="expand-item"><span class="expand-label">Limit</span><span class="expand-value">' + fmtDollars(limit) + '</span></div>'
-        + '<div class="expand-item"><span class="expand-label">Remaining</span><span class="expand-value">' + (remaining != null ? fmtDollars(remaining) : '-') + '</span></div>'
-        + '<div class="expand-bar"><div class="expand-bar-fill ' + barClass + '" style="width:' + pct + '%"></div></div>'
-        + '<div class="expand-item"><span class="expand-label">Hash</span><span class="expand-value mono">' + esc(key.hash || '-') + '</span></div>'
-        + '<div class="expand-item"><span class="expand-label">Label</span><span class="expand-value mono">' + esc(key.label || '-') + '</span></div>'
-        + '<div class="expand-item"><span class="expand-label">Created</span><span class="expand-value">' + (key.created_at ? new Date(key.created_at).toLocaleString() : '-') + '</span></div>'
-        + '</div></td>';
+      // OpenRouter credits
+      if (key) {
+        var usage = key.usage || 0;
+        var limit = key.limit || 0;
+        var remaining = limit > 0 ? Math.max(0, limit - usage) : null;
+        var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
+        var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+        html += '<div class="expand-section">'
+          + '<div class="expand-section-title">OpenRouter</div>'
+          + '<div class="expand-kv"><span class="expand-label">Used</span> <span class="expand-val">' + fmtDollars(usage) + '</span></div>'
+          + '<div class="expand-kv"><span class="expand-label">Limit</span> <span class="expand-val">' + fmtDollars(limit) + '</span></div>'
+          + '<div class="expand-kv"><span class="expand-label">Left</span> <span class="expand-val">' + (remaining != null ? fmtDollars(remaining) : '-') + '</span>'
+          + '<div class="expand-bar-inline"><div class="' + barClass + '" style="width:' + pct + '%"></div></div></div>'
+          + '</div>';
+      }
+
+      // AgentMail
+      var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
+      if (mailTool) {
+        html += '<div class="expand-section">'
+          + '<div class="expand-section-title">AgentMail</div>'
+          + '<div class="expand-kv"><span class="expand-label">Inbox</span> <span class="expand-val mono">' + esc(mailTool.env_value || mailTool.resource_id || '-') + '</span></div>'
+          + '<div class="expand-kv"><span class="expand-val ' + (mailTool.status === 'active' ? 'active' : 'inactive') + '">' + esc(mailTool.status || '-') + '</span></div>'
+          + '</div>';
+      }
+
+      // Telnyx
+      var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
+      if (telnyxTool) {
+        html += '<div class="expand-section">'
+          + '<div class="expand-section-title">Telnyx</div>'
+          + '<div class="expand-kv"><span class="expand-label">Phone</span> <span class="expand-val mono">' + esc(telnyxTool.resource_id || '-') + '</span></div>'
+          + '<div class="expand-kv"><span class="expand-val ' + (telnyxTool.status === 'active' ? 'active' : 'inactive') + '">' + esc(telnyxTool.status || '-') + '</span></div>'
+          + '</div>';
+      }
+
+      // Bankr
+      html += '<div class="expand-section">'
+        + '<div class="expand-section-title">Bankr</div>'
+        + '<div class="expand-kv"><span class="expand-val ' + (BANKR_KEY ? 'active' : 'inactive') + '">' + (BANKR_KEY ? 'Active' : 'Not set') + '</span></div>'
+        + '</div>';
+
+      if (!key && !mailTool && !telnyxTool) {
+        html += '<div class="expand-empty">No service details available</div>';
+      }
+
+      html += '</div></td>';
 
       var tr = document.createElement('tr');
       tr.id = 'expand-' + instanceId;
@@ -1252,15 +1357,20 @@ export function adminPage({
       tr.innerHTML = html;
 
       var parentRow = document.getElementById('row-' + instanceId);
-      if (parentRow) parentRow.after(tr);
+      if (parentRow) {
+        parentRow.classList.add('expanded');
+        parentRow.after(tr);
+      }
     }
 
     // --- Init + polling ---
     refreshCounts();
     refreshAgents();
     refreshCredits();
+    refreshInstances();
+    refreshInboxes();
     setInterval(function () { refreshCounts(); refreshAgents(); }, 15000);
-    setInterval(refreshCredits, 60000);
+    setInterval(function () { refreshCredits(); refreshInstances(); refreshInboxes(); }, 60000);
   </script>
 </body>
 </html>`;

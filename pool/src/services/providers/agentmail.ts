@@ -30,6 +30,24 @@ export async function createInbox(instanceId: string): Promise<string> {
   return inboxId;
 }
 
+/** List all inboxes. Returns count and items. */
+export async function listInboxes(): Promise<{ count: number }> {
+  const apiKey = config.agentmailApiKey;
+  if (!apiKey) return { count: 0 };
+
+  try {
+    const res = await fetch("https://api.agentmail.to/v0/inboxes", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const body = await res.json() as any;
+    const inboxes = body?.inboxes || body?.data || [];
+    return { count: Array.isArray(inboxes) ? inboxes.length : 0 };
+  } catch (err: any) {
+    console.warn("[agentmail] List inboxes failed:", err.message);
+    return { count: 0 };
+  }
+}
+
 /** Delete an AgentMail inbox. Best-effort — logs and swallows errors. */
 export async function deleteInbox(inboxId: string): Promise<boolean> {
   const apiKey = config.agentmailApiKey;

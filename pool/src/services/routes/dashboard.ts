@@ -46,6 +46,20 @@ dashboardRouter.get("/dashboard/credits", async (_req, res) => {
 });
 
 /**
+ * GET /dashboard/inboxes
+ * AgentMail inbox count.
+ */
+dashboardRouter.get("/dashboard/inboxes", async (_req, res) => {
+  try {
+    const result = await agentmail.listInboxes();
+    res.json(result);
+  } catch (err: any) {
+    console.error("[dashboard] inboxes failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * DELETE /dashboard/kill/:instanceId
  * Destroys an instance and all its resources (Railway service, tools, DB rows).
  */
