@@ -18,6 +18,8 @@ const { spawn } = require("node:child_process");
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
 const POOL_API_KEY = process.env.POOL_API_KEY;
+const INSTANCE_ID = process.env.INSTANCE_ID;
+const POOL_URL = process.env.POOL_URL;
 const ROOT = path.resolve(__dirname, "..");
 
 let gatewayReady = false;
@@ -40,6 +42,7 @@ function spawnGateway(extraEnv = {}) {
       PORT: String(INTERNAL_PORT),
       OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
       OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
+      POOL_SERVER_PORT: String(PORT),
     },
   });
 
@@ -78,6 +81,7 @@ const initialChild = spawn("pnpm", ["start"], {
     PORT: String(INTERNAL_PORT),
     OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
     OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
+    POOL_SERVER_PORT: String(PORT),
   },
 });
 
@@ -288,6 +292,52 @@ const server = http.createServer(async (req, res) => {
       console.error("[pool-server] Provision failed:", err);
       json(res, 500, { error: err.message || "Provision failed" });
     }
+    return;
+  }
+
+  // POST /pool/self-destruct — extension requests instance self-destruction.
+  // Localhost-only: prevents cross-instance attacks via shared POOL_API_KEY.
+  // External callers should use DELETE /api/pool/instances/:id on the pool manager.
+  if (req.method === "POST" && req.url === "/pool/self-destruct") {
+    const remoteAddr = req.socket.remoteAddress;
+    if (remoteAddr !== "127.0.0.1" && remoteAddr !== "::1" && remoteAddr !== "::ffff:127.0.0.1") {
+      json(res, 403, { error: "Self-destruct is localhost-only" });
+      return;
+    }
+
+    const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+    if (!INSTANCE_ID || !POOL_URL || !gatewayToken) {
+      console.log("[pool-server] Self-destruct skipped: INSTANCE_ID, POOL_URL, or GATEWAY_TOKEN not set");
+      json(res, 200, { ok: false, reason: "not a pool-managed instance" });
+      return;
+    }
+
+    const url = `${POOL_URL}/api/pool/self-destruct`;
+    console.log(`[pool-server] Self-destruct requested, calling pool manager for instance ${INSTANCE_ID}`);
+
+    try {
+      const pmRes = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instanceId: INSTANCE_ID, gatewayToken }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      console.log(`[pool-server] Pool manager responded: ${pmRes.status}`);
+      if (!pmRes.ok) {
+        const text = await pmRes.text().catch(() => "");
+        console.error(`[pool-server] Pool manager rejected self-destruct: ${pmRes.status} ${text}`);
+        json(res, 200, { ok: false, error: `Pool manager returned ${pmRes.status}` });
+        return;
+      }
+      json(res, 200, { ok: true });
+    } catch (err) {
+      console.error(`[pool-server] Self-destruct call failed: ${err.message}`);
+      json(res, 200, { ok: false, error: err.message });
+      return;
+    }
+
+    // Exit after responding — Railway will kill the service once pool manager destroys it
+    setTimeout(() => process.exit(0), 1000);
     return;
   }
 

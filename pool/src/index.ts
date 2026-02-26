@@ -136,6 +136,32 @@ app.delete("/api/pool/instances/:id", requireAuth, async (req, res) => {
   }
 });
 
+// Self-destruct — instance requests its own destruction.
+// Auth: instance sends its own ID + gateway token (per-instance secret).
+// This prevents instances from destroying each other.
+app.post("/api/pool/self-destruct", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    console.log(`[pool] Self-destruct requested by instance ${instanceId}`);
+    res.json({ ok: true });
+    // Destroy after responding — the instance doesn't need to wait
+    pool.killInstance(instanceId).catch((err: any) => {
+      console.error(`[pool] Self-destruct destroy failed for ${instanceId}:`, err.message);
+    });
+  } catch (err: any) {
+    console.error("[api] Self-destruct failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
   try {
     await pool.dismissCrashed(req.params.id as string);

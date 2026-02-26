@@ -86,6 +86,7 @@ export async function runMigrations() {
           url                  TEXT,
           deploy_status        TEXT,
           runtime_image        TEXT,
+          gateway_token        TEXT,
           volume_id            TEXT,
           created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -96,6 +97,8 @@ export async function runMigrations() {
       console.log("[migrate] instance_infra table already exists.");
       // Ensure provider_project_id column exists (older installs)
       await query(pool, `ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS provider_project_id TEXT`);
+      // Ensure gateway_token column exists (for self-destruct auth)
+      await query(pool, `ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS gateway_token TEXT`);
     }
 
     // ── 3. Create instance_services if missing ─────────────────────────
