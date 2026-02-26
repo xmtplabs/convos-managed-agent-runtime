@@ -210,6 +210,24 @@ export async function runMigrations() {
     //   console.log("[migrate] Dropped agent_metadata.");
     // }
 
+    // ── 8. Create phone_number_pool if missing ────────────────────────
+    if (!(await tableExists(pool, "phone_number_pool"))) {
+      console.log("[migrate] Creating phone_number_pool table...");
+      await query(pool, `
+        CREATE TABLE phone_number_pool (
+          id                    SERIAL PRIMARY KEY,
+          phone_number          TEXT UNIQUE NOT NULL,
+          messaging_profile_id  TEXT NOT NULL,
+          status                TEXT NOT NULL DEFAULT 'available',
+          instance_id           TEXT,
+          created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      console.log("[migrate] Created phone_number_pool table.");
+    } else {
+      console.log("[migrate] phone_number_pool table already exists.");
+    }
+
     console.log("[migrate] All migrations complete.");
   } finally {
     await pool.end();

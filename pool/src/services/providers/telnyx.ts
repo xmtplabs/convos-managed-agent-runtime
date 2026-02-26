@@ -1,3 +1,6 @@
+import { eq, sql } from "drizzle-orm";
+import { db } from "../../db/connection";
+import { phoneNumberPool } from "../../db/schema";
 import { config } from "../../config";
 
 const TELNYX_API = "https://api.telnyx.com/v2";
@@ -75,11 +78,16 @@ async function getOrCreateMessagingProfile(): Promise<string> {
 
 /** Assign a phone number to a messaging profile. */
 async function assignToProfile(phoneNumber: string, profileId: string): Promise<void> {
-  await fetch(`${TELNYX_API}/phone_numbers/${phoneNumber}`, {
+  const res = await fetch(`${TELNYX_API}/phone_numbers/${encodeURIComponent(phoneNumber)}/messaging`, {
     method: "PATCH",
     headers: headers(),
     body: JSON.stringify({ messaging_profile_id: profileId }),
   });
+  if (!res.ok) {
+    const body = await res.text();
+    console.error("[telnyx] Assign to messaging profile failed:", res.status, body);
+    throw new Error(`Telnyx messaging profile assignment failed: ${res.status}`);
+  }
 }
 
 export interface ProvisionedPhone {
@@ -87,11 +95,38 @@ export interface ProvisionedPhone {
   messagingProfileId: string;
 }
 
-/** Provision a new phone number: search → purchase → get/create profile → assign. */
-export async function provisionPhone(): Promise<ProvisionedPhone> {
+/**
+ * Provision a phone number for an instance.
+ * First checks the pool for an available number; if none, purchases a new one.
+ */
+export async function provisionPhone(instanceId?: string): Promise<ProvisionedPhone> {
   if (!config.telnyxApiKey) throw new Error("TELNYX_API_KEY not set");
 
-  console.log("[telnyx] Searching for available number...");
+  // 1. Atomically claim one available number from the pool (LIMIT 1)
+  const claimed = await db.execute<{
+    id: number;
+    phone_number: string;
+    messaging_profile_id: string;
+  }>(sql`
+    UPDATE phone_number_pool
+    SET status = 'assigned', instance_id = ${instanceId ?? null}
+    WHERE id = (
+      SELECT id FROM phone_number_pool
+      WHERE status = 'available'
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id, phone_number, messaging_profile_id
+  `);
+
+  const pooled = claimed.rows?.[0];
+  if (pooled) {
+    console.log(`[telnyx] Reusing pooled number ${pooled.phone_number} (pool id ${pooled.id})`);
+    return { phoneNumber: pooled.phone_number, messagingProfileId: pooled.messaging_profile_id };
+  }
+
+  // 2. No available numbers — purchase a new one
+  console.log("[telnyx] No pooled numbers available, purchasing new number...");
   const available = await searchAvailableNumber();
   console.log(`[telnyx] Found: ${available}`);
 
@@ -104,27 +139,41 @@ export async function provisionPhone(): Promise<ProvisionedPhone> {
   await assignToProfile(phoneNumber, messagingProfileId);
   console.log(`[telnyx] Assigned ${phoneNumber} to profile ${messagingProfileId}`);
 
+  // 3. Insert into pool as assigned
+  await db.insert(phoneNumberPool).values({
+    phoneNumber,
+    messagingProfileId,
+    status: "assigned",
+    instanceId: instanceId ?? null,
+  });
+
   return { phoneNumber, messagingProfileId };
 }
 
-/** Delete (release) a phone number. Best-effort. */
+/**
+ * Release a phone number back to the pool (does NOT delete from Telnyx).
+ * Kept as `deletePhone` to preserve the existing call-site interface.
+ */
 export async function deletePhone(phoneNumber: string): Promise<boolean> {
-  if (!config.telnyxApiKey || !phoneNumber) return false;
+  if (!phoneNumber) return false;
 
   try {
-    const res = await fetch(`${TELNYX_API}/phone_numbers/${phoneNumber}`, {
-      method: "DELETE",
-      headers: headers(),
-    });
-    if (res.ok) {
-      console.log(`[telnyx] Deleted phone number ${phoneNumber}`);
+    const [updated] = await db
+      .update(phoneNumberPool)
+      .set({ status: "available" as const, instanceId: null })
+      .where(eq(phoneNumberPool.phoneNumber, phoneNumber))
+      .returning();
+
+    if (updated) {
+      console.log(`[telnyx] Released ${phoneNumber} back to pool`);
       return true;
     }
-    const body = await res.text();
-    console.warn(`[telnyx] Failed to delete phone number ${phoneNumber}: ${res.status} ${body}`);
+
+    // Number not in pool — nothing to do (legacy number or already cleaned up)
+    console.warn(`[telnyx] Phone number ${phoneNumber} not found in pool, skipping release`);
     return false;
   } catch (err: any) {
-    console.warn(`[telnyx] Failed to delete phone number ${phoneNumber}:`, err.message);
+    console.warn(`[telnyx] Failed to release phone number ${phoneNumber}:`, err.message);
     return false;
   }
 }
