@@ -11,7 +11,7 @@ export default function ArticleLayout({
       <article className="article">
         <a href="/" className="article-header">
           <ConvosLogo width={18} height={23} />
-          <span>Convos</span>
+          <span>Convos <span style={{ fontWeight: 400, color: "var(--color-foreground-secondary)" }}>Playroom</span></span>
         </a>
 
         {children}
