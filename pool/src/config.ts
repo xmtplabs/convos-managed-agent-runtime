@@ -31,7 +31,7 @@ export const config = {
   notionApiKey: getEnv("NOTION_API_KEY"),
 
   // Admin dashboard
-  poolAdminUrls: getEnv("POOL_ADMIN_URLS", "dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
+  poolAdminUrls: getEnv("POOL_ADMIN_URLS", "dev=https://convos-agents-dev.up.railway.app,scaling=https://convos-agents-scaling.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
 
   // Railway (from services)
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),

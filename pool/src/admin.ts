@@ -192,20 +192,71 @@ export function adminPage({
       font-weight: 700;
       letter-spacing: -0.3px;
     }
-    .env-tag {
+    .env-switcher {
+      position: relative;
+      display: inline-flex;
+    }
+    .env-switcher-btn {
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 2px 8px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
-    .env-dev { background: #DBEAFE; color: #1D4ED8; }
-    .env-staging { background: #FEF3C7; color: #92400E; }
-    .env-production { background: #FEE2E2; color: #991B1B; }
-    a.env-tag { text-decoration: none; opacity: 0.45; transition: opacity 0.15s; }
-    a.env-tag:hover { opacity: 0.85; }
-    .env-tag.active { opacity: 1; cursor: default; }
+    .env-switcher-btn::after {
+      content: '';
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-top: 4px solid currentColor;
+      opacity: 0.6;
+    }
+    .env-switcher-btn.env-dev { background: #DBEAFE; color: #1D4ED8; }
+    .env-switcher-btn.env-staging { background: #FEF3C7; color: #92400E; }
+    .env-switcher-btn.env-scaling { background: #E0E7FF; color: #3730A3; }
+    .env-switcher-btn.env-production { background: #FEE2E2; color: #991B1B; }
+    .env-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      min-width: 140px;
+      z-index: 100;
+      overflow: hidden;
+    }
+    .env-switcher.open .env-dropdown { display: block; }
+    .env-dropdown a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      color: #374151;
+      transition: background 0.1s;
+    }
+    .env-dropdown a:hover { background: #F9FAFB; }
+    .env-dropdown a.current { background: #F3F4F6; cursor: default; }
+    .env-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .env-dot.dev { background: #1D4ED8; }
+    .env-dot.staging { background: #92400E; }
+    .env-dot.scaling { background: #3730A3; }
+    .env-dot.production { background: #991B1B; }
     .header-right {
       display: flex;
       align-items: center;
@@ -831,11 +882,16 @@ export function adminPage({
   <div class="header">
     <div class="header-left">
       <span class="header-title">Pool Admin</span>
-      ${adminUrls.length ? adminUrls.map((e) =>
-        e.env === poolEnvironment
-          ? `<span class="env-tag env-${e.env} active">${e.env}</span>`
-          : `<a class="env-tag env-${e.env}" href="${e.url}/admin">${e.env}</a>`
-      ).join("") : `<span class="env-tag env-${poolEnvironment}">${poolEnvironment}</span>`}
+      <div class="env-switcher" onclick="this.classList.toggle('open')">
+        <button class="env-switcher-btn env-${poolEnvironment}">${poolEnvironment}</button>
+        <div class="env-dropdown">
+          ${adminUrls.length ? adminUrls.map((e) =>
+            e.env === poolEnvironment
+              ? `<a class="current"><span class="env-dot ${e.env}"></span>${e.env}</a>`
+              : `<a href="${e.url}/admin"><span class="env-dot ${e.env}"></span>${e.env}</a>`
+          ).join("") : `<a class="current"><span class="env-dot ${poolEnvironment}"></span>${poolEnvironment}</a>`}
+        </div>
+      </div>
     </div>
     <div class="header-right">
       <span class="chip">model: ${instanceModel}</span>
@@ -1561,6 +1617,12 @@ export function adminPage({
         parentRow.after(tr);
       }
     }
+
+    // --- Close env dropdown on outside click ---
+    document.addEventListener('click', function (e) {
+      var switcher = document.querySelector('.env-switcher');
+      if (switcher && !switcher.contains(e.target)) switcher.classList.remove('open');
+    });
 
     // --- Top-up handler (delegated) ---
     document.addEventListener('click', async function (e) {
