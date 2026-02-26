@@ -1113,6 +1113,7 @@ export function adminPage({
 
       var html = '';
       function renderRow(a, status, badge, actions) {
+        var isKilling = !!killingSet[a.id];
         var rUrl = railwayUrl(a.serviceId);
         var key = svcKeyMap['convos-agent-' + a.id];
         var usageCell = '';
@@ -1127,13 +1128,16 @@ export function adminPage({
         } else {
           usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
         }
-        html += '<tr class="' + status + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
+        var rowClass = status + (isKilling ? ' destroying' : '');
+        var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
+        var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
+        html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
-          + '<td><span class="status-badge status-' + status + '">' + badge + '</span></td>'
+          + '<td>' + rowBadge + '</td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
-          + '<td><div class="action-btns">' + actions + '</div></td></tr>';
+          + '<td><div class="action-btns">' + rowActions + '</div></td></tr>';
       }
 
       filtered.forEach(function (a) {
