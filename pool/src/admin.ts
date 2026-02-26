@@ -469,10 +469,10 @@ export function adminPage({
       border-collapse: collapse;
       table-layout: fixed;
     }
-    col.col-name { width: 21%; }
-    col.col-status { width: 13%; }
-    col.col-instance { width: 22%; }
-    col.col-branch { width: 16%; }
+    col.col-name { width: 22%; }
+    col.col-status { width: 11%; }
+    col.col-instance { width: 20%; }
+    col.col-usage { width: 18%; }
     col.col-uptime { width: 10%; }
     col.col-actions { width: 19%; }
     th {
@@ -1142,23 +1142,25 @@ export function adminPage({
           + '<td><div class="action-btns">' + rowActions + '</div></td></tr>';
       }
 
-      if (showCrashed) crashedCache.forEach(function (a) {
-        renderRow(a, 'crashed', 'Crashed',
-          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
-      });
-      if (showClaimed) claimedCache.forEach(function (a) {
-        renderRow(a, 'running', 'Running',
-          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
-      });
-      if (showIdle) idleCache.forEach(function (a) {
-        renderRow(a, 'idle', 'Ready',
-          '<button class="action-btn drain" data-drain="' + a.id + '">Drain</button>');
-      });
-      if (showStarting) startingCache.forEach(function (a) {
-        renderRow(a, 'starting', 'Starting',
-          '<button class="action-btn drain" data-drain="' + a.id + '">Drain</button>');
+      filtered.forEach(function (a) {
+        var isCrashed = crashedCache.indexOf(a) !== -1;
+        var isClaimed = claimedCache.indexOf(a) !== -1;
+        var isIdle = idleCache.indexOf(a) !== -1;
+        if (isCrashed) {
+          renderRow(a, 'crashed', 'Crashed',
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
+        } else if (isClaimed) {
+          renderRow(a, 'running', 'Running',
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        } else if (isIdle) {
+          renderRow(a, 'idle', 'Ready',
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        } else {
+          renderRow(a, 'starting', 'Starting',
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        }
       });
       body.innerHTML = html;
       // Re-expand previously open row
@@ -1177,8 +1179,6 @@ export function adminPage({
       if (killId) { killAgent(killId); return; }
       var dismissId = e.target.getAttribute('data-dismiss');
       if (dismissId) { dismissAgent(dismissId); return; }
-      var drainId = e.target.getAttribute('data-drain');
-      if (drainId) { drainAgent(drainId); return; }
 
       // Row click → toggle expand row (ignore if clicking a button/link)
       if (e.target.closest('button') || e.target.closest('a')) return;
@@ -1221,25 +1221,6 @@ export function adminPage({
         if (r) r.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
       } finally {
         delete killingSet[id];
-      }
-    }
-
-    async function drainAgent(id) {
-      var a = idleCache.concat(startingCache).find(function (x) { return x.id === id; });
-      var name = a ? (a.agentName || a.name || a.id) : id;
-      var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Drain "' + name + '"? This deletes the Railway service.';
-      if (!confirm(msg)) return;
-      markDestroying(id);
-      try {
-        var res = await fetch('/api/pool/instances/' + id, { method: 'DELETE', headers: authHeaders });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Drain failed');
-        refreshCounts();
-        refreshAgents();
-      } catch (err) {
-        alert('Failed to drain: ' + err.message);
-        var r = document.getElementById('row-' + id);
-        if (r) r.classList.remove('destroying');
       }
     }
 
