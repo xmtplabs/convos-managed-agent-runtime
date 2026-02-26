@@ -224,6 +224,17 @@ export async function drainPool(count: number) {
   const toDrain = unclaimed.slice(0, count);
   if (toDrain.length === 0) return [];
 
+  // Fetch Railway serviceIds so safeDestroy can clean up directly
+  const svcIdMap = new Map<string, string>();
+  try {
+    const batch = await fetchBatchStatus(toDrain.map((i: any) => i.id));
+    for (const svc of batch.services || []) {
+      svcIdMap.set(svc.instanceId, svc.serviceId);
+    }
+  } catch (err: any) {
+    console.warn(`[pool] Failed to fetch serviceIds for drain: ${err.message}`);
+  }
+
   const ids = toDrain.map((i: any) => i.id);
   console.log(`[pool] Draining ${toDrain.length} unclaimed instance(s): ${ids.join(", ")}`);
 
@@ -234,7 +245,7 @@ export async function drainPool(count: number) {
         console.log(`[pool]   Skipping ${inst.id} (no longer unclaimed)`);
         return { skipped: true };
       }
-      await safeDestroy(inst.id);
+      await safeDestroy(inst.id, svcIdMap.get(inst.id));
       await db.deleteById(inst.id).catch(() => {});
       return { skipped: false };
     })
@@ -266,8 +277,15 @@ export async function killInstance(id: string) {
   const inst = await db.findById(id);
   if (!inst) return;
 
+  // Fetch Railway serviceId so safeDestroy can clean up directly
+  let railwayServiceId: string | undefined;
+  try {
+    const batch = await fetchBatchStatus([id]);
+    railwayServiceId = batch.services?.[0]?.serviceId;
+  } catch {}
+
   console.log(`[pool] Killing instance ${inst.id} (${inst.agent_name || inst.name})`);
-  await safeDestroy(inst.id);
+  await safeDestroy(inst.id, railwayServiceId);
   await db.deleteById(inst.id).catch(() => {});
 }
 
@@ -275,7 +293,14 @@ export async function dismissCrashed(id: string) {
   const inst = await db.findById(id);
   if (!inst || inst.status !== "crashed") throw new Error(`Crashed instance ${id} not found`);
 
+  // Fetch Railway serviceId so safeDestroy can clean up directly
+  let railwayServiceId: string | undefined;
+  try {
+    const batch = await fetchBatchStatus([id]);
+    railwayServiceId = batch.services?.[0]?.serviceId;
+  } catch {}
+
   console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agent_name || inst.name})`);
-  await safeDestroy(inst.id);
+  await safeDestroy(inst.id, railwayServiceId);
   await db.deleteById(inst.id).catch(() => {});
 }
