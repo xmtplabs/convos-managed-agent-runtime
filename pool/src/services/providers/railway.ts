@@ -176,7 +176,7 @@ export async function createService(
 
   const serviceId = data.serviceCreate.id;
 
-  // Set image + start command (does not trigger a deploy on its own)
+  // Set image + start command before variables
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",
@@ -190,9 +190,9 @@ export async function createService(
   // Set resource limits
   await setResourceLimits(serviceId, undefined, opts);
 
-  // Upsert variables last — this triggers the first deploy with everything configured
+  // Upsert variables with skipDeploys
   if (Object.keys(variables).length > 0) {
-    await upsertVariables(serviceId, variables, {}, opts);
+    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
   }
 
   return serviceId;
