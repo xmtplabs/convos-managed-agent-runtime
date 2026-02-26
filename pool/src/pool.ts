@@ -189,6 +189,7 @@ export async function tick() {
     const instanceId = dbRow?.id || svc.instanceId;
     try {
       await safeDestroy(instanceId, svc.serviceId);
+      await db.deleteById(instanceId).catch(() => {});
       console.log(`[tick] Destroyed dead instance ${instanceId}`);
     } catch (err: any) {
       console.warn(`[tick] Failed to destroy ${instanceId}: ${err.message}`);
@@ -292,6 +293,7 @@ export async function killInstance(id: string) {
 export async function dismissCrashed(id: string) {
   const inst = await db.findById(id);
   if (!inst || inst.status !== "crashed") throw new Error(`Crashed instance ${id} not found`);
+  if (inst.agentName) throw new Error(`Cannot dismiss claimed agent ${id} (${inst.agentName}) — use kill or redeploy instead`);
 
   // Fetch Railway serviceId so safeDestroy can clean up directly
   let railwayServiceId: string | undefined;

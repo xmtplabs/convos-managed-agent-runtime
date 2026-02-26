@@ -663,47 +663,81 @@ export function adminPage({
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
     }
     .expand-inner {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 10px;
-      padding: 14px 20px;
+      display: flex;
+      align-items: stretch;
+      padding: 0;
     }
-    .expand-section {
+    .expand-col {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      background: #FFF;
-      border: 1px solid #E5E7EB;
-      border-radius: 8px;
-      padding: 10px 14px;
+      min-width: 0;
+    }
+    .expand-col-left {
+      flex: 0 0 50%;
+      border-right: 1px solid #EBEBEB;
+    }
+    .expand-col-right {
+      flex: 1;
+    }
+    .expand-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 16px;
       font-size: 11px;
+      min-width: 0;
+      border-right: 1px solid #EBEBEB;
+    }
+    .expand-col-left .expand-section { border-right: none; flex: none; }
+    .expand-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 2px;
     }
     .expand-section-title {
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.3px;
-      color: #6B7280;
-      margin-bottom: 2px;
+      color: #9CA3AF;
       white-space: nowrap;
     }
-    .expand-kvs {
+    .expand-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .expand-status-dot.active { background: #34C759; }
+    .expand-status-dot.inactive { background: #DC2626; }
+    .expand-kv-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      align-items: center;
+      gap: 12px;
     }
     .expand-kv {
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       color: #374151;
       white-space: nowrap;
+      min-width: 0;
     }
     .expand-label {
       font-size: 10px;
-      color: #9CA3AF;
+      color: #B0B0B0;
       font-weight: 500;
     }
+    .expand-link {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-size: 10px;
+      color: #007AFF;
+      text-decoration: none;
+    }
+    .expand-link:hover { text-decoration: underline; }
     .expand-val {
       font-size: 11px;
       font-weight: 600;
@@ -713,27 +747,27 @@ export function adminPage({
       font-family: 'SF Mono', Monaco, 'Courier New', monospace;
       font-size: 10px;
       font-weight: 500;
-      color: #6B7280;
+      color: #555;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .expand-val.active { color: #059669; }
     .expand-val.inactive { color: #DC2626; }
-    .expand-bar-inline {
-      width: 48px;
+    .expand-bar-wrap {
+      width: 100%;
       height: 3px;
       background: #F0F0F0;
       border-radius: 2px;
       overflow: hidden;
-      display: inline-block;
-      vertical-align: middle;
-      margin-left: 4px;
+      margin-top: 2px;
     }
-    .expand-bar-inline > div {
+    .expand-bar-wrap > div {
       height: 100%;
       border-radius: 2px;
       background: #34C759;
     }
-    .expand-bar-inline > div.warn { background: #FF9500; }
-    .expand-bar-inline > div.danger { background: #DC2626; }
+    .expand-bar-wrap > div.warn { background: #FF9500; }
+    .expand-bar-wrap > div.danger { background: #DC2626; }
     .expand-topup {
       display: flex;
       align-items: center;
@@ -741,28 +775,29 @@ export function adminPage({
       margin-top: 4px;
     }
     .expand-topup input {
-      width: 64px;
-      padding: 3px 6px;
+      width: 56px;
+      padding: 2px 6px;
       font-size: 11px;
       font-family: inherit;
       border: 1px solid #E5E7EB;
       border-radius: 4px;
       text-align: center;
+      background: #fff;
     }
     .expand-topup input:focus { outline: none; border-color: #999; }
     .expand-topup button {
       font-family: inherit;
       font-size: 10px;
       font-weight: 600;
-      padding: 3px 8px;
+      padding: 2px 8px;
       border-radius: 4px;
       cursor: pointer;
-      border: 1px solid #000;
-      background: #000;
-      color: #fff;
-      transition: opacity 0.15s;
+      border: 1px solid #E5E7EB;
+      background: #fff;
+      color: #374151;
+      transition: all 0.15s;
     }
-    .expand-topup button:hover:not(:disabled) { opacity: 0.85; }
+    .expand-topup button:hover:not(:disabled) { background: #F5F5F5; border-color: #CCC; }
     .expand-topup button:disabled { opacity: 0.5; cursor: not-allowed; }
     .expand-topup .topup-msg {
       font-size: 10px;
@@ -773,7 +808,7 @@ export function adminPage({
     .expand-empty {
       font-size: 11px;
       color: #9CA3AF;
-      padding: 2px 0;
+      padding: 12px 16px;
     }
     .search-input {
       padding: 6px 12px;
@@ -958,14 +993,17 @@ export function adminPage({
     var RAILWAY_PROJECT = ${JSON.stringify(railwayProjectId)};
     var RAILWAY_ENV = ${JSON.stringify(railwayEnvironmentId)};
     var BANKR_KEY = ${JSON.stringify(bankrConfigured)};
+    var INSTANCE_MODEL = ${JSON.stringify(instanceModel)};
     var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
 
     var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
     var svcKeyMap = {}; // keyed by key name e.g. 'convos-agent-xxxxx'
     var svcToolsMap = {}; // keyed by instance_id → tools array from instance_services
+    var infraMap = {}; // keyed by instance_id → infra row from instance_infra
     var statusFilter = null; // null = show all, 'idle' | 'starting' | 'running' | 'crashed'
     var searchQuery = '';
     var searchTimer = null;
+    var expandedInstanceId = null; // track currently expanded row
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
 
@@ -1119,6 +1157,8 @@ export function adminPage({
         }
       });
       body.innerHTML = html;
+      // Re-expand previously open row
+      if (expandedInstanceId) toggleExpand(expandedInstanceId, true);
     }
 
     // --- Actions ---
@@ -1142,16 +1182,25 @@ export function adminPage({
       }
     });
 
+    var killingSet = {};
+
     function markDestroying(id) {
       var row = document.getElementById('row-' + id);
       if (row) row.classList.add('destroying');
+      // Disable all buttons in this row
+      if (row) row.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+      // Also collapse expand row
+      var expand = document.getElementById('expand-' + id);
+      if (expand) expand.remove();
     }
 
     async function killAgent(id) {
+      if (killingSet[id]) return;
       var row = document.getElementById('row-' + id);
       var name = row ? row.querySelector('.agent-name-cell').textContent.trim() : id;
       var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Kill "' + name + '"? This deletes the Railway service.';
       if (!confirm(msg)) return;
+      killingSet[id] = true;
       markDestroying(id);
       try {
         var res = await fetch('/api/pool/instances/' + id, { method: 'DELETE', headers: authHeaders });
@@ -1163,6 +1212,9 @@ export function adminPage({
         alert('Failed to kill: ' + err.message);
         var r = document.getElementById('row-' + id);
         if (r) r.classList.remove('destroying');
+        if (r) r.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+      } finally {
+        delete killingSet[id];
       }
     }
 
@@ -1351,23 +1403,27 @@ export function adminPage({
         var res = await fetch('/dashboard/instances', { headers: authHeaders });
         var data = await res.json();
         svcToolsMap = {};
+        infraMap = {};
         (Array.isArray(data) ? data : []).forEach(function (inst) {
-          if (inst.instance_id && Array.isArray(inst.tools)) {
-            svcToolsMap[inst.instance_id] = inst.tools;
+          if (inst.instance_id) {
+            if (Array.isArray(inst.tools)) svcToolsMap[inst.instance_id] = inst.tools;
+            infraMap[inst.instance_id] = inst;
           }
         });
       } catch (e) {}
     }
 
     // --- Expand row (inline details below agent) ---
-    function toggleExpand(instanceId) {
+    function toggleExpand(instanceId, force) {
       var existing = document.getElementById('expand-' + instanceId);
-      if (existing) {
+      if (existing && !force) {
         existing.remove();
         var prev = document.getElementById('row-' + instanceId);
         if (prev) prev.classList.remove('expanded');
+        expandedInstanceId = null;
         return;
       }
+      if (existing) existing.remove();
 
       // Close any other open expand row
       document.querySelectorAll('.expand-row').forEach(function (r) { r.remove(); });
@@ -1375,8 +1431,43 @@ export function adminPage({
 
       var tools = svcToolsMap[instanceId] || [];
       var key = svcKeyMap['convos-agent-' + instanceId];
+      var infra = infraMap[instanceId] || {};
+      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
 
       var html = '<td colspan="6"><div class="expand-inner">';
+      var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
+      var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
+      var hasSections = key || mailTool || telnyxTool;
+
+      // LEFT COLUMN — Instance + AgentMail (50%)
+      var instanceUrl = (agent && agent.url) || infra.url || '';
+      html += '<div class="expand-col expand-col-left">';
+      html += '<div class="expand-section">'
+        + '<div class="expand-section-header"><span class="expand-section-title">Instance</span>'
+        + (instanceUrl ? '<span class="expand-status-dot active"></span>' : '<span class="expand-status-dot inactive"></span>') + '</div>'
+        + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\\/\\//, '')) + '</a></div>' : '')
+        + '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(INSTANCE_MODEL) + '</span></div>'
+        + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
+        + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
+          + (railwayUrl(infra.provider_service_id)
+            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id) + '" target="_blank" rel="noopener">' + esc(infra.provider_service_id.slice(0, 12)) + '</a>'
+            : '<span class="expand-val mono">' + esc(infra.provider_service_id.slice(0, 12)) + '</span>')
+          + '</div>' : '')
+        + '</div>';
+
+      // AgentMail (below Instance)
+      if (mailTool) {
+        html += '<div class="expand-section" style="border-top:1px solid #EBEBEB">'
+          + '<div class="expand-section-header"><span class="expand-section-title">AgentMail</span>'
+          + '<span class="expand-status-dot ' + (mailTool.status === 'active' ? 'active' : 'inactive') + '"></span></div>'
+          + '<div class="expand-kv"><span class="expand-val mono">' + esc(mailTool.env_value || mailTool.resource_id || '-') + '</span></div>'
+          + '</div>';
+      }
+
+      html += '</div>'; // close left column
+
+      // RIGHT COLUMN — OpenRouter, Bankr, Telnyx (stacked)
+      html += '<div class="expand-col expand-col-right">';
 
       // OpenRouter credits
       if (key) {
@@ -1386,55 +1477,44 @@ export function adminPage({
         var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
         var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
         var keyHash = key.hash || '';
-        html += '<div class="expand-section">'
-          + '<div class="expand-section-title">OpenRouter</div>'
-          + '<div class="expand-kvs">'
+        html += '<div class="expand-section" style="border-right:none">'
+          + '<div class="expand-section-header">'
+          + '<a class="expand-link" href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">OpenRouter</a>'
+          + '</div>'
+          + '<div class="expand-kv-row">'
           + '<div class="expand-kv"><span class="expand-label">Used</span> <span class="expand-val">' + fmtDollars(usage) + '</span></div>'
           + '<div class="expand-kv"><span class="expand-label">Limit</span> <span class="expand-val">' + fmtDollars(limit) + '</span></div>'
-          + '<div class="expand-kv"><span class="expand-label">Left</span> <span class="expand-val">' + (remaining != null ? fmtDollars(remaining) : '-') + '</span>'
-          + '<div class="expand-bar-inline"><div class="' + barClass + '" style="width:' + pct + '%"></div></div></div>'
+          + '<div class="expand-kv"><span class="expand-label">Left</span> <span class="expand-val">' + (remaining != null ? fmtDollars(remaining) : '-') + '</span></div>'
           + '</div>'
+          + '<div class="expand-bar-wrap"><div class="' + barClass + '" style="width:' + pct + '%"></div></div>'
           + '<div class="expand-topup">'
-          + '<input type="number" min="1" placeholder="' + Math.round(limit) + '" data-topup-input="' + esc(keyHash) + '" />'
-          + '<button data-topup-btn="' + esc(keyHash) + '" data-instance="' + esc(instanceId) + '">Top Up</button>'
+          + '<input type="number" min="1" placeholder="20" value="20" data-topup-input="' + esc(keyHash) + '" data-current-limit="' + limit + '" />'
+          + '<button data-topup-btn="' + esc(keyHash) + '" data-instance="' + esc(instanceId) + '">Top up</button>'
           + '<span class="topup-msg" data-topup-msg="' + esc(keyHash) + '"></span>'
           + '</div>'
           + '</div>';
       }
 
-      // AgentMail
-      var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
-      if (mailTool) {
-        html += '<div class="expand-section">'
-          + '<div class="expand-section-title">AgentMail</div>'
-          + '<div class="expand-kvs">'
-          + '<div class="expand-kv"><span class="expand-label">Inbox</span> <span class="expand-val mono">' + esc(mailTool.env_value || mailTool.resource_id || '-') + '</span></div>'
-          + '<div class="expand-kv"><span class="expand-val ' + (mailTool.status === 'active' ? 'active' : 'inactive') + '">' + esc(mailTool.status || '-') + '</span></div>'
-          + '</div>'
-          + '</div>';
-      }
-
-      // Telnyx
-      var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
-      if (telnyxTool) {
-        html += '<div class="expand-section">'
-          + '<div class="expand-section-title">Telnyx</div>'
-          + '<div class="expand-kvs">'
-          + '<div class="expand-kv"><span class="expand-label">Phone</span> <span class="expand-val mono">' + esc(telnyxTool.resource_id || '-') + '</span></div>'
-          + '<div class="expand-kv"><span class="expand-val ' + (telnyxTool.status === 'active' ? 'active' : 'inactive') + '">' + esc(telnyxTool.status || '-') + '</span></div>'
-          + '</div>'
-          + '</div>';
-      }
-
       // Bankr
-      html += '<div class="expand-section">'
-        + '<div class="expand-section-title">Bankr</div>'
-        + '<div class="expand-kvs">'
-        + '<div class="expand-kv"><span class="expand-val ' + (BANKR_KEY ? 'active' : 'inactive') + '">' + (BANKR_KEY ? 'Active' : 'Not set') + '</span></div>'
-        + '</div>'
+      html += '<div class="expand-section" style="border-top:1px solid #EBEBEB;border-right:none">'
+        + '<div class="expand-section-header"><span class="expand-section-title">Bankr</span>'
+        + '<span class="expand-status-dot ' + (BANKR_KEY ? 'active' : 'inactive') + '"></span></div>'
+        + '<div class="expand-kv"><span class="expand-val" style="color:#9CA3AF">' + (BANKR_KEY ? 'Configured' : 'Not set') + '</span></div>'
         + '</div>';
 
-      if (!key && !mailTool && !telnyxTool) {
+      // Telnyx
+      html += '<div class="expand-section" style="border-top:1px solid #EBEBEB;border-right:none">'
+        + '<div class="expand-section-header"><span class="expand-section-title">Telnyx</span>'
+        + (telnyxTool
+          ? '<span class="expand-status-dot ' + (telnyxTool.status === 'active' ? 'active' : 'inactive') + '"></span></div>'
+            + '<div class="expand-kv"><span class="expand-val mono">' + esc(telnyxTool.resource_id || '-') + '</span></div>'
+          : '<span class="expand-status-dot inactive"></span></div>'
+            + '<div class="expand-kv"><span class="expand-val" style="color:#9CA3AF">Not provisioned</span></div>')
+        + '</div>';
+
+      html += '</div>'; // close right column
+
+      if (!hasSections) {
         html += '<div class="expand-empty">No service details available</div>';
       }
 
@@ -1445,12 +1525,51 @@ export function adminPage({
       tr.className = 'expand-row';
       tr.innerHTML = html;
 
+      expandedInstanceId = instanceId;
       var parentRow = document.getElementById('row-' + instanceId);
       if (parentRow) {
         parentRow.classList.add('expanded');
         parentRow.after(tr);
       }
     }
+
+    // --- Top-up handler (delegated) ---
+    document.addEventListener('click', async function (e) {
+      var btn = e.target.closest('[data-topup-btn]');
+      if (!btn) return;
+      var hash = btn.getAttribute('data-topup-btn');
+      var instanceId = btn.getAttribute('data-instance');
+      var input = document.querySelector('[data-topup-input="' + hash + '"]');
+      var msgEl = document.querySelector('[data-topup-msg="' + hash + '"]');
+      var addAmount = parseFloat(input && input.value);
+      if (!addAmount || addAmount <= 0) {
+        if (msgEl) { msgEl.className = 'topup-msg error'; msgEl.textContent = 'Enter an amount'; }
+        return;
+      }
+      var currentLimit = parseFloat(input.getAttribute('data-current-limit')) || 0;
+      var newLimit = currentLimit + addAmount;
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+      if (msgEl) msgEl.textContent = '';
+      try {
+        var res = await fetch('/dashboard/topup/' + hash, {
+          method: 'PATCH',
+          headers: authHeaders,
+          body: JSON.stringify({ limit: newLimit }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        await refreshCredits();
+        toggleExpand(instanceId, true);
+        var newMsg = document.querySelector('[data-topup-msg="' + hash + '"]');
+        if (newMsg) { newMsg.className = 'topup-msg success'; newMsg.textContent = '+$' + addAmount + ' added'; }
+      } catch (err) {
+        if (msgEl) { msgEl.className = 'topup-msg error'; msgEl.textContent = err.message; }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Top up';
+      }
+    });
 
     // --- Init + polling ---
     refreshCounts();
