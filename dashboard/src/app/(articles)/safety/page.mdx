@@ -13,7 +13,7 @@ export const metadata = {
 
 [You can also add any AI agent to a Convos chat](https://learn.convos.org/byoagent) — third-party agents have their own privacy practices. Everything on this page applies to Convos assistants specifically.
 
-> Assistants process your messages through third-party AI services. Convos keeps each assistant isolated and ephemeral, but be intentional about what you share — especially in group conversations where others can see it too.
+> Assistants can help with sensitive tasks — that's part of the point. But remember that anything you share is processed by the third-party services listed above, and visible to everyone in the group. Be intentional about sharing things like passwords, financial account numbers, government IDs, or medical records.
 
 ## What the assistant can see
 
@@ -42,15 +42,11 @@ Every assistant runs on [OpenClaw](https://openclaw.ai), an open-source agent ru
 | **Web search** | [Perplexity](https://www.perplexity.ai) via OpenRouter | Real-time web lookups. Queries are sent to Perplexity's Sonar model through OpenRouter. |
 | **Email** | [AgentMail](https://agentmail.to) | Each assistant gets a unique inbox. Emails sent and received by the assistant pass through AgentMail's API. |
 | **SMS & phone** | [Telnyx](https://telnyx.com) | Each assistant can be assigned a US phone number. Text messages and calls are routed through Telnyx. |
-| **Crypto wallet** | [Bankr](https://bankr.bot) | On-chain wallet for trading and transfers. Transaction requests are processed through Bankr's API. |
+| **Crypto wallet** | [Bankr](https://bankr.bot) | Onchain wallet for trading and transfers. Transaction requests are processed through Bankr's API. |
 | **Web browsing** | Chromium (local) | A headless browser running on the same server as the assistant. No third-party service involved. |
 | **Messaging** | [XMTP](https://xmtp.org) | The assistant communicates with your group over the XMTP network, the same protocol Convos uses for all messages. |
 
 Each assistant gets its own API keys for these services, created at startup and destroyed when the conversation ends. No keys are shared across assistants. The assistant runtime, hosting infrastructure, and all provisioning are operated by XMTP Labs on [Railway](https://railway.com).
-
-## Sensitive information
-
-Assistants can help with sensitive tasks — that's part of the point. But remember that anything you share is processed by the third-party services listed above, and visible to everyone in the group. Be intentional about sharing things like passwords, financial account numbers, government IDs, or medical records.
 
 ## You are in control
 
