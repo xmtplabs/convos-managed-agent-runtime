@@ -32,27 +32,47 @@ export async function createInstance(
   vars.SETUP_PASSWORD = setupPassword;
   vars.PRIVATE_WALLET_KEY = walletKey;
 
-  // Provision requested tools
+  // Provision requested tools (rollback on failure to avoid leaked resources)
   const services: CreateInstanceResponse["services"] = {};
 
-  if (tools.includes("openrouter") && config.openrouterManagementKey) {
-    const keyName = `convos-agent-${instanceId}`;
-    const { key, hash } = await openrouter.createKey(keyName);
-    vars.OPENROUTER_API_KEY = key;
-    services.openrouter = { resourceId: hash };
-  }
+  try {
+    if (tools.includes("openrouter") && config.openrouterManagementKey) {
+      const keyName = `convos-agent-${instanceId}`;
+      const { key, hash } = await openrouter.createKey(keyName);
+      vars.OPENROUTER_API_KEY = key;
+      services.openrouter = { resourceId: hash };
+    }
 
-  if (tools.includes("agentmail") && config.agentmailApiKey) {
-    const inboxId = await agentmail.createInbox(instanceId);
-    vars.AGENTMAIL_INBOX_ID = inboxId;
-    services.agentmail = { resourceId: inboxId };
-  }
+    if (tools.includes("agentmail") && config.agentmailApiKey) {
+      const inboxId = await agentmail.createInbox(instanceId);
+      vars.AGENTMAIL_INBOX_ID = inboxId;
+      services.agentmail = { resourceId: inboxId };
+    }
 
-  if (tools.includes("telnyx") && config.telnyxApiKey) {
-    const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
-    vars.TELNYX_PHONE_NUMBER = phoneNumber;
-    vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
-    services.telnyx = { resourceId: phoneNumber };
+    if (tools.includes("telnyx") && config.telnyxApiKey) {
+      const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
+      vars.TELNYX_PHONE_NUMBER = phoneNumber;
+      vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
+      services.telnyx = { resourceId: phoneNumber };
+    }
+  } catch (err) {
+    console.error(`[infra] Provisioning failed for ${instanceId}, rolling back...`);
+    if (services.openrouter) {
+      try { await openrouter.deleteKey(services.openrouter.resourceId); } catch (e: any) {
+        console.warn(`[infra] Rollback openrouter failed: ${e.message}`);
+      }
+    }
+    if (services.agentmail) {
+      try { await agentmail.deleteInbox(services.agentmail.resourceId); } catch (e: any) {
+        console.warn(`[infra] Rollback agentmail failed: ${e.message}`);
+      }
+    }
+    if (services.telnyx) {
+      try { await telnyx.deletePhone(services.telnyx.resourceId); } catch (e: any) {
+        console.warn(`[infra] Rollback telnyx failed: ${e.message}`);
+      }
+    }
+    throw err;
   }
 
   // Create Railway service
