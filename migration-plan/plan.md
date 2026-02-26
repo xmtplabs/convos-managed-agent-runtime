@@ -6,6 +6,13 @@ Phases 1–3, 5, and 6 are complete. The pool manager is TypeScript + Drizzle OR
 
 ## Phases
 
+- [x] 1 — [GHCR CI Pipeline](./phase-1-ghcr.md)
+- [x] 2 — [DB Migration](./phase-2-db-migration.md)
+- [x] 3 — [Extract Services](./phase-3-services.md)
+- [ ] 4 — [Railway Sharding](./phase-4-sharding.md) _(remaining)_
+- [x] 5 — [Dashboard](./phase-5-dashboard.md)
+- [x] 6 — [Templates](./phase-6-templates.md)
+
 | Phase | Name | Status | Details |
 |-------|------|--------|---------|
 | 1 | [GHCR CI Pipeline](./phase-1-ghcr.md) | **Complete** | Pre-built runtime images on GitHub Container Registry |
