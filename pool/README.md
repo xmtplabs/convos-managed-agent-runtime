@@ -86,6 +86,7 @@ cd pool && pnpm db:migrate:drop
 | `PORT` | Server port (default `3001`) |
 | `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
 | `POOL_ENVIRONMENT` | `"staging"`, `"dev"`, or `"production"` |
+| `POOL_URL` | Public URL of this pool manager (injected into instances for self-destruct) |
 | `POOL_MIN_IDLE` | Minimum idle instances to maintain (default `3`) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
@@ -148,6 +149,7 @@ Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/p
 | POST | `/api/pool/reconcile` | Yes | Reconcile DB against Railway, clean up orphans |
 | DELETE | `/api/pool/instances/:id` | Yes | Kill a launched instance |
 | DELETE | `/api/pool/crashed/:id` | Yes | Dismiss a crashed agent |
+| POST | `/api/pool/self-destruct` | Token | Instance requests own destruction (per-instance gateway token, not `POOL_API_KEY`) |
 | GET | `/admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
 
 ### `POST /api/pool/claim`

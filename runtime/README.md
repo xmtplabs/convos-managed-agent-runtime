@@ -94,6 +94,9 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | `TELNYX_API_KEY` | no | Telnyx API key (enables SMS skill) |
 | `TELNYX_PHONE_NUMBER` | no | Telnyx phone number (provisioned if API key set) |
 | `TELNYX_MESSAGING_PROFILE_ID` | no | Telnyx messaging profile |
+| `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
+| `POOL_URL` | no | Pool manager public URL (for self-destruct) |
+| `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |
 
 ### Docker / Railway only
 
@@ -161,6 +164,7 @@ When deployed by the pool manager, the runtime exposes endpoints via `pool-serve
 | `GET /pool/health` | Returns `{"ready": true}` when gateway is up |
 | `POST /pool/provision` | Sets agent name, instructions, creates conversation |
 | `GET /pool/status` | Current instance status |
+| `POST /pool/self-destruct` | Instance requests own destruction via pool manager (auth: `POOL_API_KEY`) |
 
 The pool manager creates a Railway service with the GHCR image, injects env vars, waits for `/pool/health`, then provisions via `/pool/provision` at claim time.
 
