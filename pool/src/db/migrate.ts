@@ -2,34 +2,17 @@ import pg from "pg";
 import { config } from "../config";
 
 /**
- * Imperative migration that bridges the old flat `instances` schema (dev)
- * to the new normalised 3-table schema used by Drizzle.
+ * Idempotent migrations — safe to run repeatedly.
  *
- * Idempotent — safe to run repeatedly.  Non-fatal on backfill failure.
- *
- * Old dev schema (instances):
- *   id, service_id, name, url, status, deploy_status, agent_name,
- *   conversation_id, invite_url, instructions, created_at, claimed_at,
- *   source_branch, openrouter_key_hash, agentmail_inbox_id, gateway_token
- *
- * New schema:
- *   instances       — lean lifecycle table
- *   instance_infra  — Railway service / infra details
- *   instance_services — provisioned tool resources
+ * Schema:
+ *   instances          — lean lifecycle table
+ *   instance_infra     — Railway service / infra details
+ *   instance_services  — provisioned tool resources
+ *   phone_number_pool  — reusable Telnyx numbers
  */
 
 async function query(pool: pg.Pool, text: string, params?: unknown[]) {
   return pool.query(text, params);
-}
-
-/** Returns the set of column names for a table. */
-async function columnSet(pool: pg.Pool, table: string): Promise<Set<string>> {
-  const { rows } = await query(
-    pool,
-    `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
-    [table],
-  );
-  return new Set(rows.map((r: any) => r.column_name));
 }
 
 /** Returns true if a table exists. */
@@ -123,95 +106,23 @@ export async function runMigrations() {
       console.log("[migrate] instance_services table already exists.");
     }
 
-    // ── 4. Backfill instance_infra from old instances rows ─────────────
-    const cols = await columnSet(pool, "instances");
-
-    if (cols.has("service_id")) {
-      const { rows: infraCount } = await query(pool, `SELECT COUNT(*) AS cnt FROM instance_infra`);
-      const count = parseInt(infraCount[0].cnt, 10);
-
-      if (count === 0) {
-        console.log("[migrate] Backfilling instance_infra from old instances table...");
-
-        const envId = config.railwayEnvironmentId || "unknown";
-        const projectId = config.railwayProjectId || null;
-
-        const { rows } = await query(pool, `
-          SELECT id, service_id, url, deploy_status,
-                 ${cols.has("runtime_image") ? "runtime_image," : ""}
-                 ${cols.has("openrouter_key_hash") ? "openrouter_key_hash," : ""}
-                 ${cols.has("agentmail_inbox_id") ? "agentmail_inbox_id," : ""}
-                 created_at
-          FROM instances
-          WHERE service_id IS NOT NULL
-        `);
-
-        let infraInserted = 0;
-        let svcInserted = 0;
-
-        for (const row of rows) {
-          // Insert infra row
-          await query(pool, `
-            INSERT INTO instance_infra
-              (instance_id, provider, provider_service_id, provider_env_id, provider_project_id, url, deploy_status, runtime_image, created_at)
-            VALUES ($1, 'railway', $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (instance_id) DO NOTHING
-          `, [row.id, row.service_id, envId, projectId, row.url, row.deploy_status, row.runtime_image || null, row.created_at]);
-          infraInserted++;
-
-          // Backfill openrouter service row
-          if (row.openrouter_key_hash) {
-            await query(pool, `
-              INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value)
-              VALUES ($1, 'openrouter', $2, 'OPENROUTER_API_KEY', NULL)
-              ON CONFLICT (instance_id, tool_id) DO NOTHING
-            `, [row.id, row.openrouter_key_hash]);
-            svcInserted++;
-          }
-
-          // Backfill agentmail service row
-          if (row.agentmail_inbox_id) {
-            await query(pool, `
-              INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value)
-              VALUES ($1, 'agentmail', $2, 'AGENTMAIL_INBOX_ID', $3)
-              ON CONFLICT (instance_id, tool_id) DO NOTHING
-            `, [row.id, row.agentmail_inbox_id, row.agentmail_inbox_id]);
-            svcInserted++;
-          }
-        }
-
-        console.log(`[migrate] Backfilled ${infraInserted} infra + ${svcInserted} service row(s).`);
-      } else {
-        console.log(`[migrate] instance_infra already has ${count} row(s), skipping backfill.`);
-      }
-
-      // ── 5. Relax NOT NULL on legacy columns so new code can coexist ──
-      const legacyCols = ["service_id", "deploy_status", "source_branch", "openrouter_key_hash", "agentmail_inbox_id", "gateway_token"];
-      for (const col of legacyCols) {
-        if (cols.has(col)) {
-          await query(pool, `ALTER TABLE instances ALTER COLUMN ${col} DROP NOT NULL`);
-        }
-      }
-      console.log("[migrate] Relaxed NOT NULL on legacy columns.");
-    } else {
-      console.log("[migrate] instances table already has new schema (no service_id), skipping backfill.");
-    }
-
-    // ── 6. Backfill provider_project_id if set ─────────────────────────
-    if (config.railwayProjectId) {
+    // ── 4. Create phone_number_pool if missing ────────────────────────
+    if (!(await tableExists(pool, "phone_number_pool"))) {
+      console.log("[migrate] Creating phone_number_pool table...");
       await query(pool, `
-        UPDATE instance_infra SET provider_project_id = $1
-        WHERE provider_project_id IS NULL
-      `, [config.railwayProjectId]);
+        CREATE TABLE phone_number_pool (
+          id                    SERIAL PRIMARY KEY,
+          phone_number          TEXT UNIQUE NOT NULL,
+          messaging_profile_id  TEXT NOT NULL,
+          status                TEXT NOT NULL DEFAULT 'available',
+          instance_id           TEXT,
+          created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      console.log("[migrate] Created phone_number_pool table.");
+    } else {
+      console.log("[migrate] phone_number_pool table already exists.");
     }
-
-    // ── 7. Drop legacy agent_metadata table ────────────────────────────
-    // TODO: uncomment once all environments are on the new schema
-    // if (await tableExists(pool, "agent_metadata")) {
-    //   console.log("[migrate] Dropping legacy agent_metadata table...");
-    //   await query(pool, `DROP TABLE agent_metadata`);
-    //   console.log("[migrate] Dropped agent_metadata.");
-    // }
 
     console.log("[migrate] All migrations complete.");
   } finally {
