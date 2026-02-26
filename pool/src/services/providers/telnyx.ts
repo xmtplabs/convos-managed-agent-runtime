@@ -76,15 +76,21 @@ async function getOrCreateMessagingProfile(): Promise<string> {
   return profileId;
 }
 
-/** Assign a phone number to a messaging profile. */
+/** Assign a phone number to a messaging profile (retries for post-purchase propagation). */
 async function assignToProfile(phoneNumber: string, profileId: string): Promise<void> {
-  const res = await fetch(`${TELNYX_API}/phone_numbers/${encodeURIComponent(phoneNumber)}/messaging`, {
-    method: "PATCH",
-    headers: headers(),
-    body: JSON.stringify({ messaging_profile_id: profileId }),
-  });
-  if (!res.ok) {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const res = await fetch(`${TELNYX_API}/phone_numbers/${encodeURIComponent(phoneNumber)}/messaging`, {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ messaging_profile_id: profileId }),
+    });
+    if (res.ok) return;
     const body = await res.text();
+    if (res.status === 404 && attempt < 5) {
+      console.warn(`[telnyx] Assign attempt ${attempt}/5: number not ready yet, retrying in ${attempt * 2}s...`);
+      await new Promise((r) => setTimeout(r, attempt * 2000));
+      continue;
+    }
     console.error("[telnyx] Assign to messaging profile failed:", res.status, body);
     throw new Error(`Telnyx messaging profile assignment failed: ${res.status}`);
   }
