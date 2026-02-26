@@ -5,7 +5,8 @@
 - dont tour core convos extension
 - always use pnpm
 - PRIVATE_WALLET_KEY does nothing to do with Convos!
-- dont rush into action. ask 
+- dont rush into action. ask
+- **NEVER add automatic cleanup/destroy logic to the tick loop.** The tick must never auto-delete Railway projects, services, or volumes. Dead/crashed instances get marked in the DB and must be cleaned up manually via the dashboard. Only explicit user actions (kill, drain, dismiss) may destroy infrastructure.
 
 # Branch Strategy
 
@@ -31,11 +32,8 @@ feature-branch → scaling → dev → staging → main
 
 When deploying pool manager changes to a new Railway environment:
 
-1. Set `POOL_MIN_IDLE=0` — prevents tick loop from spinning up instances during migration
-2. Hit **Drain Unclaimed** in the pool dashboard — removes all idle/starting instances
-3. Set pool manager root directory to `/pool`
-4. Remove all `INSTANCE_*` env vars — instance keys now use their original names (`OPENCLAW_PRIMARY_MODEL`, `AGENTMAIL_API_KEY`, etc.)
-5. Runtime image defaults to `ghcr.io/xmtplabs/convos-runtime:latest`. Set `RAILWAY_RUNTIME_IMAGE` to override.
-6. Once stable, set `POOL_MIN_IDLE` back to desired count (e.g. `3`)
-
-**Important**: Drain without `POOL_MIN_IDLE=0` is useless — the next tick (~30s) will just recreate the instances.
+1. Hit **Drain Unclaimed** in the pool dashboard — removes all idle/starting instances
+2. Set pool manager root directory to `/pool`
+3. Remove all `INSTANCE_*` env vars — instance keys now use their original names (`OPENCLAW_PRIMARY_MODEL`, `AGENTMAIL_API_KEY`, etc.)
+4. Runtime image defaults to `ghcr.io/xmtplabs/convos-runtime:latest`. Set `RAILWAY_RUNTIME_IMAGE` to override.
+5. Replenish manually via the admin dashboard "+ Add" button

@@ -29,7 +29,6 @@ export interface DestroyResult {
 }
 
 export interface BatchStatusResponse {
-  projectId: string;
   services: Array<{
     instanceId: string;
     serviceId: string;

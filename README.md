@@ -99,8 +99,8 @@ POOL_API_KEY=test
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@postgres.railway.internal:5432/railway
 
 # Railway
-RAILWAY_PROJECT_ID=c8090f69-bfd3-4955-a1d1-fe9af4c7c45a
-RAILWAY_ENVIRONMENT_ID=3e887007-21f1-40d5-bf0b-89a3fb71f511
+RAILWAY_PROJECT_ID=
+RAILWAY_ENVIRONMENT_ID=
 RAILWAY_API_TOKEN=your-railway-api-token
 
 # OpenRouter (pool creates per-instance keys from this)

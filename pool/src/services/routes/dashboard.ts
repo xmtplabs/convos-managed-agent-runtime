@@ -1,11 +1,9 @@
 import { Router } from "express";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "../../db/connection";
-import { instanceInfra, instanceServices } from "../../db/schema";
+import { destroyInstance } from "../infra";
 import * as openrouter from "../providers/openrouter";
-import * as railway from "../providers/railway";
 import * as agentmail from "../providers/agentmail";
-import * as telnyx from "../providers/telnyx";
 
 export const dashboardRouter = Router();
 
@@ -89,52 +87,14 @@ dashboardRouter.patch("/dashboard/topup/:keyHash", async (req, res) => {
 dashboardRouter.delete("/dashboard/kill/:instanceId", async (req, res) => {
   try {
     const { instanceId } = req.params;
-
-    const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
-    const infra = infraRows[0];
-    if (!infra) {
-      res.status(404).json({ error: `Instance ${instanceId} not found` });
-      return;
-    }
-
-    const svcRows = await db.select().from(instanceServices).where(eq(instanceServices.instanceId, instanceId));
-
-    // Delete tool resources
-    for (const svc of svcRows) {
-      try {
-        if (svc.toolId === "openrouter") await openrouter.deleteKey(svc.resourceId);
-        else if (svc.toolId === "agentmail") await agentmail.deleteInbox(svc.resourceId);
-        else if (svc.toolId === "telnyx") await telnyx.deletePhone(svc.resourceId);
-      } catch (err: any) {
-        console.warn(`[dashboard] Failed to delete ${svc.toolId} for ${instanceId}:`, err.message);
-      }
-    }
-
-    // Delete volumes + Railway service
-    const serviceId = infra.providerServiceId;
-    try {
-      const volumeMap = await railway.fetchAllVolumesByService();
-      for (const volId of volumeMap?.get(serviceId) || []) {
-        await railway.deleteVolume(volId, serviceId);
-      }
-    } catch (err: any) {
-      console.warn(`[dashboard] Volume cleanup failed for ${instanceId}:`, err.message);
-    }
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        await railway.deleteService(serviceId);
-        break;
-      } catch (err: any) {
-        console.warn(`[dashboard] Delete service attempt ${attempt}/3 for ${serviceId}: ${err.message}`);
-        if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
-      }
-    }
-
-    await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    await destroyInstance(instanceId);
     console.log(`[dashboard] Instance ${instanceId} destroyed`);
     res.json({ ok: true, instanceId });
   } catch (err: any) {
+    if (err.status === 404) {
+      res.status(404).json({ error: err.message });
+      return;
+    }
     console.error("[dashboard] kill failed:", err);
     res.status(500).json({ error: err.message });
   }
