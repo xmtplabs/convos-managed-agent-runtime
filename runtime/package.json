@@ -13,7 +13,6 @@
     "gateway": "sh scripts/gateway.sh",
     "qa": "sh scripts/qa.sh",
     "pool-server": "node scripts/pool-server.js",
-    "clean-providers": "node scripts/clean-providers.mjs",
     "build": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local .",
     "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
     "build:run": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local"
@@ -21,7 +20,7 @@
   "dependencies": {
     "@bankr/cli": "^0.1.0-beta.16",
     "@telnyx/api-cli": "^1.1.0",
-    "@xmtp/convos-cli": "^0.3.1",
+    "@xmtp/convos-cli": "^0.3.2",
     "agentmail": "^0.2.17",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",

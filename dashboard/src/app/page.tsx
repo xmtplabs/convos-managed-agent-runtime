@@ -138,7 +138,7 @@ export default function Home() {
               crypto wallets to help your group with scheduling, reservations,
               payments, and more.
               <br />
-              <a href="#">Built with OpenClaw 🦞</a>
+              <a href="https://openclaw.io" target="_blank" rel="noopener noreferrer">Built with OpenClaw 🦞</a>
             </p>
           </div>
           <div>
@@ -148,7 +148,7 @@ export default function Home() {
               assistant you add is unique to that conversation and can never
               access other chats, contacts, or profiles.
               <br />
-              <a href="#">Learn more</a>
+              <a href="/safety">Learn more</a>
             </p>
           </div>
         </div>

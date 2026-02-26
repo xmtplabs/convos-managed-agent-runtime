@@ -116,7 +116,7 @@ Pool manager calls:
 2. **Provision:** `POST /convos/conversation` with `name`, `instructions`, etc., or `POST /convos/join` with `inviteUrl` and optional `instructions`.
 3. Instance writes `INSTRUCTIONS.md` to workspace when `instructions` is provided; starts streaming and is live.
 
-See `docs/design.md` and `docs/pool.md` for pool architecture.
+See `docs/schema.md` and `pool/README.md` for pool architecture.
 
 ---
 
