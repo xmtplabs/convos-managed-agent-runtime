@@ -1,8 +1,7 @@
 #!/bin/sh
-# Provision keys. Three modes:
-#   1. Pool-managed: all keys arrive as env vars (nothing to do, just write .env)
-#   2. Local dev with services: calls POST /provision-local to get keys from services API
-#   3. Standalone: generates secrets locally, no external tools provisioned
+# Read keys from env (injected by pool manager) and generate local secrets.
+# All tool keys (OPENROUTER_API_KEY, AGENTMAIL_INBOX_ID, etc.) must arrive
+# as env vars — this script does not provision them.
 set -e
 
 . "$(dirname "$0")/lib/init.sh"
@@ -14,79 +13,10 @@ echo ""
 echo "  🔑 Provisioning keys"
 echo "  ═══════════════════"
 
-# ── Provision tools via pool API if available and keys are missing ──────
-
-if [ -n "$POOL_URL" ] && [ -n "$POOL_API_KEY" ]; then
-  # Build the tools list based on what's missing
-  tools=""
-  if [ -z "$OPENROUTER_API_KEY" ]; then tools="$tools\"openrouter\","; fi
-  if [ -z "$AGENTMAIL_INBOX_ID" ]; then tools="$tools\"agentmail\","; fi
-  if [ -z "$TELNYX_PHONE_NUMBER" ] && [ -n "$TELNYX_API_KEY" ]; then tools="$tools\"telnyx\","; fi
-
-  if [ -n "$tools" ]; then
-    # Strip trailing comma, wrap in array
-    tools_json="[$(echo "$tools" | sed 's/,$//')]"
-    echo "  🔧 Requesting tools from pool: $tools_json"
-
-    max_retries=3
-    retry_delay=5
-    attempt=1
-    provisioned=false
-
-    while [ "$attempt" -le "$max_retries" ]; do
-      resp=$(curl -s -w '\n%{http_code}' --connect-timeout 5 -X POST "$POOL_URL/provision-local" \
-        -H "Authorization: Bearer $POOL_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d "{\"tools\": $tools_json}" 2>/dev/null) || true
-      http_code=$(echo "$resp" | tail -n1)
-      body=$(echo "$resp" | sed '$d')
-
-      if [ "$http_code" = "200" ]; then
-        provisioned=true
-        break
-      fi
-
-      if [ "$attempt" -lt "$max_retries" ]; then
-        echo "  ⚠️  Pool unreachable (attempt $attempt/$max_retries), retrying in ${retry_delay}s..." >&2
-        sleep "$retry_delay"
-      fi
-      attempt=$((attempt + 1))
-    done
-
-    if [ "$provisioned" = "true" ]; then
-      or_key=$(echo "$body" | jq -r '.env.OPENROUTER_API_KEY // empty')
-      inbox_id=$(echo "$body" | jq -r '.env.AGENTMAIL_INBOX_ID // empty')
-      telnyx_num=$(echo "$body" | jq -r '.env.TELNYX_PHONE_NUMBER // empty')
-      telnyx_prof=$(echo "$body" | jq -r '.env.TELNYX_MESSAGING_PROFILE_ID // empty')
-
-      if [ -n "$or_key" ]; then
-        export OPENROUTER_API_KEY="$or_key"
-        echo "  🔧 OPENROUTER_API_KEY      → provisioned via pool"
-      fi
-      if [ -n "$inbox_id" ]; then
-        export AGENTMAIL_INBOX_ID="$inbox_id"
-        echo "  🔧 AGENTMAIL_INBOX_ID      → provisioned via pool"
-      fi
-      if [ -n "$telnyx_num" ]; then
-        export TELNYX_PHONE_NUMBER="$telnyx_num"
-        echo "  🔧 TELNYX_PHONE_NUMBER     → provisioned via pool"
-      fi
-      if [ -n "$telnyx_prof" ]; then
-        export TELNYX_MESSAGING_PROFILE_ID="$telnyx_prof"
-        echo "  🔧 TELNYX_MESSAGING_PROFILE_ID → provisioned via pool"
-      fi
-    else
-      echo "  ⚠️  Pool provisioning failed after $max_retries attempts (http=$http_code)" >&2
-    fi
-  else
-    echo "  ✅ All tool keys present in env"
-  fi
-fi
-
 # ── Hard dependency: agent needs a model key to function ───────────────────
 
 if [ -z "$OPENROUTER_API_KEY" ]; then
-  echo "  ❌ OPENROUTER_API_KEY is required but not set (pool may be down)" >&2
+  echo "  ❌ OPENROUTER_API_KEY is required but not set" >&2
   exit 1
 fi
 
