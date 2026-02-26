@@ -1459,6 +1459,7 @@ export function adminPage({
       { key: 'railway-project', label: 'Railway project' },
       { key: 'railway-service', label: 'Railway service + volume' },
       { key: 'railway-domain', label: 'Railway domain' },
+      { key: 'deploy', label: 'Deploy + health check' },
     ];
 
     var provisionTotal = 0;
@@ -1516,14 +1517,85 @@ export function adminPage({
       }
     }
 
-    function markProvisionInstance(instanceNum, success) {
+    // Map instanceNum → instanceId for deploy polling
+    var provisionInstanceIds = {};
+
+    function markProvisionInstance(instanceNum, success, instanceId) {
+      if (!success) {
+        provisionDone++;
+        document.getElementById('prov-count').textContent = provisionDone + '/' + provisionTotal;
+        var statusEl = document.getElementById('prov-inst-status-' + instanceNum);
+        if (statusEl) {
+          statusEl.className = 'prov-status failed';
+          statusEl.textContent = 'Failed';
+        }
+        return;
+      }
+      // Infra created — start deploy polling
+      updateProvisionStep(instanceNum, 'deploy', 'active', 'Building...');
+      var statusEl2 = document.getElementById('prov-inst-status-' + instanceNum);
+      if (statusEl2) {
+        statusEl2.className = 'prov-status in-progress';
+        statusEl2.textContent = 'Deploying';
+      }
+      if (instanceId) provisionInstanceIds[instanceNum] = instanceId;
+    }
+
+    function markProvisionDeploy(instanceNum, status, message) {
       provisionDone++;
       document.getElementById('prov-count').textContent = provisionDone + '/' + provisionTotal;
+      updateProvisionStep(instanceNum, 'deploy', status, message || '');
       var statusEl = document.getElementById('prov-inst-status-' + instanceNum);
       if (statusEl) {
-        statusEl.className = 'prov-status ' + (success ? 'success' : 'failed');
-        statusEl.textContent = success ? 'Done' : 'Failed';
+        if (status === 'ok') {
+          statusEl.className = 'prov-status success';
+          statusEl.textContent = 'Ready';
+        } else {
+          statusEl.className = 'prov-status failed';
+          statusEl.textContent = 'Deploy failed';
+        }
       }
+    }
+
+    function pollDeployStatus() {
+      var pending = Object.keys(provisionInstanceIds);
+      if (pending.length === 0) return;
+
+      var pollInterval = setInterval(async function () {
+        try {
+          var res = await fetch('/api/pool/agents');
+          var data = await res.json();
+          var allInstances = [].concat(data.idle || [], data.claimed || [], data.crashed || [], data.starting || []);
+
+          var remaining = 0;
+          pending.forEach(function (num) {
+            var id = provisionInstanceIds[num];
+            if (!id) return;
+            var inst = allInstances.find(function (a) { return a.id === id; });
+            if (!inst) { remaining++; return; }
+
+            if (inst.status === 'idle') {
+              markProvisionDeploy(num, 'ok', 'Ready');
+              delete provisionInstanceIds[num];
+            } else if (inst.status === 'crashed' || inst.status === 'dead') {
+              markProvisionDeploy(num, 'fail', 'Deploy crashed');
+              delete provisionInstanceIds[num];
+            } else {
+              remaining++;
+            }
+          });
+
+          // Refresh the agents table while we wait
+          claimedCache = (data.claimed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          crashedCache = (data.crashed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          idleCache = (data.idle || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+          startingCache = (data.starting || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+          renderAgents();
+          refreshCounts();
+
+          if (remaining === 0) clearInterval(pollInterval);
+        } catch (e) {}
+      }, 10000); // poll every 10s
     }
 
     function toggleProvisionLog() {
@@ -1544,6 +1616,7 @@ export function adminPage({
       btn.disabled = true; btn.textContent = 'Adding...';
       showProvisionLog(n);
 
+      var lastInstanceId = {};
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&key=' + encodeURIComponent(API_KEY));
       es.onmessage = function (ev) {
         try {
@@ -1551,7 +1624,7 @@ export function adminPage({
 
           if (data.type === 'step') {
             if (data.step === 'done') {
-              markProvisionInstance(data.instanceNum, true);
+              markProvisionInstance(data.instanceNum, true, lastInstanceId[data.instanceNum]);
             } else if (data.step === 'error') {
               markProvisionInstance(data.instanceNum, false);
             } else {
@@ -1560,6 +1633,7 @@ export function adminPage({
           } else if (data.type === 'instance') {
             var inst = data.instance;
             if (inst) {
+              lastInstanceId[data.instanceNum] = inst.id;
               var exists = startingCache.some(function (a) { return a.id === inst.id; });
               if (!exists) {
                 startingCache.unshift({
@@ -1580,6 +1654,8 @@ export function adminPage({
             refreshCounts();
             refreshCredits();
             refreshInstances();
+            // Start polling for deploy completion
+            pollDeployStatus();
           }
         } catch (e) {}
       };
@@ -1590,6 +1666,7 @@ export function adminPage({
         refreshCounts();
         refreshCredits();
         refreshInstances();
+        pollDeployStatus();
       };
     });
 
