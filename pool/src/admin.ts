@@ -1537,8 +1537,8 @@ export function adminPage({
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
-            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">' + esc(infra.provider_service_id.slice(0, 12)) + '</a>'
-            : '<span class="expand-val mono">' + esc(infra.provider_service_id.slice(0, 12)) + '</span>')
+            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">convos-agent-' + esc(instanceId) + '</a>'
+            : '<span class="expand-val mono">convos-agent-' + esc(instanceId) + '</span>')
           + '</div>' : '')
         + '</div>';
 
