@@ -1,28 +1,4 @@
-export interface InfraRow {
-  instance_id: string;
-  provider: string;
-  provider_service_id: string;
-  provider_env_id: string;
-  provider_project_id: string | null;
-  url: string | null;
-  deploy_status: string | null;
-  runtime_image: string | null;
-  volume_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ServiceRow {
-  id: number;
-  instance_id: string;
-  tool_id: string;
-  resource_id: string;
-  resource_meta: Record<string, unknown>;
-  env_key: string;
-  env_value: string | null;
-  status: string;
-  created_at: string;
-}
+export type { InstanceStatus, InstanceRow, InfraRow, ServiceRow } from "./db/schema";
 
 export interface CreateInstanceRequest {
   instanceId: string;

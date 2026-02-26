@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { ToolRegistryEntry } from "../../types.js";
+import type { ToolRegistryEntry } from "../../types";
 
 export const registryRouter = Router();
 

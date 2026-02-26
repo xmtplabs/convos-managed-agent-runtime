@@ -1,4 +1,4 @@
-import { config } from "../../config.js";
+import { config } from "../../config";
 
 const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
@@ -54,7 +54,7 @@ export async function createService(name: string, variables: Record<string, stri
   // Set image + start command before variables
   try {
     await updateServiceInstance(serviceId, {
-      startCommand: "node scripts/pool-server.js",
+      startCommand: "node scripts/pool-server",
       source: { image },
     });
     console.log(`[railway]   Configured: image=${image}`);

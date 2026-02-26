@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { deriveStatus } from "./status.js";
+import { deriveStatus } from "./status";
 
 describe("deriveStatus", () => {
   const STUCK_MS = 15 * 60 * 1000;

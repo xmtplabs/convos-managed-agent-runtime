@@ -1,11 +1,11 @@
 import { nanoid } from "nanoid";
-import * as db from "./db/pool.js";
-import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance } from "./services/infra.js";
-import { fetchBatchStatus } from "./services/status.js";
-import { deriveStatus } from "./status.js";
-import { config } from "./config.js";
-import * as railway from "./services/providers/railway.js";
-import * as openrouter from "./services/providers/openrouter.js";
+import * as db from "./db/pool";
+import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance } from "./services/infra";
+import { fetchBatchStatus } from "./services/status";
+import { deriveStatus } from "./status";
+import { config } from "./config";
+import * as railway from "./services/providers/railway";
+import * as openrouter from "./services/providers/openrouter";
 
 // Destroy via services. If not in infra DB but we have a Railway serviceId, delete that directly.
 async function safeDestroy(instanceId: string, railwayServiceId?: string) {
@@ -103,7 +103,7 @@ export async function tick() {
 
   for (const svc of agentServices) {
     const row = dbById.get(svc.instanceId);
-    console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimed_at ? " (claimed)" : ""}`);
+    console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimedAt ? " (claimed)" : ""}`);
   }
 
   const successServices = agentServices.filter((s) => s.deployStatus === "SUCCESS");
@@ -146,8 +146,8 @@ export async function tick() {
     if (dbRow?.status === "claiming") continue;
 
     const hc = healthResults.get(instId) || null;
-    const isClaimed = !!dbRow?.agent_name;
-    const createdAt = dbRow?.created_at || new Date().toISOString();
+    const isClaimed = !!dbRow?.agentName;
+    const createdAt = dbRow?.createdAt || new Date().toISOString();
     const status = deriveStatus({
       deployStatus: svc.deployStatus,
       healthCheck: hc,
@@ -172,11 +172,11 @@ export async function tick() {
       url,
       status,
       createdAt,
-      agentName: dbRow?.agent_name || null,
-      conversationId: dbRow?.conversation_id || null,
-      inviteUrl: dbRow?.invite_url || null,
+      agentName: dbRow?.agentName || null,
+      conversationId: dbRow?.conversationId || null,
+      inviteUrl: dbRow?.inviteUrl || null,
       instructions: dbRow?.instructions || null,
-      claimedAt: dbRow?.claimed_at || null,
+      claimedAt: dbRow?.claimedAt || null,
     });
   }
 
@@ -216,7 +216,7 @@ export async function tick() {
   }
 }
 
-export { provision } from "./provision.js";
+export { provision } from "./provision";
 
 export async function drainPool(count: number) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
@@ -284,7 +284,7 @@ export async function killInstance(id: string) {
     railwayServiceId = batch.services?.[0]?.serviceId;
   } catch {}
 
-  console.log(`[pool] Killing instance ${inst.id} (${inst.agent_name || inst.name})`);
+  console.log(`[pool] Killing instance ${inst.id} (${inst.agentName || inst.name})`);
   await safeDestroy(inst.id, railwayServiceId);
   await db.deleteById(inst.id).catch(() => {});
 }
@@ -300,7 +300,7 @@ export async function dismissCrashed(id: string) {
     railwayServiceId = batch.services?.[0]?.serviceId;
   } catch {}
 
-  console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agent_name || inst.name})`);
+  console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agentName || inst.name})`);
   await safeDestroy(inst.id, railwayServiceId);
   await db.deleteById(inst.id).catch(() => {});
 }

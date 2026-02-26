@@ -1,9 +1,11 @@
 import { Router } from "express";
-import { sql } from "../../db/connection.js";
-import * as openrouter from "../providers/openrouter.js";
-import * as railway from "../providers/railway.js";
-import * as agentmail from "../providers/agentmail.js";
-import * as telnyx from "../providers/telnyx.js";
+import { eq, sql } from "drizzle-orm";
+import { db } from "../../db/connection";
+import { instanceInfra, instanceServices } from "../../db/schema";
+import * as openrouter from "../providers/openrouter";
+import * as railway from "../providers/railway";
+import * as agentmail from "../providers/agentmail";
+import * as telnyx from "../providers/telnyx";
 
 export const dashboardRouter = Router();
 
@@ -13,14 +15,15 @@ export const dashboardRouter = Router();
  */
 dashboardRouter.get("/dashboard/instances", async (_req, res) => {
   try {
-    const result = await sql`
+    // LEFT JOIN with json_agg — keep as raw SQL (Drizzle doesn't have native json_agg)
+    const result = await db.execute(sql`
       SELECT i.*,
              COALESCE(json_agg(s.*) FILTER (WHERE s.id IS NOT NULL), '[]') AS tools
       FROM instance_infra i
       LEFT JOIN instance_services s ON s.instance_id = i.instance_id
       GROUP BY i.instance_id
       ORDER BY i.created_at DESC
-    `;
+    `);
     res.json(result.rows);
   } catch (err: any) {
     console.error("[dashboard] instances failed:", err);
@@ -60,6 +63,26 @@ dashboardRouter.get("/dashboard/inboxes", async (_req, res) => {
 });
 
 /**
+ * PATCH /dashboard/topup/:keyHash
+ * Update the spending limit on an OpenRouter key.
+ */
+dashboardRouter.patch("/dashboard/topup/:keyHash", async (req, res) => {
+  try {
+    const { keyHash } = req.params;
+    const { limit } = req.body;
+    if (typeof limit !== "number" || limit <= 0) {
+      res.status(400).json({ error: "limit must be a positive number" });
+      return;
+    }
+    const result = await openrouter.updateKeyLimit(keyHash, limit);
+    res.json({ ok: true, data: result });
+  } catch (err: any) {
+    console.error("[dashboard] topup failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * DELETE /dashboard/kill/:instanceId
  * Destroys an instance and all its resources (Railway service, tools, DB rows).
  */
@@ -67,28 +90,28 @@ dashboardRouter.delete("/dashboard/kill/:instanceId", async (req, res) => {
   try {
     const { instanceId } = req.params;
 
-    const infraResult = await sql`SELECT * FROM instance_infra WHERE instance_id = ${instanceId}`;
-    const infra = infraResult.rows[0];
+    const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${instanceId} not found` });
       return;
     }
 
-    const svcResult = await sql`SELECT * FROM instance_services WHERE instance_id = ${instanceId}`;
+    const svcRows = await db.select().from(instanceServices).where(eq(instanceServices.instanceId, instanceId));
 
     // Delete tool resources
-    for (const svc of svcResult.rows) {
+    for (const svc of svcRows) {
       try {
-        if (svc.tool_id === "openrouter") await openrouter.deleteKey(svc.resource_id);
-        else if (svc.tool_id === "agentmail") await agentmail.deleteInbox(svc.resource_id);
-        else if (svc.tool_id === "telnyx") await telnyx.deletePhone(svc.resource_id);
+        if (svc.toolId === "openrouter") await openrouter.deleteKey(svc.resourceId);
+        else if (svc.toolId === "agentmail") await agentmail.deleteInbox(svc.resourceId);
+        else if (svc.toolId === "telnyx") await telnyx.deletePhone(svc.resourceId);
       } catch (err: any) {
-        console.warn(`[dashboard] Failed to delete ${svc.tool_id} for ${instanceId}:`, err.message);
+        console.warn(`[dashboard] Failed to delete ${svc.toolId} for ${instanceId}:`, err.message);
       }
     }
 
     // Delete volumes + Railway service
-    const serviceId = infra.provider_service_id;
+    const serviceId = infra.providerServiceId;
     try {
       const volumeMap = await railway.fetchAllVolumesByService();
       for (const volId of volumeMap?.get(serviceId) || []) {
@@ -108,7 +131,7 @@ dashboardRouter.delete("/dashboard/kill/:instanceId", async (req, res) => {
       }
     }
 
-    await sql`DELETE FROM instance_infra WHERE instance_id = ${instanceId}`;
+    await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
     console.log(`[dashboard] Instance ${instanceId} destroyed`);
     res.json({ ok: true, instanceId });
   } catch (err: any) {

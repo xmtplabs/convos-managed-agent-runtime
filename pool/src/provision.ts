@@ -1,5 +1,5 @@
-import * as db from "./db/pool.js";
-import { config } from "./config.js";
+import * as db from "./db/pool";
+import { config } from "./config";
 
 interface ProvisionOpts {
   agentName: string;

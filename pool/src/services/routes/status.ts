@@ -1,7 +1,7 @@
 import { Router } from "express";
-import * as railway from "../providers/railway.js";
-import { config } from "../../config.js";
-import type { BatchStatusResponse } from "../../types.js";
+import * as railway from "../providers/railway";
+import { config } from "../../config";
+import type { BatchStatusResponse } from "../../types";
 
 export const statusRouter = Router();
 

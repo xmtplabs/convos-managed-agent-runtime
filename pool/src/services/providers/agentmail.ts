@@ -1,4 +1,4 @@
-import { config } from "../../config.js";
+import { config } from "../../config";
 
 /** Create a per-instance AgentMail inbox. Returns inbox ID. */
 export async function createInbox(instanceId: string): Promise<string> {

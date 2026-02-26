@@ -2,20 +2,19 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { readFileSync } from "node:fs";
-import * as pool from "./pool.js";
-import * as db from "./db/pool.js";
-import { migrate } from "./db/migrate.js";
-import { config } from "./config.js";
-import { requireAuth } from "./middleware/auth.js";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin.js";
+import * as pool from "./pool";
+import * as db from "./db/pool";
+import { config } from "./config";
+import { requireAuth } from "./middleware/auth";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
 
 // Services routes (now local, no HTTP)
-import { infraRouter } from "./services/routes/infra.js";
-import { statusRouter } from "./services/routes/status.js";
-import { configureRouter } from "./services/routes/configure.js";
-import { toolsRouter } from "./services/routes/tools.js";
-import { dashboardRouter } from "./services/routes/dashboard.js";
-import { registryRouter } from "./services/routes/registry.js";
+import { infraRouter } from "./services/routes/infra";
+import { statusRouter } from "./services/routes/status";
+import { configureRouter } from "./services/routes/configure";
+import { toolsRouter } from "./services/routes/tools";
+import { dashboardRouter } from "./services/routes/dashboard";
+import { registryRouter } from "./services/routes/registry";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -100,19 +99,11 @@ app.get("/api/pool/counts", async (_req, res) => {
   res.json(await db.getCounts());
 });
 
-function camelRow(row: any) {
-  const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(row)) {
-    out[k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())] = v;
-  }
-  return out;
-}
-
 app.get("/api/pool/agents", async (_req, res) => {
-  const claimed = (await db.getByStatus("claimed")).map(camelRow);
-  const crashed = (await db.getByStatus("crashed")).map(camelRow);
-  const idle = (await db.getByStatus("idle")).map(camelRow);
-  const starting = (await db.getByStatus("starting")).map(camelRow);
+  const claimed = await db.getByStatus("claimed");
+  const crashed = await db.getByStatus("crashed");
+  const idle = await db.getByStatus("idle");
+  const starting = await db.getByStatus("starting");
   res.json({ claimed, crashed, idle, starting });
 });
 

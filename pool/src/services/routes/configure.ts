@@ -1,6 +1,8 @@
 import { Router } from "express";
-import { sql } from "../../db/connection.js";
-import * as railway from "../providers/railway.js";
+import { eq } from "drizzle-orm";
+import { db } from "../../db/connection";
+import { instanceInfra } from "../../db/schema";
+import * as railway from "../providers/railway";
 
 export const configureRouter = Router();
 
@@ -22,19 +24,19 @@ configureRouter.post("/configure/:instanceId", async (req, res) => {
     }
 
     // Look up infra row
-    const infraResult = await sql`SELECT * FROM instance_infra WHERE instance_id = ${instanceId}`;
-    const infra = infraResult.rows[0];
+    const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${instanceId} not found` });
       return;
     }
 
-    await railway.upsertVariables(infra.provider_service_id, variables, {
+    await railway.upsertVariables(infra.providerServiceId, variables, {
       skipDeploys: !redeploy,
     });
 
     if (redeploy) {
-      await railway.redeployService(infra.provider_service_id);
+      await railway.redeployService(infra.providerServiceId);
     }
 
     console.log(`[configure] Updated ${Object.keys(variables).length} var(s) for ${instanceId}`);

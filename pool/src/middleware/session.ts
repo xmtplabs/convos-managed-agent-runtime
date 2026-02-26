@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { Request, Response } from "express";
-import { config } from "../config.js";
+import { config } from "../config";
 
 const COOKIE_NAME = "pool_session";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;

@@ -1,11 +1,13 @@
 import { Router } from "express";
-import { sql } from "../../db/connection.js";
-import * as railway from "../providers/railway.js";
-import * as openrouter from "../providers/openrouter.js";
-import * as agentmail from "../providers/agentmail.js";
-import * as telnyx from "../providers/telnyx.js";
-import { config } from "../../config.js";
-import type { ProvisionResult } from "../../types.js";
+import { eq, and } from "drizzle-orm";
+import { db } from "../../db/connection";
+import { instanceInfra, instanceServices } from "../../db/schema";
+import * as railway from "../providers/railway";
+import * as openrouter from "../providers/openrouter";
+import * as agentmail from "../providers/agentmail";
+import * as telnyx from "../providers/telnyx";
+import { config } from "../../config";
+import type { ProvisionResult } from "../../types";
 
 export const toolsRouter = Router();
 
@@ -19,18 +21,18 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
     const { config: toolConfig } = req.body as { config?: Record<string, unknown> };
 
     // Verify instance exists
-    const infraResult = await sql`SELECT * FROM instance_infra WHERE instance_id = ${instanceId}`;
-    const infra = infraResult.rows[0];
+    const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${instanceId} not found` });
       return;
     }
 
     // Check if already provisioned
-    const existing = await sql`
-      SELECT * FROM instance_services WHERE instance_id = ${instanceId} AND tool_id = ${toolId}
-    `;
-    if (existing.rows.length > 0) {
+    const existing = await db.select().from(instanceServices).where(
+      and(eq(instanceServices.instanceId, instanceId), eq(instanceServices.toolId, toolId))
+    );
+    if (existing.length > 0) {
       res.status(409).json({ error: `Tool ${toolId} already provisioned for ${instanceId}` });
       return;
     }
@@ -77,55 +79,23 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
     }
 
     // Push env var to Railway service
-    await railway.upsertVariables(infra.provider_service_id, { [envKey]: envValue! });
+    await railway.upsertVariables(infra.providerServiceId, { [envKey]: envValue! });
 
     // Insert instance_services row
-    await sql`
-      INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value, resource_meta)
-      VALUES (${instanceId}, ${toolId}, ${resourceId}, ${envKey}, ${envValue}, ${JSON.stringify(resourceMeta)})
-    `;
+    await db.insert(instanceServices).values({
+      instanceId,
+      toolId,
+      resourceId,
+      envKey,
+      envValue,
+      resourceMeta,
+    });
 
     const result: ProvisionResult = { toolId, resourceId, envKey, status: "active" };
     console.log(`[tools] Provisioned ${toolId} for ${instanceId}: ${resourceId}`);
     res.json(result);
   } catch (err: any) {
     console.error("[tools] provision failed:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * POST /provision-local
- * Provision tools for local dev — no instance infra, no Railway, no DB rows.
- * Just creates the resources and returns env vars.
- */
-toolsRouter.post("/provision-local", async (req, res) => {
-  try {
-    const { tools = ["openrouter", "agentmail"] } = req.body as { tools?: string[] };
-    const label = `local-${Date.now()}`;
-    const env: Record<string, string> = {};
-
-    if (tools.includes("openrouter") && config.openrouterManagementKey) {
-      const keyName = `convos-local-${label}`;
-      const { key } = await openrouter.createKey(keyName);
-      env.OPENROUTER_API_KEY = key;
-    }
-
-    if (tools.includes("agentmail") && config.agentmailApiKey) {
-      const inboxId = await agentmail.createInbox(label);
-      env.AGENTMAIL_INBOX_ID = inboxId;
-    }
-
-    if (tools.includes("telnyx") && config.telnyxApiKey) {
-      const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
-      env.TELNYX_PHONE_NUMBER = phoneNumber;
-      env.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
-    }
-
-    console.log(`[tools] Provisioned local: ${Object.keys(env).join(", ")}`);
-    res.json({ env });
-  } catch (err: any) {
-    console.error("[tools] provision-local failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -151,10 +121,13 @@ toolsRouter.delete("/destroy/:instanceId/:toolId/:resourceId", async (req, res) 
     }
 
     // Remove from DB
-    await sql`
-      DELETE FROM instance_services
-      WHERE instance_id = ${instanceId} AND tool_id = ${toolId} AND resource_id = ${resourceId}
-    `;
+    await db.delete(instanceServices).where(
+      and(
+        eq(instanceServices.instanceId, instanceId),
+        eq(instanceServices.toolId, toolId),
+        eq(instanceServices.resourceId, resourceId),
+      )
+    );
 
     console.log(`[tools] Destroyed ${toolId}/${resourceId} for ${instanceId}`);
     res.json({ toolId, resourceId, deleted });

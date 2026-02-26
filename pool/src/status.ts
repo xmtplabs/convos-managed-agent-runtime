@@ -1,3 +1,5 @@
+import type { InstanceStatus } from "./types";
+
 const STUCK_TIMEOUT_MS = parseInt(process.env.POOL_STUCK_TIMEOUT_MS || String(15 * 60 * 1000), 10);
 
 const STARTING_STATUSES = new Set(["QUEUED", "WAITING", "BUILDING", "DEPLOYING"]);
@@ -10,7 +12,7 @@ interface DeriveStatusOpts {
   isClaimed?: boolean;
 }
 
-export function deriveStatus({ deployStatus, healthCheck = null, createdAt = null, isClaimed = false }: DeriveStatusOpts): string {
+export function deriveStatus({ deployStatus, healthCheck = null, createdAt = null, isClaimed = false }: DeriveStatusOpts): InstanceStatus {
   if (deployStatus === "SLEEPING") return "sleeping";
   if (deployStatus && DEAD_STATUSES.has(deployStatus)) return isClaimed ? "crashed" : "dead";
 

@@ -1,13 +1,15 @@
 import { Router } from "express";
-import { sql } from "../../db/connection.js";
-import * as railway from "../providers/railway.js";
-import * as openrouter from "../providers/openrouter.js";
-import * as agentmail from "../providers/agentmail.js";
-import * as telnyx from "../providers/telnyx.js";
-import * as wallet from "../providers/wallet.js";
-import { buildInstanceEnv } from "../providers/env.js";
-import { config } from "../../config.js";
-import type { CreateInstanceRequest, CreateInstanceResponse, DestroyResult } from "../../types.js";
+import { eq } from "drizzle-orm";
+import { db } from "../../db/connection";
+import { instanceInfra, instanceServices } from "../../db/schema";
+import * as railway from "../providers/railway";
+import * as openrouter from "../providers/openrouter";
+import * as agentmail from "../providers/agentmail";
+import * as telnyx from "../providers/telnyx";
+import * as wallet from "../providers/wallet";
+import { buildInstanceEnv } from "../providers/env";
+import { config } from "../../config";
+import type { CreateInstanceRequest, CreateInstanceResponse, DestroyResult } from "../../types";
 
 export const infraRouter = Router();
 
@@ -82,29 +84,46 @@ infraRouter.post("/create-instance", async (req, res) => {
     }
 
     // Insert into instance_infra
-    await sql`
-      INSERT INTO instance_infra (instance_id, provider, provider_service_id, provider_env_id, provider_project_id, url, deploy_status, runtime_image)
-      VALUES (${instanceId}, 'railway', ${serviceId}, ${environmentId}, ${config.railwayProjectId}, ${url}, 'BUILDING', ${config.railwayRuntimeImage})
-    `;
+    await db.insert(instanceInfra).values({
+      instanceId,
+      provider: "railway",
+      providerServiceId: serviceId,
+      providerEnvId: environmentId,
+      providerProjectId: config.railwayProjectId,
+      url,
+      deployStatus: "BUILDING",
+      runtimeImage: config.railwayRuntimeImage,
+    });
 
     // Insert instance_services rows
     if (services.openrouter) {
-      await sql`
-        INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value, resource_meta)
-        VALUES (${instanceId}, 'openrouter', ${services.openrouter.resourceId}, 'OPENROUTER_API_KEY', ${vars.OPENROUTER_API_KEY}, '{}')
-      `;
+      await db.insert(instanceServices).values({
+        instanceId,
+        toolId: "openrouter",
+        resourceId: services.openrouter.resourceId,
+        envKey: "OPENROUTER_API_KEY",
+        envValue: vars.OPENROUTER_API_KEY,
+        resourceMeta: {},
+      });
     }
     if (services.agentmail) {
-      await sql`
-        INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value)
-        VALUES (${instanceId}, 'agentmail', ${services.agentmail.resourceId}, 'AGENTMAIL_INBOX_ID', ${vars.AGENTMAIL_INBOX_ID || null})
-      `;
+      await db.insert(instanceServices).values({
+        instanceId,
+        toolId: "agentmail",
+        resourceId: services.agentmail.resourceId,
+        envKey: "AGENTMAIL_INBOX_ID",
+        envValue: vars.AGENTMAIL_INBOX_ID || null,
+      });
     }
     if (services.telnyx) {
-      await sql`
-        INSERT INTO instance_services (instance_id, tool_id, resource_id, env_key, env_value, resource_meta)
-        VALUES (${instanceId}, 'telnyx', ${services.telnyx.resourceId}, 'TELNYX_PHONE_NUMBER', ${vars.TELNYX_PHONE_NUMBER}, ${JSON.stringify({ messagingProfileId: vars.TELNYX_MESSAGING_PROFILE_ID })})
-      `;
+      await db.insert(instanceServices).values({
+        instanceId,
+        toolId: "telnyx",
+        resourceId: services.telnyx.resourceId,
+        envKey: "TELNYX_PHONE_NUMBER",
+        envValue: vars.TELNYX_PHONE_NUMBER,
+        resourceMeta: { messagingProfileId: vars.TELNYX_MESSAGING_PROFILE_ID },
+      });
     }
 
     const response: CreateInstanceResponse = {
@@ -131,16 +150,15 @@ infraRouter.delete("/destroy/:instanceId", async (req, res) => {
     const { instanceId } = req.params;
 
     // Look up infra row
-    const infraResult = await sql`SELECT * FROM instance_infra WHERE instance_id = ${instanceId}`;
-    const infra = infraResult.rows[0];
+    const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${instanceId} not found` });
       return;
     }
 
     // Look up service rows
-    const svcResult = await sql`SELECT * FROM instance_services WHERE instance_id = ${instanceId}`;
-    const svcRows = svcResult.rows;
+    const svcRows = await db.select().from(instanceServices).where(eq(instanceServices.instanceId, instanceId));
 
     const destroyed: DestroyResult["destroyed"] = {
       openrouter: false,
@@ -153,20 +171,20 @@ infraRouter.delete("/destroy/:instanceId", async (req, res) => {
     // Delete tool resources
     for (const svc of svcRows) {
       try {
-        if (svc.tool_id === "openrouter") {
-          destroyed.openrouter = await openrouter.deleteKey(svc.resource_id);
-        } else if (svc.tool_id === "agentmail") {
-          destroyed.agentmail = await agentmail.deleteInbox(svc.resource_id);
-        } else if (svc.tool_id === "telnyx") {
-          destroyed.telnyx = await telnyx.deletePhone(svc.resource_id);
+        if (svc.toolId === "openrouter") {
+          destroyed.openrouter = await openrouter.deleteKey(svc.resourceId);
+        } else if (svc.toolId === "agentmail") {
+          destroyed.agentmail = await agentmail.deleteInbox(svc.resourceId);
+        } else if (svc.toolId === "telnyx") {
+          destroyed.telnyx = await telnyx.deletePhone(svc.resourceId);
         }
       } catch (err: any) {
-        console.warn(`[infra] Failed to delete ${svc.tool_id} resource for ${instanceId}:`, err.message);
+        console.warn(`[infra] Failed to delete ${svc.toolId} resource for ${instanceId}:`, err.message);
       }
     }
 
     // Delete volumes
-    const serviceId = infra.provider_service_id;
+    const serviceId = infra.providerServiceId;
     try {
       const volumeMap = await railway.fetchAllVolumesByService();
       const volumeIds = volumeMap?.get(serviceId) || [];
@@ -191,7 +209,7 @@ infraRouter.delete("/destroy/:instanceId", async (req, res) => {
     }
 
     // Delete DB rows (cascade handles instance_services)
-    await sql`DELETE FROM instance_infra WHERE instance_id = ${instanceId}`;
+    await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
 
     console.log(`[infra] Instance ${instanceId} destroyed`);
     res.json({ instanceId, destroyed });
@@ -209,14 +227,14 @@ infraRouter.post("/redeploy/:instanceId", async (req, res) => {
   try {
     const { instanceId } = req.params;
 
-    const infraResult = await sql`SELECT * FROM instance_infra WHERE instance_id = ${instanceId}`;
-    const infra = infraResult.rows[0];
+    const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${instanceId} not found` });
       return;
     }
 
-    await railway.redeployService(infra.provider_service_id);
+    await railway.redeployService(infra.providerServiceId);
     console.log(`[infra] Redeployed instance ${instanceId}`);
     res.json({ instanceId, ok: true });
   } catch (err: any) {

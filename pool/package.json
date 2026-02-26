@@ -11,9 +11,12 @@
     "start": "tsx src/index.ts",
     "test": "tsx --env-file=.env --test src/**/*.test.ts",
     "db:migrate": "tsx --env-file=.env src/db/migrate.ts",
-    "db:migrate:drop": "tsx --env-file=.env src/db/migrate.ts --drop"
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.1",
     "express": "^5.1.0",
     "nanoid": "^5.1.5",
     "pg": "^8.18.0"
@@ -22,6 +25,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
+    "drizzle-kit": "^0.31.9",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0"
   }

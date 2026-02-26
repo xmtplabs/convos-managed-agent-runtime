@@ -663,19 +663,19 @@ export function adminPage({
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
     }
     .expand-inner {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 10px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      padding: 14px 20px;
     }
     .expand-section {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 6px;
       background: #FFF;
       border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      padding: 6px 10px;
+      border-radius: 8px;
+      padding: 10px 14px;
       font-size: 11px;
     }
     .expand-section-title {
@@ -684,8 +684,13 @@ export function adminPage({
       text-transform: uppercase;
       letter-spacing: 0.3px;
       color: #6B7280;
-      margin-right: 2px;
+      margin-bottom: 2px;
       white-space: nowrap;
+    }
+    .expand-kvs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
     .expand-kv {
       display: flex;
@@ -694,7 +699,6 @@ export function adminPage({
       color: #374151;
       white-space: nowrap;
     }
-    .expand-kv + .expand-kv { border-left: 1px solid #E5E7EB; padding-left: 6px; }
     .expand-label {
       font-size: 10px;
       color: #9CA3AF;
@@ -730,11 +734,58 @@ export function adminPage({
     }
     .expand-bar-inline > div.warn { background: #FF9500; }
     .expand-bar-inline > div.danger { background: #DC2626; }
+    .expand-topup {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .expand-topup input {
+      width: 64px;
+      padding: 3px 6px;
+      font-size: 11px;
+      font-family: inherit;
+      border: 1px solid #E5E7EB;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .expand-topup input:focus { outline: none; border-color: #999; }
+    .expand-topup button {
+      font-family: inherit;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid #000;
+      background: #000;
+      color: #fff;
+      transition: opacity 0.15s;
+    }
+    .expand-topup button:hover:not(:disabled) { opacity: 0.85; }
+    .expand-topup button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .expand-topup .topup-msg {
+      font-size: 10px;
+      font-weight: 500;
+    }
+    .expand-topup .topup-msg.success { color: #059669; }
+    .expand-topup .topup-msg.error { color: #DC2626; }
     .expand-empty {
       font-size: 11px;
       color: #9CA3AF;
       padding: 2px 0;
     }
+    .search-input {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      border: 1px solid #EBEBEB;
+      border-radius: 6px;
+      background: #fff;
+      min-width: 180px;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { outline: none; border-color: #999; }
 
     /* --- Responsive --- */
     @media (max-width: 640px) {
@@ -851,12 +902,15 @@ export function adminPage({
           <span class="table-title">Agents</span>
           <span class="table-count" id="table-count"></span>
         </div>
-        <div class="filter-pills" id="filter-pills">
-          <button class="filter-pill active" data-filter="">All <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="running">Running <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="idle">Ready <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="starting">Starting <span class="pill-count">-</span></button>
-          <button class="filter-pill" data-filter="crashed">Crashed <span class="pill-count">-</span></button>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input class="search-input" id="search-input" type="text" placeholder="Search instances..." />
+          <div class="filter-pills" id="filter-pills">
+            <button class="filter-pill active" data-filter="">All <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="running">Running <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="idle">Ready <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="starting">Starting <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="crashed">Crashed <span class="pill-count">-</span></button>
+          </div>
         </div>
       </div>
       <table>
@@ -910,8 +964,19 @@ export function adminPage({
     var svcKeyMap = {}; // keyed by key name e.g. 'convos-agent-xxxxx'
     var svcToolsMap = {}; // keyed by instance_id → tools array from instance_services
     var statusFilter = null; // null = show all, 'idle' | 'starting' | 'running' | 'crashed'
+    var searchQuery = '';
+    var searchTimer = null;
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+    // --- Search input (debounced) ---
+    document.getElementById('search-input').addEventListener('input', function (e) {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        searchQuery = e.target.value.trim().toLowerCase();
+        renderAgents();
+      }, 200);
+    });
 
     // --- Filter pills ---
     document.getElementById('filter-pills').addEventListener('click', function (e) {
@@ -991,6 +1056,14 @@ export function adminPage({
         .concat(showIdle ? idleCache : [])
         .concat(showStarting ? startingCache : []);
 
+      // Apply search filter
+      if (searchQuery) {
+        filtered = filtered.filter(function (a) {
+          var text = ((a.agentName || '') + ' ' + (a.name || '') + ' ' + (a.id || '')).toLowerCase();
+          return text.indexOf(searchQuery) !== -1;
+        });
+      }
+
       if (!all.length) {
         body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
         return;
@@ -1025,23 +1098,25 @@ export function adminPage({
           + '<td><div class="action-btns">' + actions + '</div></td></tr>';
       }
 
-      if (showCrashed) crashedCache.forEach(function (a) {
-        renderRow(a, 'crashed', 'Crashed',
-          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
-      });
-      if (showClaimed) claimedCache.forEach(function (a) {
-        renderRow(a, 'running', 'Running',
-          '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-          + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
-      });
-      if (showIdle) idleCache.forEach(function (a) {
-        renderRow(a, 'idle', 'Ready',
-          '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
-      });
-      if (showStarting) startingCache.forEach(function (a) {
-        renderRow(a, 'starting', 'Starting',
-          '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+      filtered.forEach(function (a) {
+        var isCrashed = crashedCache.indexOf(a) !== -1;
+        var isClaimed = claimedCache.indexOf(a) !== -1;
+        var isIdle = idleCache.indexOf(a) !== -1;
+        if (isCrashed) {
+          renderRow(a, 'crashed', 'Crashed',
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
+        } else if (isClaimed) {
+          renderRow(a, 'running', 'Running',
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        } else if (isIdle) {
+          renderRow(a, 'idle', 'Ready',
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        } else {
+          renderRow(a, 'starting', 'Starting',
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+        }
       });
       body.innerHTML = html;
     }
@@ -1310,12 +1385,20 @@ export function adminPage({
         var remaining = limit > 0 ? Math.max(0, limit - usage) : null;
         var pct = limit > 0 ? Math.min(100, (usage / limit) * 100) : 0;
         var barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+        var keyHash = key.hash || '';
         html += '<div class="expand-section">'
           + '<div class="expand-section-title">OpenRouter</div>'
+          + '<div class="expand-kvs">'
           + '<div class="expand-kv"><span class="expand-label">Used</span> <span class="expand-val">' + fmtDollars(usage) + '</span></div>'
           + '<div class="expand-kv"><span class="expand-label">Limit</span> <span class="expand-val">' + fmtDollars(limit) + '</span></div>'
           + '<div class="expand-kv"><span class="expand-label">Left</span> <span class="expand-val">' + (remaining != null ? fmtDollars(remaining) : '-') + '</span>'
           + '<div class="expand-bar-inline"><div class="' + barClass + '" style="width:' + pct + '%"></div></div></div>'
+          + '</div>'
+          + '<div class="expand-topup">'
+          + '<input type="number" min="1" placeholder="' + Math.round(limit) + '" data-topup-input="' + esc(keyHash) + '" />'
+          + '<button data-topup-btn="' + esc(keyHash) + '" data-instance="' + esc(instanceId) + '">Top Up</button>'
+          + '<span class="topup-msg" data-topup-msg="' + esc(keyHash) + '"></span>'
+          + '</div>'
           + '</div>';
       }
 
@@ -1324,8 +1407,10 @@ export function adminPage({
       if (mailTool) {
         html += '<div class="expand-section">'
           + '<div class="expand-section-title">AgentMail</div>'
+          + '<div class="expand-kvs">'
           + '<div class="expand-kv"><span class="expand-label">Inbox</span> <span class="expand-val mono">' + esc(mailTool.env_value || mailTool.resource_id || '-') + '</span></div>'
           + '<div class="expand-kv"><span class="expand-val ' + (mailTool.status === 'active' ? 'active' : 'inactive') + '">' + esc(mailTool.status || '-') + '</span></div>'
+          + '</div>'
           + '</div>';
       }
 
@@ -1334,15 +1419,19 @@ export function adminPage({
       if (telnyxTool) {
         html += '<div class="expand-section">'
           + '<div class="expand-section-title">Telnyx</div>'
+          + '<div class="expand-kvs">'
           + '<div class="expand-kv"><span class="expand-label">Phone</span> <span class="expand-val mono">' + esc(telnyxTool.resource_id || '-') + '</span></div>'
           + '<div class="expand-kv"><span class="expand-val ' + (telnyxTool.status === 'active' ? 'active' : 'inactive') + '">' + esc(telnyxTool.status || '-') + '</span></div>'
+          + '</div>'
           + '</div>';
       }
 
       // Bankr
       html += '<div class="expand-section">'
         + '<div class="expand-section-title">Bankr</div>'
+        + '<div class="expand-kvs">'
         + '<div class="expand-kv"><span class="expand-val ' + (BANKR_KEY ? 'active' : 'inactive') + '">' + (BANKR_KEY ? 'Active' : 'Not set') + '</span></div>'
+        + '</div>'
         + '</div>';
 
       if (!key && !mailTool && !telnyxTool) {

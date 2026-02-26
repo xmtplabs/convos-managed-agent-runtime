@@ -1,4 +1,4 @@
-import { config } from "../../config.js";
+import { config } from "../../config";
 
 /** Build the base env var map for new runtime instances. */
 export function buildInstanceEnv(): Record<string, string> {
