@@ -12,34 +12,53 @@ function headers(): Record<string, string> {
   };
 }
 
-/** Search for an available US SMS-capable phone number. */
+/** Search for an available US SMS-capable phone number. Retries on 429/5xx. */
 async function searchAvailableNumber(): Promise<string> {
-  const res = await fetch(
-    `${TELNYX_API}/available_phone_numbers?filter[country_code]=US&filter[features][]=sms&filter[limit]=1`,
-    { headers: headers() },
-  );
-  const body = await res.json() as any;
-  const number = body?.data?.[0]?.phone_number;
-  if (!number) throw new Error("No available Telnyx phone numbers found");
-  return number;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(
+      `${TELNYX_API}/available_phone_numbers?filter[country_code]=US&filter[features][]=sms&filter[limit]=1`,
+      { headers: headers() },
+    );
+    if (res.status === 429 || res.status >= 500) {
+      if (attempt < 3) {
+        console.warn(`[telnyx] Search attempt ${attempt}/3 failed (${res.status}), retrying in ${attempt * 2}s...`);
+        await new Promise((r) => setTimeout(r, attempt * 2000));
+        continue;
+      }
+    }
+    const body = await res.json() as any;
+    const number = body?.data?.[0]?.phone_number;
+    if (!number) throw new Error("No available Telnyx phone numbers found");
+    return number;
+  }
+  throw new Error("Telnyx search failed: max retries exceeded");
 }
 
-/** Purchase a phone number. Returns the purchased number. */
+/** Purchase a phone number. Retries on 429/5xx. Returns the purchased number. */
 async function purchaseNumber(phoneNumber: string): Promise<string> {
-  const res = await fetch(`${TELNYX_API}/number_orders`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify({
-      phone_numbers: [{ phone_number: phoneNumber }],
-    }),
-  });
-  const body = await res.json() as any;
-  const purchased = body?.data?.phone_numbers?.[0]?.phone_number;
-  if (!purchased) {
-    console.error("[telnyx] Purchase failed:", res.status, body);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(`${TELNYX_API}/number_orders`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        phone_numbers: [{ phone_number: phoneNumber }],
+      }),
+    });
+    const body = await res.json() as any;
+    const purchased = body?.data?.phone_numbers?.[0]?.phone_number;
+    if (purchased) return purchased;
+
+    const isRetryable = res.status === 429 || res.status >= 500;
+    if (isRetryable && attempt < 3) {
+      console.warn(`[telnyx] Purchase attempt ${attempt}/3 failed (${res.status}), retrying in ${attempt * 3}s...`);
+      await new Promise((r) => setTimeout(r, attempt * 3000));
+      continue;
+    }
+
+    console.error(`[telnyx] Purchase failed after ${attempt} attempt(s):`, res.status, body);
     throw new Error(`Telnyx number purchase failed: ${res.status}`);
   }
-  return purchased;
+  throw new Error("Telnyx purchase failed: max retries exceeded");
 }
 
 /** Get or create a messaging profile. Returns profile ID. */
