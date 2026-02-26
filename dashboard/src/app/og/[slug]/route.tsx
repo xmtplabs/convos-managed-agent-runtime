@@ -87,7 +87,7 @@ export async function GET(
             }}
           >
             Convos{" "}
-            <span style={{ fontWeight: 400, color: "#666666" }}>Labs</span>
+            <span style={{ fontWeight: 400, color: "#666666" }}>Playroom</span>
           </span>
         </div>
 

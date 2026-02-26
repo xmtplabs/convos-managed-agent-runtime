@@ -8,7 +8,7 @@ export default function TemplateNotFound() {
         <a href="/" className="inline-flex items-center gap-2 no-underline">
           <ConvosLogo width={18} height={23} />
           <span className="text-sm font-semibold text-foreground tracking-[-0.3px]">
-            Convos <span className="font-normal text-foreground-secondary">Labs</span>
+            Convos <span className="font-normal text-foreground-secondary">Playroom</span>
           </span>
         </a>
       </header>
