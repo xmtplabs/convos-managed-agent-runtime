@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import PlausibleProvider from "next-plausible";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org",
@@ -20,15 +22,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body>
-        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
-          <PlausibleProvider
-            domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
-          >
-            {children}
-          </PlausibleProvider>
-        ) : (
-          children
-        )}
+        <PlausibleProvider
+          domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN || "convos.org"}
+          enabled={!!process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+        >
+          {children}
+        </PlausibleProvider>
       </body>
     </html>
   );
