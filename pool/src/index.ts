@@ -8,6 +8,8 @@ import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
 import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
 
+import { initMetrics } from "./metrics";
+
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
 import { statusRouter } from "./services/routes/status";
@@ -445,6 +447,9 @@ app.use(requireAuth, toolsRouter);
 
 // --- Startup: migrate, then tick loop ---
 import { runMigrations } from "./db/migrate";
+
+// --- Metrics ---
+initMetrics();
 
 runMigrations()
   .then(() => {
