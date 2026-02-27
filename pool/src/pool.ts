@@ -4,6 +4,7 @@ import { createInstance as infraCreateInstance, destroyInstance as infraDestroyI
 import { fetchBatchStatus } from "./services/status";
 import { deriveStatus } from "./status";
 import { config } from "./config";
+import { sendMetric } from "./metrics";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -61,25 +62,35 @@ async function healthCheck(url: string) {
 export async function createInstance(onProgress?: ProgressCallback) {
   const id = nanoid(12);
   const name = `convos-agent-${id}`;
+  const createStart = Date.now();
 
   console.log(`[pool] Creating instance ${name}...`);
 
-  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress);
-  console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
+  try {
+    const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress);
+    console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
-  await db.upsertInstance({
-    id,
-    name,
-    url: result.url,
-    status: "starting",
-    createdAt: new Date().toISOString(),
-  });
+    await db.upsertInstance({
+      id,
+      name,
+      url: result.url,
+      status: "starting",
+      createdAt: new Date().toISOString(),
+    });
 
-  return { id, serviceId: result.serviceId, url: result.url, name };
+    sendMetric("instance.create.duration_ms", Date.now() - createStart);
+    sendMetric("instance.create.success", 1);
+    return { id, serviceId: result.serviceId, url: result.url, name };
+  } catch (err) {
+    sendMetric("instance.create.duration_ms", Date.now() - createStart);
+    sendMetric("instance.create.success", 0);
+    throw err;
+  }
 }
 
 // Unified tick: rebuild instance state from services, health-check, replenish.
 export async function tick() {
+  const tickStart = Date.now();
 
   let batchResult;
   try {
@@ -126,11 +137,21 @@ export async function tick() {
       return { id: svc.instanceId, result };
     })
   );
+  let healthSuccess = 0;
+  let healthFailure = 0;
+  let healthTimeout = 0;
   for (const c of checks) {
     if (c.status === "fulfilled") {
       healthResults.set(c.value.id, c.value.result);
+      if (c.value.result?.ready) healthSuccess++;
+      else healthFailure++;
+    } else {
+      healthTimeout++;
     }
   }
+  sendMetric("health_check.success", healthSuccess);
+  sendMetric("health_check.failure", healthFailure);
+  sendMetric("health_check.timeout", healthTimeout);
 
   for (const svc of agentServices) {
     const instId = svc.instanceId;
@@ -181,6 +202,14 @@ export async function tick() {
   console.log(
     `[tick] ${counts.idle || 0} idle, ${counts.starting || 0} starting, ${counts.claimed || 0} claimed, ${counts.crashed || 0} crashed (total: ${total})`
   );
+
+  sendMetric("pool.idle", counts.idle || 0);
+  sendMetric("pool.starting", counts.starting || 0);
+  sendMetric("pool.claimed", counts.claimed || 0);
+  sendMetric("pool.crashed", counts.crashed || 0);
+  sendMetric("pool.dead", counts.dead || 0);
+  sendMetric("pool.total", total);
+  sendMetric("tick.duration_ms", Date.now() - tickStart);
 }
 
 export { provision } from "./provision";
