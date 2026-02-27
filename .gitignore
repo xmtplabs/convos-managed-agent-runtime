@@ -21,8 +21,10 @@ xmtp-*.db3-wal
 # Build artifacts
 dist/
 
-# Root lockfile (each package has its own)
-/pnpm-lock.yaml
+# Per-package lockfiles (root lockfile is canonical for pnpm workspaces)
+pool/pnpm-lock.yaml
+dashboard/pnpm-lock.yaml
+runtime/pnpm-lock.yaml
 
 # Backup exports
 *.tar.gz
