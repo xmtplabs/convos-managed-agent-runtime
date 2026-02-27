@@ -12,11 +12,11 @@ function headers(): Record<string, string> {
   };
 }
 
-/** Search for an available US SMS-capable phone number. Retries on 429/5xx. */
+/** Search for an available US SMS-capable phone number. Fetches a batch and picks randomly to reduce collisions. */
 async function searchAvailableNumber(): Promise<string> {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch(
-      `${TELNYX_API}/available_phone_numbers?filter[country_code]=US&filter[features][]=sms&filter[limit]=1`,
+      `${TELNYX_API}/available_phone_numbers?filter[country_code]=US&filter[features][]=sms&filter[limit]=20`,
       { headers: headers() },
     );
     if (res.status === 429 || res.status >= 500) {
@@ -27,30 +27,44 @@ async function searchAvailableNumber(): Promise<string> {
       }
     }
     const body = await res.json() as any;
-    const number = body?.data?.[0]?.phone_number;
-    if (!number) throw new Error("No available Telnyx phone numbers found");
-    return number;
+    const numbers: string[] = (body?.data ?? []).map((d: any) => d.phone_number).filter(Boolean);
+    if (!numbers.length) throw new Error("No available Telnyx phone numbers found");
+    // Pick a random number from the batch to reduce collisions with concurrent provisioners
+    return numbers[Math.floor(Math.random() * numbers.length)];
   }
   throw new Error("Telnyx search failed: max retries exceeded");
 }
 
-/** Purchase a phone number. Retries on 429/5xx. Returns the purchased number. */
+/**
+ * Purchase a phone number. On 409/422 (number already taken by concurrent caller),
+ * re-searches for a new number. Retries on 429/5xx.
+ */
 async function purchaseNumber(phoneNumber: string): Promise<string> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  let currentNumber = phoneNumber;
+  for (let attempt = 1; attempt <= 5; attempt++) {
     const res = await fetch(`${TELNYX_API}/number_orders`, {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({
-        phone_numbers: [{ phone_number: phoneNumber }],
+        phone_numbers: [{ phone_number: currentNumber }],
       }),
     });
     const body = await res.json() as any;
     const purchased = body?.data?.phone_numbers?.[0]?.phone_number;
     if (purchased) return purchased;
 
+    // Number already taken by another concurrent provisioner — search for a new one
+    if (res.status === 409 || res.status === 422) {
+      console.warn(`[telnyx] Number ${currentNumber} already taken (${res.status}), searching for a new one...`);
+      currentNumber = await searchAvailableNumber();
+      console.log(`[telnyx] Found replacement: ${currentNumber}`);
+      continue;
+    }
+
+    // Rate-limited or server error — retry same number after backoff
     const isRetryable = res.status === 429 || res.status >= 500;
-    if (isRetryable && attempt < 3) {
-      console.warn(`[telnyx] Purchase attempt ${attempt}/3 failed (${res.status}), retrying in ${attempt * 3}s...`);
+    if (isRetryable && attempt < 5) {
+      console.warn(`[telnyx] Purchase attempt ${attempt}/5 failed (${res.status}), retrying in ${attempt * 3}s...`);
       await new Promise((r) => setTimeout(r, attempt * 3000));
       continue;
     }
