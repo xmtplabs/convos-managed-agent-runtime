@@ -1,4 +1,4 @@
-# Convos agent runtime — runs a single OpenClaw instance inside Railway
+# Convos agent runtime — single OpenClaw instance on Railway
 FROM node:22-bookworm
 ENV NODE_ENV=production
 
