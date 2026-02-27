@@ -60,6 +60,9 @@ export const ConvosConfigSchema = z.object({
   /** Controls agent reaction behavior. */
   reactionLevel: z.enum(["off", "ack", "minimal", "extensive"]).optional(),
 
+  /** Whether the agent sends a welcome message when it joins a conversation (default: true). */
+  greetOnJoin: z.boolean().optional(),
+
   /** The conversation ID where OpenClaw communicates with its owner. */
   ownerConversationId: z.string().optional(),
 });

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -436,14 +437,19 @@ async function handleInboundMessage(
     ...(mediaPath ? { MediaPath: mediaPath, MediaType: mediaMime } : {}),
   });
 
-  await runtime.channel.session.recordInboundSession({
-    storePath,
-    sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
-    ctx: ctxPayload,
-    onRecordError: (err) => {
-      errorLog(`[${account.accountId}] Failed updating session meta: ${String(err)}`);
-    },
-  });
+  // Skip session recording for synthetic system messages (e.g. greeting trigger)
+  // so the prompt doesn't appear in session history. The agent's response is
+  // recorded normally by the reply pipeline.
+  if (msg.senderId !== "system") {
+    await runtime.channel.session.recordInboundSession({
+      storePath,
+      sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
+      ctx: ctxPayload,
+      onRecordError: (err) => {
+        errorLog(`[${account.accountId}] Failed updating session meta: ${String(err)}`);
+      },
+    });
+  }
 
   // System events (group updates, reactions) are recorded in the session above
   // so the agent has context, but should not trigger a reply.
@@ -560,6 +566,48 @@ async function deliverConvosReply(params: {
 }
 
 /**
+ * Send an LLM-generated welcome message by dispatching a synthetic system
+ * prompt through the normal reply pipeline. The agent sees its full context
+ * (IDENTITY + SOUL + TOOLS) and crafts a natural greeting per SOUL.md.
+ */
+async function dispatchGreeting(
+  account: ResolvedConvosAccount,
+  runtime: PluginRuntime,
+): Promise<void> {
+  const cfg = runtime.config.loadConfig();
+  const convosConfig = cfg.channels?.convos ?? {};
+
+  // greetOnJoin defaults to true — check for explicit false
+  if (convosConfig.greetOnJoin === false) {
+    console.log("[convos] greetOnJoin disabled, skipping greeting");
+    return;
+  }
+
+  const inst = getConvosInstance();
+  if (!inst) {
+    console.error("[convos] No instance available for greeting dispatch");
+    return;
+  }
+
+  const syntheticMsg: InboundMessage = {
+    conversationId: inst.conversationId,
+    messageId: `system-greeting-${crypto.randomUUID()}`,
+    senderId: "system",
+    senderName: "System",
+    content:
+      "[System: You just joined this conversation. Send your welcome message now. " +
+      "Follow the guidance in SOUL.md under 'Your Welcome Message'. " +
+      "Introduce yourself, set expectations, and teach people they can train you by talking to you. " +
+      "Keep it short.]",
+    contentType: "text",
+    timestamp: new Date(),
+  };
+
+  console.log("[convos] Dispatching greeting message");
+  await handleInboundMessage(account, syntheticMsg, runtime);
+}
+
+/**
  * Create a fully-wired ConvosInstance and start it.
  * Used by HTTP routes to start message handling immediately after creating/joining.
  */
@@ -614,6 +662,12 @@ export async function startWiredInstance(params: {
 
   setConvosInstance(inst);
   await inst.start();
+
+  // Fire-and-forget: dispatch LLM-generated welcome message.
+  // Does not block startWiredInstance from returning to the pool manager.
+  dispatchGreeting(account, runtime).catch((err) => {
+    console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
+  });
 }
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
