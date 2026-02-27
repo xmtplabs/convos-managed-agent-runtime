@@ -147,7 +147,6 @@ export function adminPage({
   deployBranch,
   instanceModel,
   railwayServiceId,
-  poolApiKey,
   bankrConfigured = false,
   adminUrls = [],
 }) {
@@ -1073,20 +1072,20 @@ export function adminPage({
     </div>
     <div class="stats-credits">
       <div class="stat-card">
-        <div class="stat-label">Balance</div>
-        <div class="stat-value" id="s-balance">-</div>
+        <div class="stat-label">Credits</div>
+        <div class="stat-value" id="s-credits">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Used</div>
-        <div class="stat-value" id="s-used">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total Credits</div>
-        <div class="stat-value" id="s-total">-</div>
+        <div class="stat-label">OR Keys</div>
+        <div class="stat-value" id="s-or-keys">-</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Inboxes</div>
         <div class="stat-value" id="s-inboxes">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Phones</div>
+        <div class="stat-value" id="s-phones">-</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Templates</div>
@@ -1198,11 +1197,10 @@ export function adminPage({
   </div>
 
   <script>
-    var API_KEY = ${JSON.stringify(poolApiKey)};
     var POOL_ENV = ${JSON.stringify(poolEnvironment)};
     var BANKR_KEY = ${JSON.stringify(bankrConfigured)};
     var INSTANCE_MODEL = ${JSON.stringify(instanceModel)};
-    var authHeaders = { 'Authorization': 'Bearer ' + API_KEY, 'Content-Type': 'application/json' };
+    var authHeaders = { 'Content-Type': 'application/json' };
 
     var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
     var svcKeyMap = {}; // keyed by key name e.g. 'convos-agent-xxxxx'
@@ -1638,7 +1636,7 @@ export function adminPage({
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&key=' + encodeURIComponent(API_KEY));
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n);
       es.onmessage = function (ev) {
         try {
           var data = JSON.parse(ev.data);
@@ -1810,10 +1808,28 @@ export function adminPage({
       document.getElementById('s-templates').textContent = Array.isArray(d) ? d.length : '-';
     }).catch(function () {});
 
+    // --- OR Keys count ---
+    function refreshORKeys() {
+      fetch('/dashboard/keys/count', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (d) {
+        document.getElementById('s-or-keys').textContent = d.count != null ? d.count : '-';
+      }).catch(function () {});
+    }
+
     // --- Inboxes count ---
     function refreshInboxes() {
       fetch('/dashboard/inboxes', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (d) {
         document.getElementById('s-inboxes').textContent = d.count != null ? d.count : '-';
+      }).catch(function () {});
+    }
+
+    // --- Phones count ---
+    function refreshPhones() {
+      fetch('/dashboard/phones', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.total != null) {
+          document.getElementById('s-phones').innerHTML = d.total + '<div style="font-size:0.5em;opacity:0.6;margin-top:2px">' + (d.available || 0) + ' free</div>';
+        } else {
+          document.getElementById('s-phones').textContent = '-';
+        }
       }).catch(function () {});
     }
 
@@ -1837,16 +1853,12 @@ export function adminPage({
         var total = credits.totalCredits || 0;
         var used = credits.totalUsage || 0;
         var remaining = total - used;
-        document.getElementById('s-balance').textContent = fmtDollars(remaining);
-        document.getElementById('s-used').textContent = fmtDollars(used);
-        document.getElementById('s-total').textContent = fmtDollars(total);
+        document.getElementById('s-credits').innerHTML = fmtDollars(remaining) + '<div style="font-size:0.5em;opacity:0.6;margin-top:2px">' + fmtDollars(used) + ' used</div>';
 
         // Re-render agents table so usage column picks up fresh data
         renderAgents();
       } catch (e) {
-        document.getElementById('s-balance').textContent = '-';
-        document.getElementById('s-used').textContent = '-';
-        document.getElementById('s-total').textContent = '-';
+        document.getElementById('s-credits').textContent = '-';
       }
     }
 
@@ -2035,8 +2047,10 @@ export function adminPage({
     refreshCredits();
     refreshInstances();
     refreshInboxes();
+    refreshORKeys();
+    refreshPhones();
     setInterval(function () { refreshCounts(); refreshAgents(); }, 15000);
-    setInterval(function () { refreshCredits(); refreshInstances(); refreshInboxes(); }, 60000);
+    setInterval(function () { refreshCredits(); refreshInstances(); refreshInboxes(); refreshORKeys(); refreshPhones(); }, 60000);
   </script>
 </body>
 </html>`;

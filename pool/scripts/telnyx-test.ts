@@ -14,8 +14,8 @@
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import { phoneNumberPool } from "../db/schema";
-import { config } from "../config";
+import { phoneNumberPool } from "../src/db/schema";
+import { config } from "../src/config";
 
 const TELNYX_API = "https://api.telnyx.com/v2";
 
@@ -88,7 +88,7 @@ async function cmdPool() {
 
 async function cmdProvision() {
   // Import the actual provisionPhone to exercise the real code path
-  const { provisionPhone } = await import("../services/providers/telnyx");
+  const { provisionPhone } = await import("../src/services/providers/telnyx");
   console.log("\n=== Provisioning phone number ===\n");
   const result = await provisionPhone("test-script");
   console.log(`  Phone:   ${result.phoneNumber}`);
@@ -97,7 +97,7 @@ async function cmdProvision() {
 }
 
 async function cmdRelease(phoneNumber: string) {
-  const { deletePhone } = await import("../services/providers/telnyx");
+  const { deletePhone } = await import("../src/services/providers/telnyx");
   console.log(`\n=== Releasing ${phoneNumber} ===\n`);
   const ok = await deletePhone(phoneNumber);
   console.log(ok ? "  Released back to pool." : "  Not found in pool.");
