@@ -37,13 +37,7 @@ export const config = {
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
   railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
     const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
-    const tagMap: Record<string, string> = {
-      scaling: "scaling",
-      dev: "dev",
-      staging: "staging",
-      production: "latest",
-    };
-    const tag = tagMap[env] || "latest";
+    const tag = env === "production" ? "latest" : env || "latest";
     return `ghcr.io/xmtplabs/convos-runtime:${tag}`;
   })(),
 
