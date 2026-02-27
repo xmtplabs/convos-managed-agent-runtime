@@ -326,15 +326,7 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
   }
 });
 
-// --- Services routes (previously separate service, now local) ---
-app.use(registryRouter); // registry is public
-app.use(requireAuth, dashboardRouter);
-app.use(requireAuth, infraRouter);
-app.use(requireAuth, statusRouter);
-app.use(requireAuth, configureRouter);
-app.use(requireAuth, toolsRouter);
-
-// --- Notion prompt fetching ---
+// --- Notion prompt fetching (public) ---
 const promptCache = new Map<string, { data: { name: string; prompt: string }; ts: number }>();
 const PROMPT_CACHE_TTL = 60 * 60 * 1000;
 
@@ -405,6 +397,14 @@ app.get("/api/prompts/:pageId", async (req, res) => {
     res.status(502).json({ error: "Failed to fetch prompt from Notion" });
   }
 });
+
+// --- Services routes (previously separate service, now local) ---
+app.use(registryRouter); // registry is public
+app.use(requireAuth, dashboardRouter);
+app.use(requireAuth, infraRouter);
+app.use(requireAuth, statusRouter);
+app.use(requireAuth, configureRouter);
+app.use(requireAuth, toolsRouter);
 
 // --- Startup: migrate, then tick loop ---
 import { runMigrations } from "./db/migrate";
