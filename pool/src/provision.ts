@@ -61,18 +61,13 @@ export async function provision(opts: ProvisionOpts) {
     sendMetric("claim.duration_ms", Date.now() - claimStart);
     sendMetric("claim.success", 0);
 
-    // Permanent failures: the runtime is tainted and will never succeed.
-    // - 409: already bound to a conversation
-    // - "Already joined": stale identity with pending conversationId blocks re-join
-    // Mark crashed so it stops being picked up; manual cleanup via dashboard.
+    // Any provision failure taints the instance — even transient errors
+    // (timeouts, network blips) may have partially executed on the runtime
+    // (wrote instructions, started a join). Releasing back to idle risks an
+    // infinite retry loop. Mark crashed; manual cleanup via dashboard.
     const msg = err instanceof Error ? err.message : String(err);
-    const isPermanent = /\b409\b/.test(msg) || /already bound/i.test(msg) || /Already joined/i.test(msg);
-    if (isPermanent) {
-      console.error(`[provision] Instance ${instance.id} is tainted, marking crashed: ${msg.slice(0, 200)}`);
-      await db.updateStatus(instance.id, { status: "crashed" });
-    } else {
-      await db.releaseClaim(instance.id);
-    }
+    console.error(`[provision] Instance ${instance.id} failed, marking crashed: ${msg.slice(0, 200)}`);
+    await db.updateStatus(instance.id, { status: "crashed" });
     throw err;
   }
 }
