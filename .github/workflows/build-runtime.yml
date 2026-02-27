@@ -2,6 +2,7 @@ name: Build Runtime Image
 
 on:
   pull_request:
+    types: [opened, synchronize, closed]
     paths:
       - 'runtime/**'
   workflow_dispatch:
@@ -12,7 +13,10 @@ permissions:
 
 jobs:
   build:
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-runtime-build')"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.action != 'closed' &&
+       !contains(github.event.pull_request.labels.*.name, 'skip-runtime-build'))
     runs-on: ubuntu-latest
     outputs:
       pending: ${{ steps.meta.outputs.pending }}
@@ -35,11 +39,12 @@ jobs:
       - name: Determine image tags
         id: meta
         run: |
-          SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
             TAG="pr-${{ github.event.number }}"
           else
-            TAG="latest"
+            SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
+            TAG="dispatch"
           fi
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -141,11 +146,51 @@ jobs:
           docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
           docker push "$IMAGE:$SHA"
 
-          # PRs get pr-N tag only, never latest
+          # PRs get pr-N tag, dispatches get dispatch tag
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
             docker push "$IMAGE:pr-${{ github.event.number }}"
           else
-            docker tag "$IMAGE:$PENDING" "$IMAGE:latest"
-            docker push "$IMAGE:latest"
+            docker tag "$IMAGE:$PENDING" "$IMAGE:dispatch"
+            docker push "$IMAGE:dispatch"
           fi
+
+  # Fast promote: retag the existing sha image to an environment tag (~15s)
+  promote:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine environment tag
+        id: env
+        run: |
+          BASE="${{ github.event.pull_request.base.ref }}"
+          case "$BASE" in
+            scaling) echo "tag=scaling" >> "$GITHUB_OUTPUT" ;;
+            dev)     echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
+            staging) echo "tag=staging" >> "$GITHUB_OUTPUT" ;;
+            main)    echo "tag=production" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "tag=" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "Merge target: $BASE → tag: $(grep tag "$GITHUB_OUTPUT" | cut -d= -f2)"
+
+      - name: Retag image to environment
+        if: steps.env.outputs.tag != ''
+        run: |
+          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          ENV_TAG="${{ steps.env.outputs.tag }}"
+
+          echo "Promoting $IMAGE:sha-$SHA → $IMAGE:$ENV_TAG"
+          docker pull "$IMAGE:sha-$SHA"
+          docker tag "$IMAGE:sha-$SHA" "$IMAGE:$ENV_TAG"
+          docker push "$IMAGE:$ENV_TAG"

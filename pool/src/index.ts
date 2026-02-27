@@ -8,6 +8,8 @@ import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
 import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
 
+import { initMetrics } from "./metrics";
+
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
 import { statusRouter } from "./services/routes/status";
@@ -261,22 +263,30 @@ app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
 
   let created = 0;
   let failed = 0;
+  const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.query.concurrency as string) || 5, 1), 10);
 
-  for (let i = 0; i < count; i++) {
-    const instanceNum = i + 1;
-    try {
-      const inst = await pool.createInstance((step, status, message) => {
-        if (step === "done") return; // handled below after instance event
-        send({ type: "step", instanceNum, step, status, message: message || "" });
-      });
-      send({ type: "instance", instanceNum, instance: inst });
-      send({ type: "step", instanceNum, instanceId: inst.id, step: "done", status: "ok", message: "" });
-      created++;
-    } catch (err: any) {
-      send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
-      failed++;
+  // Concurrency-limited parallel provisioning
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < count) {
+      const i = nextIndex++;
+      const instanceNum = i + 1;
+      try {
+        const inst = await pool.createInstance((step, status, message) => {
+          if (step === "done") return;
+          send({ type: "step", instanceNum, step, status, message: message || "" });
+        });
+        send({ type: "instance", instanceNum, instance: inst });
+        send({ type: "step", instanceNum, instanceId: inst.id, step: "done", status: "ok", message: "" });
+        created++;
+      } catch (err: any) {
+        send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
+        failed++;
+      }
     }
   }
+
+  await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENCY, count) }, () => worker()));
 
   const counts = await db.getCounts();
   send({ type: "complete", created, failed, counts });
@@ -287,15 +297,21 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
   try {
     const count = Math.min(parseInt(req.body?.count) || 0, 20);
     if (count > 0) {
-      const results = [];
-      for (let i = 0; i < count; i++) {
-        try {
-          const inst = await pool.createInstance();
-          results.push(inst);
-        } catch (err: any) {
-          console.error(`[pool] Failed to create instance:`, err);
+      const results: any[] = [];
+      const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.body?.concurrency) || 5, 1), 10);
+      let nextIndex = 0;
+      async function worker() {
+        while (nextIndex < count) {
+          nextIndex++;
+          try {
+            const inst = await pool.createInstance();
+            results.push(inst);
+          } catch (err: any) {
+            console.error(`[pool] Failed to create instance:`, err);
+          }
         }
       }
+      await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENCY, count) }, () => worker()));
       res.json({ ok: true, created: results.length, instances: results, counts: await db.getCounts() }); return;
     }
     await pool.tick();
@@ -313,6 +329,29 @@ app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
     console.error("[api] Tick failed:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get("/api/pool/drain/stream", requireAuth, async (req, res) => {
+  const count = Math.min(parseInt(req.query.count as string) || 20, 20);
+  const concurrency = Math.min(Math.max(parseInt(req.query.concurrency as string) || 5, 1), 10);
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  const result = await pool.drainPoolStream(count, concurrency, (instanceNum, instanceId, instanceName, step, status, message) => {
+    send({ type: "step", instanceNum, instanceId, instanceName, step, status, message: message || "" });
+  });
+
+  const counts = await db.getCounts();
+  send({ type: "complete", drained: result.drained, failed: result.failed, drainedIds: result.instances, counts });
+  res.end();
 });
 
 app.post("/api/pool/drain", requireAuth, async (req, res) => {
@@ -408,6 +447,9 @@ app.use(requireAuth, toolsRouter);
 
 // --- Startup: migrate, then tick loop ---
 import { runMigrations } from "./db/migrate";
+
+// --- Metrics ---
+initMetrics();
 
 runMigrations()
   .then(() => {

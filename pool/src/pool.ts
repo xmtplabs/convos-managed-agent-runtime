@@ -4,6 +4,7 @@ import { createInstance as infraCreateInstance, destroyInstance as infraDestroyI
 import { fetchBatchStatus } from "./services/status";
 import { deriveStatus } from "./status";
 import { config } from "./config";
+import { sendMetric, sendMetricBatch } from "./metrics";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -61,25 +62,35 @@ async function healthCheck(url: string) {
 export async function createInstance(onProgress?: ProgressCallback) {
   const id = nanoid(12);
   const name = `convos-agent-${id}`;
+  const createStart = Date.now();
 
   console.log(`[pool] Creating instance ${name}...`);
 
-  const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress);
-  console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
+  try {
+    const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress);
+    console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
-  await db.upsertInstance({
-    id,
-    name,
-    url: result.url,
-    status: "starting",
-    createdAt: new Date().toISOString(),
-  });
+    await db.upsertInstance({
+      id,
+      name,
+      url: result.url,
+      status: "starting",
+      createdAt: new Date().toISOString(),
+    });
 
-  return { id, serviceId: result.serviceId, url: result.url, name };
+    sendMetric("instance.create.duration_ms", Date.now() - createStart);
+    sendMetric("instance.create.success", 1);
+    return { id, serviceId: result.serviceId, url: result.url, name };
+  } catch (err) {
+    sendMetric("instance.create.duration_ms", Date.now() - createStart);
+    sendMetric("instance.create.success", 0);
+    throw err;
+  }
 }
 
 // Unified tick: rebuild instance state from services, health-check, replenish.
 export async function tick() {
+  const tickStart = Date.now();
 
   let batchResult;
   try {
@@ -94,9 +105,12 @@ export async function tick() {
   const dbRows = await db.listAll();
   const dbById = new Map(dbRows.map((r: any) => [r.id, r]));
 
+  // Only log instances with non-SUCCESS deploy status (errors/anomalies)
   for (const svc of agentServices) {
-    const row = dbById.get(svc.instanceId);
-    console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimedAt ? " (claimed)" : ""}`);
+    if (svc.deployStatus !== "SUCCESS") {
+      const row = dbById.get(svc.instanceId);
+      console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimedAt ? " (claimed)" : ""}`);
+    }
   }
 
   const successServices = agentServices.filter((s) => s.deployStatus === "SUCCESS");
@@ -126,11 +140,19 @@ export async function tick() {
       return { id: svc.instanceId, result };
     })
   );
+  let healthSuccess = 0;
+  let healthFailure = 0;
+  let healthTimeout = 0;
   for (const c of checks) {
     if (c.status === "fulfilled") {
       healthResults.set(c.value.id, c.value.result);
+      if (c.value.result?.ready) healthSuccess++;
+      else healthFailure++;
+    } else {
+      healthTimeout++;
     }
   }
+  // Health metrics are included in the single tick summary line below
 
   for (const svc of agentServices) {
     const instId = svc.instanceId;
@@ -181,6 +203,19 @@ export async function tick() {
   console.log(
     `[tick] ${counts.idle || 0} idle, ${counts.starting || 0} starting, ${counts.claimed || 0} claimed, ${counts.crashed || 0} crashed (total: ${total})`
   );
+
+  sendMetricBatch("tick", [
+    ["pool.idle", counts.idle || 0],
+    ["pool.starting", counts.starting || 0],
+    ["pool.claimed", counts.claimed || 0],
+    ["pool.crashed", counts.crashed || 0],
+    ["pool.dead", counts.dead || 0],
+    ["pool.total", total],
+    ["health_check.success", healthSuccess],
+    ["health_check.failure", healthFailure],
+    ["health_check.timeout", healthTimeout],
+    ["tick.duration_ms", Date.now() - tickStart],
+  ]);
 }
 
 export { provision } from "./provision";
@@ -238,6 +273,56 @@ export async function drainPool(count: number) {
   if (skipped > 0) console.log(`[pool]   Skipped ${skipped} (no longer unclaimed)`);
   console.log(`[pool] Drain complete: ${results.length} drained, ${failed} failed`);
   return results;
+}
+
+export type DrainProgressCallback = (instanceNum: number, instanceId: string, instanceName: string, step: string, status: string, message?: string) => void;
+
+export async function drainPoolStream(count: number, concurrency: number, onProgress: DrainProgressCallback) {
+  const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
+  const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
+  const toDrain = unclaimed.slice(0, count);
+  if (toDrain.length === 0) return { drained: 0, failed: 0, instances: [] as string[] };
+
+  const ids = toDrain.map((i: any) => i.id);
+  console.log(`[pool] Draining (stream) ${toDrain.length} unclaimed instance(s): ${ids.join(", ")}`);
+
+  let drained = 0;
+  let failed = 0;
+  const drainedIds: string[] = [];
+  const MAX_CONCURRENCY = concurrency;
+
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < toDrain.length) {
+      const i = nextIndex++;
+      const inst = toDrain[i] as any;
+      const instanceNum = i + 1;
+
+      const current = await db.findById(inst.id);
+      if (!current || CLAIMED_STATUSES.has(current.status)) {
+        onProgress(instanceNum, inst.id, inst.name || inst.id, "skip", "skip", "No longer unclaimed");
+        continue;
+      }
+
+      try {
+        await infraDestroyInstance(inst.id, (step, status, message) => {
+          onProgress(instanceNum, inst.id, inst.name || inst.id, step, status, message);
+        });
+        await db.deleteById(inst.id).catch(() => {});
+        drainedIds.push(inst.id);
+        drained++;
+        onProgress(instanceNum, inst.id, inst.name || inst.id, "done", "ok");
+      } catch (err: any) {
+        failed++;
+        onProgress(instanceNum, inst.id, inst.name || inst.id, "error", "fail", err.message);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENCY, toDrain.length) }, () => worker()));
+
+  console.log(`[pool] Drain stream complete: ${drained} drained, ${failed} failed`);
+  return { drained, failed, instances: drainedIds };
 }
 
 export async function killInstance(id: string) {
