@@ -12,6 +12,7 @@
     "install-deps": "sh scripts/install-deps.sh",
     "gateway": "sh scripts/gateway.sh",
     "qa": "sh scripts/qa.sh",
+    "ngrok": "ngrok http 3334 --url=e3f4284fc6d8.ngrok.app",
     "pool-server": "node scripts/pool-server.js",
     "build": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local .",
     "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
@@ -19,6 +20,7 @@
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0-beta.16",
+    "@openclaw/voice-call": "2026.2.25",
     "@telnyx/api-cli": "^1.1.0",
     "@xmtp/convos-cli": "^0.3.1",
     "agentmail": "^0.2.17",

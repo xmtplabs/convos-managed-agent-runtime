@@ -122,9 +122,41 @@
     }
   },
  "plugins": {
-    "allow": ["convos", "web-tools"],
+    "allow": ["convos", "web-tools", "voice-call"],
     "slots": { "memory": "none" },
-    "entries": { "convos": { "enabled": true }, "web-tools": { "enabled": true } }
+    "entries": {
+      "convos": { "enabled": true },
+      "web-tools": { "enabled": true },
+      "voice-call": {
+        "enabled": true,
+        "config": {
+          "provider": "telnyx",
+          "publicUrl": "https://e3f4284fc6d8.ngrok.app/voice/webhook",
+          "fromNumber": "${TELNYX_PHONE_NUMBER}",
+          "telnyx": {
+            "apiKey": "${TELNYX_API_KEY}",
+            "connectionId": "${TELNYX_CONNECTION_ID}",
+            "publicKey": "${TELNYX_PUBLIC_KEY}"
+          },
+          "serve": { "port": 3334, "path": "/voice/webhook" },
+          "streaming": {
+            "enabled": true
+          },
+          "tts": {
+            "provider": "elevenlabs",
+            "elevenlabs": {
+              "apiKey": "${ELEVENLABS_API_KEY}",
+              "voiceId": "pMsXgVXv3BLzUgSXRplE",
+              "modelId": "eleven_multilingual_v2"
+            }
+          },
+          "outbound": { "defaultMode": "notify" },
+          "inboundPolicy": "open",
+          "allowFrom": [],
+          "inboundGreeting": "Hello! How can I help?"
+        }
+      }
+    }
   },
   "models": {
     "mode": "merge",

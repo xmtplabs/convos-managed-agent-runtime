@@ -65,6 +65,12 @@ fi
 [ -n "$BANKR_API_KEY" ] && echo "  ✅ BANKR_API_KEY           → set" || echo "  ⬚  BANKR_API_KEY           → not set"
 [ -n "$TELNYX_PHONE_NUMBER" ] && echo "  ✅ TELNYX_PHONE_NUMBER     → $TELNYX_PHONE_NUMBER" || echo "  ⬚  TELNYX_PHONE_NUMBER     → not set"
 [ -n "$TELNYX_MESSAGING_PROFILE_ID" ] && echo "  ✅ TELNYX_MESSAGING_PROFILE_ID → set" || echo "  ⬚  TELNYX_MESSAGING_PROFILE_ID → not set"
+[ -n "$TELNYX_API_KEY" ] && echo "  ✅ TELNYX_API_KEY          → set" || echo "  ⬚  TELNYX_API_KEY          → not set"
+[ -n "$TELNYX_CONNECTION_ID" ] && echo "  ✅ TELNYX_CONNECTION_ID   → set" || echo "  ⬚  TELNYX_CONNECTION_ID   → not set"
+[ -n "$TELNYX_PUBLIC_KEY" ] && echo "  ✅ TELNYX_PUBLIC_KEY      → set" || echo "  ⬚  TELNYX_PUBLIC_KEY      → not set"
+[ -n "$ELEVENLABS_API_KEY" ] && echo "  ✅ ELEVENLABS_API_KEY     → set" || echo "  ⬚  ELEVENLABS_API_KEY     → not set"
+[ -n "$OPENAI_API_KEY" ] && echo "  ✅ OPENAI_API_KEY         → set" || echo "  ⬚  OPENAI_API_KEY         → not set (needed for streaming STT)"
+[ -n "$ALLOWED_CALLER_PHONE" ] && echo "  ✅ ALLOWED_CALLER_PHONE   → $ALLOWED_CALLER_PHONE" || echo "  ⬚  ALLOWED_CALLER_PHONE   → not set (add for inbound voice)"
 
 # ── Write .env ─────────────────────────────────────────────────────────────
 
@@ -73,10 +79,16 @@ agentmail_inbox="${AGENTMAIL_INBOX_ID:-}"
 bankr_key="${BANKR_API_KEY:-}"
 telnyx_phone="${TELNYX_PHONE_NUMBER:-}"
 telnyx_profile="${TELNYX_MESSAGING_PROFILE_ID:-}"
+telnyx_api_key="${TELNYX_API_KEY:-}"
+telnyx_connection_id="${TELNYX_CONNECTION_ID:-}"
+telnyx_public_key="${TELNYX_PUBLIC_KEY:-}"
+elevenlabs_key="${ELEVENLABS_API_KEY:-}"
+openai_key="${OPENAI_API_KEY:-}"
+allowed_caller="${ALLOWED_CALLER_PHONE:-}"
 
 touch "$ENV_FILE"
 tmp=$(mktemp)
-grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' | grep -v '^PRIVATE_WALLET_KEY=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^TELNYX_MESSAGING_PROFILE_ID=' > "$tmp" || true
+grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' | grep -v '^PRIVATE_WALLET_KEY=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^TELNYX_MESSAGING_PROFILE_ID=' | grep -v '^TELNYX_API_KEY=' | grep -v '^TELNYX_CONNECTION_ID=' | grep -v '^TELNYX_PUBLIC_KEY=' | grep -v '^ELEVENLABS_API_KEY=' | grep -v '^OPENAI_API_KEY=' | grep -v '^ALLOWED_CALLER_PHONE=' > "$tmp" || true
 echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
 echo "SETUP_PASSWORD=$setup_password" >> "$tmp"
 echo "PRIVATE_WALLET_KEY=$private_wallet_key" >> "$tmp"
@@ -85,6 +97,12 @@ if [ -n "$agentmail_inbox" ]; then echo "AGENTMAIL_INBOX_ID=$agentmail_inbox" >>
 if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
 if [ -n "$telnyx_phone" ]; then echo "TELNYX_PHONE_NUMBER=$telnyx_phone" >> "$tmp"; fi
 if [ -n "$telnyx_profile" ]; then echo "TELNYX_MESSAGING_PROFILE_ID=$telnyx_profile" >> "$tmp"; fi
+if [ -n "$telnyx_api_key" ]; then echo "TELNYX_API_KEY=$telnyx_api_key" >> "$tmp"; fi
+if [ -n "$telnyx_connection_id" ]; then echo "TELNYX_CONNECTION_ID=$telnyx_connection_id" >> "$tmp"; fi
+if [ -n "$telnyx_public_key" ]; then echo "TELNYX_PUBLIC_KEY=$telnyx_public_key" >> "$tmp"; fi
+if [ -n "$elevenlabs_key" ]; then echo "ELEVENLABS_API_KEY=$elevenlabs_key" >> "$tmp"; fi
+if [ -n "$openai_key" ]; then echo "OPENAI_API_KEY=$openai_key" >> "$tmp"; fi
+if [ -n "$allowed_caller" ]; then echo "ALLOWED_CALLER_PHONE=$allowed_caller" >> "$tmp"; fi
 mv "$tmp" "$ENV_FILE"
 
 echo ""

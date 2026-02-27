@@ -26,6 +26,7 @@ ENV NODE_PATH=/app/node_modules
 COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/openclaw/workspace /app/openclaw/workspace
 COPY runtime/openclaw/extensions /app/openclaw/extensions
+RUN mkdir -p /app/openclaw/extensions/voice-call && cp -r /app/node_modules/@openclaw/voice-call/* /app/openclaw/extensions/voice-call/
 COPY runtime/scripts ./scripts
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
