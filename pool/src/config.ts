@@ -35,7 +35,17 @@ export const config = {
   // Railway (from services)
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
-  railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE", "ghcr.io/xmtplabs/convos-runtime:latest"),
+  railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
+    const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
+    const tagMap: Record<string, string> = {
+      scaling: "scaling",
+      dev: "dev",
+      staging: "staging",
+      production: "latest",
+    };
+    const tag = tagMap[env] || "latest";
+    return `ghcr.io/xmtplabs/convos-runtime:${tag}`;
+  })(),
 
   // OpenRouter (from services)
   openrouterManagementKey: getEnv("OPENROUTER_MANAGEMENT_KEY"),
