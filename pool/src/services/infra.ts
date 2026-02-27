@@ -44,6 +44,7 @@ export async function createInstance(
       const keyName = `convos-agent-${instanceId}`;
       const { key, hash } = await openrouter.createKey(keyName);
       sendMetric("provider.openrouter.duration_ms", Date.now() - t0, { step: "create_key" });
+      sendMetric("provider.openrouter.provisioned", 1);
       vars.OPENROUTER_API_KEY = key;
       services.openrouter = { resourceId: hash };
       onProgress?.("openrouter", "ok");
@@ -56,6 +57,7 @@ export async function createInstance(
       const t0 = Date.now();
       const inboxId = await agentmail.createInbox(instanceId);
       sendMetric("provider.agentmail.duration_ms", Date.now() - t0, { step: "create_inbox" });
+      sendMetric("provider.agentmail.provisioned", 1);
       vars.AGENTMAIL_INBOX_ID = inboxId;
       services.agentmail = { resourceId: inboxId };
       onProgress?.("agentmail", "ok");
@@ -68,6 +70,7 @@ export async function createInstance(
       const t0 = Date.now();
       const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
       sendMetric("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
+      sendMetric("provider.telnyx.provisioned", 1);
       vars.TELNYX_PHONE_NUMBER = phoneNumber;
       vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
       services.telnyx = { resourceId: phoneNumber };
@@ -110,6 +113,7 @@ export async function createInstance(
   const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
   const projectId = proj.projectId;
   sendMetric("provider.railway.project.duration_ms", Date.now() - projStart);
+  sendMetric("provider.railway.provisioned", 1);
   onProgress?.("railway-project", "ok", projectId);
 
   let environmentId: string;
