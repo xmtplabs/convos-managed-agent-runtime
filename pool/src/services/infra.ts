@@ -211,7 +211,7 @@ export async function createInstance(
  * Instances with providerProjectId → projectDelete cascades service + volumes.
  * Old DB rows without providerProjectId → service-level cleanup fallback.
  */
-export async function destroyInstance(instanceId: string): Promise<DestroyResult> {
+export async function destroyInstance(instanceId: string, onProgress?: ProgressCallback): Promise<DestroyResult> {
   const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
   const infra = infraRows[0];
   if (!infra) throw Object.assign(new Error(`Instance ${instanceId} not found`), { status: 404 });
@@ -230,17 +230,31 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
   for (const svc of svcRows) {
     try {
       if (svc.toolId === "openrouter") {
+        onProgress?.("openrouter", "active");
         destroyed.openrouter = await openrouter.deleteKey(svc.resourceId);
+        onProgress?.("openrouter", destroyed.openrouter ? "ok" : "skip", destroyed.openrouter ? undefined : "No key found");
       } else if (svc.toolId === "agentmail") {
+        onProgress?.("agentmail", "active");
         destroyed.agentmail = await agentmail.deleteInbox(svc.resourceId);
+        onProgress?.("agentmail", destroyed.agentmail ? "ok" : "skip", destroyed.agentmail ? undefined : "No inbox found");
       } else if (svc.toolId === "telnyx") {
+        onProgress?.("telnyx", "active");
         destroyed.telnyx = await telnyx.deletePhone(svc.resourceId);
+        onProgress?.("telnyx", destroyed.telnyx ? "ok" : "skip", destroyed.telnyx ? undefined : "No phone found");
       }
     } catch (err: any) {
       console.warn(`[infra] Failed to delete ${svc.toolId} resource for ${instanceId}:`, err.message);
+      onProgress?.(svc.toolId, "fail", err.message);
     }
   }
 
+  // Report skip for tools that had no service rows
+  const svcToolIds = new Set(svcRows.map((s) => s.toolId));
+  if (!svcToolIds.has("openrouter")) onProgress?.("openrouter", "skip", "Not provisioned");
+  if (!svcToolIds.has("agentmail")) onProgress?.("agentmail", "skip", "Not provisioned");
+  if (!svcToolIds.has("telnyx")) onProgress?.("telnyx", "skip", "Not provisioned");
+
+  onProgress?.("railway", "active");
   if (infra.providerProjectId) {
     // Sharded: delete the entire project (cascades service + volumes)
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -248,10 +262,12 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
         await railway.projectDelete(infra.providerProjectId);
         destroyed.service = true;
         destroyed.volumes = true;
+        onProgress?.("railway", "ok");
         break;
       } catch (err: any) {
         console.warn(`[infra] projectDelete attempt ${attempt}/3 for ${infra.providerProjectId}: ${err.message}`);
         if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
+        else onProgress?.("railway", "fail", err.message);
       }
     }
   } else {
@@ -260,16 +276,20 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
       try {
         await railway.deleteService(infra.providerServiceId);
         destroyed.service = true;
+        onProgress?.("railway", "ok");
         break;
       } catch (err: any) {
         console.warn(`[infra] deleteService attempt ${attempt}/3 for ${infra.providerServiceId}: ${err.message}`);
         if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
+        else onProgress?.("railway", "fail", err.message);
       }
     }
   }
 
   // Delete DB rows (cascade handles instance_services)
+  onProgress?.("db", "active");
   await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+  onProgress?.("db", "ok");
 
   console.log(`[infra] Instance ${instanceId} destroyed`);
   return { instanceId, destroyed };
