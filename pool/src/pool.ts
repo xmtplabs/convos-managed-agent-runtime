@@ -240,6 +240,56 @@ export async function drainPool(count: number) {
   return results;
 }
 
+export type DrainProgressCallback = (instanceNum: number, instanceId: string, instanceName: string, step: string, status: string, message?: string) => void;
+
+export async function drainPoolStream(count: number, onProgress: DrainProgressCallback) {
+  const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
+  const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
+  const toDrain = unclaimed.slice(0, count);
+  if (toDrain.length === 0) return { drained: 0, failed: 0, instances: [] as string[] };
+
+  const ids = toDrain.map((i: any) => i.id);
+  console.log(`[pool] Draining (stream) ${toDrain.length} unclaimed instance(s): ${ids.join(", ")}`);
+
+  let drained = 0;
+  let failed = 0;
+  const drainedIds: string[] = [];
+  const MAX_CONCURRENCY = 5;
+
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < toDrain.length) {
+      const i = nextIndex++;
+      const inst = toDrain[i] as any;
+      const instanceNum = i + 1;
+
+      const current = await db.findById(inst.id);
+      if (!current || CLAIMED_STATUSES.has(current.status)) {
+        onProgress(instanceNum, inst.id, inst.name || inst.id, "skip", "skip", "No longer unclaimed");
+        continue;
+      }
+
+      try {
+        await infraDestroyInstance(inst.id, (step, status, message) => {
+          onProgress(instanceNum, inst.id, inst.name || inst.id, step, status, message);
+        });
+        await db.deleteById(inst.id).catch(() => {});
+        drainedIds.push(inst.id);
+        drained++;
+        onProgress(instanceNum, inst.id, inst.name || inst.id, "done", "ok");
+      } catch (err: any) {
+        failed++;
+        onProgress(instanceNum, inst.id, inst.name || inst.id, "error", "fail", err.message);
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENCY, toDrain.length) }, () => worker()));
+
+  console.log(`[pool] Drain stream complete: ${drained} drained, ${failed} failed`);
+  return { drained, failed, instances: drainedIds };
+}
+
 export async function killInstance(id: string) {
   const inst = await db.findById(id);
   if (!inst) return;
