@@ -24,6 +24,9 @@ import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
 
+/** Sender ID for synthetic system messages (greeting dispatch, etc.). */
+const SYSTEM_SENDER_ID = "system" as const;
+
 type RuntimeLogger = {
   info: (msg: string) => void;
   error: (msg: string) => void;
@@ -440,7 +443,7 @@ async function handleInboundMessage(
   // Skip session recording for synthetic system messages (e.g. greeting trigger)
   // so the prompt doesn't appear in session history. The agent's response is
   // recorded normally by the reply pipeline.
-  if (msg.senderId !== "system") {
+  if (msg.senderId !== SYSTEM_SENDER_ID) {
     await runtime.channel.session.recordInboundSession({
       storePath,
       sessionKey: ctxPayload.SessionKey ?? route.sessionKey,
@@ -592,7 +595,7 @@ async function dispatchGreeting(
   const syntheticMsg: InboundMessage = {
     conversationId: inst.conversationId,
     messageId: `system-greeting-${crypto.randomUUID()}`,
-    senderId: "system",
+    senderId: SYSTEM_SENDER_ID,
     senderName: "System",
     content:
       "[System: You just joined this conversation. Send your welcome message now. " +
