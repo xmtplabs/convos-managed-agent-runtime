@@ -1,7 +1,7 @@
 import { db } from "../db/connection";
 import { instanceInfra } from "../db/schema";
 import * as railway from "./providers/railway";
-import { sendMetric } from "../metrics";
+import { sendMetricSilent } from "../metrics";
 import type { BatchStatusResponse } from "../types";
 
 const STATUS_CONCURRENCY = 10;
@@ -52,8 +52,9 @@ export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchSta
     }
   }
 
-  sendMetric("batch_status.duration_ms", Date.now() - batchStart);
-  sendMetric("batch_status.count", results.length);
+  // Send to Datadog without logging — tick() logs a single summary line
+  sendMetricSilent("batch_status.duration_ms", Date.now() - batchStart);
+  sendMetricSilent("batch_status.count", results.length);
 
   return { services: results };
 }
