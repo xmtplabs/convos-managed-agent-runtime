@@ -162,7 +162,6 @@ app.get("/admin", (req, res) => {
     deployBranch: config.deployBranch,
     instanceModel: config.instanceModel,
     railwayServiceId: config.railwayServiceId,
-    poolApiKey: config.poolApiKey,
     bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
@@ -303,7 +302,7 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
 
 // --- Services routes (previously separate service, now local) ---
 app.use(registryRouter); // registry is public
-app.use(dashboardRouter); // dashboard is public (served inside admin page)
+app.use(requireAuth, dashboardRouter);
 app.use(requireAuth, infraRouter);
 app.use(requireAuth, statusRouter);
 app.use(requireAuth, configureRouter);

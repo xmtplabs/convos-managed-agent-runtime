@@ -94,7 +94,6 @@ Configure via `pool/.env` (see `pool/.env.example`). Example with all instance v
 
 ```bash
 # Pool
-POOL_MIN_IDLE=1
 POOL_API_KEY=test
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@postgres.railway.internal:5432/railway
 
