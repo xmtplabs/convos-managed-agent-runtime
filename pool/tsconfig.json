@@ -10,6 +10,6 @@
     "rootDir": "src",
     "sourceMap": true
   },
-  "include": ["src", "scripts/telnyx-test.ts", "scripts/test-agentmail.ts"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

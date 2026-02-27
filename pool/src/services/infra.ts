@@ -8,6 +8,7 @@ import * as telnyx from "./providers/telnyx";
 import * as wallet from "./providers/wallet";
 import { buildInstanceEnv } from "./providers/env";
 import { config } from "../config";
+import { sendMetric } from "../metrics";
 import type { CreateInstanceResponse, DestroyResult } from "../types";
 
 export type ProgressCallback = (step: string, status: string, message?: string) => void;
@@ -39,8 +40,11 @@ export async function createInstance(
   try {
     if (tools.includes("openrouter") && config.openrouterManagementKey) {
       onProgress?.("openrouter", "active");
+      const t0 = Date.now();
       const keyName = `convos-agent-${instanceId}`;
       const { key, hash } = await openrouter.createKey(keyName);
+      sendMetric("provider.openrouter.duration_ms", Date.now() - t0, { step: "create_key" });
+      sendMetric("provider.openrouter.provisioned", 1);
       vars.OPENROUTER_API_KEY = key;
       services.openrouter = { resourceId: hash };
       onProgress?.("openrouter", "ok");
@@ -50,7 +54,10 @@ export async function createInstance(
 
     if (tools.includes("agentmail") && config.agentmailApiKey) {
       onProgress?.("agentmail", "active");
+      const t0 = Date.now();
       const inboxId = await agentmail.createInbox(instanceId);
+      sendMetric("provider.agentmail.duration_ms", Date.now() - t0, { step: "create_inbox" });
+      sendMetric("provider.agentmail.provisioned", 1);
       vars.AGENTMAIL_INBOX_ID = inboxId;
       services.agentmail = { resourceId: inboxId };
       onProgress?.("agentmail", "ok");
@@ -60,7 +67,10 @@ export async function createInstance(
 
     if (tools.includes("telnyx") && config.telnyxApiKey) {
       onProgress?.("telnyx", "active");
+      const t0 = Date.now();
       const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
+      sendMetric("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
+      sendMetric("provider.telnyx.provisioned", 1);
       vars.TELNYX_PHONE_NUMBER = phoneNumber;
       vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
       services.telnyx = { resourceId: phoneNumber };
@@ -90,6 +100,7 @@ export async function createInstance(
     const failedStep = !services.telnyx && tools.includes("telnyx") && config.telnyxApiKey ? "telnyx"
       : !services.agentmail && tools.includes("agentmail") && config.agentmailApiKey ? "agentmail"
       : "openrouter";
+    sendMetric("provider.rollback", 1, { failed_step: failedStep });
     onProgress?.(failedStep, "fail", (err as Error).message);
     throw err;
   }
@@ -98,8 +109,11 @@ export async function createInstance(
   if (!config.railwayTeamId) throw new Error("RAILWAY_TEAM_ID not set — required for instance creation");
 
   onProgress?.("railway-project", "active");
+  const projStart = Date.now();
   const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
   const projectId = proj.projectId;
+  sendMetric("provider.railway.project.duration_ms", Date.now() - projStart);
+  sendMetric("provider.railway.provisioned", 1);
   onProgress?.("railway-project", "ok", projectId);
 
   let environmentId: string;
@@ -118,7 +132,9 @@ export async function createInstance(
   onProgress?.("railway-service", "active");
   let serviceId: string;
   try {
+    const svcStart = Date.now();
     serviceId = await railway.createService(name, vars, opts);
+    sendMetric("provider.railway.service.duration_ms", Date.now() - svcStart);
     console.log(`[infra] Railway service created: ${serviceId}`);
   } catch (err) {
     onProgress?.("railway-service", "fail", (err as Error).message);
@@ -148,7 +164,9 @@ export async function createInstance(
   onProgress?.("railway-domain", "active");
   let url: string | null = null;
   try {
+    const domainStart = Date.now();
     const domain = await railway.createDomain(serviceId, opts);
+    sendMetric("provider.railway.domain.duration_ms", Date.now() - domainStart);
     url = `https://${domain}`;
     console.log(`[infra] Domain: ${url}`);
     onProgress?.("railway-domain", "ok");
@@ -213,7 +231,7 @@ export async function createInstance(
  * Instances with providerProjectId → projectDelete cascades service + volumes.
  * Old DB rows without providerProjectId → service-level cleanup fallback.
  */
-export async function destroyInstance(instanceId: string): Promise<DestroyResult> {
+export async function destroyInstance(instanceId: string, onProgress?: ProgressCallback): Promise<DestroyResult> {
   const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
   const infra = infraRows[0];
   if (!infra) throw Object.assign(new Error(`Instance ${instanceId} not found`), { status: 404 });
@@ -232,17 +250,31 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
   for (const svc of svcRows) {
     try {
       if (svc.toolId === "openrouter") {
+        onProgress?.("openrouter", "active");
         destroyed.openrouter = await openrouter.deleteKey(svc.resourceId);
+        onProgress?.("openrouter", destroyed.openrouter ? "ok" : "skip", destroyed.openrouter ? undefined : "No key found");
       } else if (svc.toolId === "agentmail") {
+        onProgress?.("agentmail", "active");
         destroyed.agentmail = await agentmail.deleteInbox(svc.resourceId);
+        onProgress?.("agentmail", destroyed.agentmail ? "ok" : "skip", destroyed.agentmail ? undefined : "No inbox found");
       } else if (svc.toolId === "telnyx") {
+        onProgress?.("telnyx", "active");
         destroyed.telnyx = await telnyx.deletePhone(svc.resourceId);
+        onProgress?.("telnyx", destroyed.telnyx ? "ok" : "skip", destroyed.telnyx ? undefined : "No phone found");
       }
     } catch (err: any) {
       console.warn(`[infra] Failed to delete ${svc.toolId} resource for ${instanceId}:`, err.message);
+      onProgress?.(svc.toolId, "fail", err.message);
     }
   }
 
+  // Report skip for tools that had no service rows
+  const svcToolIds = new Set(svcRows.map((s) => s.toolId));
+  if (!svcToolIds.has("openrouter")) onProgress?.("openrouter", "skip", "Not provisioned");
+  if (!svcToolIds.has("agentmail")) onProgress?.("agentmail", "skip", "Not provisioned");
+  if (!svcToolIds.has("telnyx")) onProgress?.("telnyx", "skip", "Not provisioned");
+
+  onProgress?.("railway", "active");
   if (infra.providerProjectId) {
     // Sharded: delete the entire project (cascades service + volumes)
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -250,10 +282,12 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
         await railway.projectDelete(infra.providerProjectId);
         destroyed.service = true;
         destroyed.volumes = true;
+        onProgress?.("railway", "ok");
         break;
       } catch (err: any) {
         console.warn(`[infra] projectDelete attempt ${attempt}/3 for ${infra.providerProjectId}: ${err.message}`);
         if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
+        else onProgress?.("railway", "fail", err.message);
       }
     }
   } else {
@@ -262,16 +296,20 @@ export async function destroyInstance(instanceId: string): Promise<DestroyResult
       try {
         await railway.deleteService(infra.providerServiceId);
         destroyed.service = true;
+        onProgress?.("railway", "ok");
         break;
       } catch (err: any) {
         console.warn(`[infra] deleteService attempt ${attempt}/3 for ${infra.providerServiceId}: ${err.message}`);
         if (attempt < 3) await new Promise((r) => setTimeout(r, 2000 * attempt));
+        else onProgress?.("railway", "fail", err.message);
       }
     }
   }
 
   // Delete DB rows (cascade handles instance_services)
+  onProgress?.("db", "active");
   await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+  onProgress?.("db", "ok");
 
   console.log(`[infra] Instance ${instanceId} destroyed`);
   return { instanceId, destroyed };
