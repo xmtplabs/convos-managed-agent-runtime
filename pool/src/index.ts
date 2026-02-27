@@ -91,7 +91,8 @@ app.use((req, res, next) => {
 });
 
 // --- Public routes ---
-app.get("/favicon.ico", (_req, res) => res.sendFile(join(__dirname, "favicon.ico")));
+app.use("/admin/assets", express.static(join(__dirname, "..", "frontend")));
+app.get("/favicon.ico", (_req, res) => res.sendFile(join(__dirname, "..", "frontend", "favicon.ico")));
 app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 const BUILD_VERSION = "2026-02-25T01:unified-pool-v1";
@@ -245,6 +246,51 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
     console.error("[api] Launch failed:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// --- SSE streaming endpoint for claim/launch with real-time progress ---
+app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
+  const agentName = (req.query.agentName as string) || "Assistant";
+  const instructions = (req.query.instructions as string) || "You are a helpful AI assistant.";
+  const joinUrl = (req.query.joinUrl as string) || undefined;
+
+  if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
+    res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
+  }
+  if (joinUrl && config.poolEnvironment !== "production" && /popup\.convos\.org/i.test(joinUrl)) {
+    res.status(400).json({ error: `popup.convos.org links cannot be used in the ${config.poolEnvironment} environment` }); return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    const result = await pool.provision({
+      agentName,
+      instructions,
+      joinUrl,
+      onProgress(step, status, message) {
+        send({ type: "step", step, status, message: message || "" });
+      },
+    });
+
+    if (!result) {
+      send({ type: "complete", ok: false, error: "No idle instances available. Try again in a few minutes." });
+    } else {
+      send({ type: "complete", ok: true, ...result });
+    }
+  } catch (err: any) {
+    send({ type: "complete", ok: false, error: err.message });
+  }
+
+  res.end();
 });
 
 // --- SSE streaming endpoint for provisioning with real-time progress ---
