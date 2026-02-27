@@ -8,6 +8,7 @@ import * as telnyx from "./providers/telnyx";
 import * as wallet from "./providers/wallet";
 import { buildInstanceEnv } from "./providers/env";
 import { config } from "../config";
+import { sendMetric } from "../metrics";
 import type { CreateInstanceResponse, DestroyResult } from "../types";
 
 export type ProgressCallback = (step: string, status: string, message?: string) => void;
@@ -38,8 +39,10 @@ export async function createInstance(
   try {
     if (tools.includes("openrouter") && config.openrouterManagementKey) {
       onProgress?.("openrouter", "active");
+      const t0 = Date.now();
       const keyName = `convos-agent-${instanceId}`;
       const { key, hash } = await openrouter.createKey(keyName);
+      sendMetric("provider.openrouter.duration_ms", Date.now() - t0, { step: "create_key" });
       vars.OPENROUTER_API_KEY = key;
       services.openrouter = { resourceId: hash };
       onProgress?.("openrouter", "ok");
@@ -49,7 +52,9 @@ export async function createInstance(
 
     if (tools.includes("agentmail") && config.agentmailApiKey) {
       onProgress?.("agentmail", "active");
+      const t0 = Date.now();
       const inboxId = await agentmail.createInbox(instanceId);
+      sendMetric("provider.agentmail.duration_ms", Date.now() - t0, { step: "create_inbox" });
       vars.AGENTMAIL_INBOX_ID = inboxId;
       services.agentmail = { resourceId: inboxId };
       onProgress?.("agentmail", "ok");
@@ -59,7 +64,9 @@ export async function createInstance(
 
     if (tools.includes("telnyx") && config.telnyxApiKey) {
       onProgress?.("telnyx", "active");
+      const t0 = Date.now();
       const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
+      sendMetric("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
       vars.TELNYX_PHONE_NUMBER = phoneNumber;
       vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
       services.telnyx = { resourceId: phoneNumber };
@@ -89,6 +96,7 @@ export async function createInstance(
     const failedStep = !services.telnyx && tools.includes("telnyx") && config.telnyxApiKey ? "telnyx"
       : !services.agentmail && tools.includes("agentmail") && config.agentmailApiKey ? "agentmail"
       : "openrouter";
+    sendMetric("provider.rollback", 1, { failed_step: failedStep });
     onProgress?.(failedStep, "fail", (err as Error).message);
     throw err;
   }
@@ -97,8 +105,10 @@ export async function createInstance(
   if (!config.railwayTeamId) throw new Error("RAILWAY_TEAM_ID not set — required for instance creation");
 
   onProgress?.("railway-project", "active");
+  const projStart = Date.now();
   const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
   const projectId = proj.projectId;
+  sendMetric("provider.railway.project.duration_ms", Date.now() - projStart);
   onProgress?.("railway-project", "ok", projectId);
 
   let environmentId: string;
@@ -117,7 +127,9 @@ export async function createInstance(
   onProgress?.("railway-service", "active");
   let serviceId: string;
   try {
+    const svcStart = Date.now();
     serviceId = await railway.createService(name, vars, opts);
+    sendMetric("provider.railway.service.duration_ms", Date.now() - svcStart);
     console.log(`[infra] Railway service created: ${serviceId}`);
   } catch (err) {
     onProgress?.("railway-service", "fail", (err as Error).message);
@@ -147,7 +159,9 @@ export async function createInstance(
   onProgress?.("railway-domain", "active");
   let url: string | null = null;
   try {
+    const domainStart = Date.now();
     const domain = await railway.createDomain(serviceId, opts);
+    sendMetric("provider.railway.domain.duration_ms", Date.now() - domainStart);
     url = `https://${domain}`;
     console.log(`[infra] Domain: ${url}`);
     onProgress?.("railway-domain", "ok");

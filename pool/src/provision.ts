@@ -1,5 +1,6 @@
 import * as db from "./db/pool";
 import { config } from "./config";
+import { sendMetric } from "./metrics";
 
 interface ProvisionOpts {
   agentName: string;
@@ -9,9 +10,13 @@ interface ProvisionOpts {
 
 export async function provision(opts: ProvisionOpts) {
   const { agentName, instructions, joinUrl } = opts;
+  const claimStart = Date.now();
 
   const instance = await db.claimIdle();
-  if (!instance) return null;
+  if (!instance) {
+    sendMetric("claim.no_idle", 1);
+    return null;
+  }
 
   try {
     console.log(`[provision] Claiming ${instance.id} for "${agentName}"${joinUrl ? " (join)" : ""}`);
@@ -42,6 +47,9 @@ export async function provision(opts: ProvisionOpts) {
 
     console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
 
+    sendMetric("claim.duration_ms", Date.now() - claimStart);
+    sendMetric("claim.success", 1);
+
     return {
       inviteUrl: result.inviteUrl || null,
       conversationId: result.conversationId,
@@ -50,6 +58,8 @@ export async function provision(opts: ProvisionOpts) {
       gatewayUrl: instance.url || null,
     };
   } catch (err) {
+    sendMetric("claim.duration_ms", Date.now() - claimStart);
+    sendMetric("claim.success", 0);
     await db.releaseClaim(instance.id);
     throw err;
   }
