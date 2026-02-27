@@ -394,6 +394,7 @@ export function adminPage({
       font-family: inherit;
     }
     .control-input:focus { outline: none; border-color: #999; }
+    select.control-input { width: 64px; }
     .btn {
       font-family: inherit;
       font-size: 12px;
