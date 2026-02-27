@@ -1098,6 +1098,7 @@ export function adminPage({
       <div class="control-group">
         <label>Replenish</label>
         <input class="control-input" id="replenish-count" type="number" min="1" max="20" value="1" />
+        <input class="control-input" id="max-parallel" type="number" min="1" max="10" value="5" title="Max parallel" />
         <button class="btn btn-primary" id="replenish-btn">+ Add</button>
       </div>
       <div class="control-group">
@@ -1644,11 +1645,12 @@ export function adminPage({
     document.getElementById('replenish-btn').addEventListener('click', function () {
       var btn = this;
       var n = parseInt(document.getElementById('replenish-count').value) || 1;
+      var parallel = parseInt(document.getElementById('max-parallel').value) || 5;
       btn.disabled = true; btn.textContent = 'Adding...';
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var es = new EventSource('/api/pool/replenish/stream?count=' + n);
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel);
       es.onmessage = function (ev) {
         try {
           var data = JSON.parse(ev.data);
@@ -1798,7 +1800,8 @@ export function adminPage({
       renderAgents();
       showDrainLog(n);
 
-      var es = new EventSource('/api/pool/drain/stream?count=' + n);
+      var drainParallel = parseInt(document.getElementById('max-parallel').value) || 5;
+      var es = new EventSource('/api/pool/drain/stream?count=' + n + '&concurrency=' + drainParallel);
       es.onmessage = function (ev) {
         try {
           var data = JSON.parse(ev.data);
