@@ -60,7 +60,13 @@ export async function provision(opts: ProvisionOpts) {
   } catch (err) {
     sendMetric("claim.duration_ms", Date.now() - claimStart);
     sendMetric("claim.success", 0);
-    await db.releaseClaim(instance.id);
+    // Any provision failure taints the instance — even transient errors
+    // (timeouts, network blips) may have partially executed on the runtime
+    // (wrote instructions, started a join). Releasing back to idle risks an
+    // infinite retry loop. Mark crashed; manual cleanup via dashboard.
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[provision] Instance ${instance.id} failed, marking crashed: ${msg.slice(0, 200)}`);
+    await db.updateStatus(instance.id, { status: "crashed" });
     throw err;
   }
 }
