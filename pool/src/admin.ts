@@ -1098,7 +1098,7 @@ export function adminPage({
       <div class="control-group">
         <label>Replenish</label>
         <input class="control-input" id="replenish-count" type="number" min="1" max="20" value="1" />
-        <input class="control-input" id="max-parallel" type="number" min="1" max="10" value="5" title="Max parallel" />
+        <input class="control-input" id="max-parallel" type="number" min="1" max="10" placeholder="Parallel (5)" title="Max concurrent provisions/drains" />
         <button class="btn btn-primary" id="replenish-btn">+ Add</button>
       </div>
       <div class="control-group">
