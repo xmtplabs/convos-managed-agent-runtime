@@ -310,15 +310,10 @@ export class ConvosInstance {
       if (alreadyJoined) {
         const identityMatch = msg.match(/Identity:\s*([a-f0-9]+)/);
         const conversationMatch = msg.match(/Conversation:\s*([a-f0-9]+)/);
-        const identityId = identityMatch?.[1] ?? "";
-        const conversationId = conversationMatch?.[1] ?? null;
-        if (identityId) {
-          const instance = new ConvosInstance({
-            conversationId: conversationId ?? "",
-            identityId,
-            env,
-            options,
-          });
+        if (identityMatch && conversationMatch) {
+          const identityId = identityMatch[1];
+          const conversationId = conversationMatch[1];
+          const instance = new ConvosInstance({ conversationId, identityId, env, options });
           return { instance, status: "joined", conversationId, identityId };
         }
       }
