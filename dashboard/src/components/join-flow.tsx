@@ -15,6 +15,11 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type JoinState = "idle" | "joining" | "success" | "post-success" | "error";
 
+/** True when the string looks like a raw HTML/XML error page (CDN 503, etc.) */
+function looksLikeHtml(s: string): boolean {
+  return /^\s*<[?!]/.test(s) || /<html[\s>]/i.test(s);
+}
+
 interface ConfettiPiece {
   left: string;
   background: string;
@@ -225,18 +230,41 @@ export function JoinFlow({
       setJoinState("joining");
 
       try {
-        const res = await fetch(`${basePath}/api/claim`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ joinUrl: url }),
-        });
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to join");
+        // Retry once on 5xx / network errors to handle transient CDN blips
+        let res: Response | undefined;
+        let data: Record<string, unknown> | undefined;
+        const MAX_ATTEMPTS = 2;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          try {
+            res = await fetch(`${basePath}/api/claim`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ joinUrl: url }),
+            });
+            if (res.ok || res.status < 500) break; // only retry 5xx
+            if (attempt < MAX_ATTEMPTS - 1)
+              await new Promise((r) => setTimeout(r, 2000));
+          } catch (fetchErr) {
+            if (attempt === MAX_ATTEMPTS - 1) throw fetchErr;
+            await new Promise((r) => setTimeout(r, 2000));
+          }
         }
 
-        if (data.joined) {
+        // Parse response — handle non-JSON (raw CDN error pages) gracefully
+        const contentType = res!.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const text = await res!.text();
+          throw new Error(text || `HTTP ${res!.status}`);
+        }
+        data = await res!.json();
+
+        if (!res!.ok) {
+          throw new Error(
+            (data!.error as string) || "Failed to join",
+          );
+        }
+
+        if (data!.joined) {
           // --- Success state ---
           setJoinState("success");
           setConfettiPieces(generateConfetti());
@@ -274,7 +302,10 @@ export function JoinFlow({
           hideJoiningOverlay();
           setLaunching(false);
           if (onShowQr) {
-            onShowQr(data.agentName || "Assistant", data.inviteUrl);
+            onShowQr(
+              (data!.agentName as string) || "Assistant",
+              data!.inviteUrl as string,
+            );
           }
         }
       } catch (err: unknown) {
@@ -359,10 +390,15 @@ export function JoinFlow({
     joiningSub = "They\u2019re now in your conversation";
   } else if (joinState === "error") {
     joiningText = "Couldn\u2019t reach your conversation";
-    joiningSub = errorMsg || "Check the link and try again";
+    joiningSub = looksLikeHtml(errorMsg)
+      ? "Something went wrong"
+      : errorMsg || "Check the link and try again";
     showDismiss = true;
     dismissText = "Try again";
   }
+
+  const showRawError =
+    joinState === "error" && errorMsg && looksLikeHtml(errorMsg);
 
   // -----------------------------------------------------------------------
   // Render
@@ -506,6 +542,34 @@ export function JoinFlow({
           <div className="joining-status-sub" id="joining-sub">
             {joiningSub}
           </div>
+          {showRawError && (
+            <details
+              style={{
+                marginTop: 12,
+                fontSize: 11,
+                color: "#999",
+                maxWidth: "90%",
+                margin: "12px auto 0",
+              }}
+            >
+              <summary style={{ cursor: "pointer", textAlign: "center" }}>
+                Details
+              </summary>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  maxHeight: 120,
+                  overflow: "auto",
+                  marginTop: 8,
+                  fontSize: 10,
+                  textAlign: "left",
+                }}
+              >
+                {errorMsg}
+              </pre>
+            </details>
+          )}
           <button
             className="joining-dismiss-btn"
             id="joining-dismiss"
