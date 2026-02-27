@@ -577,15 +577,6 @@ async function dispatchGreeting(
   account: ResolvedConvosAccount,
   runtime: PluginRuntime,
 ): Promise<void> {
-  const cfg = runtime.config.loadConfig();
-  const convosConfig = cfg.channels?.convos ?? {};
-
-  // greetOnJoin defaults to true — check for explicit false
-  if (convosConfig.greetOnJoin === false) {
-    console.log("[convos] greetOnJoin disabled, skipping greeting");
-    return;
-  }
-
   const inst = getConvosInstance();
   if (!inst) {
     console.error("[convos] No instance available for greeting dispatch");
