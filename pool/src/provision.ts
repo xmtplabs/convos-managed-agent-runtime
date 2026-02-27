@@ -60,7 +60,17 @@ export async function provision(opts: ProvisionOpts) {
   } catch (err) {
     sendMetric("claim.duration_ms", Date.now() - claimStart);
     sendMetric("claim.success", 0);
-    await db.releaseClaim(instance.id);
+
+    // If the runtime says it's already bound (409), the instance is tainted
+    // and will never succeed. Mark it crashed so it stops being picked up.
+    const msg = err instanceof Error ? err.message : String(err);
+    const isPermanent = /\b409\b/.test(msg) || /already bound/i.test(msg);
+    if (isPermanent) {
+      console.error(`[provision] Instance ${instance.id} is tainted (409/already-bound), marking crashed`);
+      await db.updateStatus(instance.id, { status: "crashed" });
+    } else {
+      await db.releaseClaim(instance.id);
+    }
     throw err;
   }
 }
