@@ -2,6 +2,7 @@ name: Build Runtime Image
 
 on:
   pull_request:
+    types: [opened, synchronize, closed]
     paths:
       - 'runtime/**'
   workflow_dispatch:
@@ -12,7 +13,9 @@ permissions:
 
 jobs:
   build:
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-runtime-build')"
+    if: >-
+      github.event.action != 'closed' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-runtime-build')
     runs-on: ubuntu-latest
     outputs:
       pending: ${{ steps.meta.outputs.pending }}
