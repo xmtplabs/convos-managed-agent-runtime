@@ -6,6 +6,8 @@ import { useState, useCallback, useRef, useEffect } from "react";
 // Types
 // ---------------------------------------------------------------------------
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 interface TemplateActionsProps {
   slug: string;
   notionPageId: string | null;
@@ -49,7 +51,7 @@ export function TemplateActions({
     if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     setCopyState("loading");
     try {
-      const res = await fetch(`/api/prompts/${notionPageId}`);
+      const res = await fetch(`${basePath}/api/prompts/${notionPageId}`);
       if (!res.ok) throw new Error("Failed to fetch prompt");
       const data = await res.json();
       await navigator.clipboard.writeText(data.prompt);
