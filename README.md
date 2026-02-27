@@ -1,6 +1,6 @@
 # Convos agents
 
-OpenClaw gateway + Convos (XMTP) channel plugin. Pre-warmed agent instances are provisioned via a pool; users claim an agent and it's live in seconds.
+OpenClaw gateway + Convos (XMTP) channel plugin. Pre-warmed agent instances are provisioned via a pool; users claim an agent and it's live in seconds. Test.
 
 See `docs/` for architecture, QA, changelog, and workarounds.
 
