@@ -394,7 +394,6 @@ export function adminPage({
       font-family: inherit;
     }
     .control-input:focus { outline: none; border-color: #999; }
-    #max-parallel { width: 100px; }
     .btn {
       font-family: inherit;
       font-size: 12px;
@@ -1097,9 +1096,15 @@ export function adminPage({
 
     <div class="controls">
       <div class="control-group">
+        <label>Max parallel</label>
+        <select class="control-input" id="max-parallel">
+          <option value="5" selected>5</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="control-group">
         <label>Replenish</label>
         <input class="control-input" id="replenish-count" type="number" min="1" max="20" value="1" />
-        <input class="control-input" id="max-parallel" type="number" min="1" max="10" placeholder="Parallel (5)" title="Max concurrent provisions/drains" />
         <button class="btn btn-primary" id="replenish-btn">+ Add</button>
       </div>
       <div class="control-group">
