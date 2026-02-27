@@ -4,7 +4,7 @@ import { createInstance as infraCreateInstance, destroyInstance as infraDestroyI
 import { fetchBatchStatus } from "./services/status";
 import { deriveStatus } from "./status";
 import { config } from "./config";
-import { sendMetric } from "./metrics";
+import { sendMetric, sendMetricBatch } from "./metrics";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -149,9 +149,11 @@ export async function tick() {
       healthTimeout++;
     }
   }
-  sendMetric("health_check.success", healthSuccess);
-  sendMetric("health_check.failure", healthFailure);
-  sendMetric("health_check.timeout", healthTimeout);
+  sendMetricBatch("health", [
+    ["health_check.success", healthSuccess],
+    ["health_check.failure", healthFailure],
+    ["health_check.timeout", healthTimeout],
+  ]);
 
   for (const svc of agentServices) {
     const instId = svc.instanceId;
@@ -203,13 +205,15 @@ export async function tick() {
     `[tick] ${counts.idle || 0} idle, ${counts.starting || 0} starting, ${counts.claimed || 0} claimed, ${counts.crashed || 0} crashed (total: ${total})`
   );
 
-  sendMetric("pool.idle", counts.idle || 0);
-  sendMetric("pool.starting", counts.starting || 0);
-  sendMetric("pool.claimed", counts.claimed || 0);
-  sendMetric("pool.crashed", counts.crashed || 0);
-  sendMetric("pool.dead", counts.dead || 0);
-  sendMetric("pool.total", total);
-  sendMetric("tick.duration_ms", Date.now() - tickStart);
+  sendMetricBatch("tick", [
+    ["pool.idle", counts.idle || 0],
+    ["pool.starting", counts.starting || 0],
+    ["pool.claimed", counts.claimed || 0],
+    ["pool.crashed", counts.crashed || 0],
+    ["pool.dead", counts.dead || 0],
+    ["pool.total", total],
+    ["tick.duration_ms", Date.now() - tickStart],
+  ]);
 }
 
 export { provision } from "./provision";
