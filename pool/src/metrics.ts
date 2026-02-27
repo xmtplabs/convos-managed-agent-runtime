@@ -35,6 +35,19 @@ export function sendMetric(
   metrics.gauge(name, rounded, formatted);
 }
 
+/** Send a metric to Datadog without logging to stdout. */
+export function sendMetricSilent(
+  name: string,
+  value: number,
+  tags: Record<string, string | undefined> = {},
+): void {
+  if (!isInitialized) return;
+  const formatted = Object.entries(tags)
+    .filter(([, v]) => v != null && String(v).trim() !== "")
+    .map(([k, v]) => `${k}:${String(v).trim()}`);
+  metrics.gauge(name, Math.round(value), formatted);
+}
+
 /** Send multiple metrics and log a single summary line instead of one per metric. */
 export function sendMetricBatch(
   label: string,
