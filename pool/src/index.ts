@@ -235,7 +235,7 @@ app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
 
   let created = 0;
   let failed = 0;
-  const MAX_CONCURRENCY = 5;
+  const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.query.concurrency as string) || 5, 1), 10);
 
   // Concurrency-limited parallel provisioning
   let nextIndex = 0;
@@ -270,7 +270,7 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
     const count = Math.min(parseInt(req.body?.count) || 0, 20);
     if (count > 0) {
       const results: any[] = [];
-      const MAX_CONCURRENCY = 5;
+      const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.body?.concurrency) || 5, 1), 10);
       let nextIndex = 0;
       async function worker() {
         while (nextIndex < count) {
@@ -305,6 +305,7 @@ app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
 
 app.get("/api/pool/drain/stream", requireAuth, async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 20, 20);
+  const concurrency = Math.min(Math.max(parseInt(req.query.concurrency as string) || 5, 1), 10);
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -316,7 +317,7 @@ app.get("/api/pool/drain/stream", requireAuth, async (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
-  const result = await pool.drainPoolStream(count, (instanceNum, instanceId, instanceName, step, status, message) => {
+  const result = await pool.drainPoolStream(count, concurrency, (instanceNum, instanceId, instanceName, step, status, message) => {
     send({ type: "step", instanceNum, instanceId, instanceName, step, status, message: message || "" });
   });
 
