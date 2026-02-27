@@ -242,7 +242,7 @@ export async function drainPool(count: number) {
 
 export type DrainProgressCallback = (instanceNum: number, instanceId: string, instanceName: string, step: string, status: string, message?: string) => void;
 
-export async function drainPoolStream(count: number, onProgress: DrainProgressCallback) {
+export async function drainPoolStream(count: number, concurrency: number, onProgress: DrainProgressCallback) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
   const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
   const toDrain = unclaimed.slice(0, count);
@@ -254,7 +254,7 @@ export async function drainPoolStream(count: number, onProgress: DrainProgressCa
   let drained = 0;
   let failed = 0;
   const drainedIds: string[] = [];
-  const MAX_CONCURRENCY = 5;
+  const MAX_CONCURRENCY = concurrency;
 
   let nextIndex = 0;
   async function worker() {
