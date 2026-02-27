@@ -284,8 +284,8 @@ body {
 }
 
 @media (max-width: 640px) {
-  .get-convos { padding: 20px 16px; gap: 16px; }
   .get-convos-tagline { font-size: 13px; }
+  .get-convos-sub { font-size: 15px; }
 }
 
 /* --- Empty pool state (sad balloon) --- */
@@ -1048,11 +1048,109 @@ body {
 
 /* --- Responsive --- */
 @media (max-width: 640px) {
-  .ps-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
-  .ps-agent-actions { gap: 4px; }
-  .ps-btn { padding: 5px 8px; font-size: 11px; }
-  .ps-modal { max-width: 100%; margin: 0 8px; }
-  .form-wrapper { padding: 32px 16px; }
-  .page-title { font-size: 24px; }
-  .stories { grid-template-columns: 1fr; gap: 28px; }
+  /* Layout & safe areas */
+  .form-wrapper {
+    padding: 32px 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(32px, env(safe-area-inset-bottom));
+  }
+
+  /* Typography scaling */
+  .page-title { font-size: 24px; letter-spacing: -0.5px; }
+  .page-subtitle { font-size: 15px; margin-bottom: 24px; }
+
+  /* Paste input: full width on mobile */
+  .paste-input-wrap { max-width: 100%; }
+  .paste-input { font-size: 16px; /* prevents iOS zoom on focus */ }
+
+  /* Stories: single column */
+  .stories { grid-template-columns: 1fr; gap: 24px; }
+
+  /* Get Convos strip: stack vertically on narrow screens */
+  .get-convos {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 18px 16px;
+  }
+  .get-convos-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  /* Filter pills: horizontal scroll with fade edge */
+  .ps-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;          /* Firefox */
+    -webkit-mask-image: linear-gradient(to right, black 88%, transparent);
+    mask-image: linear-gradient(to right, black 88%, transparent);
+  }
+  .ps-filters::-webkit-scrollbar { display: none; }
+  .ps-filter-pill { flex-shrink: 0; }
+
+  /* Agent rows: better touch targets */
+  .ps-agent-row {
+    padding: 14px 4px;
+    gap: 10px;
+  }
+  .ps-agent-actions { gap: 6px; }
+  .ps-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Prompt modal: bottom sheet presentation */
+  .ps-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .ps-modal {
+    max-width: 100%;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+    animation: mobile-sheet-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .ps-modal-head { padding: 12px 20px; }
+  /* Drag handle indicator on the modal itself */
+  .ps-modal::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 5px;
+    background: var(--color-foreground-inactive);
+    border-radius: 3px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+  .ps-modal-body { padding: 16px 20px; }
+  .ps-modal-footer {
+    padding: 16px 20px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  /* QR modal: larger on mobile */
+  .modal {
+    max-width: calc(100% - 32px);
+    margin: 0 16px;
+  }
+
+  /* Section spacing: tighter rhythm */
+  .prompt-store { margin-top: 32px; padding-top: 24px; }
+  .ps-intro { margin-bottom: 20px; }
+}
+
+/* Bottom sheet animation */
+@keyframes mobile-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
