@@ -105,9 +105,12 @@ export async function tick() {
   const dbRows = await db.listAll();
   const dbById = new Map(dbRows.map((r: any) => [r.id, r]));
 
+  // Only log instances with non-SUCCESS deploy status (errors/anomalies)
   for (const svc of agentServices) {
-    const row = dbById.get(svc.instanceId);
-    console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimedAt ? " (claimed)" : ""}`);
+    if (svc.deployStatus !== "SUCCESS") {
+      const row = dbById.get(svc.instanceId);
+      console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimedAt ? " (claimed)" : ""}`);
+    }
   }
 
   const successServices = agentServices.filter((s) => s.deployStatus === "SUCCESS");
@@ -149,11 +152,7 @@ export async function tick() {
       healthTimeout++;
     }
   }
-  sendMetricBatch("health", [
-    ["health_check.success", healthSuccess],
-    ["health_check.failure", healthFailure],
-    ["health_check.timeout", healthTimeout],
-  ]);
+  // Health metrics are included in the single tick summary line below
 
   for (const svc of agentServices) {
     const instId = svc.instanceId;
@@ -212,6 +211,9 @@ export async function tick() {
     ["pool.crashed", counts.crashed || 0],
     ["pool.dead", counts.dead || 0],
     ["pool.total", total],
+    ["health_check.success", healthSuccess],
+    ["health_check.failure", healthFailure],
+    ["health_check.timeout", healthTimeout],
     ["tick.duration_ms", Date.now() - tickStart],
   ]);
 }
