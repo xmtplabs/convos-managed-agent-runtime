@@ -178,7 +178,7 @@ jobs:
             scaling) echo "tag=scaling" >> "$GITHUB_OUTPUT" ;;
             dev)     echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
             staging) echo "tag=staging" >> "$GITHUB_OUTPUT" ;;
-            main)    echo "tag=latest" >> "$GITHUB_OUTPUT" ;;
+            main)    echo "tag=production" >> "$GITHUB_OUTPUT" ;;
             *)       echo "tag=" >> "$GITHUB_OUTPUT" ;;
           esac
           echo "Merge target: $BASE → tag: $(grep tag "$GITHUB_OUTPUT" | cut -d= -f2)"
