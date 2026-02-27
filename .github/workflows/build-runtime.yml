@@ -44,7 +44,7 @@ jobs:
             TAG="pr-${{ github.event.number }}"
           else
             SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-            TAG="latest"
+            TAG="dispatch"
           fi
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -146,13 +146,13 @@ jobs:
           docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
           docker push "$IMAGE:$SHA"
 
-          # PRs get pr-N tag only, never latest
+          # PRs get pr-N tag, dispatches get dispatch tag
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
             docker push "$IMAGE:pr-${{ github.event.number }}"
           else
-            docker tag "$IMAGE:$PENDING" "$IMAGE:latest"
-            docker push "$IMAGE:latest"
+            docker tag "$IMAGE:$PENDING" "$IMAGE:dispatch"
+            docker push "$IMAGE:dispatch"
           fi
 
   # Fast promote: retag the existing sha image to an environment tag (~15s)
@@ -178,7 +178,7 @@ jobs:
             scaling) echo "tag=scaling" >> "$GITHUB_OUTPUT" ;;
             dev)     echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
             staging) echo "tag=staging" >> "$GITHUB_OUTPUT" ;;
-            main)    echo "tag=latest" >> "$GITHUB_OUTPUT" ;;
+            main)    echo "tag=production" >> "$GITHUB_OUTPUT" ;;
             *)       echo "tag=" >> "$GITHUB_OUTPUT" ;;
           esac
           echo "Merge target: $BASE → tag: $(grep tag "$GITHUB_OUTPUT" | cut -d= -f2)"

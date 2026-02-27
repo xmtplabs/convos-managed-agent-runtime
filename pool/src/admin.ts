@@ -394,6 +394,7 @@ export function adminPage({
       font-family: inherit;
     }
     .control-input:focus { outline: none; border-color: #999; }
+    select.control-input { width: 64px; }
     .btn {
       font-family: inherit;
       font-size: 12px;
@@ -971,6 +972,7 @@ export function adminPage({
       margin-left: auto;
     }
     .prov-railway-link:hover { text-decoration: underline; background: #DBEAFE; }
+    .drain-inst-name { font-size: 10px; font-weight: 400; color: #999; }
     .provision-steps {
       display: flex;
       flex-direction: column;
@@ -1093,6 +1095,13 @@ export function adminPage({
 
     <div class="controls">
       <div class="control-group">
+        <label>Max parallel</label>
+        <select class="control-input" id="max-parallel">
+          <option value="5" selected>5</option>
+          <option value="10">10</option>
+        </select>
+      </div>
+      <div class="control-group">
         <label>Replenish</label>
         <input class="control-input" id="replenish-count" type="number" min="1" max="20" value="1" />
         <button class="btn btn-primary" id="replenish-btn">+ Add</button>
@@ -1114,6 +1123,17 @@ export function adminPage({
         </div>
       </div>
       <div class="provision-log-body" id="provision-log-body"></div>
+    </div>
+
+    <div class="provision-log" id="drain-log">
+      <div class="provision-log-header" onclick="toggleDrainLog()">
+        <span class="provision-log-title">Draining <span class="prov-count" id="drain-count">0/0</span></span>
+        <div class="provision-log-actions">
+          <button class="provision-log-toggle" id="drain-toggle">Collapse</button>
+          <button class="provision-log-close" onclick="event.stopPropagation(); closeDrainLog()">&times;</button>
+        </div>
+      </div>
+      <div class="provision-log-body" id="drain-log-body"></div>
     </div>
 
     <div class="launch-card">
@@ -1611,11 +1631,12 @@ export function adminPage({
     document.getElementById('replenish-btn').addEventListener('click', function () {
       var btn = this;
       var n = parseInt(document.getElementById('replenish-count').value) || 1;
+      var parallel = parseInt(document.getElementById('max-parallel').value) || 5;
       btn.disabled = true; btn.textContent = 'Adding...';
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var es = new EventSource('/api/pool/replenish/stream?count=' + n);
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel);
       es.onmessage = function (ev) {
         try {
           var data = JSON.parse(ev.data);
@@ -1668,7 +1689,84 @@ export function adminPage({
       };
     });
 
-    // --- Drain ---
+    // --- Drain log helpers ---
+    var DRAIN_STEPS = [
+      { key: 'openrouter', label: 'OpenRouter key' },
+      { key: 'agentmail', label: 'AgentMail inbox' },
+      { key: 'telnyx', label: 'Telnyx phone' },
+      { key: 'railway', label: 'Railway project' },
+      { key: 'db', label: 'DB cleanup' },
+    ];
+
+    var drainTotal = 0;
+    var drainDone = 0;
+
+    function showDrainLog(count) {
+      drainTotal = count;
+      drainDone = 0;
+      var panel = document.getElementById('drain-log');
+      var body = document.getElementById('drain-log-body');
+      body.innerHTML = '';
+      panel.classList.add('visible');
+      panel.classList.remove('collapsed');
+      document.getElementById('drain-toggle').textContent = 'Collapse';
+      document.getElementById('drain-count').textContent = '0/' + count;
+
+      for (var i = 1; i <= count; i++) {
+        var card = document.createElement('div');
+        card.className = 'provision-instance';
+        card.id = 'drain-inst-' + i;
+        var stepsHtml = '';
+        DRAIN_STEPS.forEach(function (s) {
+          stepsHtml += '<div class="provision-step pending" id="drain-step-' + i + '-' + s.key + '">'
+            + '<span class="provision-step-icon"></span>'
+            + '<span class="provision-step-label">' + s.label + '</span>'
+            + '<span class="provision-step-msg"></span>'
+            + '</div>';
+        });
+        card.innerHTML = '<div class="provision-instance-header">Instance ' + i
+          + ' <span class="prov-status in-progress" id="drain-inst-status-' + i + '">Pending</span>'
+          + ' <span class="drain-inst-name" id="drain-inst-name-' + i + '"></span></div>'
+          + '<div class="provision-steps">' + stepsHtml + '</div>';
+        body.appendChild(card);
+      }
+    }
+
+    function updateDrainStep(instanceNum, step, status, message) {
+      var el = document.getElementById('drain-step-' + instanceNum + '-' + step);
+      if (!el) return;
+      el.className = 'provision-step ' + status;
+      var msgEl = el.querySelector('.provision-step-msg');
+      if (msgEl && message) msgEl.textContent = message;
+    }
+
+    function updateDrainInstanceName(instanceNum, name) {
+      var el = document.getElementById('drain-inst-name-' + instanceNum);
+      if (el && !el.textContent) el.textContent = '(' + name + ')';
+    }
+
+    function markDrainInstance(instanceNum, success) {
+      drainDone++;
+      document.getElementById('drain-count').textContent = drainDone + '/' + drainTotal;
+      var statusEl = document.getElementById('drain-inst-status-' + instanceNum);
+      if (statusEl) {
+        statusEl.className = 'prov-status ' + (success ? 'success' : 'failed');
+        statusEl.textContent = success ? 'Done' : 'Failed';
+      }
+    }
+
+    function toggleDrainLog() {
+      var panel = document.getElementById('drain-log');
+      panel.classList.toggle('collapsed');
+      document.getElementById('drain-toggle').textContent = panel.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+    }
+
+    function closeDrainLog() {
+      var panel = document.getElementById('drain-log');
+      panel.classList.remove('visible');
+    }
+
+    // --- Drain (SSE streaming) ---
     document.getElementById('drain-btn').addEventListener('click', async function () {
       var btn = this;
       btn.disabled = true;
@@ -1686,22 +1784,47 @@ export function adminPage({
       // Mark all unclaimed rows as destroying
       idleCache.concat(startingCache).forEach(function (a) { killingSet[a.id] = true; });
       renderAgents();
-      try {
-        var res = await fetch('/api/pool/drain', { method: 'POST', headers: authHeaders, body: JSON.stringify({ count: n }) });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-        // Clear killing state for drained IDs
-        (data.drainedIds || []).forEach(function (id) { delete killingSet[id]; });
+      showDrainLog(n);
+
+      var drainParallel = parseInt(document.getElementById('max-parallel').value) || 5;
+      var es = new EventSource('/api/pool/drain/stream?count=' + n + '&concurrency=' + drainParallel);
+      es.onmessage = function (ev) {
+        try {
+          var data = JSON.parse(ev.data);
+
+          if (data.type === 'step') {
+            updateDrainInstanceName(data.instanceNum, data.instanceName || data.instanceId);
+            if (data.step === 'done') {
+              markDrainInstance(data.instanceNum, true);
+            } else if (data.step === 'error') {
+              markDrainInstance(data.instanceNum, false);
+            } else if (data.step === 'skip') {
+              markDrainInstance(data.instanceNum, true);
+              var statusEl = document.getElementById('drain-inst-status-' + data.instanceNum);
+              if (statusEl) { statusEl.className = 'prov-status'; statusEl.textContent = 'Skipped'; }
+            } else {
+              updateDrainStep(data.instanceNum, data.step, data.status, data.message);
+            }
+          } else if (data.type === 'complete') {
+            es.close();
+            btn.disabled = false;
+            btn.textContent = 'Drain';
+            // Clear killing state
+            (data.drainedIds || []).forEach(function (id) { delete killingSet[id]; });
+            idleCache.concat(startingCache).forEach(function (a) { delete killingSet[a.id]; });
+            refreshCounts();
+            refreshAgents();
+          }
+        } catch (e) {}
+      };
+      es.onerror = function () {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = 'Drain';
+        idleCache.concat(startingCache).forEach(function (a) { delete killingSet[a.id]; });
         refreshCounts();
         refreshAgents();
-      } catch (err) {
-        // Clear all killing state on failure
-        idleCache.concat(startingCache).forEach(function (a) { delete killingSet[a.id]; });
-        renderAgents();
-        alert('Failed: ' + err.message);
-      } finally {
-        btn.disabled = false; btn.textContent = 'Drain';
-      }
+      };
     });
 
     // --- QR Modal ---
