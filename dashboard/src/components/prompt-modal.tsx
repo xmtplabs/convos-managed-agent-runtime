@@ -25,6 +25,7 @@ interface PromptModalProps {
 // Prompt cache (shared across component lifetime, avoids re-fetching)
 // ---------------------------------------------------------------------------
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const promptCache: Record<string, string> = {};
 
 // ---------------------------------------------------------------------------
@@ -76,7 +77,7 @@ export function PromptModal({
 
     async function load() {
       try {
-        const res = await fetch(`/api/prompts/${pageId}`);
+        const res = await fetch(`${basePath}/api/prompts/${pageId}`);
         if (!res.ok) throw new Error("Failed");
         const data = await res.json();
         const text = data.prompt || "(No prompt content found)";
