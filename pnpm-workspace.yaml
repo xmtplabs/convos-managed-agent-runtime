@@ -1,0 +1,4 @@
+packages:
+  - pool
+  - dashboard
+  - runtime
