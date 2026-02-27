@@ -15,6 +15,7 @@ import type { AgentSkill } from "@/lib/types";
 // Constants
 // ---------------------------------------------------------------------------
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const PS_LIMIT = 10;
 
 // ---------------------------------------------------------------------------
@@ -49,7 +50,7 @@ async function fetchPrompt(
 
   const promise = (async () => {
     try {
-      const res = await fetch(`/api/prompts/${pageId}`);
+      const res = await fetch(`${basePath}/api/prompts/${pageId}`);
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       promptCache[pageId] = data;
