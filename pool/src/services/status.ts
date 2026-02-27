@@ -1,6 +1,7 @@
 import { db } from "../db/connection";
 import { instanceInfra } from "../db/schema";
 import * as railway from "./providers/railway";
+import { sendMetricSilent } from "../metrics";
 import type { BatchStatusResponse } from "../types";
 
 const STATUS_CONCURRENCY = 10;
@@ -10,6 +11,8 @@ const STATUS_CONCURRENCY = 10;
  * DB-driven: queries instance_infra, then fetches each service's status individually.
  */
 export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchStatusResponse> {
+  const batchStart = Date.now();
+
   // Get all infra rows from DB
   let infraRows = await db.select().from(instanceInfra);
 
@@ -48,6 +51,10 @@ export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchSta
       }
     }
   }
+
+  // Send to Datadog without logging — tick() logs a single summary line
+  sendMetricSilent("batch_status.duration_ms", Date.now() - batchStart);
+  sendMetricSilent("batch_status.count", results.length);
 
   return { services: results };
 }
