@@ -1492,9 +1492,9 @@ export function adminPage({
 
     // --- Provision log helpers ---
     var PROV_STEPS = [
+      { key: 'telnyx', label: 'Telnyx phone' },
       { key: 'openrouter', label: 'OpenRouter key' },
       { key: 'agentmail', label: 'AgentMail inbox' },
-      { key: 'telnyx', label: 'Telnyx phone' },
       { key: 'railway-project', label: 'Railway project' },
       { key: 'railway-service', label: 'Railway service + volume' },
       { key: 'railway-domain', label: 'Railway domain' },
@@ -1712,9 +1712,9 @@ export function adminPage({
 
     // --- Drain log helpers ---
     var DRAIN_STEPS = [
+      { key: 'telnyx', label: 'Telnyx phone' },
       { key: 'openrouter', label: 'OpenRouter key' },
       { key: 'agentmail', label: 'AgentMail inbox' },
-      { key: 'telnyx', label: 'Telnyx phone' },
       { key: 'railway', label: 'Railway project' },
       { key: 'db', label: 'DB cleanup' },
     ];

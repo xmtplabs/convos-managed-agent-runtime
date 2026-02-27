@@ -38,6 +38,21 @@ export async function createInstance(
   const services: CreateInstanceResponse["services"] = {};
 
   try {
+    // Telnyx first — it has the most contention (rate limits + race conditions)
+    if (tools.includes("telnyx") && config.telnyxApiKey) {
+      onProgress?.("telnyx", "active");
+      const t0 = Date.now();
+      const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
+      sendMetric("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
+      sendMetric("provider.telnyx.provisioned", 1);
+      vars.TELNYX_PHONE_NUMBER = phoneNumber;
+      vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
+      services.telnyx = { resourceId: phoneNumber };
+      onProgress?.("telnyx", "ok");
+    } else {
+      onProgress?.("telnyx", "skip", "Not configured");
+    }
+
     if (tools.includes("openrouter") && config.openrouterManagementKey) {
       onProgress?.("openrouter", "active");
       const t0 = Date.now();
@@ -64,20 +79,6 @@ export async function createInstance(
     } else {
       onProgress?.("agentmail", "skip", "Not configured");
     }
-
-    if (tools.includes("telnyx") && config.telnyxApiKey) {
-      onProgress?.("telnyx", "active");
-      const t0 = Date.now();
-      const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
-      sendMetric("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
-      sendMetric("provider.telnyx.provisioned", 1);
-      vars.TELNYX_PHONE_NUMBER = phoneNumber;
-      vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
-      services.telnyx = { resourceId: phoneNumber };
-      onProgress?.("telnyx", "ok");
-    } else {
-      onProgress?.("telnyx", "skip", "Not configured");
-    }
   } catch (err) {
     console.error(`[infra] Provisioning failed for ${instanceId}, rolling back...`);
     if (services.openrouter) {
@@ -98,8 +99,9 @@ export async function createInstance(
     // Determine which tool was being provisioned when it failed:
     // the last tool that got "active" but never got "ok"
     const failedStep = !services.telnyx && tools.includes("telnyx") && config.telnyxApiKey ? "telnyx"
+      : !services.openrouter && tools.includes("openrouter") && config.openrouterManagementKey ? "openrouter"
       : !services.agentmail && tools.includes("agentmail") && config.agentmailApiKey ? "agentmail"
-      : "openrouter";
+      : "unknown";
     sendMetric("provider.rollback", 1, { failed_step: failedStep });
     onProgress?.(failedStep, "fail", (err as Error).message);
     throw err;
