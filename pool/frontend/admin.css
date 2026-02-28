@@ -163,8 +163,6 @@ tr.destroying td { opacity: 0.4; }
 .action-btn:hover { background: var(--color-surface-muted); border-color: var(--color-edge-muted); }
 .action-btn.kill { color: var(--color-error); border-color: var(--color-error-bg); }
 .action-btn.kill:hover { background: var(--color-error-bg); }
-.action-btn.dismiss { color: #F59E0B; border-color: #FDE68A; }
-.action-btn.dismiss:hover { background: #FFFBEB; }
 .action-btn.drain { color: #2563EB; border-color: #BFDBFE; }
 .action-btn.drain:hover { background: #EFF6FF; }
 .empty-row { text-align: center; color: var(--color-foreground-tertiary); padding: 40px 20px; font-size: 14px; }

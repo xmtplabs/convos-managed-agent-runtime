@@ -440,7 +440,8 @@
         if (isCrashed) {
           renderRow(a, 'crashed', 'Crashed',
             '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-            + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
+            + '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">Check</button>'
+            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
         } else if (isClaimed) {
           renderRow(a, 'running', 'Running',
             '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
@@ -468,8 +469,8 @@
       }
       var killId = e.target.getAttribute('data-kill');
       if (killId) { killAgent(killId); return; }
-      var dismissId = e.target.getAttribute('data-dismiss');
-      if (dismissId) { dismissAgent(dismissId); return; }
+      var recheckId = e.target.getAttribute('data-recheck');
+      if (recheckId) { recheckInstance(recheckId, e.target); return; }
 
       // Row click → toggle expand row (ignore if clicking a button/link)
       if (e.target.closest('button') || e.target.closest('a')) return;
@@ -538,26 +539,20 @@
       }
     }
 
-    async function dismissAgent(id) {
-      var a = crashedCache.find(function (x) { return x.id === id; });
-      var name = a ? (a.agentName || a.id) : id;
-      var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Dismiss crashed "' + name + '"?';
-      if (!confirm(msg)) return;
-      console.log('[pool] dismissing crashed agent %s (%s)', id, name);
-      markDestroying(id);
+    async function recheckInstance(id, btn) {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '...';
       try {
-        var res = await fetch('/api/pool/crashed/' + id, { method: 'DELETE', headers: authHeaders });
+        var res = await fetch('/api/pool/recheck/' + id, { method: 'POST', headers: authHeaders });
         var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Dismiss failed');
-        crashedCache = crashedCache.filter(function (x) { return x.id !== id; });
-        renderAgents();
-        console.log('[pool] dismissed %s — removed from table', id);
+        if (!res.ok) throw new Error(data.error || 'Recheck failed');
         refresh();
       } catch (err) {
-        console.error('[pool] dismiss failed for %s:', id, err.message);
-        alert('Failed to dismiss: ' + err.message);
-        var r = document.getElementById('row-' + id);
-        if (r) r.classList.remove('destroying');
+        console.error('[pool] recheck failed for %s:', id, err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Check';
       }
     }
 

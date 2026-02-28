@@ -163,12 +163,12 @@ app.post("/api/pool/self-destruct", async (req, res) => {
 });
 
 
-app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
+app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
   try {
-    await pool.dismissCrashed(req.params.id as string);
-    res.json({ ok: true });
+    const result = await pool.recheckInstance(req.params.id as string);
+    res.json({ ok: true, ...result });
   } catch (err: any) {
-    console.error("[api] Dismiss failed:", err);
+    console.error("[api] Recheck failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
