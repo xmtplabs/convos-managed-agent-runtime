@@ -41,13 +41,13 @@ export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchSta
 
   const results: BatchStatusResponse["services"] = [];
 
-  // ── Batch path: 1 GQL call per project ──────────────────────────────────────
-  const projectCalls = Array.from(byProject.entries()).map(
-    async ([projectId, rows]) => {
+  // ── Batch path: 1 GQL call per project (sequential to avoid rate limits) ───
+  for (const [projectId, rows] of byProject) {
+    try {
       // All rows in a project share the same envId, pick from the first
       const envId = rows[0].providerEnvId;
       const services = await railway.listProjectServices(projectId, envId);
-      if (!services) return;
+      if (!services) continue;
 
       // Index by service ID for O(1) lookup
       const serviceMap = new Map(services.map((s) => [s.id, s]));
@@ -64,10 +64,21 @@ export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchSta
           environmentIds: svc?.environmentIds || (row.providerEnvId ? [row.providerEnvId] : []),
         });
       }
-    },
-  );
-
-  await Promise.allSettled(projectCalls);
+    } catch (err: any) {
+      // If a project call fails, fall back to DB-cached values for its rows
+      for (const row of rows) {
+        results.push({
+          instanceId: row.instanceId,
+          serviceId: row.providerServiceId,
+          name: `convos-agent-${row.instanceId}`,
+          deployStatus: row.deployStatus || null,
+          domain: row.url ? row.url.replace("https://", "") : null,
+          image: row.runtimeImage || null,
+          environmentIds: row.providerEnvId ? [row.providerEnvId] : [],
+        });
+      }
+    }
+  }
 
   // ── Legacy fallback: individual calls with bounded concurrency ──────────────
   for (let i = 0; i < legacyRows.length; i += LEGACY_CONCURRENCY) {
