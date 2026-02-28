@@ -440,7 +440,7 @@
         if (isCrashed) {
           renderRow(a, 'crashed', 'Crashed',
             '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-            + '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">Check</button>'
+            + '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>'
             + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
         } else if (isClaimed) {
           renderRow(a, 'running', 'Running',
@@ -540,9 +540,8 @@
     }
 
     async function recheckInstance(id, btn) {
-      if (btn.disabled) return;
-      btn.disabled = true;
-      btn.textContent = '...';
+      if (btn.classList.contains('syncing')) return;
+      btn.classList.add('syncing');
       try {
         var res = await fetch('/api/pool/recheck/' + id, { method: 'POST', headers: authHeaders });
         var data = await res.json();
@@ -551,8 +550,7 @@
       } catch (err) {
         console.error('[pool] recheck failed for %s:', id, err.message);
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Check';
+        btn.classList.remove('syncing');
       }
     }
 
