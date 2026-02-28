@@ -6,6 +6,16 @@ on:
     paths:
       - 'runtime/**'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to promote to after QA passes'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+          - scaling
 
 permissions:
   contents: read
@@ -154,6 +164,30 @@ jobs:
             docker tag "$IMAGE:$PENDING" "$IMAGE:dispatch"
             docker push "$IMAGE:dispatch"
           fi
+
+  # Manual dispatch promote: retag the built image to the chosen environment tag
+  promote-dispatch:
+    needs: [build, publish]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retag image to environment
+        run: |
+          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          SHA="${{ needs.build.outputs.sha }}"
+          ENV_TAG="${{ inputs.environment }}"
+
+          echo "Promoting $IMAGE:$SHA → $IMAGE:$ENV_TAG"
+          docker pull "$IMAGE:$SHA"
+          docker tag "$IMAGE:$SHA" "$IMAGE:$ENV_TAG"
+          docker push "$IMAGE:$ENV_TAG"
 
   # Fast promote: retag the existing sha image to an environment tag (~15s)
   promote:
