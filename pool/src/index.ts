@@ -163,12 +163,12 @@ app.post("/api/pool/self-destruct", async (req, res) => {
 });
 
 
-app.delete("/api/pool/crashed/:id", requireAuth, async (req, res) => {
+app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
   try {
-    await pool.dismissCrashed(req.params.id as string);
-    res.json({ ok: true });
+    const result = await pool.recheckInstance(req.params.id as string);
+    res.json({ ok: true, ...result });
   } catch (err: any) {
-    console.error("[api] Dismiss failed:", err);
+    console.error("[api] Recheck failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -361,19 +361,19 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
       await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENCY, count) }, () => worker()));
       res.json({ ok: true, created: results.length, instances: results, counts: await db.getCounts() }); return;
     }
-    await pool.tick();
-    res.json({ ok: true, counts: await db.getCounts() });
+    const result = await pool.checkStarting();
+    res.json({ ok: true, counts: await db.getCounts(), checkStarting: result });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
+app.post("/api/pool/check-starting", requireAuth, async (_req, res) => {
   try {
-    await pool.tick();
-    res.json({ ok: true, counts: await db.getCounts() });
+    const result = await pool.checkStarting();
+    res.json({ ok: true, counts: await db.getCounts(), ...result });
   } catch (err: any) {
-    console.error("[api] Tick failed:", err);
+    console.error("[api] check-starting failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -500,14 +500,6 @@ initMetrics();
 
 runMigrations()
   .then(() => {
-    // Background tick
-    setInterval(() => {
-      pool.tick().catch((err: any) => console.error("[tick] Error:", err));
-    }, config.tickIntervalMs);
-
-    // Initial tick
-    pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
-
     setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
   })
   .catch((err) => {

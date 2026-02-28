@@ -2,9 +2,8 @@ import { nanoid } from "nanoid";
 import * as db from "./db/pool";
 import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance, type ProgressCallback } from "./services/infra";
 import { fetchBatchStatus } from "./services/status";
-import { deriveStatus } from "./status";
 import { config } from "./config";
-import { sendMetric, sendMetricBatch } from "./metrics";
+import { sendMetric } from "./metrics";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -39,25 +38,6 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
   }
 }
 
-// Health-check a single instance via /pool/health.
-async function healthCheck(url: string) {
-  try {
-    const res = await fetch(`${url}/pool/health`, {
-      headers: { Authorization: `Bearer ${config.poolApiKey}` },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.log(`[health] ${url} returned ${res.status}: ${text.slice(0, 200)}`);
-      return null;
-    }
-    return await res.json() as { ready: boolean };
-  } catch (err: any) {
-    console.log(`[health] ${url} error: ${err.message}`);
-    return null;
-  }
-}
-
 // Create a single new instance via services and insert into DB.
 export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string) {
   const id = nanoid(12);
@@ -88,144 +68,37 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
   }
 }
 
-// Unified tick: rebuild instance state from services, health-check, replenish.
-export async function tick() {
-  const tickStart = Date.now();
+export { provision } from "./provision";
 
-  let batchResult;
+// Health-check a single instance via /pool/health.
+async function healthCheck(url: string) {
   try {
-    batchResult = await fetchBatchStatus();
-  } catch (err: any) {
-    console.warn(`[tick] fetchBatchStatus failed: ${err.message}`);
-    return;
-  }
-
-  const agentServices = batchResult.services || [];
-
-  const dbRows = await db.listAll();
-  const dbById = new Map(dbRows.map((r: any) => [r.id, r]));
-
-  // Only log instances with non-SUCCESS deploy status (errors/anomalies)
-  for (const svc of agentServices) {
-    if (svc.deployStatus !== "SUCCESS") {
-      const row = dbById.get(svc.instanceId);
-      console.log(`[tick] ${svc.name} deploy=${svc.deployStatus}${row?.claimedAt ? " (claimed)" : ""}`);
-    }
-  }
-
-  const successServices = agentServices.filter((s) => s.deployStatus === "SUCCESS");
-
-  const urlMap = new Map<string, string>();
-  for (const svc of successServices) {
-    const row = dbById.get(svc.instanceId);
-    if (row?.url) {
-      urlMap.set(svc.instanceId, row.url);
-    } else if (svc.domain) {
-      urlMap.set(svc.instanceId, `https://${svc.domain}`);
-    }
-  }
-
-  const healthResults = new Map<string, { ready: boolean } | null>();
-  const toCheck = successServices.filter((s) => {
-    const row = dbById.get(s.instanceId);
-    // Skip health checks for already-idle instances — they proved healthy once
-    // and Railway may have slept them (waking takes >5s, causing false "dead").
-    return urlMap.has(s.instanceId) && row?.status !== "claiming" && row?.status !== "idle";
-  });
-
-  const checks = await Promise.allSettled(
-    toCheck.map(async (svc) => {
-      const result = await healthCheck(urlMap.get(svc.instanceId)!);
-      if (!result?.ready) console.log(`[tick] ${svc.name} health=${JSON.stringify(result)}`);
-      return { id: svc.instanceId, result };
-    })
-  );
-  let healthSuccess = 0;
-  let healthFailure = 0;
-  let healthTimeout = 0;
-  for (const c of checks) {
-    if (c.status === "fulfilled") {
-      healthResults.set(c.value.id, c.value.result);
-      if (c.value.result?.ready) healthSuccess++;
-      else healthFailure++;
-    } else {
-      healthTimeout++;
-    }
-  }
-  // Health metrics are included in the single tick summary line below
-
-  for (const svc of agentServices) {
-    const instId = svc.instanceId;
-    const dbRow = dbById.get(instId);
-
-    if (dbRow?.status === "claiming") continue;
-    // Skip instances with unknown deploy status to preserve last known state
-    if (!svc.deployStatus) continue;
-
-    const hc = healthResults.get(instId) || null;
-    const isClaimed = !!dbRow?.agentName;
-    const createdAt = dbRow?.createdAt || new Date().toISOString();
-
-    // If instance was already idle and deploy is still SUCCESS, trust it —
-    // Railway may have slept it, so no health check was performed.
-    const wasIdle = dbRow?.status === "idle" && svc.deployStatus === "SUCCESS";
-
-    const status = wasIdle ? "idle" : deriveStatus({
-      deployStatus: svc.deployStatus,
-      healthCheck: hc,
-      createdAt,
-      isClaimed,
+    const res = await fetch(`${url}/pool/health`, {
+      headers: { Authorization: `Bearer ${config.poolApiKey}` },
+      signal: AbortSignal.timeout(5000),
     });
-    const url = urlMap.get(instId) || dbRow?.url || null;
-
-    // Never auto-destroy — just update status in DB.
-    // Dead/crashed instances must be cleaned up manually via dashboard.
-    if (status === "dead" || status === "sleeping") {
-      const dbStatus = isClaimed ? "crashed" : "dead";
-      if (dbRow?.status === dbStatus && dbRow?.url === url) continue;
-      await db.updateStatus(instId, { status: dbStatus, url });
-      continue;
-    }
-
-    // Skip DB write when nothing changed
-    if (dbRow && dbRow.status === status && dbRow.url === url) continue;
-
-    await db.upsertInstance({
-      id: instId,
-      name: svc.name,
-      url,
-      status,
-      createdAt,
-      agentName: dbRow?.agentName || null,
-      conversationId: dbRow?.conversationId || null,
-      inviteUrl: dbRow?.inviteUrl || null,
-      instructions: dbRow?.instructions || null,
-      claimedAt: dbRow?.claimedAt || null,
-    });
+    if (!res.ok) return null;
+    return await res.json() as { ready: boolean };
+  } catch {
+    return null;
   }
-
-  const counts = await db.getCounts();
-  const total = (counts.starting || 0) + (counts.idle || 0) + (counts.claimed || 0);
-
-  console.log(
-    `[tick] ${counts.idle || 0} idle, ${counts.starting || 0} starting, ${counts.claimed || 0} claimed, ${counts.crashed || 0} crashed (total: ${total})`
-  );
-
-  sendMetricBatch("tick", [
-    ["pool.idle", counts.idle || 0],
-    ["pool.starting", counts.starting || 0],
-    ["pool.claimed", counts.claimed || 0],
-    ["pool.crashed", counts.crashed || 0],
-    ["pool.dead", counts.dead || 0],
-    ["pool.total", total],
-    ["health_check.success", healthSuccess],
-    ["health_check.failure", healthFailure],
-    ["health_check.timeout", healthTimeout],
-    ["tick.duration_ms", Date.now() - tickStart],
-  ]);
 }
 
-export { provision } from "./provision";
+// Check all starting instances, promote ready ones to idle.
+export async function checkStarting() {
+  const rows = await db.getByStatus("starting");
+  const promoted: string[] = [];
+  for (const row of rows) {
+    if (!row.url) continue;
+    const hc = await healthCheck(row.url);
+    if (hc?.ready) {
+      await db.updateStatus(row.id, { status: "idle" });
+      promoted.push(row.id);
+      console.log(`[pool] promoted ${row.id} starting → idle`);
+    }
+  }
+  return { checked: rows.length, promoted };
+}
 
 export async function drainPool(count: number) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
@@ -348,19 +221,17 @@ export async function killInstance(id: string) {
   await db.deleteById(inst.id).catch(() => {});
 }
 
-export async function dismissCrashed(id: string) {
+// Health-check a single instance and update its status if it recovered.
+export async function recheckInstance(id: string) {
   const inst = await db.findById(id);
-  if (!inst || inst.status !== "crashed") throw new Error(`Crashed instance ${id} not found`);
-  if (inst.agentName) throw new Error(`Cannot dismiss claimed agent ${id} (${inst.agentName}) — use kill or redeploy instead`);
+  if (!inst) throw new Error(`Instance ${id} not found`);
+  if (!inst.url) return { id, status: inst.status, changed: false };
 
-  // Fetch Railway serviceId so safeDestroy can clean up directly
-  let railwayServiceId: string | undefined;
-  try {
-    const batch = await fetchBatchStatus([id]);
-    railwayServiceId = batch.services?.[0]?.serviceId;
-  } catch {}
+  const hc = await healthCheck(inst.url);
+  if (!hc?.ready) return { id, status: inst.status, changed: false };
 
-  console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agentName || inst.name})`);
-  await safeDestroy(inst.id, railwayServiceId);
-  await db.deleteById(inst.id).catch(() => {});
+  const newStatus = inst.agentName ? "claimed" : "idle";
+  await db.updateStatus(id, { status: newStatus });
+  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus}`);
+  return { id, status: newStatus, changed: true };
 }
