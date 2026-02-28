@@ -7,6 +7,10 @@ import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
 import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
+import { eq } from "drizzle-orm";
+import { db as pgDb } from "./db/connection";
+import { instanceInfra } from "./db/schema";
+import { updateServiceInstance, redeployService } from "./services/providers/railway";
 
 import { initMetrics } from "./metrics";
 
@@ -169,6 +173,30 @@ app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (err: any) {
     console.error("[api] Recheck failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
+  try {
+    const id = req.params.id as string;
+    const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, id));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${id} not found` }); return;
+    }
+    const image = config.railwayRuntimeImage;
+    if (!image) {
+      res.status(400).json({ error: "No runtime image configured" }); return;
+    }
+    const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+    await updateServiceInstance(infra.providerServiceId, { source: { image } }, opts);
+    await redeployService(infra.providerServiceId, opts);
+    await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, id));
+    console.log(`[api] Updated runtime for ${id} → ${image}`);
+    res.json({ ok: true, instanceId: id, image });
+  } catch (err: any) {
+    console.error("[api] Update runtime failed:", err);
     res.status(500).json({ error: err.message });
   }
 });

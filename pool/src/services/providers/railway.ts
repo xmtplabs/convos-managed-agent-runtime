@@ -280,10 +280,10 @@ export async function redeployService(serviceId: string, opts?: ProjectEnvOpts):
   const latestDeploy = data.service?.deployments?.edges?.[0]?.node;
   if (!latestDeploy) throw new Error("No deployment found to redeploy");
   await gql(
-    `mutation($id: String!, $environmentId: String!) {
-      deploymentRedeploy(id: $id, environmentId: $environmentId)
+    `mutation($id: String!) {
+      deploymentRedeploy(id: $id) { id status }
     }`,
-    { id: latestDeploy.id, environmentId },
+    { id: latestDeploy.id },
   );
 }
 
