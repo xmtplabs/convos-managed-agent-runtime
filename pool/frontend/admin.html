@@ -613,9 +613,18 @@
         var res = await fetch('/api/pool/recheck/' + id, { method: 'POST', headers: authHeaders });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Recheck failed');
+        if (data.changed) {
+          console.log('[pool] recheck %s: → %s', id, data.status);
+        } else {
+          console.log('[pool] recheck %s: no change (status=%s, reason=%s, agentName=%s)', id, data.status, data.reason || 'same_status', data.agentName || 'none');
+          btn.style.color = '#FF9500';
+          setTimeout(function () { btn.style.color = ''; }, 1500);
+        }
         refresh();
       } catch (err) {
         console.error('[pool] recheck failed for %s:', id, err.message);
+        btn.style.color = 'var(--color-error)';
+        setTimeout(function () { btn.style.color = ''; }, 1500);
       } finally {
         btn.classList.remove('syncing');
       }

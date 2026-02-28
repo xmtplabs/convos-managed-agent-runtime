@@ -225,13 +225,19 @@ export async function killInstance(id: string) {
 export async function recheckInstance(id: string) {
   const inst = await db.findById(id);
   if (!inst) throw new Error(`Instance ${id} not found`);
-  if (!inst.url) return { id, status: inst.status, changed: false };
+  if (!inst.url) {
+    console.log(`[pool] recheck ${id}: no url, skipping`);
+    return { id, status: inst.status, changed: false, reason: "no_url" };
+  }
 
   const hc = await healthCheck(inst.url);
-  if (!hc?.ready) return { id, status: inst.status, changed: false };
+  if (!hc?.ready) {
+    console.log(`[pool] recheck ${id}: health check failed (status=${inst.status}, url=${inst.url}, hc=${JSON.stringify(hc)})`);
+    return { id, status: inst.status, changed: false, reason: "health_failed", agentName: inst.agentName || null };
+  }
 
   const newStatus = inst.agentName ? "claimed" : "idle";
   await db.updateStatus(id, { status: newStatus });
-  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus}`);
-  return { id, status: newStatus, changed: true };
+  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus} (agentName=${inst.agentName || "none"})`);
+  return { id, status: newStatus, changed: newStatus !== inst.status, agentName: inst.agentName || null };
 }
