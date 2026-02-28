@@ -486,8 +486,26 @@ async function handleInboundMessage(
               : undefined,
           });
         },
-        onError: (err, info) => {
+        onError: async (err, info) => {
           errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
+
+          // Surface a friendly message when the LLM provider rejects due to
+          // insufficient credits (OpenRouter 402).
+          const errStr = String(err);
+          if (errStr.includes("402") || errStr.includes("credits") || errStr.includes("afford")) {
+            const convos = getConvosInstance();
+            const replyTo = msg.contentType === "text" || msg.contentType === "reply"
+              ? msg.messageId
+              : undefined;
+            try {
+              await convos?.sendMessage(
+                "Hey! You are out of credits.",
+                replyTo,
+              );
+            } catch {
+              // Best-effort — don't let the fallback message blow up
+            }
+          }
         },
       },
     });
