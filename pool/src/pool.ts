@@ -68,9 +68,37 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
   }
 }
 
-export { reconcileAll, reconcileByStatus, reconcileInstance } from "./reconcile";
-
 export { provision } from "./provision";
+
+// Health-check a single instance via /pool/health.
+async function healthCheck(url: string) {
+  try {
+    const res = await fetch(`${url}/pool/health`, {
+      headers: { Authorization: `Bearer ${config.poolApiKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    return await res.json() as { ready: boolean };
+  } catch {
+    return null;
+  }
+}
+
+// Check all starting instances, promote ready ones to idle.
+export async function checkStarting() {
+  const rows = await db.getByStatus("starting");
+  const promoted: string[] = [];
+  for (const row of rows) {
+    if (!row.url) continue;
+    const hc = await healthCheck(row.url);
+    if (hc?.ready) {
+      await db.updateStatus(row.id, { status: "idle" });
+      promoted.push(row.id);
+      console.log(`[pool] promoted ${row.id} starting → idle`);
+    }
+  }
+  return { checked: rows.length, promoted };
+}
 
 export async function drainPool(count: number) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);

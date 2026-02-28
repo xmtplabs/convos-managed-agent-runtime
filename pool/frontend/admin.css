@@ -278,8 +278,6 @@ tr[data-expand]:hover td { background: var(--color-surface-hover); }
 .stat-sync-btn { margin-left: auto; background: none; border: none; cursor: pointer; padding: 2px; border-radius: 4px; color: var(--color-foreground-tertiary); display: flex; align-items: center; transition: color 0.15s; }
 .stat-sync-btn:hover { color: var(--color-foreground-secondary); }
 .stat-sync-btn svg { width: 14px; height: 14px; }
-.action-btn.sync { padding: 3px 6px; display: inline-flex; align-items: center; }
-.action-btn.sync svg { width: 12px; height: 12px; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .syncing { pointer-events: none; opacity: 0.5; }
 .syncing svg { animation: spin 0.8s linear infinite; }

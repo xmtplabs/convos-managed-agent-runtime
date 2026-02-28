@@ -38,19 +38,19 @@
   <div class="content">
     <div class="stats">
       <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot green"></span> Ready<button class="stat-sync-btn" data-sync-status="idle" title="Reconcile idle instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button></div>
+        <div class="stat-label"><span class="stat-dot green"></span> Ready</div>
         <div class="stat-value" id="s-idle">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot orange"></span> Starting<button class="stat-sync-btn" data-sync-status="starting" title="Reconcile starting instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button></div>
+        <div class="stat-label"><span class="stat-dot orange"></span> Starting<button class="stat-sync-btn" onclick="checkStarting(this)" title="Check starting instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button></div>
         <div class="stat-value" id="s-starting">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot blue"></span> Claimed<button class="stat-sync-btn" data-sync-status="claimed" title="Reconcile claimed instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button></div>
+        <div class="stat-label"><span class="stat-dot blue"></span> Claimed</div>
         <div class="stat-value" id="s-claimed">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot red"></span> Crashed<button class="stat-sync-btn" data-sync-status="crashed" title="Reconcile crashed instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button></div>
+        <div class="stat-label"><span class="stat-dot red"></span> Crashed</div>
         <div class="stat-value" id="s-crashed">-</div>
       </div>
     </div>
@@ -437,25 +437,20 @@
         var isCrashed = crashedCache.indexOf(a) !== -1;
         var isClaimed = claimedCache.indexOf(a) !== -1;
         var isIdle = idleCache.indexOf(a) !== -1;
-        var syncBtn = '<button class="action-btn sync" data-sync="' + a.id + '" title="Reconcile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>';
         if (isCrashed) {
           renderRow(a, 'crashed', 'Crashed',
-            syncBtn
-            + '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
             + '<button class="action-btn dismiss" data-dismiss="' + a.id + '">Dismiss</button>');
         } else if (isClaimed) {
           renderRow(a, 'running', 'Running',
-            syncBtn
-            + '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
+            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
             + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
         } else if (isIdle) {
           renderRow(a, 'idle', 'Ready',
-            syncBtn
-            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
         } else {
           renderRow(a, 'starting', 'Starting',
-            syncBtn
-            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+            '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
         }
       });
       body.innerHTML = html;
@@ -465,8 +460,6 @@
 
     // --- Actions ---
     document.getElementById('agents-body').addEventListener('click', function (e) {
-      var syncBtn = e.target.closest('[data-sync]');
-      if (syncBtn) { reconcileInstance(syncBtn.getAttribute('data-sync'), syncBtn); return; }
       var qrId = e.target.getAttribute('data-qr');
       if (qrId) {
         var a = claimedCache.concat(crashedCache).find(function (x) { return x.id === qrId; });
@@ -486,11 +479,6 @@
       }
     });
 
-    document.querySelector('.stats').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-sync-status]');
-      if (btn) reconcileByStatus(btn.getAttribute('data-sync-status'), btn);
-    });
-
     var killingSet = {};
 
     function markDestroying(id) {
@@ -503,31 +491,16 @@
       if (expand) expand.remove();
     }
 
-    async function reconcileInstance(id, btn) {
+    async function checkStarting(btn) {
       if (btn.classList.contains('syncing')) return;
       btn.classList.add('syncing');
       try {
-        var res = await fetch('/api/pool/reconcile/' + id, { method: 'POST', headers: authHeaders });
+        var res = await fetch('/api/pool/check-starting', { method: 'POST', headers: authHeaders });
         var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Reconcile failed');
+        if (!res.ok) throw new Error(data.error || 'Check failed');
         refresh();
       } catch (err) {
-        console.error('[pool] reconcile failed for %s:', id, err.message);
-      } finally {
-        btn.classList.remove('syncing');
-      }
-    }
-
-    async function reconcileByStatus(status, btn) {
-      if (btn.classList.contains('syncing')) return;
-      btn.classList.add('syncing');
-      try {
-        var res = await fetch('/api/pool/reconcile/status/' + status, { method: 'POST', headers: authHeaders });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Reconcile failed');
-        refresh();
-      } catch (err) {
-        console.error('[pool] reconcile by status failed for %s:', status, err.message);
+        console.error('[pool] check-starting failed:', err.message);
       } finally {
         btn.classList.remove('syncing');
       }
