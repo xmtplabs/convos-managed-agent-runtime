@@ -118,7 +118,10 @@ jobs:
   qa:
     name: "QA smoke tests (:${{ needs.build.outputs.pending }})"
     needs: build
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -180,6 +183,7 @@ jobs:
   publish:
     name: "Publish :${{ needs.build.outputs.sha }}"
     needs: [build, qa]
+    if: always() && needs.build.result == 'success' && needs.qa.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
@@ -217,7 +221,7 @@ jobs:
   promote-dispatch:
     name: Promote dispatch
     needs: [build, publish]
-    if: github.event_name == 'workflow_dispatch'
+    if: always() && needs.build.result == 'success' && needs.publish.result == 'success' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
