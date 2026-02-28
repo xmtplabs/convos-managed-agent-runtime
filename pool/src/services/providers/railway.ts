@@ -2,30 +2,44 @@ import { config } from "../../config";
 
 const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
+const GQL_MAX_RETRIES = 3;
+const GQL_BASE_DELAY_MS = 2000;
+
 export async function gql(query: string, variables: Record<string, unknown> = {}): Promise<Record<string, any>> {
   const token = config.railwayApiToken;
   if (!token) throw new Error("RAILWAY_API_TOKEN not set");
 
-  const res = await fetch(RAILWAY_API, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
+  for (let attempt = 1; attempt <= GQL_MAX_RETRIES; attempt++) {
+    const res = await fetch(RAILWAY_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ query, variables }),
+    });
 
-  const text = await res.text();
-  let json: any;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    throw new Error(`Railway API error: ${res.status}${res.status === 429 ? " (rate limited — wait a few minutes)" : ""}`);
+    if (res.status === 429 && attempt < GQL_MAX_RETRIES) {
+      const delay = GQL_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      console.warn(`[railway] 429 rate limited — retry ${attempt}/${GQL_MAX_RETRIES} in ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    const text = await res.text();
+    let json: any;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      throw new Error(`Railway API error: ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
+    }
+    if (json.errors) {
+      throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
+    }
+    return json.data;
   }
-  if (json.errors) {
-    throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
-  }
-  return json.data;
+
+  throw new Error("Railway API: exhausted retries (should not reach here)");
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
