@@ -9,6 +9,14 @@ ENV_FILE="$ROOT/.env"
 
 if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
 
+# ── Version banner ────────────────────────────────────────────────────────
+_version="unknown"
+if command -v jq >/dev/null 2>&1 && [ -f "$ROOT/package.json" ]; then
+  _version=$(jq -r '.version // "unknown"' "$ROOT/package.json")
+fi
+echo ""
+echo "  convos-runtime v${_version}"
+echo "  ═══════════════════════════"
 echo ""
 echo "  🔑 Provisioning keys"
 echo "  ═══════════════════"
