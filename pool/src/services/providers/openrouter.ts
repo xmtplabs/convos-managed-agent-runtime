@@ -92,20 +92,28 @@ export async function getCredits(): Promise<{ totalCredits: number; totalUsage: 
   };
 }
 
-/** List all provisioned API keys with usage info. */
+/** List all provisioned API keys with usage info (paginates with offset). */
 export async function listKeys(): Promise<any[]> {
   const mgmtKey = config.openrouterManagementKey;
   if (!mgmtKey) throw new Error("OPENROUTER_MANAGEMENT_KEY not set");
 
-  const res = await fetch("https://openrouter.ai/api/v1/keys", {
-    headers: { Authorization: `Bearer ${mgmtKey}` },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`OpenRouter list keys failed: ${res.status} ${body}`);
+  const all: any[] = [];
+  let offset = 0;
+  while (true) {
+    const res = await fetch(`https://openrouter.ai/api/v1/keys?offset=${offset}`, {
+      headers: { Authorization: `Bearer ${mgmtKey}` },
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`OpenRouter list keys failed: ${res.status} ${body}`);
+    }
+    const body = await res.json() as any;
+    const keys: any[] = body?.data ?? [];
+    if (keys.length === 0) break;
+    all.push(...keys);
+    offset += keys.length;
   }
-  const body = await res.json() as any;
-  return body?.data ?? [];
+  return all;
 }
 
 /** Count total provisioned API keys (paginates with offset). */
@@ -135,12 +143,7 @@ export async function findKeyHash(name: string): Promise<string | null> {
   if (!mgmtKey) return null;
 
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/keys", {
-      headers: { Authorization: `Bearer ${mgmtKey}` },
-    });
-    if (!res.ok) return null;
-    const body = await res.json() as any;
-    const keys: any[] = body?.data ?? [];
+    const keys = await listKeys();
     const match = keys.find((k) => k.name === name);
     return match?.hash ?? null;
   } catch {
