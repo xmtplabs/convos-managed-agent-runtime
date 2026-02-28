@@ -15,6 +15,7 @@
     "agentmail:test": "tsx --env-file=.env scripts/test-agentmail.ts",
     "openrouter:test": "tsx --env-file=.env scripts/test-openrouter.ts",
     "telnyx:test": "tsx --env-file=.env scripts/telnyx-test.ts",
+    "telnyx:sms-test": "tsx --env-file=.env scripts/telnyx-sms-test.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"

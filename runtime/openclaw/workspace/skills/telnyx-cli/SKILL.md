@@ -61,6 +61,6 @@ telnyx message list --output csv
 ## Tips
 
 - Rate limit: 100 req/s — add `sleep 1` for bulk operations
-- SMS is US-only
+- SMS works for international numbers — include the full country code (e.g. +44, +52, +55)
 - Use `--output json` for structured data
 - Get help: `telnyx message --help`
