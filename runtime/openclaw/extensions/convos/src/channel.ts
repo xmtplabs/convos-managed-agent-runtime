@@ -490,9 +490,9 @@ async function handleInboundMessage(
           errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
 
           // Surface a friendly message when the LLM provider rejects due to
-          // insufficient credits (OpenRouter 402).
+          // insufficient credits (OpenRouter 402/403).
           const errStr = String(err);
-          if (errStr.includes("402") || errStr.includes("credits") || errStr.includes("afford")) {
+          if (errStr.includes("402") || errStr.includes("403") || errStr.includes("credits") || errStr.includes("afford") || errStr.includes("limit exceeded")) {
             const convos = getConvosInstance();
             const replyTo = msg.contentType === "text" || msg.contentType === "reply"
               ? msg.messageId
