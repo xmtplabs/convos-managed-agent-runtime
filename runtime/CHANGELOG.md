@@ -20,3 +20,7 @@
 - Loop guard: prevents agents from getting stuck replying to themselves
 - Friendly reply when agent runs out of credits
 - Fix `CONVOS_ENV` so agents use the correct network
+
+---
+
+> **Style guide:** Agent capabilities only — no workflow, CI, or infra changes. Each entry should name the feature or package, then briefly explain what it does. Keep technical detail (package names, flags) but add plain-language context so non-engineers can follow.
