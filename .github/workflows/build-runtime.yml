@@ -18,7 +18,7 @@ on:
           - scaling
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -32,6 +32,7 @@ jobs:
       pending: ${{ steps.meta.outputs.pending }}
       tag: ${{ steps.meta.outputs.tag }}
       sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,6 +50,7 @@ jobs:
       - name: Determine image tags
         id: meta
         run: |
+          VERSION=$(jq -r .version runtime/package.json)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
             TAG="pr-${{ github.event.number }}"
@@ -59,6 +61,8 @@ jobs:
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Runtime version: $VERSION"
 
       - name: Build and push (pending tag only)
         uses: docker/build-push-action@v6
@@ -151,10 +155,15 @@ jobs:
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           PENDING="${{ needs.build.outputs.pending }}"
           SHA="${{ needs.build.outputs.sha }}"
+          VERSION="${{ needs.build.outputs.version }}"
 
           # sha tag always gets pushed
           docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
           docker push "$IMAGE:$SHA"
+
+          # semver tag (e.g. v0.0.12)
+          docker tag "$IMAGE:$PENDING" "$IMAGE:v$VERSION"
+          docker push "$IMAGE:v$VERSION"
 
           # PRs get pr-N tag, dispatches get dispatch tag
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -188,6 +197,38 @@ jobs:
           docker pull "$IMAGE:$SHA"
           docker tag "$IMAGE:$SHA" "$IMAGE:$ENV_TAG"
           docker push "$IMAGE:$ENV_TAG"
+
+  # Bump runtime version in package.json after merge or manual dispatch
+  version-bump:
+    needs: [build, publish]
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'closed' &&
+       github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.event.pull_request.base.ref }}
+
+      - name: Bump patch version
+        run: |
+          cd runtime
+          OLD=$(jq -r .version package.json)
+          NEW=$(echo "$OLD" | awk -F. '{print $1"."$2"."$3+1}')
+          jq --arg v "$NEW" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "Bumped runtime version: $OLD → $NEW"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add runtime/package.json
+          git commit -m "chore: bump runtime version to $(jq -r .version runtime/package.json) [skip ci]"
+          git push
 
   # Fast promote: retag the existing sha image to an environment tag (~15s)
   promote:
