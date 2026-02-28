@@ -1,15 +1,10 @@
 name: "Runtime: Manual Build"
 
-run-name: "Runtime dispatch → :${{ inputs.tag }} (from ${{ inputs.branch }})"
+run-name: "Runtime dispatch → :${{ inputs.tag }} (from ${{ github.ref_name }})"
 
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Branch to build from'
-        required: true
-        type: string
-        default: 'dev'
       tag:
         description: 'Image tag to publish (e.g. dev, staging, production)'
         required: true
@@ -25,15 +20,13 @@ permissions:
 
 jobs:
   build:
-    name: "Build from ${{ inputs.branch }}"
+    name: "Build runtime image"
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.branch }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -50,7 +43,7 @@ jobs:
         run: |
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "Building sha-$SHA from ${{ inputs.branch }}"
+          echo "Building sha-$SHA from ${{ github.ref_name }}"
 
       - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
         uses: docker/build-push-action@v6
