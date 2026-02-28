@@ -1,44 +1,51 @@
 #!/bin/bash
-# Quick test of Telnyx setup
+# Quick test of Telnyx SMS setup
 
-echo "🧪 Telnyx Connection Test"
-echo "========================="
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo "🧪 Telnyx SMS Test"
+echo "=================="
 echo ""
 
-# Check CLI
-if ! command -v telnyx &> /dev/null; then
-  echo "❌ Telnyx CLI not found. Run: npm install -g @telnyx/api-cli"
+# Check env vars
+if [ -z "$TELNYX_API_KEY" ]; then
+  echo "❌ TELNYX_API_KEY not set"
   exit 1
 fi
-echo "✓ Telnyx CLI installed"
+echo "✓ TELNYX_API_KEY is set"
 
-# Check config
-if [ ! -f ~/.config/telnyx/config.json ]; then
-  echo "❌ API key not configured. Run: telnyx auth setup"
+if [ -z "$TELNYX_PHONE_NUMBER" ]; then
+  echo "❌ TELNYX_PHONE_NUMBER not set"
   exit 1
 fi
-echo "✓ API key configured"
+echo "✓ TELNYX_PHONE_NUMBER is set ($TELNYX_PHONE_NUMBER)"
 
-# Test connection
+# Test API connectivity by checking the phone number's messaging features
 echo ""
 echo "Testing API connection..."
-if telnyx account get &> /dev/null; then
-  echo "✓ Connection successful"
+RESPONSE=$(node -e "
+  fetch('https://api.telnyx.com/v2/phone_numbers/' + encodeURIComponent(process.env.TELNYX_PHONE_NUMBER) + '/messaging', {
+    headers: { 'Authorization': 'Bearer ' + process.env.TELNYX_API_KEY, 'Content-Type': 'application/json' }
+  }).then(r => {
+    if (!r.ok) { console.log('FAIL:' + r.status); process.exit(1); }
+    return r.json();
+  }).then(d => {
+    const sms = d.data?.features?.sms;
+    console.log('OK');
+    console.log('SMS domestic 2-way: ' + (sms?.domestic_two_way ? 'yes' : 'no'));
+    console.log('Profile: ' + (d.data?.messaging_profile_id || 'none'));
+  }).catch(e => { console.log('FAIL:' + e.message); process.exit(1); });
+")
+
+if echo "$RESPONSE" | head -1 | grep -q "^OK"; then
+  echo "✓ API connection successful"
+  echo "$RESPONSE" | tail -n +2 | while read line; do echo "  $line"; done
 else
-  echo "❌ Connection failed"
+  echo "❌ API connection failed: $RESPONSE"
   exit 1
 fi
 
-# Show account info
 echo ""
-echo "Account Status:"
-telnyx account get --output json | jq '{email: .email, balance: .balance}'
-
-# Show numbers
-echo ""
-echo "Phone Numbers:"
-COUNT=$(telnyx number list --output json | jq '.data | length')
-echo "You have $COUNT phone number(s)"
-
-echo ""
-echo "✅ Setup looks good!"
+echo "✅ Telnyx SMS setup looks good!"
