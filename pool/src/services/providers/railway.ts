@@ -173,10 +173,11 @@ export async function createService(
   name: string,
   variables: Record<string, string> = {},
   opts?: ProjectEnvOpts,
+  imageOverride?: string,
 ): Promise<string> {
   const projectId = resolveProjectId(opts);
   const environmentId = resolveEnvironmentId(opts);
-  const image = config.railwayRuntimeImage;
+  const image = imageOverride || config.railwayRuntimeImage;
 
   const input = { projectId, environmentId, name };
   console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);

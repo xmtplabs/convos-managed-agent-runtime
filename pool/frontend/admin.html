@@ -29,8 +29,6 @@
       </div>
     </div>
     <div class="header-right">
-      <span class="chip" id="chip-model"></span>
-
       <form method="POST" action="/admin/logout" style="display:inline">
         <button class="logout-btn" type="submit">Logout</button>
       </form>
@@ -85,6 +83,16 @@
         <select class="control-input" id="max-parallel">
           <option value="1" selected>1</option>
           <option value="5">5</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Image</label>
+        <select class="control-input" id="runtime-image">
+          <option value="ghcr.io/xmtplabs/convos-runtime:latest">:latest</option>
+          <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
+          <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
+          <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
+          <option value="ghcr.io/xmtplabs/convos-runtime:scaling">:scaling</option>
         </select>
       </div>
       <div class="control-group">
@@ -248,13 +256,20 @@
       dropdown.innerHTML = h;
     })();
 
-    document.getElementById('chip-model').textContent = 'model: ' + (C.instanceModel || '');
     document.getElementById('launch-url').placeholder = (C.poolEnvironment === 'production') ? 'popup.convos.org/...' : 'dev.convos.org/...';
 
     var POOL_ENV = C.poolEnvironment;
     var BANKR_KEY = !!C.bankrConfigured;
-    var INSTANCE_MODEL = C.instanceModel || '';
     var authHeaders = { 'Content-Type': 'application/json' };
+
+    // Pre-select the current runtime image in the picker
+    (function () {
+      var sel = document.getElementById('runtime-image');
+      var cur = C.runtimeImage || '';
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === cur) { sel.selectedIndex = i; return; }
+      }
+    })();
 
     var claimedCache = [], crashedCache = [], idleCache = [], startingCache = [];
     var svcKeyMap = {}; // keyed by key name e.g. 'convos-agent-xxxxx'
@@ -701,7 +716,8 @@
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel);
+      var image = encodeURIComponent(document.getElementById('runtime-image').value);
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image);
       es.onmessage = function (ev) {
         try {
           var data = JSON.parse(ev.data);
@@ -1155,7 +1171,6 @@
         + '<div class="expand-section-header"><span class="expand-section-title">Instance</span>'
         + (instanceUrl ? '<span class="expand-status-dot active"></span>' : '<span class="expand-status-dot inactive"></span>') + '</div>'
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
-        + '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(INSTANCE_MODEL) + '</span></div>'
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
@@ -1287,7 +1302,7 @@
     });
 
     // --- Init + polling ---
-    console.log('[pool] init — env:%s model:%s', POOL_ENV, INSTANCE_MODEL);
+    console.log('[pool] init — env:%s', POOL_ENV);
     refresh();
     refreshCredits();
     refreshInstances();
