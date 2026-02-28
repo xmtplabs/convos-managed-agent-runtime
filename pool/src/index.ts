@@ -361,8 +361,8 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
       await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENCY, count) }, () => worker()));
       res.json({ ok: true, created: results.length, instances: results, counts: await db.getCounts() }); return;
     }
-    await pool.tick();
-    res.json({ ok: true, counts: await db.getCounts() });
+    const result = await pool.reconcileAll();
+    res.json({ ok: true, counts: await db.getCounts(), reconciled: result });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -370,10 +370,37 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
 
 app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
   try {
-    await pool.tick();
-    res.json({ ok: true, counts: await db.getCounts() });
+    const result = await pool.reconcileAll();
+    res.json({ ok: true, counts: await db.getCounts(), reconciled: result });
   } catch (err: any) {
-    console.error("[api] Tick failed:", err);
+    console.error("[api] Reconcile failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const VALID_RECONCILE_STATUSES = new Set(["idle", "starting", "claimed", "crashed", "dead"]);
+
+app.post("/api/pool/reconcile/status/:status", requireAuth, async (req, res) => {
+  try {
+    const status = req.params.status as string;
+    if (!VALID_RECONCILE_STATUSES.has(status)) {
+      res.status(400).json({ error: `Invalid status: ${status}. Valid: ${[...VALID_RECONCILE_STATUSES].join(", ")}` });
+      return;
+    }
+    const result = await pool.reconcileByStatus(status);
+    res.json({ ok: true, counts: await db.getCounts(), reconciled: result });
+  } catch (err: any) {
+    console.error("[api] Reconcile by status failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/pool/reconcile/:id", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.reconcileInstance(req.params.id as string);
+    res.json({ ok: true, counts: await db.getCounts(), reconciled: result });
+  } catch (err: any) {
+    console.error("[api] Reconcile instance failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -500,14 +527,6 @@ initMetrics();
 
 runMigrations()
   .then(() => {
-    // Background tick
-    setInterval(() => {
-      pool.tick().catch((err: any) => console.error("[tick] Error:", err));
-    }, config.tickIntervalMs);
-
-    // Initial tick
-    pool.tick().catch((err: any) => console.error("[tick] Initial tick error:", err));
-
     setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
   })
   .catch((err) => {
