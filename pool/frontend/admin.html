@@ -576,10 +576,12 @@
         card.className = 'provision-instance';
         card.id = 'prov-inst-' + i;
         var stepsHtml = '';
+        var railwayKeys = { 'railway-project': 1, 'railway-service': 1, 'railway-domain': 1 };
         PROV_STEPS.forEach(function (s) {
+          var label = s.label + (railwayKeys[s.key] ? ' <span style="opacity:0.45">:' + esc(imgTag) + '</span>' : '');
           stepsHtml += '<div class="provision-step pending" id="prov-step-' + i + '-' + s.key + '">'
             + '<span class="provision-step-icon"></span>'
-            + '<span class="provision-step-label">' + s.label + '</span>'
+            + '<span class="provision-step-label">' + label + '</span>'
             + '<span class="provision-step-msg"></span>'
             + '</div>';
         });
