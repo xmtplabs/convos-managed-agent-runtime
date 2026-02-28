@@ -3,7 +3,7 @@ import { config } from "../../config";
 const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
 const GQL_MAX_RETRIES = 3;
-const GQL_BASE_DELAY_MS = 2000;
+const GQL_BASE_DELAY_MS = 5000;
 
 export async function gql(query: string, variables: Record<string, unknown> = {}): Promise<Record<string, any>> {
   const token = config.railwayApiToken;
