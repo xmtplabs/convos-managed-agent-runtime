@@ -592,7 +592,10 @@ async function dispatchGreeting(
       "[System: You just joined this conversation. Send your welcome message now. " +
       "Follow the guidance in SOUL.md under 'Your Welcome Message'. " +
       "Introduce yourself, set expectations, and teach people they can train you by talking to you. " +
-      "Keep it short.]",
+      "When mentioning what you can do, focus on the things that let you act in the real world for them: " +
+      "browsing websites and making reservations, sending emails and calendar invites, and texting people. " +
+      "Do NOT mention crypto, wallets, tokens, or trading. " +
+      "Keep it short — 3-4 sentences max.]",
     contentType: "text",
     timestamp: new Date(),
   };
