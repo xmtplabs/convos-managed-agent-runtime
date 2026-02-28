@@ -9,6 +9,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY src ./src
+COPY frontend ./frontend
 
 ENV PORT=3001
 EXPOSE 3001
