@@ -378,6 +378,16 @@ app.post("/api/pool/reconcile", requireAuth, async (_req, res) => {
   }
 });
 
+app.post("/api/pool/check-starting", requireAuth, async (_req, res) => {
+  try {
+    const result = await pool.checkStarting();
+    res.json({ ok: true, ...result, counts: await db.getCounts() });
+  } catch (err: any) {
+    console.error("[api] checkStarting failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/pool/drain/stream", requireAuth, async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 20, 20);
   const concurrency = Math.min(Math.max(parseInt(req.query.concurrency as string) || 5, 1), 10);
