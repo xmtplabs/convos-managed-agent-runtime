@@ -180,7 +180,7 @@ jobs:
           fi
 
   promote-dispatch:
-    name: "Promote :${{ needs.build.outputs.sha }} → :${{ inputs.environment }}"
+    name: Promote dispatch
     needs: [build, publish]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
