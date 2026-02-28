@@ -225,6 +225,37 @@ export async function tick() {
   ]);
 }
 
+/** Health-check only starting instances and transition ready ones to idle. */
+export async function checkStarting() {
+  const starting = await db.getByStatus("starting");
+  if (starting.length === 0) return { checked: 0, promoted: 0 };
+
+  let promoted = 0;
+  const checks = await Promise.allSettled(
+    starting.map(async (inst: any) => {
+      if (!inst.url) return { id: inst.id, ready: false };
+      const hc = await healthCheck(inst.url);
+      return { id: inst.id, ready: !!hc?.ready };
+    }),
+  );
+
+  for (const c of checks) {
+    if (c.status === "fulfilled" && c.value.ready) {
+      await db.upsertInstance({
+        id: c.value.id,
+        name: `convos-agent-${c.value.id}`,
+        status: "idle",
+        url: starting.find((i: any) => i.id === c.value.id)?.url || null,
+        createdAt: starting.find((i: any) => i.id === c.value.id)?.createdAt || new Date().toISOString(),
+      });
+      promoted++;
+    }
+  }
+
+  console.log(`[pool] checkStarting: ${starting.length} checked, ${promoted} promoted to idle`);
+  return { checked: starting.length, promoted };
+}
+
 export { provision } from "./provision";
 
 export async function drainPool(count: number) {
