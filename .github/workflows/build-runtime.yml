@@ -1,5 +1,13 @@
 name: Build Runtime Image
 
+run-name: >-
+  Runtime
+  ${{ github.event_name == 'workflow_dispatch'
+      && format('dispatch → {0}', inputs.environment)
+      || github.event.action == 'closed' && github.event.pull_request.merged
+        && format('merge → {0}', github.event.pull_request.base.ref)
+        || format('PR #{0} → {1}', github.event.number, github.event.pull_request.base.ref) }}
+
 on:
   pull_request:
     types: [opened, synchronize, closed]
@@ -18,11 +26,13 @@ on:
           - scaling
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: write
 
 jobs:
   build:
+    name: Build runtime image
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.action != 'closed' &&
@@ -32,8 +42,9 @@ jobs:
       pending: ${{ steps.meta.outputs.pending }}
       tag: ${{ steps.meta.outputs.tag }}
       sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Log in to GHCR
@@ -46,9 +57,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Determine image tags
+      - name: Read version and compute image tags
         id: meta
         run: |
+          VERSION=$(jq -r .version runtime/package.json)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
             TAG="pr-${{ github.event.number }}"
@@ -59,8 +71,10 @@ jobs:
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Runtime v$VERSION | sha=$SHA | tag=$TAG | pending=pending-$SHA"
 
-      - name: Build and push (pending tag only)
+      - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -72,6 +86,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   qa:
+    name: "QA smoke tests (:${{ needs.build.outputs.pending }})"
     needs: build
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -84,10 +99,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull image
+      - name: "Pull :${{ needs.build.outputs.pending }}"
         run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
 
-      - name: Start container
+      - name: "Start container from :${{ needs.build.outputs.pending }}"
         run: |
           docker run -d --name qa-runtime \
             -p 8080:8080 \
@@ -107,7 +122,7 @@ jobs:
             ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
             node scripts/pool-server.js
 
-      - name: Wait for health check
+      - name: Wait for gateway health (up to 120s)
         run: |
           echo "Waiting for gateway health on port 8080..."
           for i in $(seq 1 120); do
@@ -125,7 +140,7 @@ jobs:
           echo "Waiting 15s for browser service to initialise..."
           sleep 15
 
-      - name: QA smoke tests
+      - name: Run QA smoke tests (timeout 120s)
         run: docker exec qa-runtime timeout 120 pnpm qa
 
       - name: Dump container logs
@@ -133,6 +148,7 @@ jobs:
         run: docker logs qa-runtime
 
   publish:
+    name: "Publish v${{ needs.build.outputs.version }} (:${{ needs.build.outputs.sha }}, :v${{ needs.build.outputs.version }})"
     needs: [build, qa]
     runs-on: ubuntu-latest
     steps:
@@ -143,30 +159,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull pending image
+      - name: "Pull :${{ needs.build.outputs.pending }}"
         run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
 
-      - name: Retag and push final tags
+      - name: "Tag and push :${{ needs.build.outputs.sha }}, :v${{ needs.build.outputs.version }}, :${{ needs.build.outputs.tag }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           PENDING="${{ needs.build.outputs.pending }}"
           SHA="${{ needs.build.outputs.sha }}"
+          VERSION="${{ needs.build.outputs.version }}"
 
           # sha tag always gets pushed
           docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
           docker push "$IMAGE:$SHA"
+          echo "Pushed $IMAGE:$SHA"
+
+          # semver tag (e.g. v0.0.12)
+          docker tag "$IMAGE:$PENDING" "$IMAGE:v$VERSION"
+          docker push "$IMAGE:v$VERSION"
+          echo "Pushed $IMAGE:v$VERSION"
 
           # PRs get pr-N tag, dispatches get dispatch tag
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
             docker push "$IMAGE:pr-${{ github.event.number }}"
+            echo "Pushed $IMAGE:pr-${{ github.event.number }}"
           else
             docker tag "$IMAGE:$PENDING" "$IMAGE:dispatch"
             docker push "$IMAGE:dispatch"
+            echo "Pushed $IMAGE:dispatch"
           fi
 
-  # Manual dispatch promote: retag the built image to the chosen environment tag
   promote-dispatch:
+    name: "Promote :${{ needs.build.outputs.sha }} → :${{ inputs.environment }}"
     needs: [build, publish]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -178,7 +203,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Retag image to environment
+      - name: "Retag :${{ needs.build.outputs.sha }} → :${{ inputs.environment }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           SHA="${{ needs.build.outputs.sha }}"
@@ -188,9 +213,55 @@ jobs:
           docker pull "$IMAGE:$SHA"
           docker tag "$IMAGE:$SHA" "$IMAGE:$ENV_TAG"
           docker push "$IMAGE:$ENV_TAG"
+          echo "Done: $IMAGE:$ENV_TAG"
 
-  # Fast promote: retag the existing sha image to an environment tag (~15s)
+  version-bump:
+    name: Bump version on dev (current v${{ needs.build.outputs.version }})
+    needs: [build, publish]
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'dev') ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'closed' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.base.ref == 'dev')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: "Bump patch version from v${{ needs.build.outputs.version }}"
+        id: bump
+        run: |
+          cd runtime
+          OLD=$(jq -r .version package.json)
+          NEW=$(echo "$OLD" | awk -F. '{print $1"."$2"."$3+1}')
+          jq --arg v "$NEW" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "Bumped runtime version: $OLD → $NEW"
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: "Create PR: bump runtime to v${{ steps.bump.outputs.version }} → dev"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.bump.outputs.version }}"
+          BRANCH="chore/bump-runtime-v${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add runtime/package.json
+          git commit -m "chore: bump runtime version to ${VERSION} [skip ci]"
+          git push -u origin "$BRANCH"
+          gh pr create --base dev --title "chore: bump runtime to v${VERSION}" \
+            --body "Automated version bump after runtime merge." \
+            --label "skip-runtime-build"
+          gh pr merge "$BRANCH" --squash --auto
+          echo "Created and auto-merging PR for v${VERSION} → dev"
+
   promote:
+    name: "Promote :sha-${{ github.event.pull_request.head.sha }} → ${{ github.event.pull_request.base.ref }}"
     if: >-
       github.event_name == 'pull_request' &&
       github.event.action == 'closed' &&
@@ -204,7 +275,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine environment tag
+      - name: "Map branch ${{ github.event.pull_request.base.ref }} → environment tag"
         id: env
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
@@ -217,7 +288,7 @@ jobs:
           esac
           echo "Merge target: $BASE → tag: $(grep tag "$GITHUB_OUTPUT" | cut -d= -f2)"
 
-      - name: Retag image to environment
+      - name: "Retag image → :${{ steps.env.outputs.tag }}"
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
@@ -228,3 +299,4 @@ jobs:
           docker pull "$IMAGE:sha-$SHA"
           docker tag "$IMAGE:sha-$SHA" "$IMAGE:$ENV_TAG"
           docker push "$IMAGE:$ENV_TAG"
+          echo "Done: $IMAGE:$ENV_TAG"
