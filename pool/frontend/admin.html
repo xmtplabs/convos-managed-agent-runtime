@@ -225,6 +225,19 @@
     </div>
   </div>
 
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal confirm-modal">
+      <div class="confirm-icon" id="confirm-icon"></div>
+      <h3 id="confirm-title"></h3>
+      <p id="confirm-message" style="font-size:12px;color:var(--color-foreground-secondary);margin-bottom:16px"></p>
+      <div class="confirm-actions">
+        <button class="confirm-btn cancel" id="confirm-cancel">Cancel</button>
+        <button class="confirm-btn proceed" id="confirm-proceed">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // --- Read config injected by server ---
     var C = window.__POOL_CONFIG__ || {};
@@ -407,6 +420,9 @@
       }
 
       var recheckSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>';
+      var runtimeSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>';
+      var qrSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="21" y1="14" x2="21" y2="14.01"/><line x1="21" y1="21" x2="21" y2="21.01"/><line x1="17" y1="21" x2="17" y2="21.01"/></svg>';
+      var killSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
 
       // Sort helper: get raw usage value for an instance
       function getUsageValue(a) {
@@ -462,24 +478,17 @@
         var isClaimed = claimedCache.indexOf(a) !== -1;
         var isIdle = idleCache.indexOf(a) !== -1;
         var recheckBtn = '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">' + recheckSvg + '</button>';
+        var runtimeBtn = '<button class="action-btn warn" data-runtime="' + a.id + '" title="Update runtime image">' + runtimeSvg + '</button>';
+        var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
+        var killBtn = '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed',
-            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-            + recheckBtn
-            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + runtimeBtn + killBtn);
         } else if (isClaimed) {
-          renderRow(a, 'running', 'Running',
-            '<button class="action-btn" data-qr="' + a.id + '">QR</button>'
-            + recheckBtn
-            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+          renderRow(a, 'running', 'Running', qrBtn + recheckBtn + runtimeBtn + killBtn);
         } else if (isIdle) {
-          renderRow(a, 'idle', 'Ready',
-            recheckBtn
-            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+          renderRow(a, 'idle', 'Ready', recheckBtn + runtimeBtn + killBtn);
         } else {
-          renderRow(a, 'starting', 'Starting',
-            recheckBtn
-            + '<button class="action-btn kill" data-kill="' + a.id + '">Kill</button>');
+          renderRow(a, 'starting', 'Starting', recheckBtn + runtimeBtn + killBtn);
         }
       });
       body.innerHTML = html;
@@ -512,16 +521,19 @@
 
     // --- Actions ---
     document.getElementById('agents-body').addEventListener('click', function (e) {
-      var qrId = e.target.getAttribute('data-qr');
-      if (qrId) {
+      var qrBtn = e.target.closest('[data-qr]');
+      if (qrBtn) {
+        var qrId = qrBtn.getAttribute('data-qr');
         var a = claimedCache.concat(crashedCache).find(function (x) { return x.id === qrId; });
         if (a) showQr(a.agentName || a.id, a.inviteUrl || '');
         return;
       }
-      var killId = e.target.getAttribute('data-kill');
-      if (killId) { killAgent(killId); return; }
+      var killBtn = e.target.closest('[data-kill]');
+      if (killBtn) { killAgent(killBtn.getAttribute('data-kill')); return; }
       var recheckBtn = e.target.closest('[data-recheck]');
       if (recheckBtn) { recheckInstance(recheckBtn.getAttribute('data-recheck'), recheckBtn); return; }
+      var runtimeBtn = e.target.closest('[data-runtime]');
+      if (runtimeBtn) { updateRuntime(runtimeBtn.getAttribute('data-runtime'), runtimeBtn); return; }
 
       // Row click → toggle expand row (ignore if clicking a button/link)
       if (e.target.closest('button') || e.target.closest('a')) return;
@@ -598,8 +610,14 @@
       if (killingSet[id]) return;
       var row = document.getElementById('row-' + id);
       var name = row ? row.querySelector('.agent-name-cell').textContent.trim() : id;
-      var msg = (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Kill "' + name + '"? This deletes the Railway service.';
-      if (!confirm(msg)) return;
+      var ok = await showConfirm({
+        icon: '\uD83D\uDDD1\uFE0F',
+        title: (POOL_ENV === 'production' ? '[PRODUCTION] ' : '') + 'Kill Instance',
+        message: 'Permanently destroy "' + name + '"? This deletes the Railway service, volume, and all provisioned tools.',
+        confirmLabel: 'Kill',
+        danger: true,
+      });
+      if (!ok) return;
       console.log('[pool] killing agent %s (%s)', id, name);
       killingSet[id] = true;
       markDestroying(id);
@@ -643,6 +661,35 @@
         refresh();
       } catch (err) {
         console.error('[pool] recheck failed for %s:', id, err.message);
+        btn.style.color = 'var(--color-error)';
+        setTimeout(function () { btn.style.color = ''; }, 1500);
+      } finally {
+        btn.classList.remove('syncing');
+      }
+    }
+
+    async function updateRuntime(id, btn) {
+      if (btn.classList.contains('syncing')) return;
+      var row = document.getElementById('row-' + id);
+      var name = row ? row.querySelector('.agent-name-cell').textContent.trim() : id;
+      var ok = await showConfirm({
+        icon: '\u26A0\uFE0F',
+        title: 'Update Runtime',
+        message: 'Redeploy "' + name + '" with the latest runtime image? The instance will restart.',
+        confirmLabel: 'Redeploy',
+      });
+      if (!ok) return;
+      btn.classList.add('syncing');
+      try {
+        var res = await fetch('/api/pool/update-runtime/' + id, { method: 'POST', headers: authHeaders });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Update runtime failed');
+        console.log('[pool] runtime updated %s → %s', id, data.image);
+        btn.style.color = 'var(--color-brand)';
+        setTimeout(function () { btn.style.color = ''; }, 1500);
+        refresh();
+      } catch (err) {
+        console.error('[pool] update-runtime failed for %s:', id, err.message);
         btn.style.color = 'var(--color-error)';
         setTimeout(function () { btn.style.color = ''; }, 1500);
       } finally {
@@ -1047,7 +1094,47 @@
     });
 
     modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('active'); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') modal.classList.remove('active'); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        modal.classList.remove('active');
+        if (confirmModal.classList.contains('active')) {
+          confirmModal.classList.remove('active');
+          if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+        }
+      }
+    });
+
+    // --- Confirm Modal ---
+    var confirmModal = document.getElementById('confirm-modal');
+    var confirmResolve = null;
+
+    function showConfirm(opts) {
+      document.getElementById('confirm-icon').textContent = opts.icon || '';
+      document.getElementById('confirm-title').textContent = opts.title || 'Are you sure?';
+      document.getElementById('confirm-message').textContent = opts.message || '';
+      var proceedBtn = document.getElementById('confirm-proceed');
+      proceedBtn.textContent = opts.confirmLabel || 'Confirm';
+      proceedBtn.className = 'confirm-btn proceed' + (opts.danger ? ' danger' : '');
+      confirmModal.classList.add('active');
+      return new Promise(function (resolve) {
+        confirmResolve = resolve;
+      });
+    }
+
+    document.getElementById('confirm-proceed').addEventListener('click', function () {
+      confirmModal.classList.remove('active');
+      if (confirmResolve) { confirmResolve(true); confirmResolve = null; }
+    });
+    document.getElementById('confirm-cancel').addEventListener('click', function () {
+      confirmModal.classList.remove('active');
+      if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+    });
+    confirmModal.addEventListener('click', function (e) {
+      if (e.target === confirmModal) {
+        confirmModal.classList.remove('active');
+        if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+      }
+    });
 
     // --- Launch / Join ---
     var launchBtn = document.getElementById('launch-btn');
@@ -1219,7 +1306,7 @@
         var total = credits.totalCredits || 0;
         var used = credits.totalUsage || 0;
         var remaining = total - used;
-        document.getElementById('s-credits').innerHTML = fmtDollars(remaining) + '<div style="font-size:0.5em;opacity:0.6;margin-top:2px">' + fmtDollars(used) + ' used</div>';
+        document.getElementById('s-credits').textContent = '$' + Math.round(remaining);
 
         // Re-render agents table so usage column picks up fresh data
         renderAgents();
