@@ -1,0 +1,150 @@
+name: "Runtime: Manual Build"
+
+run-name: "Runtime dispatch → :${{ inputs.tag }} (from ${{ inputs.branch }})"
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: true
+        type: string
+        default: 'dev'
+      tag:
+        description: 'Image tag to publish (e.g. dev, staging, production)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+          - scaling
+
+permissions:
+  packages: write
+
+jobs:
+  build:
+    name: "Build from ${{ inputs.branch }}"
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute SHA
+        id: meta
+        run: |
+          SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
+          echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
+          echo "Building sha-$SHA from ${{ inputs.branch }}"
+
+      - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runtime/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/xmtplabs/convos-runtime:pending-${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  qa:
+    name: "QA smoke tests"
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
+
+      - name: Start container
+        run: |
+          docker run -d --name qa-runtime \
+            -p 8080:8080 \
+            -e PORT=8080 \
+            -e OPENCLAW_STATE_DIR=/app \
+            -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
+            -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
+            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
+            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
+            -e TELNYX_API_KEY="${{ secrets.TELNYX_API_KEY }}" \
+            -e TELNYX_PHONE_NUMBER="${{ secrets.TELNYX_PHONE_NUMBER }}" \
+            -e TELNYX_MESSAGING_PROFILE_ID="${{ secrets.TELNYX_MESSAGING_PROFILE_ID }}" \
+            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
+            -e PRIVATE_WALLET_KEY="${{ secrets.PRIVATE_WALLET_KEY }}" \
+            -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
+            -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
+            ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }} \
+            node scripts/pool-server.js
+
+      - name: Wait for health (up to 120s)
+        run: |
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
+              echo "Ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
+            echo "Failed to start"
+            docker logs qa-runtime
+            exit 1
+          fi
+          sleep 15
+
+      - name: Run QA smoke tests
+        run: docker exec qa-runtime timeout 120 pnpm qa
+
+      - name: Dump logs
+        if: always()
+        run: docker logs qa-runtime
+
+  publish:
+    name: "Publish :${{ needs.build.outputs.sha }} → :${{ inputs.tag }}"
+    needs: [build, qa]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Tag and push"
+        run: |
+          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          SHA="${{ needs.build.outputs.sha }}"
+          TAG="${{ inputs.tag }}"
+
+          docker pull "$IMAGE:pending-$SHA"
+          docker tag "$IMAGE:pending-$SHA" "$IMAGE:$SHA"
+          docker push "$IMAGE:$SHA"
+          echo "Pushed $IMAGE:$SHA"
+
+          docker tag "$IMAGE:pending-$SHA" "$IMAGE:$TAG"
+          docker push "$IMAGE:$TAG"
+          echo "Pushed $IMAGE:$TAG"

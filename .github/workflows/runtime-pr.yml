@@ -1,75 +1,22 @@
-name: Build Runtime Image
+name: "Runtime: PR"
 
 run-name: >-
-  Runtime
-  ${{ github.event_name == 'workflow_dispatch'
-      && format('dispatch → {0}', inputs.environment)
-      || github.event.action == 'closed' && github.event.pull_request.merged
-        && format('merge → {0}', github.event.pull_request.base.ref)
-        || format('PR #{0} → {1}', github.event.number, github.event.pull_request.base.ref) }}
+  Runtime PR #${{ github.event.number }} → ${{ github.event.pull_request.base.ref }}
+  ${{ github.event.action == 'closed' && github.event.pull_request.merged && '(merged)' || '' }}
 
 on:
   pull_request:
     types: [opened, synchronize, closed]
     paths:
       - 'runtime/**'
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to promote to after QA passes'
-        required: true
-        type: choice
-        options:
-          - dev
-          - staging
-          - production
-          - scaling
 
 permissions:
   packages: write
 
 jobs:
-  changes:
-    name: Detect runtime changes
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    outputs:
-      runtime: ${{ steps.check.outputs.runtime }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Check if push touched runtime/
-        id: check
-        run: |
-          BEFORE="${{ github.event.before }}"
-          AFTER="${{ github.event.after }}"
-
-          # On the first push (PR opened), 'before' is empty or all-zeros.
-          # Fall back to comparing against the PR base branch.
-          if [ -z "$BEFORE" ] || echo "$BEFORE" | grep -qE '^0+$'; then
-            BEFORE="origin/${{ github.event.pull_request.base.ref }}"
-            echo "First push — comparing against base: $BEFORE"
-          fi
-
-          echo "Comparing $BEFORE..$AFTER"
-          if git diff --name-only "$BEFORE" "$AFTER" | grep -q '^runtime/'; then
-            echo "runtime=true" >> "$GITHUB_OUTPUT"
-            echo "Runtime files changed"
-          else
-            echo "runtime=false" >> "$GITHUB_OUTPUT"
-            echo "No runtime files changed"
-          fi
-
   build:
     name: Build runtime image
-    needs: changes
-    if: >-
-      always() && (
-        github.event_name == 'workflow_dispatch' ||
-        (needs.changes.outputs.runtime == 'true' &&
-         !contains(github.event.pull_request.labels.*.name, 'skip-runtime-build'))
-      )
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
       pending: ${{ steps.meta.outputs.pending }}
@@ -92,13 +39,8 @@ jobs:
       - name: Compute image tags
         id: meta
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
-            TAG="pr-${{ github.event.number }}"
-          else
-            SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-            TAG="dispatch"
-          fi
+          SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
+          TAG="pr-${{ github.event.number }}"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
@@ -118,10 +60,6 @@ jobs:
   qa:
     name: "QA smoke tests (:${{ needs.build.outputs.pending }})"
     needs: build
-    if: >-
-      always() &&
-      needs.build.result == 'success' &&
-      (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -183,7 +121,6 @@ jobs:
   publish:
     name: "Publish :${{ needs.build.outputs.sha }}"
     needs: [build, qa]
-    if: always() && needs.build.result == 'success' && needs.qa.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
@@ -202,57 +139,17 @@ jobs:
           PENDING="${{ needs.build.outputs.pending }}"
           SHA="${{ needs.build.outputs.sha }}"
 
-          # sha tag always gets pushed
           docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
           docker push "$IMAGE:$SHA"
           echo "Pushed $IMAGE:$SHA"
 
-          # PRs get pr-N tag, dispatches get dispatch tag
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
-            docker push "$IMAGE:pr-${{ github.event.number }}"
-            echo "Pushed $IMAGE:pr-${{ github.event.number }}"
-          else
-            docker tag "$IMAGE:$PENDING" "$IMAGE:dispatch"
-            docker push "$IMAGE:dispatch"
-            echo "Pushed $IMAGE:dispatch"
-          fi
-
-  promote-dispatch:
-    name: Promote dispatch
-    needs: [build, publish]
-    if: >-
-      always() &&
-      needs.build.result == 'success' &&
-      needs.publish.result == 'success' &&
-      github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Retag :${{ needs.build.outputs.sha }} → :${{ inputs.environment }}"
-        run: |
-          IMAGE="ghcr.io/xmtplabs/convos-runtime"
-          SHA="${{ needs.build.outputs.sha }}"
-          ENV_TAG="${{ inputs.environment }}"
-
-          echo "Promoting $IMAGE:$SHA → $IMAGE:$ENV_TAG"
-          docker pull "$IMAGE:$SHA"
-          docker tag "$IMAGE:$SHA" "$IMAGE:$ENV_TAG"
-          docker push "$IMAGE:$ENV_TAG"
-          echo "Done: $IMAGE:$ENV_TAG"
+          docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
+          docker push "$IMAGE:pr-${{ github.event.number }}"
+          echo "Pushed $IMAGE:pr-${{ github.event.number }}"
 
   promote:
     name: Promote on merge
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.action == 'closed' &&
-      github.event.pull_request.merged == true
+    if: github.event.action == 'closed' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
@@ -262,7 +159,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Map branch ${{ github.event.pull_request.base.ref }} → environment tag"
+      - name: "Map branch → environment tag"
         id: env
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
