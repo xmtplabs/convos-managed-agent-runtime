@@ -1,5 +1,6 @@
 /**
- * SMS end-to-end test — makes two numbers talk to each other.
+ * SMS end-to-end test — makes two numbers talk to each other and verifies
+ * both outbound delivery AND inbound receipt via the MDR API.
  *
  * Usage:  pnpm telnyx:sms-test
  *         pnpm telnyx:sms-test +1AAAAAAAAAA +1BBBBBBBBBB   (specific numbers)
@@ -8,6 +9,7 @@
  *   1. Verifies messaging features (SMS) are enabled on both numbers
  *   2. A texts B, B texts A
  *   3. Polls delivery status until both reach terminal state
+ *   4. Polls MDR for inbound records — confirms each number received the other's message
  */
 
 const TELNYX_API = "https://api.telnyx.com/v2";
@@ -30,17 +32,6 @@ function sleep(ms: number) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-async function listActiveNumbers(): Promise<string[]> {
-  const res = await fetch(
-    `${TELNYX_API}/phone_numbers?page[size]=100&filter[status]=active`,
-    { headers: hdrs() },
-  );
-  const body = (await res.json()) as any;
-  return (body?.data ?? [])
-    .filter((n: any) => n.messaging_profile_id)
-    .map((n: any) => n.phone_number);
-}
 
 async function getMessagingFeatures(phoneNumber: string): Promise<any> {
   const res = await fetch(
@@ -76,24 +67,31 @@ async function checkStatus(messageId: string): Promise<string> {
   return body?.data?.to?.[0]?.status ?? body?.data?.status ?? "unknown";
 }
 
+async function checkInbound(toNumber: string, sinceISO?: string): Promise<{ records: any[]; total: number }> {
+  const params = new URLSearchParams({
+    "filter[record_type]": "message",
+    "filter[direction]": "inbound",
+    "filter[cld]": toNumber,
+    "page[size]": "10",
+  });
+  if (sinceISO) params.set("filter[sent_at][gte]", sinceISO);
+  const res = await fetch(`${TELNYX_API}/detail_records?${params}`, {
+    headers: hdrs(),
+  });
+  if (!res.ok) return { records: [], total: 0 };
+  const body = (await res.json()) as any;
+  return { records: body?.data ?? [], total: body?.meta?.total_results ?? 0 };
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  let numberA = process.argv[2];
-  let numberB = process.argv[3];
+  const AGENT_NUMBER = "+14193792549";
+  const PARTNER_NUMBER = "+15072608139";
+  let numberA = process.argv[2] ?? AGENT_NUMBER;
+  let numberB = process.argv[3] ?? PARTNER_NUMBER;
 
-  if (!numberA || !numberB) {
-    console.log("No numbers provided, picking two from the account...\n");
-    const all = await listActiveNumbers();
-    if (all.length < 2) {
-      console.error(`Need at least 2 numbers with messaging profiles, found ${all.length}`);
-      process.exit(1);
-    }
-    numberA = all[0];
-    numberB = all[1];
-  }
-
-  console.log(`=== SMS Test ===`);
+  console.log(`=== SMS End-to-End Test ===`);
   console.log(`  Number A: ${numberA}`);
   console.log(`  Number B: ${numberB}`);
 
@@ -114,11 +112,7 @@ async function main() {
     const sms = feat.features?.sms;
     const profile = feat.messaging_profile_id;
     const domestic = sms?.domestic_two_way ? "✅" : "❌";
-    const intlIn = sms?.international_inbound ? "✅" : "—";
-    const intlOut = sms?.international_outbound ? "✅" : "—";
-    console.log(`  ${label} (${num}):`);
-    console.log(`     Profile: ${profile ?? "none"}`);
-    console.log(`     SMS domestic 2-way: ${domestic}  intl-in: ${intlIn}  intl-out: ${intlOut}`);
+    console.log(`  ${label} (${num}): profile=${profile ?? "none"}  domestic-2way=${domestic}`);
 
     if (!sms?.domestic_two_way) {
       console.error(`     ⚠️  SMS domestic 2-way is OFF — messages may fail`);
@@ -127,6 +121,8 @@ async function main() {
 
   // ── Step 2: Send messages ────────────────────────────────────────────────
 
+  // MDR sent_at can lag — use a 60s offset so the filter doesn't miss records
+  const sentAt = new Date(Date.now() - 60_000).toISOString();
   console.log("\n--- Step 2: Sending messages ---");
 
   const ts = new Date().toISOString();
@@ -169,22 +165,56 @@ async function main() {
     }
   }
 
+  // ── Step 4: Poll inbound via MDR ─────────────────────────────────────────
+
+  console.log("\n--- Step 4: Checking inbound receipt via MDR (polling up to 60s) ---");
+
+  let resA = { records: [] as any[], total: 0 };
+  let resB = { records: [] as any[], total: 0 };
+
+  for (let i = 0; i < 12; i++) {
+    await sleep(5000);
+    [resA, resB] = await Promise.all([
+      checkInbound(numberA, sentAt),
+      checkInbound(numberB, sentAt),
+    ]);
+
+    console.log(`\n  Poll ${i + 1}/12 (${(i + 1) * 5}s):`);
+    console.log(`     A (${numberA}) new: ${resA.records.length}`);
+    console.log(`     B (${numberB}) new: ${resB.records.length}`);
+
+    if (resA.records.length > 0 && resB.records.length > 0) {
+      console.log("\n  Both numbers received inbound messages.");
+      break;
+    }
+  }
+
+  // Fetch total accumulated inbound counts
+  const [totalA, totalB] = await Promise.all([
+    checkInbound(numberA),
+    checkInbound(numberB),
+  ]);
+
   // ── Summary ──────────────────────────────────────────────────────────────
 
   console.log("\n--- Summary ---");
 
   const aToBOk = finalStatuses["A→B"] === "delivered";
   const bToAOk = finalStatuses["B→A"] === "delivered";
+  const aRecvOk = resA.records.length > 0;
+  const bRecvOk = resB.records.length > 0;
 
-  console.log(`  A→B: ${msgIdAtoB ? (aToBOk ? "✅ delivered" : `⚠️  ${finalStatuses["A→B"] ?? "no status"}`) : "❌ send failed"}`);
-  console.log(`  B→A: ${msgIdBtoA ? (bToAOk ? "✅ delivered" : `⚠️  ${finalStatuses["B→A"] ?? "no status"}`) : "❌ send failed"}`);
-  console.log(`  SMS features A: ${featA?.features?.sms?.domestic_two_way ? "✅" : "❌"}`);
-  console.log(`  SMS features B: ${featB?.features?.sms?.domestic_two_way ? "✅" : "❌"}`);
+  console.log(`  A→B send:     ${msgIdAtoB ? (aToBOk ? "✅ delivered" : `⚠️  ${finalStatuses["A→B"] ?? "no status"}`) : "❌ send failed"}`);
+  console.log(`  B→A send:     ${msgIdBtoA ? (bToAOk ? "✅ delivered" : `⚠️  ${finalStatuses["B→A"] ?? "no status"}`) : "❌ send failed"}`);
+  console.log(`  A inbound:    ${aRecvOk ? `✅ ${resA.records.length} new from ${resA.records.map((r) => r.cli).join(", ")}` : "❌ no inbound"}  (${totalA.total} total)`);
+  console.log(`  B inbound:    ${bRecvOk ? `✅ ${resB.records.length} new from ${resB.records.map((r) => r.cli).join(", ")}` : "❌ no inbound"}  (${totalB.total} total)`);
 
-  if (aToBOk && bToAOk) {
-    console.log("\n  ✅ Both directions delivered successfully — SMS is working!\n");
+  const allPass = aToBOk && bToAOk && aRecvOk && bRecvOk;
+
+  if (allPass) {
+    console.log("\n  ✅ Full E2E pass — send + delivery + inbound receipt confirmed!\n");
   } else {
-    console.log("\n  ⚠️  Some messages did not reach 'delivered' status. Check above for details.\n");
+    console.log("\n  ❌ Test failed. Check above for details.\n");
     process.exit(1);
   }
 }
