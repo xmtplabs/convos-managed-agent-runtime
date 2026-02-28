@@ -159,6 +159,8 @@ export async function tick() {
     const dbRow = dbById.get(instId);
 
     if (dbRow?.status === "claiming") continue;
+    // Skip instances with unknown deploy status to preserve last known state
+    if (!svc.deployStatus) continue;
 
     const hc = healthResults.get(instId) || null;
     const isClaimed = !!dbRow?.agentName;
