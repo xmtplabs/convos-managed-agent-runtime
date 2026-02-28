@@ -5,9 +5,9 @@
  *         pnpm telnyx:sms-test +1AAAAAAAAAA +1BBBBBBBBBB   (specific numbers)
  *
  * What it does:
- *   1. Picks two numbers from the account (or uses the ones you pass)
+ *   1. Verifies messaging features (SMS) are enabled on both numbers
  *   2. A texts B, B texts A
- *   3. Polls for delivery status + incoming messages on each number
+ *   3. Polls delivery status until both reach terminal state
  */
 
 const TELNYX_API = "https://api.telnyx.com/v2";
@@ -18,11 +18,15 @@ if (!API_KEY) {
   process.exit(1);
 }
 
-function headers() {
+function hdrs() {
   return {
     Authorization: `Bearer ${API_KEY}`,
     "Content-Type": "application/json",
   };
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,19 +34,28 @@ function headers() {
 async function listActiveNumbers(): Promise<string[]> {
   const res = await fetch(
     `${TELNYX_API}/phone_numbers?page[size]=100&filter[status]=active`,
-    { headers: headers() },
+    { headers: hdrs() },
   );
   const body = (await res.json()) as any;
   return (body?.data ?? [])
-    .filter((n: any) => n.messaging_profile_id) // only numbers with messaging
+    .filter((n: any) => n.messaging_profile_id)
     .map((n: any) => n.phone_number);
+}
+
+async function getMessagingFeatures(phoneNumber: string): Promise<any> {
+  const res = await fetch(
+    `${TELNYX_API}/phone_numbers/${encodeURIComponent(phoneNumber)}/messaging`,
+    { headers: hdrs() },
+  );
+  if (!res.ok) return null;
+  return ((await res.json()) as any)?.data;
 }
 
 async function sendSMS(from: string, to: string, text: string): Promise<string | null> {
   console.log(`\n  📤 ${from} → ${to}: "${text}"`);
   const res = await fetch(`${TELNYX_API}/messages`, {
     method: "POST",
-    headers: headers(),
+    headers: hdrs(),
     body: JSON.stringify({ from, to, text }),
   });
   const body = (await res.json()) as any;
@@ -55,32 +68,12 @@ async function sendSMS(from: string, to: string, text: string): Promise<string |
   return id;
 }
 
-async function checkStatus(messageId: string): Promise<any> {
+async function checkStatus(messageId: string): Promise<string> {
   const res = await fetch(`${TELNYX_API}/messages/${messageId}`, {
-    headers: headers(),
-  });
-  return (await res.json()) as any;
-}
-
-async function listMessages(phoneNumber: string, direction: "inbound" | "outbound"): Promise<any[]> {
-  // MDR (message detail records) endpoint for retrieving sent/received messages
-  const params = new URLSearchParams({
-    "page[size]": "5",
-    "filter[direction]": direction,
-  });
-  const res = await fetch(`${TELNYX_API}/messages?${params}`, {
-    headers: headers(),
+    headers: hdrs(),
   });
   const body = (await res.json()) as any;
-  return (body?.data ?? []).filter(
-    (m: any) =>
-      (direction === "outbound" && m.from?.phone_number === phoneNumber) ||
-      (direction === "inbound" && m.to?.[0]?.phone_number === phoneNumber),
-  );
-}
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
+  return body?.data?.to?.[0]?.status ?? body?.data?.status ?? "unknown";
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -104,26 +97,57 @@ async function main() {
   console.log(`  Number A: ${numberA}`);
   console.log(`  Number B: ${numberB}`);
 
-  // ── Step 1: Send messages ──────────────────────────────────────────────────
+  // ── Step 1: Check messaging features ─────────────────────────────────────
 
-  console.log("\n--- Step 1: Sending messages ---");
+  console.log("\n--- Step 1: Checking messaging features ---");
 
-  const msgIdAtoB = await sendSMS(numberA, numberB, `Hey B, this is A (${numberA}) testing at ${new Date().toISOString()}`);
-  const msgIdBtoA = await sendSMS(numberB, numberA, `Hey A, this is B (${numberB}) testing at ${new Date().toISOString()}`);
+  const [featA, featB] = await Promise.all([
+    getMessagingFeatures(numberA),
+    getMessagingFeatures(numberB),
+  ]);
+
+  for (const [label, num, feat] of [["A", numberA, featA], ["B", numberB, featB]] as const) {
+    if (!feat) {
+      console.error(`  ❌ ${label} (${num}): could not retrieve messaging features`);
+      continue;
+    }
+    const sms = feat.features?.sms;
+    const profile = feat.messaging_profile_id;
+    const domestic = sms?.domestic_two_way ? "✅" : "❌";
+    const intlIn = sms?.international_inbound ? "✅" : "—";
+    const intlOut = sms?.international_outbound ? "✅" : "—";
+    console.log(`  ${label} (${num}):`);
+    console.log(`     Profile: ${profile ?? "none"}`);
+    console.log(`     SMS domestic 2-way: ${domestic}  intl-in: ${intlIn}  intl-out: ${intlOut}`);
+
+    if (!sms?.domestic_two_way) {
+      console.error(`     ⚠️  SMS domestic 2-way is OFF — messages may fail`);
+    }
+  }
+
+  // ── Step 2: Send messages ────────────────────────────────────────────────
+
+  console.log("\n--- Step 2: Sending messages ---");
+
+  const ts = new Date().toISOString();
+  const msgIdAtoB = await sendSMS(numberA, numberB, `Hey B, this is A (${numberA}) @ ${ts}`);
+  const msgIdBtoA = await sendSMS(numberB, numberA, `Hey A, this is B (${numberB}) @ ${ts}`);
 
   if (!msgIdAtoB && !msgIdBtoA) {
     console.error("\n  Both sends failed. SMS is not working on these numbers.");
     process.exit(1);
   }
 
-  // ── Step 2: Poll delivery status ───────────────────────────────────────────
+  // ── Step 3: Poll delivery status ─────────────────────────────────────────
 
-  console.log("\n--- Step 2: Checking delivery status (polling for 30s) ---");
+  console.log("\n--- Step 3: Checking delivery status (polling up to 30s) ---");
 
   const toCheck = [
     ...(msgIdAtoB ? [{ id: msgIdAtoB, label: "A→B" }] : []),
     ...(msgIdBtoA ? [{ id: msgIdBtoA, label: "B→A" }] : []),
   ];
+
+  const finalStatuses: Record<string, string> = {};
 
   for (let i = 0; i < 6; i++) {
     await sleep(5000);
@@ -131,8 +155,8 @@ async function main() {
 
     let allDone = true;
     for (const msg of toCheck) {
-      const status = await checkStatus(msg.id);
-      const s = status?.data?.to?.[0]?.status ?? status?.data?.status ?? "unknown";
+      const s = await checkStatus(msg.id);
+      finalStatuses[msg.label] = s;
       console.log(`     ${msg.label}: ${s}`);
       if (!["delivered", "sent", "failed", "delivery_failed", "sending_failed"].includes(s)) {
         allDone = false;
@@ -145,31 +169,24 @@ async function main() {
     }
   }
 
-  // ── Step 3: Check inbound messages ─────────────────────────────────────────
-
-  console.log("\n--- Step 3: Checking inbound messages ---");
-
-  const inboundA = await listMessages(numberA, "inbound");
-  const inboundB = await listMessages(numberB, "inbound");
-
-  console.log(`\n  Inbound for A (${numberA}): ${inboundA.length} message(s)`);
-  for (const m of inboundA.slice(0, 3)) {
-    console.log(`     From: ${m.from?.phone_number}  Text: "${m.text}"`);
-  }
-
-  console.log(`\n  Inbound for B (${numberB}): ${inboundB.length} message(s)`);
-  for (const m of inboundB.slice(0, 3)) {
-    console.log(`     From: ${m.from?.phone_number}  Text: "${m.text}"`);
-  }
-
-  // ── Summary ────────────────────────────────────────────────────────────────
+  // ── Summary ──────────────────────────────────────────────────────────────
 
   console.log("\n--- Summary ---");
-  console.log(`  A→B send: ${msgIdAtoB ? "OK" : "FAILED"}`);
-  console.log(`  B→A send: ${msgIdBtoA ? "OK" : "FAILED"}`);
-  console.log(`  A inbound: ${inboundA.length} message(s)`);
-  console.log(`  B inbound: ${inboundB.length} message(s)`);
-  console.log();
+
+  const aToBOk = finalStatuses["A→B"] === "delivered";
+  const bToAOk = finalStatuses["B→A"] === "delivered";
+
+  console.log(`  A→B: ${msgIdAtoB ? (aToBOk ? "✅ delivered" : `⚠️  ${finalStatuses["A→B"] ?? "no status"}`) : "❌ send failed"}`);
+  console.log(`  B→A: ${msgIdBtoA ? (bToAOk ? "✅ delivered" : `⚠️  ${finalStatuses["B→A"] ?? "no status"}`) : "❌ send failed"}`);
+  console.log(`  SMS features A: ${featA?.features?.sms?.domestic_two_way ? "✅" : "❌"}`);
+  console.log(`  SMS features B: ${featB?.features?.sms?.domestic_two_way ? "✅" : "❌"}`);
+
+  if (aToBOk && bToAOk) {
+    console.log("\n  ✅ Both directions delivered successfully — SMS is working!\n");
+  } else {
+    console.log("\n  ⚠️  Some messages did not reach 'delivered' status. Check above for details.\n");
+    process.exit(1);
+  }
 }
 
 main()

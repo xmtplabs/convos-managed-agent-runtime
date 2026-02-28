@@ -1,5 +1,5 @@
 #!/bin/bash
-# Telnyx Skill Setup
+# Telnyx Skill Setup — verifies env vars are set
 
 set -e
 
@@ -7,44 +7,25 @@ echo "🔧 Telnyx Skill Setup"
 echo "===================="
 echo ""
 
-# Check if Telnyx CLI is installed
-if ! command -v telnyx &> /dev/null; then
-  echo "📦 Installing Telnyx CLI..."
-  npm install -g @telnyx/api-cli
-else
-  echo "✓ Telnyx CLI found: $(telnyx --version)"
-fi
-
-echo ""
-echo "🔐 Configuring API key..."
-echo ""
-echo "You need a Telnyx API key from: https://portal.telnyx.com/#/app/api-keys"
-echo ""
-
-# Check if already configured
-if [ -f ~/.config/telnyx/config.json ]; then
-  echo "ℹ  API key already configured at ~/.config/telnyx/config.json"
-  echo ""
-  read -p "Reconfigure? (y/n) " -n 1 -r
-  echo ""
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    telnyx auth setup
-  fi
-else
-  echo "Running setup..."
-  telnyx auth setup
-fi
-
-echo ""
-echo "✓ Testing connection..."
-if telnyx number list --limit 1 &> /dev/null; then
-  echo "✓ Connection successful!"
-else
-  echo "⚠️  Connection test failed. Check your API key."
+# Check required env vars
+if [ -z "$TELNYX_API_KEY" ]; then
+  echo "❌ TELNYX_API_KEY not set"
   exit 1
 fi
+echo "✓ TELNYX_API_KEY is set"
+
+if [ -z "$TELNYX_PHONE_NUMBER" ]; then
+  echo "❌ TELNYX_PHONE_NUMBER not set"
+  exit 1
+fi
+echo "✓ TELNYX_PHONE_NUMBER is set ($TELNYX_PHONE_NUMBER)"
+
+# Check Node.js is available
+if ! command -v node &> /dev/null; then
+  echo "❌ Node.js not found"
+  exit 1
+fi
+echo "✓ Node.js found: $(node --version)"
 
 echo ""
 echo "✨ Setup complete!"
-echo ""
-echo "Try: telnyx number list"
