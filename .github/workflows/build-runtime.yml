@@ -36,9 +36,11 @@ jobs:
     outputs:
       runtime: ${{ steps.filter.outputs.runtime }}
     steps:
+      - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.event.before }}
           filters: |
             runtime:
               - 'runtime/**'
