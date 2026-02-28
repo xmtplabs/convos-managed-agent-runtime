@@ -181,9 +181,14 @@ export async function tick() {
     // Never auto-destroy — just update status in DB.
     // Dead/crashed instances must be cleaned up manually via dashboard.
     if (status === "dead" || status === "sleeping") {
-      await db.updateStatus(instId, { status: isClaimed ? "crashed" : "dead", url });
+      const dbStatus = isClaimed ? "crashed" : "dead";
+      if (dbRow?.status === dbStatus && dbRow?.url === url) continue;
+      await db.updateStatus(instId, { status: dbStatus, url });
       continue;
     }
+
+    // Skip DB write when nothing changed
+    if (dbRow && dbRow.status === status && dbRow.url === url) continue;
 
     await db.upsertInstance({
       id: instId,
