@@ -198,20 +198,21 @@ jobs:
           docker tag "$IMAGE:$SHA" "$IMAGE:$ENV_TAG"
           docker push "$IMAGE:$ENV_TAG"
 
-  # Bump runtime version in package.json after merge or manual dispatch
+  # Bump runtime version in package.json (only on dev merges)
   version-bump:
     needs: [build, publish]
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'dev') ||
       (github.event_name == 'pull_request' &&
        github.event.action == 'closed' &&
-       github.event.pull_request.merged == true)
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.base.ref == 'dev')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout target branch
+      - name: Checkout dev
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.event.pull_request.base.ref }}
+          ref: dev
 
       - name: Bump patch version
         run: |
