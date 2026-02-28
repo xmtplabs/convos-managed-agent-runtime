@@ -34,16 +34,24 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
-      runtime: ${{ steps.filter.outputs.runtime }}
+      runtime: ${{ steps.check.outputs.runtime }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
         with:
-          base: ${{ github.event.before }}
-          filters: |
-            runtime:
-              - 'runtime/**'
+          fetch-depth: 0
+      - name: Check if push touched runtime/
+        id: check
+        run: |
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          echo "Comparing $BEFORE..$AFTER"
+          if git diff --name-only "$BEFORE" "$AFTER" | grep -q '^runtime/'; then
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+            echo "Runtime files changed"
+          else
+            echo "runtime=false" >> "$GITHUB_OUTPUT"
+            echo "No runtime files changed"
+          fi
 
   build:
     name: Build runtime image
