@@ -47,14 +47,13 @@ function normalizeList(raw) {
 const client = new AgentMailClient({ apiKey });
 const out = { messages: [], threads: [] };
 
-const listOpts = { inboxId, limit };
+const listOpts = { limit };
 if (labels?.length) listOpts.labels = labels;
-const rawMessages = await client.inboxes.messages.list(listOpts);
+const rawMessages = await client.inboxes.messages.list(inboxId, listOpts);
 out.messages = normalizeList(rawMessages);
 
 if (includeThreads) {
-  const rawThreads = await client.inboxes.threads.list({
-    inboxId,
+  const rawThreads = await client.inboxes.threads.list(inboxId, {
     labels: ["unreplied"],
   });
   out.threads = normalizeList(rawThreads);
