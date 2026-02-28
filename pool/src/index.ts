@@ -309,7 +309,7 @@ app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
 
   let created = 0;
   let failed = 0;
-  const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.query.concurrency as string) || 5, 1), 10);
+  const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.query.concurrency as string) || 5, 1), 5);
 
   // Concurrency-limited parallel provisioning
   let nextIndex = 0;
@@ -344,7 +344,7 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
     const count = Math.min(parseInt(req.body?.count) || 0, 20);
     if (count > 0) {
       const results: any[] = [];
-      const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.body?.concurrency) || 5, 1), 10);
+      const MAX_CONCURRENCY = Math.min(Math.max(parseInt(req.body?.concurrency) || 5, 1), 5);
       let nextIndex = 0;
       async function worker() {
         while (nextIndex < count) {
