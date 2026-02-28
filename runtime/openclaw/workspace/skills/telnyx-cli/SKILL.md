@@ -11,12 +11,14 @@ Your phone number is `$TELNYX_PHONE_NUMBER`. All scripts live under:
 
 `node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/<script>.mjs`
 
-## Send SMS
+## Send SMS (US numbers only)
 
 ```bash
 node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/send-sms.mjs \
   --to +15559876543 --text "Hello!"
 ```
+
+Only US numbers (+1) are supported. Decline international SMS requests.
 
 ## Check received messages
 

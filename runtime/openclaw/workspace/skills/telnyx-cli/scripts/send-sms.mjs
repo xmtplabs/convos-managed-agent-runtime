@@ -23,6 +23,11 @@ if (!to || text === undefined) {
   process.exit(1);
 }
 
+if (!to.startsWith("+1")) {
+  console.error("Only US numbers (+1) are supported.");
+  process.exit(1);
+}
+
 const res = await fetch("https://api.telnyx.com/v2/messages", {
   method: "POST",
   headers: {
