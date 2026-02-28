@@ -1,22 +1,22 @@
 # Runtime Changelog
 
 ## 0.0.14
-- Bump `@bankr/cli` to `0.1.0-beta.18`
-- Re-enable bankr QA test
+- Updated the Bankr crypto wallet integration to the latest version
+- Re-enabled automated quality checks for Bankr
 
 ## 0.0.13
-- Fix agentmail `poll-inbox` positional arg
+- Fixed a bug where the agent couldn't check its email inbox correctly
 
 ## 0.0.12
-- SMS skill: inbound support, US-only restriction, node scripts refactor
-- Refine greeting prompt for real-world capabilities
-- Make greeting default behavior (remove `greetOnJoin` config)
+- Agents can now receive incoming text messages (US numbers only)
+- Improved the first message agents send when joining a conversation
+- Agents now greet users automatically when joining — no setup needed
 
 ## 0.0.11
-- Agent greeting on join
-- Voice-call plugin with Telnyx inbound call support
-- Bump `@xmtp/convos-cli` to 0.3.2
-- Agent self-destruct primitive
-- Conversation loop guard
-- Friendly message on credit exhaustion (402)
-- Set `CONVOS_ENV` on gateway for correct network
+- Agents now introduce themselves when they join a conversation
+- Agents can receive and handle phone calls
+- Updated the Convos messaging library
+- Agents can gracefully shut themselves down when they're no longer needed
+- Added safeguards to prevent agents from getting stuck in conversation loops
+- Agents now reply with a friendly message when they run out of credits
+- Fixed agents using the wrong network in some environments
