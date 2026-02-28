@@ -1,6 +1,6 @@
 {
   "name": "convos-agents",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "private": true,
   "engines": {
     "node": ">=22"
@@ -18,7 +18,7 @@
     "build:run": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local"
   },
   "dependencies": {
-    "@bankr/cli": "^0.1.0-beta.16",
+    "@bankr/cli": "^0.1.0-beta.18",
     "@telnyx/api-cli": "^1.1.0",
     "@xmtp/convos-cli": "^0.3.2",
     "agentmail": "^0.2.17",
