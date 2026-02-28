@@ -583,8 +583,10 @@
             + '<span class="provision-step-msg"></span>'
             + '</div>';
         });
+        var imgTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'latest';
         card.innerHTML = '<div class="provision-instance-header">Instance ' + i
-          + ' <span class="prov-status in-progress" id="prov-inst-status-' + i + '">Pending</span></div>'
+          + ' <span class="prov-status in-progress" id="prov-inst-status-' + i + '">Pending</span>'
+          + ' <span style="font-size:11px;opacity:0.5;font-weight:normal">:' + esc(imgTag) + '</span></div>'
           + '<div class="provision-steps">' + stepsHtml + '</div>';
         body.appendChild(card);
       }
