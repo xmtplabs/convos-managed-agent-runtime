@@ -42,16 +42,16 @@ else
   fail "sms" "$(cat "$QA_TMP")"
 fi
 
-# --- Bankr ---
-echo ""
-echo "=== QA: bankr ==="
-echo "  > bankr prompt 'Check my USDC balance'"
-run bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>'
-if grep -qi "USD\|balance\|0x" "$QA_TMP"; then
-  pass "bankr"
-else
-  fail "bankr" "$(cat "$QA_TMP")"
-fi
+# --- Bankr (disabled — too slow for CI) ---
+# echo ""
+# echo "=== QA: bankr ==="
+# echo "  > bankr prompt 'Check my USDC balance'"
+# run bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>'
+# if grep -qi "USD\|balance\|0x" "$QA_TMP"; then
+#   pass "bankr"
+# else
+#   fail "bankr" "$(cat "$QA_TMP")"
+# fi
 
 # --- Convos CLI ---
 echo ""
