@@ -86,17 +86,14 @@
         </select>
       </div>
       <div class="control-group">
-        <label>Image</label>
-        <select class="control-input" id="runtime-image">
+        <label>Replenish</label>
+        <select class="control-input" id="runtime-image" style="min-width:130px">
           <option value="ghcr.io/xmtplabs/convos-runtime:latest">:latest</option>
           <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
           <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
           <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
           <option value="ghcr.io/xmtplabs/convos-runtime:scaling">:scaling</option>
         </select>
-      </div>
-      <div class="control-group">
-        <label>Replenish</label>
         <input class="control-input" id="replenish-count" type="number" min="1" max="20" value="1" />
         <button class="btn btn-primary" id="replenish-btn">+ Add</button>
       </div>
