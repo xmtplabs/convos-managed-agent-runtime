@@ -189,8 +189,8 @@ app.get("/admin", (req, res) => {
   res.type("html").send(adminPage({
     poolEnvironment: config.poolEnvironment,
     deployBranch: config.deployBranch,
-    instanceModel: config.instanceModel,
     railwayServiceId: config.railwayServiceId,
+    runtimeImage: config.railwayRuntimeImage,
     bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
@@ -296,6 +296,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
 // --- SSE streaming endpoint for provisioning with real-time progress ---
 app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 1, 20);
+  const image = (req.query.image as string) || "";
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -321,7 +322,7 @@ app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
         const inst = await pool.createInstance((step, status, message) => {
           if (step === "done") return;
           send({ type: "step", instanceNum, step, status, message: message || "" });
-        });
+        }, image || undefined);
         send({ type: "instance", instanceNum, instance: inst });
         send({ type: "step", instanceNum, instanceId: inst.id, step: "done", status: "ok", message: "" });
         created++;

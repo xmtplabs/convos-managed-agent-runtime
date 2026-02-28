@@ -21,6 +21,7 @@ export async function createInstance(
   name: string,
   tools: string[] = ["openrouter", "agentmail"],
   onProgress?: ProgressCallback,
+  runtimeImage?: string,
 ): Promise<CreateInstanceResponse> {
   // Generate secrets
   const gatewayToken = wallet.generateGatewayToken();
@@ -135,7 +136,7 @@ export async function createInstance(
   let serviceId: string;
   try {
     const svcStart = Date.now();
-    serviceId = await railway.createService(name, vars, opts);
+    serviceId = await railway.createService(name, vars, opts, runtimeImage);
     sendMetric("provider.railway.service.duration_ms", Date.now() - svcStart);
     console.log(`[infra] Railway service created: ${serviceId}`);
   } catch (err) {
@@ -187,7 +188,7 @@ export async function createInstance(
     providerProjectId: projectId,
     url,
     deployStatus: "BUILDING",
-    runtimeImage: config.railwayRuntimeImage,
+    runtimeImage: runtimeImage || config.railwayRuntimeImage,
     gatewayToken,
   });
 
