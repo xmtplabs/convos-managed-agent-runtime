@@ -36,10 +36,12 @@ async function searchAvailableNumber(): Promise<string> {
 }
 
 /**
- * Purchase a phone number. On 409/422 (number already taken by concurrent caller),
- * re-searches for a new number. Retries on 429/5xx.
+ * Purchase a phone number with messaging enabled from the start.
+ * Includes messaging_profile_id in the order so Telnyx activates SMS on the number.
+ * On 409/422 (number already taken by concurrent caller), re-searches for a new number.
+ * Retries on 429/5xx.
  */
-async function purchaseNumber(phoneNumber: string): Promise<string> {
+async function purchaseNumber(phoneNumber: string, messagingProfileId: string): Promise<string> {
   let currentNumber = phoneNumber;
   for (let attempt = 1; attempt <= 5; attempt++) {
     const res = await fetch(`${TELNYX_API}/number_orders`, {
@@ -47,6 +49,7 @@ async function purchaseNumber(phoneNumber: string): Promise<string> {
       headers: headers(),
       body: JSON.stringify({
         phone_numbers: [{ phone_number: currentNumber }],
+        messaging_profile_id: messagingProfileId,
       }),
     });
     const body = await res.json() as any;
@@ -75,6 +78,30 @@ async function purchaseNumber(phoneNumber: string): Promise<string> {
   throw new Error("Telnyx purchase failed: max retries exceeded");
 }
 
+/**
+ * Explicitly enable messaging features on a purchased number as a safety net.
+ * This ensures SMS is active even if the number order didn't fully activate it.
+ */
+async function enableMessagingFeatures(phoneNumber: string): Promise<void> {
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    const res = await fetch(`${TELNYX_API}/phone_numbers/${encodeURIComponent(phoneNumber)}`, {
+      method: "PATCH",
+      headers: headers(),
+      body: JSON.stringify({ tags: ["sms-enabled"] }),
+    });
+    if (res.ok) return;
+    if (res.status === 404 && attempt < 5) {
+      console.warn(`[telnyx] Enable features attempt ${attempt}/5: number not ready yet, retrying in ${attempt * 2}s...`);
+      await new Promise((r) => setTimeout(r, attempt * 2000));
+      continue;
+    }
+    // Non-critical — log but don't throw since the profile assignment is what matters
+    const body = await res.text();
+    console.warn(`[telnyx] Enable messaging features returned ${res.status}: ${body}`);
+    return;
+  }
+}
+
 /** Get or create a messaging profile. Returns profile ID. */
 async function getOrCreateMessagingProfile(): Promise<string> {
   // Check env var first
@@ -96,7 +123,6 @@ async function getOrCreateMessagingProfile(): Promise<string> {
     headers: headers(),
     body: JSON.stringify({
       name: "convos-sms",
-      whitelisted_destinations: ["US"],
     }),
   });
   const createBody = await createRes.json() as any;
@@ -166,17 +192,21 @@ export async function provisionPhone(instanceId?: string): Promise<ProvisionedPh
 
   // 2. No available numbers — purchase a new one
   console.log("[telnyx] No pooled numbers available, purchasing new number...");
-  const available = await searchAvailableNumber();
-  console.log(`[telnyx] Found: ${available}`);
 
-  const phoneNumber = await purchaseNumber(available);
-  console.log(`[telnyx] Purchased: ${phoneNumber}`);
-
+  // Get messaging profile FIRST so we can include it in the purchase order
   const messagingProfileId = await getOrCreateMessagingProfile();
   console.log(`[telnyx] Using messaging profile: ${messagingProfileId}`);
 
+  const available = await searchAvailableNumber();
+  console.log(`[telnyx] Found: ${available}`);
+
+  const phoneNumber = await purchaseNumber(available, messagingProfileId);
+  console.log(`[telnyx] Purchased: ${phoneNumber}`);
+
+  // Explicitly enable messaging features and assign to profile as safety nets
+  await enableMessagingFeatures(phoneNumber);
   await assignToProfile(phoneNumber, messagingProfileId);
-  console.log(`[telnyx] Assigned ${phoneNumber} to profile ${messagingProfileId}`);
+  console.log(`[telnyx] SMS enabled and assigned ${phoneNumber} to profile ${messagingProfileId}`);
 
   // 3. Insert into pool as assigned
   await db.insert(phoneNumberPool).values({

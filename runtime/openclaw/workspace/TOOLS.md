@@ -19,7 +19,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md` for the full protocol reference.
 - **Email (AgentMail)** — Send and receive emails, calendar invites, poll inbox. MUST use for ANY email task. Run scripts as `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`
-- **SMS (Telnyx)** — Send and receive SMS messages. **US numbers only** (+1). If the recipient is outside the US, tell the user SMS is not available for that destination and suggest email instead. MUST use for ANY SMS/text message task. Run via `telnyx message send --from $TELNYX_PHONE_NUMBER --to <number> --text "message"`.
+- **SMS (Telnyx)** — Send and receive SMS messages to any country. MUST use for ANY SMS/text message task. Run via `telnyx message send --from $TELNYX_PHONE_NUMBER --to <number> --text "message"`. Include the full country code (e.g. +1, +44, +52).
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. Run via `bankr prompt "natural language instruction"` or the REST API at `https://api.bankr.bot`.
 
 
@@ -103,7 +103,7 @@ _Note: ANY request to send, forward, or reply to email MUST use agentmail script
 > Text +1555123456 that I'm running late.
 **Skill:** SMS (Telnyx)
 → `telnyx message send --from $TELNYX_PHONE_NUMBER --to +1555123456 --text "..."`
-_Note: ANY request to send an SMS/text MUST use telnyx CLI. Always use $TELNYX_PHONE_NUMBER as --from. US numbers (+1) only — if the number is international, decline and suggest email._
+_Note: ANY request to send an SMS/text MUST use telnyx CLI. Always use $TELNYX_PHONE_NUMBER as --from. International numbers are supported — include the full country code._
 
 > Send an SMS to my wife saying I'll be home at 8.
 **Skill:** SMS (Telnyx)
@@ -154,5 +154,5 @@ _Note: Multi-step — search finds the page, browser does the booking._
 | "Text my friend" | answer with text | telnyx CLI | Must send SMS via telnyx CLI |
 | "What's my balance?" | answer from memory | bankr CLI | Must query live data |
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
-| "Text +5411..." | telnyx CLI | decline → suggest email | SMS is US-only (+1 numbers) |
+| "Text +5411..." | decline → suggest email | telnyx CLI | International SMS supported |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |
