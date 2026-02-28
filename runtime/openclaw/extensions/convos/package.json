@@ -1,6 +1,6 @@
 {
   "name": "@openclaw/convos",
-  "version": "2026.2.2",
+  "version": "2026.2.3",
   "description": "OpenClaw Convos channel plugin (E2E encrypted messaging via XMTP)",
   "type": "module",
   "dependencies": {
