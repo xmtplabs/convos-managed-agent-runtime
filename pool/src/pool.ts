@@ -59,7 +59,7 @@ async function healthCheck(url: string) {
 }
 
 // Create a single new instance via services and insert into DB.
-export async function createInstance(onProgress?: ProgressCallback) {
+export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string) {
   const id = nanoid(12);
   const name = `convos-agent-${id}`;
   const createStart = Date.now();
@@ -67,7 +67,7 @@ export async function createInstance(onProgress?: ProgressCallback) {
   console.log(`[pool] Creating instance ${name}...`);
 
   try {
-    const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress);
+    const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress, runtimeImage);
     console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
     await db.upsertInstance({

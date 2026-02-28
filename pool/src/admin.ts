@@ -174,12 +174,12 @@ export function loginPage(error) {
 export function adminPage({
   poolEnvironment,
   deployBranch,
-  instanceModel,
   railwayServiceId,
+  runtimeImage = "",
   bankrConfigured = false,
   adminUrls = [],
 }) {
-  const config = JSON.stringify({ poolEnvironment, instanceModel, bankrConfigured, adminUrls });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, bankrConfigured, adminUrls });
   return adminHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
