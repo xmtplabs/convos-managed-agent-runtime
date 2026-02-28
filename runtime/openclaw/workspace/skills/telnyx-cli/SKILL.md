@@ -1,66 +1,33 @@
 ---
 name: telnyx-cli
 description: |
-  SMS messaging via Telnyx using your assigned phone number.
-  USE WHEN: Sending or receiving SMS messages, checking message status.
-  DON'T USE WHEN: User hasn't provided a recipient phone number.
-  INPUTS: Recipient phone number, message text. OUTPUTS: Sent confirmation, message status.
-  REQUIRES: TELNYX_API_KEY, TELNYX_PHONE_NUMBER env vars (already configured in .env).
-metadata: {"openclaw":{"emoji":"📱","requires":{"bins":["telnyx"],"env":["TELNYX_API_KEY","TELNYX_PHONE_NUMBER"]},"primaryEnv":"TELNYX_API_KEY"}}
+  SMS messaging via Telnyx. Send texts and check received messages.
+  USE WHEN: Sending SMS, checking received messages, or checking delivery status.
+  REQUIRES: TELNYX_API_KEY, TELNYX_PHONE_NUMBER env vars (already configured).
+metadata: {"openclaw":{"emoji":"📱","requires":{"env":["TELNYX_API_KEY","TELNYX_PHONE_NUMBER"]},"primaryEnv":"TELNYX_API_KEY"}}
 ---
 
-## Your Phone Number
+Your phone number is `$TELNYX_PHONE_NUMBER`. All scripts live under:
 
-You have one assigned phone number: `$TELNYX_PHONE_NUMBER`. Always use this as the `--from` number when sending messages. Do NOT purchase, release, or manage phone numbers.
+`node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/<script>.mjs`
 
-## Restrictions
-
-You MUST only use the commands listed below. You are FORBIDDEN from:
-
-- Purchasing, releasing, searching, or managing phone numbers (`number buy`, `number release`, `number search`)
-- Creating or modifying messaging profiles, webhooks, or account settings
-- Reading, logging, printing, or exposing the TELNYX_API_KEY value in any way
-- Calling the Telnyx API directly (via curl, fetch, or SDK) outside of the CLI commands below
-- Sending messages from any number other than `$TELNYX_PHONE_NUMBER`
-
-Your access is limited to **sending and receiving SMS through your assigned phone number**.
-
-## Commands
-
-### Send SMS
+## Send SMS (US numbers only)
 
 ```bash
-telnyx message send --from $TELNYX_PHONE_NUMBER --to +15559876543 --text "Hello!"
+node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/send-sms.mjs \
+  --to +15559876543 --text "Hello!"
 ```
 
-### List messages
+Only US numbers (+1) are supported. Decline international SMS requests.
+
+## Check received messages
 
 ```bash
-telnyx message list
+node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/list-messages.mjs [--limit 10]
 ```
 
-### Get message status
+## Check delivery status
 
 ```bash
-telnyx message get MESSAGE_ID
+node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/get-message.mjs MESSAGE_ID
 ```
-
-## Output Formats
-
-```bash
-# Table (default)
-telnyx message list
-
-# JSON
-telnyx message list --output json
-
-# CSV
-telnyx message list --output csv
-```
-
-## Tips
-
-- Rate limit: 100 req/s — add `sleep 1` for bulk operations
-- SMS is US-only
-- Use `--output json` for structured data
-- Get help: `telnyx message --help`
