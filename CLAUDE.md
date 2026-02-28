@@ -6,6 +6,9 @@
 - always use pnpm
 - PRIVATE_WALLET_KEY does nothing to do with Convos!
 - dont rush into action. ask
+- never update dependencies. everything breaks when bumped.
+- NEVER merge the entire branch, always cherry-pick the commits
+- When in doubt, don't automate, better to think of good and manual flows and tools.
 - **NEVER add automatic cleanup/destroy logic to the tick loop.** The tick must never auto-delete Railway projects, services, or volumes. Dead/crashed instances get marked in the DB and must be cleaned up manually via the dashboard. Only explicit user actions (kill, drain, dismiss) may destroy infrastructure.
 
 # Security Rules
