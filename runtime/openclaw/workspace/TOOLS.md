@@ -17,10 +17,10 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 # SKILLS
 
-- **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md` for the full protocol reference.
-- **Email (AgentMail)** — Send and receive emails, calendar invites, poll inbox. MUST use for ANY email task. Run scripts as `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/<script>.mjs ...`
-- **SMS (Telnyx)** — Send SMS messages to any country. MUST use for ANY SMS/text message task. Run via `node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/send-sms.mjs --to <number> --text "message"`. Include the full country code (e.g. +1, +44, +52).
-- **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. Run via `bankr prompt "natural language instruction"` or the REST API at `https://api.bankr.bot`.
+- **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
+- **Email (AgentMail)** — Send and receive emails, calendar invites, poll inbox. MUST use for ANY email task. See `skills/agentmail/SKILL.md`.
+- **SMS (Telnyx)** — Send and check SMS (US numbers only). MUST use for ANY SMS/text task. See `skills/telnyx-cli/SKILL.md`.
+- **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
 
 
 
@@ -89,59 +89,43 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 
 > Send a calendar invite for dinner Friday 9pm to john@email.com.
 **Skill:** Email (AgentMail)
-→ `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-calendar-email.mjs ...`
 
 > Send me an email with today's summary.
 **Skill:** Email (AgentMail)
-→ `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/send-email.mjs ...`
-_Note: ANY request to send, forward, or reply to email MUST use agentmail scripts. Never respond with a link or suggestion._
 
 > Check my inbox for new emails.
 **Skill:** Email (AgentMail)
-→ `node $OPENCLAW_STATE_DIR/workspace/skills/agentmail/scripts/poll-inbox.mjs ...`
 
 > Text +1555123456 that I'm running late.
 **Skill:** SMS (Telnyx)
-→ `node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/send-sms.mjs --to +1555123456 --text "..."`
-_Note: ANY request to send an SMS/text MUST use the telnyx scripts. International numbers are supported — include the full country code._
+_Note: US numbers (+1) only._
 
 > Send an SMS to my wife saying I'll be home at 8.
 **Skill:** SMS (Telnyx)
-→ `node $OPENCLAW_STATE_DIR/workspace/skills/telnyx-cli/scripts/send-sms.mjs --to ... --text "..."`
 
 > What's my ETH balance?
 **Skill:** Crypto (Bankr)
-→ `bankr prompt "What is my ETH balance?"`
-_Note: ANY crypto question (balance, price, trade, transfer, portfolio) MUST use bankr CLI._
 
 > Buy $20 of PEPE on Base.
 **Skill:** Crypto (Bankr)
-→ `bankr prompt "Buy $20 of PEPE on Base"`
 
 > Send 0.5 ETH to vitalik.eth.
 **Skill:** Crypto (Bankr)
-→ `bankr prompt "Send 0.5 ETH to vitalik.eth"`
 
 > What tokens are trending?
 **Skill:** Crypto (Bankr)
-→ `bankr prompt "What tokens are trending?"`
 
 > Book in Farid restaurant.
 **Tools:** Web Search → Browser
-→ web_search → browser
-_Note: Multi-step — search finds the page, browser does the booking._
 
 > Reserve at that place and send me an invite.
 **Tools:** Browser → Email (AgentMail)
-→ browser → agentmail scripts
 
 > Book a table and text my friend the details.
 **Tools:** Browser → SMS (Telnyx)
-→ browser → telnyx scripts
 
 > Buy some ETH and email me the confirmation.
 **Tools:** Crypto (Bankr) → Email (AgentMail)
-→ bankr CLI → agentmail scripts
 
 ## Common mistakes
 
@@ -151,8 +135,8 @@ _Note: Multi-step — search finds the page, browser does the booking._
 | "Book a table" | web_search | browser | Booking needs form interaction |
 | "Send invite" | browser | agentmail | Email delivery, not browsing |
 | "Send me an email" | answer with text | agentmail | Must execute, not suggest |
-| "Text my friend" | answer with text | telnyx scripts | Must send SMS via telnyx scripts |
+| "Text my friend" | answer with text | telnyx skill | Must send SMS via telnyx skill |
 | "What's my balance?" | answer from memory | bankr CLI | Must query live data |
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
-| "Text +5411..." | decline → suggest email | telnyx scripts | International SMS supported |
+| "Text +5411..." | telnyx skill | decline | US numbers (+1) only |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |
