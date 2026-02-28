@@ -29,12 +29,29 @@ permissions:
   packages: write
 
 jobs:
+  changes:
+    name: Detect runtime changes
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    outputs:
+      runtime: ${{ steps.filter.outputs.runtime }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            runtime:
+              - 'runtime/**'
+
   build:
     name: Build runtime image
+    needs: changes
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.action != 'closed' &&
-       !contains(github.event.pull_request.labels.*.name, 'skip-runtime-build'))
+      always() && (
+        github.event_name == 'workflow_dispatch' ||
+        (needs.changes.outputs.runtime == 'true' &&
+         !contains(github.event.pull_request.labels.*.name, 'skip-runtime-build'))
+      )
     runs-on: ubuntu-latest
     outputs:
       pending: ${{ steps.meta.outputs.pending }}
