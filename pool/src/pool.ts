@@ -348,19 +348,17 @@ export async function killInstance(id: string) {
   await db.deleteById(inst.id).catch(() => {});
 }
 
-export async function dismissCrashed(id: string) {
+// Health-check a single instance and update its status if it recovered.
+export async function recheckInstance(id: string) {
   const inst = await db.findById(id);
-  if (!inst || inst.status !== "crashed") throw new Error(`Crashed instance ${id} not found`);
-  if (inst.agentName) throw new Error(`Cannot dismiss claimed agent ${id} (${inst.agentName}) — use kill or redeploy instead`);
+  if (!inst) throw new Error(`Instance ${id} not found`);
+  if (!inst.url) return { id, status: inst.status, changed: false };
 
-  // Fetch Railway serviceId so safeDestroy can clean up directly
-  let railwayServiceId: string | undefined;
-  try {
-    const batch = await fetchBatchStatus([id]);
-    railwayServiceId = batch.services?.[0]?.serviceId;
-  } catch {}
+  const hc = await healthCheck(inst.url);
+  if (!hc?.ready) return { id, status: inst.status, changed: false };
 
-  console.log(`[pool] Dismissing crashed ${inst.id} (${inst.agentName || inst.name})`);
-  await safeDestroy(inst.id, railwayServiceId);
-  await db.deleteById(inst.id).catch(() => {});
+  const newStatus = inst.agentName ? "claimed" : "idle";
+  await db.updateStatus(id, { status: newStatus });
+  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus}`);
+  return { id, status: newStatus, changed: true };
 }
