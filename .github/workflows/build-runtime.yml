@@ -26,9 +26,7 @@ on:
           - scaling
 
 permissions:
-  contents: write
   packages: write
-  pull-requests: write
 
 jobs:
   build:
@@ -42,7 +40,6 @@ jobs:
       pending: ${{ steps.meta.outputs.pending }}
       tag: ${{ steps.meta.outputs.tag }}
       sha: ${{ steps.meta.outputs.sha }}
-      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -57,10 +54,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Read version and compute image tags
+      - name: Compute image tags
         id: meta
         run: |
-          VERSION=$(jq -r .version runtime/package.json)
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
             TAG="pr-${{ github.event.number }}"
@@ -71,8 +67,7 @@ jobs:
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Runtime v$VERSION | sha=$SHA | tag=$TAG | pending=pending-$SHA"
+          echo "sha=$SHA | tag=$TAG | pending=pending-$SHA"
 
       - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
         uses: docker/build-push-action@v6
@@ -148,7 +143,7 @@ jobs:
         run: docker logs qa-runtime
 
   publish:
-    name: "Publish v${{ needs.build.outputs.version }} (:${{ needs.build.outputs.sha }}, :v${{ needs.build.outputs.version }})"
+    name: "Publish :${{ needs.build.outputs.sha }}"
     needs: [build, qa]
     runs-on: ubuntu-latest
     steps:
@@ -162,22 +157,16 @@ jobs:
       - name: "Pull :${{ needs.build.outputs.pending }}"
         run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
 
-      - name: "Tag and push :${{ needs.build.outputs.sha }}, :v${{ needs.build.outputs.version }}, :${{ needs.build.outputs.tag }}"
+      - name: "Tag and push :${{ needs.build.outputs.sha }}, :${{ needs.build.outputs.tag }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           PENDING="${{ needs.build.outputs.pending }}"
           SHA="${{ needs.build.outputs.sha }}"
-          VERSION="${{ needs.build.outputs.version }}"
 
           # sha tag always gets pushed
           docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
           docker push "$IMAGE:$SHA"
           echo "Pushed $IMAGE:$SHA"
-
-          # semver tag (e.g. v0.0.12)
-          docker tag "$IMAGE:$PENDING" "$IMAGE:v$VERSION"
-          docker push "$IMAGE:v$VERSION"
-          echo "Pushed $IMAGE:v$VERSION"
 
           # PRs get pr-N tag, dispatches get dispatch tag
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -215,53 +204,8 @@ jobs:
           docker push "$IMAGE:$ENV_TAG"
           echo "Done: $IMAGE:$ENV_TAG"
 
-  version-bump:
-    name: Bump version on dev (current v${{ needs.build.outputs.version }})
-    needs: [build, publish]
-    if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref_name == 'dev') ||
-      (github.event_name == 'pull_request' &&
-       github.event.action == 'closed' &&
-       github.event.pull_request.merged == true &&
-       github.event.pull_request.base.ref == 'dev')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout dev branch
-        uses: actions/checkout@v4
-        with:
-          ref: dev
-
-      - name: "Bump patch version from v${{ needs.build.outputs.version }}"
-        id: bump
-        run: |
-          cd runtime
-          OLD=$(jq -r .version package.json)
-          NEW=$(echo "$OLD" | awk -F. '{print $1"."$2"."$3+1}')
-          jq --arg v "$NEW" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          echo "Bumped runtime version: $OLD → $NEW"
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
-
-      - name: "Create PR: bump runtime to v${{ steps.bump.outputs.version }} → dev"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ steps.bump.outputs.version }}"
-          BRANCH="chore/bump-runtime-v${VERSION}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add runtime/package.json
-          git commit -m "chore: bump runtime version to ${VERSION} [skip ci]"
-          git push -u origin "$BRANCH"
-          gh pr create --base dev --title "chore: bump runtime to v${VERSION}" \
-            --body "Automated version bump after runtime merge." \
-            --label "skip-runtime-build"
-          gh pr merge "$BRANCH" --squash --auto
-          echo "Created and auto-merging PR for v${VERSION} → dev"
-
   promote:
-    name: "Promote :sha-${{ github.event.pull_request.head.sha }} → ${{ github.event.pull_request.base.ref }}"
+    name: Promote on merge
     if: >-
       github.event_name == 'pull_request' &&
       github.event.action == 'closed' &&
