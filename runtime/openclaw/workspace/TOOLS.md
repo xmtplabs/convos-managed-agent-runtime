@@ -18,8 +18,8 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 # SKILLS
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
-- **Email (AgentMail)** — Send and receive emails, calendar invites, poll inbox. MUST use for ANY email task. See `skills/agentmail/SKILL.md`.
-- **SMS (Telnyx)** — Send and check SMS (US numbers only). MUST use for ANY SMS/text task. See `skills/telnyx-cli/SKILL.md`.
+- **Email (AgentMail)** — Send and poll email. MUST use for ANY email task. See `skills/agentmail/SKILL.md`.
+- **SMS (Telnyx)** — Send and poll SMS. MUST use for ANY SMS/text task. See `skills/telnyx-cli/SKILL.md`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
 
 
