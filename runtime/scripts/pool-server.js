@@ -20,7 +20,6 @@ const { spawn } = require("node:child_process");
 // Railway startCommand bypasses Docker ENTRYPOINT, so do volume setup here.
 // When a Railway volume is mounted, redirect OpenClaw state + convos identity to it.
 const VOLUME_MOUNT = process.env.RAILWAY_VOLUME_MOUNT_PATH;
-console.log(`[pool-server] RAILWAY_VOLUME_MOUNT_PATH=${VOLUME_MOUNT || "(unset)"}, OPENCLAW_STATE_DIR=${process.env.OPENCLAW_STATE_DIR || "(unset)"}`);
 if (VOLUME_MOUNT) {
   process.env.OPENCLAW_STATE_DIR = path.join(VOLUME_MOUNT, "openclaw");
   const convosVolDir = path.join(VOLUME_MOUNT, "convos");
