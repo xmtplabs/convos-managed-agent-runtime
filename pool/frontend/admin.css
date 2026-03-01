@@ -131,10 +131,10 @@ select.control-input { width: 64px; }
 .table-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
 .table-count { font-size: 12px; color: var(--color-foreground-secondary); }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-col.col-name { width: 22%; }
+col.col-name { width: 20%; }
 col.col-status { width: 10%; }
-col.col-instance { width: 18%; }
-col.col-version { width: 8%; }
+col.col-instance { width: 17%; }
+col.col-version { width: 11%; }
 col.col-usage { width: 17%; }
 col.col-uptime { width: 10%; }
 col.col-actions { width: 15%; }
