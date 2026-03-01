@@ -255,6 +255,15 @@ export async function recheckInstance(id: string) {
     } catch {}
   }
 
+  // Crashed instances stay crashed unless a conversation is actually active.
+  // The container may still be healthy but provisioning failed — promoting
+  // to "idle" would recycle a broken instance back into the pool.
+  if (inst.status === "crashed" && !isClaimed) {
+    if (hc.version) await db.setRuntimeVersion(id, hc.version);
+    console.log(`[pool] recheck ${id}: crashed, healthy but no conversation — staying crashed (v${hc.version || '?'})`);
+    return { id, status: "crashed", changed: false, reason: "crashed_no_conversation", agentName: inst.agentName || null };
+  }
+
   const newStatus = isClaimed ? "claimed" : "idle";
   await db.updateStatus(id, { status: newStatus });
   if (hc.version) await db.setRuntimeVersion(id, hc.version);
