@@ -18,27 +18,7 @@ convos-agents/
 
 ```mermaid
 flowchart LR
-  subgraph runtime["runtime"]
-    R1[OpenClaw gateway]
-    R2[convos extension]
-    R3[workspace + skills]
-    R1 --> R2 --> R3
-  end
-  subgraph pool["pool (unified)"]
-    P1[Pool manager]
-    P2[Idle instances]
-    P3[Claim → provision]
-    P4[Railway provider]
-    P5[OpenRouter provider]
-    P6[AgentMail provider]
-    P7[Telnyx provider]
-    P1 --> P2 --> P3
-    P1 --> P4 & P5 & P6 & P7
-  end
-  pool --> runtime
-  runtime -.-> P5
-  runtime -.-> P6
-  runtime -.-> P7
+  A["Pool\nmanages idle instances"] -->|claim| B["Provision\nRailway · OpenRouter · AgentMail · Telnyx"] -->|deploy| C["Runtime\nOpenClaw agent live on Convos"]
 ```
 
 ## Components
