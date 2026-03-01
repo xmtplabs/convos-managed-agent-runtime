@@ -483,7 +483,8 @@
         var isIdle = idleCache.indexOf(a) !== -1;
         var recheckBtn = '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">' + recheckSvg + '</button>';
         var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
-        var runtimeBtn = '<button class="action-btn" data-runtime="' + a.id + '" title="Update runtime">' + runtimeSvg + '</button>';
+        var hasVersion = !!(infraMap[a.id] || {}).runtime_version;
+        var runtimeBtn = hasVersion ? '<button class="action-btn" data-runtime="' + a.id + '" title="Update runtime">' + runtimeSvg + '</button>' : '';
         var killBtn = '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
           renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn);
@@ -979,9 +980,8 @@
             + '<span class="provision-step-msg"></span>'
             + '</div>';
         });
-        card.innerHTML = '<div class="provision-instance-header">Instance ' + i
-          + ' <span class="prov-status in-progress" id="drain-inst-status-' + i + '">Pending</span>'
-          + ' <span class="drain-inst-name" id="drain-inst-name-' + i + '"></span></div>'
+        card.innerHTML = '<div class="provision-instance-header"><span class="drain-inst-name" id="drain-inst-name-' + i + '">Instance ' + i + '</span>'
+          + ' <span class="prov-status in-progress" id="drain-inst-status-' + i + '">Pending</span></div>'
           + '<div class="provision-steps">' + stepsHtml + '</div>';
         body.appendChild(card);
       }
@@ -997,7 +997,7 @@
 
     function updateDrainInstanceName(instanceNum, name) {
       var el = document.getElementById('drain-inst-name-' + instanceNum);
-      if (el && !el.textContent) el.textContent = '(' + name + ')';
+      if (el && name) el.textContent = name;
     }
 
     function markDrainInstance(instanceNum, success) {
