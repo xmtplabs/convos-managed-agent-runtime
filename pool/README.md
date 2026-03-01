@@ -91,7 +91,7 @@ cd pool && pnpm db:migrate:drop
 | **Railway** | |
 | `RAILWAY_TEAM_ID` | Railway team ID (sharded — one project per agent) |
 | `RAILWAY_API_TOKEN` | Railway API token for managing services |
-| `RAILWAY_RUNTIME_IMAGE` | Runtime Docker image (default `ghcr.io/xmtplabs/convos-runtime:latest`) |
+| `RAILWAY_RUNTIME_IMAGE` | Runtime Docker image (default `ghcr.io/xmtplabs/convos-runtime:<env>`) |
 | **Providers** | |
 | `OPENROUTER_MANAGEMENT_KEY` | OpenRouter provisioning key (creates per-instance keys) |
 | `AGENTMAIL_API_KEY` | AgentMail API key (provisions per-instance inboxes) |
