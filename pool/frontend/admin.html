@@ -714,10 +714,12 @@
 
     var provisionTotal = 0;
     var provisionDone = 0;
+    var provisionImageTag = 'production';
 
     function showProvisionLog(count) {
       provisionTotal = count;
       provisionDone = 0;
+      provisionImageTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
       var panel = document.getElementById('provision-log');
       var body = document.getElementById('provision-log-body');
       body.innerHTML = '';
@@ -811,8 +813,7 @@
           el.className = 'provision-step ok';
           var msgEl = el.querySelector('.provision-step-msg');
           if (msgEl) {
-            var tag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
-            msgEl.innerHTML = '<span class="provision-step-link">:' + esc(tag) + '</span>';
+            msgEl.innerHTML = '<span class="provision-step-link">:' + esc(provisionImageTag) + '</span>';
           }
         }
         if (statusEl) { statusEl.className = 'prov-status success'; statusEl.textContent = 'Ready'; }
@@ -1382,6 +1383,7 @@
         + (instanceUrl ? '<span class="expand-status-dot active"></span>' : '<span class="expand-status-dot inactive"></span>') + '</div>'
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
+        + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
             ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">convos-agent-' + esc(instanceId) + '</a>'
