@@ -1,4 +1,5 @@
 import { config } from "../../config";
+import { resolveImageDigest } from "./ghcr";
 
 const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
@@ -177,7 +178,7 @@ export async function createService(
 ): Promise<string> {
   const projectId = resolveProjectId(opts);
   const environmentId = resolveEnvironmentId(opts);
-  const image = imageOverride || config.railwayRuntimeImage;
+  const image = await resolveImageDigest(imageOverride || config.railwayRuntimeImage);
 
   const input = { projectId, environmentId, name };
   console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);
@@ -191,7 +192,11 @@ export async function createService(
 
   const serviceId = data.serviceCreate.id;
 
-  // Set image + start command before variables
+  // Attach volume BEFORE setting image/startCommand (which triggers the first deploy).
+  // This ensures RAILWAY_VOLUME_MOUNT_PATH is available on first boot.
+  await ensureVolume(serviceId, "/data", opts);
+
+  // Set image + start command — triggers first deploy (volume already attached)
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",

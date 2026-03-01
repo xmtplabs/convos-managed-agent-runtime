@@ -3,7 +3,6 @@ import { config } from "../../config";
 /** Build the base env var map for new runtime instances. */
 export function buildInstanceEnv(): Record<string, string> {
   return {
-    OPENCLAW_STATE_DIR: "/app",
     OPENCLAW_PRIMARY_MODEL: config.openclawPrimaryModel,
     XMTP_ENV: config.xmtpEnv,
     CHROMIUM_PATH: "/usr/bin/chromium",

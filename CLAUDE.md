@@ -7,7 +7,6 @@
 - PRIVATE_WALLET_KEY does nothing to do with Convos!
 - dont rush into action. ask
 - never update dependencies. everything breaks when bumped.
-- NEVER merge the entire branch, always cherry-pick the commits
 - When in doubt, don't automate, better to think of good and manual flows and tools.
 - **NEVER add automatic cleanup/destroy logic to the tick loop.** The tick must never auto-delete Railway projects, services, or volumes. Dead/crashed instances get marked in the DB and must be cleaned up manually via the dashboard. Only explicit user actions (kill, drain, dismiss) may destroy infrastructure.
 
@@ -34,8 +33,17 @@ feature-branch → dev → staging → main
 
 - Feature PRs target `dev`
 - **CRITICAL: Always create feature branches from the TARGET branch (e.g. `git checkout origin/dev && git checkout -b my-branch`). NEVER branch off another feature branch or you will drag unrelated commit history into the PR.**
-- To promote between tiers: cherry-pick the specific commits, do NOT merge the entire branch
 - Never PR directly to `main` or `staging` unless explicitly asked
+
+## Promoting between branches (dev → staging → main)
+
+Never use `gh pr create --head dev --base staging` directly — it skips conflict resolution and leaves merge conflicts in the PR.
+
+Always merge locally first:
+
+1. `git checkout -b merge/dev-to-staging origin/staging`
+2. `git merge origin/dev` — resolve any conflicts
+3. Push the merge branch and PR from `merge/dev-to-staging` → `staging`
 
 # Railway Migration Steps (Manual)
 

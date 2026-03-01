@@ -126,6 +126,13 @@ export async function findInstanceByToken(instanceId: string, gatewayToken: stri
   return rows.length > 0;
 }
 
+export async function setRuntimeVersion(instanceId: string, version: string) {
+  await db.update(instanceInfra).set({
+    runtimeVersion: version,
+    updatedAt: sql`NOW()`,
+  }).where(eq(instanceInfra.instanceId, instanceId));
+}
+
 export async function deleteById(id: string) {
   await db.delete(instances).where(eq(instances.id, id));
 }

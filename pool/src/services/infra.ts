@@ -147,21 +147,8 @@ export async function createInstance(
     throw err;
   }
 
-  // Attach volume to service
-  let hasVolume = false;
-  try {
-    hasVolume = await railway.ensureVolume(serviceId, "/data", opts);
-    if (!hasVolume) {
-      console.warn(`[infra] Volume creation failed for ${serviceId}`);
-    }
-  } catch (err) {
-    onProgress?.("railway-service", "fail", (err as Error).message);
-    console.error(`[infra] Volume failed, deleting orphan project ${projectId}...`);
-    await railway.projectDelete(projectId).catch((e: any) =>
-      console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
-    throw err;
-  }
-  onProgress?.("railway-service", "ok");
+  // Volume is attached inside createService (before first deploy triggers)
+  onProgress?.("railway-service", "ok", serviceId);
 
   // Create domain
   onProgress?.("railway-domain", "active");
@@ -172,7 +159,7 @@ export async function createInstance(
     sendMetric("provider.railway.domain.duration_ms", Date.now() - domainStart);
     url = `https://${domain}`;
     console.log(`[infra] Domain: ${url}`);
-    onProgress?.("railway-domain", "ok");
+    onProgress?.("railway-domain", "ok", url);
   } catch (err: any) {
     console.warn(`[infra] Domain creation failed for ${serviceId}: ${err.message}`);
     onProgress?.("railway-domain", "fail", err.message);
