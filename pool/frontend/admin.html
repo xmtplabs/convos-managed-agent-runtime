@@ -88,7 +88,6 @@
       <div class="control-group">
         <label>Replenish</label>
         <select class="control-input" id="runtime-image" style="min-width:130px">
-          <option value="ghcr.io/xmtplabs/convos-runtime:latest">:latest</option>
           <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
           <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
           <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
@@ -736,7 +735,7 @@
             + '<span class="provision-step-msg"></span>'
             + '</div>';
         });
-        var imgTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'latest';
+        var imgTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
         card.innerHTML = '<div class="provision-instance-header">Instance ' + i
           + ' <span class="prov-status in-progress" id="prov-inst-status-' + i + '">Pending</span>'
           + ' <span style="font-size:11px;opacity:0.5;font-weight:normal">:' + esc(imgTag) + '</span></div>'
