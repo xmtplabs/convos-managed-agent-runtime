@@ -483,13 +483,14 @@
         var isIdle = idleCache.indexOf(a) !== -1;
         var recheckBtn = '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">' + recheckSvg + '</button>';
         var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
+        var runtimeBtn = '<button class="action-btn" data-runtime="' + a.id + '" title="Update runtime">' + runtimeSvg + '</button>';
         var killBtn = '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
           renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn);
         } else if (isClaimed) {
-          renderRow(a, 'running', 'Running', qrBtn + recheckBtn + killBtn);
+          renderRow(a, 'running', 'Running', qrBtn + runtimeBtn + recheckBtn + killBtn);
         } else if (isIdle) {
-          renderRow(a, 'idle', 'Ready', recheckBtn + killBtn);
+          renderRow(a, 'idle', 'Ready', runtimeBtn + recheckBtn + killBtn);
         } else {
           renderRow(a, 'starting', 'Starting', recheckBtn + killBtn);
         }

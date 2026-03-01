@@ -147,20 +147,7 @@ export async function createInstance(
     throw err;
   }
 
-  // Attach volume to service
-  let hasVolume = false;
-  try {
-    hasVolume = await railway.ensureVolume(serviceId, "/data", opts);
-    if (!hasVolume) {
-      console.warn(`[infra] Volume creation failed for ${serviceId}`);
-    }
-  } catch (err) {
-    onProgress?.("railway-service", "fail", (err as Error).message);
-    console.error(`[infra] Volume failed, deleting orphan project ${projectId}...`);
-    await railway.projectDelete(projectId).catch((e: any) =>
-      console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
-    throw err;
-  }
+  // Volume is attached inside createService (before first deploy triggers)
   onProgress?.("railway-service", "ok", serviceId);
 
   // Create domain

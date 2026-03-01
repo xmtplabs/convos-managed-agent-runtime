@@ -192,7 +192,11 @@ export async function createService(
 
   const serviceId = data.serviceCreate.id;
 
-  // Set image + start command before variables
+  // Attach volume BEFORE setting image/startCommand (which triggers the first deploy).
+  // This ensures RAILWAY_VOLUME_MOUNT_PATH is available on first boot.
+  await ensureVolume(serviceId, "/data", opts);
+
+  // Set image + start command — triggers first deploy (volume already attached)
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",
