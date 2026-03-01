@@ -78,7 +78,7 @@ async function healthCheck(url: string) {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
-    return await res.json() as { ready: boolean };
+    return await res.json() as { ready: boolean; version?: string };
   } catch {
     return null;
   }
@@ -93,8 +93,9 @@ export async function checkStarting() {
     const hc = await healthCheck(row.url);
     if (hc?.ready) {
       await db.updateStatus(row.id, { status: "idle" });
+      if (hc.version) await db.setRuntimeVersion(row.id, hc.version);
       promoted.push(row.id);
-      console.log(`[pool] promoted ${row.id} starting → idle`);
+      console.log(`[pool] promoted ${row.id} starting → idle (v${hc.version || '?'})`);
     }
   }
   return { checked: rows.length, promoted };
@@ -256,6 +257,7 @@ export async function recheckInstance(id: string) {
 
   const newStatus = isClaimed ? "claimed" : "idle";
   await db.updateStatus(id, { status: newStatus });
-  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus} (agentName=${inst.agentName || "none"}, isClaimed=${isClaimed})`);
+  if (hc.version) await db.setRuntimeVersion(id, hc.version);
+  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus} (agentName=${inst.agentName || "none"}, isClaimed=${isClaimed}, v${hc.version || '?'})`);
   return { id, status: newStatus, changed: newStatus !== inst.status, agentName: inst.agentName || null };
 }

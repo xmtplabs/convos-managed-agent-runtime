@@ -131,10 +131,11 @@ select.control-input { width: 64px; }
 .table-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
 .table-count { font-size: 12px; color: var(--color-foreground-secondary); }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-col.col-name { width: 24%; }
-col.col-status { width: 11%; }
-col.col-instance { width: 22%; }
-col.col-usage { width: 18%; }
+col.col-name { width: 22%; }
+col.col-status { width: 10%; }
+col.col-instance { width: 18%; }
+col.col-version { width: 8%; }
+col.col-usage { width: 17%; }
 col.col-uptime { width: 10%; }
 col.col-actions { width: 15%; }
 th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-foreground-secondary); padding: 10px 20px; border-bottom: 1px solid var(--color-surface-muted); background: var(--color-surface-hover); }

@@ -21,6 +21,7 @@ const POOL_API_KEY = process.env.POOL_API_KEY;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const POOL_URL = process.env.POOL_URL;
 const ROOT = path.resolve(__dirname, "..");
+const RUNTIME_VERSION = require("../package.json").version;
 
 let gatewayReady = false;
 let convosReady = false;
@@ -202,7 +203,7 @@ const server = http.createServer(async (req, res) => {
         }
       } catch {}
     }
-    json(res, 200, { ready: convosReady });
+    json(res, 200, { ready: convosReady, version: RUNTIME_VERSION });
     return;
   }
 
