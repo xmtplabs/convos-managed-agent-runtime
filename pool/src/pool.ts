@@ -225,13 +225,37 @@ export async function killInstance(id: string) {
 export async function recheckInstance(id: string) {
   const inst = await db.findById(id);
   if (!inst) throw new Error(`Instance ${id} not found`);
-  if (!inst.url) return { id, status: inst.status, changed: false };
+  if (!inst.url) {
+    console.log(`[pool] recheck ${id}: no url, skipping`);
+    return { id, status: inst.status, changed: false, reason: "no_url" };
+  }
 
   const hc = await healthCheck(inst.url);
-  if (!hc?.ready) return { id, status: inst.status, changed: false };
+  if (!hc?.ready) {
+    console.log(`[pool] recheck ${id}: health check failed (status=${inst.status}, url=${inst.url}, hc=${JSON.stringify(hc)})`);
+    return { id, status: inst.status, changed: false, reason: "health_failed", agentName: inst.agentName || null };
+  }
 
-  const newStatus = inst.agentName ? "claimed" : "idle";
+  // If DB has no agentName, ask the instance directly via /convos/status
+  let isClaimed = !!inst.agentName;
+  if (!isClaimed) {
+    try {
+      const csRes = await fetch(`${inst.url}/convos/status`, {
+        headers: { Authorization: `Bearer ${config.poolApiKey}` },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (csRes.ok) {
+        const cs = await csRes.json() as { conversation?: { id: string } | null };
+        if (cs.conversation?.id) {
+          isClaimed = true;
+          console.log(`[pool] recheck ${id}: no agentName but has active conversation ${cs.conversation.id}`);
+        }
+      }
+    } catch {}
+  }
+
+  const newStatus = isClaimed ? "claimed" : "idle";
   await db.updateStatus(id, { status: newStatus });
-  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus}`);
-  return { id, status: newStatus, changed: true };
+  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus} (agentName=${inst.agentName || "none"}, isClaimed=${isClaimed})`);
+  return { id, status: newStatus, changed: newStatus !== inst.status, agentName: inst.agentName || null };
 }
