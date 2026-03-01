@@ -35,6 +35,16 @@ feature-branch → dev → staging → main
 - **CRITICAL: Always create feature branches from the TARGET branch (e.g. `git checkout origin/dev && git checkout -b my-branch`). NEVER branch off another feature branch or you will drag unrelated commit history into the PR.**
 - Never PR directly to `main` or `staging` unless explicitly asked
 
+## Promoting between branches (dev → staging → main)
+
+Never use `gh pr create --head dev --base staging` directly — it skips conflict resolution and leaves merge conflicts in the PR.
+
+Always merge locally first:
+
+1. `git checkout -b merge/dev-to-staging origin/staging`
+2. `git merge origin/dev` — resolve any conflicts
+3. Push the merge branch and PR from `merge/dev-to-staging` → `staging`
+
 # Railway Migration Steps (Manual)
 
 When deploying pool manager changes to a new Railway environment:
