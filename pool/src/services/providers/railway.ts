@@ -1,4 +1,5 @@
 import { config } from "../../config";
+import { resolveImageDigest } from "./ghcr";
 
 const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 
@@ -177,7 +178,7 @@ export async function createService(
 ): Promise<string> {
   const projectId = resolveProjectId(opts);
   const environmentId = resolveEnvironmentId(opts);
-  const image = imageOverride || config.railwayRuntimeImage;
+  const image = await resolveImageDigest(imageOverride || config.railwayRuntimeImage);
 
   const input = { projectId, environmentId, name };
   console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);

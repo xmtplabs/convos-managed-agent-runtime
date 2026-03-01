@@ -161,7 +161,7 @@ export async function createInstance(
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`));
     throw err;
   }
-  onProgress?.("railway-service", "ok");
+  onProgress?.("railway-service", "ok", serviceId);
 
   // Create domain
   onProgress?.("railway-domain", "active");
@@ -172,7 +172,7 @@ export async function createInstance(
     sendMetric("provider.railway.domain.duration_ms", Date.now() - domainStart);
     url = `https://${domain}`;
     console.log(`[infra] Domain: ${url}`);
-    onProgress?.("railway-domain", "ok");
+    onProgress?.("railway-domain", "ok", url);
   } catch (err: any) {
     console.warn(`[infra] Domain creation failed for ${serviceId}: ${err.message}`);
     onProgress?.("railway-domain", "fail", err.message);
