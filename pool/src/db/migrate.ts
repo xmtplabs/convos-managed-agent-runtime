@@ -70,6 +70,7 @@ export async function runMigrations() {
           deploy_status        TEXT,
           runtime_image        TEXT,
           gateway_token        TEXT,
+          runtime_version      TEXT,
           volume_id            TEXT,
           created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()

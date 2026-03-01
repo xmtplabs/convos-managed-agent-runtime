@@ -16,6 +16,7 @@ export async function resolveImageDigest(imageRef: string): Promise<string> {
     // Get anonymous bearer token scoped to this repo
     const tokenRes = await fetch(
       `https://ghcr.io/token?scope=repository:${repo}:pull`,
+      { signal: AbortSignal.timeout(5000) },
     );
     if (!tokenRes.ok) throw new Error(`token endpoint ${tokenRes.status}`);
     const { token } = (await tokenRes.json()) as { token: string };
@@ -25,6 +26,7 @@ export async function resolveImageDigest(imageRef: string): Promise<string> {
       `https://ghcr.io/v2/${repo}/manifests/${tag}`,
       {
         method: "HEAD",
+        signal: AbortSignal.timeout(5000),
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: [
