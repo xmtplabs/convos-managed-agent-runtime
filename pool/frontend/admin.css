@@ -131,10 +131,10 @@ select.control-input { width: 64px; }
 .table-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
 .table-count { font-size: 12px; color: var(--color-foreground-secondary); }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-col.col-name { width: 22%; }
+col.col-name { width: 20%; }
 col.col-status { width: 10%; }
-col.col-instance { width: 18%; }
-col.col-version { width: 8%; }
+col.col-instance { width: 17%; }
+col.col-version { width: 11%; }
 col.col-usage { width: 17%; }
 col.col-uptime { width: 10%; }
 col.col-actions { width: 15%; }
@@ -264,16 +264,18 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 .provision-log-toggle:hover { color: var(--color-foreground-secondary); }
 .provision-log-close { font-size: 16px; line-height: 1; color: var(--color-foreground-tertiary); background: none; border: none; cursor: pointer; padding: 0 4px; }
 .provision-log-close:hover { color: var(--color-foreground-secondary); }
-.provision-log-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.provision-log-body { padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 16px; }
 .provision-log.collapsed .provision-log-body { display: none; }
-.provision-instance { background: var(--color-surface-hover); border: 1px solid var(--color-edge-muted); border-radius: 8px; padding: 12px 16px; }
+.provision-instance { background: var(--color-surface-hover); border: 1px solid var(--color-edge-muted); border-radius: 8px; padding: 12px 16px; min-width: 260px; max-width: 400px; flex: 1; }
+#drain-log .provision-instance { min-width: 180px; max-width: 240px; padding: 10px 12px; }
+#drain-log .provision-instance-header { font-size: 11px; margin-bottom: 6px; }
+#drain-log .provision-step { font-size: 11px; gap: 6px; }
+#drain-log .provision-step-icon { width: 14px; height: 14px; font-size: 10px; }
 .provision-instance-header { font-size: 12px; font-weight: 700; letter-spacing: -0.2px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
 .provision-instance-header .prov-status { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
 .provision-instance-header .prov-status.in-progress { background: #FEF3C7; color: #92400E; }
 .provision-instance-header .prov-status.success { background: var(--color-success-bg); color: #065F46; }
 .provision-instance-header .prov-status.failed { background: var(--color-error-bg); color: #991B1B; }
-.prov-railway-link { font-size: 10px; font-weight: 600; color: #007AFF; text-decoration: none; padding: 1px 6px; border-radius: 4px; background: #EFF6FF; margin-left: auto; }
-.prov-railway-link:hover { text-decoration: underline; background: #DBEAFE; }
 .drain-inst-name { font-size: 10px; font-weight: 400; color: var(--color-foreground-secondary); }
 .provision-steps { display: flex; flex-direction: column; gap: 4px; }
 .provision-step { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-foreground-secondary); }
@@ -291,6 +293,8 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 @keyframes prov-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .provision-step-label { flex: 1; }
 .provision-step-msg { font-size: 11px; color: var(--color-foreground-secondary); font-style: italic; }
+.provision-step-link { font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 10px; color: #5b9bd5; text-decoration: none; font-style: normal; }
+.provision-step-link:hover { text-decoration: underline; color: #007AFF; }
 
 /* Sync buttons */
 .stat-sync-btn { margin-left: auto; background: none; border: none; cursor: pointer; padding: 2px; border-radius: 4px; color: var(--color-foreground-tertiary); display: flex; align-items: center; transition: color 0.15s; }
