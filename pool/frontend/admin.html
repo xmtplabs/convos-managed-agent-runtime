@@ -190,6 +190,7 @@
             <col class="col-name">
             <col class="col-status">
             <col class="col-instance">
+            <col class="col-version">
             <col class="col-usage">
             <col class="col-uptime">
             <col class="col-actions">
@@ -199,13 +200,14 @@
               <th>Name</th>
               <th>Status</th>
               <th>Instance</th>
+              <th>Version</th>
               <th class="sortable" data-sort="usage" onclick="toggleSort('usage')">Usage <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="uptime" onclick="toggleSort('uptime')">Uptime <span class="sort-arrow"></span></th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="agents-body">
-            <tr><td class="empty-row" colspan="6">Loading...</td></tr>
+            <tr><td class="empty-row" colspan="7">Loading...</td></tr>
           </tbody>
         </table>
     </div>
@@ -410,11 +412,11 @@
       }
 
       if (!all.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="7">No instances</td></tr>';
         return;
       }
       if (!filtered.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="6">No matching instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="7">No matching instances</td></tr>';
         return;
       }
 
@@ -463,10 +465,13 @@
         var rowClass = status + (isKilling ? ' destroying' : '');
         var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
         var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
+        var infra = infraMap[a.id] || {};
+        var versionCell = '<td class="version-cell">' + esc(infra.runtime_version || '-') + '</td>';
         html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
           + '<td>' + rowBadge + '</td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
+          + versionCell
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
           + '<td><div class="action-btns">' + rowActions + '</div></td></tr>';
@@ -477,17 +482,18 @@
         var isClaimed = claimedCache.indexOf(a) !== -1;
         var isIdle = idleCache.indexOf(a) !== -1;
         var recheckBtn = '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">' + recheckSvg + '</button>';
-        var runtimeBtn = '<button class="action-btn warn" data-runtime="' + a.id + '" title="Update runtime image">' + runtimeSvg + '</button>';
         var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
+        var hasVersion = !!(infraMap[a.id] || {}).runtime_version;
+        var runtimeBtn = hasVersion ? '<button class="action-btn" data-runtime="' + a.id + '" title="Update runtime">' + runtimeSvg + '</button>' : '';
         var killBtn = '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn);
         } else if (isClaimed) {
-          renderRow(a, 'running', 'Running', qrBtn + recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'running', 'Running', qrBtn + runtimeBtn + recheckBtn + killBtn);
         } else if (isIdle) {
-          renderRow(a, 'idle', 'Ready', recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'idle', 'Ready', runtimeBtn + recheckBtn + killBtn);
         } else {
-          renderRow(a, 'starting', 'Starting', recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'starting', 'Starting', recheckBtn + killBtn);
         }
       });
       body.innerHTML = html;
@@ -709,10 +715,12 @@
 
     var provisionTotal = 0;
     var provisionDone = 0;
+    var provisionImageTag = 'production';
 
     function showProvisionLog(count) {
       provisionTotal = count;
       provisionDone = 0;
+      provisionImageTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
       var panel = document.getElementById('provision-log');
       var body = document.getElementById('provision-log-body');
       body.innerHTML = '';
@@ -726,43 +734,48 @@
         card.className = 'provision-instance';
         card.id = 'prov-inst-' + i;
         var stepsHtml = '';
-        var railwayKeys = { 'railway-project': 1, 'railway-service': 1, 'railway-domain': 1 };
         PROV_STEPS.forEach(function (s) {
-          var label = s.label + (railwayKeys[s.key] ? ' <span style="opacity:0.45">:' + esc(imgTag) + '</span>' : '');
           stepsHtml += '<div class="provision-step pending" id="prov-step-' + i + '-' + s.key + '">'
             + '<span class="provision-step-icon"></span>'
-            + '<span class="provision-step-label">' + label + '</span>'
+            + '<span class="provision-step-label">' + s.label + '</span>'
             + '<span class="provision-step-msg"></span>'
             + '</div>';
         });
-        var imgTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
         card.innerHTML = '<div class="provision-instance-header">Instance ' + i
-          + ' <span class="prov-status in-progress" id="prov-inst-status-' + i + '">Pending</span>'
-          + ' <span style="font-size:11px;opacity:0.5;font-weight:normal">:' + esc(imgTag) + '</span></div>'
+          + ' <span class="prov-status in-progress" id="prov-inst-status-' + i + '">Pending</span></div>'
           + '<div class="provision-steps">' + stepsHtml + '</div>';
         body.appendChild(card);
       }
     }
+
+    // Track per-instance context for building Railway deep-links
+    var provisionCtx = {}; // { instanceNum: { projectId } }
 
     function updateProvisionStep(instanceNum, step, status, message) {
       var el = document.getElementById('prov-step-' + instanceNum + '-' + step);
       if (!el) return;
       el.className = 'provision-step ' + status;
       var msgEl = el.querySelector('.provision-step-msg');
-      if (msgEl && message && step !== 'railway-project') msgEl.textContent = message;
+      if (!msgEl) return;
 
-      // When railway-project succeeds, message contains the projectId — add deeplink to instance header
-      if (step === 'railway-project' && status === 'ok' && message) {
-        var header = document.querySelector('#prov-inst-' + instanceNum + ' .provision-instance-header');
-        if (header && !header.querySelector('.prov-railway-link')) {
-          var link = document.createElement('a');
-          link.className = 'prov-railway-link';
-          link.href = 'https://railway.com/project/' + message;
-          link.target = '_blank';
-          link.rel = 'noopener';
-          link.textContent = 'Railway';
-          header.appendChild(link);
+      // Build inline hyperlinks for Railway steps on success
+      if (status === 'ok' && message) {
+        if (step === 'railway-project') {
+          if (!provisionCtx[instanceNum]) provisionCtx[instanceNum] = {};
+          provisionCtx[instanceNum].projectId = message;
+          msgEl.innerHTML = '<a class="provision-step-link" href="https://railway.com/project/' + esc(message) + '" target="_blank" rel="noopener">' + esc(message.slice(0, 8)) + '</a>';
+        } else if (step === 'railway-service') {
+          var pid = (provisionCtx[instanceNum] || {}).projectId;
+          if (pid) {
+            msgEl.innerHTML = '<a class="provision-step-link" href="https://railway.com/project/' + esc(pid) + '/service/' + esc(message) + '" target="_blank" rel="noopener">' + esc(message.slice(0, 8)) + '</a>';
+          }
+        } else if (step === 'railway-domain') {
+          // domain URL is noisy — just show checkmark, no message
+        } else {
+          msgEl.textContent = message;
         }
+      } else if (message) {
+        msgEl.textContent = message;
       }
     }
 
@@ -790,18 +803,26 @@
       if (instanceId) provisionInstanceIds[instanceNum] = instanceId;
     }
 
-    function markProvisionDeploy(instanceNum, status, message) {
+    function markProvisionDeploy(instanceNum, status, message, instanceUrl) {
       provisionDone++;
       document.getElementById('prov-count').textContent = provisionDone + '/' + provisionTotal;
-      updateProvisionStep(instanceNum, 'deploy', status, message || '');
       var statusEl = document.getElementById('prov-inst-status-' + instanceNum);
-      if (statusEl) {
-        if (status === 'ok') {
-          statusEl.className = 'prov-status success';
-          statusEl.textContent = 'Ready';
-        } else {
-          statusEl.className = 'prov-status failed';
-          statusEl.textContent = 'Deploy failed';
+      if (status === 'ok') {
+        // Show image tag on deploy step instead of domain URL
+        var el = document.getElementById('prov-step-' + instanceNum + '-deploy');
+        if (el) {
+          el.className = 'provision-step ok';
+          var msgEl = el.querySelector('.provision-step-msg');
+          if (msgEl) {
+            msgEl.innerHTML = '<span class="provision-step-link">:' + esc(provisionImageTag) + '</span>';
+          }
+        }
+        if (statusEl) { statusEl.className = 'prov-status success'; statusEl.textContent = 'Ready'; }
+      } else {
+        updateProvisionStep(instanceNum, 'deploy', status, message || '');
+        if (statusEl) {
+          if (status === 'ok') { statusEl.className = 'prov-status success'; statusEl.textContent = 'Ready'; }
+          else { statusEl.className = 'prov-status failed'; statusEl.textContent = 'Deploy failed'; }
         }
       }
     }
@@ -824,7 +845,7 @@
             if (!inst) { remaining++; return; }
 
             if (inst.status === 'idle') {
-              markProvisionDeploy(num, 'ok', 'Ready');
+              markProvisionDeploy(num, 'ok', 'Ready', inst.url);
               delete provisionInstanceIds[num];
             } else if (inst.status === 'crashed' || inst.status === 'dead') {
               markProvisionDeploy(num, 'fail', 'Deploy crashed');
@@ -959,9 +980,8 @@
             + '<span class="provision-step-msg"></span>'
             + '</div>';
         });
-        card.innerHTML = '<div class="provision-instance-header">Instance ' + i
-          + ' <span class="prov-status in-progress" id="drain-inst-status-' + i + '">Pending</span>'
-          + ' <span class="drain-inst-name" id="drain-inst-name-' + i + '"></span></div>'
+        card.innerHTML = '<div class="provision-instance-header"><span class="drain-inst-name" id="drain-inst-name-' + i + '">Instance ' + i + '</span>'
+          + ' <span class="prov-status in-progress" id="drain-inst-status-' + i + '">Pending</span></div>'
           + '<div class="provision-steps">' + stepsHtml + '</div>';
         body.appendChild(card);
       }
@@ -977,7 +997,7 @@
 
     function updateDrainInstanceName(instanceNum, name) {
       var el = document.getElementById('drain-inst-name-' + instanceNum);
-      if (el && !el.textContent) el.textContent = '(' + name + ')';
+      if (el && name) el.textContent = name;
     }
 
     function markDrainInstance(instanceNum, success) {
@@ -1350,7 +1370,7 @@
       var infra = infraMap[instanceId] || {};
       var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
 
-      var html = '<td colspan="6"><div class="expand-inner">';
+      var html = '<td colspan="7"><div class="expand-inner">';
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var hasSections = key || mailTool || telnyxTool;
@@ -1363,6 +1383,7 @@
         + (instanceUrl ? '<span class="expand-status-dot active"></span>' : '<span class="expand-status-dot inactive"></span>') + '</div>'
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
+        + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
             ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">convos-agent-' + esc(instanceId) + '</a>'

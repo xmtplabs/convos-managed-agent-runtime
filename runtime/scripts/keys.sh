@@ -20,6 +20,7 @@ echo "  ════════════════════════
 echo ""
 echo "  🔑 Provisioning keys"
 echo "  ═══════════════════"
+[ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && echo "  📦 VOLUME                  → $RAILWAY_VOLUME_MOUNT_PATH" || echo "  ⬚  VOLUME                  → none"
 
 # ── Hard dependency: agent needs a model key to function ───────────────────
 
