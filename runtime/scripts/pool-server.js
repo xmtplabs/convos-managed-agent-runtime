@@ -13,7 +13,22 @@
 
 const http = require("node:http");
 const path = require("node:path");
+const fs = require("node:fs");
+const os = require("node:os");
 const { spawn } = require("node:child_process");
+
+// Railway startCommand bypasses Docker ENTRYPOINT, so do volume setup here.
+// When a Railway volume is mounted, redirect OpenClaw state + convos identity to it.
+const VOLUME_MOUNT = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+if (VOLUME_MOUNT) {
+  process.env.OPENCLAW_STATE_DIR = path.join(VOLUME_MOUNT, "openclaw");
+  const convosVolDir = path.join(VOLUME_MOUNT, "convos");
+  const convosHome = path.join(os.homedir(), ".convos");
+  fs.mkdirSync(convosVolDir, { recursive: true });
+  try { fs.rmSync(convosHome, { recursive: true, force: true }); } catch {}
+  try { fs.symlinkSync(convosVolDir, convosHome); } catch {}
+  console.log(`[pool-server] Volume: state → ${process.env.OPENCLAW_STATE_DIR}, ~/.convos → ${convosVolDir}`);
+}
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
