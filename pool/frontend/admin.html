@@ -767,7 +767,7 @@
             msgEl.innerHTML = '<a class="provision-step-link" href="https://railway.com/project/' + esc(pid) + '/service/' + esc(message) + '" target="_blank" rel="noopener">' + esc(message.slice(0, 8)) + '</a>';
           }
         } else if (step === 'railway-domain') {
-          msgEl.innerHTML = '<a class="provision-step-link" href="' + esc(message) + '" target="_blank" rel="noopener">' + esc(message.replace('https://', '')) + '</a>';
+          // domain URL is noisy — just show checkmark, no message
         } else {
           msgEl.textContent = message;
         }
@@ -804,14 +804,15 @@
       provisionDone++;
       document.getElementById('prov-count').textContent = provisionDone + '/' + provisionTotal;
       var statusEl = document.getElementById('prov-inst-status-' + instanceNum);
-      if (status === 'ok' && instanceUrl) {
-        // Show inline link on the deploy step
+      if (status === 'ok') {
+        // Show image tag on deploy step instead of domain URL
         var el = document.getElementById('prov-step-' + instanceNum + '-deploy');
         if (el) {
           el.className = 'provision-step ok';
           var msgEl = el.querySelector('.provision-step-msg');
           if (msgEl) {
-            msgEl.innerHTML = '<a class="provision-step-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace('https://', '')) + '</a>';
+            var tag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
+            msgEl.innerHTML = '<span class="provision-step-link">:' + esc(tag) + '</span>';
           }
         }
         if (statusEl) { statusEl.className = 'prov-status success'; statusEl.textContent = 'Ready'; }
