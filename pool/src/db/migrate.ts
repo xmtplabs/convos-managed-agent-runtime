@@ -82,6 +82,8 @@ export async function runMigrations() {
       await query(pool, `ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS provider_project_id TEXT`);
       // Ensure gateway_token column exists (for self-destruct auth)
       await query(pool, `ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS gateway_token TEXT`);
+      // Ensure runtime_version column exists (for version tracking)
+      await query(pool, `ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS runtime_version TEXT`);
     }
 
     // ── 3. Create instance_services if missing ─────────────────────────
