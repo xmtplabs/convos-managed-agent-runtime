@@ -482,17 +482,16 @@
         var isClaimed = claimedCache.indexOf(a) !== -1;
         var isIdle = idleCache.indexOf(a) !== -1;
         var recheckBtn = '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">' + recheckSvg + '</button>';
-        var runtimeBtn = '<button class="action-btn warn" data-runtime="' + a.id + '" title="Update runtime image">' + runtimeSvg + '</button>';
         var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
         var killBtn = '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn);
         } else if (isClaimed) {
-          renderRow(a, 'running', 'Running', qrBtn + recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'running', 'Running', qrBtn + recheckBtn + killBtn);
         } else if (isIdle) {
-          renderRow(a, 'idle', 'Ready', recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'idle', 'Ready', recheckBtn + killBtn);
         } else {
-          renderRow(a, 'starting', 'Starting', recheckBtn + runtimeBtn + killBtn);
+          renderRow(a, 'starting', 'Starting', recheckBtn + killBtn);
         }
       });
       body.innerHTML = html;
