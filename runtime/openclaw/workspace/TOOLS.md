@@ -18,9 +18,9 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 # SKILLS
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
-- **Email (AgentMail)** — Send and poll email. MUST use for ANY email task. See `skills/agentmail/SKILL.md`.
-- **SMS (Telnyx)** — Send and poll SMS. MUST use for ANY SMS/text task. See `skills/telnyx-cli/SKILL.md`.
+- **Services** — Your managed services: email, SMS, credits. MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
+- **Cards (AgentCard)** — Prepaid virtual Visa cards for online payments. MUST use when paying for anything online. See `skills/agentcard/SKILL.md`.
 
 
 
@@ -88,20 +88,24 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 → browser
 
 > Send a calendar invite for dinner Friday 9pm to john@email.com.
-**Skill:** Email (AgentMail)
+**Skill:** Services (email)
 
 > Send me an email with today's summary.
-**Skill:** Email (AgentMail)
+**Skill:** Services (email)
 
 > Check my inbox for new emails.
-**Skill:** Email (AgentMail)
+**Skill:** Services (email)
+
+> What's your URL? / Share your link / What are your services?
+**Skill:** Services (identity)
+_Note: Run `services.mjs identity` and share the `servicesUrl` from the result. Never make up a URL._
 
 > Text +1555123456 that I'm running late.
-**Skill:** SMS (Telnyx)
+**Skill:** Services (SMS)
 _Note: US numbers (+1) only._
 
 > Send an SMS to my wife saying I'll be home at 8.
-**Skill:** SMS (Telnyx)
+**Skill:** Services (SMS)
 
 > What's my ETH balance?
 **Skill:** Crypto (Bankr)
@@ -115,17 +119,23 @@ _Note: US numbers (+1) only._
 > What tokens are trending?
 **Skill:** Crypto (Bankr)
 
+> Pay for this with a virtual card.
+**Skill:** Cards (AgentCard)
+
+> Create a $25 prepaid card.
+**Skill:** Cards (AgentCard)
+
 > Book in Farid restaurant.
 **Tools:** Web Search → Browser
 
 > Reserve at that place and send me an invite.
-**Tools:** Browser → Email (AgentMail)
+**Tools:** Browser → Services (email)
 
 > Book a table and text my friend the details.
-**Tools:** Browser → SMS (Telnyx)
+**Tools:** Browser → Services (SMS)
 
 > Buy some ETH and email me the confirmation.
-**Tools:** Crypto (Bankr) → Email (AgentMail)
+**Tools:** Crypto (Bankr) → Services (email)
 
 ## Common mistakes
 
@@ -133,10 +143,12 @@ _Note: US numbers (+1) only._
 |---|---|---|---|
 | "Latest news on X" | browser | web_search | Search, not site interaction |
 | "Book a table" | web_search | browser | Booking needs form interaction |
-| "Send invite" | browser | agentmail | Email delivery, not browsing |
-| "Send me an email" | answer with text | agentmail | Must execute, not suggest |
-| "Text my friend" | answer with text | telnyx skill | Must send SMS via telnyx skill |
+| "Send invite" | browser | services email | Email delivery, not browsing |
+| "Send me an email" | answer with text | services email | Must execute, not suggest |
+| "Text my friend" | answer with text | services sms | Must send SMS via services skill |
 | "What's my balance?" | answer from memory | bankr CLI | Must query live data |
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
-| "Text +5411..." | telnyx skill | decline | US numbers (+1) only |
+| "Text +5411..." | services sms | decline | US numbers (+1) only |
+| "Pay for this online" | bankr / manual | agentcard | Online payments use virtual cards |
+| "What's your URL?" | answer/guess | services identity | Must run identity to get real URL |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |

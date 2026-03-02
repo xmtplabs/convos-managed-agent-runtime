@@ -7,7 +7,7 @@
   <title>convos managed agent runtime</title>
   <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
-  <link rel="manifest" href="/web-tools/agents/manifest.json">
+  <link rel="manifest" href="/web-tools/convos/manifest.json">
   <style>
     * { box-sizing: border-box; }
     body {
@@ -285,7 +285,7 @@
   <script>
     (function () {
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/web-tools/agents/sw.js", { scope: "/web-tools/agents/" }).catch(function () {});
+        navigator.serviceWorker.register("/web-tools/convos/sw.js", { scope: "/web-tools/convos/" }).catch(function () {});
       }
 
       var qrWrap = document.getElementById("qr-wrap");
@@ -351,7 +351,7 @@
           gatewayTip.style.display = "none";
           return;
         }
-        gatewayTip.textContent = "Join only works when this page is opened from your OpenClaw gateway. Open http://localhost:18789/web-tools/agents (or your gateway URL + /web-tools/agents), then paste the invite and click Join.";
+        gatewayTip.textContent = "Join only works when this page is opened from your OpenClaw gateway. Open http://localhost:18789/web-tools/convos (or your gateway URL + /web-tools/convos), then paste the invite and click Join.";
         gatewayTip.style.display = "block";
       }
 
