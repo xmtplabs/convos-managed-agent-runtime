@@ -1,4 +1,16 @@
-# Runtime Changelog
+# 🎈 Convos runtime changelog
+
+## 0.0.17
+- State persistence: agent state directory (`OPENCLAW_STATE_DIR`) now derived from Railway volume mount, so identity and state survive restarts
+- TOOLS.md: clarified SMS and email skill descriptions to "send and poll" so the agent no longer misinterprets its own capabilities
+
+## 0.0.16
+- Health endpoint: runtime now reports its version via `/pool/health`, visible in the dashboard
+
+## 0.0.15
+- Credit exhaustion: agent replies with a friendly message when out of credits (402/403) instead of failing silently
+- Convos CLI: agent can no longer run unsupported CLI commands (e.g. renaming groups)
+- TOOLS.md: simplified skill descriptions, corrected SMS to US-only numbers
 
 ## 0.0.14
 - Bump `@bankr/cli` to `0.1.0-beta.18`

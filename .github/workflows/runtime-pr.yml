@@ -9,6 +9,7 @@ on:
     types: [opened, synchronize, closed]
     paths:
       - 'runtime/**'
+      - '!runtime/CHANGELOG.md'
 
 permissions:
   packages: write
