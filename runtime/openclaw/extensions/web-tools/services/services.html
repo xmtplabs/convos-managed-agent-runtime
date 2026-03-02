@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f5">
+  <title>services</title>
+  <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      background: #f5f5f5;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+      max-width: 320px;
+      width: 100%;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #999;
+    }
+    .service-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .service-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0;
+    }
+    .service-item + .service-item {
+      border-top: 1px solid #f0f0f0;
+    }
+    .service-body { flex: 1; min-width: 0; }
+    .service-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #999;
+      margin-bottom: 0.1rem;
+    }
+    .service-value {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 0.8rem;
+      color: #333;
+      word-break: break-all;
+    }
+    .service-value--null {
+      color: #ccc;
+      font-style: italic;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.75rem;
+    }
+
+    .credits-bar {
+      margin-top: 0.3rem;
+      height: 3px;
+      background: #f0f0f0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .credits-bar-fill {
+      height: 100%;
+      background: #999;
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+    .credits-detail {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.6rem;
+      color: #bbb;
+      margin-top: 0.15rem;
+    }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      color: #ccc;
+      flex-shrink: 0;
+      transition: color 0.15s;
+      border-radius: 4px;
+    }
+    .copy-btn:hover { color: #666; }
+    .copy-btn.copied { color: #111; }
+
+    .loading-shimmer {
+      background: linear-gradient(90deg, #f5f5f5 25%, #eee 50%, #f5f5f5 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 3px;
+      height: 0.85rem;
+      width: 55%;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .error-msg {
+      color: #999;
+      font-size: 0.7rem;
+      text-align: center;
+      margin-top: 0.75rem;
+    }
+
+    .page-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      margin-top: 1rem;
+      padding: 0.4rem;
+      font-size: 0.65rem;
+      color: #ccc;
+      text-decoration: none;
+      transition: color 0.15s;
+      cursor: pointer;
+      background: none;
+      border: none;
+      width: 100%;
+    }
+    .page-link:hover { color: #888; }
+
+    .footer {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      font-size: 0.7rem;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">services</div>
+
+    <div class="service-list" id="service-list">
+      <div class="service-item" id="svc-email">
+        <div class="service-body">
+          <div class="service-label">email</div>
+          <div class="service-value" id="email-value"><div class="loading-shimmer"></div></div>
+        </div>
+        <button class="copy-btn" id="copy-email" style="display:none" title="Copy">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+
+      <div class="service-item" id="svc-phone">
+        <div class="service-body">
+          <div class="service-label">phone</div>
+          <div class="service-value" id="phone-value"><div class="loading-shimmer"></div></div>
+        </div>
+        <button class="copy-btn" id="copy-phone" style="display:none" title="Copy">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+
+      <div class="service-item" id="svc-credits">
+        <div class="service-body">
+          <div class="service-label">credits</div>
+          <div class="service-value" id="credits-value"><div class="loading-shimmer"></div></div>
+          <div class="credits-bar" id="credits-bar" style="display:none">
+            <div class="credits-bar-fill" id="credits-bar-fill"></div>
+          </div>
+          <div class="credits-detail" id="credits-detail" style="display:none">
+            <span id="credits-used"></span>
+            <span id="credits-limit"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="page-link" id="share-link" title="Copy services page link">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span id="share-link-text">copy link</span>
+    </button>
+
+    <div class="error-msg" id="error" role="alert"></div>
+  </div>
+
+  <footer class="footer">
+    <span>convos</span>
+  </footer>
+
+  <script>
+    (function () {
+      var emailValue = document.getElementById("email-value");
+      var phoneValue = document.getElementById("phone-value");
+      var creditsValue = document.getElementById("credits-value");
+      var copyEmail = document.getElementById("copy-email");
+      var copyPhone = document.getElementById("copy-phone");
+      var creditsBar = document.getElementById("credits-bar");
+      var creditsBarFill = document.getElementById("credits-bar-fill");
+      var creditsDetail = document.getElementById("credits-detail");
+      var creditsUsed = document.getElementById("credits-used");
+      var creditsLimit = document.getElementById("credits-limit");
+      var errorEl = document.getElementById("error");
+      var shareLink = document.getElementById("share-link");
+      var shareLinkText = document.getElementById("share-link-text");
+
+      var poolToken = window.__POOL_TOKEN || "";
+      function authHeaders(extra) {
+        var h = extra || {};
+        if (poolToken) h["Authorization"] = "Bearer " + poolToken;
+        return h;
+      }
+
+      function copyToClipboard(text, btn) {
+        navigator.clipboard.writeText(text).then(function () {
+          btn.classList.add("copied");
+          var old = btn.innerHTML;
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 6L9 17l-5-5"/></svg>';
+          setTimeout(function () {
+            btn.classList.remove("copied");
+            btn.innerHTML = old;
+          }, 1500);
+        }).catch(function () {});
+      }
+
+      function showValue(el, text) {
+        if (text) {
+          el.textContent = text;
+          el.className = "service-value";
+        } else {
+          el.textContent = "not assigned";
+          el.className = "service-value service-value--null";
+        }
+      }
+
+      function showError(msg) {
+        errorEl.textContent = msg || "";
+        errorEl.style.display = msg ? "block" : "none";
+      }
+
+      fetch("/web-tools/services/api", { headers: authHeaders() })
+        .then(function (r) {
+          return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+        })
+        .then(function (_) {
+          if (!_.ok) {
+            showError(_.data.error || "Failed to load services");
+            showValue(emailValue, null);
+            showValue(phoneValue, null);
+            showValue(creditsValue, null);
+            return;
+          }
+          var d = _.data;
+
+          showValue(emailValue, d.email);
+          if (d.email) {
+            copyEmail.style.display = "block";
+            copyEmail.onclick = function () { copyToClipboard(d.email, copyEmail); };
+          }
+
+          showValue(phoneValue, d.phone);
+          if (d.phone) {
+            copyPhone.style.display = "block";
+            copyPhone.onclick = function () { copyToClipboard(d.phone, copyPhone); };
+          }
+
+          if (d.credits && d.credits.limit !== undefined) {
+            var c = d.credits;
+            var used = (typeof c.usage === "number") ? c.usage : 0;
+            var limit = c.limit;
+            var remaining = (typeof c.remaining === "number") ? c.remaining : (limit - used);
+            var pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+
+            creditsValue.textContent = "$" + remaining.toFixed(2) + " remaining";
+            creditsValue.className = "service-value";
+
+            creditsBar.style.display = "block";
+            creditsBarFill.style.width = pct.toFixed(1) + "%";
+
+            creditsDetail.style.display = "flex";
+            creditsUsed.textContent = "$" + used.toFixed(2) + " used";
+            creditsLimit.textContent = "$" + limit.toFixed(2) + " limit";
+          } else if (d.credits && d.credits.error) {
+            creditsValue.textContent = d.credits.error;
+            creditsValue.className = "service-value service-value--null";
+          } else {
+            showValue(creditsValue, null);
+          }
+        })
+        .catch(function (err) {
+          showError("failed to connect");
+          showValue(emailValue, null);
+          showValue(phoneValue, null);
+          showValue(creditsValue, null);
+        });
+
+      shareLink.addEventListener("click", function () {
+        var url = window.location.origin + "/web-tools/services";
+        navigator.clipboard.writeText(url).then(function () {
+          shareLinkText.textContent = "copied";
+          setTimeout(function () {
+            shareLinkText.textContent = "copy link";
+          }, 1500);
+        }).catch(function () {
+          prompt("URL:", url);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

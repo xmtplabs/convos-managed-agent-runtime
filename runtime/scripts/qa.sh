@@ -19,11 +19,12 @@ fail() { echo "  [FAIL] $1 -- $2" >&2; FAILED="${FAILED} $1"; }
 # run CMD... -- streams live, captures to $QA_TMP for checking
 run() { "$@" 2>&1 | tee "$QA_TMP" || true; }
 
-# --- Email (agentmail script) ---
+# --- Email (services skill) ---
 echo ""
 echo "=== QA: email ==="
-echo "  > node send-email.mjs --to fabri@xmtp.com"
-run node "$STATE_DIR/workspace/skills/agentmail/scripts/send-email.mjs" \
+SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
+echo "  > node services.mjs email send --to fabri@xmtp.com"
+run node "$SERVICES" email send \
   --to "fabri@xmtp.com" --subject "QA $(date +%s)" --text "Smoke test"
 if grep -qi "Sent to" "$QA_TMP"; then
   pass "email"
@@ -31,12 +32,12 @@ else
   fail "email" "$(cat "$QA_TMP")"
 fi
 
-# --- SMS (telnyx CLI) ---
+# --- SMS (services skill) ---
 echo ""
 echo "=== QA: sms ==="
-echo "  > telnyx message send --from $TELNYX_PHONE_NUMBER --to +16154376139"
-run telnyx message send --from "$TELNYX_PHONE_NUMBER" --to "+16154376139" --text "QA $(date +%s)"
-if grep -qi "queued\|sent\|delivered\|id" "$QA_TMP"; then
+echo "  > node services.mjs sms send --to +16154376139"
+run node "$SERVICES" sms send --to "+16154376139" --text "QA $(date +%s)"
+if grep -qi "Sent SMS\|queued\|sent\|delivered\|Message ID" "$QA_TMP"; then
   pass "sms"
 else
   fail "sms" "$(cat "$QA_TMP")"
