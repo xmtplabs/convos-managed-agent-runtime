@@ -18,7 +18,7 @@ The agent runtime is a pre-built Docker image containing the OpenClaw gateway, e
 │  openclaw gateway run                           │
 │    ├── convos channel (XMTP)                    │
 │    ├── web-tools (browser, forms)               │
-│    ├── skills (agentmail, bankr, telnyx)        │
+│    ├── skills (services, bankr, agentcard)      │
 │    └── webchat control UI                       │
 └─────────────────────────────────────────────────┘
 ```
@@ -45,7 +45,7 @@ runtime/
 │       ├── IDENTITY.md     # agent identity
 │       ├── SOUL.md         # personality / welcome message
 │       ├── TOOLS.md        # tool usage guidelines
-│       └── skills/         # agentmail, bankr, telnyx-cli, convos-cli
+│       └── skills/         # services, bankr, agentcard, convos-cli
 └── scripts/
     ├── entrypoint.sh       # Railway volume setup
     ├── keys.sh             # env var provisioning + display
