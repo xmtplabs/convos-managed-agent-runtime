@@ -1,5 +1,9 @@
 # Pool Manager Changelog
 
+## 0.6.0
+- Credits self-service: new `POST /api/pool/credits-check` and `POST /api/pool/credits-topup` endpoints — instances can check their own OpenRouter spending balance and request limit increases using gatewayToken auth (same pattern as self-destruct)
+- Top-up cap: self-service top-ups capped at $100 (configurable via `OPENROUTER_TOPUP_MAX` env), with $20 increments (`OPENROUTER_TOPUP_INCREMENT`)
+
 ## 0.5.0
 - Runtime version: dashboard now shows each instance's runtime version, captured during health checks
 - Provision cards: inline Railway deeplinks per step (project, service, domain, deploy) with grid layout
