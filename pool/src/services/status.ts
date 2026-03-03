@@ -2,7 +2,6 @@ import { db } from "../db/connection";
 import { instanceInfra } from "../db/schema";
 import type { InfraRow } from "../db/schema";
 import * as railway from "./providers/railway";
-import { sendMetricSilent } from "../metrics";
 import type { BatchStatusResponse } from "../types";
 
 const LEGACY_CONCURRENCY = 5;
@@ -14,8 +13,6 @@ const LEGACY_CONCURRENCY = 5;
  * Legacy rows with NULL providerProjectId fall back to individual calls.
  */
 export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchStatusResponse> {
-  const batchStart = Date.now();
-
   // Get all infra rows from DB
   let infraRows = await db.select().from(instanceInfra);
 
@@ -105,12 +102,6 @@ export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchSta
       if (s.status === "fulfilled") results.push(s.value);
     }
   }
-
-  // Send to Datadog without logging — tick() logs a single summary line
-  sendMetricSilent("batch_status.duration_ms", Date.now() - batchStart);
-  sendMetricSilent("batch_status.count", results.length);
-  sendMetricSilent("batch_status.project_calls", byProject.size);
-  sendMetricSilent("batch_status.legacy_calls", legacyRows.length);
 
   return { services: results };
 }

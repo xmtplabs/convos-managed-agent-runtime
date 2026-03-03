@@ -1,7 +1,7 @@
 import * as db from "./db/pool";
 import { healthCheck } from "./pool";
 import { config } from "./config";
-import { sendMetric } from "./metrics";
+import { metricCount, metricHistogram } from "./metrics";
 import { gql } from "./services/providers/railway";
 import { decideAction } from "./webhookLogic";
 
@@ -87,7 +87,12 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
       // Conditional update: never overwrite 'claiming' status (atomic claim in progress)
       const updated = await db.conditionalUpdateStatus(instanceId, decision.newStatus!, instance.status);
       if (updated) {
-        sendMetric("webhook.state_change", 1, { from: instance.status, to: decision.newStatus });
+        metricCount("webhook.state_change", 1, { from: instance.status, to: decision.newStatus });
+        // Starting instance dying = failed create lifecycle
+        if (instance.status === "starting" && decision.newStatus === "dead") {
+          metricCount("instance.create.fail", 1, { phase: "deploy" });
+          metricHistogram("instance.create.duration_ms", Date.now() - new Date(instance.createdAt).getTime());
+        }
         console.log(`[webhook] ${instanceId}: ${instance.status} → ${decision.newStatus}`);
       } else {
         console.log(`[webhook] ${instanceId}: conditional update skipped (status may have changed)`);
@@ -142,7 +147,15 @@ async function runHealthCheckWithRetries(
         return;
       }
       if (hc.version) await db.setRuntimeVersion(instanceId, hc.version);
-      sendMetric("webhook.health_check_promoted", 1, { from: statusAtWebhookTime, to: newStatus });
+      metricCount("webhook.health_check_promoted", 1, { from: statusAtWebhookTime, to: newStatus });
+      // Starting instance promoted = completed create lifecycle
+      if (statusAtWebhookTime === "starting") {
+        const inst = await db.findById(instanceId);
+        if (inst) {
+          metricCount("instance.create.complete");
+          metricHistogram("instance.create.duration_ms", Date.now() - new Date(inst.createdAt).getTime());
+        }
+      }
       console.log(`[webhook] ${instanceId}: health check passed (attempt ${attempt}), ${statusAtWebhookTime} → ${newStatus} (v${hc.version || "?"})`);
       return;
     }
