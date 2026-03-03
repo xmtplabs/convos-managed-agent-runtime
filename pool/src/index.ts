@@ -14,6 +14,8 @@ import { updateServiceInstance, upsertVariables } from "./services/providers/rai
 import { resolveImageDigest } from "./services/providers/ghcr";
 
 import { initMetrics } from "./metrics";
+import { webhookRouter } from "./webhookRoute";
+import { ensureWebhookRule } from "./webhook";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -167,6 +169,9 @@ app.post("/api/pool/self-destruct", async (req, res) => {
   }
 });
 
+
+// --- Railway webhook (public — auth via secret in URL path) ---
+app.use(webhookRouter);
 
 app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
   try {
@@ -533,6 +538,8 @@ initMetrics();
 runMigrations()
   .then(() => {
     setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
+    ensureWebhookRule().catch((err) =>
+      console.warn("[startup] Webhook rule registration failed:", err.message));
   })
   .catch((err) => {
     console.error("[startup] Migration failed:", err);

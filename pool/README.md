@@ -29,16 +29,22 @@ Pool is a unified service — instance lifecycle management and all provider int
 ## Instance lifecycle
 
 ```
-starting  →  idle  →  claimed
-(building)   (ready)   (in use)
+starting  →  idle  →  claiming  →  claimed
+(building)   (ready)   (atomic)     (in use)
+                          ↓
+                       crashed
+                    (provision failed)
 ```
 
-The background tick runs every 30 seconds:
-1. Fetches batch status from Railway (deploy status, domains, images), reconciles with the `instances` DB table by `instanceId`
-2. Health-checks deployed instances — if `/pool/health` returns `ready`, marks them `idle`
-3. Dead/stuck unclaimed instances are deleted (Railway service + tools destroyed); dead claimed instances are marked `crashed`
-4. Orphaned DB rows (instance gone from Railway) are cleaned up
-5. New instances are created manually via the admin dashboard or `POST /api/pool/replenish`
+State transitions are driven by **Railway webhooks** (push-based, near-real-time):
+- `Deployment.deployed` → health-checks the instance, promotes `starting → idle`
+- `Deployment.crashed` / `failed` / `oom_killed` → marks unclaimed instances `dead`, claimed instances `crashed`
+- `Deployment.slept` → marks instance `sleeping`
+- `Deployment.resumed` → health-checks and restores to `idle` or `claimed`
+
+Webhook rules are auto-registered on startup. Instances in `claiming` status are never touched by webhooks (atomic claim in progress). Crashed/dead instances are only marked in the DB — manual cleanup via the dashboard is required.
+
+New instances are created via the admin dashboard or `POST /api/pool/replenish`. Manual recheck via dashboard buttons still works as a fallback.
 
 ## Commands
 
@@ -84,9 +90,9 @@ cd pool && pnpm db:migrate:drop
 |----------|-------------|
 | **Pool manager** | |
 | `PORT` | Server port (default `3001`) |
-| `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
+| `POOL_API_KEY` | Shared secret for API auth (Bearer token) and webhook URL secret |
+| `POOL_URL` | Pool manager's public URL (used by runtime instances for self-destruct and webhook registration) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
-| `TICK_INTERVAL_MS` | Background tick interval (default `30000`) |
 | `DATABASE_URL` | Postgres connection string |
 | **Railway** | |
 | `RAILWAY_TEAM_ID` | Railway team ID (sharded — one project per agent) |
@@ -110,7 +116,7 @@ All state is stored in a single Postgres database with three tables. See [`docs/
 | `id` | TEXT PK | Instance ID (12-char nanoid) |
 | `name` | TEXT | Service name (`convos-agent-{id}`) |
 | `url` | TEXT | Public HTTPS URL |
-| `status` | TEXT | `starting`, `idle`, `claiming`, `claimed`, `crashed` |
+| `status` | TEXT | `starting`, `idle`, `claiming`, `claimed`, `crashed`, `dead`, `sleeping` |
 | `agent_name` | TEXT | Name given at claim time |
 | `conversation_id` | TEXT | Convos conversation ID |
 | `invite_url` | TEXT | Join/invite URL (QR code) |
@@ -147,6 +153,7 @@ Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/p
 | DELETE | `/api/pool/instances/:id` | Yes | Kill a launched instance |
 | DELETE | `/api/pool/crashed/:id` | Yes | Dismiss a crashed agent |
 | POST | `/api/pool/self-destruct` | Token | Instance requests own destruction (per-instance gateway token, not `POOL_API_KEY`) |
+| POST | `/webhooks/railway/:secret` | URL secret | Railway webhook receiver (secret in URL path must match `POOL_API_KEY`) |
 | GET | `/admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
 
 ### `POST /api/pool/claim`

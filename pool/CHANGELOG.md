@@ -1,5 +1,14 @@
 # Pool Manager Changelog
 
+## 0.6.0
+- Railway webhooks: push-based state monitoring via Railway workspace-level webhooks — instances automatically transition on deploy/crash/sleep events without manual "Check Starting" clicks
+- Webhook state machine: pure `decideAction()` function handles all Railway event types (`deployed`, `crashed`, `failed`, `oom_killed`, `slept`, `resumed`) with claiming guard and conditional updates to prevent race conditions
+- Health check retries: deployed/resumed events trigger up to 5 health checks (3s apart) before promoting `starting → idle` or recovering `crashed → claimed`
+- Auto-registration: pool manager registers webhook rules with Railway on startup (graceful no-op if env vars missing)
+- Webhook auth: secret-in-URL-path pattern (`/webhooks/railway/{POOL_API_KEY}`) since Railway doesn't support HMAC signing
+- Datadog metrics: `webhook.received`, `webhook.processed`, `webhook.error`, `webhook.state_change`, `webhook.health_check_promoted`
+- No auto-cleanup: crash/failure events only mark status in DB — dead instances must still be cleaned up manually via the dashboard
+
 ## 0.5.0
 - Runtime version: dashboard now shows each instance's runtime version, captured during health checks
 - Provision cards: inline Railway deeplinks per step (project, service, domain, deploy) with grid layout

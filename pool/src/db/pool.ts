@@ -118,6 +118,24 @@ export async function updateStatus(instanceId: string, { status, url }: { status
   }).where(eq(instances.id, instanceId));
 }
 
+/** Look up an instance by its Railway service ID (from instance_infra). */
+export async function findByServiceId(serviceId: string): Promise<{ instanceId: string; providerEnvId: string; url: string | null } | null> {
+  const rows = await db.select({
+    instanceId: instanceInfra.instanceId,
+    providerEnvId: instanceInfra.providerEnvId,
+    url: instanceInfra.url,
+  }).from(instanceInfra).where(eq(instanceInfra.providerServiceId, serviceId));
+  return rows[0] ?? null;
+}
+
+/** Update the deploy_status column in instance_infra. */
+export async function updateDeployStatus(instanceId: string, deployStatus: string) {
+  await db.update(instanceInfra).set({
+    deployStatus,
+    updatedAt: sql`NOW()`,
+  }).where(eq(instanceInfra.instanceId, instanceId));
+}
+
 /** Verify an instance ID + gateway token pair. Used by self-destruct auth. */
 export async function findInstanceByToken(instanceId: string, gatewayToken: string): Promise<boolean> {
   const rows = await db.select({ id: instanceInfra.instanceId })
