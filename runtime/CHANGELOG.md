@@ -5,6 +5,7 @@
 - QA polling: `qa.sh` now checks latest received email, latest inbound SMS, and OpenRouter credit balance
 - Email poll: human-readable output by default (use `--json` for raw), filters to received messages only
 - Services dashboard: added credit card section
+- Services dashboard: "top up" button on credits section — requests a spending limit increase from the pool manager, refreshes the display on success
 - Removed `/web-tools/form` test page and all references
 - OpenRouter credits check: QA shows remaining balance inline
 

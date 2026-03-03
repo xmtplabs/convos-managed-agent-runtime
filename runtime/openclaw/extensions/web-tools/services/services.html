@@ -144,6 +144,7 @@
     .topup-btn:hover { color: #666; border-color: #bbb; }
     .topup-btn:disabled { cursor: default; opacity: 0.5; }
     .topup-btn.topup-error { color: #c44; border-color: #c44; }
+    .topup-btn.topup-ok { color: #2a2; border-color: #2a2; }
 
     .page-link {
       display: flex;
@@ -358,8 +359,13 @@
               .then(function (r) { return r.json(); })
               .then(function (d) {
                 renderCredits(d.credits);
-                topupBtn.textContent = "top up";
-                topupBtn.disabled = false;
+                topupBtn.textContent = "topped up";
+                topupBtn.classList.add("topup-ok");
+                setTimeout(function () {
+                  topupBtn.textContent = "top up";
+                  topupBtn.classList.remove("topup-ok");
+                  topupBtn.disabled = false;
+                }, 2000);
               });
           })
           .catch(function () {
