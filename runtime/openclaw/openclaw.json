@@ -83,9 +83,6 @@
         "env": {
           "BANKR_API_KEY": "${BANKR_API_KEY}"
         }
-      },
-      "agentcard": {
-        "enabled": true
       }
     }
   },
