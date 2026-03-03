@@ -18,7 +18,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 # SKILLS
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
-- **Services** — Your managed services: email, SMS, credits. MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
+- **Services** — Your managed services: send and receive email, send and receive SMS, check credits. MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
 - **Cards (AgentCard)** — Prepaid virtual Visa cards for online payments. MUST use when paying for anything online. See `skills/agentcard/SKILL.md`.
 
@@ -87,6 +87,10 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 
 > Send me an email with today's summary.
 **Skill:** Services (email)
+
+> Browse https://example.com and tell me what the page says.
+**Tool:** Browser
+→ browser
 
 > Check my inbox for new emails.
 **Skill:** Services (email)
