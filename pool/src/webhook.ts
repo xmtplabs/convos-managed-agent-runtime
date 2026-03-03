@@ -10,8 +10,9 @@ export type { WebhookAction, WebhookDecision } from "./webhookLogic";
 
 // ── Webhook handler ────────────────────────────────────────────────────────
 
-const HEALTH_CHECK_RETRIES = 5;
-const HEALTH_CHECK_INTERVAL_MS = 3000;
+const HEALTH_CHECK_INITIAL_DELAY_MS = 30_000;
+const HEALTH_CHECK_RETRIES = 6;
+const HEALTH_CHECK_INTERVAL_MS = 15_000;
 
 interface RailwayWebhookPayload {
   type: string;
@@ -120,6 +121,9 @@ async function runHealthCheckWithRetries(
   statusAtWebhookTime: string,
   isClaimed: boolean,
 ): Promise<void> {
+  // Wait for the runtime container to boot before polling
+  await new Promise((r) => setTimeout(r, HEALTH_CHECK_INITIAL_DELAY_MS));
+
   for (let attempt = 1; attempt <= HEALTH_CHECK_RETRIES; attempt++) {
     if (attempt > 1) {
       await new Promise((r) => setTimeout(r, HEALTH_CHECK_INTERVAL_MS));
