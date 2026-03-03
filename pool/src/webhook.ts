@@ -156,12 +156,12 @@ const WEBHOOK_EVENT_TYPES = [
  * Skips gracefully if required env vars are not set.
  */
 export async function ensureWebhookRule(): Promise<void> {
-  if (!config.poolUrl || !config.poolWebhookSecret || !config.railwayApiToken || !config.railwayTeamId) {
-    console.log("[webhook] Skipping webhook registration: missing POOL_URL, POOL_WEBHOOK_SECRET/POOL_API_KEY, RAILWAY_API_TOKEN, or RAILWAY_TEAM_ID");
+  if (!config.poolUrl || !config.poolApiKey || !config.railwayApiToken || !config.railwayTeamId) {
+    console.log("[webhook] Skipping webhook registration: missing POOL_URL, POOL_API_KEY, RAILWAY_API_TOKEN, or RAILWAY_TEAM_ID");
     return;
   }
 
-  const webhookUrl = `${config.poolUrl}/webhooks/railway/${config.poolWebhookSecret}`;
+  const webhookUrl = `${config.poolUrl}/webhooks/railway/${config.poolApiKey}`;
 
   let created = 0;
   let skipped = 0;

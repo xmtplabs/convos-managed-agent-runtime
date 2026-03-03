@@ -14,7 +14,7 @@ export const webhookRouter = Router();
 webhookRouter.post("/webhooks/railway/:secret", async (req, res) => {
   const { secret } = req.params;
 
-  if (secret !== config.poolWebhookSecret) {
+  if (secret !== config.poolApiKey) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
