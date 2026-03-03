@@ -1,5 +1,25 @@
 # 🎈 Convos runtime changelog
 
+## 0.0.18
+- Prompt-based QA: new `qa-prompts.sh` script sends real prompts to the agent and prints responses for manual review
+- QA polling: `qa.sh` now checks latest received email, latest inbound SMS, and OpenRouter credit balance
+- Email poll: human-readable output by default (use `--json` for raw), filters to received messages only
+- Services dashboard: added credit card section
+- Services dashboard: "top up" button on credits section — requests a spending limit increase from the pool manager, refreshes the display on success
+- Removed `/web-tools/form` test page and all references
+- OpenRouter credits check: QA shows remaining balance inline
+
+## 0.0.17+
+- Unified services skill: replaced separate agentmail and telnyx-cli skills with a single `services` skill — one dispatcher (`services.mjs`) for email, SMS, credits, and identity
+- Provider-agnostic: agent no longer sees provider names (AgentMail, Telnyx) — just "email", "phone", "credits"
+- Services dashboard: new `/web-tools/services` page showing the agent's email, phone number, and credit balance
+- Identity command: `services.mjs identity` returns the agent's contact info and public services page URL
+- Credits self-service: agents can check their balance and request top-ups (capped at $100) via the pool server
+- No more SDK symlinks: email handler rewritten to use AgentMail REST API directly via fetch — removed agentmail SDK dependency and symlink hack from install-deps.sh
+- Removed `agentmail` and `@telnyx/api-cli` npm dependencies — all service integrations now use REST APIs
+- Renamed web-tools/agents to web-tools/convos
+- QA script updated to test through the unified services skill
+
 ## 0.0.17
 - State persistence: agent state directory (`OPENCLAW_STATE_DIR`) now derived from Railway volume mount, so identity and state survive restarts
 - TOOLS.md: clarified SMS and email skill descriptions to "send and poll" so the agent no longer misinterprets its own capabilities

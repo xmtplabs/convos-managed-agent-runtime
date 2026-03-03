@@ -475,6 +475,15 @@ async function handleInboundMessage(
       cfg,
       dispatcherOptions: {
         deliver: async (payload: ReplyPayload) => {
+          // Rewrite raw provider credit errors into a friendly message
+          const t = payload.text || "";
+          if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
+            const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+            const ngrok = process.env.NGROK_URL;
+            const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
+            const base = domain ? `https://${domain}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
+            payload = { ...payload, text: `Hey! I'm out of credits. You can top up here: ${base}/web-tools/services` };
+          }
           await deliverConvosReply({
             payload,
             accountId: account.accountId,
@@ -488,24 +497,6 @@ async function handleInboundMessage(
         },
         onError: async (err, info) => {
           errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
-
-          // Surface a friendly message when the LLM provider rejects due to
-          // insufficient credits (OpenRouter 402/403).
-          const errStr = String(err);
-          if (errStr.includes("402") || errStr.includes("403") || errStr.includes("credits") || errStr.includes("afford") || errStr.includes("limit exceeded")) {
-            const convos = getConvosInstance();
-            const replyTo = msg.contentType === "text" || msg.contentType === "reply"
-              ? msg.messageId
-              : undefined;
-            try {
-              await convos?.sendMessage(
-                "Hey! You are out of credits.",
-                replyTo,
-              );
-            } catch {
-              // Best-effort — don't let the fallback message blow up
-            }
-          }
         },
       },
     });
