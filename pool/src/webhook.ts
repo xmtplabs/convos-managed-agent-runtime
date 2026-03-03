@@ -28,6 +28,10 @@ interface RailwayWebhookPayload {
  * Process a Railway webhook event. Called async after responding 200.
  */
 export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Promise<void> {
+  if (!payload) {
+    console.log("[webhook] Ignoring event: no payload");
+    return;
+  }
   const eventType = payload.type;
   const serviceId = payload.resource?.service?.id;
 
@@ -153,6 +157,7 @@ const WEBHOOK_EVENT_TYPES = [
 
 /**
  * Register a Railway notification rule to deliver webhook events to this pool manager.
+ * Creates a single rule covering all deployment event types.
  * Skips gracefully if required env vars are not set.
  */
 export async function ensureWebhookRule(): Promise<void> {
@@ -163,32 +168,25 @@ export async function ensureWebhookRule(): Promise<void> {
 
   const webhookUrl = `${config.poolUrl}/webhooks/railway/${config.poolApiKey}`;
 
-  let created = 0;
-  let skipped = 0;
-  for (const eventType of WEBHOOK_EVENT_TYPES) {
-    try {
-      await gql(
-        `mutation($input: NotificationRuleCreateInput!) {
-          notificationRuleCreate(input: $input) { id }
-        }`,
-        {
-          input: {
-            workspaceId: config.railwayTeamId,
-            channel: "webhook",
-            destination: webhookUrl,
-            eventType,
-          },
+  try {
+    await gql(
+      `mutation($input: CreateNotificationRuleInput!) {
+        notificationRuleCreate(input: $input) { id }
+      }`,
+      {
+        input: {
+          workspaceId: config.railwayTeamId,
+          eventTypes: WEBHOOK_EVENT_TYPES,
+          channelConfigs: [{ type: "WEBHOOK", webhookUrl }],
         },
-      );
-      created++;
-    } catch (err: any) {
-      // Railway returns an error if the rule already exists — that's fine
-      if (err.message?.includes("already exists") || err.message?.includes("duplicate")) {
-        skipped++;
-      } else {
-        console.warn(`[webhook] Failed to register ${eventType}: ${err.message}`);
-      }
+      },
+    );
+    console.log(`[webhook] Webhook rule created for ${WEBHOOK_EVENT_TYPES.length} event types → ${config.poolUrl}/webhooks/railway/***`);
+  } catch (err: any) {
+    if (err.message?.includes("already exists") || err.message?.includes("duplicate")) {
+      console.log(`[webhook] Webhook rule already exists → ${config.poolUrl}/webhooks/railway/***`);
+    } else {
+      console.warn(`[webhook] Failed to register webhook rule: ${err.message}`);
     }
   }
-  console.log(`[webhook] Webhook rules: ${created} created, ${skipped} already existed → ${config.poolUrl}/webhooks/railway/***`);
 }
