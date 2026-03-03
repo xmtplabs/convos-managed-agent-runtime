@@ -497,9 +497,20 @@ async function handleInboundMessage(
             const replyTo = msg.contentType === "text" || msg.contentType === "reply"
               ? msg.messageId
               : undefined;
+
+            const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+            const ngrok = process.env.NGROK_URL;
+            const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
+            const base = domain
+              ? `https://${domain}`
+              : ngrok
+                ? ngrok.replace(/\/$/, "")
+                : `http://127.0.0.1:${port}`;
+            const servicesUrl = `${base}/web-tools/services`;
+
             try {
               await convos?.sendMessage(
-                "Hey! You are out of credits.",
+                `Hey! I'm out of credits. You can top up here: ${servicesUrl}`,
                 replyTo,
               );
             } catch {
