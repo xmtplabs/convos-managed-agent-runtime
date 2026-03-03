@@ -177,7 +177,7 @@ export async function ensureWebhookRule(): Promise<void> {
         input: {
           workspaceId: config.railwayTeamId,
           eventTypes: WEBHOOK_EVENT_TYPES,
-          channelConfigs: [{ type: "WEBHOOK", webhookUrl }],
+          channelConfigs: [{ type: "webhook", url: webhookUrl }],
         },
       },
     );
