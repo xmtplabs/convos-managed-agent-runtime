@@ -79,7 +79,7 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
   switch (decision.action) {
     case "set_status": {
       // Conditional update: never overwrite 'claiming' status (atomic claim in progress)
-      const updated = await db.conditionalUpdateStatus(instanceId, decision.newStatus!);
+      const updated = await db.conditionalUpdateStatus(instanceId, decision.newStatus!, instance.status);
       if (updated) {
         sendMetric("webhook.state_change", 1, { from: instance.status, to: decision.newStatus });
         console.log(`[webhook] ${instanceId}: ${instance.status} → ${decision.newStatus}`);
