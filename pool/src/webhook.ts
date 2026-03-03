@@ -50,6 +50,12 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
     return;
   }
 
+  // Verify environment matches (workspace webhooks fire for all envs)
+  const webhookEnvId = payload.resource?.environment?.id;
+  if (webhookEnvId && webhookEnvId !== infra.providerEnvId) {
+    return; // Event from a different environment — ignore
+  }
+
   const isClaimed = !!instance.agentName || instance.status === "claimed";
   const decision = decideAction(eventType, instance.status, isClaimed);
 
@@ -72,15 +78,25 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
 
   switch (decision.action) {
     case "set_status": {
-      await db.updateStatus(instanceId, { status: decision.newStatus! });
-      sendMetric("webhook.state_change", 1, { from: instance.status, to: decision.newStatus });
-      console.log(`[webhook] ${instanceId}: ${instance.status} → ${decision.newStatus}`);
+      // Conditional update: never overwrite 'claiming' status (atomic claim in progress)
+      const updated = await db.conditionalUpdateStatus(instanceId, decision.newStatus!);
+      if (updated) {
+        sendMetric("webhook.state_change", 1, { from: instance.status, to: decision.newStatus });
+        console.log(`[webhook] ${instanceId}: ${instance.status} → ${decision.newStatus}`);
+      } else {
+        console.log(`[webhook] ${instanceId}: conditional update skipped (status may have changed)`);
+      }
       break;
     }
 
     case "health_check": {
+      const url = instance.url || infra.url;
+      if (!url) {
+        console.warn(`[webhook] ${instanceId}: no URL available for health check, skipping`);
+        break;
+      }
       // Run health check with retries, async (don't block)
-      runHealthCheckWithRetries(instanceId, instance.url!, instance.status, isClaimed).catch((err) =>
+      runHealthCheckWithRetries(instanceId, url, instance.status, isClaimed).catch((err) =>
         console.error(`[webhook] Health check failed for ${instanceId}: ${err.message}`));
       break;
     }
@@ -107,15 +123,13 @@ async function runHealthCheckWithRetries(
 
     const hc = await healthCheck(url);
     if (hc?.ready) {
-      // Conditional update: only write if status hasn't changed since webhook arrived
-      const current = await db.findById(instanceId);
-      if (!current || current.status !== statusAtWebhookTime) {
-        console.log(`[webhook] ${instanceId}: status changed (${statusAtWebhookTime} → ${current?.status}), skipping promotion`);
+      // Atomic conditional update: only promotes if status is still what we expect
+      const newStatus = isClaimed ? "claimed" : "idle";
+      const updated = await db.conditionalUpdateStatus(instanceId, newStatus, statusAtWebhookTime);
+      if (!updated) {
+        console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);
         return;
       }
-
-      const newStatus = isClaimed ? "claimed" : "idle";
-      await db.updateStatus(instanceId, { status: newStatus });
       if (hc.version) await db.setRuntimeVersion(instanceId, hc.version);
       sendMetric("webhook.health_check_promoted", 1, { from: statusAtWebhookTime, to: newStatus });
       console.log(`[webhook] ${instanceId}: health check passed (attempt ${attempt}), ${statusAtWebhookTime} → ${newStatus} (v${hc.version || "?"})`);
@@ -142,15 +156,17 @@ const WEBHOOK_EVENT_TYPES = [
  * Skips gracefully if required env vars are not set.
  */
 export async function ensureWebhookRule(): Promise<void> {
-  if (!config.poolUrl || !config.poolApiKey || !config.railwayApiToken || !config.railwayTeamId) {
-    console.log("[webhook] Skipping webhook registration: missing POOL_URL, POOL_API_KEY, RAILWAY_API_TOKEN, or RAILWAY_TEAM_ID");
+  if (!config.poolUrl || !config.poolWebhookSecret || !config.railwayApiToken || !config.railwayTeamId) {
+    console.log("[webhook] Skipping webhook registration: missing POOL_URL, POOL_WEBHOOK_SECRET/POOL_API_KEY, RAILWAY_API_TOKEN, or RAILWAY_TEAM_ID");
     return;
   }
 
-  const webhookUrl = `${config.poolUrl}/webhooks/railway/${config.poolApiKey}`;
+  const webhookUrl = `${config.poolUrl}/webhooks/railway/${config.poolWebhookSecret}`;
 
-  try {
-    for (const eventType of WEBHOOK_EVENT_TYPES) {
+  let created = 0;
+  let skipped = 0;
+  for (const eventType of WEBHOOK_EVENT_TYPES) {
+    try {
       await gql(
         `mutation($input: NotificationRuleCreateInput!) {
           notificationRuleCreate(input: $input) { id }
@@ -164,10 +180,15 @@ export async function ensureWebhookRule(): Promise<void> {
           },
         },
       );
+      created++;
+    } catch (err: any) {
+      // Railway returns an error if the rule already exists — that's fine
+      if (err.message?.includes("already exists") || err.message?.includes("duplicate")) {
+        skipped++;
+      } else {
+        console.warn(`[webhook] Failed to register ${eventType}: ${err.message}`);
+      }
     }
-    console.log(`[webhook] Registered ${WEBHOOK_EVENT_TYPES.length} webhook rules → ${config.poolUrl}/webhooks/railway/***`);
-  } catch (err: any) {
-    // Don't crash the server if webhook registration fails
-    console.warn(`[webhook] Failed to register webhook rules: ${err.message}`);
   }
+  console.log(`[webhook] Webhook rules: ${created} created, ${skipped} already existed → ${config.poolUrl}/webhooks/railway/***`);
 }

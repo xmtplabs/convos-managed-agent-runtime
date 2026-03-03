@@ -118,6 +118,25 @@ export async function updateStatus(instanceId: string, { status, url }: { status
   }).where(eq(instances.id, instanceId));
 }
 
+/**
+ * Conditionally update status only if the current status matches `expectedStatus`
+ * and is not 'claiming' (atomic claim in progress). Returns true if the row was updated.
+ */
+export async function conditionalUpdateStatus(
+  instanceId: string,
+  newStatus: string,
+  expectedStatus?: string,
+): Promise<boolean> {
+  const conditions = [eq(instances.id, instanceId), sql`${instances.status} != 'claiming'`];
+  if (expectedStatus) {
+    conditions.push(sql`${instances.status} = ${expectedStatus}`);
+  }
+  const result = await db.update(instances).set({
+    status: sql`${newStatus}`,
+  }).where(and(...conditions));
+  return (result.rowCount ?? 0) > 0;
+}
+
 /** Look up an instance by its Railway service ID (from instance_infra). */
 export async function findByServiceId(serviceId: string): Promise<{ instanceId: string; providerEnvId: string; url: string | null } | null> {
   const rows = await db.select({

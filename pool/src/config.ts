@@ -7,6 +7,7 @@ export const config = {
   port: parseInt(getEnv("PORT", "3001"), 10),
   poolApiKey: getEnv("POOL_API_KEY"),
   poolUrl: getEnv("POOL_URL"),
+  poolWebhookSecret: getEnv("POOL_WEBHOOK_SECRET") || getEnv("POOL_API_KEY"),
 
   // Database — single unified DB
   databaseUrl: getEnv("DATABASE_URL"),
