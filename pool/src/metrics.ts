@@ -1,5 +1,6 @@
 import metrics from "datadog-metrics";
 import { config } from "./config.js";
+import { getCounts } from "./db/pool.js";
 
 let isInitialized = false;
 
@@ -16,6 +17,19 @@ export function initMetrics(): void {
   });
   isInitialized = true;
   console.log("[metrics] Datadog metrics initialized");
+
+  // Emit pool status gauges every 15s (sequential to avoid stacking on slow DB)
+  const emitGauges = () => setTimeout(async () => {
+    try {
+      const counts = await getCounts();
+      for (const [status, count] of Object.entries(counts)) {
+        metricGauge(status, count);
+      }
+    } catch {} finally {
+      emitGauges();
+    }
+  }, 15_000);
+  emitGauges();
 }
 
 function formatTags(tags: Record<string, string | undefined>): string[] {
