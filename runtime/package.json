@@ -13,6 +13,7 @@
     "gateway": "sh scripts/gateway.sh",
     "qa": "sh scripts/qa.sh",
     "qa:prompts": "sh scripts/qa-prompts.sh",
+    "ngrok": "ngrok http 18789",
     "pool-server": "node scripts/pool-server.js",
     "build": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local .",
     "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
