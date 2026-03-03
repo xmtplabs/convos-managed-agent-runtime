@@ -3,7 +3,7 @@
  * Unified services dispatcher.
  * Usage: node services.mjs <service> <action> [options]
  *
- * Services: identity, email, sms, credits
+ * Services: info, email, sms, credits
  */
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -14,12 +14,12 @@ const [service, ...rest] = process.argv.slice(2);
 
 if (!service) {
   console.error("Usage: node services.mjs <service> <action> [options]");
-  console.error("Services: identity, email, sms, credits");
+  console.error("Services: info, email, sms, credits");
   process.exit(1);
 }
 
 const handlers = {
-  identity: () => import(join(__dirname, "handlers", "identity.mjs")),
+  info: () => import(join(__dirname, "handlers", "info.mjs")),
   email:    () => import(join(__dirname, "handlers", "email.mjs")),
   sms:      () => import(join(__dirname, "handlers", "sms.mjs")),
   credits:  () => import(join(__dirname, "handlers", "credits.mjs")),
@@ -28,7 +28,7 @@ const handlers = {
 const loader = handlers[service];
 if (!loader) {
   console.error(`Unknown service: ${service}`);
-  console.error("Available: identity, email, sms, credits");
+  console.error("Available: info, email, sms, credits");
   process.exit(1);
 }
 

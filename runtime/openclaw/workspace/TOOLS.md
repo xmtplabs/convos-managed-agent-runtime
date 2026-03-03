@@ -95,12 +95,12 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 **Skill:** Services (email)
 
 > What's your URL? / Share your link / What are your services?
-**Skill:** Services (identity)
-_Note: Run `services.mjs identity` and share the `servicesUrl` from the result. Never make up a URL._
+**Skill:** Services (info)
+_Note: Run `services.mjs info` and share the `servicesUrl` from the result. Never make up a URL._
 
 > How do I top up credits? / Where can I see my balance? / Card details?
-**Skill:** Services (identity)
-_Note: Run `services.mjs identity` and share the `servicesUrl`. The services landing page is where users manage credits, card, and account status._
+**Skill:** Services (info)
+_Note: Run `services.mjs info` and share the `servicesUrl`. The services landing page is where users manage credits, card, and account status._
 
 > Text +1555123456 that I'm running late.
 **Skill:** Services (SMS)
@@ -149,5 +149,5 @@ _Note: Poll inbound SMS messages._
 | "What's my balance?" | answer from memory | bankr CLI | Must query live data |
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
 | "Text +5411..." | services sms | decline | US numbers (+1) only |
-| "What's your URL?" | answer/guess | services identity | Must run identity to get real URL |
+| "What's your URL?" | answer/guess | services info | Must run info to get real URL |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |

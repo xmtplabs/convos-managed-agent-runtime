@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Identity handler — returns what services are available.
- * Usage: node services.mjs identity
+ * Info handler — returns what services are available.
+ * Usage: node services.mjs info
  */
 
-export default async function identity() {
+export default async function info() {
   const inboxId = process.env.AGENTMAIL_INBOX_ID || null;
   // AGENTMAIL_INBOX_ID is already a full email address (e.g. agent@agentmail.to)
   const email = inboxId;

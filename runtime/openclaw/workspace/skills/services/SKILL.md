@@ -24,12 +24,12 @@ Your access is limited to **sending and receiving email/SMS through your assigne
 
 `node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs <command> [options]`
 
-## Identity
+## Info
 
 Check what services you have and get your public URL:
 
 ```bash
-node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs identity
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs info
 ```
 
 Returns JSON: `{ email, phone, servicesUrl }`
@@ -111,7 +111,7 @@ node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs credits 
 
 ## Services Landing Page
 
-Your services landing page is the central place for users to manage everything: view email, phone, card details, credit balance, and top up credits. When users ask about **any** of the following, run `services.mjs identity` and share the `servicesUrl`:
+Your services landing page is the central place for users to manage everything: view email, phone, card details, credit balance, and top up credits. When users ask about **any** of the following, run `services.mjs info` and share the `servicesUrl`:
 
 - Topping up credits or adding funds
 - Credit card balance or card details
@@ -119,4 +119,4 @@ Your services landing page is the central place for users to manage everything: 
 - Managing their account
 - "Where can I see my balance / services / status"
 
-**Never make up URLs or direct users to external docs.** Always share the real `servicesUrl` from the identity command.
+**Never make up URLs or direct users to external docs.** Always share the real `servicesUrl` from the info command.
