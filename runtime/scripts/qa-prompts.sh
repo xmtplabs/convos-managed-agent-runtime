@@ -60,6 +60,9 @@ prompt_test email-poll \
 prompt_test sms-poll \
   "Check my latest received SMS. Reply with: From: <number>, Text: <message>."
 
+prompt_test usdc-balance \
+  "Check my USDC balance. Reply: USDC: <amount>."
+
 prompt_test search \
   "Search the current BTC price. Reply: BTC: \$X."
 
