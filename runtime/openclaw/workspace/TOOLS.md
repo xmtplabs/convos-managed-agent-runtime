@@ -20,7 +20,6 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
 - **Services** — Your managed services: send and receive email, send and receive SMS, check credits. MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
-- **Cards (AgentCard)** — Prepaid virtual Visa cards for online payments. MUST use when paying for anything online. See `skills/agentcard/SKILL.md`.
 
 
 
@@ -126,12 +125,6 @@ _Note: Poll inbound SMS messages._
 > What tokens are trending?
 **Skill:** Crypto (Bankr)
 
-> Pay for this with a virtual card.
-**Skill:** Cards (AgentCard)
-
-> Create a $25 prepaid card.
-**Skill:** Cards (AgentCard)
-
 > Book in Farid restaurant.
 **Tools:** Web Search → Browser
 
@@ -156,6 +149,5 @@ _Note: Poll inbound SMS messages._
 | "What's my balance?" | answer from memory | bankr CLI | Must query live data |
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
 | "Text +5411..." | services sms | decline | US numbers (+1) only |
-| "Pay for this online" | bankr / manual | agentcard | Online payments use virtual cards |
 | "What's your URL?" | answer/guess | services identity | Must run identity to get real URL |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |

@@ -20,8 +20,7 @@
     "build:run": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local"
   },
   "dependencies": {
-    "agent-cards": "latest",
-    "@bankr/cli": "^0.1.0-beta.18",
+"@bankr/cli": "^0.1.0-beta.18",
     "@xmtp/convos-cli": "^0.3.2",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",

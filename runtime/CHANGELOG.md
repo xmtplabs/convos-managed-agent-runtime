@@ -14,7 +14,6 @@
 - Services dashboard: new `/web-tools/services` page showing the agent's email, phone number, and credit balance
 - Identity command: `services.mjs identity` returns the agent's contact info and public services page URL
 - Credits self-service: agents can check their balance and request top-ups (capped at $100) via the pool server
-- AgentCard skill: prepaid virtual Visa cards for online payments via `agent-cards` CLI
 - No more SDK symlinks: email handler rewritten to use AgentMail REST API directly via fetch — removed agentmail SDK dependency and symlink hack from install-deps.sh
 - Removed `agentmail` and `@telnyx/api-cli` npm dependencies — all service integrations now use REST APIs
 - Renamed web-tools/agents to web-tools/convos
