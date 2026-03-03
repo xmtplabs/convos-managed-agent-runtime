@@ -26,8 +26,8 @@ webhookRouter.post("/webhooks/railway/:secret", async (req, res) => {
   // Health check retries are fire-and-forget inside the handler.
   // If the fast path fails (e.g. DB down), respond 500 so Railway retries.
   try {
-    await handleRailwayWebhook(req.body);
-    sendMetric("webhook.processed", 1, { event: eventType });
+    const matched = await handleRailwayWebhook(req.body);
+    if (matched) sendMetric("webhook.processed", 1, { event: eventType });
     res.status(200).json({ ok: true });
   } catch (err: any) {
     sendMetric("webhook.error", 1, { event: eventType });
