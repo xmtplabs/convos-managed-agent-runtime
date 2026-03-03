@@ -162,10 +162,38 @@ const WEBHOOK_EVENT_TYPES = [
   "Deployment.resumed",
 ];
 
+interface NotificationRuleRow {
+  id: string;
+  eventTypes: string[];
+  channels: { id: string; config: unknown }[];
+}
+
 /**
- * Register a Railway notification rule to deliver webhook events to this pool manager.
- * Creates a single rule covering all deployment event types.
- * Skips gracefully if required env vars are not set.
+ * List all notification rules for the workspace, then return only those
+ * whose channel config contains a webhook URL matching ours.
+ */
+async function findMatchingWebhookRules(webhookUrl: string): Promise<NotificationRuleRow[]> {
+  const data = await gql(
+    `query($workspaceId: String!) {
+      notificationRules(workspaceId: $workspaceId) { id eventTypes channels { id config } }
+    }`,
+    { workspaceId: config.railwayTeamId },
+  );
+
+  const rules: NotificationRuleRow[] = data.notificationRules ?? [];
+  return rules.filter((r) =>
+    r.channels?.some((ch) => {
+      const cfg = ch.config as any;
+      const type = cfg?.type?.toLowerCase();
+      const url = cfg?.url || cfg?.webhookUrl;
+      return type === "webhook" && url === webhookUrl;
+    }),
+  );
+}
+
+/**
+ * Ensure a Railway notification rule exists to deliver webhook events to
+ * this pool manager. Queries existing rules first to avoid creating duplicates.
  */
 export async function ensureWebhookRule(): Promise<void> {
   if (!config.poolUrl || !config.poolApiKey || !config.railwayApiToken || !config.railwayTeamId) {
@@ -175,8 +203,26 @@ export async function ensureWebhookRule(): Promise<void> {
 
   const webhookUrl = `${config.poolUrl}/webhooks/railway/${config.poolApiKey}`;
 
+  // ── Check for existing matching rules ────────────────────────────────────
+  let existing: NotificationRuleRow[] = [];
   try {
-    await gql(
+    existing = await findMatchingWebhookRules(webhookUrl);
+  } catch (err: any) {
+    console.warn(`[webhook] Failed to query existing rules, will attempt create: ${err.message}`);
+  }
+
+  // ── Already have a matching rule — skip creation ─────────────────────────
+  const match = existing.find((r) =>
+    WEBHOOK_EVENT_TYPES.every((t) => r.eventTypes.includes(t)),
+  );
+  if (match) {
+    console.log(`[webhook] Webhook rule already exists (${match.id}) → ${config.poolUrl}/webhooks/railway/***`);
+    return;
+  }
+
+  // ── Create new rule ──────────────────────────────────────────────────────
+  try {
+    const data = await gql(
       `mutation($input: CreateNotificationRuleInput!) {
         notificationRuleCreate(input: $input) { id }
       }`,
@@ -188,12 +234,8 @@ export async function ensureWebhookRule(): Promise<void> {
         },
       },
     );
-    console.log(`[webhook] Webhook rule created for ${WEBHOOK_EVENT_TYPES.length} event types → ${config.poolUrl}/webhooks/railway/***`);
+    console.log(`[webhook] Webhook rule created (${data.notificationRuleCreate.id}) for ${WEBHOOK_EVENT_TYPES.length} event types → ${config.poolUrl}/webhooks/railway/***`);
   } catch (err: any) {
-    if (err.message?.includes("already exists") || err.message?.includes("duplicate")) {
-      console.log(`[webhook] Webhook rule already exists → ${config.poolUrl}/webhooks/railway/***`);
-    } else {
-      console.warn(`[webhook] Failed to register webhook rule: ${err.message}`);
-    }
+    console.warn(`[webhook] Failed to register webhook rule: ${err.message}`);
   }
 }
