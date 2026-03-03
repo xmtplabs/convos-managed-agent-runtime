@@ -27,25 +27,26 @@ interface RailwayWebhookPayload {
 
 /**
  * Process a Railway webhook event. Called async after responding 200.
+ * Returns true if the event matched a known instance, false if ignored.
  */
-export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Promise<void> {
+export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Promise<boolean> {
   if (!payload) {
     console.log("[webhook] Ignoring event: no payload");
-    return;
+    return false;
   }
   const eventType = payload.type;
   const serviceId = payload.resource?.service?.id;
 
   if (!serviceId) {
     console.log(`[webhook] Ignoring event ${eventType}: no service ID`);
-    return;
+    return false;
   }
 
   // Look up instance by Railway service ID
   const infra = await db.findByServiceId(serviceId);
   if (!infra) {
     // Not our instance (pool manager itself, or non-instance service)
-    return;
+    return false;
   }
 
   const { instanceId } = infra;
@@ -109,6 +110,8 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
     case "noop":
       break;
   }
+
+  return true;
 }
 
 /**
