@@ -84,9 +84,10 @@ describe("webhook state machine", () => {
 
   // ── Out-of-order guard ─────────────────────────────────────────────────
 
-  it("crashed + idle (already recovered) → no-op (stale event)", () => {
+  it("crashed + idle → dead (instance genuinely crashed)", () => {
     const d = decideAction("Deployment.crashed", "idle", false);
-    assert.equal(d.action, "noop");
+    assert.equal(d.action, "set_status");
+    assert.equal(d.newStatus, "dead");
   });
 
   it("crashed + already dead → no-op", () => {
