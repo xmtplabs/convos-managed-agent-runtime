@@ -99,6 +99,10 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 **Skill:** Services (identity)
 _Note: Run `services.mjs identity` and share the `servicesUrl` from the result. Never make up a URL._
 
+> How do I top up credits? / Where can I see my balance? / Card details?
+**Skill:** Services (identity)
+_Note: Run `services.mjs identity` and share the `servicesUrl`. The services landing page is where users manage credits, card, and account status._
+
 > Text +1555123456 that I'm running late.
 **Skill:** Services (SMS)
 _Note: US numbers (+1) only._
