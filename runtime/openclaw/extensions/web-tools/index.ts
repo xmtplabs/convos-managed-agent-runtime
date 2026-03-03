@@ -97,33 +97,8 @@ async function getServicesData(): Promise<Record<string, unknown>> {
 }
 
 export default function register(api: OpenClawPluginApi) {
-  const formDir = path.resolve(__dirname, "form");
   const agentsDir = path.resolve(__dirname, "convos");
   const servicesDir = path.resolve(__dirname, "services");
-
-  api.registerHttpRoute({
-    path: "/web-tools/form",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(res, path.join(formDir, "form.html"), "text/html; charset=utf-8");
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/form/",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(res, path.join(formDir, "form.html"), "text/html; charset=utf-8");
-    },
-  });
 
   api.registerHttpRoute({
     path: "/web-tools/convos",

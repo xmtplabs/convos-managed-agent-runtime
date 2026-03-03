@@ -27,7 +27,7 @@ if command -v jq >/dev/null 2>&1; then
   if [ -n "$OPENCLAW_STATE_DIR" ]; then
     jq --arg w "$STATE_DIR/workspace" '.agents.defaults.workspace = $w' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     echo "  🔧 workspace    → $STATE_DIR/workspace"
-    # Force plugin load from synced extensions so /web-tools/form and /web-tools/convos work on Railway
+    # Force plugin load from synced extensions so /web-tools/* routes work on Railway
     jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     echo "  🔧 plugins.load.paths → $STATE_DIR/extensions"
   fi

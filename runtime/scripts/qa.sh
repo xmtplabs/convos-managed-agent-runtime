@@ -18,6 +18,8 @@ fail() { echo "  [FAIL] $1 -- $2" >&2; FAILED="${FAILED} $1"; }
 
 # run CMD... -- streams live, captures to $QA_TMP for checking
 run() { "$@" 2>&1 | tee "$QA_TMP" || true; }
+# quiet run -- captures to $QA_TMP without printing
+qrun() { "$@" > "$QA_TMP" 2>&1 || true; }
 
 # --- Email (services skill) ---
 echo ""
@@ -74,6 +76,49 @@ if grep -qi "opened\|tab\|target\|navigate\|ok\|success" "$QA_TMP"; then
   pass "browser"
 else
   fail "browser" "$(cat "$QA_TMP")"
+fi
+
+# --- Email poll ---
+echo ""
+echo "=== QA: email-poll ==="
+qrun node "$SERVICES" email poll --labels received --limit 1
+if grep -qi "Subject:\|From:" "$QA_TMP"; then
+  grep -E "Subject:|From:|Date:|Preview:" "$QA_TMP" | head -4 | sed 's/^/  /'
+  pass "email-poll"
+else
+  fail "email-poll" "$(cat "$QA_TMP")"
+fi
+
+# --- SMS poll ---
+echo ""
+echo "=== QA: sms-poll ==="
+qrun node "$SERVICES" sms poll
+if grep -qi "From:\|Text:\|Inbound" "$QA_TMP"; then
+  SMS_FROM=$(grep -m1 "From:" "$QA_TMP" | sed 's/.*From: //')
+  SMS_DATE=$(grep -m1 "Date:" "$QA_TMP" | sed 's/.*Date: //')
+  SMS_TEXT=$(grep -m1 "Text:" "$QA_TMP" | sed 's/.*Text: //')
+  echo "  Latest: \"$SMS_TEXT\""
+  echo "  From:   $SMS_FROM"
+  echo "  Time:   $SMS_DATE"
+  pass "sms-poll"
+else
+  fail "sms-poll" "$(cat "$QA_TMP")"
+fi
+
+# --- OpenRouter credits ---
+echo ""
+echo "=== QA: openrouter-credits ==="
+echo "  > curl openrouter.ai/api/v1/credits"
+CREDITS_JSON=$(curl -s https://openrouter.ai/api/v1/credits -H "Authorization: Bearer $OPENROUTER_API_KEY" 2>&1)
+echo "$CREDITS_JSON" > "$QA_TMP"
+TOTAL=$(echo "$CREDITS_JSON" | grep -o '"total_credits":[0-9.]*' | cut -d: -f2)
+USED=$(echo "$CREDITS_JSON" | grep -o '"total_usage":[0-9.]*' | cut -d: -f2)
+if [ -n "$TOTAL" ] && [ -n "$USED" ]; then
+  REMAINING=$(echo "$TOTAL $USED" | awk '{printf "%.2f", $1 - $2}')
+  echo "  Balance: \$$REMAINING remaining (\$$USED used of \$$TOTAL)"
+  pass "openrouter-credits"
+else
+  fail "openrouter-credits" "$CREDITS_JSON"
 fi
 
 rm -f "$QA_TMP"
