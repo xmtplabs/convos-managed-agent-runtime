@@ -71,7 +71,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 export { provision } from "./provision";
 
 // Health-check a single instance via /pool/health.
-async function healthCheck(url: string) {
+export async function healthCheck(url: string) {
   try {
     const res = await fetch(`${url}/pool/health`, {
       headers: { Authorization: `Bearer ${config.poolApiKey}` },
