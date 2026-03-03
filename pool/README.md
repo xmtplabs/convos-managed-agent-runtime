@@ -58,8 +58,8 @@ Or from `pool/`:
 | `pnpm dev` | Start with watch + `.env` |
 | `pnpm start` | Start server |
 | `pnpm test` | Run tests |
-| `pnpm db:migrate` | Apply pending DB migrations |
 | `pnpm db:generate` | Generate a migration after editing `schema.ts` |
+| `pnpm db:migrate` | Apply pending DB migrations |
 
 ## Setup
 
