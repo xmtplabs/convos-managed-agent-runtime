@@ -1,5 +1,10 @@
 # Pool Manager Changelog
 
+## 0.8.0
+- Drizzle Kit migrations: replaced hand-written idempotent SQL in `migrate.ts` with Drizzle Kit's migration system — `schema.ts` is now the single source of truth for both queries and migrations, eliminating schema drift between the two files
+- New workflow: edit `schema.ts` → run `pnpm db:generate` → commit the migration file → deploy
+- Baseline seeding: `seedBaseline()` handles existing databases by detecting tables without `__drizzle_migrations` tracking, backfilling any missing columns, and inserting the baseline record so the initial migration is skipped
+
 ## 0.7.0
 - Railway webhooks: push-based state monitoring via Railway workspace-level webhooks — instances automatically transition on deploy/crash/sleep events without manual "Check Starting" clicks
 - Webhook state machine: pure `decideAction()` function handles all Railway event types (`deployed`, `crashed`, `failed`, `oom_killed`, `slept`, `resumed`) with claiming guard and conditional updates to prevent race conditions
