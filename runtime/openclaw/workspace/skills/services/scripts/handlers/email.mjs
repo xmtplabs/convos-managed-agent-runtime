@@ -135,7 +135,22 @@ async function poll(argv) {
     out.threads = threadData?.threads ?? [];
   }
 
-  console.log(JSON.stringify(out, null, 2));
+  if (flags.includes("json")) {
+    console.log(JSON.stringify(out, null, 2));
+    return;
+  }
+
+  console.log(`Inbox ${inboxId}: ${out.messages.length} message(s)\n`);
+  for (const m of out.messages) {
+    const dir = m.labels?.includes("received") ? "received" : "sent";
+    console.log(`  Subject: ${m.subject || "(none)"}`);
+    console.log(`  From:    ${m.from}`);
+    console.log(`  To:      ${[].concat(m.to || []).join(", ")}`);
+    console.log(`  Date:    ${m.timestamp}`);
+    console.log(`  Status:  ${dir}`);
+    if (m.preview) console.log(`  Preview: ${m.preview.slice(0, 120)}`);
+    console.log("");
+  }
 }
 
 export default async function email(argv) {
