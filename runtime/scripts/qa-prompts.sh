@@ -69,6 +69,15 @@ prompt_test search \
 prompt_test browser \
   "Browse https://example.com and tell me what the page says."
 
+prompt_test services-url \
+  "What's your services page URL?"
+
+prompt_test topup \
+  "How do I top up my credits?"
+
+prompt_test card-balance \
+  "Where can I see my card balance?"
+
 # --- Summary ---
 
 echo ""
