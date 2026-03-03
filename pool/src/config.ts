@@ -52,6 +52,12 @@ export const config = {
   telnyxApiKey: getEnv("TELNYX_API_KEY"),
   telnyxMessagingProfileId: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
 
+  // Composio (MCP tool hub)
+  composioApiKey: getEnv("COMPOSIO_API_KEY"),
+  composioMcpServerId: getEnv("COMPOSIO_MCP_SERVER_ID"),
+  composioAgentmailAuthConfigId: getEnv("COMPOSIO_AGENTMAIL_AUTH_CONFIG_ID"),
+  composioTelnyxAuthConfigId: getEnv("COMPOSIO_TELNYX_AUTH_CONFIG_ID"),
+
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),

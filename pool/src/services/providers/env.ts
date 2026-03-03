@@ -8,10 +8,7 @@ export function buildInstanceEnv(): Record<string, string> {
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_API_KEY: config.poolApiKey,
     POOL_URL: config.poolUrl,
-    AGENTMAIL_API_KEY: config.agentmailApiKey,
+    // AgentMail + Telnyx API keys removed — now proxied via Composio MCP
     BANKR_API_KEY: config.bankrApiKey,
-    TELNYX_API_KEY: config.telnyxApiKey,
-    TELNYX_PHONE_NUMBER: config.telnyxPhoneNumber,
-    TELNYX_MESSAGING_PROFILE_ID: config.telnyxMessagingProfileId,
   };
 }

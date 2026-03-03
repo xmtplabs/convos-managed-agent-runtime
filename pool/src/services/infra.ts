@@ -6,6 +6,7 @@ import * as openrouter from "./providers/openrouter";
 import * as agentmail from "./providers/agentmail";
 import * as telnyx from "./providers/telnyx";
 import * as wallet from "./providers/wallet";
+import * as composio from "./providers/composio";
 import { buildInstanceEnv } from "./providers/env";
 import { config } from "../config";
 import { sendMetric } from "../metrics";
@@ -79,6 +80,32 @@ export async function createInstance(
       onProgress?.("agentmail", "ok");
     } else {
       onProgress?.("agentmail", "skip", "Not configured");
+    }
+
+    // Composio: link service API keys + create MCP session
+    if (config.composioApiKey) {
+      onProgress?.("composio", "active");
+      const t0 = Date.now();
+
+      // Link AgentMail key if provisioned
+      if (services.agentmail && config.composioAgentmailAuthConfigId) {
+        await composio.linkAgentMail(instanceId, config.agentmailApiKey);
+      }
+      // Link Telnyx key if provisioned
+      if (services.telnyx && config.composioTelnyxAuthConfigId) {
+        await composio.linkTelnyx(instanceId, config.telnyxApiKey);
+      }
+
+      // Get MCP session URL + headers for the runtime
+      const mcp = await composio.getMcpSession(instanceId);
+      vars.COMPOSIO_MCP_URL = mcp.url;
+      vars.COMPOSIO_MCP_HEADERS = JSON.stringify(mcp.headers);
+
+      sendMetric("provider.composio.duration_ms", Date.now() - t0, { step: "link_and_session" });
+      sendMetric("provider.composio.provisioned", 1);
+      onProgress?.("composio", "ok");
+    } else {
+      onProgress?.("composio", "skip", "Not configured");
     }
   } catch (err) {
     console.error(`[infra] Provisioning failed for ${instanceId}, rolling back...`);

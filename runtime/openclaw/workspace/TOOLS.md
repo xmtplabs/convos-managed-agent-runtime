@@ -14,11 +14,12 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
   - _Headless/cloud (Railway, CHROMIUM_PATH): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`)._
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
+- **Composio MCP** — Email (AgentMail) and SMS (Telnyx) tools are available via the Composio MCP server. Use these MCP tools directly for sending/receiving email and SMS. They appear as regular tools in your tool list.
 
 # SKILLS
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
-- **Services** — Your managed services: send and receive email, send and receive SMS, check credits. MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
+- **Services** — Identity and credits. Use `services.mjs identity` for your URL/email/phone info, and `services.mjs credits` for balance. For sending email and SMS, prefer the Composio MCP tools (they appear in your tool list). The `services.mjs email` and `services.mjs sms` commands are kept as fallback.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
 
 
@@ -82,17 +83,17 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 → browser
 
 > Send a calendar invite for dinner Friday 9pm to john@email.com.
-**Skill:** Services (email)
+**Tool:** Composio MCP (email)
 
 > Send me an email with today's summary.
-**Skill:** Services (email)
+**Tool:** Composio MCP (email)
 
 > Browse https://example.com and tell me what the page says.
 **Tool:** Browser
 → browser
 
 > Check my inbox for new emails.
-**Skill:** Services (email)
+**Tool:** Composio MCP (email)
 
 > What's your URL? / Share your link / What are your services?
 **Skill:** Services (identity)
@@ -103,14 +104,14 @@ _Note: Run `services.mjs identity` and share the `servicesUrl` from the result. 
 _Note: Run `services.mjs identity` and share the `servicesUrl`. The services landing page is where users manage credits, card, and account status._
 
 > Text +1555123456 that I'm running late.
-**Skill:** Services (SMS)
+**Tool:** Composio MCP (SMS)
 _Note: US numbers (+1) only._
 
 > Send an SMS to my wife saying I'll be home at 8.
-**Skill:** Services (SMS)
+**Tool:** Composio MCP (SMS)
 
 > Did I get any new texts?
-**Skill:** Services (SMS)
+**Tool:** Composio MCP (SMS)
 _Note: Poll inbound SMS messages._
 
 > What's my ETH balance?
@@ -129,13 +130,13 @@ _Note: Poll inbound SMS messages._
 **Tools:** Web Search → Browser
 
 > Reserve at that place and send me an invite.
-**Tools:** Browser → Services (email)
+**Tools:** Browser → Composio MCP (email)
 
 > Book a table and text my friend the details.
-**Tools:** Browser → Services (SMS)
+**Tools:** Browser → Composio MCP (SMS)
 
 > Buy some ETH and email me the confirmation.
-**Tools:** Crypto (Bankr) → Services (email)
+**Tools:** Crypto (Bankr) → Composio MCP (email)
 
 ## Common mistakes
 
@@ -143,9 +144,9 @@ _Note: Poll inbound SMS messages._
 |---|---|---|---|
 | "Latest news on X" | browser | web_search | Search, not site interaction |
 | "Book a table" | web_search | browser | Booking needs form interaction |
-| "Send invite" | browser | services email | Email delivery, not browsing |
-| "Send me an email" | answer with text | services email | Must execute, not suggest |
-| "Text my friend" | answer with text | services sms | Must send SMS via services skill |
+| "Send invite" | browser | Composio MCP email | Email delivery, not browsing |
+| "Send me an email" | answer with text | Composio MCP email | Must execute, not suggest |
+| "Text my friend" | answer with text | Composio MCP sms | Must send SMS via MCP tool |
 | "What's my balance?" | answer from memory | bankr CLI | Must query live data |
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
 | "Text +5411..." | services sms | decline | US numbers (+1) only |

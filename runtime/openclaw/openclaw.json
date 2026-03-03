@@ -62,6 +62,13 @@
         "openrouter/openai/gpt-4o": {},
         "openrouter/openai/gpt-4o-mini": {},
         "openrouter/mistralai/mistral-large-2411": {}
+      },
+      "mcpServers": {
+        "composio": {
+          "transport": "streamable-http",
+          "url": "${COMPOSIO_MCP_URL}",
+          "headers": "${COMPOSIO_MCP_HEADERS}"
+        }
       }
     }
   },
@@ -70,9 +77,7 @@
       "services": {
         "enabled": true,
         "env": {
-          "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}",
           "AGENTMAIL_INBOX_ID": "${AGENTMAIL_INBOX_ID}",
-          "TELNYX_API_KEY": "${TELNYX_API_KEY}",
           "TELNYX_PHONE_NUMBER": "${TELNYX_PHONE_NUMBER}",
           "TELNYX_MESSAGING_PROFILE_ID": "${TELNYX_MESSAGING_PROFILE_ID}"
         }
