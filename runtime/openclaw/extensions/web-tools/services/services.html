@@ -146,24 +146,6 @@
     .topup-btn.topup-error { color: #c44; border-color: #c44; }
     .topup-btn.topup-ok { color: #2a2; border-color: #2a2; }
 
-    .page-link {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.3rem;
-      margin-top: 1rem;
-      padding: 0.4rem;
-      font-size: 0.65rem;
-      color: #ccc;
-      text-decoration: none;
-      transition: color 0.15s;
-      cursor: pointer;
-      background: none;
-      border: none;
-      width: 100%;
-    }
-    .page-link:hover { color: #888; }
-
     .footer {
       position: absolute;
       bottom: 1.5rem;
@@ -183,6 +165,16 @@
     <div class="card-header">services</div>
 
     <div class="service-list" id="service-list">
+      <div class="service-item" id="svc-instance" style="display:none">
+        <div class="service-body">
+          <div class="service-label">instance</div>
+          <div class="service-value" id="instance-value"></div>
+        </div>
+        <button class="copy-btn" id="copy-instance" style="display:none" title="Copy">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+
       <div class="service-item" id="svc-email">
         <div class="service-body">
           <div class="service-label">email</div>
@@ -238,20 +230,16 @@
       </div>
     </div>
 
-    <button class="page-link" id="share-link" title="Copy services page link">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-      <span id="share-link-text">copy link</span>
-    </button>
-
     <div class="error-msg" id="error" role="alert"></div>
   </div>
 
-  <footer class="footer">
-    <span>convos</span>
-  </footer>
+  <footer class="footer"></footer>
 
   <script>
     (function () {
+      var svcInstance = document.getElementById("svc-instance");
+      var instanceValue = document.getElementById("instance-value");
+      var copyInstance = document.getElementById("copy-instance");
       var emailValue = document.getElementById("email-value");
       var phoneValue = document.getElementById("phone-value");
       var creditsValue = document.getElementById("credits-value");
@@ -264,8 +252,6 @@
       var creditsLimit = document.getElementById("credits-limit");
       var topupBtn = document.getElementById("topup-btn");
       var errorEl = document.getElementById("error");
-      var shareLink = document.getElementById("share-link");
-      var shareLinkText = document.getElementById("share-link-text");
 
       // card copy — uncomment when Stripe Issuing is integrated
       // var copyCard = document.getElementById("copy-card");
@@ -395,6 +381,14 @@
           }
           var d = _.data;
 
+          if (d.instanceId) {
+            svcInstance.style.display = "flex";
+            instanceValue.textContent = d.instanceId;
+            instanceValue.className = "service-value";
+            copyInstance.style.display = "block";
+            copyInstance.onclick = function () { copyToClipboard(d.instanceId, copyInstance); };
+          }
+
           showValue(emailValue, d.email);
           if (d.email) {
             copyEmail.style.display = "block";
@@ -416,17 +410,6 @@
           showValue(creditsValue, null);
         });
 
-      shareLink.addEventListener("click", function () {
-        var url = window.location.origin + "/web-tools/services";
-        navigator.clipboard.writeText(url).then(function () {
-          shareLinkText.textContent = "copied";
-          setTimeout(function () {
-            shareLinkText.textContent = "copy link";
-          }, 1500);
-        }).catch(function () {
-          prompt("URL:", url);
-        });
-      });
     })();
   </script>
 </body>

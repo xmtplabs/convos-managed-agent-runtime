@@ -60,20 +60,12 @@ function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: Server
 async function getServicesData(): Promise<Record<string, unknown>> {
   const email = process.env.AGENTMAIL_INBOX_ID || null;
   const phone = process.env.TELNYX_PHONE_NUMBER || null;
-  const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
-  const ngrok = process.env.NGROK_URL;
-  const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
-  const base = domain
-    ? `https://${domain}`
-    : ngrok
-      ? ngrok.replace(/\/$/, "")
-      : `http://127.0.0.1:${port}`;
-  const servicesUrl = `${base}/web-tools/services`;
+  const servicesUrl = buildServicesUrl();
 
-  const result: Record<string, unknown> = { email, phone, servicesUrl };
+  const instanceId = process.env.INSTANCE_ID || null;
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
 
   // Try to fetch credits from pool manager
-  const instanceId = process.env.INSTANCE_ID;
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const poolUrl = process.env.POOL_URL;
 
@@ -105,9 +97,38 @@ async function getServicesData(): Promise<Record<string, unknown>> {
   return result;
 }
 
+function buildServicesUrl(): string {
+  const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  const ngrok = process.env.NGROK_URL;
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
+  const base = domain
+    ? `https://${domain}`
+    : ngrok
+      ? ngrok.replace(/\/$/, "")
+      : `http://127.0.0.1:${port}`;
+  return `${base}/web-tools/services`;
+}
+
 export default function register(api: OpenClawPluginApi) {
   const agentsDir = path.resolve(__dirname, "convos");
   const servicesDir = path.resolve(__dirname, "services");
+
+  // Intercept outgoing messages that contain raw provider credit errors
+  // and replace with a friendly services URL. Works across all channels.
+  api.on("message_sending", (event) => {
+    const text = event.content || "";
+    if (
+      text.includes("limit exceeded") ||
+      text.includes("402") ||
+      text.includes("afford") ||
+      text.includes("openrouter.ai/settings")
+    ) {
+      const servicesUrl = buildServicesUrl();
+      return {
+        content: `Hey! I'm out of credits. You can top up here: ${servicesUrl}`,
+      };
+    }
+  });
 
   api.registerHttpRoute({
     path: "/web-tools/convos",
