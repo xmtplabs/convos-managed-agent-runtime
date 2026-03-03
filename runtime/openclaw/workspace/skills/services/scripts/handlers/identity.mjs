@@ -11,10 +11,14 @@ export default async function identity() {
   const phone = process.env.TELNYX_PHONE_NUMBER || null;
 
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  const ngrok = process.env.NGROK_URL;
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
-  const servicesUrl = domain
-    ? `https://${domain}/web-tools/services`
-    : `http://127.0.0.1:${port}/web-tools/services`;
+  const base = domain
+    ? `https://${domain}`
+    : ngrok
+      ? ngrok.replace(/\/$/, "")
+      : `http://127.0.0.1:${port}`;
+  const servicesUrl = `${base}/web-tools/services`;
 
   console.log(JSON.stringify({ email, phone, servicesUrl }, null, 2));
 }
