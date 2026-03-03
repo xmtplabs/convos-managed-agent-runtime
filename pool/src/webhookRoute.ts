@@ -11,7 +11,7 @@ export const webhookRouter = Router();
  * Railway webhook endpoint. Auth via secret in URL path (Railway doesn't
  * support HMAC signing). Responds 200 immediately, processes async.
  */
-webhookRouter.post("/webhooks/railway/:secret", (req, res) => {
+webhookRouter.post("/webhooks/railway/:secret", async (req, res) => {
   const { secret } = req.params;
 
   if (secret !== config.poolWebhookSecret) {
@@ -22,14 +22,16 @@ webhookRouter.post("/webhooks/railway/:secret", (req, res) => {
   const eventType = req.body?.type || "unknown";
   sendMetric("webhook.received", 1, { event: eventType });
 
-  // Respond immediately — Railway expects fast ack
-  res.status(200).json({ ok: true });
-
-  // Process async
-  handleRailwayWebhook(req.body).then(() => {
+  // Process event synchronously (DB lookups + status updates are fast).
+  // Health check retries are fire-and-forget inside the handler.
+  // If the fast path fails (e.g. DB down), respond 500 so Railway retries.
+  try {
+    await handleRailwayWebhook(req.body);
     sendMetric("webhook.processed", 1, { event: eventType });
-  }).catch((err) => {
+    res.status(200).json({ ok: true });
+  } catch (err: any) {
     sendMetric("webhook.error", 1, { event: eventType });
     console.error(`[webhook] Error processing ${eventType}:`, err.message);
-  });
+    res.status(500).json({ error: "Processing failed" });
+  }
 });

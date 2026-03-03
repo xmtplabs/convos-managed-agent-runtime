@@ -37,8 +37,13 @@ export function decideAction(
     case "Deployment.crashed":
     case "Deployment.failed":
     case "Deployment.oom_killed": {
-      const newStatus = isClaimed ? "crashed" : "dead";
-      return { action: "set_status", newStatus };
+      // These are deployment-phase failures. If the instance already recovered
+      // past this deployment (idle), or is already dead/crashed, this is a
+      // stale out-of-order event — ignore it.
+      if (currentStatus === "idle" || currentStatus === "dead" || currentStatus === "crashed") {
+        return { action: "noop" };
+      }
+      return { action: "set_status", newStatus: isClaimed ? "crashed" : "dead" };
     }
 
     case "Deployment.slept": {

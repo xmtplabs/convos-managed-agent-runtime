@@ -90,7 +90,8 @@ cd pool && pnpm db:migrate:drop
 |----------|-------------|
 | **Pool manager** | |
 | `PORT` | Server port (default `3001`) |
-| `POOL_API_KEY` | Shared secret for API auth (Bearer token) and webhook URL secret |
+| `POOL_API_KEY` | Shared secret for API auth (Bearer token) |
+| `POOL_WEBHOOK_SECRET` | Secret in webhook URL path (defaults to `POOL_API_KEY` if not set) |
 | `POOL_URL` | Pool manager's public URL (used by runtime instances for self-destruct and webhook registration) |
 | `POOL_STUCK_TIMEOUT_MS` | Max time for instance to pass health checks before marked dead (default `900000` / 15 min) |
 | `DATABASE_URL` | Postgres connection string |
@@ -153,7 +154,7 @@ Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/p
 | DELETE | `/api/pool/instances/:id` | Yes | Kill a launched instance |
 | DELETE | `/api/pool/crashed/:id` | Yes | Dismiss a crashed agent |
 | POST | `/api/pool/self-destruct` | Token | Instance requests own destruction (per-instance gateway token, not `POOL_API_KEY`) |
-| POST | `/webhooks/railway/:secret` | URL secret | Railway webhook receiver (secret in URL path must match `POOL_API_KEY`) |
+| POST | `/webhooks/railway/:secret` | URL secret | Railway webhook receiver (secret in URL path must match `POOL_WEBHOOK_SECRET`) |
 | GET | `/admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
 
 ### `POST /api/pool/claim`

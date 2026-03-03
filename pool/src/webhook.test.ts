@@ -58,8 +58,8 @@ describe("webhook state machine", () => {
     assert.equal(d.newStatus, "crashed");
   });
 
-  it("failed + unclaimed → dead", () => {
-    const d = decideAction("Deployment.failed", "idle", false);
+  it("failed + starting → dead", () => {
+    const d = decideAction("Deployment.failed", "starting", false);
     assert.equal(d.action, "set_status");
     assert.equal(d.newStatus, "dead");
   });
@@ -80,6 +80,29 @@ describe("webhook state machine", () => {
     const d = decideAction("Deployment.oom_killed", "claimed", true);
     assert.equal(d.action, "set_status");
     assert.equal(d.newStatus, "crashed");
+  });
+
+  // ── Out-of-order guard ─────────────────────────────────────────────────
+
+  it("crashed + idle (already recovered) → no-op (stale event)", () => {
+    const d = decideAction("Deployment.crashed", "idle", false);
+    assert.equal(d.action, "noop");
+  });
+
+  it("crashed + already dead → no-op", () => {
+    const d = decideAction("Deployment.crashed", "dead", false);
+    assert.equal(d.action, "noop");
+  });
+
+  it("crashed + already crashed → no-op", () => {
+    const d = decideAction("Deployment.crashed", "crashed", true);
+    assert.equal(d.action, "noop");
+  });
+
+  it("crashed + sleeping → dead (real crash)", () => {
+    const d = decideAction("Deployment.crashed", "sleeping", false);
+    assert.equal(d.action, "set_status");
+    assert.equal(d.newStatus, "dead");
   });
 
   // ── Sleep / resume ──────────────────────────────────────────────────────
