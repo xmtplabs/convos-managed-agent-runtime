@@ -186,6 +186,20 @@
         </button>
       </div>
 
+      <div class="service-item" id="svc-card">
+        <div class="service-body">
+          <div class="service-label">card</div>
+          <div class="service-value" id="card-value">4242 4242 4242 4242</div>
+          <div class="credits-detail" style="display:flex">
+            <span>12/28</span>
+            <span>CVV 123</span>
+          </div>
+        </div>
+        <button class="copy-btn" id="copy-card" title="Copy">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      </div>
+
       <div class="service-item" id="svc-credits">
         <div class="service-body">
           <div class="service-label">credits</div>
@@ -228,6 +242,9 @@
       var errorEl = document.getElementById("error");
       var shareLink = document.getElementById("share-link");
       var shareLinkText = document.getElementById("share-link-text");
+
+      var copyCard = document.getElementById("copy-card");
+      copyCard.onclick = function () { copyToClipboard("4242424242424242", copyCard); };
 
       var poolToken = window.__POOL_TOKEN || "";
       function authHeaders(extra) {

@@ -73,11 +73,6 @@ _Note: Current/live info requires search._
 → web_search
 _Note: This only finds the URL. To actually book, use the browser tool._
 
-> Go fill out and submit https://convos-agent-main.up.railway.app/web-tools/form
-**Tool:** Browser
-→ browser
-_Note: If no URL is provided, use web_search first to find the booking page, then browser._
-
 > Book a table at Don Julio for tonight at 9pm.
 **Tool:** Browser
 → browser
