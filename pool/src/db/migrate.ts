@@ -55,9 +55,15 @@ async function seedBaseline(pool: pg.Pool) {
   // Backfill columns that older installs may be missing.
   // The old hand-written migrate.ts ran these on every startup; once the baseline
   // is seeded those ALTER TABLEs won't run again, so we do it here.
-  await pool.query(`ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS provider_project_id TEXT`);
-  await pool.query(`ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS gateway_token TEXT`);
-  await pool.query(`ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS runtime_version TEXT`);
+  // Guard against partial schema state where instances exists but instance_infra doesn't.
+  const { rows: infraExists } = await pool.query(
+    `SELECT 1 FROM information_schema.tables WHERE table_name = 'instance_infra'`
+  );
+  if (infraExists.length > 0) {
+    await pool.query(`ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS provider_project_id TEXT`);
+    await pool.query(`ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS gateway_token TEXT`);
+    await pool.query(`ALTER TABLE instance_infra ADD COLUMN IF NOT EXISTS runtime_version TEXT`);
+  }
 
   // Read the journal to find the baseline migration's timestamp,
   // then compute the SHA-256 hash of the SQL file (matches how Drizzle tracks migrations).
