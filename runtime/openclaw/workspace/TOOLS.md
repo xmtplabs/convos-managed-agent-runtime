@@ -110,6 +110,10 @@ _Note: US numbers (+1) only._
 > Send an SMS to my wife saying I'll be home at 8.
 **Skill:** Services (SMS)
 
+> Did I get any new texts?
+**Skill:** Services (SMS)
+_Note: Poll inbound SMS messages._
+
 > What's my ETH balance?
 **Skill:** Crypto (Bankr)
 
