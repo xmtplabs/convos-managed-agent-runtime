@@ -79,7 +79,9 @@ async function getServicesData(): Promise<Record<string, unknown>> {
 
   if (instanceId && gatewayToken && poolUrl) {
     try {
-      const creditsRes = await fetch(`${poolUrl}/api/pool/credits-check`, {
+      const creditsUrl = `${poolUrl}/api/pool/credits-check`;
+      console.log(`[web-tools] Credits check → ${creditsUrl} (instance=${instanceId})`);
+      const creditsRes = await fetch(creditsUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instanceId, gatewayToken }),
@@ -88,9 +90,12 @@ async function getServicesData(): Promise<Record<string, unknown>> {
       if (creditsRes.ok) {
         result.credits = await creditsRes.json();
       } else {
+        const body = await creditsRes.text().catch(() => "");
+        console.warn(`[web-tools] Credits check failed: ${creditsRes.status} ${body}`);
         result.credits = { error: "unavailable" };
       }
-    } catch {
+    } catch (err: any) {
+      console.warn(`[web-tools] Credits check error: ${err.message}`);
       result.credits = { error: "unavailable" };
     }
   } else {
@@ -217,6 +222,49 @@ export default function register(api: OpenClawPluginApi) {
         res.statusCode = 500;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "Failed to load services data" }));
+      }
+    },
+  });
+
+  // Credits top-up proxy — forwards request to pool manager
+  api.registerHttpRoute({
+    path: "/web-tools/services/topup",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Top-up not available (missing config)" }));
+        return;
+      }
+
+      try {
+        const topupUrl = `${poolUrl}/api/pool/credits-topup`;
+        console.log(`[web-tools] Credits top-up → ${topupUrl} (instance=${instanceId})`);
+        const poolRes = await fetch(topupUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+      } catch (err: any) {
+        console.warn(`[web-tools] Credits top-up error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
       }
     },
   });

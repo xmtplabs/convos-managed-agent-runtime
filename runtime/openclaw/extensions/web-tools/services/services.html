@@ -129,6 +129,22 @@
       margin-top: 0.75rem;
     }
 
+    .topup-btn {
+      display: none;
+      background: none;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 0.2rem 0.55rem;
+      font-size: 0.6rem;
+      color: #aaa;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-top: 0.3rem;
+    }
+    .topup-btn:hover { color: #666; border-color: #bbb; }
+    .topup-btn:disabled { cursor: default; opacity: 0.5; }
+    .topup-btn.topup-error { color: #c44; border-color: #c44; }
+
     .page-link {
       display: flex;
       align-items: center;
@@ -216,6 +232,7 @@
             <span id="credits-used"></span>
             <span id="credits-limit"></span>
           </div>
+          <button class="topup-btn" id="topup-btn">top up</button>
         </div>
       </div>
     </div>
@@ -244,6 +261,7 @@
       var creditsDetail = document.getElementById("credits-detail");
       var creditsUsed = document.getElementById("credits-used");
       var creditsLimit = document.getElementById("credits-limit");
+      var topupBtn = document.getElementById("topup-btn");
       var errorEl = document.getElementById("error");
       var shareLink = document.getElementById("share-link");
       var shareLinkText = document.getElementById("share-link-text");
@@ -286,6 +304,75 @@
         errorEl.style.display = msg ? "block" : "none";
       }
 
+      function renderCredits(credits) {
+        if (credits && credits.limit !== undefined) {
+          var c = credits;
+          var used = (typeof c.usage === "number") ? c.usage : 0;
+          var limit = c.limit;
+          var remaining = (typeof c.remaining === "number") ? c.remaining : (limit - used);
+          var pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+
+          creditsValue.textContent = "$" + remaining.toFixed(2) + " remaining";
+          creditsValue.className = "service-value";
+
+          creditsBar.style.display = "block";
+          creditsBarFill.style.width = pct.toFixed(1) + "%";
+
+          creditsDetail.style.display = "flex";
+          creditsUsed.textContent = "$" + used.toFixed(2) + " used";
+          creditsLimit.textContent = "$" + limit.toFixed(2) + " limit";
+
+          topupBtn.style.display = "inline-block";
+        } else if (credits && credits.error) {
+          creditsValue.textContent = credits.error;
+          creditsValue.className = "service-value service-value--null";
+          topupBtn.style.display = "none";
+        } else {
+          showValue(creditsValue, null);
+          topupBtn.style.display = "none";
+        }
+      }
+
+      topupBtn.addEventListener("click", function () {
+        topupBtn.disabled = true;
+        topupBtn.textContent = "topping up…";
+        topupBtn.classList.remove("topup-error");
+
+        fetch("/web-tools/services/topup", { method: "POST", headers: authHeaders() })
+          .then(function (r) {
+            return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+          })
+          .then(function (_) {
+            if (!_.ok) {
+              topupBtn.textContent = _.data.error || "failed";
+              topupBtn.classList.add("topup-error");
+              setTimeout(function () {
+                topupBtn.textContent = "top up";
+                topupBtn.classList.remove("topup-error");
+                topupBtn.disabled = false;
+              }, 2500);
+              return;
+            }
+            // Refresh credits display
+            return fetch("/web-tools/services/api", { headers: authHeaders() })
+              .then(function (r) { return r.json(); })
+              .then(function (d) {
+                renderCredits(d.credits);
+                topupBtn.textContent = "top up";
+                topupBtn.disabled = false;
+              });
+          })
+          .catch(function () {
+            topupBtn.textContent = "failed";
+            topupBtn.classList.add("topup-error");
+            setTimeout(function () {
+              topupBtn.textContent = "top up";
+              topupBtn.classList.remove("topup-error");
+              topupBtn.disabled = false;
+            }, 2500);
+          });
+      });
+
       fetch("/web-tools/services/api", { headers: authHeaders() })
         .then(function (r) {
           return r.json().then(function (d) { return { ok: r.ok, data: d }; });
@@ -312,28 +399,7 @@
             copyPhone.onclick = function () { copyToClipboard(d.phone, copyPhone); };
           }
 
-          if (d.credits && d.credits.limit !== undefined) {
-            var c = d.credits;
-            var used = (typeof c.usage === "number") ? c.usage : 0;
-            var limit = c.limit;
-            var remaining = (typeof c.remaining === "number") ? c.remaining : (limit - used);
-            var pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
-
-            creditsValue.textContent = "$" + remaining.toFixed(2) + " remaining";
-            creditsValue.className = "service-value";
-
-            creditsBar.style.display = "block";
-            creditsBarFill.style.width = pct.toFixed(1) + "%";
-
-            creditsDetail.style.display = "flex";
-            creditsUsed.textContent = "$" + used.toFixed(2) + " used";
-            creditsLimit.textContent = "$" + limit.toFixed(2) + " limit";
-          } else if (d.credits && d.credits.error) {
-            creditsValue.textContent = d.credits.error;
-            creditsValue.className = "service-value service-value--null";
-          } else {
-            showValue(creditsValue, null);
-          }
+          renderCredits(d.credits);
         })
         .catch(function (err) {
           showError("failed to connect");
