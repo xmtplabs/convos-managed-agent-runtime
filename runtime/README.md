@@ -33,7 +33,6 @@ The `pnpm start` script runs four steps in sequence:
 ## Directory structure
 
 ```
-runtime/
 ├── Dockerfile              # node:22-bookworm + chromium + pnpm
 ├── package.json            # openclaw + deps
 ├── openclaw/
@@ -42,10 +41,17 @@ runtime/
 │   │   ├── convos/         # XMTP messaging channel
 │   │   └── web-tools/      # browser automation, landing page, forms
 │   └── workspace/
+│       ├── AGENTS.md       # agent instructions
 │       ├── IDENTITY.md     # agent identity
 │       ├── SOUL.md         # personality / welcome message
 │       ├── TOOLS.md        # tool usage guidelines
-│       └── skills/         # services, bankr, convos-cli
+│       ├── USER.md         # user context
+│       ├── HEARTBEAT.md    # heartbeat checklist
+│       ├── BOOTSTRAP.md    # first-run ritual
+│       └── skills/
+│           ├── bankr/      # crypto (transfers, swaps)
+│           ├── convos-cli  # Convos CLI commands
+│           └── services/   # email, SMS, credits, info
 └── scripts/
     ├── entrypoint.sh       # Railway volume setup
     ├── keys.sh             # env var provisioning + display
@@ -54,12 +60,14 @@ runtime/
     ├── gateway.sh          # openclaw gateway with restart loop
     ├── pool-server.js      # pool health/provision endpoints
     ├── qa.sh               # smoke test runner
+    ├── qa-prompts.sh       # QA prompt definitions
     └── lib/
         ├── init.sh         # set ROOT, load .env, load paths
         ├── paths.sh        # derive STATE_DIR, WORKSPACE_DIR, etc.
         ├── env-load.sh     # load .env with token preservation
         ├── node-path.sh    # add node_modules to NODE_PATH and PATH
-        └── sync-openclaw.sh # rsync workspace + extensions to state dir
+        ├── sync-openclaw.sh # rsync workspace + extensions to state dir
+        └── config-inject-extensions.sh
 ```
 
 ## Scripts
@@ -145,15 +153,15 @@ OPENROUTER_API_KEY="sk-or-v1-abc123"
 
 ## CI / GHCR
 
-Images are built and pushed by `.github/workflows/build-runtime.yml`:
+Images are built by `.github/workflows/runtime-pr.yml` (PRs) and `.github/workflows/runtime-dispatch.yml` (manual).
 
 | Trigger | Tag | Example |
 |---------|-----|---------|
-| `workflow_dispatch` (manual) | `:latest` | `ghcr.io/xmtplabs/convos-runtime:latest` |
-| PR touching `runtime/**` | `:pr-N` | `ghcr.io/xmtplabs/convos-runtime:pr-98` |
-| All | `:sha-<7chars>` | `ghcr.io/xmtplabs/convos-runtime:sha-b53321d` |
+| PR touching `runtime/**` | `:pending-<sha>` (build), then `:sha-<sha>` + `:pr-N` after QA | `ghcr.io/xmtplabs/convos-runtime:pending-b53321d` |
+| Merge to branch | `:<branch>` (dev, staging, production, scaling) | `ghcr.io/xmtplabs/convos-runtime:production` |
+| `workflow_dispatch` (manual) | `:<choice>` (dev, staging, production, scaling) | `ghcr.io/xmtplabs/convos-runtime:staging` |
 
-All Railway environments use `:latest`. The `:pr-N` tag is only used by the CI QA job. Workflow: tweak runtime → PR auto-builds `:pr-N` → QA validates → merge → manual dispatch → `:latest` updated.
+Flow: PR → build `:pending-<sha>` → QA → publish `:sha-<sha>` and `:pr-N`. On merge, image is retagged to the branch (e.g. merge to `main` → `:production`). Railway environments use branch tags (e.g. `:dev`, `:production`); set `RAILWAY_RUNTIME_IMAGE` to override.
 
 ## Pool integration
 
