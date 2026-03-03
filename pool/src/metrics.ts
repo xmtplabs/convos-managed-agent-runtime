@@ -23,7 +23,7 @@ export function initMetrics(): void {
     try {
       const counts = await getCounts();
       for (const [status, count] of Object.entries(counts)) {
-        sendMetricSilent(status, count);
+        metricGauge(status, count);
       }
     } catch {}
   }, 15_000);
