@@ -60,7 +60,6 @@ Or from `pool/`:
 | `pnpm test` | Run tests |
 | `pnpm db:migrate` | Apply pending DB migrations |
 | `pnpm db:generate` | Generate a migration after editing `schema.ts` |
-| `pnpm db:studio` | Open Drizzle Studio (visual DB browser) |
 
 ## Setup
 
