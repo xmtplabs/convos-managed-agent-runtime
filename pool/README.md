@@ -106,7 +106,7 @@ Migrations are managed by [Drizzle Kit](https://orm.drizzle.team/docs/drizzle-ki
 3. Commit the migration file alongside the schema change
 4. On deploy, migrations run automatically on startup
 
-Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` or `drizzle-orm` without testing — the beta versions use an incompatible migration format.
+Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` or `drizzle-orm` without testing.
 
 **`instances`** — pool lifecycle (identity + claim state)
 
