@@ -54,7 +54,7 @@ From project root:
 |--------|-------------|
 | `pnpm pool` | Start pool server |
 | `pnpm pool:dev` | Start with watch + `pool/.env` |
-| `pnpm pool:db:migrate` | Run DB migrations |
+| `pnpm pool:db:migrate` | Apply pending DB migrations |
 | `pnpm pool:test` | Run pool tests |
 
 Or from `pool/`:
@@ -64,8 +64,8 @@ Or from `pool/`:
 | `pnpm dev` | Start with watch + `.env` |
 | `pnpm start` | Start server |
 | `pnpm test` | Run tests |
-| `pnpm db:migrate` | Run DB migrations |
-| `pnpm db:migrate:drop` | Run migrations + drop legacy columns |
+| `pnpm db:generate` | Generate a migration after editing `schema.ts` |
+| `pnpm db:migrate` | Apply pending DB migrations |
 
 ## Setup
 
@@ -74,14 +74,8 @@ Requires Node.js 22+ and a [Railway](https://railway.com) Postgres database.
 ```sh
 cp pool/.env.example pool/.env
 pnpm install
-cd pool && pnpm db:migrate    # creates instances, instance_infra, instance_services tables
+cd pool && pnpm db:migrate    # creates all tables on a fresh DB
 pnpm start
-```
-
-To drop legacy columns from an existing DB (after deploying the new code):
-
-```sh
-cd pool && pnpm db:migrate:drop
 ```
 
 ## Environment variables
@@ -108,6 +102,17 @@ cd pool && pnpm db:migrate:drop
 ## Database
 
 All state is stored in a single Postgres database with three tables. See [`docs/schema.md`](../docs/schema.md) for the full schema.
+
+### Changing the schema
+
+Migrations are managed by [Drizzle Kit](https://orm.drizzle.team/docs/drizzle-kit-overview). `schema.ts` is the single source of truth.
+
+1. Edit `pool/src/db/schema.ts`
+2. Run `pnpm db:generate` — produces a timestamped SQL file in `pool/drizzle/`
+3. Commit the migration file alongside the schema change
+4. On deploy, migrations run automatically on startup
+
+Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` or `drizzle-orm` without testing.
 
 **`instances`** — pool lifecycle (identity + claim state)
 
