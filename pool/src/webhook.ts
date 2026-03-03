@@ -28,6 +28,7 @@ interface RailwayWebhookPayload {
  * Process a Railway webhook event. Called async after responding 200.
  */
 export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Promise<void> {
+  if (!payload) return;
   const eventType = payload.type;
   const serviceId = payload.resource?.service?.id;
 
