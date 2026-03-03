@@ -32,7 +32,7 @@ export async function runMigrations() {
  * record into __drizzle_migrations so the baseline is skipped.
  *
  * Handles three scenarios:
- *   1. __drizzle_migrations exists → already initialized, skip
+ *   1. __drizzle_migrations has records → already initialized, skip
  *   2. instances table missing    → fresh DB, let Drizzle create everything
  *   3. instances exists, no tracking → existing DB, seed the baseline record
  *
@@ -40,11 +40,12 @@ export async function runMigrations() {
  * Can be removed once all environments (dev, staging, prod) have been migrated.
  */
 async function seedBaseline(pool: pg.Pool) {
-  const { rows: migrationTable } = await pool.query(
-    `SELECT 1 FROM information_schema.tables
-     WHERE table_schema = 'drizzle' AND table_name = '__drizzle_migrations'`
-  );
-  if (migrationTable.length > 0) return;
+  // Check for existing baseline record (not just table existence) to avoid
+  // a race where the table is created but the record isn't yet inserted.
+  const { rows: baselineRows } = await pool.query(
+    `SELECT 1 FROM "drizzle"."__drizzle_migrations" LIMIT 1`
+  ).catch(() => ({ rows: [] }));
+  if (baselineRows.length > 0) return;
 
   const { rows: existingTables } = await pool.query(
     `SELECT 1 FROM information_schema.tables WHERE table_name = 'instances'`
