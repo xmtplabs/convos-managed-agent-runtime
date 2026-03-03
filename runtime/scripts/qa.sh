@@ -105,20 +105,16 @@ else
   fail "sms-poll" "$(cat "$QA_TMP")"
 fi
 
-# --- OpenRouter credits ---
+# --- OpenRouter credits (via pool manager, same as services dashboard) ---
 echo ""
 echo "=== QA: openrouter-credits ==="
-echo "  > curl openrouter.ai/api/v1/credits"
-CREDITS_JSON=$(curl -s https://openrouter.ai/api/v1/credits -H "Authorization: Bearer $OPENROUTER_API_KEY" 2>&1)
-echo "$CREDITS_JSON" > "$QA_TMP"
-TOTAL=$(echo "$CREDITS_JSON" | grep -o '"total_credits":[0-9.]*' | cut -d: -f2)
-USED=$(echo "$CREDITS_JSON" | grep -o '"total_usage":[0-9.]*' | cut -d: -f2)
-if [ -n "$TOTAL" ] && [ -n "$USED" ]; then
-  REMAINING=$(echo "$TOTAL $USED" | awk '{printf "%.2f", $1 - $2}')
-  echo "  Balance: \$$REMAINING remaining (\$$USED used of \$$TOTAL)"
+echo "  > node services.mjs credits"
+qrun node "$SERVICES" credits
+if grep -qi "remaining\|limit\|usage" "$QA_TMP"; then
+  grep -E "remaining|used|limit" "$QA_TMP" | head -3 | sed 's/^/  /'
   pass "openrouter-credits"
 else
-  fail "openrouter-credits" "$CREDITS_JSON"
+  fail "openrouter-credits" "$(cat "$QA_TMP")"
 fi
 
 rm -f "$QA_TMP"
