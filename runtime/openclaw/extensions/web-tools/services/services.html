@@ -359,12 +359,14 @@
               .then(function (r) { return r.json(); })
               .then(function (d) {
                 renderCredits(d.credits);
+                topupBtn.disabled = false;
                 topupBtn.textContent = "topped up";
                 topupBtn.classList.add("topup-ok");
+                topupBtn.style.pointerEvents = "none";
                 setTimeout(function () {
                   topupBtn.textContent = "top up";
                   topupBtn.classList.remove("topup-ok");
-                  topupBtn.disabled = false;
+                  topupBtn.style.pointerEvents = "";
                 }, 2000);
               });
           })
