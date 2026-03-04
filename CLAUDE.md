@@ -34,6 +34,7 @@ feature-branch → dev → staging → main
 - Feature PRs target `dev`
 - **CRITICAL: Always create feature branches from the TARGET branch (e.g. `git checkout origin/dev && git checkout -b my-branch`). NEVER branch off another feature branch or you will drag unrelated commit history into the PR.**
 - Never PR directly to `main` or `staging` unless explicitly asked
+- **Never add test plans to PRs.** No `## Test plan` section — keep PR descriptions to Summary and Why only.
 
 ## Promoting between branches (dev → staging → main)
 
