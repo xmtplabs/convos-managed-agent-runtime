@@ -78,7 +78,6 @@ cd pool && pnpm db:migrate    # creates all tables on a fresh DB
 pnpm start
 ```
 
-
 ## Environment variables
 
 | Variable | Description |
@@ -114,7 +113,6 @@ Migrations are managed by [Drizzle Kit](https://orm.drizzle.team/docs/drizzle-ki
 4. On deploy, migrations run automatically on startup
 
 Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` or `drizzle-orm` without testing.
-
 
 **`instances`** — pool lifecycle (identity + claim state)
 
