@@ -196,7 +196,10 @@ export async function createService(
   // This ensures RAILWAY_VOLUME_MOUNT_PATH is available on first boot.
   await ensureVolume(serviceId, "/data", opts);
 
-  // Set image + start command — triggers first deploy (volume already attached)
+  // Create domain BEFORE the first deploy so RAILWAY_PUBLIC_DOMAIN is injected on boot.
+  await createDomain(serviceId, opts);
+
+  // Set image + start command — triggers first deploy (volume + domain already attached)
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",
