@@ -1,8 +1,8 @@
 import Stripe from "stripe";
 import { config } from "../../config";
 
-/** Valid credit package amounts in cents. */
-export const CREDIT_PACKAGES_CENTS = [500, 1000, 2000] as const;
+/** Minimum credit top-up amount in cents ($1). */
+export const MIN_TOPUP_CENTS = 100;
 
 function getClient(): Stripe {
   if (!config.stripeSecretKey) throw new Error("STRIPE_SECRET_KEY not set");

@@ -223,6 +223,23 @@
     }
     .package-btn:hover { border-color: #999; color: #333; }
     .package-btn.selected { border-color: #111; color: #111; background: #f9f9f9; }
+    .custom-amount-input {
+      width: 100%;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0.4rem 0;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #333;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 0.6rem;
+      -moz-appearance: textfield;
+    }
+    .custom-amount-input::-webkit-inner-spin-button,
+    .custom-amount-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .custom-amount-input:focus { border-color: #111; }
     .stripe-form {
       display: none;
     }
@@ -368,10 +385,12 @@
 
         <div id="manage-content">
           <div class="package-buttons" id="package-buttons">
-            <button class="package-btn" data-cents="500">$5</button>
-            <button class="package-btn" data-cents="1000">$10</button>
             <button class="package-btn" data-cents="2000">$20</button>
+            <button class="package-btn" data-cents="5000">$50</button>
+            <button class="package-btn" data-cents="10000">$100</button>
           </div>
+          <button class="package-btn" id="custom-toggle" style="width:100%;margin-bottom:0.6rem">custom</button>
+          <input type="number" id="custom-amount" class="custom-amount-input" placeholder="$ amount" min="1" step="1" style="display:none">
           <div class="stripe-form" id="stripe-form">
             <div id="card-element" class="card-hidden"></div>
             <button class="pay-btn" id="pay-btn" disabled>pay</button>
@@ -592,9 +611,14 @@
         selectedAmountCents = 0;
         stripeForm.style.display = "none";
         payBtn.disabled = true;
+        payBtn.textContent = "pay";
         paymentStatus.textContent = "";
         paymentStatus.className = "payment-status";
         packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+        var ci = document.getElementById("custom-amount");
+        var ct = document.getElementById("custom-toggle");
+        if (ci) { ci.value = ""; ci.style.display = "none"; }
+        if (ct) { ct.style.display = "block"; }
       }
 
       function initStripe() {
@@ -637,17 +661,49 @@
       }
 
       // Package selection
+      var customAmountInput = document.getElementById("custom-amount");
+      var customToggle = document.getElementById("custom-toggle");
+
+      function selectAmount(cents) {
+        selectedAmountCents = cents;
+        stripeForm.style.display = "block";
+        payBtn.disabled = false;
+        payBtn.textContent = "pay $" + (cents / 100);
+        paymentStatus.textContent = "";
+        paymentStatus.className = "payment-status";
+      }
+
       packageButtons.forEach(function (btn) {
         btn.addEventListener("click", function () {
           packageButtons.forEach(function (b) { b.classList.remove("selected"); });
           btn.classList.add("selected");
-          selectedAmountCents = parseInt(btn.getAttribute("data-cents"), 10);
-          stripeForm.style.display = "block";
-          payBtn.disabled = false;
-          payBtn.textContent = "pay $" + (selectedAmountCents / 100);
-          paymentStatus.textContent = "";
-          paymentStatus.className = "payment-status";
+          customToggle.style.display = "block";
+          customAmountInput.style.display = "none";
+          customAmountInput.value = "";
+          selectAmount(parseInt(btn.getAttribute("data-cents"), 10));
         });
+      });
+
+      customToggle.addEventListener("click", function () {
+        packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+        customToggle.style.display = "none";
+        customAmountInput.style.display = "block";
+        customAmountInput.focus();
+        selectedAmountCents = 0;
+        stripeForm.style.display = "none";
+        payBtn.disabled = true;
+        payBtn.textContent = "pay";
+      });
+
+      customAmountInput.addEventListener("input", function () {
+        var val = parseFloat(customAmountInput.value);
+        if (val >= 1) {
+          selectAmount(Math.round(val * 100));
+        } else {
+          selectedAmountCents = 0;
+          payBtn.disabled = true;
+          payBtn.textContent = "pay";
+        }
       });
 
       // Pay button

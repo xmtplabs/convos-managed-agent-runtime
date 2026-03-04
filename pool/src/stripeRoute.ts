@@ -204,9 +204,9 @@ stripeApiRouter.post("/api/pool/stripe/create-payment-intent", async (req, res) 
     }
 
     // Validate amount
-    if (!stripe.CREDIT_PACKAGES_CENTS.includes(amountCents)) {
+    if (!amountCents || typeof amountCents !== "number" || amountCents < stripe.MIN_TOPUP_CENTS) {
       res.status(400).json({
-        error: `Invalid amount. Valid packages: ${stripe.CREDIT_PACKAGES_CENTS.map((c) => `$${c / 100}`).join(", ")}`,
+        error: `Minimum top-up is $${(stripe.MIN_TOPUP_CENTS / 100).toFixed(2)}`,
       });
       return;
     }
