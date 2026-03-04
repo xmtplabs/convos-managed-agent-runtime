@@ -6,11 +6,9 @@ import { useState, useCallback, useRef, useEffect } from "react";
 // Types
 // ---------------------------------------------------------------------------
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-
 interface TemplateActionsProps {
   slug: string;
-  notionPageId: string | null;
+  prompt: string;
   agentName: string;
   /** Base site URL passed from the server to avoid hardcoding in SSR fallback. */
   siteUrl: string;
@@ -22,11 +20,11 @@ interface TemplateActionsProps {
 
 export function TemplateActions({
   slug,
-  notionPageId,
+  prompt,
   agentName,
   siteUrl,
 }: TemplateActionsProps) {
-  const [copyState, setCopyState] = useState<"idle" | "loading" | "copied" | "error">("idle");
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
@@ -46,15 +44,11 @@ export function TemplateActions({
   // -----------------------------------------------------------------------
 
   const handleCopyPrompt = useCallback(async () => {
-    if (!notionPageId || copyState === "loading") return;
+    if (!prompt) return;
 
     if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
-    setCopyState("loading");
     try {
-      const res = await fetch(`${basePath}/api/prompts/${notionPageId}`);
-      if (!res.ok) throw new Error("Failed to fetch prompt");
-      const data = await res.json();
-      await navigator.clipboard.writeText(data.prompt);
+      await navigator.clipboard.writeText(prompt);
       if (!mountedRef.current) return;
       setCopyState("copied");
       copyTimerRef.current = setTimeout(() => {
@@ -67,10 +61,10 @@ export function TemplateActions({
         if (mountedRef.current) setCopyState("idle");
       }, 2000);
     }
-  }, [notionPageId, copyState]);
+  }, [prompt]);
 
   // -----------------------------------------------------------------------
-  // QR code via our self-hosted /qr/:slug route (Task 10).
+  // QR code via our self-hosted /qr/:slug route
   // -----------------------------------------------------------------------
 
   const qrImageUrl = typeof window !== "undefined"
@@ -106,11 +100,10 @@ export function TemplateActions({
         </a>
 
         {/* Copy prompt button */}
-        {notionPageId && (
+        {prompt && (
           <button
             onClick={handleCopyPrompt}
-            disabled={copyState === "loading"}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-medium text-foreground-secondary bg-white rounded-xl border border-edge hover:bg-surface-hover transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-medium text-foreground-secondary bg-white rounded-xl border border-edge hover:bg-surface-hover transition-colors cursor-pointer"
           >
             <svg
               width="16"
@@ -125,13 +118,11 @@ export function TemplateActions({
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
             </svg>
-            {copyState === "loading"
-              ? "Loading..."
-              : copyState === "copied"
-                ? "Copied!"
-                : copyState === "error"
-                  ? "Failed"
-                  : "Copy prompt"}
+            {copyState === "copied"
+              ? "Copied!"
+              : copyState === "error"
+                ? "Failed"
+                : "Copy prompt"}
           </button>
         )}
       </div>

@@ -18,9 +18,7 @@ export default function Home() {
   const [poolEnvironment, setPoolEnvironment] = useState("production");
 
   // Prompt modal state
-  const [promptModalPageId, setPromptModalPageId] = useState<string | null>(
-    null,
-  );
+  const [promptModalText, setPromptModalText] = useState<string | null>(null);
   const [promptModalName, setPromptModalName] = useState("");
 
   // QR modal state
@@ -58,15 +56,15 @@ export default function Home() {
   // -----------------------------------------------------------------------
 
   const handleOpenPromptModal = useCallback(
-    (pageId: string, name: string) => {
-      setPromptModalPageId(pageId);
+    (prompt: string, name: string) => {
+      setPromptModalText(prompt);
       setPromptModalName(name);
     },
     [],
   );
 
   const handleClosePromptModal = useCallback(() => {
-    setPromptModalPageId(null);
+    setPromptModalText(null);
     setPromptModalName("");
   }, []);
 
@@ -167,7 +165,7 @@ export default function Home() {
 
         {/* Prompt modal */}
         <PromptModal
-          pageId={promptModalPageId}
+          prompt={promptModalText}
           agentName={promptModalName}
           onClose={handleClosePromptModal}
           activeStep={activeStep}

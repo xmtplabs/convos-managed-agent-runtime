@@ -8,6 +8,20 @@
       "when": 1772551864450,
       "tag": "0000_reflective_richard_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772606979274,
+      "tag": "0001_complete_stepford_cuckoos",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772700000000,
+      "tag": "0002_migrate_skills_schema",
+      "breakpoints": true
     }
   ]
 }

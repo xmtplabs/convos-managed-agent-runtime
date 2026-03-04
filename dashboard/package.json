@@ -8,6 +8,7 @@
     "test:parity": "playwright test"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.16.0",
     "@mdx-js/loader": "^3.1.1",
     "@mdx-js/react": "^3.1.1",
     "@next/mdx": "^15.5.12",

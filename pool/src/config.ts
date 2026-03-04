@@ -22,12 +22,9 @@ export const config = {
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
   railwayEnvironmentName: getEnv("RAILWAY_ENVIRONMENT_NAME"),
 
-  // Template site
-  templateSiteUrl: getEnv("TEMPLATE_SITE_URL", "https://assistants.convos.org"),
-  templateSiteOrigins: getEnv("TEMPLATE_SITE_ORIGINS", "http://localhost:3000"),
-
-  // Notion
-  notionApiKey: getEnv("NOTION_API_KEY"),
+  // Skills site
+  skillsSiteUrl: getEnv("SKILLS_SITE_URL", getEnv("TEMPLATE_SITE_URL", "https://assistants.convos.org")),
+  skillsSiteOrigins: getEnv("SKILLS_SITE_ORIGINS", getEnv("TEMPLATE_SITE_ORIGINS", "http://localhost:3000")),
 
   // Admin dashboard
   poolAdminUrls: getEnv("POOL_ADMIN_URLS", "vibe=https://convos-agents-vibe.up.railway.app,dev=https://convos-agents-dev.up.railway.app,scaling=https://convos-agents-scaling.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
@@ -52,6 +49,10 @@ export const config = {
   // Telnyx (from services)
   telnyxApiKey: getEnv("TELNYX_API_KEY"),
   telnyxMessagingProfileId: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
+
+  // Auth0
+  auth0Domain: getEnv("AUTH0_DOMAIN"),
+  auth0Audience: getEnv("AUTH0_AUDIENCE"),
 
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),

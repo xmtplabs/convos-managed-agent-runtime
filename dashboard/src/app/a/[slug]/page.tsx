@@ -26,7 +26,7 @@ export async function generateMetadata({
     return { title: "Template Not Found" };
   }
 
-  const title = `${template.emoji} ${template.name} - Convos Assistant`;
+  const title = `${template.emoji} ${template.agentName} - Convos Assistant`;
   const description = template.description;
 
   const siteUrl =
@@ -46,7 +46,7 @@ export async function generateMetadata({
           url: ogImageUrl,
           width: 1200,
           height: 630,
-          alt: `${template.emoji} ${template.name}`,
+          alt: `${template.emoji} ${template.agentName}`,
         },
       ],
     },
@@ -88,12 +88,12 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
         <div className="bg-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-8 sm:p-10">
           {/* Emoji + Name */}
           <div className="flex items-start gap-4 mb-6">
-            <span className="text-5xl leading-none" role="img" aria-label={template.name}>
+            <span className="text-5xl leading-none" role="img" aria-label={template.agentName}>
               {template.emoji}
             </span>
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold text-foreground tracking-[-0.5px] m-0">
-                {template.name}
+                {template.agentName}
               </h1>
               <span className="inline-block mt-1.5 px-2.5 py-0.5 text-xs font-medium text-foreground-secondary bg-edge-muted rounded-full">
                 {template.category}
@@ -106,19 +106,19 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
             {template.description}
           </p>
 
-          {/* Skills */}
-          {template.skills.length > 0 && (
+          {/* Tools */}
+          {template.tools.length > 0 && (
             <div className="mb-8">
               <h2 className="text-xs font-semibold text-foreground-inverted-secondary uppercase tracking-wider mb-3">
                 Skills
               </h2>
               <div className="flex flex-wrap gap-2">
-                {template.skills.map((skill) => (
+                {template.tools.map((tool) => (
                   <span
-                    key={skill}
+                    key={tool}
                     className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-foreground-secondary bg-surface-muted rounded-lg border border-edge"
                   >
-                    {skill}
+                    {tool}
                   </span>
                 ))}
               </div>
@@ -128,8 +128,8 @@ export default async function TemplatePage({ params }: TemplatePageProps) {
           {/* Actions (client component for interactivity) */}
           <TemplateActions
             slug={template.slug}
-            notionPageId={template.notionPageId}
-            agentName={template.name}
+            prompt={template.prompt}
+            agentName={template.agentName}
             siteUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org"}
           />
         </div>

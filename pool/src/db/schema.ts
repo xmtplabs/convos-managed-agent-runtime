@@ -63,6 +63,26 @@ export const phoneNumberPool = pgTable("phone_number_pool", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
+// ── agent_skills ──────────────────────────────────────────────────────────────
+export type SkillVisibility = "private" | "public";
+
+export const agentSkills = pgTable("agent_skills", {
+  id:           text("id").primaryKey(),              // crypto.randomUUID()
+  creatorId:    text("creator_id").notNull(),          // Auth0 sub
+  slug:         text("slug").unique(),                 // URL-friendly name
+  agentName:    text("agent_name").notNull(),
+  description:  text("description").notNull().default(""),
+  prompt:       text("prompt").notNull().default(""),   // was "instructions"
+  category:     text("category").notNull().default(""),
+  emoji:        text("emoji").notNull().default(""),
+  tools:        text("tools").array().notNull().default([]),
+  visibility:   text("visibility").$type<SkillVisibility>().notNull().default("private"),
+  createdAt:    timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt:    timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_skills_creator").on(table.creatorId),
+]);
+
 // ── Inferred types ─────────────────────────────────────────────────────────────
 export type InstanceRow = InferSelectModel<typeof instances>;
 export type NewInstance = InferInsertModel<typeof instances>;
@@ -72,3 +92,5 @@ export type ServiceRow = InferSelectModel<typeof instanceServices>;
 export type NewService = InferInsertModel<typeof instanceServices>;
 export type PhonePoolRow = InferSelectModel<typeof phoneNumberPool>;
 export type NewPhonePool = InferInsertModel<typeof phoneNumberPool>;
+export type SkillRow = InferSelectModel<typeof agentSkills>;
+export type NewSkill = InferInsertModel<typeof agentSkills>;

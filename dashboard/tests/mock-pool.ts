@@ -31,10 +31,6 @@ const CATALOG = (() => {
   }
 })();
 
-const MOCK_PROMPT = {
-  prompt: "You are a helpful AI assistant. You help users with meal planning, grocery lists, and recipe suggestions. Be friendly and concise.",
-};
-
 const COUNTS: Record<string, { idle: number; starting: number; claimed: number; crashed: number }> = {
   idle:      { idle: 3, starting: 0, claimed: 1, crashed: 0 },
   empty:     { idle: 0, starting: 0, claimed: 0, crashed: 0 },
@@ -76,8 +72,19 @@ app.get("/api/pool/counts", (_req, res) => {
   res.json(COUNTS[currentState] || COUNTS.idle);
 });
 
-// Templates and counts are intentionally public (no auth) -- mirrors the real
-// Pool where the catalog and availability are public-facing for the template site.
+// Public skills list (used by dashboard /api/pool/templates proxy and directly)
+app.get("/api/skills", (_req, res) => {
+  res.json(CATALOG);
+});
+
+app.get("/api/skills/:idOrSlug", (req, res) => {
+  const param = req.params.idOrSlug;
+  const t = CATALOG.find((a: any) => a.id === param || a.slug === param);
+  if (!t) return res.status(404).json({ error: "Skill not found" });
+  res.json(t);
+});
+
+// Legacy template routes (keep for backward compat with any remaining references)
 app.get("/api/pool/templates", (_req, res) => {
   res.json(CATALOG);
 });
@@ -98,15 +105,8 @@ app.post("/api/pool/claim", (req, res) => {
   res.status(response.status).json(response.body);
 });
 
-app.get("/api/prompts/:pageId", (req, res) => {
-  if (!/^[a-f0-9]{32}$/.test(req.params.pageId)) {
-    return res.status(400).json({ error: "Invalid page ID" });
-  }
-  res.json(MOCK_PROMPT);
-});
-
 // --- Start server ---
 
 const PORT = parseInt(process.env.MOCK_POOL_PORT || "3002", 10);
-app.listen(PORT, () => console.log(`[mock-pool] listening on :${PORT} (${CATALOG.length} templates loaded)`));
+app.listen(PORT, () => console.log(`[mock-pool] listening on :${PORT} (${CATALOG.length} skills loaded)`));
 export { app };
