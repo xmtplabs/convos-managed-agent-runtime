@@ -43,6 +43,16 @@
       "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
     
+      "heartbeat": {
+        "every": "30m",
+        "model": "openrouter/openai/gpt-4o-mini",
+        "target": "convos",
+        "activeHours": {
+          "start": "08:00",
+          "end": "22:00",
+          "timezone": "America/New_York"
+        }
+      },
       "model": {
         "primary": "${OPENCLAW_PRIMARY_MODEL}"
       },
