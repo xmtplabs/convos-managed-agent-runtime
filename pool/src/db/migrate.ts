@@ -47,10 +47,12 @@ async function seedBaseline(pool: pg.Pool) {
   ).catch(() => ({ rows: [] }));
   if (baselineRows.length > 0) return;
 
+  const requiredTables = ['instances', 'instance_infra', 'instance_services', 'phone_number_pool'];
   const { rows: existingTables } = await pool.query(
-    `SELECT 1 FROM information_schema.tables WHERE table_name = 'instances'`
+    `SELECT table_name FROM information_schema.tables WHERE table_name = ANY($1)`,
+    [requiredTables]
   );
-  if (existingTables.length === 0) return;
+  if (existingTables.length !== requiredTables.length) return;
 
   // Backfill columns that older installs may be missing.
   // The old hand-written migrate.ts ran these on every startup; once the baseline
