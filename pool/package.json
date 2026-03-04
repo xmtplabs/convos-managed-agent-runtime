@@ -19,7 +19,8 @@
     "railway:test": "tsx --env-file=.env scripts/test-railway.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "ngrok": "ngrok http --url=c3c882cc6672.ngrok.app 3001"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",
