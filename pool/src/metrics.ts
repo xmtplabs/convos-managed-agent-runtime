@@ -22,6 +22,8 @@ export function initMetrics(): void {
   const emitGauges = () => setTimeout(async () => {
     try {
       const counts = await getCounts();
+      const summary = Object.entries(counts).filter(([, c]) => c > 0).map(([s, c]) => `${s}=${c}`).join(" ");
+      if (summary) console.log(`[dd] pool: ${summary}`);
       for (const [status, count] of Object.entries(counts)) {
         metricGauge(status, count);
       }
@@ -46,8 +48,6 @@ export function metricCount(
 ): void {
   if (!isInitialized) return;
   const formatted = formatTags(tags);
-  const tagStr = formatted.length ? ` [${formatted.join(", ")}]` : "";
-  console.log(`[dd] ${name} +${value}${tagStr}`);
   metrics.increment(name, value, formatted);
 }
 
@@ -60,8 +60,6 @@ export function metricHistogram(
   if (!isInitialized) return;
   const formatted = formatTags(tags);
   const rounded = Math.round(value);
-  const tagStr = formatted.length ? ` [${formatted.join(", ")}]` : "";
-  console.log(`[dd] ${name} = ${rounded}${tagStr}`);
   metrics.histogram(name, rounded, formatted);
 }
 
@@ -73,12 +71,7 @@ export function metricGauge(
 ): void {
   if (!isInitialized) return;
   const formatted = formatTags(tags);
-  const rounded = Math.round(value);
-  if (rounded !== 0) {
-    const tagStr = formatted.length ? ` [${formatted.join(", ")}]` : "";
-    console.log(`[dd] ${name} = ${rounded}${tagStr}`);
-  }
-  metrics.gauge(name, rounded, formatted);
+  metrics.gauge(name, Math.round(value), formatted);
 }
 
 export function flushMetrics(): Promise<void> {

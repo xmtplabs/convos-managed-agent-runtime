@@ -118,14 +118,15 @@ export async function drainPool(count: number) {
     console.warn(`[pool] Failed to fetch serviceIds for drain: ${err.message}`);
   }
 
-  const ids = toDrain.map((i: any) => i.id);
-  console.log(`[pool] Draining ${toDrain.length} unclaimed instance(s): ${ids.join(", ")}`);
+  const names = toDrain.map((i: any) => i.name || i.id);
+  console.log(`[pool] Draining ${toDrain.length} unclaimed instance(s): ${names.join(", ")}`);
 
   const settled = await Promise.allSettled(
     toDrain.map(async (inst: any) => {
+      const label = inst.name || inst.id;
       const current = await db.findById(inst.id);
       if (!current || CLAIMED_STATUSES.has(current.status)) {
-        console.log(`[pool]   Skipping ${inst.id} (no longer unclaimed)`);
+        console.log(`[pool]   Skipping ${label} (no longer unclaimed)`);
         return { skipped: true };
       }
       await safeDestroy(inst.id, svcIdMap.get(inst.id));
@@ -138,6 +139,7 @@ export async function drainPool(count: number) {
   let failed = 0;
   let skipped = 0;
   toDrain.forEach((inst: any, i: number) => {
+    const label = inst.name || inst.id;
     const s = settled[i];
     if (s.status === "fulfilled" && s.value?.skipped) {
       skipped++;
@@ -145,10 +147,10 @@ export async function drainPool(count: number) {
     }
     if (s.status === "fulfilled") {
       results.push(inst.id);
-      console.log(`[pool]   Drained ${inst.id}`);
+      console.log(`[pool]   Drained ${label}`);
     } else {
       failed++;
-      console.error(`[pool]   Failed to drain ${inst.id}:`, s.reason?.message ?? s.reason);
+      console.error(`[pool]   Failed to drain ${label}:`, s.reason?.message ?? s.reason);
     }
   });
   if (skipped > 0) console.log(`[pool]   Skipped ${skipped} (no longer unclaimed)`);
@@ -164,8 +166,8 @@ export async function drainPoolStream(count: number, concurrency: number, onProg
   const toDrain = unclaimed.slice(0, count);
   if (toDrain.length === 0) return { drained: 0, failed: 0, instances: [] as string[] };
 
-  const ids = toDrain.map((i: any) => i.id);
-  console.log(`[pool] Draining (stream) ${toDrain.length} unclaimed instance(s): ${ids.join(", ")}`);
+  const names = toDrain.map((i: any) => i.name || i.id);
+  console.log(`[pool] Draining (stream) ${toDrain.length} unclaimed instance(s): ${names.join(", ")}`);
 
   let drained = 0;
   let failed = 0;
