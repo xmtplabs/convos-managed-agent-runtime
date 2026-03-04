@@ -17,6 +17,7 @@ import * as openrouter from "./services/providers/openrouter";
 import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
+import { stripeWebhookRouter, stripeApiRouter } from "./stripeRoute";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -82,6 +83,10 @@ const AGENT_CATALOG = (() => {
 
 const app = express();
 app.disable("x-powered-by");
+
+// Stripe webhook must be mounted before express.json() — needs raw body
+app.use(stripeWebhookRouter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -275,6 +280,9 @@ app.post("/api/pool/credits-topup", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Stripe payment API (instance-authenticated, same pattern as credits-check)
+app.use(stripeApiRouter);
 
 app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
   try {

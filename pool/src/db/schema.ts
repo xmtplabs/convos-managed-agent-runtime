@@ -63,6 +63,20 @@ export const phoneNumberPool = pgTable("phone_number_pool", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
+// ── payments ──────────────────────────────────────────────────────────────────
+export type PaymentStatus = "pending" | "succeeded" | "failed";
+
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  instanceId: text("instance_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  stripePaymentIntentId: text("stripe_payment_intent_id").notNull().unique(),
+  amountCents: integer("amount_cents").notNull(),
+  status: text("status").$type<PaymentStatus>().notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
+
 // ── Inferred types ─────────────────────────────────────────────────────────────
 export type InstanceRow = InferSelectModel<typeof instances>;
 export type NewInstance = InferInsertModel<typeof instances>;
@@ -72,3 +86,5 @@ export type ServiceRow = InferSelectModel<typeof instanceServices>;
 export type NewService = InferInsertModel<typeof instanceServices>;
 export type PhonePoolRow = InferSelectModel<typeof phoneNumberPool>;
 export type NewPhonePool = InferInsertModel<typeof phoneNumberPool>;
+export type PaymentRow = InferSelectModel<typeof payments>;
+export type NewPayment = InferInsertModel<typeof payments>;

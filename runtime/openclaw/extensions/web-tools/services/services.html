@@ -7,6 +7,7 @@
   <title>services</title>
   <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <script src="https://js.stripe.com/v3/"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -146,6 +147,66 @@
     .topup-btn.topup-error { color: #c44; border-color: #c44; }
     .topup-btn.topup-ok { color: #2a2; border-color: #2a2; }
 
+    .payment-section {
+      display: none;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #f0f0f0;
+    }
+    .package-buttons {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.6rem;
+    }
+    .package-btn {
+      flex: 1;
+      background: none;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0.4rem 0;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .package-btn:hover { border-color: #999; color: #333; }
+    .package-btn.selected { border-color: #111; color: #111; background: #f9f9f9; }
+    .stripe-form {
+      display: none;
+    }
+    #card-element {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 0.55rem 0.6rem;
+      margin-bottom: 0.5rem;
+      transition: border-color 0.15s;
+    }
+    #card-element.StripeElement--focus { border-color: #999; }
+    #card-element.StripeElement--invalid { border-color: #c44; }
+    .pay-btn {
+      width: 100%;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .pay-btn:hover { opacity: 0.85; }
+    .pay-btn:disabled { opacity: 0.4; cursor: default; }
+    .payment-status {
+      font-size: 0.65rem;
+      margin-top: 0.4rem;
+      text-align: center;
+      min-height: 1rem;
+    }
+    .payment-status.status-error { color: #c44; }
+    .payment-status.status-ok { color: #2a2; }
+
     .footer {
       position: absolute;
       bottom: 1.5rem;
@@ -225,7 +286,20 @@
             <span id="credits-used"></span>
             <span id="credits-limit"></span>
           </div>
-          <button class="topup-btn" id="topup-btn">top up</button>
+          <button class="topup-btn" id="topup-btn">add credits</button>
+
+          <div class="payment-section" id="payment-section">
+            <div class="package-buttons" id="package-buttons">
+              <button class="package-btn" data-cents="500">$5</button>
+              <button class="package-btn" data-cents="1000">$10</button>
+              <button class="package-btn" data-cents="2000">$20</button>
+            </div>
+            <div class="stripe-form" id="stripe-form">
+              <div id="card-element"></div>
+              <button class="pay-btn" id="pay-btn" disabled>pay</button>
+            </div>
+            <div class="payment-status" id="payment-status"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -253,9 +327,12 @@
       var topupBtn = document.getElementById("topup-btn");
       var errorEl = document.getElementById("error");
 
-      // card copy — uncomment when Stripe Issuing is integrated
-      // var copyCard = document.getElementById("copy-card");
-      // copyCard.onclick = function () { copyToClipboard("4242424242424242", copyCard); };
+      // Payment elements
+      var paymentSection = document.getElementById("payment-section");
+      var packageButtons = document.querySelectorAll(".package-btn");
+      var stripeForm = document.getElementById("stripe-form");
+      var payBtn = document.getElementById("pay-btn");
+      var paymentStatus = document.getElementById("payment-status");
 
       var poolToken = window.__POOL_TOKEN || "";
       function authHeaders(extra) {
@@ -320,9 +397,185 @@
         }
       }
 
+      // --- Stripe payment state ---
+      var stripeInstance = null;
+      var cardElement = null;
+      var stripeReady = false;
+      var useFreeTopup = false; // fallback when Stripe is not configured
+      var selectedAmountCents = 0;
+      var paymentOpen = false;
+
+      // Toggle payment section
       topupBtn.addEventListener("click", function () {
+        if (useFreeTopup) {
+          doFreeTopup();
+          return;
+        }
+
+        paymentOpen = !paymentOpen;
+        if (paymentOpen) {
+          paymentSection.style.display = "block";
+          topupBtn.textContent = "cancel";
+          if (!stripeReady) initStripe();
+        } else {
+          closePayment();
+        }
+      });
+
+      function closePayment() {
+        paymentOpen = false;
+        paymentSection.style.display = "none";
+        topupBtn.textContent = "add credits";
+        topupBtn.classList.remove("topup-error", "topup-ok");
+        selectedAmountCents = 0;
+        stripeForm.style.display = "none";
+        payBtn.disabled = true;
+        paymentStatus.textContent = "";
+        paymentStatus.className = "payment-status";
+        packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+      }
+
+      // Initialize Stripe Elements lazily
+      function initStripe() {
+        paymentStatus.textContent = "loading...";
+        paymentStatus.className = "payment-status";
+
+        fetch("/web-tools/services/stripe-config", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.publishableKey) {
+              // Stripe not configured — fallback to free topup
+              useFreeTopup = true;
+              closePayment();
+              topupBtn.textContent = "top up";
+              doFreeTopup();
+              return;
+            }
+            stripeInstance = Stripe(_.data.publishableKey);
+            var elements = stripeInstance.elements();
+            cardElement = elements.create("card", {
+              style: {
+                base: {
+                  fontSize: "14px",
+                  color: "#333",
+                  fontFamily: "system-ui, -apple-system, sans-serif",
+                  "::placeholder": { color: "#bbb" },
+                },
+                invalid: { color: "#c44" },
+              },
+            });
+            cardElement.mount("#card-element");
+            stripeReady = true;
+            paymentStatus.textContent = "";
+          })
+          .catch(function () {
+            useFreeTopup = true;
+            closePayment();
+            topupBtn.textContent = "top up";
+            doFreeTopup();
+          });
+      }
+
+      // Package selection
+      packageButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+          btn.classList.add("selected");
+          selectedAmountCents = parseInt(btn.getAttribute("data-cents"), 10);
+          stripeForm.style.display = "block";
+          payBtn.disabled = false;
+          payBtn.textContent = "pay $" + (selectedAmountCents / 100);
+          paymentStatus.textContent = "";
+          paymentStatus.className = "payment-status";
+        });
+      });
+
+      // Pay button
+      payBtn.addEventListener("click", function () {
+        if (!stripeInstance || !cardElement || !selectedAmountCents) return;
+        payBtn.disabled = true;
+        payBtn.textContent = "processing...";
+        paymentStatus.textContent = "";
+        paymentStatus.className = "payment-status";
+
+        fetch("/web-tools/services/create-payment", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ amountCents: selectedAmountCents }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.clientSecret) {
+              paymentStatus.textContent = _.data.error || "failed to create payment";
+              paymentStatus.className = "payment-status status-error";
+              payBtn.disabled = false;
+              payBtn.textContent = "pay $" + (selectedAmountCents / 100);
+              return;
+            }
+            return stripeInstance.confirmCardPayment(_.data.clientSecret, {
+              payment_method: { card: cardElement },
+            });
+          })
+          .then(function (result) {
+            if (!result) return; // already handled error above
+            if (result.error) {
+              paymentStatus.textContent = result.error.message || "payment failed";
+              paymentStatus.className = "payment-status status-error";
+              payBtn.disabled = false;
+              payBtn.textContent = "pay $" + (selectedAmountCents / 100);
+              return;
+            }
+            if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
+              paymentStatus.textContent = "payment successful — updating credits...";
+              paymentStatus.className = "payment-status status-ok";
+              payBtn.textContent = "paid";
+              // Poll for updated credits (webhook may take a moment)
+              pollCredits(5);
+            }
+          })
+          .catch(function (err) {
+            paymentStatus.textContent = "payment failed";
+            paymentStatus.className = "payment-status status-error";
+            payBtn.disabled = false;
+            payBtn.textContent = "pay $" + (selectedAmountCents / 100);
+          });
+      });
+
+      // Poll credits API until limit reflects the increase
+      function pollCredits(attemptsLeft) {
+        if (attemptsLeft <= 0) {
+          paymentStatus.textContent = "payment received — credits updating shortly";
+          paymentStatus.className = "payment-status status-ok";
+          setTimeout(closePayment, 2000);
+          return;
+        }
+        setTimeout(function () {
+          fetch("/web-tools/services/api", { headers: authHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              renderCredits(d.credits);
+              // Check if we should keep polling (simple: just poll all attempts)
+              if (attemptsLeft > 1) {
+                pollCredits(attemptsLeft - 1);
+              } else {
+                paymentStatus.textContent = "credits updated";
+                paymentStatus.className = "payment-status status-ok";
+                setTimeout(closePayment, 1500);
+              }
+            })
+            .catch(function () {
+              pollCredits(attemptsLeft - 1);
+            });
+        }, 2000);
+      }
+
+      // --- Free topup fallback (for dev environments without Stripe) ---
+      function doFreeTopup() {
         topupBtn.disabled = true;
-        topupBtn.textContent = "topping up…";
+        topupBtn.textContent = "topping up...";
         topupBtn.classList.remove("topup-error");
 
         fetch("/web-tools/services/topup", { method: "POST", headers: authHeaders() })
@@ -340,7 +593,6 @@
               }, 2500);
               return;
             }
-            // Refresh credits display
             return fetch("/web-tools/services/api", { headers: authHeaders() })
               .then(function (r) { return r.json(); })
               .then(function (d) {
@@ -365,8 +617,9 @@
               topupBtn.disabled = false;
             }, 2500);
           });
-      });
+      }
 
+      // --- Load initial data ---
       fetch("/web-tools/services/api", { headers: authHeaders() })
         .then(function (r) {
           return r.json().then(function (d) { return { ok: r.ok, data: d }; });
