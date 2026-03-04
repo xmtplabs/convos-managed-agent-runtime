@@ -59,7 +59,23 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
   if (lowered.startsWith("convos:")) {
     normalized = normalized.slice("convos:".length).trim();
   }
-  return normalized || undefined;
+  if (!normalized) {
+    return undefined;
+  }
+  // Single-conversation process: if the target isn't already a conversation ID,
+  // resolve it to the bound conversation so the framework's looksLikeId check
+  // passes and we skip directory name-matching (which would reject arbitrary
+  // strings like "heartbeat" or "last").
+  const inst = getConvosInstance();
+  if (inst && !isConvosId(normalized)) {
+    return inst.conversationId;
+  }
+  return normalized;
+}
+
+/** Check if a string looks like a Convos conversation ID (hex-32 or UUID). */
+function isConvosId(s: string): boolean {
+  return /^[0-9a-f]{32}$/i.test(s) || /^[0-9a-f-]{36}$/i.test(s);
 }
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
@@ -163,17 +179,15 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   directory: {
     self: async () => null,
     listPeers: async () => [],
-    listGroups: async ({ query }) => {
+    listGroups: async () => {
+      // Single-conversation process — always return the bound conversation.
+      // This lets the heartbeat (and any other caller) resolve any target string
+      // to the active conversation without knowing the ID upfront.
       const inst = getConvosInstance();
       if (!inst) {
         return [];
       }
-      const name = inst.label ?? inst.conversationId.slice(0, 8);
-      const q = query?.trim().toLowerCase() ?? "";
-      if (q && !name.toLowerCase().includes(q)) {
-        return [];
-      }
-      return [{ kind: "group" as const, id: inst.conversationId, name }];
+      return [{ kind: "group" as const, id: inst.conversationId, name: inst.label ?? inst.conversationId.slice(0, 8) }];
     },
   },
   outbound: convosOutbound,
@@ -258,6 +272,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 
       // Inherit env so exec tool CLI commands use the correct XMTP network
       process.env.CONVOS_ENV = account.env;
+
 
       // Restore instance from config — the CLI manages identities on disk
       const inst = ConvosInstance.fromExisting(
@@ -497,24 +512,6 @@ async function handleInboundMessage(
         },
         onError: async (err, info) => {
           errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
-
-          // Surface a friendly message when the LLM provider rejects due to
-          // insufficient credits (OpenRouter 402/403).
-          const errStr = String(err);
-          if (errStr.includes("402") || errStr.includes("403") || errStr.includes("credits") || errStr.includes("afford") || errStr.includes("limit exceeded")) {
-            const convos = getConvosInstance();
-            const replyTo = msg.contentType === "text" || msg.contentType === "reply"
-              ? msg.messageId
-              : undefined;
-            try {
-              await convos?.sendMessage(
-                "Hey! You are out of credits.",
-                replyTo,
-              );
-            } catch {
-              // Best-effort — don't let the fallback message blow up
-            }
-          }
         },
       },
     });
