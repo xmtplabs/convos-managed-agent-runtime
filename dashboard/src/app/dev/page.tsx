@@ -25,6 +25,11 @@ interface Skill {
 }
 
 export default function DevPage() {
+  const [devAuthed, setDevAuthed] = useState(false);
+  const [devLoading, setDevLoading] = useState(true);
+  const [devPassword, setDevPassword] = useState("");
+  const [devError, setDevError] = useState("");
+
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -54,6 +59,56 @@ export default function DevPage() {
 
   const [deleteId, setDeleteId] = useState("");
 
+  // Check if dev session cookie exists on mount
+  useEffect(() => {
+    fetch("/api/dev/me")
+      .then((res) => {
+        if (res.status === 403) {
+          // No dev session — need password
+          setDevAuthed(false);
+          setDevLoading(false);
+        } else if (res.ok) {
+          // Dev session valid + Auth0 session valid
+          setDevAuthed(true);
+          setDevLoading(false);
+          res.json().then((data) => {
+            setUser(data.user);
+            setAuthLoading(false);
+          });
+        } else {
+          // Dev session valid but Auth0 not authenticated
+          setDevAuthed(true);
+          setDevLoading(false);
+          setAuthLoading(false);
+        }
+      })
+      .catch(() => {
+        setDevLoading(false);
+      });
+  }, []);
+
+  const handleDevLogin = async () => {
+    setDevError("");
+    try {
+      const res = await fetch("/api/dev/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: devPassword }),
+      });
+      if (res.ok) {
+        setDevAuthed(true);
+        setDevPassword("");
+        fetchUser();
+        listMySkills();
+        listPublicSkills();
+      } else {
+        setDevError("Invalid API key");
+      }
+    } catch {
+      setDevError("Login failed");
+    }
+  };
+
   const fetchUser = useCallback(async () => {
     try {
       const res = await fetch("/api/dev/me");
@@ -71,11 +126,12 @@ export default function DevPage() {
   }, []);
 
   useEffect(() => {
+    if (!devAuthed) return;
     fetchUser();
     listMySkills();
     listPublicSkills();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [devAuthed]);
 
   const listMySkills = async () => {
     setMySkillsError("");
@@ -186,6 +242,88 @@ export default function DevPage() {
       setDeleteResult(`Error: ${e}`);
     }
   };
+
+  if (devLoading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <p style={{ fontSize: 13, color: "var(--color-foreground-tertiary)" }}>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!devAuthed) {
+    return (
+      <div className="dev-page">
+        <style>{`
+          .dev-login {
+            max-width: 360px;
+            margin: 120px auto 0;
+            text-align: center;
+          }
+          .dev-login-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.4px;
+            margin-bottom: 4px;
+          }
+          .dev-login-sub {
+            font-size: 13px;
+            color: var(--color-foreground-secondary);
+            margin-bottom: 24px;
+          }
+          .dev-login input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--color-edge);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            background: var(--color-surface);
+            color: var(--color-foreground);
+            margin-bottom: 12px;
+            box-sizing: border-box;
+          }
+          .dev-login input:focus {
+            outline: none;
+            border-color: var(--color-brand);
+          }
+          .dev-login button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            background: var(--color-brand);
+            color: var(--color-foreground-inverted);
+            border: none;
+          }
+          .dev-login button:hover { opacity: 0.9; }
+          .dev-login-error {
+            font-size: 12px;
+            color: var(--color-error);
+            margin-top: 8px;
+          }
+        `}</style>
+        <div className="dev-login">
+          <div className="dev-login-title">Dev Console</div>
+          <div className="dev-login-sub">Enter API key to continue</div>
+          <form onSubmit={(e) => { e.preventDefault(); handleDevLogin(); }}>
+            <input
+              type="password"
+              placeholder="API key"
+              value={devPassword}
+              onChange={(e) => setDevPassword(e.target.value)}
+              autoFocus
+            />
+            <button type="submit">Sign in</button>
+          </form>
+          {devError && <div className="dev-login-error">{devError}</div>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dev-page">
