@@ -101,7 +101,7 @@ async function main() {
   const { db } = await import("../src/db/connection");
   const { agentSkills } = await import("../src/db/schema");
 
-  const catalogPath = resolve(__dirname, "../src/agents-data.json");
+  const catalogPath = resolve(__dirname, "../data/catalog-seed.json");
   const raw = JSON.parse(readFileSync(catalogPath, "utf8")) as any[];
 
   // Filter to entries with a name and a Notion page ID

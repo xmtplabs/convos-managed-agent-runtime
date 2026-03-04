@@ -54,6 +54,9 @@ export const config = {
   auth0Domain: getEnv("AUTH0_DOMAIN"),
   auth0Audience: getEnv("AUTH0_AUDIENCE"),
 
+  // Catalog seed (set once per environment to auto-seed public skills)
+  seedCreatorId: getEnv("SEED_CREATOR_ID"),
+
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),

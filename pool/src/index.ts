@@ -504,13 +504,15 @@ app.use(requireAuth, statusRouter);
 app.use(requireAuth, configureRouter);
 app.use(requireAuth, toolsRouter);
 
-// --- Startup: migrate, then tick loop ---
+// --- Startup: migrate, seed, then tick loop ---
 import { runMigrations } from "./db/migrate";
+import { seedCatalog } from "./db/seed";
 
 // --- Metrics ---
 initMetrics();
 
 runMigrations()
+  .then(() => seedCatalog())
   .then(() => {
     ensureWebhookRule().catch((err) =>
       console.warn("[startup] Webhook rule registration failed:", err.message));
