@@ -138,6 +138,19 @@ else
   unset _or_resp _or_error _or_limit _or_usage _or_remaining _or_is_zero _or_is_low
 fi
 
+# --- Clear stale agent sessions ---
+# Stale session history causes the model to see old context after a restart,
+# which can make it silently skip replies. Wipe them on every fresh start.
+_sessions_dir="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/agents/main/sessions"
+if [ -d "$_sessions_dir" ]; then
+  _count=$(find "$_sessions_dir" -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$_count" -gt 0 ]; then
+    rm -f "$_sessions_dir"/*.jsonl "$_sessions_dir/sessions.json"
+    echo "  🧹 Cleared $_count stale session file(s)"
+  fi
+fi
+unset _sessions_dir _count
+
 echo ""
 
 # In-process restart: SIGUSR1 reloads config inside the same process instead
