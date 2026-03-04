@@ -158,6 +158,67 @@ stripeApiRouter.post("/api/pool/stripe/balance", async (req, res) => {
   }
 });
 
+/** Redeem a coupon code — bumps OpenRouter limit by $20. */
+stripeApiRouter.post("/api/pool/stripe/redeem-coupon", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken, code } = req.body || {};
+    if (!instanceId || !gatewayToken || !code) {
+      res.status(400).json({ error: "instanceId, gatewayToken, and code are required" });
+      return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" });
+      return;
+    }
+
+    const validCode = process.env.COUPON_CODE;
+    if (!validCode || code.trim().toUpperCase() !== validCode.trim().toUpperCase()) {
+      res.status(400).json({ error: "Invalid coupon code" });
+      return;
+    }
+
+    // Find the instance's OpenRouter key
+    const svcRows = await pgDb
+      .select({
+        id: instanceServices.id,
+        resourceId: instanceServices.resourceId,
+        resourceMeta: instanceServices.resourceMeta,
+      })
+      .from(instanceServices)
+      .where(
+        and(
+          eq(instanceServices.instanceId, instanceId),
+          eq(instanceServices.toolId, "openrouter"),
+        ),
+      );
+    const svc = svcRows[0];
+    if (!svc) {
+      res.status(404).json({ error: "No credits service found" });
+      return;
+    }
+
+    const hash = svc.resourceId;
+    const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
+    const increment = 20;
+    const newLimit = currentLimit + increment;
+
+    await openrouter.updateKeyLimit(hash, newLimit);
+
+    const updatedMeta = { ...((svc.resourceMeta as any) || {}), limit: newLimit };
+    await pgDb
+      .update(instanceServices)
+      .set({ resourceMeta: updatedMeta })
+      .where(eq(instanceServices.id, svc.id));
+
+    console.log(`[stripe] Coupon redeemed for instance ${instanceId}: $${currentLimit} → $${newLimit}`);
+    res.json({ ok: true, previousLimit: currentLimit, newLimit });
+  } catch (err: any) {
+    console.error("[stripe] Coupon redemption failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /** Return Stripe publishable key (not a secret). */
 stripeApiRouter.post("/api/pool/stripe/config", async (req, res) => {
   try {

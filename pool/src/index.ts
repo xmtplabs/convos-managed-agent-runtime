@@ -258,14 +258,9 @@ app.post("/api/pool/credits-topup", async (req, res) => {
 
     const hash = svc.resourceId;
     const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
-    const maxLimit = parseInt(process.env.OPENROUTER_TOPUP_MAX || "100", 10);
-
-    if (currentLimit >= maxLimit) {
-      res.status(409).json({ error: "Credit limit already at maximum", limit: currentLimit, max: maxLimit }); return;
-    }
 
     const increment = parseInt(process.env.OPENROUTER_TOPUP_INCREMENT || "20", 10);
-    const newLimit = Math.min(currentLimit + increment, maxLimit);
+    const newLimit = currentLimit + increment;
 
     await openrouter.updateKeyLimit(hash, newLimit);
 

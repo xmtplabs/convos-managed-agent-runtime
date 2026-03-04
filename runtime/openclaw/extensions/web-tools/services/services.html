@@ -224,6 +224,19 @@
     .custom-amount-input::-webkit-inner-spin-button,
     .custom-amount-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     .custom-amount-input:focus { border-color: #111; }
+    .coupon-row {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+    .coupon-status {
+      font-size: 0.65rem;
+      text-align: center;
+      min-height: 0;
+    }
+    .coupon-status.status-error { color: #c44; }
+    .coupon-status.status-ok { color: #2a2; }
     .stripe-form {
       display: none;
     }
@@ -290,7 +303,7 @@
 
       <!-- ========== LANDING SCREEN ========== -->
       <div class="screen" id="screen-landing">
-        <div class="card-header">services</div>
+        <div class="card-header">assistant services</div>
 
         <div class="service-list" id="service-list">
           <div class="service-item" id="svc-instance" style="display:none">
@@ -326,7 +339,7 @@
           <!-- AI Credits row -->
           <div class="service-item" id="svc-credits">
             <div class="service-body">
-              <div class="service-label">ai credits</div>
+              <div class="service-label">credits</div>
               <div class="service-value" id="credits-value"><div class="loading-shimmer"></div></div>
               <div class="credits-bar" id="credits-bar" style="display:none">
                 <div class="credits-bar-fill" id="credits-bar-fill"></div>
@@ -336,8 +349,8 @@
                 <span id="credits-limit"></span>
               </div>
             </div>
-            <button class="manage-icon-btn" id="manage-btn" style="display:none" title="Manage credits">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            <button class="manage-icon-btn" id="manage-btn" style="display:none" title="Add credits">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
             </button>
           </div>
         </div>
@@ -365,8 +378,16 @@
             <button class="package-btn" data-cents="5000">$50</button>
             <button class="package-btn" data-cents="10000">$100</button>
           </div>
-          <button class="package-btn" id="custom-toggle" style="width:100%;margin-bottom:0.6rem">custom</button>
+          <div class="package-buttons">
+            <button class="package-btn" id="custom-toggle">custom</button>
+            <button class="package-btn" id="coupon-toggle">coupon</button>
+          </div>
           <input type="number" id="custom-amount" class="custom-amount-input" placeholder="$ amount" min="1" step="1" style="display:none">
+          <div class="coupon-row" id="coupon-row" style="display:none">
+            <input type="text" id="coupon-input" class="custom-amount-input" placeholder="enter code" style="margin-bottom:0;flex:1">
+            <button class="pay-btn" id="coupon-btn" style="width:auto;padding:0.4rem 0.8rem;font-size:0.7rem">redeem</button>
+          </div>
+          <div class="coupon-status" id="coupon-status"></div>
           <div class="stripe-form" id="stripe-form">
             <div id="card-element" class="card-hidden"></div>
             <button class="pay-btn" id="pay-btn" disabled>pay</button>
@@ -510,8 +531,14 @@
         packageButtons.forEach(function (b) { b.classList.remove("selected"); });
         var ci = document.getElementById("custom-amount");
         var ct = document.getElementById("custom-toggle");
+        var cr = document.getElementById("coupon-row");
+        var cg = document.getElementById("coupon-toggle");
+        var cs = document.getElementById("coupon-status");
         if (ci) { ci.value = ""; ci.style.display = "none"; }
         if (ct) { ct.style.display = "block"; }
+        if (cr) { cr.style.display = "none"; }
+        if (cg) { cg.style.display = "block"; }
+        if (cs) { cs.textContent = ""; cs.className = "coupon-status"; }
       }
 
       function initStripe() {
@@ -566,13 +593,32 @@
         paymentStatus.className = "payment-status";
       }
 
+      var couponToggle = document.getElementById("coupon-toggle");
+      var couponRow = document.getElementById("coupon-row");
+      var couponInput = document.getElementById("coupon-input");
+      var couponBtn = document.getElementById("coupon-btn");
+      var couponStatus = document.getElementById("coupon-status");
+
+      function hideCoupon() {
+        couponToggle.style.display = "block";
+        couponRow.style.display = "none";
+        couponInput.value = "";
+        couponStatus.textContent = "";
+        couponStatus.className = "coupon-status";
+      }
+
+      function hideCustom() {
+        customToggle.style.display = "block";
+        customAmountInput.style.display = "none";
+        customAmountInput.value = "";
+      }
+
       packageButtons.forEach(function (btn) {
         btn.addEventListener("click", function () {
           packageButtons.forEach(function (b) { b.classList.remove("selected"); });
           btn.classList.add("selected");
-          customToggle.style.display = "block";
-          customAmountInput.style.display = "none";
-          customAmountInput.value = "";
+          hideCustom();
+          hideCoupon();
           selectAmount(parseInt(btn.getAttribute("data-cents"), 10));
         });
       });
@@ -582,10 +628,61 @@
         customToggle.style.display = "none";
         customAmountInput.style.display = "block";
         customAmountInput.focus();
+        hideCoupon();
         selectedAmountCents = 0;
         stripeForm.style.display = "none";
         payBtn.disabled = true;
         payBtn.textContent = "pay";
+      });
+
+      couponToggle.addEventListener("click", function () {
+        packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+        couponToggle.style.display = "none";
+        couponRow.style.display = "flex";
+        couponInput.focus();
+        hideCustom();
+        selectedAmountCents = 0;
+        stripeForm.style.display = "none";
+        payBtn.disabled = true;
+        payBtn.textContent = "pay";
+      });
+
+      couponBtn.addEventListener("click", function () {
+        var code = couponInput.value.trim();
+        if (!code) return;
+        couponBtn.disabled = true;
+        couponBtn.textContent = "...";
+        couponStatus.textContent = "";
+        couponStatus.className = "coupon-status";
+
+        fetch("/web-tools/services/redeem-coupon", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            couponBtn.disabled = false;
+            couponBtn.textContent = "redeem";
+            if (!_.ok) {
+              couponStatus.textContent = _.data.error || "invalid code";
+              couponStatus.className = "coupon-status status-error";
+              return;
+            }
+            couponStatus.textContent = "credits added!";
+            couponStatus.className = "coupon-status status-ok";
+            // Refresh credits
+            fetch("/web-tools/services/api", { headers: authHeaders() })
+              .then(function (r) { return r.json(); })
+              .then(function (d) { renderCredits(d.credits); });
+            setTimeout(function () { showLandingScreen(); }, 1500);
+          })
+          .catch(function () {
+            couponBtn.disabled = false;
+            couponBtn.textContent = "redeem";
+            couponStatus.textContent = "failed";
+            couponStatus.className = "coupon-status status-error";
+          });
       });
 
       customAmountInput.addEventListener("input", function () {

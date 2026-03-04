@@ -393,6 +393,54 @@ export default function register(api: OpenClawPluginApi) {
     },
   });
 
+  // Coupon redemption proxy
+  api.registerHttpRoute({
+    path: "/web-tools/services/redeem-coupon",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Not available (missing config)" }));
+        return;
+      }
+
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        const bodyStr = Buffer.concat(chunks).toString();
+        const parsed = JSON.parse(bodyStr || "{}");
+        const code = parsed.code;
+
+        const url = `${poolUrl}/api/pool/stripe/redeem-coupon`;
+        const poolRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken, code }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+      } catch (err: any) {
+        console.warn(`[web-tools] Coupon redemption error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
+    },
+  });
+
   // Stripe balance proxy — returns customer balance
   api.registerHttpRoute({
     path: "/web-tools/services/stripe-balance",
