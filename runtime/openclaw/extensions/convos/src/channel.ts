@@ -59,7 +59,23 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
   if (lowered.startsWith("convos:")) {
     normalized = normalized.slice("convos:".length).trim();
   }
-  return normalized || undefined;
+  if (!normalized) {
+    return undefined;
+  }
+  // Single-conversation process: if the target isn't already a conversation ID,
+  // resolve it to the bound conversation so the framework's looksLikeId check
+  // passes and we skip directory name-matching (which would reject arbitrary
+  // strings like "heartbeat" or "last").
+  const inst = getConvosInstance();
+  if (inst && !isConvosId(normalized)) {
+    return inst.conversationId;
+  }
+  return normalized;
+}
+
+/** Check if a string looks like a Convos conversation ID (hex-32 or UUID). */
+function isConvosId(s: string): boolean {
+  return /^[0-9a-f]{32}$/i.test(s) || /^[0-9a-f-]{36}$/i.test(s);
 }
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
@@ -163,17 +179,15 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   directory: {
     self: async () => null,
     listPeers: async () => [],
-    listGroups: async ({ query }) => {
+    listGroups: async () => {
+      // Single-conversation process — always return the bound conversation.
+      // This lets the heartbeat (and any other caller) resolve any target string
+      // to the active conversation without knowing the ID upfront.
       const inst = getConvosInstance();
       if (!inst) {
         return [];
       }
-      const name = inst.label ?? inst.conversationId.slice(0, 8);
-      const q = query?.trim().toLowerCase() ?? "";
-      if (q && !name.toLowerCase().includes(q)) {
-        return [];
-      }
-      return [{ kind: "group" as const, id: inst.conversationId, name }];
+      return [{ kind: "group" as const, id: inst.conversationId, name: inst.label ?? inst.conversationId.slice(0, 8) }];
     },
   },
   outbound: convosOutbound,
