@@ -1,6 +1,5 @@
 "use client";
 
-import { notFound } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 
 interface User {
@@ -26,10 +25,6 @@ interface Skill {
 }
 
 export default function DevPage() {
-  if (process.env.NODE_ENV === "production") {
-    notFound();
-  }
-
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
