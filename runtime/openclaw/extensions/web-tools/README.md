@@ -19,6 +19,10 @@ OpenClaw plugin that serves public-facing web pages and handles credit managemen
 | `/web-tools/services` | GET | Services dashboard (credits, identity) |
 | `/web-tools/services/api` | GET | JSON API — instance identity + credit balance |
 | `/web-tools/services/topup` | POST | Proxy credit top-up request to pool manager |
+| `/web-tools/services/stripe-config` | POST | Proxy — returns Stripe publishable key |
+| `/web-tools/services/create-payment` | POST | Proxy — creates Stripe PaymentIntent |
+| `/web-tools/services/stripe-balance` | POST | Proxy — returns Stripe customer balance |
+| `/web-tools/services/redeem-coupon` | POST | Proxy — redeems a coupon code for credits |
 
 ## Files
 
@@ -33,11 +37,19 @@ OpenClaw plugin that serves public-facing web pages and handles credit managemen
 
 ## Credit flow
 
-For pool-managed instances, the services page shows remaining credits and a top-up button:
+For pool-managed instances, the services page shows remaining credits with a + button to open the payment screen:
 
 ```
 Browser → GET /web-tools/services/api → instance fetches from pool manager → returns credits JSON
-Browser → POST /web-tools/services/topup → instance proxies to pool manager → returns top-up result
+Browser → POST /web-tools/services/stripe-config → get Stripe publishable key
+Browser → POST /web-tools/services/create-payment → create PaymentIntent → Stripe.js confirms card
+Stripe webhook → pool manager → increases OpenRouter key limit
+Browser → polls /web-tools/services/api until credits reflect the increase
+```
+
+Coupon codes bypass Stripe entirely:
+```
+Browser → POST /web-tools/services/redeem-coupon → pool validates code → bumps limit by $20
 ```
 
 Auth uses `OPENCLAW_GATEWAY_TOKEN` + `INSTANCE_ID` to identify the instance to the pool manager. The `poolApiKey` from config is injected into HTML pages as `window.__POOL_TOKEN` for client-side API calls.

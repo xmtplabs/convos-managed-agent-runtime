@@ -1,5 +1,10 @@
 # 🎈 Convos runtime changelog
 
+## 0.0.20
+- Stripe payments: credit top-ups via card ($20/$50/$100 presets or custom amount)
+- Coupon codes: redeem promo codes for $20 credit bumps
+- Services redesign: two-screen slide layout, provider names hidden from users
+
 ## 0.0.19
 - Heartbeat: switched target from hardcoded `convos` channel to `"last"`
 - Heartbeat: use cheap model (`gpt-4o-mini`) and restrict to active hours (8am–10pm ET)

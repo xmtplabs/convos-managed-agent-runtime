@@ -1,5 +1,11 @@
 # Pool Manager Changelog
 
+## 0.9.0
+- Stripe integration: PaymentIntent flow with webhook processing — payments increase OpenRouter credit limit
+- Coupon codes: `COUPON_CODE` env var, redeems for $20 credit bump
+- Removed $100 credit cap on admin top-ups
+- New env vars: `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `COUPON_CODE`
+
 ## 0.8.0
 - Drizzle Kit migrations: replaced hand-written idempotent SQL in `migrate.ts` with Drizzle Kit's migration system — `schema.ts` is now the single source of truth for both queries and migrations, eliminating schema drift between the two files
 - New workflow: edit `schema.ts` → run `pnpm db:generate` → commit the migration file → deploy
