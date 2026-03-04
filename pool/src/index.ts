@@ -276,7 +276,6 @@ app.post("/api/pool/credits-topup", async (req, res) => {
   }
 });
 
-
 app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
   try {
     const result = await pool.recheckInstance(req.params.id as string);

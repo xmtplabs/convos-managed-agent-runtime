@@ -155,7 +155,6 @@ export async function updateDeployStatus(instanceId: string, deployStatus: strin
   }).where(eq(instanceInfra.instanceId, instanceId));
 }
 
-
 /** Verify an instance ID + gateway token pair. Used by self-destruct auth. */
 export async function findInstanceByToken(instanceId: string, gatewayToken: string): Promise<boolean> {
   const rows = await db.select({ id: instanceInfra.instanceId })
