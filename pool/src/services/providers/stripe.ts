@@ -37,6 +37,14 @@ export async function createPaymentIntent(
   return { clientSecret: pi.client_secret!, paymentIntentId: pi.id };
 }
 
+/** Retrieve the Stripe customer balance (integer in cents; negative = credit owed TO customer). */
+export async function getCustomerBalance(customerId: string): Promise<number> {
+  const stripe = getClient();
+  const customer = await stripe.customers.retrieve(customerId);
+  if ((customer as any).deleted) return 0;
+  return (customer as Stripe.Customer).balance;
+}
+
 /** Verify and construct a Stripe webhook event from raw body + signature header. */
 export function constructWebhookEvent(rawBody: Buffer, signature: string): Stripe.Event {
   const stripe = getClient();

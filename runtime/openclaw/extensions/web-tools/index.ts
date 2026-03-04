@@ -69,29 +69,41 @@ async function getServicesData(): Promise<Record<string, unknown>> {
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const poolUrl = process.env.POOL_URL;
 
+  console.log(`[web-tools] getServicesData: instanceId=${instanceId}, gatewayToken=${gatewayToken ? gatewayToken.slice(0, 8) + "..." : "MISSING"}, poolUrl=${poolUrl || "MISSING"}`);
+
   if (instanceId && gatewayToken && poolUrl) {
-    try {
-      const creditsUrl = `${poolUrl}/api/pool/credits-check`;
-      console.log(`[web-tools] Credits check → ${creditsUrl} (instance=${instanceId})`);
-      const creditsRes = await fetch(creditsUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instanceId, gatewayToken }),
-        signal: AbortSignal.timeout(5_000),
-      });
-      if (creditsRes.ok) {
-        result.credits = await creditsRes.json();
-      } else {
-        const body = await creditsRes.text().catch(() => "");
-        console.warn(`[web-tools] Credits check failed: ${creditsRes.status} ${body}`);
-        result.credits = { error: "unavailable" };
-      }
-    } catch (err: any) {
+    // Fetch OpenRouter credits and Convos (Stripe) balance in parallel
+    const creditsPromise = fetch(`${poolUrl}/api/pool/credits-check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instanceId, gatewayToken }),
+      signal: AbortSignal.timeout(5_000),
+    }).then(async (r) => {
+      if (r.ok) return await r.json();
+      const body = await r.text().catch(() => "");
+      console.warn(`[web-tools] Credits check failed: ${r.status} ${body}`);
+      return { error: "unavailable" };
+    }).catch((err: any) => {
       console.warn(`[web-tools] Credits check error: ${err.message}`);
-      result.credits = { error: "unavailable" };
-    }
+      return { error: "unavailable" };
+    });
+
+    const convosPromise = fetch(`${poolUrl}/api/pool/stripe/balance`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instanceId, gatewayToken }),
+      signal: AbortSignal.timeout(5_000),
+    }).then(async (r) => {
+      if (r.ok) return await r.json();
+      return { balanceCents: 0 };
+    }).catch(() => ({ balanceCents: 0 }));
+
+    const [credits, convos] = await Promise.all([creditsPromise, convosPromise]);
+    result.credits = credits;
+    result.convosBalance = convos;
   } else {
     result.credits = { error: "not pool-managed" };
+    result.convosBalance = { balanceCents: 0 };
   }
 
   return result;
@@ -374,6 +386,48 @@ export default function register(api: OpenClawPluginApi) {
         res.end(JSON.stringify(body));
       } catch (err: any) {
         console.warn(`[web-tools] Create payment error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
+    },
+  });
+
+  // Stripe balance proxy — returns customer balance
+  api.registerHttpRoute({
+    path: "/web-tools/services/stripe-balance",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Balance not available (missing config)" }));
+        return;
+      }
+
+      try {
+        const url = `${poolUrl}/api/pool/stripe/balance`;
+        const poolRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken }),
+          signal: AbortSignal.timeout(5_000),
+        });
+        const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+      } catch (err: any) {
+        console.warn(`[web-tools] Stripe balance error: ${err.message}`);
         res.statusCode = 502;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "Failed to reach pool manager" }));

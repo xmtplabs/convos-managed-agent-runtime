@@ -120,6 +120,44 @@ stripeWebhookRouter.post(
 
 export const stripeApiRouter = express.Router();
 
+/** Return the Stripe customer balance for an instance. */
+stripeApiRouter.post("/api/pool/stripe/balance", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" });
+      return;
+    }
+
+    // Look up Stripe customer
+    const rows = await pgDb
+      .select({ resourceId: instanceServices.resourceId })
+      .from(instanceServices)
+      .where(
+        and(
+          eq(instanceServices.instanceId, instanceId),
+          eq(instanceServices.toolId, "stripe"),
+        ),
+      );
+
+    if (!rows[0]) {
+      res.json({ balanceCents: 0 });
+      return;
+    }
+
+    const balanceCents = await stripe.getCustomerBalance(rows[0].resourceId);
+    res.json({ balanceCents });
+  } catch (err: any) {
+    console.error("[stripe] Balance endpoint failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /** Return Stripe publishable key (not a secret). */
 stripeApiRouter.post("/api/pool/stripe/config", async (req, res) => {
   try {

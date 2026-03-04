@@ -20,7 +20,8 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "ngrok": "ngrok http --url=c3c882cc6672.ngrok.app 3001"
+    "ngrok": "ngrok http --url=c3c882cc6672.ngrok.app 3001",
+    "stripe:webhook": "stripe listen --forward-to http://localhost:3001/webhooks/stripe"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",
