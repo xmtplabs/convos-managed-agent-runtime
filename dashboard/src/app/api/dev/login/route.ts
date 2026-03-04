@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   const { password } = await request.json();
   const apiKey = process.env.POOL_API_KEY;
 
-  if (!apiKey || password !== apiKey) {
+  if (!apiKey || typeof password !== "string" || password.length !== apiKey.length || !crypto.timingSafeEqual(Buffer.from(password), Buffer.from(apiKey))) {
     return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
   }
 

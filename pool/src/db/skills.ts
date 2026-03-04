@@ -19,10 +19,11 @@ export async function createSkill(data: {
   visibility?: SkillVisibility;
 }): Promise<SkillRow> {
   const id = crypto.randomUUID();
+  const slug = data.slug || slugify(data.agentName);
   const rows = await db.insert(agentSkills).values({
     id,
     creatorId: data.creatorId,
-    slug: data.slug || slugify(data.agentName),
+    slug: slug || `skill-${id.slice(0, 8)}`,
     agentName: data.agentName,
     description: data.description ?? "",
     prompt: data.prompt,

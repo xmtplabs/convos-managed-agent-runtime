@@ -98,9 +98,6 @@ export default function DevPage() {
       if (res.ok) {
         setDevAuthed(true);
         setDevPassword("");
-        fetchUser();
-        listMySkills();
-        listPublicSkills();
       } else {
         setDevError("Invalid API key");
       }

@@ -8,6 +8,7 @@ function makeToken(expiry: number): string {
 }
 
 export function verifyDevSession(cookieHeader: string | null): boolean {
+  if (!process.env.POOL_API_KEY) return false;
   if (!cookieHeader) return false;
   const match = cookieHeader.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
   if (!match) return false;
