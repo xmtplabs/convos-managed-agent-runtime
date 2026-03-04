@@ -23,6 +23,7 @@ export const convosOutbound: ChannelOutboundAdapter = {
     if (!instance) {
       throw new Error("Convos instance not running. Is the gateway started?");
     }
+    console.log(`[convos/outbound] sendText to=${JSON.stringify(to)} bound=${instance.conversationId}`);
     if (to && to !== instance.conversationId) {
       throw new Error(`Convos routing mismatch: expected ${instance.conversationId}, got ${to}`);
     }
