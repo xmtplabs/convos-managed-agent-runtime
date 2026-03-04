@@ -131,12 +131,17 @@ export async function createInstance(
 
   const opts = { projectId, environmentId };
 
-  // Create Railway service + volume in the new project
+  // Create Railway service + volume + domain in the new project
+  // Domain is created inside createService before the first deploy triggers,
+  // so RAILWAY_PUBLIC_DOMAIN is injected on boot.
   onProgress?.("railway-service", "active");
   let serviceId: string;
+  let url: string | null = null;
   try {
     const svcStart = Date.now();
-    serviceId = await railway.createService(name, vars, opts, runtimeImage);
+    const result = await railway.createService(name, vars, opts, runtimeImage);
+    serviceId = result.serviceId;
+    if (result.domain) url = `https://${result.domain}`;
     metricHistogram("provider.railway.service.duration_ms", Date.now() - svcStart);
     console.log(`[infra] Railway service created: ${serviceId}`);
   } catch (err) {
@@ -147,23 +152,12 @@ export async function createInstance(
     throw err;
   }
 
-  // Volume is attached inside createService (before first deploy triggers)
   onProgress?.("railway-service", "ok", serviceId);
-
-  // Create domain
-  onProgress?.("railway-domain", "active");
-  let url: string | null = null;
-  try {
-    const domainStart = Date.now();
-    const domain = await railway.createDomain(serviceId, opts);
-    metricHistogram("provider.railway.domain.duration_ms", Date.now() - domainStart);
-    url = `https://${domain}`;
-    console.log(`[infra] Domain: ${url}`);
+  if (url) {
     onProgress?.("railway-domain", "ok", url);
-  } catch (err: any) {
-    console.warn(`[infra] Domain creation failed for ${serviceId}: ${err.message}`);
-    onProgress?.("railway-domain", "fail", err.message);
-    // Non-fatal — continue without domain
+    console.log(`[infra] Domain: ${url}`);
+  } else {
+    onProgress?.("railway-domain", "fail", "domain not created");
   }
 
   // Insert into instance_infra
