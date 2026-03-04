@@ -95,10 +95,17 @@ echo "  CONFIG            $CONFIG"
 echo "  SKILLS_DIR        $SKILLS_DIR"
 
 # OpenRouter credit check
-if [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1; then
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+  echo "  ⬚  OpenRouter   → no API key set, skipping credit check"
+elif ! command -v curl >/dev/null 2>&1; then
+  echo "  ⬚  OpenRouter   → curl not found, skipping credit check"
+else
   _or_resp=$(curl -s -H "Authorization: Bearer $OPENROUTER_API_KEY" \
     "https://openrouter.ai/api/v1/auth/key" 2>/dev/null) || true
-  if [ -n "$_or_resp" ] && command -v jq >/dev/null 2>&1; then
+  _or_error=$(echo "$_or_resp" | jq -r '.error.message // empty' 2>/dev/null) || true
+  if [ -n "$_or_error" ]; then
+    echo "  ⚠️  OpenRouter   → credit check failed: $_or_error"
+  elif [ -n "$_or_resp" ] && command -v jq >/dev/null 2>&1; then
     _or_limit=$(echo "$_or_resp" | jq -r '.data.limit // empty' 2>/dev/null) || true
     _or_usage=$(echo "$_or_resp" | jq -r '.data.usage // empty' 2>/dev/null) || true
     if [ -n "$_or_limit" ] && [ -n "$_or_usage" ]; then
@@ -115,10 +122,16 @@ if [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1; then
         else
           echo "  💳 OpenRouter   → \$$_or_remaining credits remaining"
         fi
+      else
+        echo "  ⚠️  OpenRouter   → could not calculate balance"
       fi
+    else
+      echo "  ⚠️  OpenRouter   → unexpected API response (no limit/usage data)"
     fi
+  else
+    echo "  ⚠️  OpenRouter   → credit check failed (empty response)"
   fi
-  unset _or_resp _or_limit _or_usage _or_remaining _or_is_zero _or_is_low
+  unset _or_resp _or_error _or_limit _or_usage _or_remaining _or_is_zero _or_is_low
 fi
 
 echo ""
