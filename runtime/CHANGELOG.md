@@ -1,5 +1,11 @@
 # 🎈 Convos runtime changelog
 
+## 0.0.19
+- Heartbeat: switched target from hardcoded `convos` channel to `"last"`
+- Heartbeat: use cheap model (`gpt-4o-mini`) and restrict to active hours (8am–10pm ET)
+- Heartbeat: log errors when OpenRouter credit check fails instead of crashing
+- Local dev: skip `.env` rewrite when running locally
+
 ## 0.0.18
 - Prompt-based QA: new `qa-prompts.sh` script sends real prompts to the agent and prints responses for manual review
 - QA polling: `qa.sh` now checks latest received email, latest inbound SMS, and OpenRouter credit balance

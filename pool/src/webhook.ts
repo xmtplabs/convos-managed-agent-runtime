@@ -53,13 +53,13 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
   const instance = await db.findById(instanceId);
   if (!instance) {
     console.warn(`[webhook] Instance ${instanceId} in infra but not in instances table`);
-    return;
+    return false;
   }
 
   // Verify environment matches (workspace webhooks fire for all envs)
   const webhookEnvId = payload.resource?.environment?.id;
   if (webhookEnvId && webhookEnvId !== infra.providerEnvId) {
-    return; // Event from a different environment — ignore
+    return false; // Event from a different environment — ignore
   }
 
   const isClaimed = !!instance.agentName || instance.status === "claimed";
