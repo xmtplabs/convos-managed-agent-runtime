@@ -46,7 +46,7 @@
       "heartbeat": {
         "every": "30m",
         "model": "openrouter/openai/gpt-4o-mini",
-        "target": "convos",
+        "target": "last",
         "activeHours": {
           "start": "08:00",
           "end": "22:00",

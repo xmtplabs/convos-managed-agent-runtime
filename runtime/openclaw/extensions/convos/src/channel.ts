@@ -259,6 +259,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       // Inherit env so exec tool CLI commands use the correct XMTP network
       process.env.CONVOS_ENV = account.env;
 
+
       // Restore instance from config — the CLI manages identities on disk
       const inst = ConvosInstance.fromExisting(
         account.ownerConversationId,
