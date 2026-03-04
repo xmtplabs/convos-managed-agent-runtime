@@ -480,8 +480,10 @@ async function handleInboundMessage(
           if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
             const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
             const ngrok = process.env.NGROK_URL;
+            let cached: string | null = null;
+            try { cached = fs.readFileSync("/tmp/service-domain", "utf-8").trim() || null; } catch { /* not yet detected */ }
             const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
-            const base = domain ? `https://${domain}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
+            const base = domain ? `https://${domain}` : cached ? `https://${cached}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
             payload = { ...payload, text: `Hey! I'm out of credits. You can top up here: ${base}/web-tools/services` };
           }
           await deliverConvosReply({

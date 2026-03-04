@@ -1,7 +1,29 @@
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import * as fs from "node:fs";
 import * as path from "node:path";
+
+const DOMAIN_FILE = "/tmp/service-domain";
+let cachedHost: string | null = null;
+
+/** Persist the public host discovered from an incoming request. */
+function detectHost(req: IncomingMessage): void {
+  if (cachedHost) return;
+  const host = req.headers.host;
+  if (!host || host.startsWith("127.0.0.1") || host.startsWith("localhost")) return;
+  cachedHost = host;
+  try { fs.writeFileSync(DOMAIN_FILE, host); } catch { /* best-effort */ }
+}
+
+/** Read a previously-detected host from the temp file (for non-HTTP contexts). */
+function readCachedHost(): string | null {
+  if (cachedHost) return cachedHost;
+  try {
+    const h = fs.readFileSync(DOMAIN_FILE, "utf-8").trim();
+    if (h) { cachedHost = h; return h; }
+  } catch { /* not yet detected */ }
+  return null;
+}
 
 function serveFile(
   res: ServerResponse,
@@ -57,10 +79,10 @@ function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: Server
 }
 
 /** Build service identity + credits data from env vars and pool manager. */
-async function getServicesData(): Promise<Record<string, unknown>> {
+async function getServicesData(req?: IncomingMessage): Promise<Record<string, unknown>> {
   const email = process.env.AGENTMAIL_INBOX_ID || null;
   const phone = process.env.TELNYX_PHONE_NUMBER || null;
-  const servicesUrl = buildServicesUrl();
+  const servicesUrl = buildServicesUrl(req);
 
   const instanceId = process.env.INSTANCE_ID || null;
   const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
@@ -97,7 +119,17 @@ async function getServicesData(): Promise<Record<string, unknown>> {
   return result;
 }
 
-function buildServicesUrl(): string {
+function buildServicesUrl(req?: IncomingMessage): string {
+  // 1. Incoming request Host header (most reliable — matches what the user typed)
+  const reqHost = req?.headers.host;
+  if (reqHost && !reqHost.startsWith("127.0.0.1") && !reqHost.startsWith("localhost")) {
+    const proto = reqHost.includes("localhost") ? "http" : "https";
+    return `${proto}://${reqHost}/web-tools/services`;
+  }
+  // 2. Previously detected host from an earlier HTTP request
+  const cached = readCachedHost();
+  if (cached) return `https://${cached}/web-tools/services`;
+  // 3. Railway / ngrok env vars
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
   const ngrok = process.env.NGROK_URL;
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
@@ -133,6 +165,7 @@ export default function register(api: OpenClawPluginApi) {
   api.registerHttpRoute({
     path: "/web-tools/convos",
     handler: async (req, res) => {
+      detectHost(req);
       if (req.method !== "GET") {
         res.statusCode = 405;
         res.end();
@@ -204,6 +237,7 @@ export default function register(api: OpenClawPluginApi) {
   api.registerHttpRoute({
     path: "/web-tools/services",
     handler: async (req, res) => {
+      detectHost(req);
       if (req.method !== "GET") {
         res.statusCode = 405;
         res.end();
@@ -228,13 +262,14 @@ export default function register(api: OpenClawPluginApi) {
   api.registerHttpRoute({
     path: "/web-tools/services/api",
     handler: async (req, res) => {
+      detectHost(req);
       if (req.method !== "GET") {
         res.statusCode = 405;
         res.end();
         return;
       }
       try {
-        const data = await getServicesData();
+        const data = await getServicesData(req);
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Cache-Control", "no-store");
