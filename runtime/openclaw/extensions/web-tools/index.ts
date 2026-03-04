@@ -33,10 +33,10 @@ function getPoolApiKey(api: OpenClawPluginApi): string {
   }
 }
 
-/** Serve the landing page with the poolApiKey injected as a JS variable. */
-function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: ServerResponse) {
+/** Serve an HTML page with the poolApiKey injected as a JS variable. */
+function servePageWithToken(api: OpenClawPluginApi, htmlPath: string, res: ServerResponse) {
   try {
-    let html = fs.readFileSync(path.join(agentsDir, "landing.html"), "utf-8");
+    let html = fs.readFileSync(htmlPath, "utf-8");
     const token = getPoolApiKey(api);
     // Inject token before the closing </head> tag so it's available to scripts
     const injection = `<script>window.__POOL_TOKEN=${JSON.stringify(token)};</script>`;
@@ -51,36 +51,87 @@ function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: Server
   }
 }
 
+/** Serve the landing page with the poolApiKey injected as a JS variable. */
+function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: ServerResponse) {
+  servePageWithToken(api, path.join(agentsDir, "landing.html"), res);
+}
+
+/** Build service identity + credits data from env vars and pool manager. */
+async function getServicesData(): Promise<Record<string, unknown>> {
+  const email = process.env.AGENTMAIL_INBOX_ID || null;
+  const phone = process.env.TELNYX_PHONE_NUMBER || null;
+  const servicesUrl = buildServicesUrl();
+
+  const instanceId = process.env.INSTANCE_ID || null;
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
+
+  // Try to fetch credits from pool manager
+  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const poolUrl = process.env.POOL_URL;
+
+  if (instanceId && gatewayToken && poolUrl) {
+    try {
+      const creditsUrl = `${poolUrl}/api/pool/credits-check`;
+      console.log(`[web-tools] Credits check → ${creditsUrl} (instance=${instanceId})`);
+      const creditsRes = await fetch(creditsUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instanceId, gatewayToken }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (creditsRes.ok) {
+        result.credits = await creditsRes.json();
+      } else {
+        const body = await creditsRes.text().catch(() => "");
+        console.warn(`[web-tools] Credits check failed: ${creditsRes.status} ${body}`);
+        result.credits = { error: "unavailable" };
+      }
+    } catch (err: any) {
+      console.warn(`[web-tools] Credits check error: ${err.message}`);
+      result.credits = { error: "unavailable" };
+    }
+  } else {
+    result.credits = { error: "not pool-managed" };
+  }
+
+  return result;
+}
+
+function buildServicesUrl(): string {
+  const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  const ngrok = process.env.NGROK_URL;
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
+  const base = domain
+    ? `https://${domain}`
+    : ngrok
+      ? ngrok.replace(/\/$/, "")
+      : `http://127.0.0.1:${port}`;
+  return `${base}/web-tools/services`;
+}
+
 export default function register(api: OpenClawPluginApi) {
-  const formDir = path.resolve(__dirname, "form");
-  const agentsDir = path.resolve(__dirname, "agents");
+  const agentsDir = path.resolve(__dirname, "convos");
+  const servicesDir = path.resolve(__dirname, "services");
 
-  api.registerHttpRoute({
-    path: "/web-tools/form",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(res, path.join(formDir, "form.html"), "text/html; charset=utf-8");
-    },
+  // Intercept outgoing messages that contain raw provider credit errors
+  // and replace with a friendly services URL. Works across all channels.
+  api.on("message_sending", (event) => {
+    const text = event.content || "";
+    if (
+      text.includes("limit exceeded") ||
+      text.includes("402") ||
+      text.includes("afford") ||
+      text.includes("openrouter.ai/settings")
+    ) {
+      const servicesUrl = buildServicesUrl();
+      return {
+        content: `Hey! I'm out of credits. You can top up here: ${servicesUrl}`,
+      };
+    }
   });
 
   api.registerHttpRoute({
-    path: "/web-tools/form/",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(res, path.join(formDir, "form.html"), "text/html; charset=utf-8");
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/agents",
+    path: "/web-tools/convos",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -92,7 +143,7 @@ export default function register(api: OpenClawPluginApi) {
   });
 
   api.registerHttpRoute({
-    path: "/web-tools/agents/",
+    path: "/web-tools/convos/",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -104,7 +155,7 @@ export default function register(api: OpenClawPluginApi) {
   });
 
   api.registerHttpRoute({
-    path: "/web-tools/agents/manifest.json",
+    path: "/web-tools/convos/manifest.json",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -120,7 +171,7 @@ export default function register(api: OpenClawPluginApi) {
   });
 
   api.registerHttpRoute({
-    path: "/web-tools/agents/sw.js",
+    path: "/web-tools/convos/sw.js",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -137,7 +188,7 @@ export default function register(api: OpenClawPluginApi) {
   });
 
   api.registerHttpRoute({
-    path: "/web-tools/agents/icon.svg",
+    path: "/web-tools/convos/icon.svg",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -145,6 +196,97 @@ export default function register(api: OpenClawPluginApi) {
         return;
       }
       serveFile(res, path.join(agentsDir, "icon.svg"), "image/svg+xml");
+    },
+  });
+
+  // --- Services page ---
+
+  api.registerHttpRoute({
+    path: "/web-tools/services",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      servePageWithToken(api, path.join(servicesDir, "services.html"), res);
+    },
+  });
+
+  api.registerHttpRoute({
+    path: "/web-tools/services/",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      servePageWithToken(api, path.join(servicesDir, "services.html"), res);
+    },
+  });
+
+  api.registerHttpRoute({
+    path: "/web-tools/services/api",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      try {
+        const data = await getServicesData();
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(JSON.stringify(data));
+      } catch {
+        res.statusCode = 500;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to load services data" }));
+      }
+    },
+  });
+
+  // Credits top-up proxy — forwards request to pool manager
+  api.registerHttpRoute({
+    path: "/web-tools/services/topup",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Top-up not available (missing config)" }));
+        return;
+      }
+
+      try {
+        const topupUrl = `${poolUrl}/api/pool/credits-topup`;
+        console.log(`[web-tools] Credits top-up → ${topupUrl} (instance=${instanceId})`);
+        const poolRes = await fetch(topupUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+      } catch (err: any) {
+        console.warn(`[web-tools] Credits top-up error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
     },
   });
 }

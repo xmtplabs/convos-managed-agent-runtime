@@ -1,6 +1,6 @@
 import * as db from "./db/pool";
 import { config } from "./config";
-import { sendMetric } from "./metrics";
+import { metricCount, metricHistogram } from "./metrics";
 
 export type ProvisionProgressCallback = (step: string, status: string, message?: string) => void;
 
@@ -18,10 +18,11 @@ export async function provision(opts: ProvisionOpts) {
     if (onProgress) onProgress(step, status, message);
   };
 
+  metricCount("instance.claim.start");
   report("claim", "active", "Finding available instance…");
   const instance = await db.claimIdle();
   if (!instance) {
-    sendMetric("claim.no_idle", 1);
+    metricCount("instance.claim.fail", 1, { reason: "no_idle" });
     report("claim", "fail", "No idle instances available");
     return null;
   }
@@ -67,8 +68,8 @@ export async function provision(opts: ProvisionOpts) {
 
     console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
 
-    sendMetric("claim.duration_ms", Date.now() - claimStart);
-    sendMetric("claim.success", 1);
+    metricCount("instance.claim.complete");
+    metricHistogram("instance.claim.duration_ms", Date.now() - claimStart);
 
     return {
       inviteUrl: result.inviteUrl || null,
@@ -79,8 +80,8 @@ export async function provision(opts: ProvisionOpts) {
       agentName,
     };
   } catch (err) {
-    sendMetric("claim.duration_ms", Date.now() - claimStart);
-    sendMetric("claim.success", 0);
+    metricCount("instance.claim.fail", 1, { reason: "provision_error" });
+    metricHistogram("instance.claim.duration_ms", Date.now() - claimStart);
     const msg = err instanceof Error ? err.message : String(err);
     report("provision", "fail", msg.slice(0, 200));
     report("convo", "skip");

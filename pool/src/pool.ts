@@ -3,7 +3,7 @@ import * as db from "./db/pool";
 import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance, type ProgressCallback } from "./services/infra";
 import { fetchBatchStatus } from "./services/status";
 import { config } from "./config";
-import { sendMetric } from "./metrics";
+import { metricCount, metricHistogram } from "./metrics";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -45,6 +45,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
   const createStart = Date.now();
 
   console.log(`[pool] Creating instance ${name}...`);
+  metricCount("instance.create.start");
 
   try {
     const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress, runtimeImage);
@@ -58,12 +59,9 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
       createdAt: new Date().toISOString(),
     });
 
-    sendMetric("instance.create.duration_ms", Date.now() - createStart);
-    sendMetric("instance.create.success", 1);
     return { id, serviceId: result.serviceId, url: result.url, name };
   } catch (err) {
-    sendMetric("instance.create.duration_ms", Date.now() - createStart);
-    sendMetric("instance.create.success", 0);
+    metricCount("instance.create.fail", 1, { phase: "infra" });
     throw err;
   }
 }
@@ -71,7 +69,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 export { provision } from "./provision";
 
 // Health-check a single instance via /pool/health.
-async function healthCheck(url: string) {
+export async function healthCheck(url: string) {
   try {
     const res = await fetch(`${url}/pool/health`, {
       headers: { Authorization: `Bearer ${config.poolApiKey}` },
@@ -95,6 +93,8 @@ export async function checkStarting() {
       await db.updateStatus(row.id, { status: "idle" });
       if (hc.version) await db.setRuntimeVersion(row.id, hc.version);
       promoted.push(row.id);
+      metricCount("instance.create.complete");
+      metricHistogram("instance.create.duration_ms", Date.now() - new Date(row.createdAt).getTime());
       console.log(`[pool] promoted ${row.id} starting → idle (v${hc.version || '?'})`);
     }
   }
