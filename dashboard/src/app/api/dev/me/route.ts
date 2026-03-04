@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth0 } from "@/lib/auth0";
-import { verifyDevSession } from "../login/route";
+import { verifyDevSession } from "@/lib/dev-session";
 
 export async function GET(request: NextRequest) {
   if (!verifyDevSession(request.headers.get("cookie"))) {
