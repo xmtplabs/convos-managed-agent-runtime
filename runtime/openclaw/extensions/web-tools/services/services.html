@@ -167,23 +167,6 @@
       margin-top: 0.75rem;
     }
 
-    .topup-btn {
-      display: none;
-      background: none;
-      border: 1px solid #e0e0e0;
-      border-radius: 10px;
-      padding: 0.2rem 0.55rem;
-      font-size: 0.6rem;
-      color: #aaa;
-      cursor: pointer;
-      transition: color 0.15s, border-color 0.15s;
-      margin-top: 0.3rem;
-    }
-    .topup-btn:hover { color: #666; border-color: #bbb; }
-    .topup-btn:disabled { cursor: default; opacity: 0.5; }
-    .topup-btn.topup-error { color: #c44; border-color: #c44; }
-    .topup-btn.topup-ok { color: #2a2; border-color: #2a2; }
-
     /* --- Manage screen --- */
     .manage-balance {
       text-align: center;
@@ -340,10 +323,10 @@
             </button>
           </div>
 
-          <!-- OpenRouter credits row -->
+          <!-- AI Credits row -->
           <div class="service-item" id="svc-credits">
             <div class="service-body">
-              <div class="service-label">openrouter</div>
+              <div class="service-label">ai credits</div>
               <div class="service-value" id="credits-value"><div class="loading-shimmer"></div></div>
               <div class="credits-bar" id="credits-bar" style="display:none">
                 <div class="credits-bar-fill" id="credits-bar-fill"></div>
@@ -352,15 +335,6 @@
                 <span id="credits-used"></span>
                 <span id="credits-limit"></span>
               </div>
-              <button class="topup-btn" id="topup-btn">add credits</button>
-            </div>
-          </div>
-
-          <!-- Convos credits row -->
-          <div class="service-item" id="svc-convos">
-            <div class="service-body">
-              <div class="service-label">convos credits</div>
-              <div class="service-value" id="convos-value"><div class="loading-shimmer"></div></div>
             </div>
             <button class="manage-icon-btn" id="manage-btn" style="display:none" title="Manage credits">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -377,7 +351,7 @@
           <button class="back-btn" id="back-btn" title="Back">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           </button>
-          <span class="manage-title">manage credits</span>
+          <span class="manage-title">add credits</span>
         </div>
 
         <div class="manage-balance">
@@ -418,7 +392,6 @@
       var emailValue = document.getElementById("email-value");
       var phoneValue = document.getElementById("phone-value");
       var creditsValue = document.getElementById("credits-value");
-      var convosValue = document.getElementById("convos-value");
       var copyEmail = document.getElementById("copy-email");
       var copyPhone = document.getElementById("copy-phone");
       var creditsBar = document.getElementById("credits-bar");
@@ -426,7 +399,6 @@
       var creditsDetail = document.getElementById("credits-detail");
       var creditsUsed = document.getElementById("credits-used");
       var creditsLimit = document.getElementById("credits-limit");
-      var topupBtn = document.getElementById("topup-btn");
       var errorEl = document.getElementById("error");
       var manageBtn = document.getElementById("manage-btn");
       var backBtn = document.getElementById("back-btn");
@@ -442,7 +414,6 @@
       var paymentStatus = document.getElementById("payment-status");
 
       var poolToken = window.__POOL_TOKEN || "";
-      var currentConvosBalanceCents = 0;
 
       function authHeaders(extra) {
         var h = extra || {};
@@ -477,27 +448,6 @@
         errorEl.style.display = msg ? "block" : "none";
       }
 
-      function formatCents(cents) {
-        // Stripe balance: negative = credit (customer has money), positive = owes
-        var dollars = Math.abs(cents) / 100;
-        return "$" + dollars.toFixed(2);
-      }
-
-      function renderConvosBalance(convosBalance) {
-        if (!convosBalance || convosBalance.error) {
-          convosValue.textContent = "unavailable";
-          convosValue.className = "service-value service-value--null";
-          return;
-        }
-        var cents = convosBalance.balanceCents || 0;
-        currentConvosBalanceCents = cents;
-        // Stripe: negative balance = customer credit; 0 = no balance
-        var credit = cents < 0 ? Math.abs(cents) : 0;
-        convosValue.textContent = "$" + (credit / 100).toFixed(2);
-        convosValue.className = "service-value";
-        manageBalanceValue.textContent = "$" + (credit / 100).toFixed(2);
-      }
-
       function renderCredits(credits) {
         if (credits && credits.limit !== undefined) {
           var c = credits;
@@ -516,14 +466,13 @@
           creditsUsed.textContent = "$" + used.toFixed(2) + " used";
           creditsLimit.textContent = "$" + limit.toFixed(2) + " limit";
 
-          topupBtn.style.display = "inline-block";
+          manageBtn.style.display = "block";
+          manageBalanceValue.textContent = "$" + remaining.toFixed(2);
         } else if (credits && credits.error) {
           creditsValue.textContent = credits.error;
           creditsValue.className = "service-value service-value--null";
-          topupBtn.style.display = "none";
         } else {
           showValue(creditsValue, null);
-          topupBtn.style.display = "none";
         }
       }
 
@@ -543,64 +492,6 @@
       });
 
       backBtn.addEventListener("click", showLandingScreen);
-
-      // --- Free topup for OpenRouter (dev fallback) ---
-      var useFreeTopup = false;
-
-      topupBtn.addEventListener("click", function () {
-        if (useFreeTopup) {
-          doFreeTopup();
-          return;
-        }
-        // If Stripe isn't available, try free topup
-        doFreeTopup();
-      });
-
-      function doFreeTopup() {
-        topupBtn.disabled = true;
-        topupBtn.textContent = "topping up...";
-        topupBtn.classList.remove("topup-error");
-
-        fetch("/web-tools/services/topup", { method: "POST", headers: authHeaders() })
-          .then(function (r) {
-            return r.json().then(function (d) { return { ok: r.ok, data: d }; });
-          })
-          .then(function (_) {
-            if (!_.ok) {
-              topupBtn.textContent = _.data.error || "failed";
-              topupBtn.classList.add("topup-error");
-              setTimeout(function () {
-                topupBtn.textContent = "add credits";
-                topupBtn.classList.remove("topup-error");
-                topupBtn.disabled = false;
-              }, 2500);
-              return;
-            }
-            return fetch("/web-tools/services/api", { headers: authHeaders() })
-              .then(function (r) { return r.json(); })
-              .then(function (d) {
-                renderCredits(d.credits);
-                topupBtn.disabled = false;
-                topupBtn.textContent = "topped up";
-                topupBtn.classList.add("topup-ok");
-                topupBtn.style.pointerEvents = "none";
-                setTimeout(function () {
-                  topupBtn.textContent = "add credits";
-                  topupBtn.classList.remove("topup-ok");
-                  topupBtn.style.pointerEvents = "";
-                }, 2000);
-              });
-          })
-          .catch(function () {
-            topupBtn.textContent = "failed";
-            topupBtn.classList.add("topup-error");
-            setTimeout(function () {
-              topupBtn.textContent = "add credits";
-              topupBtn.classList.remove("topup-error");
-              topupBtn.disabled = false;
-            }, 2500);
-          });
-      }
 
       // --- Stripe payment state ---
       var stripeInstance = null;
@@ -776,7 +667,6 @@
             .then(function (r) { return r.json(); })
             .then(function (d) {
               renderCredits(d.credits);
-              renderConvosBalance(d.convosBalance);
               if (attemptsLeft > 1) {
                 pollBalance(attemptsLeft - 1);
               } else {
@@ -802,8 +692,6 @@
             showValue(emailValue, null);
             showValue(phoneValue, null);
             showValue(creditsValue, null);
-            convosValue.textContent = "unavailable";
-            convosValue.className = "service-value service-value--null";
             return;
           }
           var d = _.data;
@@ -829,18 +717,12 @@
           }
 
           renderCredits(d.credits);
-          renderConvosBalance(d.convosBalance);
-
-          // Show manage button (gear icon) for convos credits
-          manageBtn.style.display = "block";
         })
         .catch(function () {
           showError("failed to connect");
           showValue(emailValue, null);
           showValue(phoneValue, null);
           showValue(creditsValue, null);
-          convosValue.textContent = "unavailable";
-          convosValue.className = "service-value service-value--null";
         });
 
     })();
