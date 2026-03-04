@@ -1,7 +1,7 @@
 # 🎈 Convos runtime changelog
 
 ## 0.0.19
-- Heartbeat: switched target from hardcoded `convos` channel to `"last"` — heartbeat now dynamically targets the last active conversation instead of requiring a `CONVOS_CONVERSATION_ID` env var at startup
+- Heartbeat: switched target from hardcoded `convos` channel to `"last"`
 - Heartbeat: use cheap model (`gpt-4o-mini`) and restrict to active hours (8am–10pm ET)
 - Heartbeat: log errors when OpenRouter credit check fails instead of crashing
 - Local dev: skip `.env` rewrite when running locally
