@@ -462,6 +462,11 @@ export class ConvosInstance {
     // Explode triggers shutdown of the child process
   }
 
+  /** Run `convos conversation <subcommand> <conversationId> <...args>` and return stdout. */
+  async conversationExec(subcommand: string, args: string[] = []): Promise<string> {
+    return this.exec(["conversation", subcommand, this.conversationId, ...args]);
+  }
+
   /** One-shot: get invite info (not available via agent serve stdin). */
   async getInvite(): Promise<{ inviteSlug: string }> {
     const data = await this.execJson<{ slug: string; url: string }>([

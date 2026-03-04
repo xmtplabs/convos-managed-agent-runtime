@@ -96,6 +96,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID.",
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
       "- To send a file: use `action=sendAttachment` with `file` (local path).",
+      "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
     ],
   },
   config: {
@@ -272,6 +273,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 
       // Inherit env so exec tool CLI commands use the correct XMTP network
       process.env.CONVOS_ENV = account.env;
+      // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
+      process.env.CONVOS_CONVERSATION_ID = account.ownerConversationId;
 
 
       // Restore instance from config — the CLI manages identities on disk
@@ -663,6 +666,9 @@ export async function startWiredInstance(params: {
       console.error(`[convos] Failed to clear sessions: ${String(err)}`);
     }
   }
+
+  // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
+  process.env.CONVOS_CONVERSATION_ID = params.conversationId;
 
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,

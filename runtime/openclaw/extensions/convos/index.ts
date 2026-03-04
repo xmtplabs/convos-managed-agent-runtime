@@ -321,6 +321,7 @@ const plugin = {
           try { await inst.stop(); } catch { /* best-effort */ }
           setConvosInstance(null);
         }
+        delete process.env.CONVOS_CONVERSATION_ID;
         const result = await handleSetup({
           accountId: typeof params.accountId === "string" ? params.accountId : undefined,
           env: typeof params.env === "string" ? (params.env as "production" | "dev") : undefined,
@@ -766,6 +767,7 @@ const plugin = {
             try { await inst.stop(); } catch { /* best-effort */ }
             setConvosInstance(null);
           }
+          delete process.env.CONVOS_CONVERSATION_ID;
           const body = await readJsonBody(req);
           const result = await handleSetup({
             accountId: typeof body.accountId === "string" ? body.accountId : undefined,
