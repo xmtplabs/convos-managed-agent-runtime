@@ -52,5 +52,5 @@ When deploying pool manager changes to a new Railway environment:
 1. Hit **Drain Unclaimed** in the pool dashboard — removes all idle/starting instances
 2. Set pool manager root directory to `/pool`
 3. Remove all `INSTANCE_*` env vars — instance keys now use their original names (`OPENCLAW_PRIMARY_MODEL`, `AGENTMAIL_API_KEY`, etc.)
-4. Runtime image defaults to `ghcr.io/xmtplabs/convos-runtime:latest`. Set `RAILWAY_RUNTIME_IMAGE` to override.
+4. Runtime image is tagged by branch (e.g. `:dev`, `:production`). Set `RAILWAY_RUNTIME_IMAGE` to override.
 5. Replenish manually via the admin dashboard "+ Add" button
