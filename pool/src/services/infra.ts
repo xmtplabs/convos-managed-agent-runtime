@@ -129,11 +129,21 @@ export async function createInstance(
   if (!config.railwayTeamId) throw new Error("RAILWAY_TEAM_ID not set — required for instance creation");
 
   onProgress?.("railway-project", "active");
-  const projStart = Date.now();
-  const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
-  const projectId = proj.projectId;
-  metricHistogram("provider.railway.project.duration_ms", Date.now() - projStart);
-  metricCount("provider.railway.project.provisioned");
+  let projectId: string;
+  try {
+    const projStart = Date.now();
+    const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
+    projectId = proj.projectId;
+    metricHistogram("provider.railway.project.duration_ms", Date.now() - projStart);
+    metricCount("provider.railway.project.provisioned");
+  } catch (err) {
+    const { error_class, error_message } = classifyError(err);
+    console.error(`[infra] Railway project creation failed for ${instanceId}`);
+    logger.error("create.railway_project_fail", { instanceId, error_class, error_message: error_message.slice(0, 1500) });
+    metricCount("instance.create.fail", 1, { phase: "railway_project", error_class });
+    onProgress?.("railway-project", "fail", (err as Error).message);
+    throw err;
+  }
   onProgress?.("railway-project", "ok", projectId);
 
   let environmentId: string;
