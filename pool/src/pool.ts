@@ -66,8 +66,8 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
     const { error_class, error_message } = classifyError(err);
     // More specific phase tags are emitted inside infra.createInstance;
     // this is the top-level rollup so dashboards can alert on total create failures.
-    metricCount("instance.create.fail", 1, { phase: "infra", error_class });
-    logger.error("create.fail", { instanceId: id, name, error_class, error_message: error_message.slice(0, 1500) });
+    metricCount("instance.create.fail", 1, { phase: "unknown", error_class });
+    logger.error("create.fail", { instanceId: id, name, error_class, error_message: error_message.slice(0, 1500), duration_ms: Date.now() - createStart });
     throw err;
   }
 }
