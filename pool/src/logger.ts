@@ -1,4 +1,6 @@
 const SERVICE = "convos-pool";
+const DD_API_KEY = process.env.DATADOG_API_KEY;
+const DD_SITE = process.env.DATADOG_SITE || "datadoghq.com";
 
 type Level = "info" | "warn" | "error";
 
@@ -12,6 +14,14 @@ function emit(level: Level, message: string, context?: Record<string, unknown>):
     dd: { service: SERVICE },
   };
   console.log(JSON.stringify(entry));
+
+  if (DD_API_KEY) {
+    fetch(`https://http-intake.logs.${DD_SITE}/api/v2/logs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "DD-API-KEY": DD_API_KEY },
+      body: JSON.stringify([entry]),
+    }).catch(() => {});
+  }
 }
 
 export const logger = {
