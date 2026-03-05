@@ -12,28 +12,25 @@ import { ConvosInstance } from "./src/sdk-client.js";
 import { clearConvosCredentials, saveConvosCredentials } from "./src/credentials.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
-const DEFAULT_INSTRUCTIONS = `You are a helpful assistant on Convos, an encrypted messaging platform.
-
-When someone greets you (e.g. "hi", "hey", "hello"), greet them back naturally. Keep it friendly and concise.
-
-Your channel is Convos — you're already connected. Do NOT ask the user which platform they are on, what service they use, or for any API credentials. Everything is already set up.
-
-Refer to SOUL.md for your personality and TOOLS.md for your capabilities.`;
-
 /** Write custom instructions into workspace IDENTITY.md so the agent sees them on every message. */
 function writeInstructions(rawInstructions: unknown) {
   const instructions =
     typeof rawInstructions === "string" && rawInstructions.trim()
       ? rawInstructions
-      : DEFAULT_INSTRUCTIONS;
+      : null;
+  if (!instructions) return; // No custom instructions — AGENTS.md covers defaults
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
   const wsDir = path.join(stateDir, "workspace");
   fs.mkdirSync(wsDir, { recursive: true });
   const identityPath = path.join(wsDir, "IDENTITY.md");
   let baseIdentity = "";
   try { baseIdentity = fs.readFileSync(identityPath, "utf-8"); } catch { /* first run — no base file yet */ }
-  const identityContent = baseIdentity
-    ? `${baseIdentity}\n\n---\n\n## Custom Instructions\n\n${instructions}`
+  // Replace existing Custom Instructions block instead of accumulating duplicates
+  const marker = "## Custom Instructions";
+  const markerIdx = baseIdentity.indexOf(marker);
+  const base = markerIdx !== -1 ? baseIdentity.slice(0, markerIdx).replace(/\n---\s*\n*$/, "") : baseIdentity;
+  const identityContent = base.trim()
+    ? `${base.trim()}\n\n---\n\n${marker}\n\n${instructions}`
     : instructions;
   fs.writeFileSync(identityPath, identityContent);
   console.log(`[convos] wrote IDENTITY.md (${identityContent.length} chars) to ${identityPath}`);
@@ -321,6 +318,7 @@ const plugin = {
           try { await inst.stop(); } catch { /* best-effort */ }
           setConvosInstance(null);
         }
+        delete process.env.CONVOS_CONVERSATION_ID;
         const result = await handleSetup({
           accountId: typeof params.accountId === "string" ? params.accountId : undefined,
           env: typeof params.env === "string" ? (params.env as "production" | "dev") : undefined,
@@ -766,6 +764,7 @@ const plugin = {
             try { await inst.stop(); } catch { /* best-effort */ }
             setConvosInstance(null);
           }
+          delete process.env.CONVOS_CONVERSATION_ID;
           const body = await readJsonBody(req);
           const result = await handleSetup({
             accountId: typeof body.accountId === "string" ? body.accountId : undefined,
