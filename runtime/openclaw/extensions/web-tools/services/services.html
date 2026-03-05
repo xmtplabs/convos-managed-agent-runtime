@@ -385,7 +385,7 @@
             <button class="package-btn" data-cents="5000">$50</button>
             <button class="package-btn" data-cents="10000">$100</button>
           </div>
-          <div class="package-buttons">
+          <div class="package-buttons" id="secondary-buttons">
             <button class="package-btn" id="custom-toggle">custom</button>
             <button class="package-btn" id="coupon-toggle">coupon</button>
           </div>
@@ -826,15 +826,15 @@
           // Production: coupon-only mode (no Stripe card payments)
           if (d.xmtpEnv === "production") {
             var pkgBtns = document.getElementById("package-buttons");
-            var custToggle = document.getElementById("custom-toggle");
+            var secBtns = document.getElementById("secondary-buttons");
             var stripeFormEl = document.getElementById("stripe-form");
+            var customAmountEl = document.getElementById("custom-amount");
             if (pkgBtns) pkgBtns.style.display = "none";
-            if (custToggle) custToggle.style.display = "none";
+            if (secBtns) secBtns.style.display = "none";
             if (stripeFormEl) stripeFormEl.style.display = "none";
+            if (customAmountEl) customAmountEl.style.display = "none";
             // Auto-show coupon row
-            var couponToggleEl = document.getElementById("coupon-toggle");
             var couponRowEl = document.getElementById("coupon-row");
-            if (couponToggleEl) couponToggleEl.style.display = "none";
             if (couponRowEl) couponRowEl.style.display = "flex";
           }
         })
