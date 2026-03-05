@@ -285,6 +285,26 @@
     .payment-status.status-error { color: #c44; }
     .payment-status.status-ok { color: #2a2; }
 
+    .test-fill-row {
+      display: flex;
+      gap: 0.3rem;
+      margin-top: 0.5rem;
+    }
+    .test-fill-btn {
+      flex: 1;
+      background: none;
+      border: 1px dashed #ddd;
+      border-radius: 6px;
+      padding: 0.3rem 0.2rem;
+      font-size: 0.55rem;
+      color: #bbb;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: 'SF Mono', ui-monospace, monospace;
+    }
+    .test-fill-btn:hover { border-color: #999; color: #888; }
+    .test-fill-btn.copied { color: #2a2; border-color: #2a2; }
+
     .manage-unavailable {
       text-align: center;
       color: #ccc;
@@ -423,6 +443,12 @@
             <button class="pay-btn" id="pay-btn" disabled>pay</button>
           </div>
           <div class="payment-status" id="payment-status"></div>
+          <div class="test-fill-row" id="test-fill-credits" style="display:none">
+            <button class="test-fill-btn" data-copy="4242424242424242">4242...4242</button>
+            <button class="test-fill-btn" data-copy="01/30">01/30</button>
+            <button class="test-fill-btn" data-copy="123">123</button>
+            <button class="test-fill-btn" data-copy="12345">12345</button>
+          </div>
         </div>
 
         <div class="manage-unavailable" id="manage-unavailable" style="display:none">
@@ -456,6 +482,12 @@
             <button class="pay-btn" id="card-pay-btn" disabled>get card</button>
           </div>
           <div class="payment-status" id="card-payment-status"></div>
+          <div class="test-fill-row" id="test-fill-card" style="display:none">
+            <button class="test-fill-btn" data-copy="4242424242424242">4242...4242</button>
+            <button class="test-fill-btn" data-copy="01/30">01/30</button>
+            <button class="test-fill-btn" data-copy="123">123</button>
+            <button class="test-fill-btn" data-copy="12345">12345</button>
+          </div>
         </div>
       </div>
 
@@ -1070,6 +1102,22 @@
           });
       });
 
+      // --- Test card helper (dev/test only) ---
+      document.querySelectorAll(".test-fill-btn[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var val = btn.getAttribute("data-copy");
+          var orig = btn.textContent;
+          navigator.clipboard.writeText(val).then(function () {
+            btn.textContent = "copied";
+            btn.classList.add("copied");
+            setTimeout(function () {
+              btn.textContent = orig;
+              btn.classList.remove("copied");
+            }, 1000);
+          });
+        });
+      });
+
       // --- Load initial data ---
       fetch("/web-tools/services/api", { headers: authHeaders() })
         .then(function (r) {
@@ -1107,6 +1155,14 @@
 
           renderCredits(d.credits);
           renderCard(d.card || { hasCard: false });
+
+          // Show test card buttons in non-production
+          if (d.xmtpEnv !== "production") {
+            var tcCredits = document.getElementById("test-fill-credits");
+            var tcCard = document.getElementById("test-fill-card");
+            if (tcCredits) tcCredits.style.display = "block";
+            if (tcCard) tcCard.style.display = "block";
+          }
 
           // Production: coupon-only mode (no Stripe card payments)
           if (d.xmtpEnv === "production") {
