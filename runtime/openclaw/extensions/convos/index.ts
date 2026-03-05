@@ -12,14 +12,13 @@ import { ConvosInstance } from "./src/sdk-client.js";
 import { clearConvosCredentials, saveConvosCredentials } from "./src/credentials.js";
 import { setupConvosWithInvite } from "./src/setup.js";
 
-const DEFAULT_INSTRUCTIONS = `Your channel is Convos — you're already connected. Do NOT ask the user which platform they are on, what service they use, or for any API credentials. Everything is already set up.`;
-
 /** Write custom instructions into workspace IDENTITY.md so the agent sees them on every message. */
 function writeInstructions(rawInstructions: unknown) {
   const instructions =
     typeof rawInstructions === "string" && rawInstructions.trim()
       ? rawInstructions
-      : DEFAULT_INSTRUCTIONS;
+      : null;
+  if (!instructions) return; // No custom instructions — AGENTS.md covers defaults
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
   const wsDir = path.join(stateDir, "workspace");
   fs.mkdirSync(wsDir, { recursive: true });
