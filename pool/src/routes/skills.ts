@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireUserAuth } from "../middleware/userAuth";
+import { requireUserAuth, optionalUserAuth } from "../middleware/userAuth";
 import * as skills from "../db/skills";
 import type { SkillVisibility } from "../db/schema";
 
@@ -38,7 +38,7 @@ skillsRouter.get("/api/skills/mine", requireUserAuth, async (req, res) => {
 });
 
 /** Get a single skill (by UUID or slug). Public if public, or owned by authed user. */
-skillsRouter.get("/api/skills/:idOrSlug", async (req, res) => {
+skillsRouter.get("/api/skills/:idOrSlug", optionalUserAuth, async (req, res) => {
   try {
     const param = req.params.idOrSlug as string;
     const skill = UUID_RE.test(param)

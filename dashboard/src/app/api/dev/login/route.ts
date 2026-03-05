@@ -13,7 +13,12 @@ export async function POST(request: NextRequest) {
   const { password } = await request.json();
   const apiKey = process.env.POOL_API_KEY;
 
-  if (!apiKey || typeof password !== "string" || password.length !== apiKey.length || !crypto.timingSafeEqual(Buffer.from(password), Buffer.from(apiKey))) {
+  if (!apiKey || typeof password !== "string") {
+    return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
+  }
+  const passwordHash = crypto.createHash("sha256").update(password).digest();
+  const apiKeyHash = crypto.createHash("sha256").update(apiKey).digest();
+  if (!crypto.timingSafeEqual(passwordHash, apiKeyHash)) {
     return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
   }
 

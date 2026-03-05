@@ -69,7 +69,7 @@ async function fetchNotionPrompt(pageId: string): Promise<string> {
     let text = "";
     let cursor: string | undefined;
     do {
-      const url = `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`;
+      const url = `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100${cursor ? `&start_cursor=${encodeURIComponent(cursor)}` : ""}`;
       const blocksRes = await fetch(url, { headers });
       if (!blocksRes.ok) {
         console.warn(`  Notion API returned ${blocksRes.status} for ${pageId}`);
