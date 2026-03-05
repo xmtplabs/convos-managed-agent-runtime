@@ -1,6 +1,6 @@
 {
   "name": "convos-agents",
-  "version": "0.0.17",
+  "version": "0.0.19",
   "private": true,
   "engines": {
     "node": ">=22"
@@ -12,6 +12,8 @@
     "install-deps": "sh scripts/install-deps.sh",
     "gateway": "sh scripts/gateway.sh",
     "qa": "sh scripts/qa.sh",
+    "qa:prompts": "sh scripts/qa-prompts.sh",
+    "ngrok": "ngrok http 18789 --url=c3c882cc6672.ngrok.app",
     "pool-server": "node scripts/pool-server.js",
     "build": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local .",
     "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
@@ -19,9 +21,7 @@
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0-beta.18",
-    "@telnyx/api-cli": "^1.1.0",
     "@xmtp/convos-cli": "^0.3.2",
-    "agentmail": "^0.2.17",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "openclaw": "2026.2.15",

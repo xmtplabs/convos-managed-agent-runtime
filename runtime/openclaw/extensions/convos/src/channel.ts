@@ -59,7 +59,23 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
   if (lowered.startsWith("convos:")) {
     normalized = normalized.slice("convos:".length).trim();
   }
-  return normalized || undefined;
+  if (!normalized) {
+    return undefined;
+  }
+  // Single-conversation process: if the target isn't already a conversation ID,
+  // resolve it to the bound conversation so the framework's looksLikeId check
+  // passes and we skip directory name-matching (which would reject arbitrary
+  // strings like "heartbeat" or "last").
+  const inst = getConvosInstance();
+  if (inst && !isConvosId(normalized)) {
+    return inst.conversationId;
+  }
+  return normalized;
+}
+
+/** Check if a string looks like a Convos conversation ID (hex-32 or UUID). */
+function isConvosId(s: string): boolean {
+  return /^[0-9a-f]{32}$/i.test(s) || /^[0-9a-f-]{36}$/i.test(s);
 }
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
@@ -80,6 +96,10 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID.",
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
       "- To send a file: use `action=sendAttachment` with `file` (local path).",
+      "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
+      "- To update your display name or avatar: `convos conversation update-profile $CONVOS_CONVERSATION_ID --name \"Name\"` or `--image \"https://...\"`. Image must be a public URL, not a local file path.",
+      "- CRITICAL — Never narrate tool calls: Every text block you produce becomes a separate chat message pushed to every member's phone. NEVER write text before, between, or alongside tool calls — not even to report errors, explain retries, or describe a change in approach. If a tool fails, silently try the next approach. Call all tools silently, then write ONE message after you have the final result. This overrides the Tool Call Style defaults above.",
+      "- CRITICAL — Do not reply endlessly: You do NOT need to reply to every message. After you send a message, your turn is OVER. If the response to your message is acknowledgment, agreement, thanks, encouragement, or anything that does not directly ask you a question or give you a task — do not reply. Stay silent or react with an emoji. You are not obligated to respond just because someone (human or agent) responded to you.",
     ],
   },
   config: {
@@ -163,17 +183,15 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   directory: {
     self: async () => null,
     listPeers: async () => [],
-    listGroups: async ({ query }) => {
+    listGroups: async () => {
+      // Single-conversation process — always return the bound conversation.
+      // This lets the heartbeat (and any other caller) resolve any target string
+      // to the active conversation without knowing the ID upfront.
       const inst = getConvosInstance();
       if (!inst) {
         return [];
       }
-      const name = inst.label ?? inst.conversationId.slice(0, 8);
-      const q = query?.trim().toLowerCase() ?? "";
-      if (q && !name.toLowerCase().includes(q)) {
-        return [];
-      }
-      return [{ kind: "group" as const, id: inst.conversationId, name }];
+      return [{ kind: "group" as const, id: inst.conversationId, name: inst.label ?? inst.conversationId.slice(0, 8) }];
     },
   },
   outbound: convosOutbound,
@@ -258,6 +276,9 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 
       // Inherit env so exec tool CLI commands use the correct XMTP network
       process.env.CONVOS_ENV = account.env;
+      // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
+      process.env.CONVOS_CONVERSATION_ID = account.ownerConversationId;
+
 
       // Restore instance from config — the CLI manages identities on disk
       const inst = ConvosInstance.fromExisting(
@@ -475,6 +496,15 @@ async function handleInboundMessage(
       cfg,
       dispatcherOptions: {
         deliver: async (payload: ReplyPayload) => {
+          // Rewrite raw provider credit errors into a friendly message
+          const t = payload.text || "";
+          if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
+            const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+            const ngrok = process.env.NGROK_URL;
+            const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
+            const base = domain ? `https://${domain}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
+            payload = { ...payload, text: `Hey! I'm out of credits. You can top up here: ${base}/web-tools/services` };
+          }
           await deliverConvosReply({
             payload,
             accountId: account.accountId,
@@ -488,24 +518,6 @@ async function handleInboundMessage(
         },
         onError: async (err, info) => {
           errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
-
-          // Surface a friendly message when the LLM provider rejects due to
-          // insufficient credits (OpenRouter 402/403).
-          const errStr = String(err);
-          if (errStr.includes("402") || errStr.includes("403") || errStr.includes("credits") || errStr.includes("afford") || errStr.includes("limit exceeded")) {
-            const convos = getConvosInstance();
-            const replyTo = msg.contentType === "text" || msg.contentType === "reply"
-              ? msg.messageId
-              : undefined;
-            try {
-              await convos?.sendMessage(
-                "Hey! You are out of credits.",
-                replyTo,
-              );
-            } catch {
-              // Best-effort — don't let the fallback message blow up
-            }
-          }
         },
       },
     });
@@ -608,12 +620,7 @@ async function dispatchGreeting(
     senderName: "System",
     content:
       "[System: You just joined this conversation. Send your welcome message now. " +
-      "Follow the guidance in SOUL.md under 'Your Welcome Message'. " +
-      "Introduce yourself, set expectations, and teach people they can train you by talking to you. " +
-      "When mentioning what you can do, focus on the things that let you act in the real world for them: " +
-      "browsing websites and making reservations, sending emails and calendar invites, and texting people. " +
-      "Do NOT mention crypto, wallets, tokens, or trading. " +
-      "Keep it short — 3-4 sentences max.]",
+      "Follow the 'Welcome message' section in AGENTS.md.]",
     contentType: "text",
     timestamp: new Date(),
   };
@@ -657,6 +664,9 @@ export async function startWiredInstance(params: {
       console.error(`[convos] Failed to clear sessions: ${String(err)}`);
     }
   }
+
+  // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
+  process.env.CONVOS_CONVERSATION_ID = params.conversationId;
 
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,

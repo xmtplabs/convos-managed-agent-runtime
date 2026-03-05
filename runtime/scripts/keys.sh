@@ -20,6 +20,7 @@ echo "  ════════════════════════
 echo ""
 echo "  🔑 Provisioning keys"
 echo "  ═══════════════════"
+echo ""
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && echo "  📦 VOLUME                  → $RAILWAY_VOLUME_MOUNT_PATH" || echo "  ⬚  VOLUME                  → none"
 
 # ── Hard dependency: agent needs a model key to function ───────────────────
@@ -29,7 +30,23 @@ if [ -z "$OPENROUTER_API_KEY" ]; then
   exit 1
 fi
 
-# ── Secrets: use env if set, generate locally as fallback ──────────────────
+# ── Pool ──────────────────────────────────────────────────────────────────
+echo ""
+echo "  ── pool ──────────────────────"
+[ -n "$POOL_URL" ] && echo "  ✅ POOL_URL                → $POOL_URL" || echo "  ⬚  POOL_URL                → not set"
+[ -n "$POOL_API_KEY" ] && echo "  ✅ POOL_API_KEY            → set" || echo "  ⬚  POOL_API_KEY            → not set"
+[ -n "$INSTANCE_ID" ] && echo "  ✅ INSTANCE_ID             → $INSTANCE_ID" || echo "  ⬚  INSTANCE_ID             → not set"
+if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
+  echo "  ✅ SERVICE_URL             → https://$RAILWAY_PUBLIC_DOMAIN"
+elif [ -n "$NGROK_URL" ]; then
+  echo "  ✅ SERVICE_URL             → $NGROK_URL (ngrok)"
+else
+  echo "  ⬚  SERVICE_URL             → localhost"
+fi
+
+# ── OpenClaw ──────────────────────────────────────────────────────────────
+echo ""
+echo "  ── openclaw ──────────────────"
 
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
   gateway_token="$OPENCLAW_GATEWAY_TOKEN"
@@ -55,8 +72,6 @@ else
   echo "  🔧 PRIVATE_WALLET_KEY      → generated"
 fi
 
-# ── Report status of remaining keys ───────────────────────────────────────
-
 if [ -n "$OPENCLAW_PRIMARY_MODEL" ]; then
   echo "  ✅ OPENCLAW_PRIMARY_MODEL  → $OPENCLAW_PRIMARY_MODEL"
 else
@@ -69,6 +84,9 @@ else
   echo "  ⬚  XMTP_ENV               → not set"
 fi
 
+# ── Services ──────────────────────────────────────────────────────────────
+echo ""
+echo "  ── services ──────────────────"
 [ -n "$OPENROUTER_API_KEY" ] && echo "  ✅ OPENROUTER_API_KEY      → set" || echo "  ⬚  OPENROUTER_API_KEY      → not set"
 [ -n "$AGENTMAIL_INBOX_ID" ] && echo "  ✅ AGENTMAIL_INBOX_ID      → $AGENTMAIL_INBOX_ID" || echo "  ⬚  AGENTMAIL_INBOX_ID      → not set"
 [ -n "$BANKR_API_KEY" ] && echo "  ✅ BANKR_API_KEY           → set" || echo "  ⬚  BANKR_API_KEY           → not set"
@@ -77,25 +95,39 @@ fi
 
 # ── Write .env ─────────────────────────────────────────────────────────────
 
-key="${OPENROUTER_API_KEY:-}"
-agentmail_inbox="${AGENTMAIL_INBOX_ID:-}"
-bankr_key="${BANKR_API_KEY:-}"
-telnyx_phone="${TELNYX_PHONE_NUMBER:-}"
-telnyx_profile="${TELNYX_MESSAGING_PROFILE_ID:-}"
+# Skip .env rewrite when running locally — only rewrite on Railway where
+# env vars are injected by the platform and need to be synced to the file.
+if [ -n "$RAILWAY_ENVIRONMENT" ]; then
+  key="${OPENROUTER_API_KEY:-}"
+  agentmail_inbox="${AGENTMAIL_INBOX_ID:-}"
+  bankr_key="${BANKR_API_KEY:-}"
+  telnyx_phone="${TELNYX_PHONE_NUMBER:-}"
+  telnyx_profile="${TELNYX_MESSAGING_PROFILE_ID:-}"
+  pool_url="${POOL_URL:-}"
+  pool_api_key="${POOL_API_KEY:-}"
+  instance_id="${INSTANCE_ID:-}"
 
-touch "$ENV_FILE"
-tmp=$(mktemp)
-grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' | grep -v '^PRIVATE_WALLET_KEY=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^TELNYX_MESSAGING_PROFILE_ID=' > "$tmp" || true
-echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
-echo "SETUP_PASSWORD=$setup_password" >> "$tmp"
-echo "PRIVATE_WALLET_KEY=$private_wallet_key" >> "$tmp"
-if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
-if [ -n "$agentmail_inbox" ]; then echo "AGENTMAIL_INBOX_ID=$agentmail_inbox" >> "$tmp"; fi
-if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
-if [ -n "$telnyx_phone" ]; then echo "TELNYX_PHONE_NUMBER=$telnyx_phone" >> "$tmp"; fi
-if [ -n "$telnyx_profile" ]; then echo "TELNYX_MESSAGING_PROFILE_ID=$telnyx_profile" >> "$tmp"; fi
-mv "$tmp" "$ENV_FILE"
+  touch "$ENV_FILE"
+  tmp=$(mktemp)
+  grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' | grep -v '^PRIVATE_WALLET_KEY=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^TELNYX_MESSAGING_PROFILE_ID=' | grep -v '^POOL_URL=' | grep -v '^POOL_API_KEY=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
+  echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
+  echo "SETUP_PASSWORD=$setup_password" >> "$tmp"
+  echo "PRIVATE_WALLET_KEY=$private_wallet_key" >> "$tmp"
+  if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
+  if [ -n "$agentmail_inbox" ]; then echo "AGENTMAIL_INBOX_ID=$agentmail_inbox" >> "$tmp"; fi
+  if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
+  if [ -n "$telnyx_phone" ]; then echo "TELNYX_PHONE_NUMBER=$telnyx_phone" >> "$tmp"; fi
+  if [ -n "$telnyx_profile" ]; then echo "TELNYX_MESSAGING_PROFILE_ID=$telnyx_profile" >> "$tmp"; fi
+  if [ -n "$pool_url" ]; then echo "POOL_URL=$pool_url" >> "$tmp"; fi
+  if [ -n "$pool_api_key" ]; then echo "POOL_API_KEY=$pool_api_key" >> "$tmp"; fi
+  if [ -n "$instance_id" ]; then echo "INSTANCE_ID=$instance_id" >> "$tmp"; fi
+  mv "$tmp" "$ENV_FILE"
 
-echo ""
-echo "  📝 Written to .env"
-echo ""
+  echo ""
+  echo "  📝 Written to .env"
+  echo ""
+else
+  echo ""
+  echo "  📝 .env → kept as-is (local mode)"
+  echo ""
+fi
