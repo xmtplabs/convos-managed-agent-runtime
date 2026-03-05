@@ -183,27 +183,9 @@ jobs:
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
           ENV_TAG="${{ steps.env.outputs.tag }}"
-          SOURCE_TAG="sha-$SHA"
 
-          echo "Promoting $IMAGE:$SOURCE_TAG → $IMAGE:$ENV_TAG"
-          echo "Checking source tag availability before retag..."
-          FOUND=0
-          for ATTEMPT in $(seq 1 20); do
-            if docker manifest inspect "$IMAGE:$SOURCE_TAG" >/dev/null 2>&1; then
-              FOUND=1
-              echo "Found $IMAGE:$SOURCE_TAG on attempt $ATTEMPT"
-              break
-            fi
-            echo "[$ATTEMPT/20] $IMAGE:$SOURCE_TAG not available yet; waiting 15s..."
-            sleep 15
-          done
-
-          if [ "$FOUND" -ne 1 ]; then
-            echo "::warning::Source image $IMAGE:$SOURCE_TAG not found after waiting; skipping retag."
-            exit 0
-          fi
-
-          docker pull "$IMAGE:$SOURCE_TAG"
-          docker tag "$IMAGE:$SOURCE_TAG" "$IMAGE:$ENV_TAG"
+          echo "Promoting $IMAGE:sha-$SHA → $IMAGE:$ENV_TAG"
+          docker pull "$IMAGE:sha-$SHA"
+          docker tag "$IMAGE:sha-$SHA" "$IMAGE:$ENV_TAG"
           docker push "$IMAGE:$ENV_TAG"
           echo "Done: $IMAGE:$ENV_TAG"
