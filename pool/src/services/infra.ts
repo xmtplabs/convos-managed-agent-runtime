@@ -94,7 +94,7 @@ export async function createInstance(
       instanceId,
       failed_step: failedStep,
       error_class,
-      error_message: error_message.slice(0, 500),
+      error_message: error_message.slice(0, 1500),
       provisioned: Object.keys(services),
     });
 
@@ -105,19 +105,19 @@ export async function createInstance(
     if (services.openrouter) {
       try { await openrouter.deleteKey(services.openrouter.resourceId); } catch (e: any) {
         console.warn(`[infra] Rollback openrouter failed: ${e.message}`);
-        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 500) });
+        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) });
       }
     }
     if (services.agentmail) {
       try { await agentmail.deleteInbox(services.agentmail.resourceId); } catch (e: any) {
         console.warn(`[infra] Rollback agentmail failed: ${e.message}`);
-        logger.warn("create.rollback_fail", { instanceId, tool: "agentmail", error_message: e.message?.slice(0, 500) });
+        logger.warn("create.rollback_fail", { instanceId, tool: "agentmail", error_message: e.message?.slice(0, 1500) });
       }
     }
     if (services.telnyx) {
       try { await telnyx.deletePhone(services.telnyx.resourceId); } catch (e: any) {
         console.warn(`[infra] Rollback telnyx failed: ${e.message}`);
-        logger.warn("create.rollback_fail", { instanceId, tool: "telnyx", error_message: e.message?.slice(0, 500) });
+        logger.warn("create.rollback_fail", { instanceId, tool: "telnyx", error_message: e.message?.slice(0, 1500) });
       }
     }
 
@@ -142,11 +142,11 @@ export async function createInstance(
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
     console.error(`[infra] Failed to resolve env for project ${projectId}, deleting orphan project...`);
-    logger.error("create.railway_env_fail", { instanceId, projectId, error_class, error_message: error_message.slice(0, 500) });
+    logger.error("create.railway_env_fail", { instanceId, projectId, error_class, error_message: error_message.slice(0, 1500) });
     metricCount("instance.create.fail", 1, { phase: "railway_env", error_class });
     await railway.projectDelete(projectId).catch((e: any) => {
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
-      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 500) });
+      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 1500) });
     });
     throw err;
   }
@@ -169,12 +169,12 @@ export async function createInstance(
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
     console.error(`[infra] Service creation failed, deleting orphan project ${projectId}...`);
-    logger.error("create.railway_service_fail", { instanceId, projectId, error_class, error_message: error_message.slice(0, 500) });
+    logger.error("create.railway_service_fail", { instanceId, projectId, error_class, error_message: error_message.slice(0, 1500) });
     metricCount("instance.create.fail", 1, { phase: "railway_service", error_class });
     onProgress?.("railway-service", "fail", (err as Error).message);
     await railway.projectDelete(projectId).catch((e: any) => {
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
-      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 500) });
+      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 1500) });
     });
     throw err;
   }
@@ -234,7 +234,7 @@ export async function createInstance(
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
     logger.error("create.db_insert_fail", {
-      instanceId, projectId, error_class, error_message: error_message.slice(0, 500),
+      instanceId, projectId, error_class, error_message: error_message.slice(0, 1500),
       provisioned: Object.keys(services),
     });
     metricCount("instance.create.fail", 1, { phase: "db", error_class });
@@ -242,20 +242,20 @@ export async function createInstance(
 
     // Best-effort cleanup of already-provisioned resources
     await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId)).catch((e: any) =>
-      logger.warn("create.orphan_db_cleanup_fail", { instanceId, error_message: e.message?.slice(0, 500) }));
+      logger.warn("create.orphan_db_cleanup_fail", { instanceId, error_message: e.message?.slice(0, 1500) }));
     await railway.projectDelete(projectId).catch((e: any) =>
-      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 500) }));
+      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 1500) }));
     if (services.openrouter) {
       await openrouter.deleteKey(services.openrouter.resourceId).catch((e: any) =>
-        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 500) }));
+        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) }));
     }
     if (services.agentmail) {
       await agentmail.deleteInbox(services.agentmail.resourceId).catch((e: any) =>
-        logger.warn("create.rollback_fail", { instanceId, tool: "agentmail", error_message: e.message?.slice(0, 500) }));
+        logger.warn("create.rollback_fail", { instanceId, tool: "agentmail", error_message: e.message?.slice(0, 1500) }));
     }
     if (services.telnyx) {
       await telnyx.deletePhone(services.telnyx.resourceId).catch((e: any) =>
-        logger.warn("create.rollback_fail", { instanceId, tool: "telnyx", error_message: e.message?.slice(0, 500) }));
+        logger.warn("create.rollback_fail", { instanceId, tool: "telnyx", error_message: e.message?.slice(0, 1500) }));
     }
     throw err;
   }

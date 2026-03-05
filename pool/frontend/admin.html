@@ -1222,6 +1222,7 @@
       showClaimLog(!!url);
 
       var params = new URLSearchParams();
+      params.set('source', 'admin');
       if (url) params.set('joinUrl', url);
       if (name) params.set('agentName', name);
       if (instructions) params.set('instructions', instructions);

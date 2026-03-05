@@ -355,7 +355,7 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 });
 
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
-  const { agentName, instructions, joinUrl } = req.body || {};
+  const { agentName, instructions, joinUrl, source } = req.body || {};
   if (instructions && typeof instructions !== "string") {
     res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
@@ -377,6 +377,7 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       agentName: agentName || "Assistant",
       instructions: instructions || "You are a helpful AI assistant.",
       joinUrl: joinUrl || undefined,
+      source: (typeof source === "string" && source) || "api",
     });
     if (!result) {
       res.status(503).json({ error: "No idle instances available. Try again in a few minutes." }); return;
@@ -393,6 +394,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   const agentName = (req.query.agentName as string) || "Assistant";
   const instructions = (req.query.instructions as string) || "You are a helpful AI assistant.";
   const joinUrl = (req.query.joinUrl as string) || undefined;
+  const source = (req.query.source as string) || "api";
 
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -416,6 +418,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
       agentName,
       instructions,
       joinUrl,
+      source,
       onProgress(step, status, message) {
         send({ type: "step", step, status, message: message || "" });
       },
