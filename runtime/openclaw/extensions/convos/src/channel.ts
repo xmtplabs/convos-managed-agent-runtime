@@ -487,66 +487,37 @@ async function handleInboundMessage(
     accountId: account.accountId,
   });
 
-  // Buffer block replies — they might be narration (if tools follow) or the
-  // actual response (if no tools are used). We flush or discard after the run.
-  const pendingBlocks: ReplyPayload[] = [];
-  let hadFinal = false;
-
-  const sendPayload = async (payload: ReplyPayload) => {
-    // Rewrite raw provider credit errors into a friendly message
-    const t = payload.text || "";
-    if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
-      const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
-      const ngrok = process.env.NGROK_URL;
-      const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
-      const base = domain ? `https://${domain}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
-      payload = { ...payload, text: `Hey! I'm out of credits. You can top up here: ${base}/web-tools/services` };
-    }
-    await deliverConvosReply({
-      payload,
-      accountId: account.accountId,
-      runtime,
-      log,
-      tableMode,
-      triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
-        ? msg.messageId
-        : undefined,
-    });
-  };
-
   try {
     await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
       ctx: ctxPayload,
       cfg,
       dispatcherOptions: {
-        deliver: async (payload: ReplyPayload, info) => {
-          if (info?.kind === "block") {
-            // Hold blocks — might be narration before a tool call
-            pendingBlocks.push(payload);
-            return;
+        deliver: async (payload: ReplyPayload) => {
+          // Rewrite raw provider credit errors into a friendly message
+          const t = payload.text || "";
+          if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
+            const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+            const ngrok = process.env.NGROK_URL;
+            const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
+            const base = domain ? `https://${domain}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
+            payload = { ...payload, text: `Hey! I'm out of credits. You can top up here: ${base}/web-tools/services` };
           }
-          if (info?.kind === "final") {
-            // Final reply exists — discard buffered narration, send the final
-            hadFinal = true;
-            pendingBlocks.length = 0;
-            await sendPayload(payload);
-            return;
-          }
-          // tool kind or unknown — send directly
-          await sendPayload(payload);
+          await deliverConvosReply({
+            payload,
+            accountId: account.accountId,
+            runtime,
+            log,
+            tableMode,
+            triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+              ? msg.messageId
+              : undefined,
+          });
         },
         onError: async (err, info) => {
           errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
         },
       },
     });
-
-    // Run complete: if no final reply came, the blocks ARE the response — flush them
-    if (!hadFinal && pendingBlocks.length > 0) {
-      for (const block of pendingBlocks) {
-        await sendPayload(block);
-      }
-    }
   } finally {
     // Clean up temp image file after the reply pipeline is done with it
     if (mediaPath) {
