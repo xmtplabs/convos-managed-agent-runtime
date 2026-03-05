@@ -47,6 +47,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 
   console.log(`[pool] Creating instance ${name}...`);
   metricCount("instance.create.start");
+  logger.info("create.start", { instanceId: id, name });
 
   try {
     const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress, runtimeImage);
@@ -66,7 +67,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
     // More specific phase tags are emitted inside infra.createInstance;
     // this is the top-level rollup so dashboards can alert on total create failures.
     metricCount("instance.create.fail", 1, { phase: "infra", error_class });
-    logger.error("create.fail", { instanceId: id, name, error_class, error_message: error_message.slice(0, 500) });
+    logger.error("create.fail", { instanceId: id, name, error_class, error_message: error_message.slice(0, 1500) });
     throw err;
   }
 }
@@ -98,8 +99,10 @@ export async function checkStarting() {
       await db.updateStatus(row.id, { status: "idle" });
       if (hc.version) await db.setRuntimeVersion(row.id, hc.version);
       promoted.push(row.id);
+      const durationMs = Date.now() - new Date(row.createdAt).getTime();
       metricCount("instance.create.complete");
-      metricHistogram("instance.create.duration_ms", Date.now() - new Date(row.createdAt).getTime());
+      metricHistogram("instance.create.duration_ms", durationMs);
+      logger.info("create.complete", { instanceId: row.id, name: row.name, duration_ms: durationMs, version: hc.version });
       console.log(`[pool] promoted ${row.id} starting → idle (v${hc.version || '?'})`);
     }
   }

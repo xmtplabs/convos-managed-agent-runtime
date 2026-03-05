@@ -1,12 +1,18 @@
+import { config } from "./config.js";
+
 const SERVICE = "convos-pool";
 const DD_API_KEY = process.env.DATADOG_API_KEY;
 const DD_SITE = process.env.DATADOG_SITE || "datadoghq.com";
+const ENV = config.poolEnvironment;
+const BRANCH = config.deployBranch;
 
 if (DD_API_KEY) {
-  console.log(`[logger] Datadog log forwarding enabled (site=${DD_SITE})`);
+  console.log(`[logger] Datadog log forwarding enabled (site=${DD_SITE}, env=${ENV}, branch=${BRANCH})`);
 } else {
   console.log("[logger] DATADOG_API_KEY not set — log forwarding disabled");
 }
+
+const DD_TAGS = `env:${ENV},branch:${BRANCH}`;
 
 type Level = "info" | "warn" | "error";
 
@@ -17,12 +23,19 @@ function emit(level: Level, message: string, context?: Record<string, unknown>):
     level,
     message,
     service: SERVICE,
-    dd: { service: SERVICE },
+    ddsource: SERVICE,
+    env: ENV,
+    branch: BRANCH,
+    dd: { service: SERVICE, env: ENV },
   };
   if (DD_API_KEY) {
     fetch(`https://http-intake.logs.${DD_SITE}/api/v2/logs`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "DD-API-KEY": DD_API_KEY },
+      headers: {
+        "Content-Type": "application/json",
+        "DD-API-KEY": DD_API_KEY,
+        "ddtags": DD_TAGS,
+      },
       body: JSON.stringify([entry]),
     }).catch(() => {});
   }

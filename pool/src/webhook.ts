@@ -2,6 +2,7 @@ import * as db from "./db/pool";
 import { healthCheck } from "./pool";
 import { config } from "./config";
 import { metricCount, metricHistogram } from "./metrics";
+import { logger } from "./logger";
 import { gql } from "./services/providers/railway";
 import { decideAction } from "./webhookLogic";
 
@@ -152,8 +153,10 @@ async function runHealthCheckWithRetries(
       if (statusAtWebhookTime === "starting") {
         const inst = await db.findById(instanceId);
         if (inst) {
+          const durationMs = Date.now() - new Date(inst.createdAt).getTime();
           metricCount("instance.create.complete");
-          metricHistogram("instance.create.duration_ms", Date.now() - new Date(inst.createdAt).getTime());
+          metricHistogram("instance.create.duration_ms", durationMs);
+          logger.info("create.complete", { instanceId, name: inst.name, duration_ms: durationMs });
         }
       }
       console.log(`[webhook] ${instanceId}: health check passed (attempt ${attempt}), ${statusAtWebhookTime} → ${newStatus} (v${hc.version || "?"})`);
