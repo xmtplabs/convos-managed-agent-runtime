@@ -9,11 +9,12 @@ interface ProvisionOpts {
   agentName: string;
   instructions: string;
   joinUrl?: string;
+  source?: string;
   onProgress?: ProvisionProgressCallback;
 }
 
 export async function provision(opts: ProvisionOpts) {
-  const { agentName, instructions, joinUrl, onProgress } = opts;
+  const { agentName, instructions, joinUrl, source, onProgress } = opts;
   const claimStart = Date.now();
   const report = (step: string, status: string, message?: string) => {
     if (onProgress) onProgress(step, status, message);
@@ -27,13 +28,13 @@ export async function provision(opts: ProvisionOpts) {
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
     metricCount("instance.claim.fail", 1, { reason: "db_error", error_class, stage: "claim" });
-    logger.error("claim.fail", { stage: "claim", error_class, error_message: error_message.slice(0, 500), agentName, hasJoinUrl: !!joinUrl });
+    logger.error("claim.fail", { stage: "claim", error_class, error_message: error_message.slice(0, 1500), agentName, hasJoinUrl: !!joinUrl, source });
     report("claim", "fail", "Database error while claiming");
     throw err;
   }
   if (!instance) {
     metricCount("instance.claim.fail", 1, { reason: "no_idle" });
-    logger.warn("claim.no_idle", { agentName, hasJoinUrl: !!joinUrl });
+    logger.warn("claim.no_idle", { agentName, hasJoinUrl: !!joinUrl, source });
     report("claim", "fail", "No idle instances available");
     return null;
   }
@@ -42,7 +43,7 @@ export async function provision(opts: ProvisionOpts) {
 
   try {
     console.log(`[provision] Claiming ${instance.id} for "${agentName}"${joinUrl ? " (join)" : ""}`);
-    logger.info("claim.start_provision", { instanceId: instance.id, agentName, hasJoinUrl: !!joinUrl });
+    logger.info("claim.start", { instanceId: instance.id, agentName, hasJoinUrl: !!joinUrl, source });
 
     report("provision", "active", joinUrl ? "Joining conversation…" : "Configuring agent…");
 
@@ -60,7 +61,7 @@ export async function provision(opts: ProvisionOpts) {
     if (!provisionRes.ok) {
       const text = await provisionRes.text();
       throw Object.assign(
-        new Error(`Provision failed on ${instance.id}: ${provisionRes.status} ${text.slice(0, 300)}`),
+        new Error(`Provision failed on ${instance.id}: ${provisionRes.status} ${text.slice(0, 1500)}`),
         { status: provisionRes.status },
       );
     }
@@ -89,6 +90,7 @@ export async function provision(opts: ProvisionOpts) {
       conversationId: result.conversationId,
       joined: !!result.joined,
       duration_ms: durationMs,
+      source,
     });
 
     metricCount("instance.claim.complete");
@@ -115,8 +117,9 @@ export async function provision(opts: ProvisionOpts) {
       hasJoinUrl: !!joinUrl,
       stage: "provision",
       error_class,
-      error_message: error_message.slice(0, 500),
+      error_message: error_message.slice(0, 1500),
       duration_ms: durationMs,
+      source,
     });
 
     console.error(`[provision] Instance ${instance.id} failed, marking crashed: ${error_message.slice(0, 200)}`);
