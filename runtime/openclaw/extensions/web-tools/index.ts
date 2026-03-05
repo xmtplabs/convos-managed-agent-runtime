@@ -99,9 +99,20 @@ async function getServicesData(): Promise<Record<string, unknown>> {
       return { balanceCents: 0 };
     }).catch(() => ({ balanceCents: 0 }));
 
-    const [credits, convos] = await Promise.all([creditsPromise, convosPromise]);
+    const cardPromise = fetch(`${poolUrl}/api/pool/stripe/card-info`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instanceId, gatewayToken }),
+      signal: AbortSignal.timeout(5_000),
+    }).then(async (r) => {
+      if (r.ok) return await r.json();
+      return { hasCard: false };
+    }).catch(() => ({ hasCard: false }));
+
+    const [credits, convos, card] = await Promise.all([creditsPromise, convosPromise, cardPromise]);
     result.credits = credits;
     result.convosBalance = convos;
+    result.card = card;
   } else {
     result.credits = { error: "not pool-managed" };
     result.convosBalance = { balanceCents: 0 };
@@ -435,6 +446,138 @@ export default function register(api: OpenClawPluginApi) {
         res.end(JSON.stringify(body));
       } catch (err: any) {
         console.warn(`[web-tools] Coupon redemption error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
+    },
+  });
+
+  // Stripe card request proxy — charges user + issues virtual card
+  api.registerHttpRoute({
+    path: "/web-tools/services/request-card",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Card not available (missing config)" }));
+        return;
+      }
+
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        const bodyStr = Buffer.concat(chunks).toString();
+        const parsed = JSON.parse(bodyStr || "{}");
+        const amountCents = parsed.amountCents;
+
+        const url = `${poolUrl}/api/pool/stripe/request-card`;
+        const poolRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken, amountCents }),
+          signal: AbortSignal.timeout(30_000),
+        });
+        const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+      } catch (err: any) {
+        console.warn(`[web-tools] Request card error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
+    },
+  });
+
+  // Stripe card info proxy — returns masked card details for display
+  api.registerHttpRoute({
+    path: "/web-tools/services/card-info",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Card info not available (missing config)" }));
+        return;
+      }
+
+      try {
+        const url = `${poolUrl}/api/pool/stripe/card-info`;
+        const poolRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken }),
+          signal: AbortSignal.timeout(5_000),
+        });
+        const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+      } catch (err: any) {
+        console.warn(`[web-tools] Card info error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
+    },
+  });
+
+  // Stripe card details proxy — returns full card number/CVC (agent use only)
+  api.registerHttpRoute({
+    path: "/web-tools/services/card-details",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Card details not available (missing config)" }));
+        return;
+      }
+
+      try {
+        const url = `${poolUrl}/api/pool/stripe/card-details`;
+        const poolRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken }),
+          signal: AbortSignal.timeout(5_000),
+        });
+        const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(body));
+      } catch (err: any) {
+        console.warn(`[web-tools] Card details error: ${err.message}`);
         res.statusCode = 502;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "Failed to reach pool manager" }));

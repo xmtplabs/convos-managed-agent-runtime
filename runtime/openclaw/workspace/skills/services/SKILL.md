@@ -1,8 +1,8 @@
 ---
 name: services
 description: |
-  Your managed communication and account services: email, SMS, and credits.
-  USE WHEN: Sending emails, calendar invites, polling inbox, sending/polling SMS, checking credits, topping up credits, asked for your URL/link/page/contact info/services.
+  Your managed communication and account services: email, SMS, credits, and spending card.
+  USE WHEN: Sending emails, calendar invites, polling inbox, sending/polling SMS, checking credits, topping up credits, checking spending card info/details, making purchases with your card, asked for your URL/link/page/contact info/services.
   DON'T USE WHEN: Task is just creating a file without sending it (use fs tools).
   REQUIRES: Environment is already configured — do not modify env vars.
 ---
@@ -108,6 +108,24 @@ Top up your credits:
 ```bash
 node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs credits topup
 ```
+
+## Spending Card
+
+Check if you have a spending card:
+
+```bash
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs card
+```
+
+Get full card details (number, CVC, expiry, billing address) for making purchases:
+
+```bash
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs card details
+```
+
+Use the card details when you need to make online purchases (fill forms, call APIs that need payment). The card is a prepaid Visa funded by the user. If there is no card, direct the user to the services page to get one.
+
+**Never share full card details in chat messages.** Only use them silently when filling payment forms or making API calls. If the user asks about the card, share only the last 4 digits and remaining balance.
 
 ## Services Landing Page
 

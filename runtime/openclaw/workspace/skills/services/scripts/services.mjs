@@ -14,7 +14,7 @@ const [service, ...rest] = process.argv.slice(2);
 
 if (!service) {
   console.error("Usage: node services.mjs <service> <action> [options]");
-  console.error("Services: info, email, sms, credits");
+  console.error("Services: info, email, sms, credits, card");
   process.exit(1);
 }
 
@@ -23,12 +23,13 @@ const handlers = {
   email:    () => import(join(__dirname, "handlers", "email.mjs")),
   sms:      () => import(join(__dirname, "handlers", "sms.mjs")),
   credits:  () => import(join(__dirname, "handlers", "credits.mjs")),
+  card:     () => import(join(__dirname, "handlers", "card.mjs")),
 };
 
 const loader = handlers[service];
 if (!loader) {
   console.error(`Unknown service: ${service}`);
-  console.error("Available: info, email, sms, credits");
+  console.error("Available: info, email, sms, credits, card");
   process.exit(1);
 }
 

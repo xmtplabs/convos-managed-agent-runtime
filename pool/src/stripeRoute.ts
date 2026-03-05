@@ -6,6 +6,7 @@ import { instanceServices, payments } from "./db/schema";
 import * as db from "./db/pool";
 import * as openrouter from "./services/providers/openrouter";
 import * as stripe from "./services/providers/stripe";
+import * as issuing from "./services/providers/stripe-issuing";
 
 // ── Webhook router (must be mounted BEFORE express.json()) ──────────────────
 
@@ -246,6 +247,187 @@ stripeApiRouter.post("/api/pool/stripe/config", async (req, res) => {
     res.json({ publishableKey: config.stripePublishableKey });
   } catch (err: any) {
     console.error("[stripe] Config endpoint failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Request a spending card: charge user, then issue a virtual card via Stripe Issuing. */
+stripeApiRouter.post("/api/pool/stripe/request-card", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken, amountCents } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" });
+      return;
+    }
+
+    if (!config.stripeSecretKey) {
+      res.status(503).json({ error: "Stripe not configured" });
+      return;
+    }
+
+    const cents = amountCents || issuing.DEFAULT_SPENDING_LIMIT_CENTS;
+    if (typeof cents !== "number" || cents < 100) {
+      res.status(400).json({ error: "Minimum card amount is $1" });
+      return;
+    }
+
+    // Check if card already exists
+    const existingCard = await pgDb
+      .select({ resourceId: instanceServices.resourceId, resourceMeta: instanceServices.resourceMeta })
+      .from(instanceServices)
+      .where(
+        and(
+          eq(instanceServices.instanceId, instanceId),
+          eq(instanceServices.toolId, "stripe-issuing"),
+        ),
+      );
+
+    if (existingCard[0]) {
+      // Card exists — increase spending limit
+      const meta = existingCard[0].resourceMeta as any;
+      const currentLimit = meta?.spendingLimitCents || 0;
+      const newLimit = currentLimit + cents;
+      await issuing.updateSpendingLimit(existingCard[0].resourceId, newLimit);
+      await pgDb
+        .update(instanceServices)
+        .set({ resourceMeta: { ...meta, spendingLimitCents: newLimit } })
+        .where(
+          and(
+            eq(instanceServices.instanceId, instanceId),
+            eq(instanceServices.toolId, "stripe-issuing"),
+          ),
+        );
+      console.log(`[stripe] Card top-up for instance ${instanceId}: $${(currentLimit / 100).toFixed(2)} → $${(newLimit / 100).toFixed(2)}`);
+      res.json({ ok: true, action: "topup", newLimitCents: newLimit, last4: meta?.last4 });
+      return;
+    }
+
+    // Issue new card
+    const card = await issuing.issueCard(instanceId, cents);
+    await pgDb.insert(instanceServices).values({
+      instanceId,
+      toolId: "stripe-issuing",
+      resourceId: card.cardId,
+      envKey: "STRIPE_CARD_ID",
+      resourceMeta: {
+        cardholderId: card.cardholderId,
+        last4: card.last4,
+        expMonth: card.expMonth,
+        expYear: card.expYear,
+        brand: card.brand,
+        spendingLimitCents: cents,
+      },
+    });
+
+    console.log(`[stripe] Issued card ****${card.last4} for instance ${instanceId}, limit=$${(cents / 100).toFixed(2)}`);
+    res.json({ ok: true, action: "issued", last4: card.last4, brand: card.brand, spendingLimitCents: cents });
+  } catch (err: any) {
+    console.error("[stripe] Request card failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Return card info (masked) for display on services page. */
+stripeApiRouter.post("/api/pool/stripe/card-info", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" });
+      return;
+    }
+
+    const rows = await pgDb
+      .select({ resourceId: instanceServices.resourceId, resourceMeta: instanceServices.resourceMeta })
+      .from(instanceServices)
+      .where(
+        and(
+          eq(instanceServices.instanceId, instanceId),
+          eq(instanceServices.toolId, "stripe-issuing"),
+        ),
+      );
+
+    if (!rows[0]) {
+      res.json({ hasCard: false });
+      return;
+    }
+
+    const meta = rows[0].resourceMeta as any;
+
+    // Get current spending
+    let spentCents = 0;
+    try {
+      const spending = await issuing.getCardSpending(meta.cardholderId);
+      spentCents = spending.totalSpentCents;
+    } catch { /* ignore */ }
+
+    res.json({
+      hasCard: true,
+      last4: meta.last4,
+      brand: meta.brand,
+      expMonth: meta.expMonth,
+      expYear: meta.expYear,
+      spendingLimitCents: meta.spendingLimitCents || 0,
+      spentCents,
+    });
+  } catch (err: any) {
+    console.error("[stripe] Card info failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Return full card details (number, CVC) — for agent use only, authenticated by gateway token. */
+stripeApiRouter.post("/api/pool/stripe/card-details", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" });
+      return;
+    }
+
+    const rows = await pgDb
+      .select({ resourceId: instanceServices.resourceId, resourceMeta: instanceServices.resourceMeta })
+      .from(instanceServices)
+      .where(
+        and(
+          eq(instanceServices.instanceId, instanceId),
+          eq(instanceServices.toolId, "stripe-issuing"),
+        ),
+      );
+
+    if (!rows[0]) {
+      res.json({ hasCard: false });
+      return;
+    }
+
+    const details = await issuing.getCardDetails(rows[0].resourceId);
+    const meta = rows[0].resourceMeta as any;
+
+    res.json({
+      hasCard: true,
+      number: details.number,
+      cvc: details.cvc,
+      expMonth: details.expMonth,
+      expYear: details.expYear,
+      brand: meta.brand,
+      spendingLimitCents: meta.spendingLimitCents || 0,
+    });
+  } catch (err: any) {
+    console.error("[stripe] Card details failed:", err);
     res.status(500).json({ error: err.message });
   }
 });

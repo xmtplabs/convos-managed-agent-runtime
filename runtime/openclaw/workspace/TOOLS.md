@@ -18,7 +18,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 # SKILLS
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
-- **Services** — Your managed services: send and receive email, send and receive SMS, check credits. MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
+- **Services** — Your managed services: send and receive email, send and receive SMS, check credits, spending card. MUST use for ANY email, SMS, credits, or card/payment task. See `skills/services/SKILL.md`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
 
 
@@ -98,9 +98,17 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 **Skill:** Services (info)
 _Note: Run `services.mjs info` and share the `servicesUrl` from the result. Never make up a URL._
 
-> How do I top up credits? / Where can I see my balance? / Card details?
+> How do I top up credits? / Where can I see my balance?
 **Skill:** Services (info)
 _Note: Run `services.mjs info` and share the `servicesUrl`. The services landing page is where users manage credits, card, and account status._
+
+> Do I have a card? / What's my card balance?
+**Skill:** Services (card)
+_Note: Run `services.mjs card` to check card status. Share last4 and balance only — never full number._
+
+> Buy this thing for me / Pay for this subscription / Enter my card details
+**Skill:** Services (card details) + Browser
+_Note: Run `services.mjs card details` to get full card info, then use browser to fill payment forms. Never reveal card number in chat._
 
 > Text +1555123456 that I'm running late.
 **Skill:** Services (SMS)
@@ -150,4 +158,7 @@ _Note: Poll inbound SMS messages._
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
 | "Text +5411..." | services sms | decline | US numbers (+1) only |
 | "What's your URL?" | answer/guess | services info | Must run info to get real URL |
+| "Do I have a card?" | answer/guess | services card | Must query live data |
+| "Buy this for me" | web_search | services card details + browser | Need card + browser to pay |
+| "What's my card number?" | services card details | decline | Never share full card in chat |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |
