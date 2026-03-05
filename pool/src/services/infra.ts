@@ -89,6 +89,7 @@ export async function createInstance(
       : "unknown";
     const { error_class, error_message } = classifyError(err);
 
+    console.error(`[infra] Provisioning failed for ${instanceId}, rolling back...`);
     logger.error("create.provider_fail", {
       instanceId,
       failed_step: failedStep,
@@ -103,16 +104,19 @@ export async function createInstance(
     // Rollback provisioned resources
     if (services.openrouter) {
       try { await openrouter.deleteKey(services.openrouter.resourceId); } catch (e: any) {
+        console.warn(`[infra] Rollback openrouter failed: ${e.message}`);
         logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 500) });
       }
     }
     if (services.agentmail) {
       try { await agentmail.deleteInbox(services.agentmail.resourceId); } catch (e: any) {
+        console.warn(`[infra] Rollback agentmail failed: ${e.message}`);
         logger.warn("create.rollback_fail", { instanceId, tool: "agentmail", error_message: e.message?.slice(0, 500) });
       }
     }
     if (services.telnyx) {
       try { await telnyx.deletePhone(services.telnyx.resourceId); } catch (e: any) {
+        console.warn(`[infra] Rollback telnyx failed: ${e.message}`);
         logger.warn("create.rollback_fail", { instanceId, tool: "telnyx", error_message: e.message?.slice(0, 500) });
       }
     }
@@ -137,10 +141,13 @@ export async function createInstance(
     environmentId = await railway.getProjectEnvironmentId(projectId);
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
+    console.error(`[infra] Failed to resolve env for project ${projectId}, deleting orphan project...`);
     logger.error("create.railway_env_fail", { instanceId, projectId, error_class, error_message: error_message.slice(0, 500) });
     metricCount("instance.create.fail", 1, { phase: "railway_env", error_class });
-    await railway.projectDelete(projectId).catch((e: any) =>
-      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message }));
+    await railway.projectDelete(projectId).catch((e: any) => {
+      console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
+      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 500) });
+    });
     throw err;
   }
 
@@ -161,11 +168,14 @@ export async function createInstance(
     console.log(`[infra] Railway service created: ${serviceId}`);
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
+    console.error(`[infra] Service creation failed, deleting orphan project ${projectId}...`);
     logger.error("create.railway_service_fail", { instanceId, projectId, error_class, error_message: error_message.slice(0, 500) });
     metricCount("instance.create.fail", 1, { phase: "railway_service", error_class });
     onProgress?.("railway-service", "fail", (err as Error).message);
-    await railway.projectDelete(projectId).catch((e: any) =>
-      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message }));
+    await railway.projectDelete(projectId).catch((e: any) => {
+      console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
+      logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 500) });
+    });
     throw err;
   }
 
