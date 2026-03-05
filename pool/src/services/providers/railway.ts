@@ -175,7 +175,7 @@ export async function createService(
   variables: Record<string, string> = {},
   opts?: ProjectEnvOpts,
   imageOverride?: string,
-): Promise<string> {
+): Promise<{ serviceId: string; domain: string | null }> {
   const projectId = resolveProjectId(opts);
   const environmentId = resolveEnvironmentId(opts);
   const image = await resolveImageDigest(imageOverride || config.railwayRuntimeImage);
@@ -196,7 +196,15 @@ export async function createService(
   // This ensures RAILWAY_VOLUME_MOUNT_PATH is available on first boot.
   await ensureVolume(serviceId, "/data", opts);
 
-  // Set image + start command — triggers first deploy (volume already attached)
+  // Create domain BEFORE the first deploy so RAILWAY_PUBLIC_DOMAIN is injected on boot.
+  let domain: string | null = null;
+  try {
+    domain = await createDomain(serviceId, opts);
+  } catch (err: any) {
+    console.warn(`[railway] Domain creation failed for ${serviceId}: ${err.message}`);
+  }
+
+  // Set image + start command — triggers first deploy (volume + domain already attached)
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",
@@ -215,7 +223,7 @@ export async function createService(
     await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
   }
 
-  return serviceId;
+  return { serviceId, domain };
 }
 
 export async function deleteService(serviceId: string): Promise<void> {

@@ -1,5 +1,6 @@
 import metrics from "datadog-metrics";
 import { config } from "./config.js";
+import { getCounts } from "./db/pool.js";
 
 let isInitialized = false;
 
@@ -16,59 +17,66 @@ export function initMetrics(): void {
   });
   isInitialized = true;
   console.log("[metrics] Datadog metrics initialized");
+
+  // Emit pool status gauges every 15s (sequential to avoid stacking on slow DB)
+  const emitGauges = () => setTimeout(async () => {
+    try {
+      const counts = await getCounts();
+      const summary = Object.entries(counts).filter(([, c]) => c > 0).map(([s, c]) => `${s}=${c}`).join(" ");
+      if (summary) console.log(`[dd] pool: ${summary}`);
+      for (const [status, count] of Object.entries(counts)) {
+        metricGauge(status, count);
+      }
+    } catch {} finally {
+      emitGauges();
+    }
+  }, 15_000);
+  emitGauges();
 }
 
-export function sendMetric(
+function formatTags(tags: Record<string, string | undefined>): string[] {
+  return Object.entries(tags)
+    .filter(([, v]) => v != null && String(v).trim() !== "")
+    .map(([k, v]) => `${k}:${String(v).trim()}`);
+}
+
+/** Increment a counter — use for events (things that happen). */
+export function metricCount(
+  name: string,
+  value: number = 1,
+  tags: Record<string, string | undefined> = {},
+): void {
+  if (!isInitialized) return;
+  const formatted = formatTags(tags);
+  metrics.increment(name, value, formatted);
+}
+
+/** Record a duration or distribution — use for latencies. */
+export function metricHistogram(
   name: string,
   value: number,
   tags: Record<string, string | undefined> = {},
 ): void {
   if (!isInitialized) return;
-  const formatted = Object.entries(tags)
-    .filter(([, v]) => v != null && String(v).trim() !== "")
-    .map(([k, v]) => `${k}:${String(v).trim()}`);
+  const formatted = formatTags(tags);
   const rounded = Math.round(value);
-  if (rounded !== 0) {
-    const tagStr = formatted.length ? ` [${formatted.join(", ")}]` : "";
-    console.log(`[dd] ${name} = ${rounded}${tagStr}`);
-  }
-  metrics.gauge(name, rounded, formatted);
+  metrics.histogram(name, rounded, formatted);
 }
 
-/** Send a metric to Datadog without logging to stdout. */
-export function sendMetricSilent(
+/** Point-in-time value — use for current counts, queue depths, etc. */
+export function metricGauge(
   name: string,
   value: number,
   tags: Record<string, string | undefined> = {},
 ): void {
   if (!isInitialized) return;
-  const formatted = Object.entries(tags)
-    .filter(([, v]) => v != null && String(v).trim() !== "")
-    .map(([k, v]) => `${k}:${String(v).trim()}`);
+  const formatted = formatTags(tags);
   metrics.gauge(name, Math.round(value), formatted);
-}
-
-/** Send multiple metrics and log a single summary line instead of one per metric. */
-export function sendMetricBatch(
-  label: string,
-  batch: Array<[name: string, value: number, tags?: Record<string, string | undefined>]>,
-): void {
-  if (!isInitialized) return;
-  const parts: string[] = [];
-  for (const [name, value, tags] of batch) {
-    const formatted = Object.entries(tags || {})
-      .filter(([, v]) => v != null && String(v).trim() !== "")
-      .map(([k, v]) => `${k}:${String(v).trim()}`);
-    const rounded = Math.round(value);
-    metrics.gauge(name, rounded, formatted);
-    if (rounded !== 0) parts.push(`${name}=${rounded}`);
-  }
-  if (parts.length) console.log(`[dd] ${label}: ${parts.join(", ")}`);
 }
 
 export function flushMetrics(): Promise<void> {
   if (!isInitialized) return Promise.resolve();
-  return new Promise((resolve) => {
-    metrics.flush(resolve, resolve);
+  return new Promise<void>((resolve) => {
+    metrics.flush(resolve, () => resolve());
   });
 }

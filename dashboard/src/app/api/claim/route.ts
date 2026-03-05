@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${POOL_API_KEY}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, source: "landing" }),
   });
 
   // Guard against non-JSON upstream responses (e.g. 502 HTML from proxy)

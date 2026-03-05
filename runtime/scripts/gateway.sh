@@ -95,31 +95,61 @@ echo "  CONFIG            $CONFIG"
 echo "  SKILLS_DIR        $SKILLS_DIR"
 
 # OpenRouter credit check
-if [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1; then
+if [ -z "${OPENROUTER_API_KEY:-}" ]; then
+  echo "  ⬚  OpenRouter   → no API key set, skipping credit check"
+elif ! command -v curl >/dev/null 2>&1; then
+  echo "  ⬚  OpenRouter   → curl not found, skipping credit check"
+else
   _or_resp=$(curl -s -H "Authorization: Bearer $OPENROUTER_API_KEY" \
     "https://openrouter.ai/api/v1/auth/key" 2>/dev/null) || true
-  if [ -n "$_or_resp" ] && command -v jq >/dev/null 2>&1; then
+  _or_error=$(echo "$_or_resp" | jq -r '.error.message // empty' 2>/dev/null) || true
+  if [ -n "$_or_error" ]; then
+    echo "  ⚠️  OpenRouter   → credit check failed: $_or_error"
+  elif [ -n "$_or_resp" ] && command -v jq >/dev/null 2>&1; then
     _or_limit=$(echo "$_or_resp" | jq -r '.data.limit // empty' 2>/dev/null) || true
     _or_usage=$(echo "$_or_resp" | jq -r '.data.usage // empty' 2>/dev/null) || true
-    if [ -n "$_or_limit" ] && [ -n "$_or_usage" ]; then
-      _or_remaining=$(echo "$_or_limit - $_or_usage" | bc 2>/dev/null) || true
-      if [ -n "$_or_remaining" ]; then
-        _or_is_zero=$(echo "$_or_remaining <= 0" | bc 2>/dev/null) || true
-        _or_is_low=$(echo "$_or_remaining < 0.5" | bc 2>/dev/null) || true
-        if [ "$_or_is_zero" = "1" ]; then
-          echo "  ❌ OpenRouter   → NO CREDITS remaining (\$$_or_usage / \$$_or_limit used)"
-          echo "     ↳ Agent calls will fail with misleading 'Context overflow' errors"
-          echo "     ↳ Top up at https://openrouter.ai/settings/credits"
-        elif [ "$_or_is_low" = "1" ]; then
-          echo "  ⚠️  OpenRouter   → low credits: \$$_or_remaining remaining (\$$_or_usage / \$$_or_limit used)"
+    if [ -n "$_or_usage" ]; then
+      if [ -n "$_or_limit" ]; then
+        _or_remaining=$(echo "$_or_limit - $_or_usage" | bc 2>/dev/null) || true
+        if [ -n "$_or_remaining" ]; then
+          _or_is_zero=$(echo "$_or_remaining <= 0" | bc 2>/dev/null) || true
+          _or_is_low=$(echo "$_or_remaining < 0.5" | bc 2>/dev/null) || true
+          if [ "$_or_is_zero" = "1" ]; then
+            echo "  ❌ OpenRouter   → NO CREDITS remaining (\$$_or_usage / \$$_or_limit used)"
+            echo "     ↳ Agent calls will fail with misleading 'Context overflow' errors"
+            echo "     ↳ Top up at https://openrouter.ai/settings/credits"
+          elif [ "$_or_is_low" = "1" ]; then
+            echo "  ⚠️  OpenRouter   → low credits: \$$_or_remaining remaining (\$$_or_usage / \$$_or_limit used)"
+          else
+            echo "  💳 OpenRouter   → \$$_or_remaining credits remaining"
+          fi
         else
-          echo "  💳 OpenRouter   → \$$_or_remaining credits remaining"
+          echo "  ⚠️  OpenRouter   → could not calculate balance"
         fi
+      else
+        echo "  💳 OpenRouter   → \$$_or_usage used (no limit set)"
       fi
+    else
+      echo "  ⚠️  OpenRouter   → unexpected API response (no limit/usage data)"
     fi
+  else
+    echo "  ⚠️  OpenRouter   → credit check failed (empty response)"
   fi
-  unset _or_resp _or_limit _or_usage _or_remaining _or_is_zero _or_is_low
+  unset _or_resp _or_error _or_limit _or_usage _or_remaining _or_is_zero _or_is_low
 fi
+
+# --- Clear stale agent sessions ---
+# Stale session history causes the model to see old context after a restart,
+# which can make it silently skip replies. Wipe them on every fresh start.
+_sessions_dir="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/agents/main/sessions"
+if [ -d "$_sessions_dir" ]; then
+  _count=$(find "$_sessions_dir" -name '*.jsonl' 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$_count" -gt 0 ]; then
+    rm -f "$_sessions_dir"/*.jsonl "$_sessions_dir/sessions.json"
+    echo "  🧹 Cleared $_count stale session file(s)"
+  fi
+fi
+unset _sessions_dir _count
 
 echo ""
 

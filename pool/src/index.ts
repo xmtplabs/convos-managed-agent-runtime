@@ -7,13 +7,16 @@ import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
 import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
-import { instanceInfra } from "./db/schema";
+import { instanceInfra, instanceServices } from "./db/schema";
 import { updateServiceInstance, upsertVariables } from "./services/providers/railway";
 import { resolveImageDigest } from "./services/providers/ghcr";
+import * as openrouter from "./services/providers/openrouter";
 
 import { initMetrics } from "./metrics";
+import { webhookRouter } from "./webhookRoute";
+import { ensureWebhookRule } from "./webhook";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -168,6 +171,111 @@ app.post("/api/pool/self-destruct", async (req, res) => {
 });
 
 
+// --- Railway webhook (public — auth via secret in URL path) ---
+app.use(webhookRouter);
+
+// Credits check — instance queries its own spending balance.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/credits-check", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+
+    // Look up the instance's OpenRouter key from instance_services
+    const svcRows = await pgDb.select({
+      resourceId: instanceServices.resourceId,
+      resourceMeta: instanceServices.resourceMeta,
+    }).from(instanceServices).where(
+      and(eq(instanceServices.instanceId, instanceId), eq(instanceServices.toolId, "openrouter"))
+    );
+    const svc = svcRows[0];
+    if (!svc) {
+      res.status(404).json({ error: "No credits service provisioned for this instance" }); return;
+    }
+
+    const hash = svc.resourceId;
+    const limit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
+
+    // Fetch usage from OpenRouter API for this specific key
+    const mgmtKey = config.openrouterManagementKey;
+    if (!mgmtKey) {
+      res.status(503).json({ error: "Credits service not configured on server" }); return;
+    }
+    const keyRes = await fetch(`https://openrouter.ai/api/v1/keys/${hash}`, {
+      headers: { Authorization: `Bearer ${mgmtKey}` },
+    });
+    if (!keyRes.ok) {
+      res.status(502).json({ error: `Failed to fetch key info from provider` }); return;
+    }
+    const keyData = (await keyRes.json() as any)?.data ?? {};
+    const usage = keyData.usage ?? 0;
+    const currentLimit = keyData.limit ?? limit;
+    const remaining = Math.max(0, currentLimit - usage);
+
+    res.json({ limit: currentLimit, usage, remaining, limitReset: keyData.limit_reset ?? config.openrouterKeyLimitReset });
+  } catch (err: any) {
+    console.error("[api] Credits check failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Credits top-up — instance requests a spending limit increase.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/credits-topup", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+
+    // Look up the instance's OpenRouter key from instance_services
+    const svcRows = await pgDb.select({
+      id: instanceServices.id,
+      resourceId: instanceServices.resourceId,
+      resourceMeta: instanceServices.resourceMeta,
+    }).from(instanceServices).where(
+      and(eq(instanceServices.instanceId, instanceId), eq(instanceServices.toolId, "openrouter"))
+    );
+    const svc = svcRows[0];
+    if (!svc) {
+      res.status(404).json({ error: "No credits service provisioned for this instance" }); return;
+    }
+
+    const hash = svc.resourceId;
+    const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
+    const maxLimit = parseInt(process.env.OPENROUTER_TOPUP_MAX || "100", 10);
+
+    if (currentLimit >= maxLimit) {
+      res.status(409).json({ error: "Credit limit already at maximum", limit: currentLimit, max: maxLimit }); return;
+    }
+
+    const increment = parseInt(process.env.OPENROUTER_TOPUP_INCREMENT || "20", 10);
+    const newLimit = Math.min(currentLimit + increment, maxLimit);
+
+    await openrouter.updateKeyLimit(hash, newLimit);
+
+    // Update resourceMeta.limit in DB
+    const updatedMeta = { ...(svc.resourceMeta as any || {}), limit: newLimit };
+    await pgDb.update(instanceServices).set({ resourceMeta: updatedMeta }).where(eq(instanceServices.id, svc.id));
+
+    console.log(`[pool] Credits top-up for instance ${instanceId}: $${currentLimit} → $${newLimit}`);
+    res.json({ ok: true, previousLimit: currentLimit, newLimit });
+  } catch (err: any) {
+    console.error("[api] Credits top-up failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
   try {
     const result = await pool.recheckInstance(req.params.id as string);
@@ -247,7 +355,7 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 });
 
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
-  const { agentName, instructions, joinUrl } = req.body || {};
+  const { agentName, instructions, joinUrl, source } = req.body || {};
   if (instructions && typeof instructions !== "string") {
     res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
@@ -269,6 +377,7 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       agentName: agentName || "Assistant",
       instructions: instructions || "You are a helpful AI assistant.",
       joinUrl: joinUrl || undefined,
+      source: (typeof source === "string" && source) || "api",
     });
     if (!result) {
       res.status(503).json({ error: "No idle instances available. Try again in a few minutes." }); return;
@@ -285,6 +394,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   const agentName = (req.query.agentName as string) || "Assistant";
   const instructions = (req.query.instructions as string) || "You are a helpful AI assistant.";
   const joinUrl = (req.query.joinUrl as string) || undefined;
+  const source = (req.query.source as string) || "api";
 
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -308,6 +418,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
       agentName,
       instructions,
       joinUrl,
+      source,
       onProgress(step, status, message) {
         send({ type: "step", step, status, message: message || "" });
       },
@@ -533,6 +644,8 @@ initMetrics();
 runMigrations()
   .then(() => {
     setTimeout(() => prefetchAllPrompts().catch(() => {}), 5000);
+    ensureWebhookRule().catch((err) =>
+      console.warn("[startup] Webhook rule registration failed:", err.message));
   })
   .catch((err) => {
     console.error("[startup] Migration failed:", err);

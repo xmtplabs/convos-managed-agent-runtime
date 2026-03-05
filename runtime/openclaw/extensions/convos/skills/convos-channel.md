@@ -92,6 +92,26 @@ When sending messages via Convos:
 - The conversation ID is set during setup/onboarding
 - To send: use action `send` with `message` param
 
+## Heartbeat
+
+OpenClaw's heartbeat system periodically triggers the agent to check for proactive tasks (nudges, reminders, follow-ups). The heartbeat config in `openclaw.json` specifies `target: "convos"` to route heartbeat messages to the Convos channel.
+
+### How target resolution works
+
+Since each Convos process is bound to exactly one conversation, target resolution is simplified:
+
+1. The heartbeat agent calls the `message` tool with an arbitrary target string (e.g. `"heartbeat"`, `"group"`, etc.)
+2. `normalizeConvosMessagingTarget` in `channel.ts` checks if the target is already a conversation ID (hex-32 or UUID)
+3. If not, it resolves it to the bound conversation's ID via `getConvosInstance().conversationId`
+4. The framework's `looksLikeId` check then passes, skipping directory name-matching entirely
+5. The outbound adapter delivers to the bound conversation regardless of the resolved `to` value
+
+This means **any target string works** — the agent doesn't need to know the conversation ID. The `listGroups` directory method also always returns the bound conversation for callers that use directory lookup.
+
+### Heartbeat prompt
+
+The heartbeat prompt is defined in `workspace/HEARTBEAT.md`. The agent replies `HEARTBEAT_OK` when nothing needs attention, or sends a message to the group when proactive action is warranted.
+
 ## Error Handling
 
 Common scenarios:

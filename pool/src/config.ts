@@ -6,6 +6,7 @@ export function getEnv(name: string, fallback = ""): string {
 export const config = {
   port: parseInt(getEnv("PORT", "3001"), 10),
   poolApiKey: getEnv("POOL_API_KEY"),
+  poolUrl: getEnv("POOL_URL"),
 
   // Database — single unified DB
   databaseUrl: getEnv("DATABASE_URL"),
