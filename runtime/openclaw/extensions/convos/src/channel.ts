@@ -492,7 +492,10 @@ async function handleInboundMessage(
       ctx: ctxPayload,
       cfg,
       dispatcherOptions: {
-        deliver: async (payload: ReplyPayload) => {
+        deliver: async (payload: ReplyPayload, info) => {
+          // Suppress intermediate narration — only send final replies and tool results
+          if (info?.kind === "block") return;
+
           // Rewrite raw provider credit errors into a friendly message
           const t = payload.text || "";
           if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
