@@ -241,6 +241,8 @@ export async function createInstance(
     onProgress?.("db", "fail", (err as Error).message);
 
     // Best-effort cleanup of already-provisioned resources
+    await db.delete(instanceInfra).where(eq(instanceInfra.instanceId, instanceId)).catch((e: any) =>
+      logger.warn("create.orphan_db_cleanup_fail", { instanceId, error_message: e.message?.slice(0, 500) }));
     await railway.projectDelete(projectId).catch((e: any) =>
       logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 500) }));
     if (services.openrouter) {

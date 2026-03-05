@@ -22,7 +22,9 @@ export const logger = {
 
 export function classifyError(err: unknown): { error_class: string; error_message: string } {
   const name = err instanceof Error ? err.name : "";
-  const message = err instanceof Error ? err.message : String(err);
+  const message = err instanceof Error ? err.message
+    : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message)
+    : String(err);
   const status =
     typeof err === "object" && err !== null && "status" in err
       ? (err as { status: unknown }).status
