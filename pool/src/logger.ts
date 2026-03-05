@@ -2,6 +2,12 @@ const SERVICE = "convos-pool";
 const DD_API_KEY = process.env.DATADOG_API_KEY;
 const DD_SITE = process.env.DATADOG_SITE || "datadoghq.com";
 
+if (DD_API_KEY) {
+  console.log(`[logger] Datadog log forwarding enabled (site=${DD_SITE})`);
+} else {
+  console.log("[logger] DATADOG_API_KEY not set — log forwarding disabled");
+}
+
 type Level = "info" | "warn" | "error";
 
 function emit(level: Level, message: string, context?: Record<string, unknown>): void {
@@ -19,8 +25,6 @@ function emit(level: Level, message: string, context?: Record<string, unknown>):
       headers: { "Content-Type": "application/json", "DD-API-KEY": DD_API_KEY },
       body: JSON.stringify([entry]),
     }).catch(() => {});
-  } else {
-    console.log(JSON.stringify(entry));
   }
 }
 
