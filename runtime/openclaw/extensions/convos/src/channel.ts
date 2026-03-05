@@ -93,7 +93,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   actions: convosMessageActions,
   agentPrompt: {
     messageToolHints: () => [
-      "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID.",
+      "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID. In a 2-member conversation, only use `replyTo` when referencing an older message — replying to the most recent message is redundant when there is only one other person.",
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
       "- To send a file: use `action=sendAttachment` with `file` (local path).",
       "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
