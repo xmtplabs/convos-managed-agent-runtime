@@ -76,7 +76,7 @@ export function metricGauge(
 
 export function flushMetrics(): Promise<void> {
   if (!isInitialized) return Promise.resolve();
-  return new Promise((resolve) => {
-    metrics.flush(resolve, resolve);
+  return new Promise<void>((resolve) => {
+    metrics.flush(resolve, () => resolve());
   });
 }
