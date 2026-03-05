@@ -4,6 +4,7 @@ import { createInstance as infraCreateInstance, destroyInstance as infraDestroyI
 import { fetchBatchStatus } from "./services/status";
 import { config } from "./config";
 import { metricCount, metricHistogram } from "./metrics";
+import { logger, classifyError } from "./logger";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -61,7 +62,11 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 
     return { id, serviceId: result.serviceId, url: result.url, name };
   } catch (err) {
-    metricCount("instance.create.fail", 1, { phase: "infra" });
+    const { error_class, error_message } = classifyError(err);
+    // More specific phase tags are emitted inside infra.createInstance;
+    // this is the top-level rollup so dashboards can alert on total create failures.
+    metricCount("instance.create.fail", 1, { phase: "infra", error_class });
+    logger.error("create.fail", { instanceId: id, name, error_class, error_message: error_message.slice(0, 500) });
     throw err;
   }
 }
