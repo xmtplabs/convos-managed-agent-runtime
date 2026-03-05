@@ -440,6 +440,21 @@ async function handleInboundMessage(
   };
   const mediaMime = mediaPath ? extToMime[path.extname(mediaPath).toLowerCase()] ?? "image/jpeg" : undefined;
 
+  // Inject current wall-clock time as per-turn system context so the agent
+  // always knows "now" without calling session_status. Uses the same timezone
+  // as the envelope timestamps for consistency. (#306)
+  const tz = envelopeOptions.userTimezone || envelopeOptions.timezone || "UTC";
+  const currentTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz === "local" || tz === "user" ? undefined : tz,
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(Date.now());
+
   const ctxPayload = runtime.channel.reply.finalizeInboundContext({
     Body: body,
     RawBody: rawBody,
@@ -458,6 +473,10 @@ async function handleInboundMessage(
     MessageSid: msg.messageId,
     OriginatingChannel: "convos",
     OriginatingTo: `convos:${msg.conversationId}`,
+    GroupSystemPrompt: [
+      account.config?.systemPrompt?.trim(),
+      `Current time: ${currentTime}`,
+    ].filter(Boolean).join("\n\n"),
     ...(mediaPath ? { MediaPath: mediaPath, MediaType: mediaMime } : {}),
   });
 
