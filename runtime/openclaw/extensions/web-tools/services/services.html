@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#f5f5f5">
   <title>services</title>
   <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
@@ -25,10 +25,14 @@
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      max-width: 320px;
+      max-width: 400px;
       width: 100%;
       overflow: hidden;
       position: relative;
+    }
+    @media (max-width: 440px) {
+      body { padding: 0; align-items: stretch; justify-content: flex-start; }
+      .card { max-width: 100%; border-radius: 0; box-shadow: none; min-height: 100vh; }
     }
     .card-viewport {
       display: flex;
@@ -212,7 +216,7 @@
       border: 1px solid #e0e0e0;
       border-radius: 8px;
       padding: 0.4rem 0;
-      font-size: 0.75rem;
+      font-size: 16px;
       font-weight: 500;
       color: #333;
       text-align: center;
@@ -295,6 +299,9 @@
       font-size: 0.7rem;
       color: #ccc;
     }
+    @media (max-width: 440px) {
+      .footer { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -336,10 +343,10 @@
             </button>
           </div>
 
-          <!-- AI Credits row -->
+          <!-- Processing power row -->
           <div class="service-item" id="svc-credits">
             <div class="service-body">
-              <div class="service-label">credits</div>
+              <div class="service-label">processing power</div>
               <div class="service-value" id="credits-value"><div class="loading-shimmer"></div></div>
               <div class="credits-bar" id="credits-bar" style="display:none">
                 <div class="credits-bar-fill" id="credits-bar-fill"></div>
@@ -349,7 +356,7 @@
                 <span id="credits-limit"></span>
               </div>
             </div>
-            <button class="manage-icon-btn" id="manage-btn" style="display:none" title="Add credits">
+            <button class="manage-icon-btn" id="manage-btn" style="display:none" title="Add processing power">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
             </button>
           </div>
@@ -364,11 +371,11 @@
           <button class="back-btn" id="back-btn" title="Back">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           </button>
-          <span class="manage-title">add credits</span>
+          <span class="manage-title">add processing power</span>
         </div>
 
         <div class="manage-balance">
-          <div class="manage-balance-label">current balance</div>
+          <div class="manage-balance-label">current power</div>
           <div class="manage-balance-value" id="manage-balance-value">$0.00</div>
         </div>
 
@@ -493,7 +500,8 @@
           creditsValue.textContent = credits.error;
           creditsValue.className = "service-value service-value--null";
         } else {
-          showValue(creditsValue, null);
+          creditsValue.textContent = "no power";
+          creditsValue.className = "service-value service-value--null";
         }
       }
 
@@ -561,7 +569,7 @@
             cardElement = elements.create("card", {
               style: {
                 base: {
-                  fontSize: "14px",
+                  fontSize: "16px",
                   color: "#333",
                   fontFamily: "system-ui, -apple-system, sans-serif",
                   "::placeholder": { color: "#bbb" },
@@ -669,7 +677,7 @@
               couponStatus.className = "coupon-status status-error";
               return;
             }
-            couponStatus.textContent = "credits added!";
+            couponStatus.textContent = "power added!";
             couponStatus.className = "coupon-status status-ok";
             // Refresh credits
             fetch("/web-tools/services/api", { headers: authHeaders() })
@@ -737,7 +745,7 @@
               return;
             }
             if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
-              paymentStatus.textContent = "payment successful — updating balance...";
+              paymentStatus.textContent = "payment successful — updating power...";
               paymentStatus.className = "payment-status status-ok";
               payBtn.textContent = "paid";
               pollBalance(5);
@@ -754,7 +762,7 @@
       // Poll for updated balance after payment
       function pollBalance(attemptsLeft) {
         if (attemptsLeft <= 0) {
-          paymentStatus.textContent = "payment received — balance updating shortly";
+          paymentStatus.textContent = "payment received — power updating shortly";
           paymentStatus.className = "payment-status status-ok";
           setTimeout(function () { showLandingScreen(); }, 2000);
           return;
@@ -767,7 +775,7 @@
               if (attemptsLeft > 1) {
                 pollBalance(attemptsLeft - 1);
               } else {
-                paymentStatus.textContent = "balance updated";
+                paymentStatus.textContent = "power updated";
                 paymentStatus.className = "payment-status status-ok";
                 setTimeout(function () { showLandingScreen(); }, 1500);
               }
@@ -814,6 +822,21 @@
           }
 
           renderCredits(d.credits);
+
+          // Production: coupon-only mode (no Stripe card payments)
+          if (d.xmtpEnv === "production") {
+            var pkgBtns = document.getElementById("package-buttons");
+            var custToggle = document.getElementById("custom-toggle");
+            var stripeFormEl = document.getElementById("stripe-form");
+            if (pkgBtns) pkgBtns.style.display = "none";
+            if (custToggle) custToggle.style.display = "none";
+            if (stripeFormEl) stripeFormEl.style.display = "none";
+            // Auto-show coupon row
+            var couponToggleEl = document.getElementById("coupon-toggle");
+            var couponRowEl = document.getElementById("coupon-row");
+            if (couponToggleEl) couponToggleEl.style.display = "none";
+            if (couponRowEl) couponRowEl.style.display = "flex";
+          }
         })
         .catch(function () {
           showError("failed to connect");

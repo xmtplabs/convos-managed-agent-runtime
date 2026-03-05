@@ -200,8 +200,13 @@ stripeApiRouter.post("/api/pool/stripe/redeem-coupon", async (req, res) => {
 
     const hash = svc.resourceId;
     const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
+    const couponMax = parseInt(process.env.COUPON_MAX_LIMIT || "100", 10);
+    if (currentLimit >= couponMax) {
+      res.status(409).json({ error: "Credit limit reached" });
+      return;
+    }
     const increment = 20;
-    const newLimit = currentLimit + increment;
+    const newLimit = Math.min(currentLimit + increment, couponMax);
 
     await openrouter.updateKeyLimit(hash, newLimit);
 

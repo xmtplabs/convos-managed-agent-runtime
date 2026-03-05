@@ -63,7 +63,8 @@ async function getServicesData(): Promise<Record<string, unknown>> {
   const servicesUrl = buildServicesUrl();
 
   const instanceId = process.env.INSTANCE_ID || null;
-  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
+  const xmtpEnv = process.env.XMTP_ENV || "dev";
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId, xmtpEnv };
 
   // Try to fetch credits from pool manager
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
@@ -137,7 +138,7 @@ export default function register(api: OpenClawPluginApi) {
     ) {
       const servicesUrl = buildServicesUrl();
       return {
-        content: `Hey! I'm out of credits. You can top up here: ${servicesUrl}`,
+        content: `Hey! I'm out of processing power. You can top up here: ${servicesUrl}`,
       };
     }
   });
