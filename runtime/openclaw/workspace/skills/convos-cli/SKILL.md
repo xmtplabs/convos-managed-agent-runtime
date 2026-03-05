@@ -154,6 +154,8 @@ convos conversation update-profile $CONVOS_CONVERSATION_ID --name "New Name"
 convos conversation update-profile $CONVOS_CONVERSATION_ID --name "New Name" --image "https://example.com/avatar.jpg"
 ```
 
+The `--image` flag requires a publicly accessible URL (`https://...`). Local file paths like `./avatar.jpg` or `/tmp/image.png` won't work — the image must already be hosted and reachable over the internet.
+
 Your profile is per-conversation — it only affects this group.
 
 ## Rules
