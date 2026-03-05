@@ -619,10 +619,11 @@ async function dispatchGreeting(
       "[System: You just joined this conversation. Send your welcome message now. " +
       "Follow the guidance in SOUL.md under 'Your Welcome Message'. " +
       "Introduce yourself, set expectations, and teach people they can train you by talking to you. " +
-      "When mentioning what you can do, focus on the things that let you act in the real world for them: " +
-      "browsing websites and making reservations, sending emails and calendar invites, and texting people. " +
+      "List what you can do FOR them in the real world using emoji bullets (e.g. 🔍 Search the web for anything, " +
+      "🌐 Browse websites & make reservations for you, 📧 Send & receive emails on your behalf, " +
+      "💬 Text people via SMS for you). Emphasize that you can take real actions, not just answer questions. " +
       "Do NOT mention crypto, wallets, tokens, or trading. " +
-      "Keep it short — 3-4 sentences max.]",
+      "Keep it short — a brief intro sentence, the emoji list, and a closing line about training you.]",
     contentType: "text",
     timestamp: new Date(),
   };
