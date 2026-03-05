@@ -42,6 +42,7 @@
       "workspace": "~/.openclaw/workspace",
       "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
+      "userTimezone": "America/New_York",
     
       "heartbeat": {
         "every": "30m",
