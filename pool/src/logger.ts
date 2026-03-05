@@ -13,14 +13,14 @@ function emit(level: Level, message: string, context?: Record<string, unknown>):
     service: SERVICE,
     dd: { service: SERVICE },
   };
-  console.log(JSON.stringify(entry));
-
   if (DD_API_KEY) {
     fetch(`https://http-intake.logs.${DD_SITE}/api/v2/logs`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "DD-API-KEY": DD_API_KEY },
       body: JSON.stringify([entry]),
     }).catch(() => {});
+  } else {
+    console.log(JSON.stringify(entry));
   }
 }
 
