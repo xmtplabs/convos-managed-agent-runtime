@@ -41,6 +41,7 @@ export async function provision(opts: ProvisionOpts) {
   report("claim", "ok", `Claimed ${instance.name || instance.id}`);
 
   try {
+    console.log(`[provision] Claiming ${instance.id} for "${agentName}"${joinUrl ? " (join)" : ""}`);
     logger.info("claim.start_provision", { instanceId: instance.id, agentName, hasJoinUrl: !!joinUrl });
 
     report("provision", "active", joinUrl ? "Joining conversation…" : "Configuring agent…");
@@ -81,6 +82,7 @@ export async function provision(opts: ProvisionOpts) {
     report("convo", "ok", convoMsg);
 
     const durationMs = Date.now() - claimStart;
+    console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
     logger.info("claim.complete", {
       instanceId: instance.id,
       agentName,
@@ -117,6 +119,7 @@ export async function provision(opts: ProvisionOpts) {
       duration_ms: durationMs,
     });
 
+    console.error(`[provision] Instance ${instance.id} failed, marking crashed: ${error_message.slice(0, 200)}`);
     report("provision", "fail", error_message.slice(0, 200));
     report("convo", "skip");
     // Any provision failure taints the instance — even transient errors
