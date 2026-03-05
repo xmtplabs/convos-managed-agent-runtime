@@ -1,6 +1,7 @@
 import * as db from "./db/pool";
 import { config } from "./config";
 import { metricCount, metricHistogram } from "./metrics";
+import { logger, classifyError } from "./logger";
 
 export type ProvisionProgressCallback = (step: string, status: string, message?: string) => void;
 
@@ -20,9 +21,19 @@ export async function provision(opts: ProvisionOpts) {
 
   metricCount("instance.claim.start");
   report("claim", "active", "Finding available instance…");
-  const instance = await db.claimIdle();
+  let instance;
+  try {
+    instance = await db.claimIdle();
+  } catch (err) {
+    const { error_class, error_message } = classifyError(err);
+    metricCount("instance.claim.fail", 1, { reason: "db_error", error_class, stage: "claim" });
+    logger.error("claim.fail", { stage: "claim", error_class, error_message: error_message.slice(0, 500), agentName, hasJoinUrl: !!joinUrl });
+    report("claim", "fail", "Database error while claiming");
+    throw err;
+  }
   if (!instance) {
     metricCount("instance.claim.fail", 1, { reason: "no_idle" });
+    logger.warn("claim.no_idle", { agentName, hasJoinUrl: !!joinUrl });
     report("claim", "fail", "No idle instances available");
     return null;
   }
@@ -31,6 +42,7 @@ export async function provision(opts: ProvisionOpts) {
 
   try {
     console.log(`[provision] Claiming ${instance.id} for "${agentName}"${joinUrl ? " (join)" : ""}`);
+    logger.info("claim.start_provision", { instanceId: instance.id, agentName, hasJoinUrl: !!joinUrl });
 
     report("provision", "active", joinUrl ? "Joining conversation…" : "Configuring agent…");
 
@@ -47,7 +59,10 @@ export async function provision(opts: ProvisionOpts) {
     });
     if (!provisionRes.ok) {
       const text = await provisionRes.text();
-      throw new Error(`Provision failed on ${instance.id}: ${provisionRes.status} ${text}`);
+      throw Object.assign(
+        new Error(`Provision failed on ${instance.id}: ${provisionRes.status} ${text.slice(0, 300)}`),
+        { status: provisionRes.status },
+      );
     }
     const result = await provisionRes.json() as { conversationId: string; inviteUrl?: string; joined?: boolean };
 
@@ -66,10 +81,18 @@ export async function provision(opts: ProvisionOpts) {
       : `Created conversation ${result.conversationId.slice(0, 8)}…`;
     report("convo", "ok", convoMsg);
 
+    const durationMs = Date.now() - claimStart;
     console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
+    logger.info("claim.complete", {
+      instanceId: instance.id,
+      agentName,
+      conversationId: result.conversationId,
+      joined: !!result.joined,
+      duration_ms: durationMs,
+    });
 
     metricCount("instance.claim.complete");
-    metricHistogram("instance.claim.duration_ms", Date.now() - claimStart);
+    metricHistogram("instance.claim.duration_ms", durationMs);
 
     return {
       inviteUrl: result.inviteUrl || null,
@@ -80,16 +103,29 @@ export async function provision(opts: ProvisionOpts) {
       agentName,
     };
   } catch (err) {
-    metricCount("instance.claim.fail", 1, { reason: "provision_error" });
-    metricHistogram("instance.claim.duration_ms", Date.now() - claimStart);
-    const msg = err instanceof Error ? err.message : String(err);
-    report("provision", "fail", msg.slice(0, 200));
+    const { error_class, error_message } = classifyError(err);
+    const durationMs = Date.now() - claimStart;
+
+    metricCount("instance.claim.fail", 1, { reason: "provision_error", error_class, stage: "provision" });
+    metricHistogram("instance.claim.duration_ms", durationMs);
+
+    logger.error("claim.fail", {
+      instanceId: instance.id,
+      agentName,
+      hasJoinUrl: !!joinUrl,
+      stage: "provision",
+      error_class,
+      error_message: error_message.slice(0, 500),
+      duration_ms: durationMs,
+    });
+
+    console.error(`[provision] Instance ${instance.id} failed, marking crashed: ${error_message.slice(0, 200)}`);
+    report("provision", "fail", error_message.slice(0, 200));
     report("convo", "skip");
     // Any provision failure taints the instance — even transient errors
     // (timeouts, network blips) may have partially executed on the runtime
     // (wrote instructions, started a join). Releasing back to idle risks an
     // infinite retry loop. Mark crashed; manual cleanup via dashboard.
-    console.error(`[provision] Instance ${instance.id} failed, marking crashed: ${msg.slice(0, 200)}`);
     await db.updateStatus(instance.id, { status: "crashed" });
     throw err;
   }
