@@ -13,8 +13,4 @@ Only when the **system** triggered a heartbeat (not on normal user messages): ru
 
 See AGENTS.md "Proactivity" section for when and how to nudge. On each heartbeat, check if any of those conditions apply and act accordingly. One nudge per topic per cycle.
 
-## Tasks
 
-### Morning check-in
-
-Handled by a dedicated cron job — not part of the heartbeat. Do not send morning greetings from heartbeat.
