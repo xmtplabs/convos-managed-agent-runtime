@@ -87,6 +87,9 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     threads: false,
     media: true,
   },
+  groups: {
+    resolveRequireMention: () => false,
+  },
   reload: { configPrefixes: ["channels.convos"] },
   configSchema: convosChannelConfigSchema,
   onboarding: convosOnboardingAdapter,
