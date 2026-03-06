@@ -204,7 +204,16 @@ export async function createService(
     console.warn(`[railway] Domain creation failed for ${serviceId}: ${err.message}`);
   }
 
-  // Set image + start command — triggers first deploy (volume + domain already attached)
+  // Upsert variables BEFORE setting the image — updateServiceInstance triggers the
+  // first deploy, so env vars must already be in place or the instance boots without them.
+  if (Object.keys(variables).length > 0) {
+    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
+  }
+
+  // Set resource limits before the first deploy as well
+  await setResourceLimits(serviceId, undefined, opts);
+
+  // Set image + start command — triggers first deploy (volume + domain + vars already attached)
   try {
     await updateServiceInstance(serviceId, {
       startCommand: "node scripts/pool-server",
@@ -213,14 +222,6 @@ export async function createService(
     console.log(`[railway]   Configured: image=${image}`);
   } catch (err: any) {
     console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
-  }
-
-  // Set resource limits
-  await setResourceLimits(serviceId, undefined, opts);
-
-  // Upsert variables with skipDeploys
-  if (Object.keys(variables).length > 0) {
-    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
   }
 
   return { serviceId, domain };
