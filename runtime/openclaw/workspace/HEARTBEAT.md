@@ -7,7 +7,7 @@ read_when:
 
 # HEARTBEAT
 
-Only when the **system** triggered a heartbeat (not on normal user messages): run the checks below. Reply `HEARTBEAT_OK` when nothing needs attention. If the user said "hi", "hey", or asked something, that is normal chat — respond to them, do not reply HEARTBEAT_OK.
+Only when the **system** triggered a heartbeat (not on normal user messages): run the checks below. If nothing needs attention, do not reply — stay silent. If the user said "hi", "hey", or asked something, that is normal chat — respond to them normally.
 
 ## Proactive nudges
 
