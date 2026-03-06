@@ -1,12 +1,16 @@
 export interface AgentSkill {
+  id: string;
+  creatorId: string;
   slug: string;
-  name: string;
+  agentName: string;
   description: string;
+  prompt: string;
   category: string;
   emoji: string;
-  skills: string[];
-  status: string;
-  notionPageId: string | null;
+  tools: string[];
+  visibility: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PoolCounts {
@@ -14,10 +18,6 @@ export interface PoolCounts {
   starting: number;
   claimed: number;
   crashed: number;
-}
-
-export interface PromptData {
-  prompt: string;
 }
 
 export interface ClaimResponse {

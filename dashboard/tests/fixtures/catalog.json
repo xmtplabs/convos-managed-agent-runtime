@@ -1,1229 +1,1589 @@
 [
   {
+    "id": "mock-0001",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-racket-club-manager",
-    "name": "The Racket Club Manager",
+    "agentName": "The Racket Club Manager",
     "description": "Coordinates padel/tennis/pickleball sessions. Finds players, checks weather, books courts, tracks scores, roasts people who bail.",
+    "prompt": "You are a helpful AI assistant for The Racket Club Manager.",
     "category": "Sports",
     "emoji": "🎾",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281f080b4c728c79ec582"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0002",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-friendly-wager-manager",
-    "name": "The Friendly Wager Manager",
+    "agentName": "The Friendly Wager Manager",
     "description": "keep track of whatever game we're playing, who owes who what, and what the score is. Keep everyone in the loop. Roast people if they're losing badly, and always help people know who owes who at the end and what the payout should be. And ask specific questions if you really need details about the rules of the game and if you don't understand them.",
+    "prompt": "",
     "category": "Sports",
     "emoji": "🎾",
-    "skills": [],
-    "status": "planned",
-    "notionPageId": null
+    "tools": [],
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0003",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-tee-time-wrangler",
-    "name": "The Tee Time Wrangler",
+    "agentName": "The Tee Time Wrangler",
     "description": "Golf foursome coordination. Polls availability, books tee times, tracks handicaps, rotates who buys drinks at the turn, keeps track of who owes who in whatever the bet game is they are playing.",
+    "prompt": "You are a helpful AI assistant for The Tee Time Wrangler.",
     "category": "Sports",
     "emoji": "🎾",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92812780f0f46c942e3acc"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0004",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-pickup-game-finder",
-    "name": "The Pickup Game Finder",
+    "agentName": "The Pickup Game Finder",
     "description": "Basketball/soccer/volleyball crews. Manages headcounts, finds open courts/fields, balances teams, tracks win streaks.",
+    "prompt": "You are a helpful AI assistant for The Pickup Game Finder.",
     "category": "Sports",
     "emoji": "🎾",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281ef913fc1e820c4cc84"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0005",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-run-club-captain",
-    "name": "The Run Club Captain",
+    "agentName": "The Run Club Captain",
     "description": "Running group coordinator. Plans routes, tracks pace goals, coordinates group runs, shares weather conditions, celebrates PRs.",
+    "prompt": "You are a helpful AI assistant for The Run Club Captain.",
     "category": "Sports",
     "emoji": "🎾",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92811cb79cd59204255a4e"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0006",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-fantasy-commissioner",
-    "name": "The Fantasy Commissioner",
+    "agentName": "The Fantasy Commissioner",
     "description": "Fantasy sports league manager. Tracks trades, posts standings, sends deadline reminders, roasts last place, settles disputes.",
+    "prompt": "You are a helpful AI assistant for The Fantasy Commissioner.",
     "category": "Sports",
     "emoji": "🎾",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281f7ae15cc7c299446f1"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0007",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-cycle-club-captain",
-    "name": "The Cycle Club Captain",
+    "agentName": "The Cycle Club Captain",
     "description": "Cycling group coordinator. Route planning, meeting point optimizer, weather intelligence, Strava integration, ride calendar, group logistics.",
+    "prompt": "You are a helpful AI assistant for The Cycle Club Captain.",
     "category": "Sports",
     "emoji": "🎾",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281e0b452ed615ec64d37"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0008",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-dinner-club-concierge",
-    "name": "The Dinner Club Concierge",
+    "agentName": "The Dinner Club Concierge",
     "description": "Rotating dinner group. Suggests restaurants, polls preferences, handles reservations, tracks whose turn to pick, splits the check.",
+    "prompt": "You are a helpful AI assistant for The Dinner Club Concierge.",
     "category": "Food",
     "emoji": "🍽️",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Email",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281a4802efcfe14ab4a95"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0009",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-supper-club-host",
-    "name": "The Supper Club Host",
+    "agentName": "The Supper Club Host",
     "description": "Home dinner party rotation. Manages hosting schedule, collects dietary needs, suggests menus, sends reminders, tracks who hosted last.",
+    "prompt": "You are a helpful AI assistant for The Supper Club Host.",
     "category": "Food",
     "emoji": "🍽️",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281888082e2f30e137002"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0010",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-somm",
-    "name": "The Somm",
+    "agentName": "The Somm",
     "description": "Wine club curator. Suggests bottles for the theme, tracks what the group's tried, shares tasting notes, manages buy-ins, remembers everyone's palate.",
+    "prompt": "You are a helpful AI assistant for The Somm.",
     "category": "Food",
     "emoji": "🍽️",
-    "skills": [
+    "tools": [
       "Search"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92817f9514d2211bd31954"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0011",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-meal-train-dispatcher",
-    "name": "The Meal Train Dispatcher",
+    "agentName": "The Meal Train Dispatcher",
     "description": "Coordinates meals for someone in need (new baby, illness, loss). Sign-up slots, dietary restrictions, delivery schedule, thank-you tracking.",
+    "prompt": "You are a helpful AI assistant for The Meal Train Dispatcher.",
     "category": "Food",
     "emoji": "🍽️",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92818381fdc682b0a8d91b"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0012",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-potluck-planner",
-    "name": "The Potluck Planner",
+    "agentName": "The Potluck Planner",
     "description": "Group gathering food coordination. Prevents 8 people from bringing chips. Assigns categories, tracks commitments, day-of reminders.",
+    "prompt": "You are a helpful AI assistant for The Potluck Planner.",
     "category": "Food",
     "emoji": "🍽️",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281589bdefe2e6236ea20"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0013",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-family-meal-planner",
-    "name": "The Family Meal Planner",
+    "agentName": "The Family Meal Planner",
     "description": "Weekly meal planning for families, couples, and roommates. Personalized plans, smart grocery lists, leftover management, budget optimization, on-demand recipe help.",
+    "prompt": "You are a helpful AI assistant for The Family Meal Planner.",
     "category": "Food",
     "emoji": "🍽️",
-    "skills": [
+    "tools": [
       "Web Search",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce92816aab31e0fd7f905f1d"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0014",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-trip-architect",
-    "name": "The Trip Architect",
+    "agentName": "The Trip Architect",
     "description": "End-to-end group travel planning. Destination research, accommodation search, itinerary building, budget tracking, calendar invites for everyone.",
+    "prompt": "You are a helpful AI assistant for The Trip Architect.",
     "category": "Travel",
     "emoji": "✈️",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Email",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281698c13e1424376d8ec"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0015",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-bach-party-commander",
-    "name": "The Bach Party Commander",
+    "agentName": "The Bach Party Commander",
     "description": "Bachelor/bachelorette coordination. Budget collection, activity booking, surprise logistics, travel coordination, who's-responsible-for-what.",
+    "prompt": "You are a helpful AI assistant for The Bach Party Commander.",
     "category": "Travel",
     "emoji": "✈️",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Email",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928108856cf822cffd7c67"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0016",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-ski-house-manager",
-    "name": "The Ski House Manager",
+    "agentName": "The Ski House Manager",
     "description": "Group ski trip organizer. Books lodging, tracks lift ticket deals, manages room assignments, monitors snow reports, coordinates carpool.",
+    "prompt": "You are a helpful AI assistant for The Ski House Manager.",
     "category": "Travel",
     "emoji": "✈️",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92816fa65dd7ee8a9a3747"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0017",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-camping-quartermaster",
-    "name": "The Camping Quartermaster",
+    "agentName": "The Camping Quartermaster",
     "description": "Outdoor group trips. Manages gear checklist (who's bringing what), campsite reservations, weather, meal planning, trail selection.",
+    "prompt": "You are a helpful AI assistant for The Camping Quartermaster.",
     "category": "Travel",
     "emoji": "✈️",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92811784c7d14fea6fefad"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0018",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-annual-getaway-keeper",
-    "name": "The Annual Getaway Keeper",
+    "agentName": "The Annual Getaway Keeper",
     "description": "For friend groups with yearly trips. Maintains traditions, proposes dates months out, tracks vacation calendars, remembers what worked last year.",
+    "prompt": "You are a helpful AI assistant for The Annual Getaway Keeper.",
     "category": "Travel",
     "emoji": "✈️",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92817aba75ece36bdfdb94"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0019",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-carpool-dispatcher",
-    "name": "The Carpool Dispatcher",
+    "agentName": "The Carpool Dispatcher",
     "description": "School/activity ride coordination. Driver rotation, last-minute swaps, pickup/dropoff confirmations, who-drove-last tracking.",
+    "prompt": "You are a helpful AI assistant for The Carpool Dispatcher.",
     "category": "Kids",
     "emoji": "👨‍👩‍👧‍👦",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281fab898e82dca3d8cfc"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0020",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-playdate-matcher",
-    "name": "The Playdate Matcher",
+    "agentName": "The Playdate Matcher",
     "description": "Kid hangout scheduler. Polls family availability, suggests locations, manages RSVPs, sends reminders with addresses.",
+    "prompt": "You are a helpful AI assistant for The Playdate Matcher.",
     "category": "Kids",
     "emoji": "👨‍👩‍👧‍👦",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281528f66c8ba3a3e2ef8"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0021",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-team-parent",
-    "name": "The Team Parent",
+    "agentName": "The Team Parent",
     "description": "Youth sports coordination. Snack rotation, practice/game reminders, carpool to away games, photo sharing prompts, end-of-season party planning.",
+    "prompt": "You are a helpful AI assistant for The Team Parent.",
     "category": "Kids",
     "emoji": "👨‍👩‍👧‍👦",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281768e0cd1c73dc6234d"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0022",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-party-planner-kids-edition",
-    "name": "The Party Planner (Kids Edition)",
+    "agentName": "The Party Planner (Kids Edition)",
     "description": "Birthday party coordination. Guest list RSVPs, venue research, theme coordination, gift registry, day-of timeline.",
+    "prompt": "You are a helpful AI assistant for The Party Planner (Kids Edition).",
     "category": "Kids",
     "emoji": "👨‍👩‍👧‍👦",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281eeb45bcb5ea2b4c7ec"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0023",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-school-volunteer-wrangler",
-    "name": "The School Volunteer Wrangler",
+    "agentName": "The School Volunteer Wrangler",
     "description": "Classroom/PTA help. Sign-up sheets, volunteer reminders, hour tracking, event coordination for book fairs and field trips.",
+    "prompt": "You are a helpful AI assistant for The School Volunteer Wrangler.",
     "category": "Kids",
     "emoji": "👨‍👩‍👧‍👦",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281d0a504f482232943b5"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0024",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-service-rolodex",
-    "name": "The Service Rolodex",
+    "agentName": "The Service Rolodex",
     "description": "Shared CRM for babysitters, house cleaners, tutors, and every service provider your family hires. Profiles, ratings, availability tracking, one-tap booking via phone, recurring scheduling, expense tracking.",
+    "prompt": "You are a helpful AI assistant for The Service Rolodex.",
     "category": "Kids",
     "emoji": "👨‍👩‍👧‍👦",
-    "skills": [
+    "tools": [
       "Phone",
       "Scheduling",
       "Web Search",
       "Email"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281a58bfcf49f29a2df66"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0025",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-watch-list",
-    "name": "The Watch List",
+    "agentName": "The Watch List",
     "description": "Movies and shows across all platforms and networks. Tracks everything you’re watching, have watched, want to watch. Both partners’ ratings plus Rotten Tomatoes + IMDb scores, platform availability, weekly Sunday Drop with top 3 picks. Learns each person’s taste and finds the overlap.",
+    "prompt": "You are a helpful AI assistant for The Watch List.",
     "category": "Kids",
     "emoji": "👨‍👩‍👧‍👦",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "planned",
-    "notionPageId": "30930823ce928111b556d56c087ec913"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0026",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-investment-club-analyst",
-    "name": "The Investment Club Analyst",
+    "agentName": "The Investment Club Analyst",
     "description": "Group investment research. Surfaces news, tracks portfolio picks, manages meeting agendas, records buy/sell decisions, monitors performance.",
+    "prompt": "You are a helpful AI assistant for The Investment Club Analyst.",
     "category": "Money",
     "emoji": "💰",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281f0b651c94b0179a025"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0027",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-deal-scout",
-    "name": "The Deal Scout",
+    "agentName": "The Deal Scout",
     "description": "Real estate investment group. Monitors listings, runs comps, tracks deal pipeline, due diligence checklists, market updates.",
+    "prompt": "You are a helpful AI assistant for The Deal Scout.",
     "category": "Money",
     "emoji": "💰",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281fbad99d3147a15d465"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0028",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-savings-challenge-coach",
-    "name": "The Savings Challenge Coach",
+    "agentName": "The Savings Challenge Coach",
     "description": "Group financial goals. Manages challenge rules, tracks progress, sends encouragement, celebrates milestones, holds people accountable.",
+    "prompt": "You are a helpful AI assistant for The Savings Challenge Coach.",
     "category": "Money",
     "emoji": "💰",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928124aadfe4289bb6bd7a"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0029",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-expense-ledger",
-    "name": "The Expense Ledger",
+    "agentName": "The Expense Ledger",
     "description": "Ongoing group expense tracker. For roommates, shared houses, or recurring activities. Who paid what, running balances, monthly recaps.",
+    "prompt": "You are a helpful AI assistant for The Expense Ledger.",
     "category": "Money",
     "emoji": "💰",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92814f9ba3d51521fa8abe"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0030",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-bet-keeper",
-    "name": "The Bet Keeper",
+    "agentName": "The Bet Keeper",
     "description": "Friendly wager and prediction tracker. Records bets, verifies outcomes via search, maintains leaderboard, manages stakes.",
+    "prompt": "You are a helpful AI assistant for The Bet Keeper.",
     "category": "Money",
     "emoji": "💰",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281f9b269eeca416a62bd"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0031",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-group-tab",
-    "name": "The Group Tab",
+    "agentName": "The Group Tab",
     "description": "Real-time group expense tracking. Natural language logging, receipt photos, smart splitting, settlement engine, spending reports, ongoing tab mode.",
+    "prompt": "You are a helpful AI assistant for The Group Tab.",
     "category": "Money",
     "emoji": "💰",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Email",
       "Schedule"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce928173a228ca09339e4d77"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0032",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-book-club-librarian",
-    "name": "The Book Club Librarian",
+    "agentName": "The Book Club Librarian",
     "description": "Reading group manager. Book selection votes, reading progress, discussion questions, meeting scheduling, tracks what the group has read.",
+    "prompt": "You are a helpful AI assistant for The Book Club Librarian.",
     "category": "Entertainment",
     "emoji": "🎬",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281a2aef2fc28c1160f6d"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0033",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-concert-scout",
-    "name": "The Concert Scout",
+    "agentName": "The Concert Scout",
     "description": "Music/festival group. Monitors tour dates, compares ticket prices, coordinates group purchases, pre/post-show logistics.",
+    "prompt": "You are a helpful AI assistant for The Concert Scout.",
     "category": "Entertainment",
     "emoji": "🎬",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928140a18ce2565ee87f16"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0034",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-movie-night-curator",
-    "name": "The Movie Night Curator",
+    "agentName": "The Movie Night Curator",
     "description": "Film selection and scheduling. Suggests based on group taste, manages voting, tracks watched list, coordinates streaming or theater times.",
+    "prompt": "You are a helpful AI assistant for The Movie Night Curator.",
     "category": "Entertainment",
     "emoji": "🎬",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92813abe2dcf3437e8b97b"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0035",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-game-night-host",
-    "name": "The Game Night Host",
+    "agentName": "The Game Night Host",
     "description": "Board game/card game groups. Manages game rotation, teaches rules for new ones, schedules sessions, tracks winners, suggests new games.",
+    "prompt": "You are a helpful AI assistant for The Game Night Host.",
     "category": "Entertainment",
     "emoji": "🎬",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281b59b85cd571770e3dd"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0036",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-binge-watch-coordinator",
-    "name": "The Binge Watch Coordinator",
+    "agentName": "The Binge Watch Coordinator",
     "description": "Group TV watching. Tracks where everyone is in a series (NO SPOILERS), coordinates watch-together times, per-episode discussion.",
+    "prompt": "You are a helpful AI assistant for The Binge Watch Coordinator.",
     "category": "Entertainment",
     "emoji": "🎬",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281d6a2ffec646ad48510"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0037",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-block-captain",
-    "name": "The Block Captain",
+    "agentName": "The Block Captain",
     "description": "Neighborhood hub. Community events, local alerts, block cleanup coordination, neighbor requests and favors.",
+    "prompt": "You are a helpful AI assistant for The Block Captain.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928116a28dd58faa988f29"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0038",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-local-scout",
-    "name": "The Local Scout",
+    "agentName": "The Local Scout",
     "description": "Area discovery. Monitors new openings, local events, deals, happy hours, community happenings. Surfaces what the group actually cares about.",
+    "prompt": "You are a helpful AI assistant for The Local Scout.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281a2835dc6eaf99ec422"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0039",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-building-super",
-    "name": "The Building Super",
+    "agentName": "The Building Super",
     "description": "Apartment/condo groups. Logs maintenance requests, tracks resolution, coordinates package pickups, building announcements.",
+    "prompt": "You are a helpful AI assistant for The Building Super.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92818f8401fdde1b470ad3"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0040",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-block-party-planner",
-    "name": "The Block Party Planner",
+    "agentName": "The Block Party Planner",
     "description": "Community event organizer. Permits, sign-ups, food/drink coordination, entertainment booking, neighbor invitations, day-of logistics.",
+    "prompt": "You are a helpful AI assistant for The Block Party Planner.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281088286c09fd3ef73c0"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0041",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-pet-parent-network",
-    "name": "The Pet Parent Network",
+    "agentName": "The Pet Parent Network",
     "description": "Neighborhood pet owners. Pet-sitting swaps, vet recs, lost pet alerts, dog walk groups, play date scheduling.",
+    "prompt": "You are a helpful AI assistant for The Pet Parent Network.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928107be7bedc5c8b19344"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0042",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-hoa-manager",
-    "name": "The HOA Manager",
+    "agentName": "The HOA Manager",
     "description": "Complete HOA governance brain. CC&Rs lookup, board tracking, directory, budgets, voting, issue management, meeting support.",
+    "prompt": "You are a helpful AI assistant for The HOA Manager.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Email",
       "Schedule"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce928117b2ebc57925238a40"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0043",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-house-manager",
-    "name": "The House Manager",
+    "agentName": "The House Manager",
     "description": "Home service provider directory and maintenance manager. Provider profiles, ratings, costs, referrals, maintenance schedules, partner collaboration.",
+    "prompt": "You are a helpful AI assistant for The House Manager.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Email",
       "Schedule"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce92810ea9dcd9d3706ac34a"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0044",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-home-remote",
-    "name": "The Home Remote",
+    "agentName": "The Home Remote",
     "description": "Smart home control via group chat. Natural language commands for lights, locks, thermostat, cameras. Scenes, routines, multi-resident permissions, energy awareness.",
+    "prompt": "You are a helpful AI assistant for The Home Remote.",
     "category": "Local",
     "emoji": "🏘️",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce928174950dd19ccc2013b1"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0045",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-accountability-coach",
-    "name": "The Accountability Coach",
+    "agentName": "The Accountability Coach",
     "description": "Fitness goal tracking. Each member sets goals, agent tracks progress, sends check-ins, celebrates wins, nudges when someone goes quiet.",
+    "prompt": "You are a helpful AI assistant for The Accountability Coach.",
     "category": "Wellness",
     "emoji": "💪",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92819aa4cacc42a38cfc72"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0046",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-challenge-master",
-    "name": "The Challenge Master",
+    "agentName": "The Challenge Master",
     "description": "Group challenges. Step challenges, workout streaks, hydration goals. Leaderboards, daily updates, crowns weekly winners.",
+    "prompt": "You are a helpful AI assistant for The Challenge Master.",
     "category": "Wellness",
     "emoji": "💪",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281898ea3d9573dc3639a"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0047",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-nutrition-navigator",
-    "name": "The Nutrition Navigator",
+    "agentName": "The Nutrition Navigator",
     "description": "Meal planning and diet groups. Recipes, meal prep commitments, grocery lists, dietary support, streak celebrations.",
+    "prompt": "You are a helpful AI assistant for The Nutrition Navigator.",
     "category": "Wellness",
     "emoji": "💪",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281059da2e603649f0318"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0048",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-training-partner",
-    "name": "The Training Partner",
+    "agentName": "The Training Partner",
     "description": "Marathon/race training groups. Training plan adherence, weekly mileage, group runs, weather monitoring, race-day prep and hype.",
+    "prompt": "You are a helpful AI assistant for The Training Partner.",
     "category": "Wellness",
     "emoji": "💪",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92812ebe2de06f5417c7f9"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0049",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-wellness-circle",
-    "name": "The Wellness Circle",
+    "agentName": "The Wellness Circle",
     "description": "Mindfulness/meditation groups. Daily prompts, group check-ins, meditation streaks, guided session suggestions. Holds space without being preachy.",
+    "prompt": "You are a helpful AI assistant for The Wellness Circle.",
     "category": "Wellness",
     "emoji": "💪",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928135bc2cdd38a6be7fdf"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0050",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-fitness-tracker",
-    "name": "The Fitness Tracker",
+    "agentName": "The Fitness Tracker",
     "description": "Calorie and macro tracking via text and food photos. Personal targets, restaurant menus, daily dashboards, weekly reports, workout logging. Group accountability with leaderboards.",
+    "prompt": "You are a helpful AI assistant for The Fitness Tracker.",
     "category": "Wellness",
     "emoji": "💪",
-    "skills": [
+    "tools": [
       "Web Search",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281aa9dfbcd0df4145f46"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0051",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-mastermind-facilitator",
-    "name": "The Mastermind Facilitator",
+    "agentName": "The Mastermind Facilitator",
     "description": "Business mastermind groups. Hot seat rotation, action item tracking, prep reminders, structured feedback facilitation.",
+    "prompt": "You are a helpful AI assistant for The Mastermind Facilitator.",
     "category": "Work",
     "emoji": "💼",
-    "skills": [
+    "tools": [
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928125bb6afd967d745159"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0052",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-study-group-tutor",
-    "name": "The Study Group Tutor",
+    "agentName": "The Study Group Tutor",
     "description": "Student groups. Session scheduling, topic tracking, group quizzes, resource sharing, exam countdowns.",
+    "prompt": "You are a helpful AI assistant for The Study Group Tutor.",
     "category": "Work",
     "emoji": "💼",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92816ca024edf94a952468"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0053",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-job-hunt-squad",
-    "name": "The Job Hunt Squad",
+    "agentName": "The Job Hunt Squad",
     "description": "Job search support. Relevant listings, application tracking, mock interview scheduling, encouragement, offer celebrations.",
+    "prompt": "You are a helpful AI assistant for The Job Hunt Squad.",
     "category": "Work",
     "emoji": "💼",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281e58248d7c898b06997"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0054",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-startup-board",
-    "name": "The Startup Board",
+    "agentName": "The Startup Board",
     "description": "Founder/advisor groups. Milestone tracking, meeting notes, competitor monitoring, weekly metric check-ins, decision log.",
+    "prompt": "You are a helpful AI assistant for The Startup Board.",
     "category": "Work",
     "emoji": "💼",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281189596cee49a550562"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0055",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-skill-swap",
-    "name": "The Skill Swap",
+    "agentName": "The Skill Swap",
     "description": "Peer teaching groups. Who's teaching what and when, session scheduling, feedback collection, skills-learned tracking.",
+    "prompt": "You are a helpful AI assistant for The Skill Swap.",
     "category": "Work",
     "emoji": "💼",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281a78fccd328a2cbc196"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0056",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-property-manager",
-    "name": "The Property Manager",
+    "agentName": "The Property Manager",
     "description": "Rental and commercial property management. Tenant tracking, maintenance requests, lease timelines, rent collection monitoring, vendor coordination, turnover checklists, financial summaries.",
+    "prompt": "You are a helpful AI assistant for The Property Manager.",
     "category": "Work",
     "emoji": "💼",
-    "skills": [
+    "tools": [
       "Web Search",
       "Email",
       "Scheduling",
       "Browsing"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce92814b8c23ca4f80df5dde"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0057",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-wedding-crew-chief",
-    "name": "The Wedding Crew Chief",
+    "agentName": "The Wedding Crew Chief",
     "description": "Wedding party coordination. Bridesmaids/groomsmen tasks, deadline tracking (fittings, speeches, gifts), bachelor/bachelorette coordination, rehearsal logistics.",
+    "prompt": "You are a helpful AI assistant for The Wedding Crew Chief.",
     "category": "Events",
     "emoji": "🎉",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928181901ccf21e1dcd52b"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0058",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-reunion-planner",
-    "name": "The Reunion Planner",
+    "agentName": "The Reunion Planner",
     "description": "Family or class reunions. RSVPs across a large group, venue research, lodging blocks, update emails, dietary tracking.",
+    "prompt": "You are a helpful AI assistant for The Reunion Planner.",
     "category": "Events",
     "emoji": "🎉",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92815d8056e068ca5dafd2"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0059",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-secret-santa-elf",
-    "name": "The Secret Santa Elf",
+    "agentName": "The Secret Santa Elf",
     "description": "Gift exchange coordinator. Random secret assignments, wishlist tracking, budget reminders, exchange logistics, reveal management.",
+    "prompt": "You are a helpful AI assistant for The Secret Santa Elf.",
     "category": "Events",
     "emoji": "🎉",
-    "skills": [
+    "tools": [
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281b88abcfda0effd1603"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0060",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-milestone-keeper",
-    "name": "The Milestone Keeper",
+    "agentName": "The Milestone Keeper",
     "description": "Group birthday/anniversary tracker. Remembers every date, sends advance reminders, coordinates group gifts, suggests celebration ideas.",
+    "prompt": "You are a helpful AI assistant for The Milestone Keeper.",
     "category": "Events",
     "emoji": "🎉",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92812eb264ca52477b2e2d"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0061",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-graduation-planner",
-    "name": "The Graduation Planner",
+    "agentName": "The Graduation Planner",
     "description": "Graduation party coordinator. Guest RSVPs, group gifts, venue/catering research, photo sharing, party-day logistics.",
+    "prompt": "You are a helpful AI assistant for The Graduation Planner.",
     "category": "Events",
     "emoji": "🎉",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule",
       "Email"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce928110a165f3ccff9118fe"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0062",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-photo-dump",
-    "name": "The Photo Dump",
+    "agentName": "The Photo Dump",
     "description": "Group photo collection and album builder. Collects photos from everyone, organizes albums, tracks participation, handles print/share prep.",
+    "prompt": "You are a helpful AI assistant for The Photo Dump.",
     "category": "Events",
     "emoji": "🎉",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce92811990cade9ed30739d7"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0063",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-event-commander",
-    "name": "The Event Commander",
+    "agentName": "The Event Commander",
     "description": "Major event operations center. Super Bowl, Olympics, World Cup, concerts. Handles schedules, food coordination, brackets, betting pools, countdowns, and live updates.",
+    "prompt": "You are a helpful AI assistant for The Event Commander.",
     "category": "Events",
     "emoji": "🎉",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281fab326db0fece22f6a"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0064",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-photo-walk-guide",
-    "name": "The Photo Walk Guide",
+    "agentName": "The Photo Walk Guide",
     "description": "Photography groups. Scouts locations, plans routes, shares golden hour times, manages gear sharing, creates photo challenge themes.",
+    "prompt": "You are a helpful AI assistant for The Photo Walk Guide.",
     "category": "Hobbies",
     "emoji": "🎨",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce92810f8ffed469126b34dc"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0065",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-garden-club-advisor",
-    "name": "The Garden Club Advisor",
+    "agentName": "The Garden Club Advisor",
     "description": "Gardening groups. Planting calendars, local weather, seed/plant swaps, tracks what everyone's growing, seasonal tips.",
+    "prompt": "You are a helpful AI assistant for The Garden Club Advisor.",
     "category": "Hobbies",
     "emoji": "🎨",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281519a0fcf2333c4e558"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0066",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-gear-garage",
-    "name": "The Gear Garage",
+    "agentName": "The Gear Garage",
     "description": "Car/motorcycle enthusiasts. Cars & coffee events, project build tracking, meet schedules, group drive coordination, parts sourcing.",
+    "prompt": "You are a helpful AI assistant for The Gear Garage.",
     "category": "Hobbies",
     "emoji": "🎨",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281d88284ef5128d14be8"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0067",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-craft-circle",
-    "name": "The Craft Circle",
+    "agentName": "The Craft Circle",
     "description": "DIY/maker groups. Project showcases, supply group buys, craft session scheduling, tutorial sharing, completed project tracking.",
+    "prompt": "You are a helpful AI assistant for The Craft Circle.",
     "category": "Hobbies",
     "emoji": "🎨",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281c5b417d759fa81534f"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0068",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-vinyl-crate",
-    "name": "The Vinyl Crate",
+    "agentName": "The Vinyl Crate",
     "description": "Music collector groups. New release monitoring, group wishlists, record shop visits, listening party scheduling, review sharing.",
+    "prompt": "You are a helpful AI assistant for The Vinyl Crate.",
     "category": "Hobbies",
     "emoji": "🎨",
-    "skills": [
+    "tools": [
       "Search",
       "Schedule"
     ],
-    "status": "planned",
-    "notionPageId": "30730823ce9281138cf2dd734c06a422"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0069",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-maintenance-agent",
-    "name": "The Maintenance Agent",
+    "agentName": "The Maintenance Agent",
     "description": "Car, motorcycle, and bike maintenance tracking. Service schedules, diagnostic assistance, quote checking, recall monitoring, seasonal alerts, DIY guides.",
+    "prompt": "You are a helpful AI assistant for The Maintenance Agent.",
     "category": "Hobbies",
     "emoji": "🎨",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling",
       "Email"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281bf8d1ef23ad275d93c"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0070",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-songwriting-manager",
-    "name": "The Songwriting Manager",
+    "agentName": "The Songwriting Manager",
     "description": "Deep-listening creative partner for songwriting groups. Connects dots across conversations, maintains song database (titles, lyrics, structures, vibes, demos), generates Suno demos from concepts, learns your writing style through influence training. Complete songwriting admin.",
+    "prompt": "You are a helpful AI assistant for The Songwriting Manager.",
     "category": "Music",
     "emoji": "🎵",
-    "skills": [
+    "tools": [
       "Search",
       "Browse",
       "Schedule"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281b1939dcc142287b34f"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0071",
+    "creatorId": "auth0|mock-creator",
     "slug": "hide-my-email",
-    "name": "Hide My Email",
+    "agentName": "Hide My Email",
     "description": "Disposable email addresses for any situation. Spins up unique emails, filters incoming, auto-responds, summarizes, destroys when done.",
+    "prompt": "You are a helpful AI assistant for Hide My Email.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Email",
       "Web Search",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281578c6af8673adddfa1"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0072",
+    "creatorId": "auth0|mock-creator",
     "slug": "hide-my-phone",
-    "name": "Hide My Phone",
+    "agentName": "Hide My Phone",
     "description": "Disposable phone numbers on demand. Call screening, text management, voicemail transcription, verification code fast-pass, destroy when done.",
+    "prompt": "You are a helpful AI assistant for Hide My Phone.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Phone",
       "Voice",
       "Scheduling"
     ],
-    "status": "in_progress",
-    "notionPageId": "30730823ce928186aea4e6bb17d44a71"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0073",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-receptionist",
-    "name": "My Receptionist",
+    "agentName": "My Receptionist",
     "description": "AI receptionist that answers calls in your voice. Screens, takes messages, books appointments, routes emergencies.",
+    "prompt": "You are a helpful AI assistant for My Receptionist.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Phone",
       "Voice",
       "Scheduling"
     ],
-    "status": "in_progress",
-    "notionPageId": "30730823ce92812690daf60a50004de5"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0074",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-web-watcher",
-    "name": "My Web Watcher",
+    "agentName": "My Web Watcher",
     "description": "Monitors any URL for changes you care about. Price drops, restocks, new listings, content changes. Alerts the second something happens.",
+    "prompt": "You are a helpful AI assistant for My Web Watcher.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce928161a153e0a7988ba6af"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0075",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-form-filler",
-    "name": "My Form Filler",
+    "agentName": "My Form Filler",
     "description": "Manages identity profiles for web forms. Auto-fills with masked data, manages accounts, tracks free trials, cleans up when done.",
+    "prompt": "You are a helpful AI assistant for My Form Filler.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Browsing",
       "Email",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281e2a132c219fbd7876d"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0076",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-payment-shield",
-    "name": "My Payment Shield",
+    "agentName": "My Payment Shield",
     "description": "Virtual credit cards for every purchase. Spending limits, subscription tracking, merchant blocking, expense reports.",
+    "prompt": "You are a helpful AI assistant for My Payment Shield.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Payments",
       "Email",
       "Scheduling"
     ],
-    "status": "in_progress",
-    "notionPageId": "30730823ce9281298e77c4119a24e328"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0077",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-digital-bouncer",
-    "name": "My Digital Bouncer",
+    "agentName": "My Digital Bouncer",
     "description": "Unified gatekeeper across email, phone, and text. Priority routing, cross-channel intelligence, daily briefings, VIP/blocked lists.",
+    "prompt": "You are a helpful AI assistant for My Digital Bouncer.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Email",
       "Phone",
       "Scheduling"
     ],
-    "status": "in_progress",
-    "notionPageId": "30730823ce9281e78275ff97886190c8"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0078",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-subscription-manager",
-    "name": "My Subscription Manager",
+    "agentName": "My Subscription Manager",
     "description": "Finds every subscription you pay for, reminds before renewals, helps cancel what you forgot. Monthly reports, group cost splitting.",
+    "prompt": "You are a helpful AI assistant for My Subscription Manager.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Email",
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281f494cad56ac6f4197b"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0079",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-price-scout",
-    "name": "My Price Scout",
+    "agentName": "My Price Scout",
     "description": "Watches the internet for your target price on any item. Comparison shopping, deal analysis, restock alerts, group buy coordination.",
+    "prompt": "You are a helpful AI assistant for My Price Scout.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling",
       "Email"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce92811db052c80c7dfefddb"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0080",
+    "creatorId": "auth0|mock-creator",
     "slug": "my-background-runner",
-    "name": "My Background Runner",
+    "agentName": "My Background Runner",
     "description": "Pure scheduling engine. Recurring tasks, daily briefings, accountability check-ins, deadline countdowns, automated group workflows.",
+    "prompt": "You are a helpful AI assistant for My Background Runner.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Scheduling",
       "Web Search",
       "Browsing",
       "Email"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281df82e4d47d44760123"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0081",
+    "creatorId": "auth0|mock-creator",
     "slug": "no-more-algorithms",
-    "name": "No More Algorithms",
+    "agentName": "No More Algorithms",
     "description": "Anti-algorithm social media agent. Monitors public profiles across all platforms, daily digest with photos and links, weekly wrapped, group mode.",
+    "prompt": "You are a helpful AI assistant for No More Algorithms.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce928115bb4ed4324634778e"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0082",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-banker",
-    "name": "The Banker",
+    "agentName": "The Banker",
     "description": "Personal finance coach for individuals and couples. Budget tracking, expense logging, weekly coaching check-ins, goal tracking, monthly reports, partner mode.",
+    "prompt": "You are a helpful AI assistant for The Banker.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Email",
       "Scheduling",
       "Web Search"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce928177a901e254c1a012e0"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0083",
+    "creatorId": "auth0|mock-creator",
     "slug": "bankr",
-    "name": "Bankr",
+    "agentName": "Bankr",
     "description": "On-chain crypto agent. Multi-chain wallet management, trading with safety layer, prediction markets, DeFi, portfolio tracking, group trading floor.",
+    "prompt": "You are a helpful AI assistant for Bankr.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Payments",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce92813486a4ce2d2a6d0270"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0084",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-prediction-manager",
-    "name": "The Prediction Manager",
+    "agentName": "The Prediction Manager",
     "description": "Prediction market tracker and group opinion manager. Market monitoring, group consensus, resolution scoring, leaderboards, category tracking.",
+    "prompt": "You are a helpful AI assistant for The Prediction Manager.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281ed9699df4d3afb1fd2"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0085",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-emergency-manager",
-    "name": "The Emergency Manager",
+    "agentName": "The Emergency Manager",
     "description": "Crisis command center for disasters. Real-time monitoring, people tracking, resource directories, SMS/email alerts, post-crisis reporting.",
+    "prompt": "You are a helpful AI assistant for The Emergency Manager.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Email",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30730823ce9281b2894fcaaf0c3ea6e8"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0086",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-bill-fighter",
-    "name": "The Bill Fighter",
+    "agentName": "The Bill Fighter",
     "description": "Audits bills, negotiates rates, fights unfair charges, tracks savings across the group. Full dispute playbook.",
+    "prompt": "You are a helpful AI assistant for The Bill Fighter.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Email",
       "Phone",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281df82fcdec3b80bfe91"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0087",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-memory-box",
-    "name": "The Memory Box",
+    "agentName": "The Memory Box",
     "description": "Screenshot and photo-based memory system. OCR extraction, categorized database, smart reminders. Remembers everything you photograph.",
+    "prompt": "You are a helpful AI assistant for The Memory Box.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Web Search",
       "Browsing",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce928177842ecfd157d79abb"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0088",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-voice-caller",
-    "name": "The Voice Caller",
+    "agentName": "The Voice Caller",
     "description": "Makes phone calls so you don't have to. Restaurants, insurance, airlines, complaints. Reports back with full debrief. Holds on hold for you.",
+    "prompt": "You are a helpful AI assistant for The Voice Caller.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Phone",
       "Voice",
       "Email",
       "Web Search"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281588cf3fa147b5571bf"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0089",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-survey-taker",
-    "name": "The Survey Taker",
+    "agentName": "The Survey Taker",
     "description": "Fills out surveys and forms on your behalf. Translates your sentiment into proper responses. Reviews before submitting.",
+    "prompt": "You are a helpful AI assistant for The Survey Taker.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Browsing",
       "Email",
       "Web Search"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce9281c482a4f446a76abe67"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   },
   {
+    "id": "mock-0090",
+    "creatorId": "auth0|mock-creator",
     "slug": "the-email-monitor",
-    "name": "The Email Monitor",
+    "agentName": "The Email Monitor",
     "description": "Watches your inbox and alerts you when something important arrives. Custom rules, sender monitoring, keyword alerts, digest mode.",
+    "prompt": "You are a helpful AI assistant for The Email Monitor.",
     "category": "Superpowers",
     "emoji": "⚡",
-    "skills": [
+    "tools": [
       "Email",
       "Web Search",
       "Scheduling"
     ],
-    "status": "written",
-    "notionPageId": "30830823ce92818aabf3ea1a3a8722ec"
+    "visibility": "public",
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "updatedAt": "2025-01-01T00:00:00.000Z"
   }
 ]

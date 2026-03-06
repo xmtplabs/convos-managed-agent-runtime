@@ -6,11 +6,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 // Types
 // ---------------------------------------------------------------------------
 
-type ModalState = "closed" | "loading" | "loaded" | "error" | "copy-feedback";
+type ModalState = "closed" | "loaded" | "copy-feedback";
 
 interface PromptModalProps {
-  /** The Notion page ID to fetch the prompt for, or null when closed. */
-  pageId: string | null;
+  /** The prompt text to display, or null when closed. */
+  prompt: string | null;
   /** Agent name shown in the modal title. */
   agentName: string;
   /** Called when the modal should close. */
@@ -22,83 +22,38 @@ interface PromptModalProps {
 }
 
 // ---------------------------------------------------------------------------
-// Prompt cache (shared across component lifetime, avoids re-fetching)
-// ---------------------------------------------------------------------------
-
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-const promptCache: Record<string, string> = {};
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function PromptModal({
-  pageId,
+  prompt,
   agentName,
   onClose,
   activeStep,
   setActiveStep,
 }: PromptModalProps) {
   const [state, setState] = useState<ModalState>("closed");
-  const [promptText, setPromptText] = useState("");
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Whether the modal is open (pageId is set)
-  const isOpen = pageId !== null;
+  const isOpen = prompt !== null;
 
   // -----------------------------------------------------------------------
-  // Fetch prompt when pageId changes (modal opens)
+  // Reset state when prompt changes
   // -----------------------------------------------------------------------
 
   useEffect(() => {
-    // Clear any pending copy timer when pageId changes to prevent stale setState
     if (copyTimer.current) {
       clearTimeout(copyTimer.current);
       copyTimer.current = null;
     }
 
-    if (!pageId) {
+    if (!prompt) {
       setState("closed");
-      setPromptText("");
       return;
     }
 
-    // Check cache first
-    if (promptCache[pageId]) {
-      setPromptText(promptCache[pageId]);
-      setState("loaded");
-      return;
-    }
-
-    setState("loading");
-    setPromptText("");
-
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const res = await fetch(`${basePath}/api/prompts/${pageId}`);
-        if (!res.ok) throw new Error("Failed");
-        const data = await res.json();
-        const text = data.prompt || "(No prompt content found)";
-        promptCache[pageId!] = text;
-        if (!cancelled) {
-          setPromptText(text);
-          setState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setState("error");
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pageId]);
+    setState("loaded");
+  }, [prompt]);
 
   // -----------------------------------------------------------------------
   // Lock body scroll when open
@@ -149,11 +104,10 @@ export function PromptModal({
   // -----------------------------------------------------------------------
 
   const handleCopy = useCallback(async () => {
-    if (state !== "loaded" && state !== "copy-feedback") return;
-    if (!promptText) return;
+    if (!prompt) return;
 
     try {
-      await navigator.clipboard.writeText(promptText);
+      await navigator.clipboard.writeText(prompt);
       setState("copy-feedback");
 
       // Advance step 2 -> 3
@@ -161,7 +115,6 @@ export function PromptModal({
         setActiveStep(3);
       }
 
-      // Clear any existing timer
       if (copyTimer.current) {
         clearTimeout(copyTimer.current);
       }
@@ -173,7 +126,7 @@ export function PromptModal({
     } catch {
       // Clipboard write failed silently
     }
-  }, [state, promptText, activeStep, setActiveStep]);
+  }, [prompt, activeStep, setActiveStep]);
 
   // -----------------------------------------------------------------------
   // Backdrop click handler
@@ -181,7 +134,6 @@ export function PromptModal({
 
   const handleBackdropClick = useCallback(
     (e: React.MouseEvent) => {
-      // Only close if clicking the overlay itself, not the modal content
       if (e.target === e.currentTarget) {
         onClose();
       }
@@ -190,25 +142,12 @@ export function PromptModal({
   );
 
   // -----------------------------------------------------------------------
-  // Derive display text
-  // -----------------------------------------------------------------------
-
-  let bodyText = "";
-  if (state === "loading") {
-    bodyText = "Loading...";
-  } else if (state === "error") {
-    bodyText = "Failed to load prompt. Try again later.";
-  } else {
-    bodyText = promptText;
-  }
-
-  const copyButtonText =
-    state === "copy-feedback" ? "Copied!" : "Copy full prompt";
-  const copyButtonDisabled = state === "error" || state === "loading";
-
-  // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
+
+  const bodyText = prompt || "";
+  const copyButtonText =
+    state === "copy-feedback" ? "Copied!" : "Copy full prompt";
 
   return (
     <div
@@ -240,7 +179,7 @@ export function PromptModal({
             className={`ps-modal-copy${state === "copy-feedback" ? " copied" : ""}`}
             id="ps-modal-copy"
             onClick={handleCopy}
-            disabled={copyButtonDisabled}
+            disabled={!prompt}
           >
             {copyButtonText}
           </button>
