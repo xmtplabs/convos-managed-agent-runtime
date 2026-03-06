@@ -37,7 +37,12 @@ async function poolRequest(endpoint) {
 async function check() {
   requirePoolEnv();
   const data = await poolRequest("credits-check");
-  console.log(JSON.stringify(data, null, 2));
+  console.log(JSON.stringify({
+    type: "prepaid",
+    limit: data.limit,
+    usage: data.usage,
+    remaining: data.remaining,
+  }, null, 2));
 }
 
 async function topup() {

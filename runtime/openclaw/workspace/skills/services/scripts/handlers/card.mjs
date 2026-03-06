@@ -43,6 +43,7 @@ async function info() {
   }
   console.log(JSON.stringify({
     hasCard: true,
+    type: "prepaid",
     brand: data.brand,
     last4: data.last4,
     expMonth: data.expMonth,

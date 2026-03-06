@@ -223,7 +223,7 @@ app.post("/api/pool/credits-check", async (req, res) => {
     const currentLimit = keyData.limit ?? limit;
     const remaining = Math.max(0, currentLimit - usage);
 
-    res.json({ limit: currentLimit, usage, remaining, limitReset: keyData.limit_reset ?? config.openrouterKeyLimitReset });
+    res.json({ limit: currentLimit, usage, remaining, type: "prepaid" });
   } catch (err: any) {
     console.error("[api] Credits check failed:", err);
     res.status(500).json({ error: err.message });

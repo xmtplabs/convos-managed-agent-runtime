@@ -98,6 +98,13 @@ pnpm start
 | `AGENTMAIL_DOMAIN` | AgentMail inbox domain |
 | `TELNYX_API_KEY` | Telnyx API key (provisions per-instance phone numbers) |
 | `TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile |
+| **Stripe** | |
+| `STRIPE_SECRET_KEY` | Stripe secret key for payments and card issuing |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (returned to browser) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| **Payments** | |
+| `COUPON_CODE` | Valid coupon code for free credit bumps |
+| `COUPON_MAX_LIMIT` | Max credit limit reachable via coupons (default `100`) |
 
 ## Database
 
