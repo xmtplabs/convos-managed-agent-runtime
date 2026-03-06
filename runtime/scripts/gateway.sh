@@ -191,7 +191,6 @@ CRONEOF
 fi
 unset _cron_dir _cron_store
 
-
 echo ""
 
 # In-process restart: SIGUSR1 reloads config inside the same process instead
