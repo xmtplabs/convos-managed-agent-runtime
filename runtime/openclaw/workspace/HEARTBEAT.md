@@ -13,10 +13,4 @@ Only when the **system** triggered a heartbeat (not on normal user messages): ru
 
 See AGENTS.md "Proactivity" section for when and how to nudge. On each heartbeat, check if any of those conditions apply and act accordingly. One nudge per topic per cycle.
 
-## Tasks
 
-### Morning check-in
-
-If it's between **8:00–10:00 AM** (user's timezone) and you haven't sent a morning message today: send a short, warm check-in to the group. Keep it natural — reference yesterday's open threads, upcoming plans, or just say good morning. 2-3 sentences max.
-
-If you already sent a morning check-in today, skip it.

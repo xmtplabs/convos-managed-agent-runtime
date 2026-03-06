@@ -151,6 +151,47 @@ if [ -d "$_sessions_dir" ]; then
 fi
 unset _sessions_dir _count
 
+# --- Seed cron jobs ---
+_cron_dir="$STATE_DIR/cron"
+_cron_store="$_cron_dir/jobs.json"
+mkdir -p "$_cron_dir"
+if [ ! -f "$_cron_store" ] || ! grep -q "seed-morning-checkin" "$_cron_store" 2>/dev/null; then
+  # Merge seed job into existing store (or create new one)
+  if command -v jq >/dev/null 2>&1 && [ -f "$_cron_store" ]; then
+    _now_ms=$(date +%s)000
+    _seed_job='{"id":"seed-morning-checkin","name":"Morning check-in","enabled":true,"createdAtMs":'"$_now_ms"',"updatedAtMs":'"$_now_ms"',"schedule":{"kind":"cron","expr":"0 8 * * *","tz":"America/New_York"},"sessionTarget":"main","wakeMode":"now","payload":{"kind":"systemEvent","message":"Morning check-in: check for open threads, pending action items, or upcoming plans. If you find something concrete, send one sentence referencing it to the group. If there'\''s nothing real to reference, stay silent. Never send a message just to start a conversation, ask if anyone needs help, or say good morning without a reason."},"state":{}}'
+    unset _now_ms
+    jq --argjson job "$_seed_job" '.jobs += [$job]' "$_cron_store" > "$_cron_store.tmp" && mv "$_cron_store.tmp" "$_cron_store"
+    unset _seed_job
+  else
+    cat > "$_cron_store" << 'CRONEOF'
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "seed-morning-checkin",
+      "name": "Morning check-in",
+      "enabled": true,
+      "createdAtMs": 0,
+      "updatedAtMs": 0,
+      "schedule": { "kind": "cron", "expr": "0 8 * * *", "tz": "America/New_York" },
+      "sessionTarget": "main",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "systemEvent",
+        "message": "Morning check-in: check for open threads, pending action items, or upcoming plans. If you find something concrete, send one sentence referencing it to the group. If there's nothing real to reference, stay silent. Never send a message just to start a conversation, ask if anyone needs help, or say good morning without a reason."
+      },
+      "state": {}
+    }
+  ]
+}
+CRONEOF
+  fi
+  echo "  📅 Seeded morning check-in cron job"
+fi
+unset _cron_dir _cron_store
+
+
 echo ""
 
 # In-process restart: SIGUSR1 reloads config inside the same process instead
