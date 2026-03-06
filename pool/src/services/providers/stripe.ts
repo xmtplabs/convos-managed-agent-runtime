@@ -35,15 +35,16 @@ export async function createPaymentIntent(
   customerId: string,
   amountCents: number,
   instanceId: string,
+  purpose: "credits" | "card" = "credits",
 ): Promise<{ clientSecret: string; paymentIntentId: string }> {
   const stripe = getClient();
   const pi = await stripe.paymentIntents.create({
     amount: amountCents,
     currency: "usd",
     customer: customerId,
-    metadata: { instanceId, amountCents: String(amountCents) },
+    metadata: { instanceId, amountCents: String(amountCents), purpose },
   });
-  console.log(`[stripe] Created PaymentIntent ${pi.id} for $${(amountCents / 100).toFixed(2)} (instance=${instanceId})`);
+  console.log(`[stripe] Created PaymentIntent ${pi.id} for $${(amountCents / 100).toFixed(2)} (instance=${instanceId}, purpose=${purpose})`);
   return { clientSecret: pi.client_secret!, paymentIntentId: pi.id };
 }
 

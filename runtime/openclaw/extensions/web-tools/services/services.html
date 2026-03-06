@@ -629,7 +629,7 @@
         fetch("/web-tools/services/create-payment", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ amountCents: selectedAmountCents }),
+          body: JSON.stringify({ amountCents: selectedAmountCents, purpose: "credits" }),
         })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
           .then(function (_) {
@@ -724,7 +724,7 @@
         fetch("/web-tools/services/create-payment", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ amountCents: cardSelectedCents }),
+          body: JSON.stringify({ amountCents: cardSelectedCents, purpose: "card" }),
         })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
           .then(function (_) {
@@ -866,7 +866,7 @@
             if (tcCard) tcCard.style.display = "block";
           }
 
-          // Production: coupon-only mode
+          // Production: coupon-only mode, hide spending card
           if (d.xmtpEnv === "production") {
             var pkgBtns = document.getElementById("package-buttons");
             var secBtns = document.getElementById("secondary-buttons");
@@ -878,6 +878,9 @@
             if (customAmountEl) customAmountEl.style.display = "none";
             var couponRowEl = document.getElementById("coupon-row");
             if (couponRowEl) couponRowEl.style.display = "flex";
+            // Hide spending card row entirely in production
+            var svcCardEl = document.getElementById("svc-card");
+            if (svcCardEl) svcCardEl.style.display = "none";
           }
         })
         .catch(function () {

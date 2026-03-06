@@ -35,6 +35,7 @@ stripeWebhookRouter.post(
       const pi = event.data.object as any;
       const instanceId = pi.metadata?.instanceId;
       const amountCents = parseInt(pi.metadata?.amountCents || "0", 10);
+      const purpose = pi.metadata?.purpose || "credits";
 
       if (!instanceId || !amountCents) {
         console.warn("[stripe] Webhook: missing metadata on PaymentIntent", pi.id);
@@ -55,54 +56,55 @@ stripeWebhookRouter.post(
       }
 
       try {
-        // Find the instance's OpenRouter key
-        const svcRows = await pgDb
-          .select({
-            id: instanceServices.id,
-            resourceId: instanceServices.resourceId,
-            resourceMeta: instanceServices.resourceMeta,
-          })
-          .from(instanceServices)
-          .where(
-            and(
-              eq(instanceServices.instanceId, instanceId),
-              eq(instanceServices.toolId, "openrouter"),
-            ),
+        // Only bump OpenRouter credits for credit purchases, not card funding
+        if (purpose === "credits") {
+          const svcRows = await pgDb
+            .select({
+              id: instanceServices.id,
+              resourceId: instanceServices.resourceId,
+              resourceMeta: instanceServices.resourceMeta,
+            })
+            .from(instanceServices)
+            .where(
+              and(
+                eq(instanceServices.instanceId, instanceId),
+                eq(instanceServices.toolId, "openrouter"),
+              ),
+            );
+          const svc = svcRows[0];
+          if (!svc) {
+            console.error(`[stripe] Webhook: no OpenRouter key for instance ${instanceId}`);
+            res.status(500).json({ error: "No OpenRouter key found" });
+            return;
+          }
+
+          const hash = svc.resourceId;
+          const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
+          const amountDollars = amountCents / 100;
+          const newLimit = currentLimit + amountDollars;
+
+          await openrouter.updateKeyLimit(hash, newLimit);
+
+          const updatedMeta = { ...((svc.resourceMeta as any) || {}), limit: newLimit };
+          await pgDb
+            .update(instanceServices)
+            .set({ resourceMeta: updatedMeta })
+            .where(eq(instanceServices.id, svc.id));
+
+          console.log(
+            `[stripe] Webhook: increased limit for instance ${instanceId}: $${currentLimit} → $${newLimit} (PI: ${pi.id})`,
           );
-        const svc = svcRows[0];
-        if (!svc) {
-          console.error(`[stripe] Webhook: no OpenRouter key for instance ${instanceId}`);
-          res.status(500).json({ error: "No OpenRouter key found" });
-          return;
+        } else {
+          console.log(`[stripe] Webhook: card payment ${pi.id} for instance ${instanceId} — no credit bump`);
         }
-
-        const hash = svc.resourceId;
-        const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
-        const amountDollars = amountCents / 100;
-        const newLimit = currentLimit + amountDollars;
-
-        // Increase the OpenRouter key limit
-        await openrouter.updateKeyLimit(hash, newLimit);
-
-        // Update resourceMeta.limit in DB
-        const updatedMeta = { ...((svc.resourceMeta as any) || {}), limit: newLimit };
-        await pgDb
-          .update(instanceServices)
-          .set({ resourceMeta: updatedMeta })
-          .where(eq(instanceServices.id, svc.id));
 
         // Mark payment as succeeded
         await pgDb
           .update(payments)
           .set({ status: "succeeded", updatedAt: new Date().toISOString() })
           .where(eq(payments.stripePaymentIntentId, pi.id));
-
-        console.log(
-          `[stripe] Webhook: increased limit for instance ${instanceId}: $${currentLimit} → $${newLimit} (PI: ${pi.id})`,
-        );
       } catch (err: any) {
         console.error(`[stripe] Webhook: failed to process payment ${pi.id}:`, err.message);
-        // Mark payment as failed
         await pgDb
           .update(payments)
           .set({ status: "failed", updatedAt: new Date().toISOString() })
@@ -444,7 +446,7 @@ stripeApiRouter.post("/api/pool/stripe/card-details", async (req, res) => {
 /** Create a PaymentIntent for a credit package. */
 stripeApiRouter.post("/api/pool/stripe/create-payment-intent", async (req, res) => {
   try {
-    const { instanceId, gatewayToken, amountCents } = req.body || {};
+    const { instanceId, gatewayToken, amountCents, purpose } = req.body || {};
     if (!instanceId || !gatewayToken) {
       res.status(400).json({ error: "Session expired — refresh the page" });
       return;
@@ -467,6 +469,8 @@ stripeApiRouter.post("/api/pool/stripe/create-payment-intent", async (req, res) 
       });
       return;
     }
+
+    const paymentPurpose: "credits" | "card" = purpose === "card" ? "card" : "credits";
 
     // Lazy-create Stripe customer (stored in instance_services with toolId "stripe")
     let customerId: string;
@@ -509,6 +513,7 @@ stripeApiRouter.post("/api/pool/stripe/create-payment-intent", async (req, res) 
       customerId,
       amountCents,
       instanceId,
+      paymentPurpose,
     );
 
     // Record payment in DB

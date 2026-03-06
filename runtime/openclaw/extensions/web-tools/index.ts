@@ -399,12 +399,13 @@ export default function register(api: OpenClawPluginApi) {
         const bodyStr = Buffer.concat(chunks).toString();
         const parsed = JSON.parse(bodyStr || "{}");
         const amountCents = parsed.amountCents;
+        const purpose = parsed.purpose === "card" ? "card" : "credits";
 
         const url = `${poolUrl}/api/pool/stripe/create-payment-intent`;
         const poolRes = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ instanceId, gatewayToken, amountCents }),
+          body: JSON.stringify({ instanceId, gatewayToken, amountCents, purpose }),
           signal: AbortSignal.timeout(10_000),
         });
         const body = await poolRes.json().catch(() => ({ error: "Invalid response" }));

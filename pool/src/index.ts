@@ -6,7 +6,7 @@ import * as pool from "./pool";
 import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocsPage } from "./admin";
 import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
@@ -337,6 +337,19 @@ app.get("/admin", (req, res) => {
     bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
+});
+
+app.get("/admin/api-docs", (req, res) => {
+  if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
+  res.type("html").send(apiDocsPage({
+    poolEnvironment: config.poolEnvironment,
+    adminUrls: POOL_ADMIN_URLS as any,
+  }));
+});
+
+app.get("/admin/openapi.json", (req, res) => {
+  if (!isAuthenticated(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  res.sendFile(join(__dirname, "..", "frontend", "openapi.json"));
 });
 
 app.post("/admin/login", (req, res) => {
