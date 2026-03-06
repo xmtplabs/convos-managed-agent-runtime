@@ -59,7 +59,7 @@ export async function issueCard(
 
   // Create cardholder with required individual fields for activation
   const cardholder = await stripe.issuing.cardholders.create({
-    name: `convos-agent-${instanceId}`,
+    name: `ca-${instanceId}`.slice(0, 24),
     type: "individual",
     individual: {
       first_name: "Convos",

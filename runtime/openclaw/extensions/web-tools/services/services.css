@@ -1,10 +1,24 @@
+/* ── Design tokens ──────────────────────────────────────────── */
+:root {
+  --color-brand: #FC4F37;
+  --color-fg: #000;
+  --color-fg-secondary: #666;
+  --color-fg-tertiary: #B2B2B2;
+  --color-surface: #fff;
+  --color-surface-muted: #F5F5F5;
+  --color-edge: #EBEBEB;
+  --color-error: #DC2626;
+  --color-success: #16A34A;
+}
+
 /* ── Reset & Layout ─────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  background: #f5f5f5;
-  color: #111;
+  background: var(--color-surface-muted);
+  color: var(--color-fg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -12,9 +26,10 @@ body {
   padding: 1rem;
 }
 .card {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  border: 1px solid var(--color-edge);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   max-width: 400px;
   width: 100%;
   overflow: hidden;
@@ -46,13 +61,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   margin-bottom: 1.25rem;
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #999;
+  color: var(--color-fg-secondary);
 }
+.brand-balloon { width: 16px; height: 20px; flex-shrink: 0; }
 .manage-header {
   display: flex;
   align-items: center;
@@ -64,17 +81,17 @@ body {
   border: none;
   cursor: pointer;
   padding: 0.2rem;
-  color: #999;
+  color: var(--color-fg-tertiary);
   transition: color 0.15s;
   flex-shrink: 0;
 }
-.back-btn:hover { color: #333; }
+.back-btn:hover { color: var(--color-fg); }
 .manage-title {
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #999;
+  color: var(--color-fg-secondary);
 }
 
 /* ── Service List (landing) ──────────────────────────────────── */
@@ -85,26 +102,26 @@ body {
   gap: 0.75rem;
   padding: 0.65rem 0;
 }
-.service-item + .service-item { border-top: 1px solid #f0f0f0; }
+.service-item + .service-item { border-top: 1px solid var(--color-edge); }
 .service-body { flex: 1; min-width: 0; }
 .service-label {
   font-size: 0.65rem;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #999;
+  color: var(--color-fg-secondary);
   margin-bottom: 0.1rem;
 }
 .service-value {
   font-family: 'SF Mono', ui-monospace, monospace;
   font-size: 0.8rem;
-  color: #333;
+  color: var(--color-fg);
   word-break: break-all;
 }
 .service-value--null {
-  color: #ccc;
+  color: var(--color-fg-tertiary);
   font-style: italic;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, sans-serif;
   font-size: 0.75rem;
 }
 
@@ -112,13 +129,13 @@ body {
 .credits-bar {
   margin-top: 0.3rem;
   height: 3px;
-  background: #f0f0f0;
+  background: var(--color-edge);
   border-radius: 2px;
   overflow: hidden;
 }
 .credits-bar-fill {
   height: 100%;
-  background: #999;
+  background: var(--color-brand);
   border-radius: 2px;
   transition: width 0.4s ease;
 }
@@ -126,7 +143,7 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 0.6rem;
-  color: #bbb;
+  color: var(--color-fg-tertiary);
   margin-top: 0.15rem;
 }
 
@@ -136,17 +153,17 @@ body {
   border: none;
   cursor: pointer;
   padding: 0.25rem;
-  color: #ccc;
+  color: var(--color-fg-tertiary);
   flex-shrink: 0;
   transition: color 0.15s;
   border-radius: 4px;
 }
-.copy-btn:hover, .manage-icon-btn:hover { color: #666; }
-.copy-btn.copied { color: #111; }
+.copy-btn:hover, .manage-icon-btn:hover { color: var(--color-fg-secondary); }
+.copy-btn.copied { color: var(--color-fg); }
 
 /* ── Loading shimmer ────────────────────────────────────────── */
 .loading-shimmer {
-  background: linear-gradient(90deg, #f5f5f5 25%, #eee 50%, #f5f5f5 75%);
+  background: linear-gradient(90deg, var(--color-surface-muted) 25%, var(--color-edge) 50%, var(--color-surface-muted) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 3px;
@@ -159,7 +176,7 @@ body {
 }
 
 .error-msg {
-  color: #999;
+  color: var(--color-fg-secondary);
   font-size: 0.7rem;
   text-align: center;
   margin-top: 0.75rem;
@@ -170,52 +187,54 @@ body {
   text-align: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-edge);
 }
 .manage-balance-label {
   font-size: 0.6rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #999;
+  color: var(--color-fg-secondary);
   margin-bottom: 0.25rem;
 }
 .manage-balance-value {
   font-family: 'SF Mono', ui-monospace, monospace;
   font-size: 1.4rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-fg);
 }
 .package-buttons { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
 .package-btn {
   flex: 1;
   background: none;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-edge);
   border-radius: 8px;
   padding: 0.4rem 0;
   font-size: 0.75rem;
   font-weight: 500;
-  color: #666;
+  color: var(--color-fg-secondary);
   cursor: pointer;
   transition: all 0.15s;
   text-transform: uppercase;
+  font-family: inherit;
 }
-.package-btn:hover { border-color: #999; color: #333; }
-.package-btn.selected { border-color: #111; color: #111; background: #f9f9f9; }
+.package-btn:hover { border-color: var(--color-fg-tertiary); color: var(--color-fg); }
+.package-btn.selected { border-color: var(--color-brand); color: var(--color-brand); background: #FFF5F4; }
 
 .custom-amount-input {
   width: 100%;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-edge);
   border-radius: 8px;
-  padding: 0.4rem 0;
-  font-size: 16px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  color: #333;
+  color: var(--color-fg);
   text-align: center;
   outline: none;
   transition: border-color 0.15s;
   margin-bottom: 0.6rem;
+  font-family: inherit;
 }
-.custom-amount-input:focus { border-color: #999; }
+.custom-amount-input:focus { border-color: var(--color-brand); }
 
 /* ── Coupon ──────────────────────────────────────────────────── */
 .coupon-row {
@@ -230,15 +249,15 @@ body {
   min-height: 0.8rem;
   margin-bottom: 0.4rem;
 }
-.coupon-status.status-error { color: #c44; }
-.coupon-status.status-ok { color: #2a2; }
+.coupon-status.status-error { color: var(--color-error); }
+.coupon-status.status-ok { color: var(--color-success); }
 
 /* ── Stripe form ────────────────────────────────────────────── */
 .stripe-form { margin-top: 0.6rem; }
 .stripe-form .card-hidden { display: none; }
 .stripe-form #card-element,
 .stripe-form #card-card-element {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-edge);
   border-radius: 8px;
   padding: 0.55rem 0.65rem;
   margin-bottom: 0.5rem;
@@ -246,15 +265,16 @@ body {
 }
 .pay-btn {
   width: 100%;
-  background: #111;
+  background: var(--color-brand);
   color: #fff;
   border: none;
   border-radius: 8px;
   padding: 0.55rem 0;
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s;
+  font-family: inherit;
 }
 .pay-btn:hover { opacity: 0.85; }
 .pay-btn:disabled { opacity: 0.4; cursor: default; }
@@ -266,8 +286,8 @@ body {
   text-align: center;
   min-height: 1rem;
 }
-.payment-status.status-error { color: #c44; }
-.payment-status.status-ok { color: #2a2; }
+.payment-status.status-error { color: var(--color-error); }
+.payment-status.status-ok { color: var(--color-success); }
 
 /* ── Success overlay ────────────────────────────────────────── */
 .payment-success-overlay {
@@ -283,7 +303,7 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--color-success);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -292,7 +312,7 @@ body {
 .payment-success-text {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-fg);
 }
 
 /* ── Test card buttons ──────────────────────────────────────── */
@@ -300,21 +320,21 @@ body {
 .test-fill-btn {
   flex: 1;
   background: none;
-  border: 1px dashed #ddd;
+  border: 1px dashed var(--color-edge);
   border-radius: 6px;
   padding: 0.3rem 0.2rem;
   font-size: 0.55rem;
-  color: #bbb;
+  color: var(--color-fg-tertiary);
   cursor: pointer;
   transition: all 0.15s;
   font-family: 'SF Mono', ui-monospace, monospace;
 }
-.test-fill-btn:hover { border-color: #999; color: #888; }
-.test-fill-btn.copied { color: #2a2; border-color: #2a2; }
+.test-fill-btn:hover { border-color: var(--color-fg-tertiary); color: var(--color-fg-secondary); }
+.test-fill-btn.copied { color: var(--color-success); border-color: var(--color-success); }
 
 .manage-unavailable {
   text-align: center;
-  color: #ccc;
+  color: var(--color-fg-tertiary);
   font-size: 0.75rem;
   padding: 1rem 0;
 }
@@ -330,7 +350,7 @@ body {
   justify-content: center;
   gap: 0.35rem;
   font-size: 0.7rem;
-  color: #ccc;
+  color: var(--color-fg-tertiary);
 }
 @media (max-width: 440px) {
   .footer { display: none; }

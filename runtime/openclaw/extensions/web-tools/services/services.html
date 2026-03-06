@@ -7,6 +7,9 @@
   <title>services</title>
   <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
   <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/web-tools/services/services.css">
   <script src="https://js.stripe.com/v3/"></script>
 </head>
@@ -16,7 +19,13 @@
 
       <!-- ====== LANDING SCREEN ====== -->
       <div class="screen" id="screen-landing">
-        <div class="card-header">assistant services</div>
+        <div class="card-header">
+          <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+          </svg>
+          <span>assistant services</span>
+        </div>
 
         <div class="service-list" id="service-list">
           <!-- Instance -->
@@ -192,7 +201,7 @@
     </div>
   </div>
 
-  <footer class="footer">alpha</footer>
+  <footer class="footer" id="footer">alpha</footer>
 
   <script>
     (function () {
@@ -253,6 +262,10 @@
       var cardPaymentStatus   = document.getElementById("card-payment-status");
       var cardPaymentSuccessEl   = document.getElementById("card-payment-success");
       var cardPaymentSuccessText = document.getElementById("card-payment-success-text");
+
+      // ── State ───────────────────────────────────────────────────
+
+      var isProductionMode = false;
 
       // ── Auth ────────────────────────────────────────────────────
 
@@ -407,9 +420,14 @@
         paymentSuccessEl.classList.remove("visible");
         packageButtons.forEach(function (b) { b.classList.remove("selected"); });
         if (customAmountInput) { customAmountInput.value = ""; customAmountInput.style.display = "none"; }
-        if (customToggle) customToggle.style.display = "block";
-        if (couponRow) couponRow.style.display = "none";
-        if (couponToggle) couponToggle.style.display = "block";
+        if (isProductionMode) {
+          // Production: coupon-only — always show coupon row
+          if (couponRow) couponRow.style.display = "flex";
+        } else {
+          if (customToggle) customToggle.style.display = "block";
+          if (couponRow) couponRow.style.display = "none";
+          if (couponToggle) couponToggle.style.display = "block";
+        }
         if (couponInput) couponInput.value = "";
         if (couponStatus) { couponStatus.textContent = ""; couponStatus.className = "coupon-status"; }
       }
@@ -601,8 +619,13 @@
             couponStatus.className = "coupon-status status-ok";
             fetch("/web-tools/services/api", { headers: authHeaders() })
               .then(function (r) { return r.json(); })
-              .then(function (d) { renderCredits(d.credits); });
-            setTimeout(function () { showLandingScreen(); }, 1500);
+              .then(function (d) {
+                renderCredits(d.credits);
+                setTimeout(function () { showLandingScreen(); }, 800);
+              })
+              .catch(function () {
+                setTimeout(function () { showLandingScreen(); }, 1500);
+              });
           })
           .catch(function () {
             couponBtn.disabled = false;
@@ -858,16 +881,19 @@
           renderCredits(d.credits);
           renderCard(d.card || { hasCard: false });
 
-          // Show test card buttons in non-production
+          // Show test card buttons and sandbox notice in non-production
           if (d.xmtpEnv !== "production") {
             var tcCredits = document.getElementById("test-fill-credits");
             var tcCard = document.getElementById("test-fill-card");
             if (tcCredits) tcCredits.style.display = "block";
             if (tcCard) tcCard.style.display = "block";
+            var footerEl = document.getElementById("footer");
+            if (footerEl) footerEl.textContent = "sandbox \u2014 test mode, real cards won\u2019t be charged";
           }
 
           // Production: coupon-only mode, hide spending card
           if (d.xmtpEnv === "production") {
+            isProductionMode = true;
             var pkgBtns = document.getElementById("package-buttons");
             var secBtns = document.getElementById("secondary-buttons");
             var stripeFormEl = document.getElementById("stripe-form");
