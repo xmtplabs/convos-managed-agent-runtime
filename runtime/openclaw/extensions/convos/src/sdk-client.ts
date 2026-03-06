@@ -155,6 +155,9 @@ export class ConvosInstance {
   private lastStartTime = 0;
   private options: ConvosInstanceOptions;
 
+  /** Cached member display names: inboxId → name */
+  private memberNames = new Map<string, string>();
+
   /** Resolves when the `ready` event is received after start(). */
   private readyPromiseResolve?: (info: ReadyEvent) => void;
   private readyPromiseReject?: (err: Error) => void;
@@ -355,6 +358,7 @@ export class ConvosInstance {
     this.running = true;
     this.restartCount = 0;
     const ready = await this.spawnAgentServe();
+    await this.refreshMemberNames();
     if (this.options.debug) {
       console.log(`[convos] Started: ${this.conversationId.slice(0, 12)}... (inboxId: ${ready.inboxId?.slice(0, 12)}...)`);
     }
@@ -405,6 +409,45 @@ export class ConvosInstance {
 
   get envName(): "production" | "dev" {
     return this.env;
+  }
+
+  // ==== Member Cache ====
+
+  /** Fetch conversation profiles via the CLI. */
+  private async listProfiles(): Promise<Array<{ inboxId: string; name?: string; isMe?: boolean }>> {
+    const data = await this.execJson<{ profiles: Array<{ inboxId: string; name?: string; isMe?: boolean }> }>([
+      "conversation", "profiles", this.conversationId,
+    ]);
+    return data.profiles ?? [];
+  }
+
+  /** Rebuild the member name cache from conversation profiles. */
+  async refreshMemberNames(): Promise<void> {
+    try {
+      const profiles = await this.listProfiles();
+      this.memberNames.clear();
+      for (const p of profiles) {
+        this.memberNames.set(p.inboxId, p.name || "anonymous");
+      }
+      if (this.options.debug) {
+        console.log(`[convos] Refreshed member names: ${this.memberNames.size} members`);
+      }
+    } catch (err) {
+      console.error(`[convos] Failed to refresh member names: ${String(err)}`);
+    }
+  }
+
+  /** Update a single member's display name (from inbound messages). */
+  setMemberName(inboxId: string, name: string): void {
+    if (inboxId && name) {
+      this.memberNames.set(inboxId, name);
+    }
+  }
+
+  /** Return comma-separated display names of all cached members. */
+  getGroupMembers(): string | undefined {
+    if (this.memberNames.size === 0) return undefined;
+    return Array.from(this.memberNames.values()).join(", ");
   }
 
   // ==== Operations (via stdin commands) ====
