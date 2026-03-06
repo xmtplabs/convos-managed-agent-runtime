@@ -357,8 +357,8 @@ async function handleInboundMessage(
   // Self-echo filtering is handled by `convos agent serve` — messages from
   // our own inboxId are never emitted. No filtering needed here.
 
-  // Keep member name cache current from inbound messages
-  if (inst && msg.senderName && msg.senderId) {
+  // Keep member name cache current from inbound messages (skip synthetic system sender)
+  if (inst && msg.senderName && msg.senderId && msg.senderId !== SYSTEM_SENDER_ID) {
     inst.setMemberName(msg.senderId, msg.senderName);
   }
 
