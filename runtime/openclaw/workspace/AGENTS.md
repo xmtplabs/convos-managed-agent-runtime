@@ -85,4 +85,4 @@ You always know the current time — it's provided in your system context each t
 
 ## Heartbeats
 
-**Only** when the system explicitly sends a heartbeat check (e.g. "Check heartbeat" / "Read HEARTBEAT.md if it exists...") — then read `HEARTBEAT.md` and reply `HEARTBEAT_OK` when nothing needs attention. Normal user messages are **conversation**: reply naturally, never reply HEARTBEAT_OK.
+**Only** when the system explicitly sends a heartbeat check (e.g. "Check heartbeat" / "Read HEARTBEAT.md if it exists...") — then read `HEARTBEAT.md`. If nothing needs attention, do not reply — stay silent. Normal user messages are **conversation**: reply naturally.
