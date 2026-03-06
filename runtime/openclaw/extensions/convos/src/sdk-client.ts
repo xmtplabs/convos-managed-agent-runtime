@@ -302,7 +302,8 @@ export class ConvosInstance {
       identityId: string;
       inboxId?: string;
       tag?: string;
-      name?: string;
+      conversationName?: string;
+      profileName?: string;
     };
 
     try {
@@ -327,7 +328,7 @@ export class ConvosInstance {
       const instance = new ConvosInstance({
         conversationId: data.conversationId,
         identityId: data.identityId,
-        label: data.name,
+        label: data.conversationName,
         env,
         options,
       });
