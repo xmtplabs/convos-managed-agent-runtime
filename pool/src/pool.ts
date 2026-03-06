@@ -249,6 +249,7 @@ export async function recheckInstance(id: string) {
 
   // Ask the runtime for its conversation state
   let runtimeConvoId: string | null = null;
+  let statusKnown = false;
   try {
     const csRes = await fetch(`${inst.url}/convos/status`, {
       headers: { Authorization: `Bearer ${config.poolApiKey}` },
@@ -257,8 +258,14 @@ export async function recheckInstance(id: string) {
     if (csRes.ok) {
       const cs = await csRes.json() as { conversation?: { id: string } | null };
       runtimeConvoId = cs.conversation?.id ?? null;
+      statusKnown = true;
     }
   } catch {}
+
+  if (!statusKnown) {
+    console.log(`[pool] recheck ${id}: /convos/status failed, leaving as ${inst.status}`);
+    return { id, status: inst.status, changed: false, reason: "status_unknown", agentName: inst.agentName || null };
+  }
 
   if (runtimeConvoId) {
     // Runtime has a conversation — verify it matches what we provisioned
@@ -275,7 +282,7 @@ export async function recheckInstance(id: string) {
   }
 
   // No active conversation — instance is clean, recover to idle
-  await db.recoverToIdle(id);
+  await db.recoverToIdle(id, inst.status);
   if (hc.version) await db.setRuntimeVersion(id, hc.version);
   console.log(`[pool] recheck ${id}: ${inst.status} → idle (no conversation, v${hc.version || '?'})`);
   return { id, status: "idle", changed: inst.status !== "idle", agentName: null };

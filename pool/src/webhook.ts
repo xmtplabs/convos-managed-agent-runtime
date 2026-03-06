@@ -108,7 +108,7 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
         break;
       }
       // Run health check with retries, async (don't block)
-      runHealthCheckWithRetries(instanceId, url, instance.status, isClaimed).catch((err) =>
+      runHealthCheckWithRetries(instanceId, url, instance.status).catch((err) =>
         console.error(`[webhook] Health check failed for ${instanceId}: ${err.message}`));
       break;
     }
@@ -128,7 +128,6 @@ async function runHealthCheckWithRetries(
   instanceId: string,
   url: string,
   statusAtWebhookTime: string,
-  isClaimed: boolean,
 ): Promise<void> {
   // Wait for the runtime container to boot before polling
   await new Promise((r) => setTimeout(r, HEALTH_CHECK_INITIAL_DELAY_MS));
@@ -142,6 +141,7 @@ async function runHealthCheckWithRetries(
     if (hc?.ready) {
       // Ask the runtime whether it has an active conversation
       let runtimeConvoId: string | null = null;
+      let statusKnown = false;
       try {
         const csRes = await fetch(`${url}/convos/status`, {
           headers: { Authorization: `Bearer ${config.poolApiKey}` },
@@ -150,8 +150,14 @@ async function runHealthCheckWithRetries(
         if (csRes.ok) {
           const cs = await csRes.json() as { conversation?: { id: string } | null };
           runtimeConvoId = cs.conversation?.id ?? null;
+          statusKnown = true;
         }
       } catch {}
+
+      if (!statusKnown) {
+        console.warn(`[webhook] ${instanceId}: /convos/status failed, leaving as ${statusAtWebhookTime}`);
+        return;
+      }
 
       let updated: boolean;
       let newStatus: string;
