@@ -27,8 +27,7 @@ export function decideAction(
       if (currentStatus === "starting" || currentStatus === "sleeping") {
         return { action: "health_check" };
       }
-      // Claimed + crashed → health check to recover
-      if (isClaimed && currentStatus === "crashed") {
+      if (currentStatus === "crashed" || currentStatus === "dead") {
         return { action: "health_check" };
       }
       return { action: "noop" };

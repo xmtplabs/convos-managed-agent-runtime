@@ -140,9 +140,36 @@ async function runHealthCheckWithRetries(
 
     const hc = await healthCheck(url);
     if (hc?.ready) {
-      // Atomic conditional update: only promotes if status is still what we expect
-      const newStatus = isClaimed ? "claimed" : "idle";
-      const updated = await db.conditionalUpdateStatus(instanceId, newStatus, statusAtWebhookTime);
+      // Ask the runtime whether it has an active conversation
+      let runtimeConvoId: string | null = null;
+      try {
+        const csRes = await fetch(`${url}/convos/status`, {
+          headers: { Authorization: `Bearer ${config.poolApiKey}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (csRes.ok) {
+          const cs = await csRes.json() as { conversation?: { id: string } | null };
+          runtimeConvoId = cs.conversation?.id ?? null;
+        }
+      } catch {}
+
+      let updated: boolean;
+      let newStatus: string;
+      if (runtimeConvoId) {
+        // Verify the conversation matches what we provisioned
+        const inst = await db.findById(instanceId);
+        if (inst?.conversationId && inst.conversationId === runtimeConvoId) {
+          newStatus = "claimed";
+          updated = await db.conditionalUpdateStatus(instanceId, "claimed", statusAtWebhookTime);
+        } else {
+          // Stuck provision failure or mismatch — don't promote
+          console.log(`[webhook] ${instanceId}: runtime has conversation ${runtimeConvoId} but DB has ${inst?.conversationId || "none"} — leaving as ${statusAtWebhookTime}`);
+          return;
+        }
+      } else {
+        newStatus = "idle";
+        updated = await db.recoverToIdle(instanceId, statusAtWebhookTime);
+      }
       if (!updated) {
         console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);
         return;
