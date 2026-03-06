@@ -128,6 +128,16 @@ describe("webhook state machine", () => {
     assert.equal(d.action, "health_check");
   });
 
+  it("resumed + crashed → schedules health check", () => {
+    const d = decideAction("Deployment.resumed", "crashed", true);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("resumed + dead → schedules health check", () => {
+    const d = decideAction("Deployment.resumed", "dead", false);
+    assert.equal(d.action, "health_check");
+  });
+
   it("resumed + non-sleeping → no-op", () => {
     const d = decideAction("Deployment.resumed", "idle", false);
     assert.equal(d.action, "noop");

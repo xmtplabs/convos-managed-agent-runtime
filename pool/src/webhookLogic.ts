@@ -48,7 +48,7 @@ export function decideAction(
     }
 
     case "Deployment.resumed": {
-      if (currentStatus === "sleeping") {
+      if (currentStatus === "sleeping" || currentStatus === "crashed" || currentStatus === "dead") {
         return { action: "health_check" };
       }
       return { action: "noop" };
