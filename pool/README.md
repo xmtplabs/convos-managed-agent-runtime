@@ -144,70 +144,7 @@ Claiming is atomic via `SELECT ... FOR UPDATE SKIP LOCKED` — no double-claims 
 
 ## API
 
-Public endpoints (no auth required): `GET /healthz`, `GET /version`, `GET /api/pool/counts`, `GET /api/pool/agents`, `GET /api/pool/info`, `GET /api/pool/templates`, `GET /api/prompts/:pageId`. All other endpoints require `Authorization: Bearer <POOL_API_KEY>` (or `?key=<POOL_API_KEY>` query param for SSE/EventSource endpoints that can't set headers).
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | `/healthz` | No | Health check (`{"ok": true}`) |
-| GET | `/version` | No | Build version and environment |
-| GET | `/api/pool/counts` | No | Pool counts only |
-| GET | `/api/pool/agents` | No | List all instances by status |
-| GET | `/api/pool/info` | No | Environment, branch, model, Railway IDs |
-| GET | `/api/pool/templates` | No | Agent template catalog |
-| GET | `/api/pool/templates/:slug` | No | Single template by slug |
-| GET | `/api/prompts/:pageId` | No | Fetch agent prompt from Notion (cached 1h) |
-| GET | `/api/pool/status` | Yes | Pool counts + all instances |
-| POST | `/api/pool/claim` | Yes | Claim an idle instance |
-| POST | `/api/pool/replenish` | Yes | Trigger poll + replenish; `{"count": N}` to create N directly |
-| GET | `/api/pool/replenish/stream?count=N` | Yes | SSE stream of provisioning progress (used by admin dashboard) |
-| POST | `/api/pool/drain` | Yes | Remove up to N idle instances: `{"count": N}` |
-| POST | `/api/pool/reconcile` | Yes | Reconcile DB against Railway, clean up orphans |
-| DELETE | `/api/pool/instances/:id` | Yes | Kill a launched instance |
-| DELETE | `/api/pool/crashed/:id` | Yes | Dismiss a crashed agent |
-| POST | `/api/pool/self-destruct` | Token | Instance requests own destruction (per-instance gateway token, not `POOL_API_KEY`) |
-| POST | `/webhooks/railway/:secret` | URL secret | Railway webhook receiver (secret in URL path must match `POOL_API_KEY`) |
-| GET | `/admin` | Session | Admin dashboard (login with `POOL_API_KEY`) |
-
-### `POST /api/pool/claim`
-
-Creates a conversation (default) or joins an existing one.
-
-```json
-{
-  "agentName": "tokyo-trip-planner",
-  "instructions": "You are a helpful trip planner for Tokyo.",
-  "joinUrl": "https://dev.convos.org/v2?i=..."
-}
-```
-
-`joinUrl` is optional — omit it to create a new conversation.
-
-Response:
-
-```json
-{
-  "inviteUrl": "https://dev.convos.org/v2?i=...",
-  "conversationId": "abc123",
-  "instanceId": "rnM8UBQ_fZCz",
-  "joined": false,
-  "gatewayToken": "<64-char-hex>",
-  "gatewayUrl": "https://convos-agent-xxx.up.railway.app"
-}
-```
-
-### `GET /api/pool/replenish/stream?count=N`
-
-SSE endpoint that streams real-time provisioning progress. Used by the admin dashboard "+ Add" button. Each SSE message is a JSON object:
-
-| Event type | Fields | Description |
-|------------|--------|-------------|
-| `step` | `instanceNum`, `step`, `status`, `message` | Progress update for a provisioning step |
-| `instance` | `instanceNum`, `instance` | Instance successfully created |
-| `complete` | `created`, `failed`, `counts` | All instances finished |
-
-Step names: `openrouter`, `agentmail`, `telnyx`, `railway-project`, `railway-service`, `railway-domain`, `done`.
-
-Status values: `active` (in progress), `ok` (success), `fail` (error), `skip` (not configured).
+Interactive API docs are available at `/admin/api-docs` (requires login). The OpenAPI spec is at `frontend/openapi.json`.
 
 ## Environments
 
