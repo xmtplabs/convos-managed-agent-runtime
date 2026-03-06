@@ -250,6 +250,21 @@ export default function register(api: OpenClawPluginApi) {
   });
 
   api.registerHttpRoute({
+    path: "/web-tools/services/services.css",
+    handler: async (req, res) => {
+      try {
+        const css = fs.readFileSync(path.join(servicesDir, "services.css"), "utf-8");
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "text/css; charset=utf-8");
+        res.end(css);
+      } catch {
+        res.statusCode = 404;
+        res.end();
+      }
+    },
+  });
+
+  api.registerHttpRoute({
     path: "/web-tools/services/api",
     handler: async (req, res) => {
       if (req.method !== "GET") {

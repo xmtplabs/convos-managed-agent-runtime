@@ -1,0 +1,337 @@
+/* ── Reset & Layout ─────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background: #f5f5f5;
+  color: #111;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  max-width: 400px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+@media (max-width: 440px) {
+  body { padding: 1rem; }
+  .card { max-width: 100%; }
+}
+
+/* ── Card Viewport (slide between screens) ──────────────────── */
+.card-viewport {
+  display: flex;
+  transition: transform 0.3s ease;
+  will-change: transform;
+}
+.card-viewport.show-manage { transform: translateX(-100%); }
+.card-viewport.show-card { transform: translateX(-200%); }
+.screen {
+  min-width: 100%;
+  width: 100%;
+  padding: 1.5rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #999;
+}
+.manage-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.back-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem;
+  color: #999;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.back-btn:hover { color: #333; }
+.manage-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #999;
+}
+
+/* ── Service List (landing) ──────────────────────────────────── */
+.service-list { display: flex; flex-direction: column; gap: 0; }
+.service-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+}
+.service-item + .service-item { border-top: 1px solid #f0f0f0; }
+.service-body { flex: 1; min-width: 0; }
+.service-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #999;
+  margin-bottom: 0.1rem;
+}
+.service-value {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: #333;
+  word-break: break-all;
+}
+.service-value--null {
+  color: #ccc;
+  font-style: italic;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.75rem;
+}
+
+/* ── Credits / Card bars ────────────────────────────────────── */
+.credits-bar {
+  margin-top: 0.3rem;
+  height: 3px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.credits-bar-fill {
+  height: 100%;
+  background: #999;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.credits-detail {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  color: #bbb;
+  margin-top: 0.15rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.copy-btn, .manage-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #ccc;
+  flex-shrink: 0;
+  transition: color 0.15s;
+  border-radius: 4px;
+}
+.copy-btn:hover, .manage-icon-btn:hover { color: #666; }
+.copy-btn.copied { color: #111; }
+
+/* ── Loading shimmer ────────────────────────────────────────── */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f5f5f5 25%, #eee 50%, #f5f5f5 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 3px;
+  height: 0.85rem;
+  width: 55%;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.error-msg {
+  color: #999;
+  font-size: 0.7rem;
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+/* ── Manage screen ──────────────────────────────────────────── */
+.manage-balance {
+  text-align: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+.manage-balance-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #999;
+  margin-bottom: 0.25rem;
+}
+.manage-balance-value {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #333;
+}
+.package-buttons { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
+.package-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.4rem 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.package-btn:hover { border-color: #999; color: #333; }
+.package-btn.selected { border-color: #111; color: #111; background: #f9f9f9; }
+
+.custom-amount-input {
+  width: 100%;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.4rem 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 0.6rem;
+}
+.custom-amount-input:focus { border-color: #999; }
+
+/* ── Coupon ──────────────────────────────────────────────────── */
+.coupon-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  align-items: center;
+}
+.coupon-status {
+  font-size: 0.65rem;
+  text-align: center;
+  min-height: 0.8rem;
+  margin-bottom: 0.4rem;
+}
+.coupon-status.status-error { color: #c44; }
+.coupon-status.status-ok { color: #2a2; }
+
+/* ── Stripe form ────────────────────────────────────────────── */
+.stripe-form { margin-top: 0.6rem; }
+.stripe-form .card-hidden { display: none; }
+.stripe-form #card-element,
+.stripe-form #card-card-element {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.15s;
+}
+.pay-btn {
+  width: 100%;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.pay-btn:hover { opacity: 0.85; }
+.pay-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Payment status ─────────────────────────────────────────── */
+.payment-status {
+  font-size: 0.65rem;
+  margin-top: 0.4rem;
+  text-align: center;
+  min-height: 1rem;
+}
+.payment-status.status-error { color: #c44; }
+.payment-status.status-ok { color: #2a2; }
+
+/* ── Success overlay ────────────────────────────────────────── */
+.payment-success-overlay {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 0;
+}
+.payment-success-overlay.visible { display: flex; }
+.payment-success-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.payment-success-icon svg { width: 24px; height: 24px; }
+.payment-success-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+}
+
+/* ── Test card buttons ──────────────────────────────────────── */
+.test-fill-row { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
+.test-fill-btn {
+  flex: 1;
+  background: none;
+  border: 1px dashed #ddd;
+  border-radius: 6px;
+  padding: 0.3rem 0.2rem;
+  font-size: 0.55rem;
+  color: #bbb;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'SF Mono', ui-monospace, monospace;
+}
+.test-fill-btn:hover { border-color: #999; color: #888; }
+.test-fill-btn.copied { color: #2a2; border-color: #2a2; }
+
+.manage-unavailable {
+  text-align: center;
+  color: #ccc;
+  font-size: 0.75rem;
+  padding: 1rem 0;
+}
+
+/* ── Footer ──────────────────────────────────────────────────── */
+.footer {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: #ccc;
+}
+@media (max-width: 440px) {
+  .footer { display: none; }
+}

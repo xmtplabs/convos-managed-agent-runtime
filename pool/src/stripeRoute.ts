@@ -126,12 +126,12 @@ stripeApiRouter.post("/api/pool/stripe/balance", async (req, res) => {
   try {
     const { instanceId, gatewayToken } = req.body || {};
     if (!instanceId || !gatewayToken) {
-      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      res.status(400).json({ error: "Session expired — refresh the page" });
       return;
     }
     const valid = await db.findInstanceByToken(instanceId, gatewayToken);
     if (!valid) {
-      res.status(403).json({ error: "Invalid instance ID or token" });
+      res.status(403).json({ error: "Session expired — refresh the page and try again" });
       return;
     }
 
@@ -155,7 +155,7 @@ stripeApiRouter.post("/api/pool/stripe/balance", async (req, res) => {
     res.json({ balanceCents });
   } catch (err: any) {
     console.error("[stripe] Balance endpoint failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Could not load balance — try again" });
   }
 });
 
@@ -164,12 +164,12 @@ stripeApiRouter.post("/api/pool/stripe/redeem-coupon", async (req, res) => {
   try {
     const { instanceId, gatewayToken, code } = req.body || {};
     if (!instanceId || !gatewayToken || !code) {
-      res.status(400).json({ error: "instanceId, gatewayToken, and code are required" });
+      res.status(400).json({ error: "Please enter a coupon code" });
       return;
     }
     const valid = await db.findInstanceByToken(instanceId, gatewayToken);
     if (!valid) {
-      res.status(403).json({ error: "Invalid instance ID or token" });
+      res.status(403).json({ error: "Session expired — refresh the page and try again" });
       return;
     }
 
@@ -195,7 +195,7 @@ stripeApiRouter.post("/api/pool/stripe/redeem-coupon", async (req, res) => {
       );
     const svc = svcRows[0];
     if (!svc) {
-      res.status(404).json({ error: "No credits service found" });
+      res.status(404).json({ error: "Agent not set up yet — try again in a moment" });
       return;
     }
 
@@ -203,7 +203,7 @@ stripeApiRouter.post("/api/pool/stripe/redeem-coupon", async (req, res) => {
     const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
     const couponMax = parseInt(process.env.COUPON_MAX_LIMIT || "100", 10);
     if (currentLimit >= couponMax) {
-      res.status(409).json({ error: "Credit limit reached" });
+      res.status(409).json({ error: `Max with coupon is $${couponMax}` });
       return;
     }
     const increment = 20;
@@ -221,7 +221,7 @@ stripeApiRouter.post("/api/pool/stripe/redeem-coupon", async (req, res) => {
     res.json({ ok: true, previousLimit: currentLimit, newLimit });
   } catch (err: any) {
     console.error("[stripe] Coupon redemption failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong — try again" });
   }
 });
 
@@ -230,24 +230,24 @@ stripeApiRouter.post("/api/pool/stripe/config", async (req, res) => {
   try {
     const { instanceId, gatewayToken } = req.body || {};
     if (!instanceId || !gatewayToken) {
-      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      res.status(400).json({ error: "Session expired — refresh the page" });
       return;
     }
     const valid = await db.findInstanceByToken(instanceId, gatewayToken);
     if (!valid) {
-      res.status(403).json({ error: "Invalid instance ID or token" });
+      res.status(403).json({ error: "Session expired — refresh the page and try again" });
       return;
     }
 
     if (!config.stripePublishableKey) {
-      res.status(503).json({ error: "Stripe not configured" });
+      res.status(503).json({ error: "Payments are not available right now" });
       return;
     }
 
     res.json({ publishableKey: config.stripePublishableKey });
   } catch (err: any) {
     console.error("[stripe] Config endpoint failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong — try again" });
   }
 });
 
@@ -256,17 +256,17 @@ stripeApiRouter.post("/api/pool/stripe/request-card", async (req, res) => {
   try {
     const { instanceId, gatewayToken, amountCents } = req.body || {};
     if (!instanceId || !gatewayToken) {
-      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      res.status(400).json({ error: "Session expired — refresh the page" });
       return;
     }
     const valid = await db.findInstanceByToken(instanceId, gatewayToken);
     if (!valid) {
-      res.status(403).json({ error: "Invalid instance ID or token" });
+      res.status(403).json({ error: "Session expired — refresh the page and try again" });
       return;
     }
 
     if (!config.stripeSecretKey) {
-      res.status(503).json({ error: "Stripe not configured" });
+      res.status(503).json({ error: "Card issuing is not available right now" });
       return;
     }
 
@@ -328,7 +328,7 @@ stripeApiRouter.post("/api/pool/stripe/request-card", async (req, res) => {
     res.json({ ok: true, action: "issued", last4: card.last4, brand: card.brand, spendingLimitCents: cents });
   } catch (err: any) {
     console.error("[stripe] Request card failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Failed to issue card — try again" });
   }
 });
 
@@ -337,12 +337,12 @@ stripeApiRouter.post("/api/pool/stripe/card-info", async (req, res) => {
   try {
     const { instanceId, gatewayToken } = req.body || {};
     if (!instanceId || !gatewayToken) {
-      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      res.status(400).json({ error: "Session expired — refresh the page" });
       return;
     }
     const valid = await db.findInstanceByToken(instanceId, gatewayToken);
     if (!valid) {
-      res.status(403).json({ error: "Invalid instance ID or token" });
+      res.status(403).json({ error: "Session expired — refresh the page and try again" });
       return;
     }
 
@@ -381,7 +381,7 @@ stripeApiRouter.post("/api/pool/stripe/card-info", async (req, res) => {
     });
   } catch (err: any) {
     console.error("[stripe] Card info failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Could not load card info — try again" });
   }
 });
 
@@ -390,12 +390,12 @@ stripeApiRouter.post("/api/pool/stripe/card-details", async (req, res) => {
   try {
     const { instanceId, gatewayToken } = req.body || {};
     if (!instanceId || !gatewayToken) {
-      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      res.status(400).json({ error: "Session expired — refresh the page" });
       return;
     }
     const valid = await db.findInstanceByToken(instanceId, gatewayToken);
     if (!valid) {
-      res.status(403).json({ error: "Invalid instance ID or token" });
+      res.status(403).json({ error: "Session expired — refresh the page and try again" });
       return;
     }
 
@@ -428,7 +428,7 @@ stripeApiRouter.post("/api/pool/stripe/card-details", async (req, res) => {
     });
   } catch (err: any) {
     console.error("[stripe] Card details failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Could not load card details — try again" });
   }
 });
 
@@ -437,17 +437,17 @@ stripeApiRouter.post("/api/pool/stripe/create-payment-intent", async (req, res) 
   try {
     const { instanceId, gatewayToken, amountCents } = req.body || {};
     if (!instanceId || !gatewayToken) {
-      res.status(400).json({ error: "instanceId and gatewayToken are required" });
+      res.status(400).json({ error: "Session expired — refresh the page" });
       return;
     }
     const valid = await db.findInstanceByToken(instanceId, gatewayToken);
     if (!valid) {
-      res.status(403).json({ error: "Invalid instance ID or token" });
+      res.status(403).json({ error: "Session expired — refresh the page and try again" });
       return;
     }
 
     if (!config.stripeSecretKey) {
-      res.status(503).json({ error: "Stripe not configured" });
+      res.status(503).json({ error: "Payments are not available right now" });
       return;
     }
 
@@ -504,6 +504,6 @@ stripeApiRouter.post("/api/pool/stripe/create-payment-intent", async (req, res) 
     res.json({ clientSecret });
   } catch (err: any) {
     console.error("[stripe] Create payment intent failed:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Payment failed — try again" });
   }
 });
