@@ -6,8 +6,69 @@ const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 const GQL_MAX_RETRIES = 3;
 const GQL_BASE_DELAY_MS = 5000;
 
-export async function gql(query: string, variables: Record<string, unknown> = {}): Promise<Record<string, any>> {
-  const token = config.railwayApiToken;
+// ── Token pool for projectCreate rate-limit rotation ─────────────────────────
+
+const COOLDOWN_MS = 30_000;
+const tokenCooldowns = new Map<string, number>();
+
+function getTokenPool(): string[] {
+  return config.railwayApiTokens.length > 0
+    ? config.railwayApiTokens
+    : [config.railwayApiToken];
+}
+
+function getNextProjectCreateToken(): { token: string; waitMs: number; index: number } {
+  const pool = getTokenPool();
+  const now = Date.now();
+
+  // Find first token with expired cooldown
+  for (let i = 0; i < pool.length; i++) {
+    const lastUsed = tokenCooldowns.get(pool[i]) || 0;
+    if (now - lastUsed >= COOLDOWN_MS) {
+      return { token: pool[i], waitMs: 0, index: i };
+    }
+  }
+
+  // All cooling — find the one closest to expiry
+  let bestIdx = 0;
+  let bestExpiry = Infinity;
+  for (let i = 0; i < pool.length; i++) {
+    const lastUsed = tokenCooldowns.get(pool[i]) || 0;
+    const expiresAt = lastUsed + COOLDOWN_MS;
+    if (expiresAt < bestExpiry) {
+      bestExpiry = expiresAt;
+      bestIdx = i;
+    }
+  }
+
+  return { token: pool[bestIdx], waitMs: Math.max(0, bestExpiry - now), index: bestIdx };
+}
+
+function markTokenUsed(token: string): void {
+  tokenCooldowns.set(token, Date.now());
+}
+
+export class RailwayProjectRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RailwayProjectRateLimitError";
+  }
+}
+
+// Log token pool size on import
+{
+  const pool = getTokenPool();
+  console.log(`[railway] Token pool: ${pool.length} token${pool.length === 1 ? "" : 's'} configured`);
+}
+
+// ── GraphQL client ───────────────────────────────────────────────────────────
+
+export async function gql(
+  query: string,
+  variables: Record<string, unknown> = {},
+  tokenOverride?: string,
+): Promise<Record<string, any>> {
+  const token = tokenOverride || config.railwayApiToken;
   if (!token) throw new Error("RAILWAY_API_TOKEN not set");
 
   for (let attempt = 1; attempt <= GQL_MAX_RETRIES; attempt++) {
@@ -35,7 +96,11 @@ export async function gql(query: string, variables: Record<string, unknown> = {}
       throw new Error(`Railway API error: ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     }
     if (json.errors) {
-      throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
+      const msg = JSON.stringify(json.errors);
+      if (msg.includes("Only one project can be created per user")) {
+        throw new RailwayProjectRateLimitError(msg);
+      }
+      throw new Error(`Railway API error: ${msg}`);
     }
     return json.data;
   }
@@ -69,16 +134,38 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
   const tid = teamId || config.railwayTeamId;
   if (!tid) throw new Error("RAILWAY_TEAM_ID not set — required for sharded project creation");
 
-  const data = await gql(
-    `mutation($input: ProjectCreateInput!) {
-      projectCreate(input: $input) { id }
-    }`,
-    { input: { name, workspaceId: tid } },
-  );
+  const pool = getTokenPool();
+  const maxAttempts = pool.length * 2;
+  const mutation = `mutation($input: ProjectCreateInput!) {
+    projectCreate(input: $input) { id }
+  }`;
+  const vars = { input: { name, workspaceId: tid } };
 
-  const projectId = data.projectCreate.id;
-  console.log(`[railway] Created project "${name}" → ${projectId}`);
-  return { projectId };
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { token, waitMs, index } = getNextProjectCreateToken();
+
+    if (waitMs > 0) {
+      console.log(`[railway] All tokens cooling — waiting ${(waitMs / 1000).toFixed(1)}s`);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+
+    try {
+      const data = await gql(mutation, vars, token);
+      markTokenUsed(token);
+      const projectId = data.projectCreate.id;
+      console.log(`[railway] Created project "${name}" → ${projectId} via token ${index + 1}/${pool.length}`);
+      return { projectId };
+    } catch (err) {
+      if (err instanceof RailwayProjectRateLimitError) {
+        markTokenUsed(token);
+        console.log(`[railway] Token ${index + 1}/${pool.length} rate-limited, rotating (${attempt + 1}/${maxAttempts})`);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error("projectCreate: exhausted all token attempts");
 }
 
 /** Delete an entire Railway project (cascades services, volumes). */
