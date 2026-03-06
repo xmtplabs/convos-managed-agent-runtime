@@ -503,7 +503,7 @@ async function handleInboundMessage(
             const ngrok = process.env.NGROK_URL;
             const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
             const base = domain ? `https://${domain}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
-            payload = { ...payload, text: `Hey! I'm out of credits. You can top up here: ${base}/web-tools/services` };
+            payload = { ...payload, text: `Hey! I'm out of power. You can manage me here: ${base}/web-tools/services` };
           }
           await deliverConvosReply({
             payload,
