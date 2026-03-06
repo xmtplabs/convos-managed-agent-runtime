@@ -295,6 +295,11 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
           },
           onMemberJoined: (info) => {
             log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}${info.catchup ? " (catchup)" : ""}`);
+            if (!info.catchup) {
+              inst.refreshMemberNames().catch((err) => {
+                log?.error(`[${account.accountId}] Failed to refresh members after join: ${String(err)}`);
+              });
+            }
           },
           onHeartbeat: (info) => {
             if (account.debug) {
@@ -351,6 +356,11 @@ async function handleInboundMessage(
 
   // Self-echo filtering is handled by `convos agent serve` — messages from
   // our own inboxId are never emitted. No filtering needed here.
+
+  // Keep member name cache current from inbound messages
+  if (inst && msg.senderName && msg.senderId) {
+    inst.setMemberName(msg.senderId, msg.senderName);
+  }
 
   if (account.debug) {
     debugLog(
@@ -473,6 +483,8 @@ async function handleInboundMessage(
     MessageSid: msg.messageId,
     OriginatingChannel: "convos",
     OriginatingTo: `convos:${msg.conversationId}`,
+    GroupSubject: inst?.label ?? undefined,
+    GroupMembers: inst?.getGroupMembers() ?? undefined,
     GroupSystemPrompt: [
       account.config?.systemPrompt?.trim(),
       `Current time: ${currentTime}`,
@@ -701,6 +713,9 @@ export async function startWiredInstance(params: {
           console.error(`[convos] Rename after join failed: ${String(err)}`);
         });
       }
+      inst.refreshMemberNames().catch((err) => {
+        console.error(`[convos] Failed to refresh members after join: ${String(err)}`);
+      });
     },
   });
 
