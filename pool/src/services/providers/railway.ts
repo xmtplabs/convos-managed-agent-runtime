@@ -210,9 +210,6 @@ export async function createService(
     await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
   }
 
-  // Set resource limits before the first deploy as well
-  await setResourceLimits(serviceId, undefined, opts);
-
   // Set image + start command — triggers first deploy (volume + domain + vars already attached)
   try {
     await updateServiceInstance(serviceId, {
@@ -223,6 +220,10 @@ export async function createService(
   } catch (err: any) {
     console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
   }
+
+  // Set resource limits AFTER the deploy triggers — environmentPatchCommit can
+  // trigger its own deploy, so it must run after the image is already configured.
+  await setResourceLimits(serviceId, undefined, opts);
 
   return { serviceId, domain };
 }
