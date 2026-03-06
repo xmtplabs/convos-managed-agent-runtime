@@ -635,7 +635,7 @@ app.use(requireAuth, statusRouter);
 app.use(requireAuth, configureRouter);
 app.use(requireAuth, toolsRouter);
 
-// --- Startup: migrate, then tick loop ---
+// --- Startup: migrate, register webhook, start server ---
 import { runMigrations } from "./db/migrate";
 
 // --- Metrics ---
