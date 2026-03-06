@@ -1,6 +1,6 @@
 {
   "name": "convos-agents",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "private": true,
   "engines": {
     "node": ">=22"
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0-beta.18",
-    "@xmtp/convos-cli": "^0.3.2",
+    "@xmtp/convos-cli": "^0.4.0",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "openclaw": "2026.2.15",
