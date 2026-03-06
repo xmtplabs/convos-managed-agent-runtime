@@ -204,23 +204,49 @@ export async function createService(
     console.warn(`[railway] Domain creation failed for ${serviceId}: ${err.message}`);
   }
 
-  // Set image + start command — triggers first deploy (volume + domain already attached)
-  try {
-    await updateServiceInstance(serviceId, {
-      startCommand: "node scripts/pool-server",
-      source: { image },
-    }, opts);
-    console.log(`[railway]   Configured: image=${image}`);
-  } catch (err: any) {
-    console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
+  // Commit image, start command, resource limits, AND variables in a single
+  // atomic environmentPatchCommit.  This triggers exactly one deploy that is
+  // guaranteed to see every env var.  Previously, updateServiceInstance
+  // (which triggers a deploy when setting an image source) raced against
+  // the subsequent upsertVariables call, causing ~10% of instances to boot
+  // with missing env vars.
+  const { cpu = 4, memoryGB = 8 } = {};
+  const varEntries: Record<string, { value: string }> = {};
+  for (const [k, v] of Object.entries(variables)) {
+    varEntries[k] = { value: v };
   }
 
-  // Set resource limits
-  await setResourceLimits(serviceId, undefined, opts);
-
-  // Upsert variables with skipDeploys
-  if (Object.keys(variables).length > 0) {
-    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
+  try {
+    await gql(
+      `mutation($environmentId: String!, $patch: EnvironmentConfig!, $commitMessage: String) {
+        environmentPatchCommit(environmentId: $environmentId, patch: $patch, commitMessage: $commitMessage)
+      }`,
+      {
+        environmentId,
+        patch: {
+          services: {
+            [serviceId]: {
+              source: { image },
+              deploy: {
+                startCommand: "node scripts/pool-server",
+                limitOverride: {
+                  containers: {
+                    cpu,
+                    memoryBytes: memoryGB * 1024 * 1024 * 1024,
+                  },
+                },
+              },
+              ...(Object.keys(varEntries).length > 0 ? { variables: varEntries } : {}),
+            },
+          },
+        },
+        commitMessage: "Initial service configuration",
+      },
+    );
+    console.log(`[railway]   Deployed: image=${image}, ${Object.keys(variables).length} vars, ${cpu} vCPU, ${memoryGB} GB RAM`);
+  } catch (err: any) {
+    console.error(`[railway] environmentPatchCommit failed for ${serviceId}:`, err);
+    throw err;
   }
 
   return { serviceId, domain };
