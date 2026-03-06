@@ -108,7 +108,7 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
         break;
       }
       // Run health check with retries, async (don't block)
-      runHealthCheckWithRetries(instanceId, url, instance.status, isClaimed).catch((err) =>
+      runHealthCheckWithRetries(instanceId, url, instance.status).catch((err) =>
         console.error(`[webhook] Health check failed for ${instanceId}: ${err.message}`));
       break;
     }
@@ -128,7 +128,6 @@ async function runHealthCheckWithRetries(
   instanceId: string,
   url: string,
   statusAtWebhookTime: string,
-  isClaimed: boolean,
 ): Promise<void> {
   // Wait for the runtime container to boot before polling
   await new Promise((r) => setTimeout(r, HEALTH_CHECK_INITIAL_DELAY_MS));
@@ -140,9 +139,43 @@ async function runHealthCheckWithRetries(
 
     const hc = await healthCheck(url);
     if (hc?.ready) {
-      // Atomic conditional update: only promotes if status is still what we expect
-      const newStatus = isClaimed ? "claimed" : "idle";
-      const updated = await db.conditionalUpdateStatus(instanceId, newStatus, statusAtWebhookTime);
+      // Ask the runtime whether it has an active conversation
+      let runtimeConvoId: string | null = null;
+      let statusKnown = false;
+      try {
+        const csRes = await fetch(`${url}/convos/status`, {
+          headers: { Authorization: `Bearer ${config.poolApiKey}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (csRes.ok) {
+          const cs = await csRes.json() as { conversation?: { id: string } | null };
+          runtimeConvoId = cs.conversation?.id ?? null;
+          statusKnown = true;
+        }
+      } catch {}
+
+      if (!statusKnown) {
+        console.warn(`[webhook] ${instanceId}: /convos/status failed, leaving as ${statusAtWebhookTime}`);
+        return;
+      }
+
+      let updated: boolean;
+      let newStatus: string;
+      if (runtimeConvoId) {
+        // Verify the conversation matches what we provisioned
+        const inst = await db.findById(instanceId);
+        if (inst?.conversationId && inst.conversationId === runtimeConvoId) {
+          newStatus = "claimed";
+          updated = await db.conditionalUpdateStatus(instanceId, "claimed", statusAtWebhookTime);
+        } else {
+          // Stuck provision failure or mismatch — don't promote
+          console.log(`[webhook] ${instanceId}: runtime has conversation ${runtimeConvoId} but DB has ${inst?.conversationId || "none"} — leaving as ${statusAtWebhookTime}`);
+          return;
+        }
+      } else {
+        newStatus = "idle";
+        updated = await db.recoverToIdle(instanceId, statusAtWebhookTime);
+      }
       if (!updated) {
         console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);
         return;

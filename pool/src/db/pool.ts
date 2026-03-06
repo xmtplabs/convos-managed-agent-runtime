@@ -119,6 +119,29 @@ export async function updateStatus(instanceId: string, { status, url }: { status
 }
 
 /**
+ * Atomically recover an instance to idle, clearing all claim metadata.
+ * Uses conditional update to avoid overwriting concurrent claims.
+ */
+export async function recoverToIdle(
+  instanceId: string,
+  expectedStatus?: string,
+): Promise<boolean> {
+  const conditions = [eq(instances.id, instanceId), sql`${instances.status} != 'claiming'`];
+  if (expectedStatus) {
+    conditions.push(sql`${instances.status} = ${expectedStatus}`);
+  }
+  const result = await db.update(instances).set({
+    status: "idle" as InstanceStatus,
+    agentName: null,
+    conversationId: null,
+    inviteUrl: null,
+    instructions: null,
+    claimedAt: null,
+  }).where(and(...conditions));
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
  * Conditionally update status only if the current status matches `expectedStatus`
  * and is not 'claiming' (atomic claim in progress). Returns true if the row was updated.
  */

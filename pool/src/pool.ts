@@ -247,36 +247,43 @@ export async function recheckInstance(id: string) {
     return { id, status: inst.status, changed: false, reason: "health_failed", agentName: inst.agentName || null };
   }
 
-  // If DB has no agentName, ask the instance directly via /convos/status
-  let isClaimed = !!inst.agentName;
-  if (!isClaimed) {
-    try {
-      const csRes = await fetch(`${inst.url}/convos/status`, {
-        headers: { Authorization: `Bearer ${config.poolApiKey}` },
-        signal: AbortSignal.timeout(5000),
-      });
-      if (csRes.ok) {
-        const cs = await csRes.json() as { conversation?: { id: string } | null };
-        if (cs.conversation?.id) {
-          isClaimed = true;
-          console.log(`[pool] recheck ${id}: no agentName but has active conversation ${cs.conversation.id}`);
-        }
-      }
-    } catch {}
+  // Ask the runtime for its conversation state
+  let runtimeConvoId: string | null = null;
+  let statusKnown = false;
+  try {
+    const csRes = await fetch(`${inst.url}/convos/status`, {
+      headers: { Authorization: `Bearer ${config.poolApiKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (csRes.ok) {
+      const cs = await csRes.json() as { conversation?: { id: string } | null };
+      runtimeConvoId = cs.conversation?.id ?? null;
+      statusKnown = true;
+    }
+  } catch {}
+
+  if (!statusKnown) {
+    console.log(`[pool] recheck ${id}: /convos/status failed, leaving as ${inst.status}`);
+    return { id, status: inst.status, changed: false, reason: "status_unknown", agentName: inst.agentName || null };
   }
 
-  // Crashed instances stay crashed unless a conversation is actually active.
-  // The container may still be healthy but provisioning failed — promoting
-  // to "idle" would recycle a broken instance back into the pool.
-  if (inst.status === "crashed" && !isClaimed) {
+  if (runtimeConvoId) {
+    // Runtime has a conversation — verify it matches what we provisioned
+    if (inst.conversationId && inst.conversationId === runtimeConvoId) {
+      await db.updateStatus(id, { status: "claimed" });
+      if (hc.version) await db.setRuntimeVersion(id, hc.version);
+      console.log(`[pool] recheck ${id}: ${inst.status} → claimed (conversation ${runtimeConvoId} matches DB, v${hc.version || '?'})`);
+      return { id, status: "claimed", changed: inst.status !== "claimed", agentName: inst.agentName || null };
+    }
+    // Runtime has a conversation but DB doesn't match — stuck provision failure
     if (hc.version) await db.setRuntimeVersion(id, hc.version);
-    console.log(`[pool] recheck ${id}: crashed, healthy but no conversation — staying crashed (v${hc.version || '?'})`);
-    return { id, status: "crashed", changed: false, reason: "crashed_no_conversation", agentName: inst.agentName || null };
+    console.log(`[pool] recheck ${id}: runtime has conversation ${runtimeConvoId} but DB has ${inst.conversationId || "none"} — staying ${inst.status}`);
+    return { id, status: inst.status, changed: false, reason: "conversation_mismatch", agentName: inst.agentName || null };
   }
 
-  const newStatus = isClaimed ? "claimed" : "idle";
-  await db.updateStatus(id, { status: newStatus });
+  // No active conversation — instance is clean, recover to idle
+  await db.recoverToIdle(id, inst.status);
   if (hc.version) await db.setRuntimeVersion(id, hc.version);
-  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus} (agentName=${inst.agentName || "none"}, isClaimed=${isClaimed}, v${hc.version || '?'})`);
-  return { id, status: newStatus, changed: newStatus !== inst.status, agentName: inst.agentName || null };
+  console.log(`[pool] recheck ${id}: ${inst.status} → idle (no conversation, v${hc.version || '?'})`);
+  return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
 }
