@@ -9,12 +9,22 @@ function getClient(): Stripe {
   return new Stripe(config.stripeSecretKey);
 }
 
-/** Create a Stripe customer with instanceId in metadata. */
-export async function createCustomer(instanceId: string, name: string): Promise<string> {
+/** Create a Stripe customer with instance metadata. */
+export async function createCustomer(
+  instanceId: string,
+  meta: { agentName: string; instanceUrl: string; railwayProjectId: string },
+): Promise<string> {
   const stripe = getClient();
   const customer = await stripe.customers.create({
-    name,
-    metadata: { instanceId },
+    name: `convos-agent-${instanceId}`,
+    metadata: {
+      instanceId,
+      agentName: meta.agentName,
+      poolEnvironment: config.poolEnvironment,
+      instanceUrl: meta.instanceUrl,
+      servicesUrl: meta.instanceUrl ? `${meta.instanceUrl}/web-tools/services` : "",
+      railwayUrl: meta.railwayProjectId ? `https://railway.com/project/${meta.railwayProjectId}` : "",
+    },
   });
   console.log(`[stripe] Created customer ${customer.id} for instance ${instanceId}`);
   return customer.id;

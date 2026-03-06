@@ -26,16 +26,40 @@ function getClient(): Stripe {
   return new Stripe(config.stripeSecretKey);
 }
 
+export interface IssueCardMeta {
+  agentName: string;
+  instanceUrl: string;
+  railwayProjectId: string;
+}
+
 /** Create a cardholder + virtual card with a spending limit. Returns card ID and cardholder ID. */
 export async function issueCard(
   instanceId: string,
   spendingLimitCents: number = DEFAULT_SPENDING_LIMIT_CENTS,
+  meta?: IssueCardMeta,
 ): Promise<{ cardId: string; cardholderId: string; last4: string; expMonth: number; expYear: number; brand: string }> {
   const stripe = getClient();
 
+  const cardholderMeta: Record<string, string> = {
+    instanceId,
+    poolEnvironment: config.poolEnvironment,
+  };
+  const cardMeta: Record<string, string> = { ...cardholderMeta };
+  if (meta?.agentName) {
+    cardholderMeta.agentName = meta.agentName;
+    cardMeta.agentName = meta.agentName;
+  }
+  if (meta?.instanceUrl) {
+    cardMeta.instanceUrl = meta.instanceUrl;
+    cardMeta.servicesUrl = `${meta.instanceUrl}/web-tools/services`;
+  }
+  if (meta?.railwayProjectId) {
+    cardMeta.railwayUrl = `https://railway.com/project/${meta.railwayProjectId}`;
+  }
+
   // Create cardholder with required individual fields for activation
   const cardholder = await stripe.issuing.cardholders.create({
-    name: CARDHOLDER_NAME,
+    name: `convos-agent-${instanceId}`,
     type: "individual",
     individual: {
       first_name: "Convos",
@@ -57,7 +81,7 @@ export async function issueCard(
         },
       ],
     },
-    metadata: { instanceId },
+    metadata: cardholderMeta,
   });
 
   console.log(`[stripe-issuing] Created cardholder ${cardholder.id} for instance ${instanceId}`);
@@ -76,7 +100,7 @@ export async function issueCard(
       ],
     },
     status: "active",
-    metadata: { instanceId },
+    metadata: cardMeta,
   });
 
   console.log(`[stripe-issuing] Created card ${card.id} (****${card.last4}) for instance ${instanceId}, limit=$${(spendingLimitCents / 100).toFixed(2)}`);

@@ -2,7 +2,7 @@ import express from "express";
 import { eq, and } from "drizzle-orm";
 import { config } from "./config";
 import { db as pgDb } from "./db/connection";
-import { instanceServices, payments } from "./db/schema";
+import { instanceServices, instanceInfra, payments } from "./db/schema";
 import * as db from "./db/pool";
 import * as openrouter from "./services/providers/openrouter";
 import * as stripe from "./services/providers/stripe";
@@ -307,8 +307,17 @@ stripeApiRouter.post("/api/pool/stripe/request-card", async (req, res) => {
       return;
     }
 
-    // Issue new card
-    const card = await issuing.issueCard(instanceId, cents);
+    // Issue new card — enrich with instance metadata for Stripe dashboard
+    const instance = await db.findById(instanceId);
+    const infraRows = await pgDb
+      .select({ providerProjectId: instanceInfra.providerProjectId })
+      .from(instanceInfra)
+      .where(eq(instanceInfra.instanceId, instanceId));
+    const card = await issuing.issueCard(instanceId, cents, {
+      agentName: instance?.agentName || instance?.name || instanceId,
+      instanceUrl: instance?.url || "",
+      railwayProjectId: infraRows[0]?.providerProjectId || "",
+    });
     await pgDb.insert(instanceServices).values({
       instanceId,
       toolId: "stripe-issuing",
@@ -475,8 +484,18 @@ stripeApiRouter.post("/api/pool/stripe/create-payment-intent", async (req, res) 
       customerId = existingRows[0].resourceId;
     } else {
       const instance = await db.findById(instanceId);
-      const name = instance?.agentName || instance?.name || instanceId;
-      customerId = await stripe.createCustomer(instanceId, name);
+      const infraRows = await pgDb
+        .select({ providerProjectId: instanceInfra.providerProjectId })
+        .from(instanceInfra)
+        .where(eq(instanceInfra.instanceId, instanceId));
+      const agentName = instance?.agentName || instance?.name || instanceId;
+      const instanceUrl = instance?.url || "";
+      const projectId = infraRows[0]?.providerProjectId || "";
+      customerId = await stripe.createCustomer(instanceId, {
+        agentName,
+        instanceUrl,
+        railwayProjectId: projectId,
+      });
       await pgDb.insert(instanceServices).values({
         instanceId,
         toolId: "stripe",
