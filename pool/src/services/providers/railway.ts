@@ -10,11 +10,14 @@ const GQL_BASE_DELAY_MS = 5000;
 
 const COOLDOWN_MS = 30_000;
 const tokenCooldowns = new Map<string, number>();
+const badTokens = new Set<string>();
 
 function getTokenPool(): string[] {
-  return config.railwayApiTokens.length > 0
+  const pool = config.railwayApiTokens.length > 0
     ? config.railwayApiTokens
     : [config.railwayApiToken];
+  const healthy = pool.filter((t) => !badTokens.has(t));
+  return healthy.length > 0 ? healthy : pool; // fall back to full pool if all marked bad
 }
 
 function getNextProjectCreateToken(): { token: string; waitMs: number; index: number } {
@@ -55,6 +58,13 @@ export class RailwayProjectRateLimitError extends Error {
   }
 }
 
+export class RailwayAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RailwayAuthError";
+  }
+}
+
 // Log token pool size on import
 {
   const pool = getTokenPool();
@@ -80,6 +90,10 @@ export async function gql(
       },
       body: JSON.stringify({ query, variables }),
     });
+
+    if (res.status === 401 || res.status === 403) {
+      throw new RailwayAuthError(`Railway API auth failed: ${res.status}`);
+    }
 
     if (res.status === 429 && attempt < GQL_MAX_RETRIES) {
       const delay = GQL_BASE_DELAY_MS * Math.pow(2, attempt - 1);
@@ -159,6 +173,11 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
       if (err instanceof RailwayProjectRateLimitError) {
         markTokenUsed(token);
         console.log(`[railway] Token ${index + 1}/${pool.length} rate-limited, rotating (${attempt + 1}/${maxAttempts})`);
+        continue;
+      }
+      if (err instanceof RailwayAuthError) {
+        badTokens.add(token);
+        console.warn(`[railway] Token ${index + 1}/${pool.length} auth failed — removed from pool (${attempt + 1}/${maxAttempts})`);
         continue;
       }
       throw err;
