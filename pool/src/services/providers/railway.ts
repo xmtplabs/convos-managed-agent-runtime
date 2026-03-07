@@ -159,11 +159,13 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
   const vars = { input: { name, workspaceId: tid } };
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const { token, waitMs, index } = getNextProjectCreateToken();
+    let { token, waitMs, index } = getNextProjectCreateToken();
 
     if (waitMs > 0) {
       console.log(`[railway] All tokens cooling — waiting ${(waitMs / 1000).toFixed(1)}s`);
       await new Promise((r) => setTimeout(r, waitMs));
+      // Re-select after sleeping — another caller may have taken our token
+      ({ token, waitMs, index } = getNextProjectCreateToken());
     }
 
     // Mark used BEFORE the call so concurrent callers each pick a different token
