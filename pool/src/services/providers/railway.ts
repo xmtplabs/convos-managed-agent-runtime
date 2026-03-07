@@ -66,8 +66,9 @@ export class RailwayAuthError extends Error {
 
 // Log token pool size on import
 {
+  const source = config.railwayApiTokens.length > 0 ? "RAILWAY_API_TOKENS" : "RAILWAY_API_TOKEN";
   const pool = getTokenPool();
-  console.log(`[railway] Token pool: ${pool.length} token${pool.length === 1 ? "" : 's'} configured`);
+  console.log(`[railway] Token pool: ${pool.length} token${pool.length === 1 ? "" : "s"} from ${source}`);
 }
 
 // ── GraphQL client ───────────────────────────────────────────────────────────
@@ -165,22 +166,26 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
       await new Promise((r) => setTimeout(r, waitMs));
     }
 
+    const poolSize = getTokenPool().length;
+    console.log(`[railway] projectCreate "${name}" — trying token ${index + 1}/${poolSize}`);
+
     try {
       const data = await gql(mutation, vars, token);
       markTokenUsed(token);
       const projectId = data.projectCreate.id;
-      console.log(`[railway] Created project "${name}" → ${projectId} via token ${index + 1}/${pool.length}`);
+      console.log(`[railway] Created project "${name}" → ${projectId} via token ${index + 1}/${poolSize}`);
       return { projectId };
     } catch (err) {
       if (err instanceof RailwayProjectRateLimitError) {
         markTokenUsed(token);
-        console.log(`[railway] Token ${index + 1}/${pool.length} rate-limited, rotating (${attempt + 1}/${maxAttempts})`);
+        console.log(`[railway] Token ${index + 1}/${poolSize} rate-limited, rotating (${attempt + 1}/${maxAttempts})`);
         continue;
       }
       if (err instanceof RailwayAuthError) {
         badTokens.add(token);
-        console.warn(`[railway] Token ${index + 1}/${pool.length} auth failed — removed from pool (${attempt + 1}/${maxAttempts})`);
-        if (getTokenPool().length === 0) {
+        const remaining = getTokenPool().length;
+        console.warn(`[railway] Token ${index + 1}/${poolSize} auth failed — removed from pool (${remaining} healthy remain)`);
+        if (remaining === 0) {
           throw new Error("projectCreate: all Railway API tokens failed auth — no healthy tokens remaining");
         }
         continue;
