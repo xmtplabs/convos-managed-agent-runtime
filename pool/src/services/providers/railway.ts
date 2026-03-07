@@ -16,8 +16,7 @@ function getTokenPool(): string[] {
   const pool = config.railwayApiTokens.length > 0
     ? config.railwayApiTokens
     : [config.railwayApiToken];
-  const healthy = pool.filter((t) => !badTokens.has(t));
-  return healthy.length > 0 ? healthy : pool; // fall back to full pool if all marked bad
+  return pool.filter((t) => !badTokens.has(t));
 }
 
 function getNextProjectCreateToken(): { token: string; waitMs: number; index: number } {
@@ -149,6 +148,9 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
   if (!tid) throw new Error("RAILWAY_TEAM_ID not set — required for sharded project creation");
 
   const pool = getTokenPool();
+  if (pool.length === 0) {
+    throw new Error("projectCreate: all Railway API tokens failed auth — no healthy tokens remaining");
+  }
   const maxAttempts = pool.length * 2;
   const mutation = `mutation($input: ProjectCreateInput!) {
     projectCreate(input: $input) { id }
@@ -178,6 +180,9 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
       if (err instanceof RailwayAuthError) {
         badTokens.add(token);
         console.warn(`[railway] Token ${index + 1}/${pool.length} auth failed — removed from pool (${attempt + 1}/${maxAttempts})`);
+        if (getTokenPool().length === 0) {
+          throw new Error("projectCreate: all Railway API tokens failed auth — no healthy tokens remaining");
+        }
         continue;
       }
       throw err;
