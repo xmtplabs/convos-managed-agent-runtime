@@ -166,18 +166,18 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
       await new Promise((r) => setTimeout(r, waitMs));
     }
 
+    // Mark used BEFORE the call so concurrent callers each pick a different token
+    markTokenUsed(token);
     const poolSize = getTokenPool().length;
     console.log(`[railway] projectCreate "${name}" — trying token ${index + 1}/${poolSize}`);
 
     try {
       const data = await gql(mutation, vars, token);
-      markTokenUsed(token);
       const projectId = data.projectCreate.id;
       console.log(`[railway] Created project "${name}" → ${projectId} via token ${index + 1}/${poolSize}`);
       return { projectId };
     } catch (err) {
       if (err instanceof RailwayProjectRateLimitError) {
-        markTokenUsed(token);
         console.log(`[railway] Token ${index + 1}/${poolSize} rate-limited, rotating (${attempt + 1}/${maxAttempts})`);
         continue;
       }
