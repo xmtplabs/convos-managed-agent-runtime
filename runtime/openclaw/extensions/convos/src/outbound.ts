@@ -1,6 +1,7 @@
 import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk";
 import type { ConvosInstance } from "./sdk-client.js";
 import { getConvosRuntime } from "./runtime.js";
+import { isContextOverflowText, checkCreditsLow, buildCreditErrorMessage } from "./openrouter.js";
 
 const TAG = "[convos/outbound]";
 
@@ -30,7 +31,20 @@ export const convosOutbound: ChannelOutboundAdapter = {
     if (to && to !== instance.conversationId) {
       throw new Error(`${TAG} routing mismatch: bound to ${instance.conversationId}, but target is ${to}`);
     }
-    const result = await instance.sendMessage(text);
+
+    // OpenClaw misclassifies OpenRouter 402 (credit exhaustion) as context
+    // overflow.  When we see that rewritten text, verify against the pool
+    // server and swap in the correct "out of credits" message.
+    let outText = text;
+    if (isContextOverflowText(text)) {
+      const low = await checkCreditsLow();
+      if (low) {
+        outText = buildCreditErrorMessage();
+        console.log(`${TAG} rewriting context-overflow to credit error (credits low)`);
+      }
+    }
+
+    const result = await instance.sendMessage(outText);
     const mid = result.messageId ?? `convos-${Date.now()}`;
     console.log(`${TAG} sendText delivered mid=${mid}`);
     return {
