@@ -45,7 +45,7 @@
       "userTimezone": "America/New_York",
     
       "heartbeat": {
-        "every": "30m",
+        "every": "60s",
         "model": "openrouter/openai/gpt-4o-mini",
         "target": "convos",
         "activeHours": {

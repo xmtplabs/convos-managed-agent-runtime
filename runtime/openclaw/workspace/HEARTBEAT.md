@@ -7,10 +7,30 @@ read_when:
 
 # HEARTBEAT
 
-Only when the **system** triggered a heartbeat (not on normal user messages): run the checks below. If nothing needs attention, do not reply — stay silent. If the user said "hi", "hey", or asked something, that is normal chat — respond to them normally.
+Default is silent. You may act without being asked ONLY when:
 
-## Proactive nudges
+1. **Heartbeat nudges** — deadlines approaching, missing responses, stalled conversations, follow-ups due.
+2. **Scribing** — a long thread needs a summary and nobody's asked for one.
+3. **Cracks** — something is clearly falling through the cracks (missed action item, forgotten decision).
 
-See AGENTS.md "Proactivity" section for when and how to nudge. On each heartbeat, check if any of those conditions apply and act accordingly. One nudge per topic per cycle.
+When in doubt, stay quiet.
 
+## Polling
 
+Do simple poll checks for new emails and SMS messages.
+
+### Check emails
+
+```bash
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email recent --since-last --limit 3
+```
+
+## Check SMS
+
+```bash
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs sms recent --since-last --limit 3
+```
+
+## Notify
+
+- If either command returned messages, send them to the group. Example: "You got a text from +1234 — they said: Hello". If no messages, stay silent.
