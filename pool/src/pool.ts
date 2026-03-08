@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import * as db from "./db/pool";
+import { authFetch } from "./authFetch";
 import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance, type ProgressCallback } from "./services/infra";
 import { fetchBatchStatus } from "./services/status";
 import { metricCount, metricHistogram } from "./metrics";
@@ -76,10 +77,8 @@ export { provision } from "./provision";
 // Health-check a single instance via /pool/health.
 export async function healthCheck(url: string, gatewayToken?: string | null) {
   try {
-    const headers: Record<string, string> = {};
-    if (gatewayToken) headers.Authorization = `Bearer ${gatewayToken}`;
-    const res = await fetch(`${url}/pool/health`, {
-      headers,
+    const res = await authFetch(`${url}/pool/health`, {
+      gatewayToken,
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
@@ -254,8 +253,8 @@ export async function recheckInstance(id: string) {
   let runtimeConvoId: string | null = null;
   let statusKnown = false;
   try {
-    const csRes = await fetch(`${inst.url}/convos/status`, {
-      headers: instToken ? { Authorization: `Bearer ${instToken}` } : {},
+    const csRes = await authFetch(`${inst.url}/convos/status`, {
+      gatewayToken: instToken,
       signal: AbortSignal.timeout(5000),
     });
     if (csRes.ok) {
