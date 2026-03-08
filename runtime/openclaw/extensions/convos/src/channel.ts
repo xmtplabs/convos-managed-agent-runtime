@@ -754,9 +754,9 @@ async function stopInstance(accountId: string, log?: RuntimeLogger) {
  */
 export async function selfDestruct(reason?: string): Promise<void> {
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
-  const poolApiKey = process.env.POOL_API_KEY;
+  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (poolApiKey) headers["Authorization"] = `Bearer ${poolApiKey}`;
+  if (gatewayToken) headers["Authorization"] = `Bearer ${gatewayToken}`;
 
   console.log(`[convos] Self-destruct requested${reason ? `: ${reason}` : ""}`);
 

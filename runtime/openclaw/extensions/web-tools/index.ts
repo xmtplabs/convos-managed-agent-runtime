@@ -21,23 +21,16 @@ function serveFile(
   }
 }
 
-/** Read poolApiKey from runtime config so the landing page can auth to convos endpoints. */
-function getPoolApiKey(api: OpenClawPluginApi): string {
-  try {
-    const cfg = api.runtime.config.loadConfig() as Record<string, unknown>;
-    const channels = cfg.channels as Record<string, unknown> | undefined;
-    const convos = channels?.convos as Record<string, unknown> | undefined;
-    return (convos?.poolApiKey as string) || "";
-  } catch {
-    return "";
-  }
+/** Read OPENCLAW_GATEWAY_TOKEN from env so pages can auth to convos endpoints. */
+function getGatewayToken(): string {
+  return process.env.OPENCLAW_GATEWAY_TOKEN || "";
 }
 
-/** Serve an HTML page with the poolApiKey injected as a JS variable. */
-function servePageWithToken(api: OpenClawPluginApi, htmlPath: string, res: ServerResponse) {
+/** Serve an HTML page with the gateway token injected as a JS variable. */
+function servePageWithToken(htmlPath: string, res: ServerResponse) {
   try {
     let html = fs.readFileSync(htmlPath, "utf-8");
-    const token = getPoolApiKey(api);
+    const token = getGatewayToken();
     // Inject token before the closing </head> tag so it's available to scripts
     const injection = `<script>window.__POOL_TOKEN=${JSON.stringify(token)};</script>`;
     html = html.replace("</head>", injection + "\n</head>");
@@ -51,9 +44,9 @@ function servePageWithToken(api: OpenClawPluginApi, htmlPath: string, res: Serve
   }
 }
 
-/** Serve the landing page with the poolApiKey injected as a JS variable. */
-function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: ServerResponse) {
-  servePageWithToken(api, path.join(agentsDir, "landing.html"), res);
+/** Serve the landing page with the gateway token injected as a JS variable. */
+function serveLandingPage(agentsDir: string, res: ServerResponse) {
+  servePageWithToken(path.join(agentsDir, "landing.html"), res);
 }
 
 /** Build service identity + credits data from env vars and pool manager. */
@@ -138,7 +131,7 @@ export default function register(api: OpenClawPluginApi) {
         res.end();
         return;
       }
-      serveLandingPage(api, agentsDir, res);
+      serveLandingPage(agentsDir, res);
     },
   });
 
@@ -150,7 +143,7 @@ export default function register(api: OpenClawPluginApi) {
         res.end();
         return;
       }
-      serveLandingPage(api, agentsDir, res);
+      serveLandingPage(agentsDir, res);
     },
   });
 
@@ -209,7 +202,7 @@ export default function register(api: OpenClawPluginApi) {
         res.end();
         return;
       }
-      servePageWithToken(api, path.join(servicesDir, "services.html"), res);
+      servePageWithToken(path.join(servicesDir, "services.html"), res);
     },
   });
 
@@ -221,7 +214,7 @@ export default function register(api: OpenClawPluginApi) {
         res.end();
         return;
       }
-      servePageWithToken(api, path.join(servicesDir, "services.html"), res);
+      servePageWithToken(path.join(servicesDir, "services.html"), res);
     },
   });
 

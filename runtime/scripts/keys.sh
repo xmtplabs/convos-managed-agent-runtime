@@ -34,7 +34,6 @@ fi
 echo ""
 echo "  ── pool ──────────────────────"
 [ -n "$POOL_URL" ] && echo "  ✅ POOL_URL                → $POOL_URL" || echo "  ⬚  POOL_URL                → not set"
-[ -n "$POOL_API_KEY" ] && echo "  ✅ POOL_API_KEY            → set" || echo "  ⬚  POOL_API_KEY            → not set"
 [ -n "$INSTANCE_ID" ] && echo "  ✅ INSTANCE_ID             → $INSTANCE_ID" || echo "  ⬚  INSTANCE_ID             → not set"
 if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
   echo "  ✅ SERVICE_URL             → https://$RAILWAY_PUBLIC_DOMAIN"
@@ -54,22 +53,6 @@ if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
 else
   gateway_token=$(openssl rand -hex 32)
   echo "  🔧 OPENCLAW_GATEWAY_TOKEN  → generated"
-fi
-
-if [ -n "$SETUP_PASSWORD" ]; then
-  setup_password="$SETUP_PASSWORD"
-  echo "  ✅ SETUP_PASSWORD          → from env"
-else
-  setup_password=$(openssl rand -hex 16)
-  echo "  🔧 SETUP_PASSWORD          → generated"
-fi
-
-if [ -n "$PRIVATE_WALLET_KEY" ]; then
-  private_wallet_key="$PRIVATE_WALLET_KEY"
-  echo "  ✅ PRIVATE_WALLET_KEY      → from env"
-else
-  private_wallet_key="0x$(openssl rand -hex 32)"
-  echo "  🔧 PRIVATE_WALLET_KEY      → generated"
 fi
 
 if [ -n "$OPENCLAW_PRIMARY_MODEL" ]; then
@@ -104,22 +87,18 @@ if [ -n "$RAILWAY_ENVIRONMENT" ]; then
   telnyx_phone="${TELNYX_PHONE_NUMBER:-}"
   telnyx_profile="${TELNYX_MESSAGING_PROFILE_ID:-}"
   pool_url="${POOL_URL:-}"
-  pool_api_key="${POOL_API_KEY:-}"
   instance_id="${INSTANCE_ID:-}"
 
   touch "$ENV_FILE"
   tmp=$(mktemp)
-  grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^SETUP_PASSWORD=' | grep -v '^PRIVATE_WALLET_KEY=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^TELNYX_MESSAGING_PROFILE_ID=' | grep -v '^POOL_URL=' | grep -v '^POOL_API_KEY=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
+  grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^TELNYX_MESSAGING_PROFILE_ID=' | grep -v '^POOL_URL=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
   echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
-  echo "SETUP_PASSWORD=$setup_password" >> "$tmp"
-  echo "PRIVATE_WALLET_KEY=$private_wallet_key" >> "$tmp"
   if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
   if [ -n "$agentmail_inbox" ]; then echo "AGENTMAIL_INBOX_ID=$agentmail_inbox" >> "$tmp"; fi
   if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
   if [ -n "$telnyx_phone" ]; then echo "TELNYX_PHONE_NUMBER=$telnyx_phone" >> "$tmp"; fi
   if [ -n "$telnyx_profile" ]; then echo "TELNYX_MESSAGING_PROFILE_ID=$telnyx_profile" >> "$tmp"; fi
   if [ -n "$pool_url" ]; then echo "POOL_URL=$pool_url" >> "$tmp"; fi
-  if [ -n "$pool_api_key" ]; then echo "POOL_API_KEY=$pool_api_key" >> "$tmp"; fi
   if [ -n "$instance_id" ]; then echo "INSTANCE_ID=$instance_id" >> "$tmp"; fi
   mv "$tmp" "$ENV_FILE"
 

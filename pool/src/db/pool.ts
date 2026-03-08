@@ -186,6 +186,14 @@ export async function findInstanceByToken(instanceId: string, gatewayToken: stri
   return rows.length > 0;
 }
 
+/** Look up the gateway token for an instance. */
+export async function getGatewayToken(instanceId: string): Promise<string | null> {
+  const rows = await db.select({ gatewayToken: instanceInfra.gatewayToken })
+    .from(instanceInfra)
+    .where(eq(instanceInfra.instanceId, instanceId));
+  return rows[0]?.gatewayToken ?? null;
+}
+
 export async function setRuntimeVersion(instanceId: string, version: string) {
   await db.update(instanceInfra).set({
     runtimeVersion: version,

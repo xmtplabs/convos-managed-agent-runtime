@@ -2,7 +2,6 @@ import { nanoid } from "nanoid";
 import * as db from "./db/pool";
 import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance, type ProgressCallback } from "./services/infra";
 import { fetchBatchStatus } from "./services/status";
-import { config } from "./config";
 import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 import * as railway from "./services/providers/railway";
@@ -75,10 +74,12 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 export { provision } from "./provision";
 
 // Health-check a single instance via /pool/health.
-export async function healthCheck(url: string) {
+export async function healthCheck(url: string, gatewayToken?: string | null) {
   try {
+    const headers: Record<string, string> = {};
+    if (gatewayToken) headers.Authorization = `Bearer ${gatewayToken}`;
     const res = await fetch(`${url}/pool/health`, {
-      headers: { Authorization: `Bearer ${config.poolApiKey}` },
+      headers,
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
@@ -94,7 +95,8 @@ export async function checkStarting() {
   const promoted: string[] = [];
   for (const row of rows) {
     if (!row.url) continue;
-    const hc = await healthCheck(row.url);
+    const token = await db.getGatewayToken(row.id);
+    const hc = await healthCheck(row.url, token);
     if (hc?.ready) {
       await db.updateStatus(row.id, { status: "idle" });
       if (hc.version) await db.setRuntimeVersion(row.id, hc.version);
@@ -241,7 +243,8 @@ export async function recheckInstance(id: string) {
     return { id, status: inst.status, changed: false, reason: "no_url" };
   }
 
-  const hc = await healthCheck(inst.url);
+  const instToken = await db.getGatewayToken(id);
+  const hc = await healthCheck(inst.url, instToken);
   if (!hc?.ready) {
     console.log(`[pool] recheck ${id}: health check failed (status=${inst.status}, url=${inst.url}, hc=${JSON.stringify(hc)})`);
     return { id, status: inst.status, changed: false, reason: "health_failed", agentName: inst.agentName || null };
@@ -252,7 +255,7 @@ export async function recheckInstance(id: string) {
   let statusKnown = false;
   try {
     const csRes = await fetch(`${inst.url}/convos/status`, {
-      headers: { Authorization: `Bearer ${config.poolApiKey}` },
+      headers: instToken ? { Authorization: `Bearer ${instToken}` } : {},
       signal: AbortSignal.timeout(5000),
     });
     if (csRes.ok) {

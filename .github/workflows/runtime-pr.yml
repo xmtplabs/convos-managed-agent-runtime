@@ -92,7 +92,6 @@ jobs:
             -e TELNYX_PHONE_NUMBER="${{ secrets.TELNYX_PHONE_NUMBER }}" \
             -e TELNYX_MESSAGING_PROFILE_ID="${{ secrets.TELNYX_MESSAGING_PROFILE_ID }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
-            -e PRIVATE_WALLET_KEY="${{ secrets.PRIVATE_WALLET_KEY }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \

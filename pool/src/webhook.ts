@@ -137,14 +137,15 @@ async function runHealthCheckWithRetries(
       await new Promise((r) => setTimeout(r, HEALTH_CHECK_INTERVAL_MS));
     }
 
-    const hc = await healthCheck(url);
+    const instToken = await db.getGatewayToken(instanceId);
+    const hc = await healthCheck(url, instToken);
     if (hc?.ready) {
       // Ask the runtime whether it has an active conversation
       let runtimeConvoId: string | null = null;
       let statusKnown = false;
       try {
         const csRes = await fetch(`${url}/convos/status`, {
-          headers: { Authorization: `Bearer ${config.poolApiKey}` },
+          headers: instToken ? { Authorization: `Bearer ${instToken}` } : {},
           signal: AbortSignal.timeout(5000),
         });
         if (csRes.ok) {

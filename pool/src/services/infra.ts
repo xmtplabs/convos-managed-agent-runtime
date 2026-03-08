@@ -26,15 +26,11 @@ export async function createInstance(
 ): Promise<CreateInstanceResponse> {
   // Generate secrets
   const gatewayToken = wallet.generateGatewayToken();
-  const setupPassword = wallet.generateSetupPassword();
-  const walletKey = wallet.generatePrivateWalletKey();
 
   // Build env vars
   const vars: Record<string, string> = { ...buildInstanceEnv() };
   vars.INSTANCE_ID = instanceId;
   vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
-  vars.SETUP_PASSWORD = setupPassword;
-  vars.PRIVATE_WALLET_KEY = walletKey;
 
   // Provision requested tools (rollback on failure to avoid leaked resources)
   const services: CreateInstanceResponse["services"] = {};

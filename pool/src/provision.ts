@@ -1,5 +1,4 @@
 import * as db from "./db/pool";
-import { config } from "./config";
 import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 
@@ -47,9 +46,10 @@ export async function provision(opts: ProvisionOpts) {
 
     report("provision", "active", joinUrl ? "Joining conversation…" : "Configuring agent…");
 
+    const gatewayToken = await db.getGatewayToken(instance.id);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${config.poolApiKey}`,
+      ...(gatewayToken ? { Authorization: `Bearer ${gatewayToken}` } : {}),
     };
 
     const provisionRes = await fetch(`${instance.url}/pool/provision`, {
