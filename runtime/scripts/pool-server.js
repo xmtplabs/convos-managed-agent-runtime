@@ -206,7 +206,10 @@ const server = http.createServer(async (req, res) => {
     // Once convos is ready, cache it — no need to re-check
     if (!convosReady) {
       try {
+        const headers = {};
+        if (GATEWAY_TOKEN) headers["Authorization"] = `Bearer ${GATEWAY_TOKEN}`;
         const cRes = await fetch(`http://localhost:${INTERNAL_PORT}/convos/status`, {
+          headers,
           signal: AbortSignal.timeout(3000),
         });
         if (cRes.ok) {
