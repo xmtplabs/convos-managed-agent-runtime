@@ -45,8 +45,8 @@
       "userTimezone": "America/New_York",
     
       "heartbeat": {
-        "every": "60s",
-        "model": "openrouter/openai/gpt-4o-mini",
+        "every": "30m",
+        "model": "openrouter/minimax/minimax-m2.5",
         "target": "convos",
         "activeHours": {
           "start": "08:00",
@@ -153,6 +153,7 @@
           { "id": "openrouter/openai/gpt-4o", "name": "GPT-4o", "input": ["text", "image"] },
           { "id": "openrouter/openai/gpt-4o-mini", "name": "GPT-4o Mini", "input": ["text", "image"] },
           { "id": "openrouter/mistralai/mistral-large-2411", "name": "Mistral Large" },
+          { "id": "openrouter/minimax/minimax-m2.5", "name": "MiniMax M2.5" },
 
           { "id": "anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4", "input": ["text", "image"] },
           { "id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6", "input": ["text", "image"] },

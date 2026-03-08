@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.22
+
+- Add email and SMS polling to heartbeat
+- Switch heartbeat model to MiniMax M2.5, interval to 30m
+- Add MiniMax M2.5 to OpenRouter model list
+
 ## 0.0.21
 
 - Bump `@xmtp/convos-cli` from v0.3.2 to v0.4.0
