@@ -197,9 +197,8 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
 // --- Pool HTTP server ---
 
 const server = http.createServer(async (req, res) => {
-  // GET /pool/health
+  // GET /pool/health — no auth required (used by Railway health checks and CI)
   if (req.method === "GET" && req.url === "/pool/health") {
-    if (!checkAuth(req, res)) return;
     if (!gatewayReady) {
       json(res, 200, { ready: false });
       return;
