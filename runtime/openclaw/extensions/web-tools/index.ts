@@ -247,6 +247,19 @@ export default function register(api: OpenClawPluginApi) {
     },
   });
 
+  // Serve extracted CSS for services page
+  api.registerHttpRoute({
+    path: "/web-tools/services/services.css",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      serveFile(res, path.join(servicesDir, "services.css"), "text/css", "max-age=3600");
+    },
+  });
+
   // Credits top-up proxy — forwards request to pool manager
   api.registerHttpRoute({
     path: "/web-tools/services/topup",
@@ -286,6 +299,57 @@ export default function register(api: OpenClawPluginApi) {
         res.statusCode = 502;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
+    },
+  });
+
+  // Coupon redemption proxy — forwards request to pool manager
+  api.registerHttpRoute({
+    path: "/web-tools/services/redeem-coupon",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Coupon redemption not available" }));
+        return;
+      }
+
+      try {
+        // Read body from request
+        let body = "";
+        await new Promise<void>((resolve) => {
+          req.on("data", (chunk: Buffer) => {
+            body += chunk.toString();
+          });
+          req.on("end", resolve);
+        });
+        const parsed = JSON.parse(body || "{}");
+
+        const poolRes = await fetch(`${poolUrl}/api/pool/redeem-coupon`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken, code: parsed.code }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const result = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(result));
+      } catch (err: any) {
+        console.warn(`[web-tools] Coupon redemption error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach server" }));
       }
     },
   });

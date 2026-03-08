@@ -17,6 +17,7 @@ import * as openrouter from "./services/providers/openrouter";
 import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
+import { couponRouter } from "./couponRoute";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -173,6 +174,7 @@ app.post("/api/pool/self-destruct", async (req, res) => {
 
 // --- Railway webhook (public — auth via secret in URL path) ---
 app.use(webhookRouter);
+app.use(couponRouter);
 
 // Credits check — instance queries its own spending balance.
 // Auth: instance sends its own ID + gateway token (same as self-destruct).
