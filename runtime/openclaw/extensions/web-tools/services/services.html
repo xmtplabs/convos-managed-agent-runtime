@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/web-tools/services/services.css">
+  <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <div class="card">
@@ -60,6 +61,24 @@
             </button>
           </div>
 
+          <!-- Spending card -->
+          <div class="service-item" id="svc-card">
+            <div class="service-body">
+              <div class="service-label">spending card</div>
+              <div class="service-value" id="card-value"><div class="loading-shimmer"></div></div>
+              <div class="credits-bar" id="card-bar" style="display:none">
+                <div class="credits-bar-fill" id="card-bar-fill"></div>
+              </div>
+              <div class="credits-detail" id="card-detail" style="display:none">
+                <span id="card-spent"></span>
+                <span id="card-limit"></span>
+              </div>
+            </div>
+            <button class="manage-icon-btn" id="card-manage-btn" style="display:none" title="Fund spending card">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+            </button>
+          </div>
+
           <!-- Processing power -->
           <div class="service-item" id="svc-credits">
             <div class="service-body">
@@ -97,18 +116,85 @@
         </div>
 
         <div id="manage-content">
-          <div class="coupon-row" id="coupon-row">
-            <input type="text" id="coupon-input" class="coupon-input" placeholder="enter coupon code">
+          <div class="package-buttons" id="package-buttons">
+            <button class="package-btn" data-cents="2000">$20</button>
+            <button class="package-btn" data-cents="5000">$50</button>
+            <button class="package-btn" data-cents="10000">$100</button>
+          </div>
+          <div class="package-buttons" id="secondary-buttons">
+            <button class="package-btn" id="custom-toggle">custom</button>
+            <button class="package-btn" id="coupon-toggle">coupon</button>
+          </div>
+          <input type="number" id="custom-amount" class="custom-amount-input" placeholder="$ amount" min="1" step="1" style="display:none">
+          <div class="coupon-row" id="coupon-row" style="display:none">
+            <input type="text" id="coupon-input" class="custom-amount-input" placeholder="enter code" style="margin-bottom:0;flex:1">
             <button class="pay-btn" id="coupon-btn" style="width:auto;padding:0.4rem 0.8rem;font-size:0.7rem">redeem</button>
           </div>
           <div class="coupon-status" id="coupon-status"></div>
+          <div class="stripe-form" id="stripe-form">
+            <div id="card-element" class="card-hidden"></div>
+            <button class="pay-btn" id="pay-btn" disabled>pay</button>
+          </div>
+          <div class="payment-status" id="payment-status"></div>
+          <div class="test-fill-row" id="test-fill-credits" style="display:none">
+            <button class="test-fill-btn" data-copy="4242424242424242">4242...4242</button>
+            <button class="test-fill-btn" data-copy="01/30">01/30</button>
+            <button class="test-fill-btn" data-copy="123">123</button>
+            <button class="test-fill-btn" data-copy="12345">12345</button>
+          </div>
         </div>
 
-        <div class="success-overlay" id="success-overlay">
-          <div class="success-icon">
+        <div class="payment-success-overlay" id="payment-success">
+          <div class="payment-success-icon">
             <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          <div class="success-text" id="success-text"></div>
+          <div class="payment-success-text" id="payment-success-text"></div>
+        </div>
+
+        <div class="manage-unavailable" id="manage-unavailable" style="display:none">
+          payments not available
+        </div>
+      </div>
+
+      <!-- ====== CARD MANAGE SCREEN (spending card) ====== -->
+      <div class="screen" id="screen-card">
+        <div class="manage-header">
+          <button class="back-btn" id="card-back-btn" title="Back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          </button>
+          <span class="manage-title">spending card</span>
+        </div>
+
+        <div class="manage-balance" id="card-balance-section" style="display:none">
+          <div class="manage-balance-label">remaining balance</div>
+          <div class="manage-balance-value" id="card-manage-balance">$0.00</div>
+        </div>
+
+        <div id="card-content">
+          <p style="font-size:0.72rem;color:#888;line-height:1.45;margin-bottom:1rem;">Fund a prepaid Visa for your assistant. It can use the card to make online purchases, pay for subscriptions, and book services on your behalf.</p>
+          <div class="package-buttons" id="card-package-buttons">
+            <button class="package-btn card-pkg-btn" data-cents="2000">$20</button>
+            <button class="package-btn card-pkg-btn" data-cents="5000">$50</button>
+            <button class="package-btn card-pkg-btn" data-cents="10000">$100</button>
+          </div>
+          <div class="stripe-form" id="card-stripe-form">
+            <div id="card-card-element" class="card-hidden"></div>
+            <button class="pay-btn" id="card-pay-btn" disabled>get card</button>
+          </div>
+          <div class="payment-status" id="card-payment-status"></div>
+          <div class="test-fill-row" id="test-fill-card" style="display:none">
+            <button class="test-fill-btn" data-copy="4242424242424242">4242...4242</button>
+            <button class="test-fill-btn" data-copy="01/30">01/30</button>
+            <button class="test-fill-btn" data-copy="123">123</button>
+            <button class="test-fill-btn" data-copy="12345">12345</button>
+          </div>
+        </div>
+
+        <div class="payment-success-overlay" id="card-payment-success">
+          <div class="payment-success-icon">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="payment-success-text" id="card-payment-success-text"></div>
         </div>
       </div>
 
@@ -123,31 +209,63 @@
 
       // Landing screen
       var svcInstance    = document.getElementById("svc-instance");
-      var instanceValue  = document.getElementById("instance-value");
+      var instanceValue = document.getElementById("instance-value");
       var copyInstance   = document.getElementById("copy-instance");
-      var emailValue     = document.getElementById("email-value");
-      var phoneValue     = document.getElementById("phone-value");
-      var copyEmail      = document.getElementById("copy-email");
-      var copyPhone      = document.getElementById("copy-phone");
-      var creditsValue   = document.getElementById("credits-value");
-      var creditsBar     = document.getElementById("credits-bar");
+      var emailValue    = document.getElementById("email-value");
+      var phoneValue    = document.getElementById("phone-value");
+      var copyEmail     = document.getElementById("copy-email");
+      var copyPhone     = document.getElementById("copy-phone");
+      var creditsValue  = document.getElementById("credits-value");
+      var creditsBar    = document.getElementById("credits-bar");
       var creditsBarFill = document.getElementById("credits-bar-fill");
-      var creditsDetail  = document.getElementById("credits-detail");
-      var creditsUsed    = document.getElementById("credits-used");
-      var creditsLimit   = document.getElementById("credits-limit");
-      var errorEl        = document.getElementById("error");
-      var manageBtn      = document.getElementById("manage-btn");
-      var cardViewport   = document.getElementById("card-viewport");
+      var creditsDetail = document.getElementById("credits-detail");
+      var creditsUsed   = document.getElementById("credits-used");
+      var creditsLimit  = document.getElementById("credits-limit");
+      var errorEl       = document.getElementById("error");
+      var manageBtn     = document.getElementById("manage-btn");
+      var cardViewport  = document.getElementById("card-viewport");
 
-      // Manage screen
-      var backBtn            = document.getElementById("back-btn");
-      var manageBalanceValue = document.getElementById("manage-balance-value");
-      var manageContent      = document.getElementById("manage-content");
-      var successOverlay     = document.getElementById("success-overlay");
-      var successText        = document.getElementById("success-text");
-      var couponInput        = document.getElementById("coupon-input");
-      var couponBtn          = document.getElementById("coupon-btn");
-      var couponStatus       = document.getElementById("coupon-status");
+      // Manage screen (processing power)
+      var backBtn             = document.getElementById("back-btn");
+      var manageBalanceValue  = document.getElementById("manage-balance-value");
+      var manageContent       = document.getElementById("manage-content");
+      var manageUnavailable   = document.getElementById("manage-unavailable");
+      var paymentSuccessEl    = document.getElementById("payment-success");
+      var paymentSuccessText  = document.getElementById("payment-success-text");
+      var packageButtons      = document.querySelectorAll("#package-buttons .package-btn, #secondary-buttons .package-btn");
+      var stripeForm          = document.getElementById("stripe-form");
+      var payBtn              = document.getElementById("pay-btn");
+      var paymentStatus       = document.getElementById("payment-status");
+      var customAmountInput   = document.getElementById("custom-amount");
+      var customToggle        = document.getElementById("custom-toggle");
+      var couponToggle        = document.getElementById("coupon-toggle");
+      var couponRow           = document.getElementById("coupon-row");
+      var couponInput         = document.getElementById("coupon-input");
+      var couponBtn           = document.getElementById("coupon-btn");
+      var couponStatus        = document.getElementById("coupon-status");
+
+      // Card manage screen (spending card)
+      var cardValue          = document.getElementById("card-value");
+      var cardBar            = document.getElementById("card-bar");
+      var cardBarFill        = document.getElementById("card-bar-fill");
+      var cardDetail         = document.getElementById("card-detail");
+      var cardSpent          = document.getElementById("card-spent");
+      var cardLimitEl        = document.getElementById("card-limit");
+      var cardManageBtn      = document.getElementById("card-manage-btn");
+      var cardBackBtn        = document.getElementById("card-back-btn");
+      var cardBalanceSection  = document.getElementById("card-balance-section");
+      var cardManageBalance   = document.getElementById("card-manage-balance");
+      var cardContent         = document.getElementById("card-content");
+      var cardPkgButtons      = document.querySelectorAll(".card-pkg-btn");
+      var cardStripeForm      = document.getElementById("card-stripe-form");
+      var cardPayBtn          = document.getElementById("card-pay-btn");
+      var cardPaymentStatus   = document.getElementById("card-payment-status");
+      var cardPaymentSuccessEl   = document.getElementById("card-payment-success");
+      var cardPaymentSuccessText = document.getElementById("card-payment-success-text");
+
+      // ── State ───────────────────────────────────────────────────
+
+      var isProductionMode = false;
 
       // ── Auth ────────────────────────────────────────────────────
 
@@ -215,6 +333,38 @@
         }
       }
 
+      var currentCardData = null;
+
+      function renderCard(card) {
+        currentCardData = card;
+        if (card && card.hasCard) {
+          var limitCents = card.spendingLimitCents || 0;
+          var spentCents = card.spentCents || 0;
+          var remainCents = limitCents - spentCents;
+          var pct = limitCents > 0 ? Math.min(100, (spentCents / limitCents) * 100) : 0;
+
+          cardValue.textContent = card.brand + " ****" + card.last4 + "  $" + (remainCents / 100).toFixed(2);
+          cardValue.className = "service-value";
+          cardBar.style.display = "block";
+          cardBarFill.style.width = pct.toFixed(1) + "%";
+          cardDetail.style.display = "flex";
+          cardSpent.textContent = "$" + (spentCents / 100).toFixed(2) + " spent";
+          cardLimitEl.textContent = "$" + (limitCents / 100).toFixed(2) + " limit";
+          cardManageBtn.style.display = "block";
+          cardManageBtn.title = "Add funds to card";
+          cardPayBtn.textContent = "add funds";
+          cardBalanceSection.style.display = "block";
+          cardManageBalance.textContent = "$" + (remainCents / 100).toFixed(2);
+        } else {
+          cardValue.textContent = "no card";
+          cardValue.className = "service-value service-value--null";
+          cardManageBtn.style.display = "block";
+          cardManageBtn.title = "Get spending card";
+          cardPayBtn.textContent = "get card";
+          cardBalanceSection.style.display = "none";
+        }
+      }
+
       // ── Screen navigation ───────────────────────────────────────
 
       function showManageScreen() {
@@ -223,19 +373,223 @@
 
       function showLandingScreen() {
         cardViewport.classList.remove("show-manage");
-        resetForm();
+        resetPaymentForm();
       }
 
-      manageBtn.addEventListener("click", showManageScreen);
-      backBtn.addEventListener("click", showLandingScreen);
+      function showCardScreen() {
+        cardViewport.classList.remove("show-manage");
+        cardViewport.classList.add("show-card");
+        if (!cardStripeReady && !stripeInitFailed) initCardStripe();
+      }
 
-      function resetForm() {
+      function showLandingFromCard() {
+        cardViewport.classList.remove("show-card");
+        resetCardForm();
+      }
+
+      manageBtn.addEventListener("click", function () {
+        showManageScreen();
+        if (!stripeReady && !stripeInitFailed) initStripe();
+      });
+      backBtn.addEventListener("click", showLandingScreen);
+      cardManageBtn.addEventListener("click", showCardScreen);
+      cardBackBtn.addEventListener("click", showLandingFromCard);
+
+      // ── Stripe state ────────────────────────────────────────────
+
+      var stripeInstance = null;
+      var cardElement = null;
+      var stripeReady = false;
+      var stripeInitFailed = false;
+      var selectedAmountCents = 0;
+
+      var cardElement2 = null;
+      var cardStripeReady = false;
+      var cardSelectedCents = 0;
+
+      // ── Reset forms ─────────────────────────────────────────────
+
+      function resetPaymentForm() {
+        selectedAmountCents = 0;
+        stripeForm.style.display = "none";
+        payBtn.disabled = true;
+        payBtn.textContent = "pay";
+        paymentStatus.textContent = "";
+        paymentStatus.className = "payment-status";
+        manageContent.style.display = "";
+        paymentSuccessEl.classList.remove("visible");
+        packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+        if (customAmountInput) { customAmountInput.value = ""; customAmountInput.style.display = "none"; }
+        if (isProductionMode) {
+          // Production: coupon-only — always show coupon row
+          if (couponRow) couponRow.style.display = "flex";
+        } else {
+          if (customToggle) customToggle.style.display = "block";
+          if (couponRow) couponRow.style.display = "none";
+          if (couponToggle) couponToggle.style.display = "block";
+        }
+        if (couponInput) couponInput.value = "";
+        if (couponStatus) { couponStatus.textContent = ""; couponStatus.className = "coupon-status"; }
+      }
+
+      function resetCardForm() {
+        cardSelectedCents = 0;
+        cardStripeForm.style.display = "none";
+        cardPayBtn.disabled = true;
+        cardPayBtn.textContent = (currentCardData && currentCardData.hasCard) ? "add funds" : "get card";
+        cardPaymentStatus.textContent = "";
+        cardPaymentStatus.className = "payment-status";
+        cardContent.style.display = "";
+        cardPaymentSuccessEl.classList.remove("visible");
+        cardPkgButtons.forEach(function (b) { b.classList.remove("selected"); });
+      }
+
+      // ── Stripe init ─────────────────────────────────────────────
+
+      function initStripe() {
+        paymentStatus.textContent = "loading...";
+        paymentStatus.className = "payment-status";
+
+        fetch("/web-tools/services/stripe-config", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.publishableKey) {
+              stripeInitFailed = true;
+              paymentStatus.textContent = "";
+              return;
+            }
+            stripeInstance = Stripe(_.data.publishableKey);
+            var elements = stripeInstance.elements();
+            cardElement = elements.create("card", {
+              style: {
+                base: { fontSize: "16px", color: "#333", fontFamily: "system-ui, -apple-system, sans-serif", "::placeholder": { color: "#bbb" } },
+                invalid: { color: "#c44" },
+              },
+            });
+            cardElement.mount("#card-element");
+            document.getElementById("card-element").classList.remove("card-hidden");
+            stripeReady = true;
+            paymentStatus.textContent = "";
+          })
+          .catch(function () {
+            stripeInitFailed = true;
+            paymentStatus.textContent = "";
+          });
+      }
+
+      function initCardStripe() {
+        if (cardStripeReady) return;
+        cardPaymentStatus.textContent = "loading...";
+        cardPaymentStatus.className = "payment-status";
+
+        function mountCardElement() {
+          var elements = stripeInstance.elements();
+          cardElement2 = elements.create("card", {
+            style: {
+              base: { fontSize: "16px", color: "#333", fontFamily: "system-ui, -apple-system, sans-serif", "::placeholder": { color: "#bbb" } },
+              invalid: { color: "#c44" },
+            },
+          });
+          cardElement2.mount("#card-card-element");
+          document.getElementById("card-card-element").classList.remove("card-hidden");
+          cardStripeReady = true;
+          cardPaymentStatus.textContent = "";
+        }
+
+        if (stripeInstance) { mountCardElement(); return; }
+
+        fetch("/web-tools/services/stripe-config", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.publishableKey) {
+              cardPaymentStatus.textContent = "payments not available";
+              cardPaymentStatus.className = "payment-status status-error";
+              return;
+            }
+            if (!stripeInstance) stripeInstance = Stripe(_.data.publishableKey);
+            mountCardElement();
+          })
+          .catch(function () {
+            cardPaymentStatus.textContent = "failed to load payments";
+            cardPaymentStatus.className = "payment-status status-error";
+          });
+      }
+
+      // ── Processing power: package selection ─────────────────────
+
+      function selectAmount(cents) {
+        selectedAmountCents = cents;
+        stripeForm.style.display = "block";
+        payBtn.disabled = false;
+        payBtn.textContent = "pay $" + (cents / 100);
+        paymentStatus.textContent = "";
+        paymentStatus.className = "payment-status";
+      }
+
+      function hideCoupon() {
+        couponToggle.style.display = "block";
+        couponRow.style.display = "none";
         couponInput.value = "";
         couponStatus.textContent = "";
         couponStatus.className = "coupon-status";
-        manageContent.style.display = "";
-        successOverlay.classList.remove("visible");
       }
+
+      function hideCustom() {
+        customToggle.style.display = "block";
+        customAmountInput.style.display = "none";
+        customAmountInput.value = "";
+      }
+
+      packageButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+          btn.classList.add("selected");
+          hideCustom();
+          hideCoupon();
+          selectAmount(parseInt(btn.getAttribute("data-cents"), 10));
+        });
+      });
+
+      customToggle.addEventListener("click", function () {
+        packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+        customToggle.style.display = "none";
+        customAmountInput.style.display = "block";
+        customAmountInput.focus();
+        hideCoupon();
+        selectedAmountCents = 0;
+        stripeForm.style.display = "none";
+        payBtn.disabled = true;
+        payBtn.textContent = "pay";
+      });
+
+      couponToggle.addEventListener("click", function () {
+        packageButtons.forEach(function (b) { b.classList.remove("selected"); });
+        couponToggle.style.display = "none";
+        couponRow.style.display = "flex";
+        couponInput.focus();
+        hideCustom();
+        selectedAmountCents = 0;
+        stripeForm.style.display = "none";
+        payBtn.disabled = true;
+        payBtn.textContent = "pay";
+      });
+
+      customAmountInput.addEventListener("input", function () {
+        var val = parseFloat(customAmountInput.value);
+        if (val >= 1) {
+          selectAmount(Math.round(val * 100));
+        } else {
+          selectedAmountCents = 0;
+          payBtn.disabled = true;
+          payBtn.textContent = "pay";
+        }
+      });
 
       // ── Coupon redemption ───────────────────────────────────────
 
@@ -261,11 +615,8 @@
               couponStatus.className = "coupon-status status-error";
               return;
             }
-            // Show success overlay
-            manageContent.style.display = "none";
-            successText.textContent = "power added!";
-            successOverlay.classList.add("visible");
-            // Refresh credits and go back
+            couponStatus.textContent = "power added!";
+            couponStatus.className = "coupon-status status-ok";
             fetch("/web-tools/services/api", { headers: authHeaders() })
               .then(function (r) { return r.json(); })
               .then(function (d) {
@@ -282,6 +633,213 @@
             couponStatus.textContent = "Could not reach server — check your connection";
             couponStatus.className = "coupon-status status-error";
           });
+      });
+
+      // ── Processing power: payment ───────────────────────────────
+
+      payBtn.addEventListener("click", function () {
+        if (!selectedAmountCents) return;
+        if (!stripeInstance || !cardElement) {
+          paymentStatus.textContent = "payments not available yet";
+          paymentStatus.className = "payment-status status-error";
+          return;
+        }
+        payBtn.disabled = true;
+        payBtn.textContent = "processing...";
+        paymentStatus.textContent = "";
+        paymentStatus.className = "payment-status";
+
+        fetch("/web-tools/services/create-payment", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ amountCents: selectedAmountCents, purpose: "credits" }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.clientSecret) {
+              paymentStatus.textContent = _.data.error || "failed to create payment";
+              paymentStatus.className = "payment-status status-error";
+              payBtn.disabled = false;
+              payBtn.textContent = "pay $" + (selectedAmountCents / 100);
+              return;
+            }
+            return stripeInstance.confirmCardPayment(_.data.clientSecret, {
+              payment_method: { card: cardElement },
+            });
+          })
+          .then(function (result) {
+            if (!result) return;
+            if (result.error) {
+              paymentStatus.textContent = result.error.message || "payment failed";
+              paymentStatus.className = "payment-status status-error";
+              payBtn.disabled = false;
+              payBtn.textContent = "pay $" + (selectedAmountCents / 100);
+              return;
+            }
+            if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
+              manageContent.style.display = "none";
+              paymentSuccessText.textContent = "added $" + (selectedAmountCents / 100).toFixed(2);
+              paymentSuccessEl.classList.add("visible");
+              var limitBefore = parseFloat((creditsLimit.textContent || "").replace(/[^0-9.]/g, "")) || 0;
+              pollBalance(5, limitBefore);
+            }
+          })
+          .catch(function () {
+            paymentStatus.textContent = "payment failed";
+            paymentStatus.className = "payment-status status-error";
+            payBtn.disabled = false;
+            payBtn.textContent = "pay $" + (selectedAmountCents / 100);
+          });
+      });
+
+      function pollBalance(attemptsLeft, limitBefore) {
+        if (attemptsLeft <= 0) { showLandingScreen(); return; }
+        setTimeout(function () {
+          fetch("/web-tools/services/api", { headers: authHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              renderCredits(d.credits);
+              if ((d.credits && d.credits.limit) > limitBefore) {
+                showLandingScreen();
+              } else {
+                pollBalance(attemptsLeft - 1, limitBefore);
+              }
+            })
+            .catch(function () { pollBalance(attemptsLeft - 1, limitBefore); });
+        }, 2000);
+      }
+
+      // ── Spending card: package selection ─────────────────────────
+
+      function selectCardAmount(cents) {
+        cardSelectedCents = cents;
+        cardStripeForm.style.display = "block";
+        cardPayBtn.disabled = false;
+        cardPayBtn.textContent = (currentCardData && currentCardData.hasCard)
+          ? "add $" + (cents / 100)
+          : "get card — $" + (cents / 100);
+        cardPaymentStatus.textContent = "";
+        cardPaymentStatus.className = "payment-status";
+      }
+
+      cardPkgButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          cardPkgButtons.forEach(function (b) { b.classList.remove("selected"); });
+          btn.classList.add("selected");
+          selectCardAmount(parseInt(btn.getAttribute("data-cents"), 10));
+        });
+      });
+
+      // ── Spending card: payment ──────────────────────────────────
+
+      cardPayBtn.addEventListener("click", function () {
+        if (!cardSelectedCents) return;
+        if (!stripeInstance || !cardElement2) {
+          cardPaymentStatus.textContent = "payments not available yet";
+          cardPaymentStatus.className = "payment-status status-error";
+          return;
+        }
+        cardPayBtn.disabled = true;
+        cardPayBtn.textContent = "processing...";
+        cardPaymentStatus.textContent = "";
+        cardPaymentStatus.className = "payment-status";
+
+        fetch("/web-tools/services/create-payment", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ amountCents: cardSelectedCents, purpose: "card" }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.clientSecret) {
+              cardPaymentStatus.textContent = _.data.error || "failed to create payment";
+              cardPaymentStatus.className = "payment-status status-error";
+              cardPayBtn.disabled = false;
+              cardPayBtn.textContent = "get card — $" + (cardSelectedCents / 100);
+              return;
+            }
+            return stripeInstance.confirmCardPayment(_.data.clientSecret, {
+              payment_method: { card: cardElement2 },
+            });
+          })
+          .then(function (result) {
+            if (!result) return;
+            if (result.error) {
+              cardPaymentStatus.textContent = result.error.message || "payment failed";
+              cardPaymentStatus.className = "payment-status status-error";
+              cardPayBtn.disabled = false;
+              cardPayBtn.textContent = "get card — $" + (cardSelectedCents / 100);
+              return;
+            }
+            if (result.paymentIntent && result.paymentIntent.status === "succeeded") {
+              cardPaymentStatus.textContent = "issuing card...";
+              cardPaymentStatus.className = "payment-status status-ok";
+
+              fetch("/web-tools/services/request-card", {
+                method: "POST",
+                headers: authHeaders({ "Content-Type": "application/json" }),
+                body: JSON.stringify({ amountCents: cardSelectedCents }),
+              })
+                .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+                .then(function (_) {
+                  if (!_.ok) {
+                    cardPaymentStatus.textContent = _.data.error || "card issuing failed";
+                    cardPaymentStatus.className = "payment-status status-error";
+                    cardPayBtn.disabled = false;
+                    return;
+                  }
+                  // Show success overlay
+                  var action = _.data.action === "topup" ? "added" : "card issued";
+                  var label = _.data.last4 ? action + " — ****" + _.data.last4 : action;
+                  cardContent.style.display = "none";
+                  cardPaymentStatus.textContent = "";
+                  cardPaymentSuccessText.textContent = label;
+                  cardPaymentSuccessEl.classList.add("visible");
+
+                  // Refresh card data then navigate back
+                  fetch("/web-tools/services/card-info", {
+                    method: "POST",
+                    headers: authHeaders({ "Content-Type": "application/json" }),
+                  })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                      renderCard(d);
+                      showLandingFromCard();
+                    })
+                    .catch(function () {
+                      setTimeout(function () { showLandingFromCard(); }, 1500);
+                    });
+                })
+                .catch(function () {
+                  cardPaymentStatus.textContent = "card issuing failed";
+                  cardPaymentStatus.className = "payment-status status-error";
+                  cardPayBtn.disabled = false;
+                });
+            }
+          })
+          .catch(function () {
+            cardPaymentStatus.textContent = "payment failed";
+            cardPaymentStatus.className = "payment-status status-error";
+            cardPayBtn.disabled = false;
+            cardPayBtn.textContent = "get card — $" + (cardSelectedCents / 100);
+          });
+      });
+
+      // ── Test card buttons (dev/test only) ───────────────────────
+
+      document.querySelectorAll(".test-fill-btn[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var val = btn.getAttribute("data-copy");
+          var orig = btn.textContent;
+          navigator.clipboard.writeText(val).then(function () {
+            btn.textContent = "copied";
+            btn.classList.add("copied");
+            setTimeout(function () {
+              btn.textContent = orig;
+              btn.classList.remove("copied");
+            }, 1000);
+          });
+        });
       });
 
       // ── Load initial data ───────────────────────────────────────
@@ -321,6 +879,35 @@
           }
 
           renderCredits(d.credits);
+          renderCard(d.card || { hasCard: false });
+
+          // Show test card buttons and sandbox notice in non-production
+          if (d.xmtpEnv !== "production") {
+            var tcCredits = document.getElementById("test-fill-credits");
+            var tcCard = document.getElementById("test-fill-card");
+            if (tcCredits) tcCredits.style.display = "block";
+            if (tcCard) tcCard.style.display = "block";
+            var footerEl = document.getElementById("footer");
+            if (footerEl) footerEl.textContent = "sandbox \u2014 test mode, real cards won\u2019t be charged";
+          }
+
+          // Production: coupon-only mode, hide spending card
+          if (d.xmtpEnv === "production") {
+            isProductionMode = true;
+            var pkgBtns = document.getElementById("package-buttons");
+            var secBtns = document.getElementById("secondary-buttons");
+            var stripeFormEl = document.getElementById("stripe-form");
+            var customAmountEl = document.getElementById("custom-amount");
+            if (pkgBtns) pkgBtns.style.display = "none";
+            if (secBtns) secBtns.style.display = "none";
+            if (stripeFormEl) stripeFormEl.style.display = "none";
+            if (customAmountEl) customAmountEl.style.display = "none";
+            var couponRowEl = document.getElementById("coupon-row");
+            if (couponRowEl) couponRowEl.style.display = "flex";
+            // Hide spending card row entirely in production
+            var svcCardEl = document.getElementById("svc-card");
+            if (svcCardEl) svcCardEl.style.display = "none";
+          }
         })
         .catch(function () {
           showError("failed to connect");

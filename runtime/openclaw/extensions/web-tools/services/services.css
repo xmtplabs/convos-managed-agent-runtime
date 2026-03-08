@@ -47,6 +47,7 @@ body {
   will-change: transform;
 }
 .card-viewport.show-manage { transform: translateX(-100%); }
+.card-viewport.show-card { transform: translateX(-200%); }
 .screen {
   min-width: 100%;
   width: 100%;
@@ -124,7 +125,7 @@ body {
   font-size: 0.75rem;
 }
 
-/* ── Credits bar ────────────────────────────────────────────── */
+/* ── Credits / Card bars ────────────────────────────────────── */
 .credits-bar {
   margin-top: 0.3rem;
   height: 3px;
@@ -201,15 +202,25 @@ body {
   font-weight: 600;
   color: var(--color-fg);
 }
-
-/* ── Coupon ──────────────────────────────────────────────────── */
-.coupon-row {
-  display: flex;
-  gap: 0.4rem;
-  margin-bottom: 0.6rem;
-  align-items: center;
+.package-buttons { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; }
+.package-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--color-edge);
+  border-radius: 8px;
+  padding: 0.4rem 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-fg-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  font-family: inherit;
 }
-.coupon-input {
+.package-btn:hover { border-color: var(--color-fg-tertiary); color: var(--color-fg); }
+.package-btn.selected { border-color: var(--color-brand); color: var(--color-brand); background: #FFF5F4; }
+
+.custom-amount-input {
   width: 100%;
   border: 1px solid var(--color-edge);
   border-radius: 8px;
@@ -220,10 +231,18 @@ body {
   text-align: center;
   outline: none;
   transition: border-color 0.15s;
+  margin-bottom: 0.6rem;
   font-family: inherit;
-  flex: 1;
 }
-.coupon-input:focus { border-color: var(--color-brand); }
+.custom-amount-input:focus { border-color: var(--color-brand); }
+
+/* ── Coupon ──────────────────────────────────────────────────── */
+.coupon-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  align-items: center;
+}
 .coupon-status {
   font-size: 0.65rem;
   text-align: center;
@@ -233,7 +252,17 @@ body {
 .coupon-status.status-error { color: var(--color-error); }
 .coupon-status.status-ok { color: var(--color-success); }
 
-/* ── Pay / Redeem button ────────────────────────────────────── */
+/* ── Stripe form ────────────────────────────────────────────── */
+.stripe-form { margin-top: 0.6rem; }
+.stripe-form .card-hidden { display: none; }
+.stripe-form #card-element,
+.stripe-form #card-card-element {
+  border: 1px solid var(--color-edge);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.15s;
+}
 .pay-btn {
   width: 100%;
   background: var(--color-brand);
@@ -250,8 +279,18 @@ body {
 .pay-btn:hover { opacity: 0.85; }
 .pay-btn:disabled { opacity: 0.4; cursor: default; }
 
+/* ── Payment status ─────────────────────────────────────────── */
+.payment-status {
+  font-size: 0.65rem;
+  margin-top: 0.4rem;
+  text-align: center;
+  min-height: 1rem;
+}
+.payment-status.status-error { color: var(--color-error); }
+.payment-status.status-ok { color: var(--color-success); }
+
 /* ── Success overlay ────────────────────────────────────────── */
-.success-overlay {
+.payment-success-overlay {
   display: none;
   flex-direction: column;
   align-items: center;
@@ -259,8 +298,8 @@ body {
   gap: 0.75rem;
   padding: 2rem 0;
 }
-.success-overlay.visible { display: flex; }
-.success-icon {
+.payment-success-overlay.visible { display: flex; }
+.payment-success-icon {
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -269,11 +308,35 @@ body {
   align-items: center;
   justify-content: center;
 }
-.success-icon svg { width: 24px; height: 24px; }
-.success-text {
+.payment-success-icon svg { width: 24px; height: 24px; }
+.payment-success-text {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-fg);
+}
+
+/* ── Test card buttons ──────────────────────────────────────── */
+.test-fill-row { display: flex; gap: 0.3rem; margin-top: 0.5rem; }
+.test-fill-btn {
+  flex: 1;
+  background: none;
+  border: 1px dashed var(--color-edge);
+  border-radius: 6px;
+  padding: 0.3rem 0.2rem;
+  font-size: 0.55rem;
+  color: var(--color-fg-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'SF Mono', ui-monospace, monospace;
+}
+.test-fill-btn:hover { border-color: var(--color-fg-tertiary); color: var(--color-fg-secondary); }
+.test-fill-btn.copied { color: var(--color-success); border-color: var(--color-success); }
+
+.manage-unavailable {
+  text-align: center;
+  color: var(--color-fg-tertiary);
+  font-size: 0.75rem;
+  padding: 1rem 0;
 }
 
 /* ── Footer ──────────────────────────────────────────────────── */

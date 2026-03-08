@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Docs — Convos Pool</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!--__POOL_CONFIG__-->
+  <link rel="stylesheet" href="/admin/assets/admin.css">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    /* Hide Swagger's own topbar and info block — we use the admin header */
+    .swagger-ui .topbar { display: none; }
+    .swagger-ui .info { display: none; }
+    .swagger-ui .scheme-container { display: none; }
+    /* Constrain Swagger to content width */
+    .swagger-wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
+    .swagger-ui .wrapper { padding: 0; }
+    /* Active nav link */
+    .nav-link { font-size: 11px; font-weight: 500; padding: 4px 10px; border: 1px solid var(--color-edge); border-radius: 6px; background: var(--color-surface); color: var(--color-foreground-secondary); cursor: pointer; font-family: inherit; text-decoration: none; }
+    .nav-link:hover { background: var(--color-surface-muted); }
+    .nav-link.active { background: var(--color-foreground); color: var(--color-foreground-inverted); border-color: var(--color-foreground); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="28">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="var(--color-brand)"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="var(--color-brand)"/>
+          </svg>
+        </div>
+        <span class="brand-name">Convos <span class="brand-name-labs">Pool</span></span>
+      </div>
+      <div class="env-switcher" onclick="this.classList.toggle('open')">
+        <button class="env-switcher-btn" id="env-switcher-btn"></button>
+        <div class="env-dropdown" id="env-dropdown"></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <a href="/admin" class="nav-link">Dashboard</a>
+      <a href="/admin/api-docs" class="nav-link active">API</a>
+      <form method="POST" action="/admin/logout" style="display:inline">
+        <button class="logout-btn" type="submit">Logout</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="swagger-wrap">
+    <div id="swagger-ui"></div>
+  </div>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    var C = window.__POOL_CONFIG__ || {};
+
+    document.title = 'API Docs \u2014 ' + (C.poolEnvironment || '');
+
+    // Env switcher (same as admin.html)
+    (function () {
+      var env = C.poolEnvironment || '';
+      var btn = document.getElementById('env-switcher-btn');
+      btn.className = 'env-switcher-btn env-' + env;
+      btn.textContent = env;
+
+      var dropdown = document.getElementById('env-dropdown');
+      var urls = C.adminUrls || [];
+      var h = '';
+      if (urls.length) {
+        urls.forEach(function (e) {
+          var isCurrent = e.env === env;
+          var href = isCurrent ? '#' : (e.url + '/admin/api-docs');
+          h += '<a href="' + href + '" class="' + (isCurrent ? 'current' : '') + '"><span class="env-dot ' + e.env + '"></span>' + e.env + '</a>';
+        });
+      }
+      dropdown.innerHTML = h;
+
+      document.addEventListener('click', function (e) {
+        var switcher = document.querySelector('.env-switcher');
+        if (switcher && !switcher.contains(e.target)) switcher.classList.remove('open');
+      });
+    })();
+
+    SwaggerUIBundle({
+      url: "/admin/openapi.json",
+      dom_id: "#swagger-ui",
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+      layout: "BaseLayout",
+      defaultModelsExpandDepth: -1,
+      docExpansion: "list",
+    });
+  </script>
+</body>
+</html>

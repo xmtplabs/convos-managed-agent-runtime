@@ -11,17 +11,13 @@ on:
       - 'runtime/**'
       - '!runtime/CHANGELOG.md'
 
-concurrency:
-  group: runtime-pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
-
 permissions:
   packages: write
 
 jobs:
   build:
     name: Build runtime image
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && !contains(github.event.pull_request.labels.*.name, 'skip-runtime-build')
     runs-on: ubuntu-latest
     outputs:
       pending: ${{ steps.meta.outputs.pending }}

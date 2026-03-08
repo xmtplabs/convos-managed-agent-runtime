@@ -14,6 +14,10 @@ const adminHtmlTemplate = fs.readFileSync(
   path.join(__adminDir, "..", "frontend", "admin.html"),
   "utf-8",
 );
+const apiDocsHtmlTemplate = fs.readFileSync(
+  path.join(__adminDir, "..", "frontend", "api-docs.html"),
+  "utf-8",
+);
 
 const COOKIE_NAME = "pool_admin_session";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -181,6 +185,18 @@ export function adminPage({
 }) {
   const config = JSON.stringify({ poolEnvironment, runtimeImage, bankrConfigured, adminUrls });
   return adminHtmlTemplate.replace(
+    "<!--__POOL_CONFIG__-->",
+    `<script>window.__POOL_CONFIG__=${config}</script>`,
+  );
+}
+
+// --- API docs HTML ---
+export function apiDocsPage({
+  poolEnvironment,
+  adminUrls = [],
+}) {
+  const config = JSON.stringify({ poolEnvironment, adminUrls });
+  return apiDocsHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
   );

@@ -42,7 +42,6 @@
       "workspace": "~/.openclaw/workspace",
       "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
-      "userTimezone": "America/New_York",
     
       "heartbeat": {
         "every": "30m",
@@ -72,7 +71,10 @@
         "openrouter/qwen/qwen-2.5-72b-instruct": {},
         "openrouter/openai/gpt-4o": {},
         "openrouter/openai/gpt-4o-mini": {},
-        "openrouter/mistralai/mistral-large-2411": {}
+        "openrouter/mistralai/mistral-large-2411": {},
+        "openrouter/google/gemini-3-flash-preview": {},
+        "openrouter/minimax/minimax-m2.5": {},
+        "openrouter/moonshotai/kimi-k2.5": {}
       }
     }
   },
@@ -153,6 +155,9 @@
           { "id": "openrouter/openai/gpt-4o", "name": "GPT-4o", "input": ["text", "image"] },
           { "id": "openrouter/openai/gpt-4o-mini", "name": "GPT-4o Mini", "input": ["text", "image"] },
           { "id": "openrouter/mistralai/mistral-large-2411", "name": "Mistral Large" },
+          { "id": "openrouter/google/gemini-3-flash-preview", "name": "Gemini 3 Flash", "input": ["text", "image"] },
+          { "id": "openrouter/minimax/minimax-m2.5", "name": "MiniMax M2.5" },
+          { "id": "openrouter/moonshotai/kimi-k2.5", "name": "Kimi K2.5" },
 
           { "id": "anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4", "input": ["text", "image"] },
           { "id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6", "input": ["text", "image"] },

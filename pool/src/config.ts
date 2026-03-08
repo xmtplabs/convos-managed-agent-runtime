@@ -43,7 +43,6 @@ export const config = {
   // OpenRouter (from services)
   openrouterManagementKey: getEnv("OPENROUTER_MANAGEMENT_KEY"),
   openrouterKeyLimit: parseInt(getEnv("OPENROUTER_KEY_LIMIT", "20"), 10),
-  openrouterKeyLimitReset: getEnv("OPENROUTER_KEY_LIMIT_RESET", "monthly"),
 
   // AgentMail (from services)
   agentmailApiKey: getEnv("AGENTMAIL_API_KEY"),
@@ -52,6 +51,11 @@ export const config = {
   // Telnyx (from services)
   telnyxApiKey: getEnv("TELNYX_API_KEY"),
   telnyxMessagingProfileId: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
+
+  // Stripe (payments)
+  stripeSecretKey: getEnv("STRIPE_SECRET_KEY"),
+  stripePublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY"),
+  stripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET"),
 
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),

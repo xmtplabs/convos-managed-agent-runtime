@@ -1,18 +1,9 @@
 # 🎈 Convos runtime changelog
 
 ## 0.0.20
-- Time awareness: agents now see the current wall-clock time in their system context each turn — no more guessing "now" (#306)
-- Pre-reply checklist: agents evaluate whether to react 👀, stay silent on tool calls, and check if a reply is needed — injected per-turn via GroupSystemPrompt
-- Group context: inbound messages now carry GroupMembers and GroupSubject so agents know who's in the conversation
-- 👀 reaction: agents react with 👀 to signal multi-step work, then remove it after posting the result
-- Morning check-in: moved from heartbeat to a cron job with substance requirement — skip if there's nothing concrete to reference
-- Welcome message: shortened to 3 lines (intro + learning + invite)
-- Conciseness: narration limits enforced, narrate and 👀 rules split into separate prompt entries
-- Smart replyTo: skip replyTo for the most recent message in 2-member conversations
-- Groups dock: convos plugin now registers a groups directory so agents get always-on activation
-- Exec tool: `$CONVOS_CONVERSATION_ID` env var exposed so agent CLI commands can reference the conversation
-- Profile update hint: agents told that avatar image must be a public URL
-- Workspace docs: deduplicated, separated personality from rules, added time awareness section
+- Stripe payments: credit top-ups via card ($20/$50/$100 presets or custom amount)
+- Coupon codes: redeem promo codes for $20 credit bumps
+- Services redesign: two-screen slide layout, provider names hidden from users
 
 ## 0.0.19
 - Heartbeat: switched target from hardcoded `convos` channel to `"last"`

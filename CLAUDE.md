@@ -55,3 +55,7 @@ When deploying pool manager changes to a new Railway environment:
 3. Remove all `INSTANCE_*` env vars — instance keys now use their original names (`OPENCLAW_PRIMARY_MODEL`, `AGENTMAIL_API_KEY`, etc.)
 4. Runtime image is tagged by branch (e.g. `:dev`, `:production`). Set `RAILWAY_RUNTIME_IMAGE` to override.
 5. Replenish manually via the admin dashboard "+ Add" button
+
+# Runtime
+
+- Never updaate teh openclaw state dir. Only update our repo and we should use pnpm apply to update the actual runtime. In some cases, we will need a full pnpm start to update the runtime.
