@@ -113,23 +113,6 @@ export default function register(api: OpenClawPluginApi) {
   const agentsDir = path.resolve(__dirname, "convos");
   const servicesDir = path.resolve(__dirname, "services");
 
-  // Intercept outgoing messages that contain raw provider credit errors
-  // and replace with a friendly services URL. Works across all channels.
-  api.on("message_sending", (event) => {
-    const text = event.content || "";
-    if (
-      text.includes("limit exceeded") ||
-      text.includes("402") ||
-      text.includes("afford") ||
-      text.includes("openrouter.ai/settings")
-    ) {
-      const servicesUrl = buildServicesUrl();
-      return {
-        content: `Hey! I'm out of credits. You can top up here: ${servicesUrl}`,
-      };
-    }
-  });
-
   api.registerHttpRoute({
     path: "/web-tools/convos",
     handler: async (req, res) => {
