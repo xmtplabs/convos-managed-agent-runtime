@@ -172,7 +172,7 @@ router.get("/api/proxy/sms/messages/:id", async (req, res) => {
 
 const BANKR_API = "https://api.bankr.bot";
 
-router.all("/api/proxy/bankr/*", async (req, res) => {
+router.all("/api/proxy/bankr/{*path}", async (req, res) => {
   if (!config.bankrApiKey) { res.status(503).json({ error: "Bankr service not configured" }); return; }
 
   // Strip the proxy prefix to get the upstream path: /api/proxy/bankr/agent/prompt → /agent/prompt

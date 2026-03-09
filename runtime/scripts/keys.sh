@@ -71,8 +71,15 @@ fi
 echo ""
 echo "  ── services ──────────────────"
 [ -n "$OPENROUTER_API_KEY" ] && echo "  ✅ OPENROUTER_API_KEY      → set" || echo "  ⬚  OPENROUTER_API_KEY      → not set"
-[ -n "$AGENTMAIL_INBOX_ID" ] && echo "  ✅ AGENTMAIL_INBOX_ID      → $AGENTMAIL_INBOX_ID" || echo "  ⬚  AGENTMAIL_INBOX_ID      → not set"
-[ -n "$TELNYX_PHONE_NUMBER" ] && echo "  ✅ TELNYX_PHONE_NUMBER     → $TELNYX_PHONE_NUMBER" || echo "  ⬚  TELNYX_PHONE_NUMBER     → not set"
+if [ -n "$POOL_URL" ] && [ -n "$INSTANCE_ID" ]; then
+  echo "  ✅ email/sms/bankr         → proxied via pool"
+else
+  [ -n "$AGENTMAIL_API_KEY" ] && echo "  ✅ AGENTMAIL_API_KEY       → set" || echo "  ⬚  AGENTMAIL_API_KEY       → not set"
+  [ -n "$AGENTMAIL_INBOX_ID" ] && echo "  ✅ AGENTMAIL_INBOX_ID      → $AGENTMAIL_INBOX_ID" || echo "  ⬚  AGENTMAIL_INBOX_ID      → not set"
+  [ -n "$TELNYX_API_KEY" ] && echo "  ✅ TELNYX_API_KEY          → set" || echo "  ⬚  TELNYX_API_KEY          → not set"
+  [ -n "$TELNYX_PHONE_NUMBER" ] && echo "  ✅ TELNYX_PHONE_NUMBER     → $TELNYX_PHONE_NUMBER" || echo "  ⬚  TELNYX_PHONE_NUMBER     → not set"
+  [ -n "$BANKR_API_KEY" ] && echo "  ✅ BANKR_API_KEY           → set" || echo "  ⬚  BANKR_API_KEY           → not set"
+fi
 
 # ── Write .env ─────────────────────────────────────────────────────────────
 
