@@ -1,6 +1,6 @@
 #!/bin/sh
 # Read keys from env (injected by pool manager) and generate local secrets.
-# All keys (OPENROUTER_API_KEY, BANKR_API_KEY, etc.) must arrive as env vars.
+# All keys (OPENROUTER_API_KEY, etc.) must arrive as env vars.
 # Email/SMS are proxied via pool manager — no direct API keys needed.
 set -e
 
@@ -72,7 +72,6 @@ echo ""
 echo "  ── services ──────────────────"
 [ -n "$OPENROUTER_API_KEY" ] && echo "  ✅ OPENROUTER_API_KEY      → set" || echo "  ⬚  OPENROUTER_API_KEY      → not set"
 [ -n "$POOL_URL" ] && echo "  ✅ email/sms              → proxied via pool ($POOL_URL)" || echo "  ⬚  email/sms              → no POOL_URL"
-[ -n "$BANKR_API_KEY" ] && echo "  ✅ BANKR_API_KEY           → set" || echo "  ⬚  BANKR_API_KEY           → not set"
 
 # ── Write .env ─────────────────────────────────────────────────────────────
 
@@ -80,16 +79,14 @@ echo "  ── services ──────────────────"
 # env vars are injected by the platform and need to be synced to the file.
 if [ -n "$RAILWAY_ENVIRONMENT" ]; then
   key="${OPENROUTER_API_KEY:-}"
-  bankr_key="${BANKR_API_KEY:-}"
   pool_url="${POOL_URL:-}"
   instance_id="${INSTANCE_ID:-}"
 
   touch "$ENV_FILE"
   tmp=$(mktemp)
-  grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^BANKR_API_KEY=' | grep -v '^POOL_URL=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
+  grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^POOL_URL=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
   echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
   if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
-  if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
   if [ -n "$pool_url" ]; then echo "POOL_URL=$pool_url" >> "$tmp"; fi
   if [ -n "$instance_id" ]; then echo "INSTANCE_ID=$instance_id" >> "$tmp"; fi
   mv "$tmp" "$ENV_FILE"

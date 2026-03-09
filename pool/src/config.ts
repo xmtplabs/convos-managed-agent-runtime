@@ -64,5 +64,4 @@ export const config = {
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
-  bankrApiKey: getEnv("BANKR_API_KEY"),
 };

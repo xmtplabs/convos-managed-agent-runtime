@@ -339,7 +339,6 @@ app.get("/admin", (req, res) => {
     deployBranch: config.deployBranch,
     railwayServiceId: config.railwayServiceId,
     runtimeImage: config.railwayRuntimeImage,
-    bankrConfigured: !!config.bankrApiKey,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
 });
