@@ -25,12 +25,14 @@ export async function createInstance(
   tools: string[] = ["openrouter"],
   onProgress?: ProgressCallback,
   runtimeImage?: string,
+  model?: string,
 ): Promise<CreateInstanceResponse> {
   // Generate secrets
   const gatewayToken = wallet.generateGatewayToken();
 
   // Build env vars
   const vars: Record<string, string> = { ...buildInstanceEnv() };
+  if (model) vars.OPENCLAW_PRIMARY_MODEL = model;
   vars.INSTANCE_ID = instanceId;
   vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
 

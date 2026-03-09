@@ -6,7 +6,7 @@ import * as pool from "./pool";
 import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocsPage } from "./admin";
 import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
@@ -338,7 +338,9 @@ app.get("/admin", (req, res) => {
     poolEnvironment: config.poolEnvironment,
     deployBranch: config.deployBranch,
     railwayServiceId: config.railwayServiceId,
+    railwayProjectId: config.railwayProjectId,
     runtimeImage: config.railwayRuntimeImage,
+    instanceModel: config.instanceModel,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
 });
@@ -352,6 +354,15 @@ app.post("/admin/login", (req, res) => {
 app.post("/admin/logout", (req, res) => {
   adminLogout(req, res);
   res.redirect(302, "/admin");
+});
+
+app.get("/admin/api-docs", (req, res) => {
+  if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
+  res.type("html").send(apiDocsPage({
+    poolEnvironment: config.poolEnvironment,
+    railwayProjectId: config.railwayProjectId,
+    adminUrls: POOL_ADMIN_URLS as any,
+  }));
 });
 
 // --- Pool management API ---
@@ -447,6 +458,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
 app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 1, 20);
   const image = (req.query.image as string) || "";
+  const model = (req.query.model as string) || "";
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -472,7 +484,7 @@ app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
         const inst = await pool.createInstance((step, status, message) => {
           if (step === "done") return;
           send({ type: "step", instanceNum, step, status, message: message || "" });
-        }, image || undefined);
+        }, image || undefined, model || undefined);
         send({ type: "instance", instanceNum, instance: inst });
         send({ type: "step", instanceNum, instanceId: inst.id, step: "done", status: "ok", message: "" });
         created++;

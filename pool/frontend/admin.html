@@ -29,9 +29,15 @@
       </div>
     </div>
     <div class="header-right">
-      <form method="POST" action="/admin/logout" style="display:inline">
-        <button class="logout-btn" type="submit">Logout</button>
-      </form>
+      <nav class="top-nav">
+        <a href="/admin" class="nav-link active">Dashboard</a>
+        <a href="/admin/api-docs" class="nav-link">API</a>
+        <a id="railway-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Railway <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
+        <div class="nav-sep"></div>
+        <form method="POST" action="/admin/logout" style="display:contents">
+          <button class="logout-btn" type="submit">Logout</button>
+        </form>
+      </nav>
     </div>
   </div>
 
@@ -77,31 +83,51 @@
       </div>
     </div>
 
-    <div class="controls">
-      <div class="control-group">
-        <label>Max parallel</label>
-        <select class="control-input" id="max-parallel">
-          <option value="1" selected>1</option>
-          <option value="5">5</option>
-        </select>
+    <div class="replenish-card">
+      <div class="replenish-card-header">
+        <span class="replenish-card-title">Replenish</span>
+        <span class="last-updated" id="last-updated"></span>
       </div>
-      <div class="control-group">
-        <label>Replenish</label>
-        <select class="control-input" id="runtime-image" style="min-width:130px">
-          <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
-          <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
-          <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
-          <option value="ghcr.io/xmtplabs/convos-runtime:scaling">:scaling</option>
-        </select>
-        <input class="control-input" id="replenish-count" type="number" min="1" max="20" value="1" />
-        <button class="btn btn-primary" id="replenish-btn">+ Add</button>
+      <div class="replenish-card-body">
+        <div class="replenish-field">
+          <label>Model</label>
+          <select class="replenish-select" id="instance-model">
+            <option value="anthropic/claude-sonnet-4">claude-sonnet-4</option>
+            <option value="anthropic/claude-haiku-4">claude-haiku-4</option>
+            <option value="openai/gpt-4.1">gpt-4.1</option>
+            <option value="openai/gpt-4.1-mini">gpt-4.1-mini</option>
+            <option value="google/gemini-2.5-flash-preview">gemini-2.5-flash</option>
+            <option value="google/gemini-2.5-pro-preview">gemini-2.5-pro</option>
+            <option value="x-ai/grok-3-mini">grok-3-mini</option>
+          </select>
+        </div>
+        <div class="replenish-field">
+          <label>Image</label>
+          <select class="replenish-select" id="runtime-image">
+            <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime:vibe">:vibe</option>
+          </select>
+        </div>
+        <div class="replenish-field">
+          <label>Parallel</label>
+          <select class="replenish-select replenish-select-sm" id="max-parallel">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+        <div class="replenish-field">
+          <label>Qty</label>
+          <input class="replenish-input" id="replenish-count" type="number" min="1" max="20" value="1" />
+        </div>
+        <div class="replenish-actions">
+          <button class="btn btn-primary" id="replenish-btn">+ Add</button>
+          <button class="btn btn-danger" id="drain-btn">Drain</button>
+        </div>
       </div>
-      <div class="control-group">
-        <label>Drain unclaimed</label>
-        <button class="btn btn-danger" id="drain-btn">Drain</button>
-      </div>
-      <div class="controls-spacer"></div>
-      <span class="last-updated" id="last-updated"></span>
     </div>
 
     <div class="provision-log" id="provision-log">
@@ -267,6 +293,13 @@
       dropdown.innerHTML = h;
     })();
 
+    // Railway project deeplink
+    if (C.railwayProjectId) {
+      var rl = document.getElementById('railway-link');
+      rl.href = 'https://railway.com/project/' + C.railwayProjectId;
+      rl.style.display = '';
+    }
+
     document.getElementById('launch-url').placeholder = (C.poolEnvironment === 'production') ? 'popup.convos.org/...' : 'dev.convos.org/...';
 
     var POOL_ENV = C.poolEnvironment;
@@ -277,7 +310,16 @@
       var sel = document.getElementById('runtime-image');
       var cur = C.runtimeImage || '';
       for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === cur) { sel.selectedIndex = i; return; }
+        if (sel.options[i].value === cur) { sel.selectedIndex = i; break; }
+      }
+    })();
+
+    // Pre-select the current model in the picker
+    (function () {
+      var sel = document.getElementById('instance-model');
+      var cur = C.instanceModel || '';
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === cur) { sel.selectedIndex = i; break; }
       }
     })();
 
@@ -886,7 +928,8 @@
 
       var lastInstanceId = {};
       var image = encodeURIComponent(document.getElementById('runtime-image').value);
-      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image);
+      var model = encodeURIComponent(document.getElementById('instance-model').value);
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);
       es.onmessage = function (ev) {
         try {
           var data = JSON.parse(ev.data);

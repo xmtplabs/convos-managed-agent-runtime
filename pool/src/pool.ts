@@ -40,7 +40,7 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
 }
 
 // Create a single new instance via services and insert into DB.
-export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string) {
+export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string, model?: string) {
   const id = nanoid(12);
   const name = `convos-agent-${id}`;
   const createStart = Date.now();
@@ -50,7 +50,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
   logger.info("create.start", { instanceId: id, name });
 
   try {
-    const result = await infraCreateInstance(id, name, ["openrouter"], onProgress, runtimeImage);
+    const result = await infraCreateInstance(id, name, ["openrouter"], onProgress, runtimeImage, model);
     console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
     await db.upsertInstance({
