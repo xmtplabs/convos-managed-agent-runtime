@@ -5,7 +5,6 @@ export function buildInstanceEnv(): Record<string, string> {
   return {
     OPENCLAW_PRIMARY_MODEL: config.openclawPrimaryModel,
     XMTP_ENV: config.xmtpEnv,
-    CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_URL: config.poolUrl,
   };
 }
