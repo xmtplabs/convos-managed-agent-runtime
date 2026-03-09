@@ -19,14 +19,17 @@
     "railway:test": "tsx --env-file=.env scripts/test-railway.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "ngrok": "ngrok http --url=c3c882cc6672.ngrok.app 3001",
+    "stripe:webhook": "stripe listen --forward-to http://localhost:3001/webhooks/stripe"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",
     "express": "^5.1.0",
     "nanoid": "^5.1.5",
     "datadog-metrics": "^0.12.0",
-    "pg": "^8.18.0"
+    "pg": "^8.18.0",
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

@@ -1,0 +1,285 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Convos Pool API",
+    "version": "1.0.0",
+    "description": "Pool manager API for provisioning, managing, and monitoring Convos agent instances."
+  },
+  "servers": [{ "url": "/" }],
+  "tags": [
+    { "name": "Public", "description": "No auth required" },
+    { "name": "Admin", "description": "Requires POOL_API_KEY (Bearer token or session cookie)" },
+    { "name": "Instance", "description": "Instance self-auth via instanceId + gatewayToken" },
+    { "name": "Stripe", "description": "Stripe payments and card issuing (instance-auth)" },
+    { "name": "Webhooks", "description": "Inbound webhooks" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "POOL_API_KEY as Bearer token"
+      }
+    },
+    "schemas": {
+      "InstanceAuth": {
+        "type": "object",
+        "required": ["instanceId", "gatewayToken"],
+        "properties": {
+          "instanceId": { "type": "string" },
+          "gatewayToken": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Health check",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" } } } } } } }
+      }
+    },
+    "/version": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Build version and environment",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "version": { "type": "string" }, "environment": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/counts": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Instance counts by status",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "idle": { "type": "integer" }, "starting": { "type": "integer" }, "claimed": { "type": "integer" }, "crashed": { "type": "integer" } } } } } } }
+      }
+    },
+    "/api/pool/agents": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "List claimed agents (public info only)",
+        "responses": { "200": { "description": "Array of claimed agents" } }
+      }
+    },
+    "/api/pool/info": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Pool info (environment, model, branch)",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/pool/templates": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "List agent templates",
+        "responses": { "200": { "description": "Array of templates" } }
+      }
+    },
+    "/api/pool/templates/{slug}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get a single agent template by slug",
+        "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Template object" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/prompts/{pageId}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Fetch prompt from Notion page (cached)",
+        "parameters": [{ "name": "pageId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Prompt content" } }
+      }
+    },
+    "/api/pool/status": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Pool status (counts + OpenRouter credits + key count)",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/pool/claim": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Claim an idle instance for a user",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "agentName": { "type": "string" }, "instructions": { "type": "string" }, "joinUrl": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Claimed instance" }, "503": { "description": "No idle instances" } }
+      }
+    },
+    "/api/pool/claim/stream": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Claim with real-time SSE progress",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "agentName", "in": "query", "schema": { "type": "string" } },
+          { "name": "instructions", "in": "query", "schema": { "type": "string" } },
+          { "name": "joinUrl", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "SSE stream" } }
+      }
+    },
+    "/api/pool/replenish": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Add new instances to the pool",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "count": { "type": "integer", "default": 1 } } } } } },
+        "responses": { "200": { "description": "Replenished" } }
+      }
+    },
+    "/api/pool/replenish/stream": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Replenish with real-time SSE progress",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "count", "in": "query", "schema": { "type": "integer", "default": 1 } }],
+        "responses": { "200": { "description": "SSE stream" } }
+      }
+    },
+    "/api/pool/drain/stream": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Drain unclaimed instances with SSE progress",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "count", "in": "query", "schema": { "type": "integer", "default": 20 } }],
+        "responses": { "200": { "description": "SSE stream" } }
+      }
+    },
+    "/api/pool/drain": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Drain unclaimed instances",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "Drained" } }
+      }
+    },
+    "/api/pool/check-starting": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Recheck all starting instances",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/pool/instances/{id}": {
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Delete an instance (destroys Railway service)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" } }
+      }
+    },
+    "/api/pool/recheck/{id}": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Recheck a single instance health",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/pool/update-runtime/{id}": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Update runtime image for an instance",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "image": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/api/pool/self-destruct": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Instance requests its own teardown",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "Accepted" } }
+      }
+    },
+    "/api/pool/credits-check": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Check prepaid credit balance (OpenRouter usage)",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "type": { "type": "string", "example": "prepaid" }, "limit": { "type": "number" }, "usage": { "type": "number" }, "remaining": { "type": "number" } } } } } } }
+      }
+    },
+    "/api/pool/credits-topup": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Request credit top-up (bumps OpenRouter limit)",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "previousLimit": { "type": "number" }, "newLimit": { "type": "number" } } } } } } }
+      }
+    },
+    "/api/pool/stripe/config": {
+      "post": {
+        "tags": ["Stripe"],
+        "summary": "Get Stripe publishable key",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "publishableKey": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/stripe/balance": {
+      "post": {
+        "tags": ["Stripe"],
+        "summary": "Get Stripe customer balance",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "balanceCents": { "type": "integer" } } } } } } }
+      }
+    },
+    "/api/pool/stripe/create-payment-intent": {
+      "post": {
+        "tags": ["Stripe"],
+        "summary": "Create PaymentIntent for credits or card funding",
+        "requestBody": { "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/InstanceAuth" }, { "type": "object", "required": ["amountCents"], "properties": { "amountCents": { "type": "integer", "minimum": 100 }, "purpose": { "type": "string", "enum": ["credits", "card"], "default": "credits" } } }] } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "clientSecret": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/stripe/redeem-coupon": {
+      "post": {
+        "tags": ["Stripe"],
+        "summary": "Redeem a coupon code (+$20 credits)",
+        "requestBody": { "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/InstanceAuth" }, { "type": "object", "required": ["code"], "properties": { "code": { "type": "string" } } }] } } } },
+        "responses": { "200": { "description": "OK" }, "400": { "description": "Invalid code" }, "409": { "description": "Max coupon limit reached" } }
+      }
+    },
+    "/api/pool/stripe/request-card": {
+      "post": {
+        "tags": ["Stripe"],
+        "summary": "Issue or top up a prepaid virtual spending card",
+        "requestBody": { "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/InstanceAuth" }, { "type": "object", "properties": { "amountCents": { "type": "integer", "minimum": 100, "default": 5000 } } }] } } } },
+        "responses": { "200": { "description": "Card issued or topped up", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "action": { "type": "string", "enum": ["issued", "topup"] }, "last4": { "type": "string" }, "brand": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/stripe/card-info": {
+      "post": {
+        "tags": ["Stripe"],
+        "summary": "Get masked card info for display",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "hasCard": { "type": "boolean" }, "last4": { "type": "string" }, "brand": { "type": "string" }, "spendingLimitCents": { "type": "integer" }, "spentCents": { "type": "integer" } } } } } } }
+      }
+    },
+    "/api/pool/stripe/card-details": {
+      "post": {
+        "tags": ["Stripe"],
+        "summary": "Get full card details (agent use only)",
+        "description": "Returns full card number, CVC, and expiry. Only for agent-side use when making purchases.",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/webhooks/stripe": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Stripe webhook (payment_intent.succeeded)",
+        "description": "Processes credit purchases (bumps OpenRouter limit) and card funding. Auth via Stripe signature.",
+        "responses": { "200": { "description": "Received" } }
+      }
+    }
+  }
+}

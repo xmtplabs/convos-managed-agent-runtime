@@ -88,22 +88,18 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     threads: false,
     media: true,
   },
-  groups: {
-    resolveRequireMention: () => false,
-  },
   reload: { configPrefixes: ["channels.convos"] },
   configSchema: convosChannelConfigSchema,
   onboarding: convosOnboardingAdapter,
   actions: convosMessageActions,
   agentPrompt: {
     messageToolHints: () => [
-      "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID. In a 2-member conversation, only use `replyTo` when referencing an older message — replying to the most recent message is redundant when there is only one other person.",
+      "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID.",
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
       "- To send a file: use `action=sendAttachment` with `file` (local path).",
       "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
       "- To update your display name or avatar: `convos conversation update-profile $CONVOS_CONVERSATION_ID --name \"Name\"` or `--image \"https://...\"`. Image must be a public URL, not a local file path.",
-      "- CRITICAL — NEVER narrate tool calls: Every text block you produce becomes a separate chat message pushed to every member's phone. NEVER write text before, between, or alongside tool calls — not even to report errors, explain retries, or describe a change in approach. If a tool fails, silently try the next approach. Call all tools silently, then write ONE message after you have the final result. This overrides the Tool Call Style defaults above.",
-      "- Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji=\"👀\"` — literal emoji, not a shortcode) to signal you are working on it. After you post the final result, remove the reaction (`action=react`, `remove=true`).",
+      "- CRITICAL — Never narrate tool calls: Every text block you produce becomes a separate chat message pushed to every member's phone. NEVER write text before, between, or alongside tool calls — not even to report errors, explain retries, or describe a change in approach. If a tool fails, silently try the next approach. Call all tools silently, then write ONE message after you have the final result. This overrides the Tool Call Style defaults above.",
       "- CRITICAL — Do not reply endlessly: You do NOT need to reply to every message. After you send a message, your turn is OVER. If the response to your message is acknowledgment, agreement, thanks, encouragement, or anything that does not directly ask you a question or give you a task — do not reply. Stay silent or react with an emoji. You are not obligated to respond just because someone (human or agent) responded to you.",
     ],
   },
@@ -300,11 +296,6 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
           },
           onMemberJoined: (info) => {
             log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}${info.catchup ? " (catchup)" : ""}`);
-            if (!info.catchup) {
-              inst.refreshMemberNames().catch((err) => {
-                log?.error(`[${account.accountId}] Failed to refresh members after join: ${String(err)}`);
-              });
-            }
           },
           onHeartbeat: (info) => {
             if (account.debug) {
@@ -361,11 +352,6 @@ async function handleInboundMessage(
 
   // Self-echo filtering is handled by `convos agent serve` — messages from
   // our own inboxId are never emitted. No filtering needed here.
-
-  // Keep member name cache current from inbound messages (skip synthetic system sender)
-  if (inst && msg.senderName && msg.senderId && msg.senderId !== SYSTEM_SENDER_ID) {
-    inst.setMemberName(msg.senderId, msg.senderName);
-  }
 
   if (account.debug) {
     debugLog(
@@ -455,21 +441,6 @@ async function handleInboundMessage(
   };
   const mediaMime = mediaPath ? extToMime[path.extname(mediaPath).toLowerCase()] ?? "image/jpeg" : undefined;
 
-  // Inject current wall-clock time as per-turn system context so the agent
-  // always knows "now" without calling session_status. Uses the same timezone
-  // as the envelope timestamps for consistency. (#306)
-  const tz = envelopeOptions.userTimezone || envelopeOptions.timezone || "UTC";
-  const currentTime = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz === "local" || tz === "user" ? undefined : tz,
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  }).format(Date.now());
-
   const ctxPayload = runtime.channel.reply.finalizeInboundContext({
     Body: body,
     RawBody: rawBody,
@@ -488,13 +459,6 @@ async function handleInboundMessage(
     MessageSid: msg.messageId,
     OriginatingChannel: "convos",
     OriginatingTo: `convos:${msg.conversationId}`,
-    GroupSubject: inst?.label ?? undefined,
-    GroupMembers: inst?.getGroupMembers() ?? undefined,
-    GroupSystemPrompt: [
-      account.config?.systemPrompt?.trim(),
-      `Current time: ${currentTime}`,
-      "Before every reply: (1) Need tools? → react 👀 first (2) No text alongside tool calls (3) Does this even need a reply?",
-    ].filter(Boolean).join("\n\n"),
     ...(mediaPath ? { MediaPath: mediaPath, MediaType: mediaMime } : {}),
   });
 
@@ -720,9 +684,6 @@ export async function startWiredInstance(params: {
           console.error(`[convos] Rename after join failed: ${String(err)}`);
         });
       }
-      inst.refreshMemberNames().catch((err) => {
-        console.error(`[convos] Failed to refresh members after join: ${String(err)}`);
-      });
     },
   });
 

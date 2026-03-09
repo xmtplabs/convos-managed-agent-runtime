@@ -6,7 +6,7 @@ import * as pool from "./pool";
 import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocsPage } from "./admin";
 import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
@@ -17,6 +17,7 @@ import * as openrouter from "./services/providers/openrouter";
 import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
+import { stripeWebhookRouter, stripeApiRouter } from "./stripeRoute";
 import { couponRouter } from "./couponRoute";
 import { serviceProxyRouter } from "./routes/serviceProxy";
 
@@ -84,8 +85,13 @@ const AGENT_CATALOG = (() => {
 
 const app = express();
 app.disable("x-powered-by");
+
+// Stripe webhook must be mounted before express.json() — needs raw body
+app.use(stripeWebhookRouter);
+
 // Higher limit for proxy routes (email attachments are base64-encoded in body)
 app.use("/api/proxy", express.json({ limit: "10mb" }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -226,7 +232,7 @@ app.post("/api/pool/credits-check", async (req, res) => {
     const currentLimit = keyData.limit ?? limit;
     const remaining = Math.max(0, currentLimit - usage);
 
-    res.json({ limit: currentLimit, usage, remaining, limitReset: keyData.limit_reset ?? config.openrouterKeyLimitReset });
+    res.json({ limit: currentLimit, usage, remaining, type: "prepaid" });
   } catch (err: any) {
     console.error("[api] Credits check failed:", err);
     res.status(500).json({ error: err.message });
@@ -261,14 +267,9 @@ app.post("/api/pool/credits-topup", async (req, res) => {
 
     const hash = svc.resourceId;
     const currentLimit = (svc.resourceMeta as any)?.limit ?? config.openrouterKeyLimit;
-    const maxLimit = parseInt(process.env.OPENROUTER_TOPUP_MAX || "100", 10);
-
-    if (currentLimit >= maxLimit) {
-      res.status(409).json({ error: "Credit limit already at maximum", limit: currentLimit, max: maxLimit }); return;
-    }
 
     const increment = parseInt(process.env.OPENROUTER_TOPUP_INCREMENT || "20", 10);
-    const newLimit = Math.min(currentLimit + increment, maxLimit);
+    const newLimit = currentLimit + increment;
 
     await openrouter.updateKeyLimit(hash, newLimit);
 
@@ -283,6 +284,9 @@ app.post("/api/pool/credits-topup", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Stripe payment API (instance-authenticated, same pattern as credits-check)
+app.use(stripeApiRouter);
 
 app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
   try {
@@ -343,6 +347,19 @@ app.get("/admin", (req, res) => {
   }));
 });
 
+app.get("/admin/api-docs", (req, res) => {
+  if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
+  res.type("html").send(apiDocsPage({
+    poolEnvironment: config.poolEnvironment,
+    adminUrls: POOL_ADMIN_URLS as any,
+  }));
+});
+
+app.get("/admin/openapi.json", (req, res) => {
+  if (!isAuthenticated(req)) { res.status(401).json({ error: "Unauthorized" }); return; }
+  res.sendFile(join(__dirname, "..", "frontend", "openapi.json"));
+});
+
 app.post("/admin/login", (req, res) => {
   const { password } = req.body || {};
   if (adminLogin(password, res)) { res.redirect(302, "/admin"); return; }
@@ -362,7 +379,7 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 });
 
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
-  const { agentName, instructions, joinUrl, source } = req.body || {};
+  const { agentName, instructions, joinUrl } = req.body || {};
   if (instructions && typeof instructions !== "string") {
     res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
@@ -384,7 +401,6 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       agentName: agentName || "Assistant",
       instructions: instructions || "You are a helpful AI assistant.",
       joinUrl: joinUrl || undefined,
-      source: (typeof source === "string" && source) || "api",
     });
     if (!result) {
       res.status(503).json({ error: "No idle instances available. Try again in a few minutes." }); return;
@@ -401,7 +417,6 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   const agentName = (req.query.agentName as string) || "Assistant";
   const instructions = (req.query.instructions as string) || "You are a helpful AI assistant.";
   const joinUrl = (req.query.joinUrl as string) || undefined;
-  const source = (req.query.source as string) || "api";
 
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -425,7 +440,6 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
       agentName,
       instructions,
       joinUrl,
-      source,
       onProgress(step, status, message) {
         send({ type: "step", step, status, message: message || "" });
       },
@@ -642,7 +656,7 @@ app.use(requireAuth, statusRouter);
 app.use(requireAuth, configureRouter);
 app.use(requireAuth, toolsRouter);
 
-// --- Startup: migrate, register webhook, start server ---
+// --- Startup: migrate, then tick loop ---
 import { runMigrations } from "./db/migrate";
 
 // --- Metrics ---
