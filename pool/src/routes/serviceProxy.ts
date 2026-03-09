@@ -14,6 +14,7 @@ import { Router } from "express";
 import { requireInstanceAuth } from "../middleware/instanceAuth";
 import { config } from "../config";
 import * as db from "../db/pool";
+import { metricCount, metricHistogram } from "../metrics";
 
 const router = Router();
 
@@ -54,6 +55,7 @@ function agentmailHeaders() {
 
 // POST /api/proxy/email/send — send an email
 router.post("/api/proxy/email/send", async (req, res) => {
+  const t0 = Date.now();
   const { inboxId } = await getResources(req.instanceId!);
   if (!inboxId) { res.status(404).json({ error: "No inbox provisioned for this instance" }); return; }
   if (!config.agentmailApiKey) { res.status(503).json({ error: "Email service not configured" }); return; }
@@ -65,14 +67,20 @@ router.post("/api/proxy/email/send", async (req, res) => {
       body: JSON.stringify(req.body),
     });
     const data = await upstream.text();
+    console.log(`[proxy/email] send: instance=${req.instanceId} inbox=${inboxId} status=${upstream.status}`);
+    metricCount("proxy.email.send", 1, { status: String(upstream.status) });
+    metricHistogram("proxy.email.duration_ms", Date.now() - t0, { action: "send" });
     res.status(upstream.status).type("json").send(data);
   } catch (err: any) {
+    console.error(`[proxy/email] send error: instance=${req.instanceId} err=${err.message}`);
+    metricCount("proxy.email.error", 1, { action: "send" });
     res.status(502).json({ error: `Email proxy failed: ${err.message}` });
   }
 });
 
 // GET /api/proxy/email/messages — poll inbox messages
 router.get("/api/proxy/email/messages", async (req, res) => {
+  const t0 = Date.now();
   const { inboxId } = await getResources(req.instanceId!);
   if (!inboxId) { res.status(404).json({ error: "No inbox provisioned" }); return; }
   if (!config.agentmailApiKey) { res.status(503).json({ error: "Email service not configured" }); return; }
@@ -83,14 +91,20 @@ router.get("/api/proxy/email/messages", async (req, res) => {
       headers: agentmailHeaders(),
     });
     const data = await upstream.text();
+    console.log(`[proxy/email] poll: instance=${req.instanceId} inbox=${inboxId} status=${upstream.status}`);
+    metricCount("proxy.email.poll", 1, { status: String(upstream.status) });
+    metricHistogram("proxy.email.duration_ms", Date.now() - t0, { action: "poll" });
     res.status(upstream.status).type("json").send(data);
   } catch (err: any) {
+    console.error(`[proxy/email] poll error: instance=${req.instanceId} err=${err.message}`);
+    metricCount("proxy.email.error", 1, { action: "poll" });
     res.status(502).json({ error: `Email proxy failed: ${err.message}` });
   }
 });
 
 // GET /api/proxy/email/threads — poll inbox threads
 router.get("/api/proxy/email/threads", async (req, res) => {
+  const t0 = Date.now();
   const { inboxId } = await getResources(req.instanceId!);
   if (!inboxId) { res.status(404).json({ error: "No inbox provisioned" }); return; }
   if (!config.agentmailApiKey) { res.status(503).json({ error: "Email service not configured" }); return; }
@@ -101,8 +115,13 @@ router.get("/api/proxy/email/threads", async (req, res) => {
       headers: agentmailHeaders(),
     });
     const data = await upstream.text();
+    console.log(`[proxy/email] threads: instance=${req.instanceId} inbox=${inboxId} status=${upstream.status}`);
+    metricCount("proxy.email.threads", 1, { status: String(upstream.status) });
+    metricHistogram("proxy.email.duration_ms", Date.now() - t0, { action: "threads" });
     res.status(upstream.status).type("json").send(data);
   } catch (err: any) {
+    console.error(`[proxy/email] threads error: instance=${req.instanceId} err=${err.message}`);
+    metricCount("proxy.email.error", 1, { action: "threads" });
     res.status(502).json({ error: `Email proxy failed: ${err.message}` });
   }
 });
@@ -120,6 +139,7 @@ function telnyxHeaders() {
 
 // POST /api/proxy/sms/send — send SMS (injects instance's phone as `from`)
 router.post("/api/proxy/sms/send", async (req, res) => {
+  const t0 = Date.now();
   const { phoneNumber } = await getResources(req.instanceId!);
   if (!phoneNumber) { res.status(404).json({ error: "No phone number provisioned" }); return; }
   if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured" }); return; }
@@ -133,14 +153,20 @@ router.post("/api/proxy/sms/send", async (req, res) => {
       body: JSON.stringify(body),
     });
     const data = await upstream.text();
+    console.log(`[proxy/sms] send: instance=${req.instanceId} phone=${phoneNumber} to=${req.body.to} status=${upstream.status}`);
+    metricCount("proxy.sms.send", 1, { status: String(upstream.status) });
+    metricHistogram("proxy.sms.duration_ms", Date.now() - t0, { action: "send" });
     res.status(upstream.status).type("json").send(data);
   } catch (err: any) {
+    console.error(`[proxy/sms] send error: instance=${req.instanceId} err=${err.message}`);
+    metricCount("proxy.sms.error", 1, { action: "send" });
     res.status(502).json({ error: `SMS proxy failed: ${err.message}` });
   }
 });
 
 // GET /api/proxy/sms/records — poll inbound SMS (injects instance's phone filter)
 router.get("/api/proxy/sms/records", async (req, res) => {
+  const t0 = Date.now();
   const { phoneNumber } = await getResources(req.instanceId!);
   if (!phoneNumber) { res.status(404).json({ error: "No phone number provisioned" }); return; }
   if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured" }); return; }
@@ -153,14 +179,20 @@ router.get("/api/proxy/sms/records", async (req, res) => {
       headers: telnyxHeaders(),
     });
     const data = await upstream.text();
+    console.log(`[proxy/sms] poll: instance=${req.instanceId} phone=${phoneNumber} status=${upstream.status}`);
+    metricCount("proxy.sms.poll", 1, { status: String(upstream.status) });
+    metricHistogram("proxy.sms.duration_ms", Date.now() - t0, { action: "poll" });
     res.status(upstream.status).type("json").send(data);
   } catch (err: any) {
+    console.error(`[proxy/sms] poll error: instance=${req.instanceId} err=${err.message}`);
+    metricCount("proxy.sms.error", 1, { action: "poll" });
     res.status(502).json({ error: `SMS proxy failed: ${err.message}` });
   }
 });
 
 // GET /api/proxy/sms/messages/:id — get message details
 router.get("/api/proxy/sms/messages/:id", async (req, res) => {
+  const t0 = Date.now();
   const { phoneNumber } = await getResources(req.instanceId!);
   if (!phoneNumber) { res.status(404).json({ error: "No phone number provisioned" }); return; }
   if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured" }); return; }
@@ -170,14 +202,22 @@ router.get("/api/proxy/sms/messages/:id", async (req, res) => {
       headers: telnyxHeaders(),
     });
     const data = await upstream.json().catch(() => null);
-    // Verify message belongs to this instance's phone number
-    const msgPhone = data?.data?.from?.phone_number || data?.data?.to?.[0]?.phone_number;
-    if (msgPhone && msgPhone !== phoneNumber && data?.data?.from?.phone_number !== phoneNumber) {
+    // Verify message involves this instance's phone (either as sender or recipient)
+    const fromPhone = data?.data?.from?.phone_number;
+    const toPhones = (data?.data?.to || []).map((t: any) => t.phone_number);
+    if (fromPhone && fromPhone !== phoneNumber && !toPhones.includes(phoneNumber)) {
+      console.warn(`[proxy/sms] message ${req.params.id} denied: instance=${req.instanceId} phone=${phoneNumber}`);
+      metricCount("proxy.sms.denied", 1);
       res.status(403).json({ error: "Message does not belong to this instance" });
       return;
     }
+    console.log(`[proxy/sms] message: instance=${req.instanceId} id=${req.params.id} status=${upstream.status}`);
+    metricCount("proxy.sms.message", 1, { status: String(upstream.status) });
+    metricHistogram("proxy.sms.duration_ms", Date.now() - t0, { action: "message" });
     res.status(upstream.status).type("json").json(data);
   } catch (err: any) {
+    console.error(`[proxy/sms] message error: instance=${req.instanceId} err=${err.message}`);
+    metricCount("proxy.sms.error", 1, { action: "message" });
     res.status(502).json({ error: `SMS proxy failed: ${err.message}` });
   }
 });
