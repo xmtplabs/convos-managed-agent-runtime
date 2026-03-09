@@ -73,6 +73,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hel
 
 /* Stat cards */
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.stats.stats-5 { grid-template-columns: repeat(5, 1fr); }
 .stats-credits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
 .stat-card { background: var(--color-surface); border: 1px solid var(--color-edge); border-radius: 12px; padding: 16px 20px; }
 .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-foreground-secondary); display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
@@ -81,7 +82,11 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hel
 .stat-dot.orange { background: #FF9500; }
 .stat-dot.blue { background: #007AFF; }
 .stat-dot.red { background: var(--color-error); }
+.stat-dot.purple { background: #8B5CF6; }
 .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+.stat-card-drain { position: relative; }
+.stat-card-drain .stat-value { color: #8B5CF6; }
+.btn-drain-sm { font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 6px; margin-top: 6px; width: 100%; }
 
 /* Filter pills */
 .filter-pills { display: flex; gap: 6px; }
@@ -320,7 +325,7 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 
 /* Responsive */
 @media (max-width: 640px) {
-  .stats, .stats-credits { grid-template-columns: repeat(2, 1fr); }
+  .stats, .stats.stats-5, .stats-credits { grid-template-columns: repeat(2, 1fr); }
   .header, .header-right { flex-wrap: wrap; }
   .header { gap: 8px; }
   .content { padding: 16px; }
