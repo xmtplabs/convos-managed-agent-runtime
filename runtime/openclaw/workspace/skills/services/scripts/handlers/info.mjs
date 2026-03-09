@@ -30,8 +30,9 @@ export default async function info() {
     email = data.email || null;
     phone = data.phone || null;
   } else {
-    email = process.env.AGENTMAIL_INBOX_ID || null;
-    phone = process.env.TELNYX_PHONE_NUMBER || null;
+    // No proxy — email/phone unavailable in direct mode
+    email = null;
+    phone = null;
   }
 
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;

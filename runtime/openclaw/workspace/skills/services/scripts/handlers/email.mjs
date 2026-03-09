@@ -20,7 +20,7 @@ const INSTANCE_ID = process.env.INSTANCE_ID;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
 
-// Direct mode: call AgentMail API directly (local dev)
+// Direct mode: call AgentMail API directly (local dev — requires AGENTMAIL_* env vars)
 const DIRECT_API = "https://api.agentmail.to/v0";
 const apiKey = process.env.AGENTMAIL_API_KEY;
 const inboxId = process.env.AGENTMAIL_INBOX_ID;

@@ -18,7 +18,7 @@ const INSTANCE_ID = process.env.INSTANCE_ID;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
 
-// Direct mode: Telnyx API (local dev)
+// Direct mode: Telnyx API (local dev — requires TELNYX_* env vars)
 const API_KEY = process.env.TELNYX_API_KEY;
 const PHONE = process.env.TELNYX_PHONE_NUMBER;
 
