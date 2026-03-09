@@ -61,5 +61,4 @@ export const config = {
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   bankrApiKey: getEnv("BANKR_API_KEY"),
-  telnyxPhoneNumber: getEnv("TELNYX_PHONE_NUMBER"),
 };

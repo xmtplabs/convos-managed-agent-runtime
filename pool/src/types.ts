@@ -50,6 +50,5 @@ export interface ToolRegistryEntry {
 export interface ProvisionResult {
   toolId: string;
   resourceId: string;
-  envKey: string;
   status: string;
 }
