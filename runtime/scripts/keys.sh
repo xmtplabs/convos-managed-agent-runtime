@@ -72,9 +72,7 @@ echo ""
 echo "  ── services ──────────────────"
 [ -n "$OPENROUTER_API_KEY" ] && echo "  ✅ OPENROUTER_API_KEY      → set" || echo "  ⬚  OPENROUTER_API_KEY      → not set"
 [ -n "$AGENTMAIL_INBOX_ID" ] && echo "  ✅ AGENTMAIL_INBOX_ID      → $AGENTMAIL_INBOX_ID" || echo "  ⬚  AGENTMAIL_INBOX_ID      → not set"
-[ -n "$BANKR_API_KEY" ] && echo "  ✅ BANKR_API_KEY           → set" || echo "  ⬚  BANKR_API_KEY           → not set"
 [ -n "$TELNYX_PHONE_NUMBER" ] && echo "  ✅ TELNYX_PHONE_NUMBER     → $TELNYX_PHONE_NUMBER" || echo "  ⬚  TELNYX_PHONE_NUMBER     → not set"
-[ -n "$TELNYX_MESSAGING_PROFILE_ID" ] && echo "  ✅ TELNYX_MESSAGING_PROFILE_ID → set" || echo "  ⬚  TELNYX_MESSAGING_PROFILE_ID → not set"
 
 # ── Write .env ─────────────────────────────────────────────────────────────
 
@@ -83,21 +81,17 @@ echo "  ── services ──────────────────"
 if [ -n "$RAILWAY_ENVIRONMENT" ]; then
   key="${OPENROUTER_API_KEY:-}"
   agentmail_inbox="${AGENTMAIL_INBOX_ID:-}"
-  bankr_key="${BANKR_API_KEY:-}"
   telnyx_phone="${TELNYX_PHONE_NUMBER:-}"
-  telnyx_profile="${TELNYX_MESSAGING_PROFILE_ID:-}"
   pool_url="${POOL_URL:-}"
   instance_id="${INSTANCE_ID:-}"
 
   touch "$ENV_FILE"
   tmp=$(mktemp)
-  grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^BANKR_API_KEY=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^TELNYX_MESSAGING_PROFILE_ID=' | grep -v '^POOL_URL=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
+  grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^AGENTMAIL_INBOX_ID=' | grep -v '^TELNYX_PHONE_NUMBER=' | grep -v '^POOL_URL=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
   echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
   if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
   if [ -n "$agentmail_inbox" ]; then echo "AGENTMAIL_INBOX_ID=$agentmail_inbox" >> "$tmp"; fi
-  if [ -n "$bankr_key" ]; then echo "BANKR_API_KEY=$bankr_key" >> "$tmp"; fi
   if [ -n "$telnyx_phone" ]; then echo "TELNYX_PHONE_NUMBER=$telnyx_phone" >> "$tmp"; fi
-  if [ -n "$telnyx_profile" ]; then echo "TELNYX_MESSAGING_PROFILE_ID=$telnyx_profile" >> "$tmp"; fi
   if [ -n "$pool_url" ]; then echo "POOL_URL=$pool_url" >> "$tmp"; fi
   if [ -n "$instance_id" ]; then echo "INSTANCE_ID=$instance_id" >> "$tmp"; fi
   mv "$tmp" "$ENV_FILE"

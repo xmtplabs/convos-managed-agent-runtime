@@ -1,6 +1,6 @@
 import { eq, and, sql, notInArray, inArray } from "drizzle-orm";
 import { db } from "./connection";
-import { instances, instanceInfra } from "./schema";
+import { instances, instanceInfra, instanceServices } from "./schema";
 import type { InstanceRow, InstanceStatus } from "./schema";
 
 interface UpsertInstanceOpts {
@@ -203,6 +203,22 @@ export async function setRuntimeVersion(instanceId: string, version: string) {
 
 export async function deleteById(id: string) {
   await db.delete(instances).where(eq(instances.id, id));
+}
+
+/** Look up an instance's provisioned service resources (inbox, phone). */
+export async function getServiceResources(instanceId: string): Promise<{ inboxId: string | null; phoneNumber: string | null }> {
+  const rows = await db.select({
+    toolId: instanceServices.toolId,
+    envValue: instanceServices.envValue,
+  }).from(instanceServices).where(eq(instanceServices.instanceId, instanceId));
+
+  let inboxId: string | null = null;
+  let phoneNumber: string | null = null;
+  for (const row of rows) {
+    if (row.toolId === "agentmail") inboxId = row.envValue;
+    if (row.toolId === "telnyx") phoneNumber = row.envValue;
+  }
+  return { inboxId, phoneNumber };
 }
 
 export async function deleteOrphaned(activeInstanceIds: string[]) {

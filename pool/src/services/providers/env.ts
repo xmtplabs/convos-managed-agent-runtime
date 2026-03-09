@@ -8,10 +8,8 @@ export function buildInstanceEnv(): Record<string, string> {
     XMTP_ENV: config.xmtpEnv,
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_URL: config.poolUrl,
-    AGENTMAIL_API_KEY: config.agentmailApiKey,
-    BANKR_API_KEY: config.bankrApiKey,
-    TELNYX_API_KEY: config.telnyxApiKey,
-    TELNYX_PHONE_NUMBER: config.telnyxPhoneNumber,
-    TELNYX_MESSAGING_PROFILE_ID: config.telnyxMessagingProfileId,
+    // API keys (AGENTMAIL_API_KEY, TELNYX_API_KEY, BANKR_API_KEY) are NOT
+    // passed to instances. Service calls are proxied through the pool manager
+    // via /api/proxy/* endpoints, authenticated with the instance's gateway token.
   };
 }

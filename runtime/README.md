@@ -94,14 +94,13 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key for LLM calls |
 | `XMTP_ENV` | yes | XMTP network (`dev` or `production`) |
 | `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |
-| `AGENTMAIL_API_KEY` | no | AgentMail API key (enables email skill) |
-| `AGENTMAIL_INBOX_ID` | no | AgentMail inbox (provisioned if API key set) |
-| `BANKR_API_KEY` | no | Bankr API key (enables crypto skill) |
-| `TELNYX_API_KEY` | no | Telnyx API key (enables SMS skill) |
-| `TELNYX_PHONE_NUMBER` | no | Telnyx phone number (provisioned if API key set) |
-| `TELNYX_MESSAGING_PROFILE_ID` | no | Telnyx messaging profile |
+| `AGENTMAIL_INBOX_ID` | no | AgentMail inbox (provisioned by pool manager) |
+| `TELNYX_PHONE_NUMBER` | no | Telnyx phone number (provisioned by pool manager) |
 | `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
-| `POOL_URL` | no | Pool manager public URL (for self-destruct) |
+| `POOL_URL` | no | Pool manager URL — service calls (email, SMS, bankr) are proxied through this |
+| `AGENTMAIL_API_KEY` | no | Local dev only — direct AgentMail API access (not set in production) |
+| `TELNYX_API_KEY` | no | Local dev only — direct Telnyx API access (not set in production) |
+| `BANKR_API_KEY` | no | Local dev only — direct Bankr API access (not set in production) |
 | `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |
 
 ### Docker / Railway only

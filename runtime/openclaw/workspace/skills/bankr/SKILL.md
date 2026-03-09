@@ -6,25 +6,26 @@ metadata:
     "openclaw": {
       "emoji": "📺",
       "homepage": "https://bankr.bot",
-      "primaryEnv": "BANKR_API_KEY",
-      "requires": { "bins": ["bankr"], "env": ["BANKR_API_KEY"] }
+      "primaryEnv": "BANKR_API_KEY"
     }
   }
 ---
 
 # Bankr
 
-Execute crypto trading and DeFi operations using natural language. The API key is provided via OpenClaw config/env as `BANKR_API_KEY`. Two options: **Bankr CLI** (install `@bankr/cli`; key is injected) or **REST API** at `https://api.bankr.bot` (same key, same async job workflow).
+Execute crypto trading and DeFi operations using natural language. Two options: **Bankr CLI** (key is injected via env) or **REST API** (same async job workflow).
 
 ## REST API
 
-Use `X-API-Key: $BANKR_API_KEY` (or the value from OpenClaw config) on all requests.
+**Base URL:** Use `$BANKR_API_URL` if set (pool-managed instances route through a proxy), otherwise `https://api.bankr.bot`.
+
+**Auth:** Use `X-API-Key: $BANKR_API_KEY` on all requests.
 
 ### Quick Example: Submit → Poll → Complete
 
 ```bash
 # 1. Submit a prompt — returns a job ID
-JOB=$(curl -s -X POST "https://api.bankr.bot/agent/prompt" \
+JOB=$(curl -s -X POST "${BANKR_API_URL:-https://api.bankr.bot}/agent/prompt" \
   -H "X-API-Key: $BANKR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"prompt": "What is my ETH balance?"}')
@@ -32,7 +33,7 @@ JOB_ID=$(echo "$JOB" | jq -r '.jobId')
 
 # 2. Poll until terminal status
 while true; do
-  RESULT=$(curl -s "https://api.bankr.bot/agent/job/$JOB_ID" \
+  RESULT=$(curl -s "${BANKR_API_URL:-https://api.bankr.bot}/agent/job/$JOB_ID" \
     -H "X-API-Key: $BANKR_API_KEY")
   STATUS=$(echo "$RESULT" | jq -r '.status')
   [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ] && break
@@ -49,14 +50,14 @@ Every prompt response includes a `threadId`. Pass it back to continue the conver
 
 ```bash
 # Start — the response includes a threadId
-curl -X POST "https://api.bankr.bot/agent/prompt" \
+curl -X POST "${BANKR_API_URL:-https://api.bankr.bot}/agent/prompt" \
   -H "X-API-Key: $BANKR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"prompt": "What is the price of ETH?"}'
 # → {"jobId": "job_abc", "threadId": "thr_XYZ", ...}
 
 # Continue — pass threadId to maintain context
-curl -X POST "https://api.bankr.bot/agent/prompt" \
+curl -X POST "${BANKR_API_URL:-https://api.bankr.bot}/agent/prompt" \
   -H "X-API-Key: $BANKR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"prompt": "And what about SOL?", "threadId": "thr_XYZ"}'
@@ -114,7 +115,7 @@ Default config location: `~/.bankr/config.json`. Override with `--config` or `BA
 | Variable | Description |
 |----------|-------------|
 | `BANKR_API_KEY` | API key (overrides stored key) |
-| `BANKR_API_URL` | API URL (default: `https://api.bankr.bot`) |
+| `BANKR_API_URL` | API URL (default: `https://api.bankr.bot`). Pool-managed instances set this to route through the pool manager proxy. |
 | `BANKR_LLM_KEY` | LLM gateway key (falls back to `BANKR_API_KEY` if not set) |
 | `BANKR_LLM_URL` | LLM gateway URL (default: `https://llm.bankr.bot`) |
 
@@ -598,19 +599,19 @@ Direct message signing without AI processing:
 
 ```bash
 # Sign a plain text message
-curl -X POST "https://api.bankr.bot/agent/sign" \
+curl -X POST "${BANKR_API_URL:-https://api.bankr.bot}/agent/sign" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"signatureType": "personal_sign", "message": "Hello, Bankr!"}'
 
 # Sign EIP-712 typed data (permits, orders)
-curl -X POST "https://api.bankr.bot/agent/sign" \
+curl -X POST "${BANKR_API_URL:-https://api.bankr.bot}/agent/sign" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"signatureType": "eth_signTypedData_v4", "typedData": {...}}'
 
 # Sign a transaction without broadcasting
-curl -X POST "https://api.bankr.bot/agent/sign" \
+curl -X POST "${BANKR_API_URL:-https://api.bankr.bot}/agent/sign" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"signatureType": "eth_signTransaction", "transaction": {"to": "0x...", "chainId": 8453}}'
@@ -622,7 +623,7 @@ Direct transaction submission without AI processing:
 
 ```bash
 # Submit a raw transaction
-curl -X POST "https://api.bankr.bot/agent/submit" \
+curl -X POST "${BANKR_API_URL:-https://api.bankr.bot}/agent/submit" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -671,7 +672,7 @@ bankr config get llmKey
 **REST API:**
 ```bash
 # Test your API key
-curl -s "https://api.bankr.bot/_health" -H "X-API-Key: $BANKR_API_KEY"
+curl -s "${BANKR_API_URL:-https://api.bankr.bot}/_health" -H "X-API-Key: $BANKR_API_KEY"
 ```
 
 ### API Errors

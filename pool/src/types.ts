@@ -13,7 +13,7 @@ export interface CreateInstanceResponse {
   services: {
     openrouter?: { resourceId: string };
     agentmail?: { resourceId: string };
-    telnyx?: { resourceId: string };
+    telnyx?: { resourceId: string; messagingProfileId?: string };
   };
 }
 

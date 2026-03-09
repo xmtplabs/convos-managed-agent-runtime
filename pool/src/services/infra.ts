@@ -44,8 +44,7 @@ export async function createInstance(
       metricHistogram("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
       metricCount("provider.telnyx.provisioned");
       vars.TELNYX_PHONE_NUMBER = phoneNumber;
-      vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
-      services.telnyx = { resourceId: phoneNumber };
+      services.telnyx = { resourceId: phoneNumber, messagingProfileId };
       onProgress?.("telnyx", "ok");
     } else {
       onProgress?.("telnyx", "skip", "Not configured");
@@ -234,7 +233,7 @@ export async function createInstance(
         resourceId: services.telnyx.resourceId,
         envKey: "TELNYX_PHONE_NUMBER",
         envValue: vars.TELNYX_PHONE_NUMBER,
-        resourceMeta: { messagingProfileId: vars.TELNYX_MESSAGING_PROFILE_ID },
+        resourceMeta: { messagingProfileId: services.telnyx.messagingProfileId },
       });
     }
   } catch (err) {
