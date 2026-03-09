@@ -83,7 +83,7 @@ export async function createInstance(
     metricCount("provider.railway.project.provisioned");
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
-    console.error(`[infra] Railway project creation failed for ${instanceId}`);
+    console.error(`[infra] Railway project creation failed for ${instanceId}:`, (err as Error).message);
     logger.error("create.railway_project_fail", { instanceId, error_class, error_message: error_message.slice(0, 1500) });
     metricCount("instance.create.fail", 1, { phase: "railway_project", error_class });
     onProgress?.("railway-project", "fail", (err as Error).message);
