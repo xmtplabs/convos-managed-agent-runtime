@@ -166,7 +166,7 @@ export async function createInstance(
         resourceId: services.openrouter.resourceId,
         envKey: "OPENROUTER_API_KEY",
         envValue: vars.OPENROUTER_API_KEY,
-        resourceMeta: {},
+        resourceMeta: { model: vars.OPENCLAW_PRIMARY_MODEL || "" },
       });
     }
   } catch (err) {
