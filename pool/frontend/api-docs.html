@@ -12,6 +12,11 @@
   <link rel="stylesheet" href="/admin/assets/admin.css">
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
   <style>
+    /* Undo admin.css global reset inside Swagger — let swagger-ui.css own its styles */
+    .swagger-ui * { margin: revert; padding: revert; box-sizing: revert; }
+    .swagger-ui table { width: revert; border-collapse: revert; table-layout: revert; }
+    .swagger-ui th, .swagger-ui td { text-align: revert; font-size: revert; font-weight: revert; text-transform: revert; letter-spacing: revert; color: revert; padding: revert; border-bottom: revert; vertical-align: revert; overflow: revert; text-overflow: revert; white-space: revert; background: revert; }
+    .swagger-ui tr:last-child td { border-bottom: revert; }
     /* Hide Swagger's own topbar and info block — we use the admin header */
     .swagger-ui .topbar { display: none; }
     .swagger-ui .info { display: none; }
@@ -19,7 +24,6 @@
     /* Constrain Swagger to content width */
     .swagger-wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
     .swagger-ui .wrapper { padding: 0; }
-    /* nav-link styles are in admin.css */
   </style>
 </head>
 <body>
