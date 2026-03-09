@@ -113,7 +113,6 @@ function telnyxHeaders() {
 // POST /api/proxy/sms/send — send SMS (injects instance's phone as `from`)
 router.post("/api/proxy/sms/send", async (req, res) => {
   const { phoneNumber } = await getResources(req.instanceId!);
-  console.log(`[proxy/sms] send: instance=${req.instanceId} phone=${phoneNumber}`);
   if (!phoneNumber) { res.status(404).json({ error: "No phone number provisioned" }); return; }
   if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured" }); return; }
 
@@ -154,14 +153,22 @@ router.get("/api/proxy/sms/records", async (req, res) => {
 
 // GET /api/proxy/sms/messages/:id — get message details
 router.get("/api/proxy/sms/messages/:id", async (req, res) => {
+  const { phoneNumber } = await getResources(req.instanceId!);
+  if (!phoneNumber) { res.status(404).json({ error: "No phone number provisioned" }); return; }
   if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured" }); return; }
 
   try {
     const upstream = await fetch(`${TELNYX_API}/messages/${req.params.id}`, {
       headers: telnyxHeaders(),
     });
-    const data = await upstream.text();
-    res.status(upstream.status).type("json").send(data);
+    const data = await upstream.json().catch(() => null);
+    // Verify message belongs to this instance's phone number
+    const msgPhone = data?.data?.from?.phone_number || data?.data?.to?.[0]?.phone_number;
+    if (msgPhone && msgPhone !== phoneNumber && data?.data?.from?.phone_number !== phoneNumber) {
+      res.status(403).json({ error: "Message does not belong to this instance" });
+      return;
+    }
+    res.status(upstream.status).type("json").json(data);
   } catch (err: any) {
     res.status(502).json({ error: `SMS proxy failed: ${err.message}` });
   }

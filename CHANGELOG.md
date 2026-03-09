@@ -8,7 +8,7 @@
   - Email/SMS proxy enforces per-instance inbox and phone number from DB
   - Runtime handlers auto-detect proxy mode (`POOL_URL` + `INSTANCE_ID` + `GATEWAY_TOKEN`), fall back to direct API keys for local dev
   - Bankr key (`BANKR_API_KEY`) still passed through directly to instances
-- Simplify pool env config: derive `POOL_URL` from `RAILWAY_PUBLIC_DOMAIN`, remove manual `POOL_ENVIRONMENT`
+- Simplify pool env config: derive `POOL_URL` from `RAILWAY_PUBLIC_DOMAIN` (falls back to `POOL_ENVIRONMENT` env var)
 - Unify instance auth to single `OPENCLAW_GATEWAY_TOKEN` (#395)
   - Remove `POOL_API_KEY`, `SETUP_PASSWORD`, `PRIVATE_WALLET_KEY` from instances
   - Legacy fallback in `authFetch.ts` for old instances

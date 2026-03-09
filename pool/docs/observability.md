@@ -8,7 +8,7 @@ The pool manager sends structured logs and metrics to Datadog. Both require `DAT
 |---------|---------|
 | `DATADOG_API_KEY` | Enables both logs and metrics |
 | `DATADOG_SITE` | DD region (default: `datadoghq.com`) |
-| `RAILWAY_ENVIRONMENT_NAME` | Environment tag (`dev`, `staging`, `production`) — auto-set by Railway |
+| `POOL_ENVIRONMENT` | Environment tag (`dev`, `staging`, `production`) — falls back to `RAILWAY_ENVIRONMENT_NAME` |
 
 ## Structured Logs
 
