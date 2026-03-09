@@ -59,8 +59,10 @@ The `pnpm start` script runs four steps in sequence:
     ├── install-deps.sh     # extension deps
     ├── gateway.sh          # openclaw gateway with restart loop
     ├── pool-server.js      # pool health/provision endpoints
-    ├── qa.sh               # smoke test runner
-    ├── qa-prompts.sh       # QA prompt definitions
+    ├── qa/
+    │   ├── smoke.sh        # smoke tests (direct API keys)
+    │   ├── proxy.sh        # proxy endpoint smoke tests
+    │   └── prompts.sh      # QA prompt definitions
     └── lib/
         ├── init.sh         # set ROOT, load .env, load paths
         ├── paths.sh        # derive STATE_DIR, WORKSPACE_DIR, etc.
@@ -79,7 +81,8 @@ The `pnpm start` script runs four steps in sequence:
 | `pnpm apply` | Sync workspace/skills/extensions and copy config template to state dir |
 | `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
 | `pnpm gateway` | Start the gateway |
-| `pnpm qa` | QA smoke tests (email, sms, bankr, convos, browser) |
+| `pnpm qa` | QA smoke tests (email, sms, convos, browser) — uses direct API keys |
+| `pnpm qa:proxy` | QA proxy tests — hits pool manager `/api/proxy/*` endpoints with instance credentials |
 | `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
 | `pnpm build` | Build Docker image locally |
 | `pnpm build:run` | Build and run with .env from repo root |

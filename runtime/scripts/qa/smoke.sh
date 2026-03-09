@@ -3,9 +3,12 @@
 # Requires gateway running.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# Use .env.smoke (direct API keys, no pool/proxy vars) to avoid proxy conflicts
+SMOKE_ENV="$ROOT/.env.smoke"
+[ -f "$SMOKE_ENV" ] && set -a && . "$SMOKE_ENV" 2>/dev/null || true && set +a
+. "$ROOT/scripts/lib/paths.sh"
 cd "$ROOT"
-. "$ROOT/scripts/lib/env-load.sh"
 
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
 . "$ROOT/scripts/lib/node-path.sh"

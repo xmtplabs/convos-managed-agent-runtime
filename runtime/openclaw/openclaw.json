@@ -79,24 +79,10 @@
   "skills": {
     "entries": {
       "services": {
-        "enabled": true,
-        "env": {
-          "POOL_URL": "${POOL_URL}",
-          "INSTANCE_ID": "${INSTANCE_ID}",
-          "OPENCLAW_GATEWAY_TOKEN": "${OPENCLAW_GATEWAY_TOKEN}",
-          "AGENTMAIL_API_KEY": "${AGENTMAIL_API_KEY}",
-          "AGENTMAIL_INBOX_ID": "${AGENTMAIL_INBOX_ID}",
-          "TELNYX_API_KEY": "${TELNYX_API_KEY}",
-          "TELNYX_PHONE_NUMBER": "${TELNYX_PHONE_NUMBER}"
-        }
+        "enabled": true
       },
       "bankr": {
-        "enabled": true,
-        "apiKey": "${BANKR_API_KEY}",
-        "env": {
-          "BANKR_API_KEY": "${BANKR_API_KEY}",
-          "BANKR_API_URL": "${BANKR_API_URL}"
-        }
+        "enabled": true
       }
     }
   },
