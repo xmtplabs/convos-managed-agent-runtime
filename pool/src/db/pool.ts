@@ -70,11 +70,25 @@ export async function getCounts(): Promise<Record<InstanceStatus, number>> {
   return counts;
 }
 
-/** Atomically claim one idle instance using FOR UPDATE SKIP LOCKED. */
-export async function claimIdle(): Promise<InstanceRow | null> {
+/** Atomically claim one idle instance using FOR UPDATE SKIP LOCKED.
+ *  When inviteUrl is provided, aborts if another instance is already
+ *  claiming/claimed for that URL (dedup within the same transaction). */
+export async function claimIdle(inviteUrl?: string | null): Promise<InstanceRow | null> {
   return db.transaction(async (tx) => {
+    // Dedup: if an instance is already handling this inviteUrl, don't claim another
+    if (inviteUrl) {
+      const dup = await tx.execute(sql`
+        SELECT 1 FROM instances
+        WHERE invite_url = ${inviteUrl}
+          AND status IN ('claiming', 'claimed')
+        LIMIT 1
+      `);
+      if (dup.rows.length > 0) return null;
+    }
+
     const result = await tx.execute(sql`
-      UPDATE instances SET status = 'claiming'
+      UPDATE instances SET status = 'claiming',
+        invite_url = COALESCE(${inviteUrl ?? null}, invite_url)
       WHERE id = (
         SELECT id FROM instances
         WHERE status = 'idle'
@@ -219,6 +233,14 @@ export async function getServiceResources(instanceId: string): Promise<{ inboxId
     if (row.toolId === "telnyx") phoneNumber = row.envValue;
   }
   return { inboxId, phoneNumber };
+}
+
+/** Check if an instance is already claiming/claimed for a given invite URL. */
+export async function hasActiveInviteUrl(inviteUrl: string): Promise<boolean> {
+  const rows = await db.select({ id: instances.id }).from(instances).where(
+    and(eq(instances.inviteUrl, inviteUrl), inArray(instances.status, ["claiming", "claimed"])),
+  ).limit(1);
+  return rows.length > 0;
 }
 
 export async function deleteOrphaned(activeInstanceIds: string[]) {
