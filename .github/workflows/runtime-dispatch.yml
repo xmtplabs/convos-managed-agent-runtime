@@ -79,6 +79,7 @@ jobs:
             -e PORT=8080 \
             -e OPENCLAW_STATE_DIR=/app \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
+            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
