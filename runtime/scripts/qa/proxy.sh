@@ -102,21 +102,6 @@ else
   fail "sms-poll" "HTTP $STATUS: $(cat "$QA_TMP")"
 fi
 
-# --- Bankr (proxy) ---
-echo ""
-echo "=== QA proxy: bankr ==="
-echo "  > GET /api/proxy/bankr/agent/wallets"
-STATUS=$(curl -s -o "$QA_TMP" -w "%{http_code}" \
-  "${POOL_URL}/api/proxy/bankr/agent/wallets" \
-  -H "Authorization: $AUTH")
-if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-  pass "bankr (HTTP $STATUS)"
-elif [ "$STATUS" = "503" ]; then
-  echo "  [SKIP] bankr not configured on pool"
-else
-  fail "bankr" "HTTP $STATUS: $(cat "$QA_TMP")"
-fi
-
 rm -f "$QA_TMP"
 
 # --- Summary ---

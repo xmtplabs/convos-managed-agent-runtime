@@ -1,7 +1,7 @@
 /**
  * Service proxy — routes service API calls from instances through the pool manager.
  *
- * Instances no longer hold API keys for AgentMail, Telnyx, or Bankr.
+ * Instances no longer hold API keys for AgentMail or Telnyx.
  * Instead they call these proxy endpoints, authenticated with their
  * per-instance OPENCLAW_GATEWAY_TOKEN. The pool manager injects the
  * real API key and forwards to the upstream service.
@@ -113,6 +113,7 @@ function telnyxHeaders() {
 // POST /api/proxy/sms/send — send SMS (injects instance's phone as `from`)
 router.post("/api/proxy/sms/send", async (req, res) => {
   const { phoneNumber } = await getResources(req.instanceId!);
+  console.log(`[proxy/sms] send: instance=${req.instanceId} phone=${phoneNumber}`);
   if (!phoneNumber) { res.status(404).json({ error: "No phone number provisioned" }); return; }
   if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured" }); return; }
 
@@ -163,36 +164,6 @@ router.get("/api/proxy/sms/messages/:id", async (req, res) => {
     res.status(upstream.status).type("json").send(data);
   } catch (err: any) {
     res.status(502).json({ error: `SMS proxy failed: ${err.message}` });
-  }
-});
-
-// ── Bankr ───────────────────────────────────────────────────────────────────
-// Passthrough proxy — all bankr endpoints forwarded with real API key.
-// Bankr is account-level (shared key), not per-instance scoped.
-
-const BANKR_API = "https://api.bankr.bot";
-
-router.all("/api/proxy/bankr/{*path}", async (req, res) => {
-  if (!config.bankrApiKey) { res.status(503).json({ error: "Bankr service not configured" }); return; }
-
-  // Strip the proxy prefix to get the upstream path: /api/proxy/bankr/agent/prompt → /agent/prompt
-  const upstreamPath = req.path.replace(/^\/api\/proxy\/bankr/, "");
-
-  try {
-    const headers: Record<string, string> = {
-      "X-API-Key": config.bankrApiKey,
-      "Content-Type": "application/json",
-    };
-    const opts: RequestInit = { method: req.method, headers };
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      opts.body = JSON.stringify(req.body);
-    }
-
-    const upstream = await fetch(`${BANKR_API}${upstreamPath}`, opts);
-    const data = await upstream.text();
-    res.status(upstream.status).type("json").send(data);
-  } catch (err: any) {
-    res.status(502).json({ error: `Bankr proxy failed: ${err.message}` });
   }
 });
 

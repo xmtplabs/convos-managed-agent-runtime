@@ -18,8 +18,9 @@ export const config = {
   // Pool behavior
   stuckTimeoutMs: parseInt(getEnv("POOL_STUCK_TIMEOUT_MS", String(15 * 60 * 1000)), 10),
 
-  // Pool environment context (auto-detected from Railway)
-  poolEnvironment: getEnv("RAILWAY_ENVIRONMENT_NAME", "undefined"),
+  // Pool environment context
+  poolEnvironment:
+    getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "undefined"),
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
   instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
@@ -39,7 +40,7 @@ export const config = {
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
   railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
-    const env = getEnv("RAILWAY_ENVIRONMENT_NAME", "");
+    const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
     return env ? `ghcr.io/xmtplabs/convos-runtime:${env}` : "";
   })(),
 

@@ -82,7 +82,11 @@
         "enabled": true
       },
       "bankr": {
-        "enabled": true
+        "enabled": true,
+        "apiKey": "${BANKR_API_KEY}",
+        "env": {
+          "BANKR_API_KEY": "${BANKR_API_KEY}"
+        }
       }
     }
   },

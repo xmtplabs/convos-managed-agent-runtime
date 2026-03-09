@@ -4,7 +4,6 @@
  * Validates that the request comes from a known pool-managed instance.
  * Accepts auth via:
  *   - Authorization: Bearer <instanceId>:<gatewayToken>
- *   - X-API-Key: <instanceId>:<gatewayToken>  (for bankr CLI compat)
  *
  * On success, attaches `req.instanceId` for downstream handlers.
  */
@@ -33,14 +32,6 @@ function extractCredentials(req: Request): { instanceId: string; token: string }
   if (bearerMatch) {
     const [instanceId, ...rest] = bearerMatch[1].split(":");
     const token = rest.join(":"); // rejoin in case token contains ':'
-    if (instanceId && token) return { instanceId, token };
-  }
-
-  // Try X-API-Key: <instanceId>:<gatewayToken> (bankr CLI compat)
-  const apiKey = req.headers["x-api-key"] as string | undefined;
-  if (apiKey) {
-    const [instanceId, ...rest] = apiKey.split(":");
-    const token = rest.join(":");
     if (instanceId && token) return { instanceId, token };
   }
 
