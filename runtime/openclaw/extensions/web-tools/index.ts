@@ -73,7 +73,8 @@ async function getServicesData(): Promise<Record<string, unknown>> {
       }
     } catch {}
   }
-  // No env fallback — email/phone always come from pool proxy
+  if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
+  if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
 
   const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
 

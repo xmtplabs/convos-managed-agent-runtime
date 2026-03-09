@@ -26,14 +26,16 @@ export default async function info() {
   let email, phone;
 
   if (useProxy) {
-    const data = await getProxyInfo();
-    email = data.email || null;
-    phone = data.phone || null;
-  } else {
-    // No proxy — email/phone unavailable in direct mode
-    email = null;
-    phone = null;
+    try {
+      const data = await getProxyInfo();
+      email = data.email || null;
+      phone = data.phone || null;
+    } catch {
+      // Proxy unavailable — fall back to env
+    }
   }
+  if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
+  if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
 
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
   const ngrok = process.env.NGROK_URL;
