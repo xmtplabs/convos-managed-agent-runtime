@@ -33,6 +33,14 @@ async function getResources(instanceId: string) {
   return data;
 }
 
+// ── Instance info ────────────────────────────────────────────────────────────
+
+// GET /api/proxy/info — return instance's provisioned resources
+router.get("/api/proxy/info", async (req, res) => {
+  const { inboxId, phoneNumber } = await getResources(req.instanceId!);
+  res.json({ instanceId: req.instanceId, email: inboxId, phone: phoneNumber });
+});
+
 // ── Email (AgentMail) ───────────────────────────────────────────────────────
 
 const AGENTMAIL_API = "https://api.agentmail.to/v0";

@@ -22,10 +22,20 @@ run() { "$@" 2>&1 | tee "$QA_TMP" || true; }
 # quiet run -- captures to $QA_TMP without printing
 qrun() { "$@" > "$QA_TMP" 2>&1 || true; }
 
+SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
+
+# --- Instance info ---
+echo ""
+echo "=== QA: info ==="
+qrun node "$SERVICES" info
+QA_EMAIL=$(cat "$QA_TMP" | grep -o '"email": *"[^"]*"' | cut -d'"' -f4)
+QA_PHONE=$(cat "$QA_TMP" | grep -o '"phone": *"[^"]*"' | cut -d'"' -f4)
+[ -n "$QA_EMAIL" ] && echo "  Email: $QA_EMAIL" || echo "  Email: (none)"
+[ -n "$QA_PHONE" ] && echo "  Phone: $QA_PHONE" || echo "  Phone: (none)"
+
 # --- Email (services skill) ---
 echo ""
 echo "=== QA: email ==="
-SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
 echo "  > node services.mjs email send --to fabri@xmtp.com"
 run node "$SERVICES" email send \
   --to "fabri@xmtp.com" --subject "QA $(date +%s)" --text "Smoke test"
