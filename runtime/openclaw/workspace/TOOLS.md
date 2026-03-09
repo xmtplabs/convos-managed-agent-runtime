@@ -19,7 +19,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
 - **Services** — Your managed services: send and receive email, send and receive SMS, check credits. MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
-- **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
+- **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. Opt-in: the user must sign up at [bankr.bot](https://bankr.bot) and run `bankr login` to set up their own key. See `skills/bankr/SKILL.md` for the full setup flow. MUST use for ANY crypto/DeFi task.
 
 
 
