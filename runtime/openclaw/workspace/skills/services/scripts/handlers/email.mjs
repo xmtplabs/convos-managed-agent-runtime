@@ -62,7 +62,12 @@ async function api(method, path, body) {
 
 // In proxy mode, paths don't include inboxId (pool manager injects it)
 function inboxPath(suffix) {
-  if (useProxy) return `/api/proxy/email/${suffix}`;
+  if (useProxy) {
+    // Proxy routes: /api/proxy/email/send, /api/proxy/email/messages, /api/proxy/email/threads
+    // Strip "messages/" prefix for send since proxy has a dedicated /send route
+    if (suffix === "messages/send") return "/api/proxy/email/send";
+    return `/api/proxy/email/${suffix}`;
+  }
   return `/inboxes/${inboxId}/${suffix}`;
 }
 

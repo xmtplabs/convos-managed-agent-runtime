@@ -118,8 +118,8 @@ router.post("/api/proxy/sms/send", async (req, res) => {
   if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured" }); return; }
 
   try {
-    // Force `from` to instance's phone — prevent spoofing other numbers
-    const body = { ...req.body, from: phoneNumber };
+    // Force `from` to instance's phone and inject messaging profile
+    const body = { ...req.body, from: phoneNumber, messaging_profile_id: config.telnyxMessagingProfileId };
     const upstream = await fetch(`${TELNYX_API}/messages`, {
       method: "POST",
       headers: telnyxHeaders(),

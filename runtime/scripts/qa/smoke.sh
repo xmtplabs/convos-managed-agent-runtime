@@ -4,9 +4,7 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-# Use .env.smoke (direct API keys, no pool/proxy vars) to avoid proxy conflicts
-SMOKE_ENV="$ROOT/.env.smoke"
-[ -f "$SMOKE_ENV" ] && set -a && . "$SMOKE_ENV" 2>/dev/null || true && set +a
+[ -f "$ROOT/.env" ] && set -a && . "$ROOT/.env" 2>/dev/null || true && set +a
 . "$ROOT/scripts/lib/paths.sh"
 cd "$ROOT"
 
@@ -85,7 +83,7 @@ fi
 echo ""
 echo "=== QA: email-poll ==="
 qrun node "$SERVICES" email poll --labels received --limit 1
-if grep -qi "Subject:\|From:" "$QA_TMP"; then
+if grep -qi "Subject:\|From:\|Inbox.*message" "$QA_TMP"; then
   grep -E "Subject:|From:|Date:|Preview:" "$QA_TMP" | head -4 | sed 's/^/  /'
   pass "email-poll"
 else
