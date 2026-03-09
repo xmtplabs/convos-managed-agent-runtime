@@ -21,10 +21,19 @@ export async function provision(opts: ProvisionOpts) {
   };
 
   metricCount("instance.claim.start");
+
+  // Fast-path dedup: skip the claim transaction if an instance is already handling this joinUrl.
+  // The real atomic guard is inside claimIdle(), but this avoids the heavier transaction.
+  if (joinUrl && await db.hasActiveInviteUrl(joinUrl)) {
+    logger.info("claim.dedup", { joinUrl, agentName, source });
+    report("claim", "ok", "Already provisioning for this conversation");
+    return null;
+  }
+
   report("claim", "active", "Finding available instance…");
   let instance;
   try {
-    instance = await db.claimIdle();
+    instance = await db.claimIdle(joinUrl);
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
     metricCount("instance.claim.fail", 1, { reason: "db_error", error_class, stage: "claim" });
@@ -120,14 +129,23 @@ export async function provision(opts: ProvisionOpts) {
       source,
     });
 
-    console.error(`[provision] Instance ${instance.id} failed, marking crashed: ${error_message.slice(0, 200)}`);
+    console.error(`[provision] Instance ${instance.id} failed: ${error_message.slice(0, 200)}`);
     report("provision", "fail", error_message.slice(0, 200));
     report("convo", "skip");
-    // Any provision failure taints the instance — even transient errors
-    // (timeouts, network blips) may have partially executed on the runtime
-    // (wrote instructions, started a join). Releasing back to idle risks an
-    // infinite retry loop. Mark crashed; manual cleanup via dashboard.
-    await db.updateStatus(instance.id, { status: "crashed" });
+
+    const httpStatus = (err instanceof Error && "status" in err) ? (err as Error & { status: number }).status : undefined;
+
+    if (httpStatus === 409) {
+      // 409 = runtime is already bound to a conversation. Another request owns
+      // this instance's lifecycle — don't touch its status.
+      logger.warn("claim.already_bound", { instanceId: instance.id, agentName, source });
+    } else {
+      // Any other provision failure taints the instance — even transient errors
+      // (timeouts, network blips) may have partially executed on the runtime
+      // (wrote instructions, started a join). Releasing back to idle risks an
+      // infinite retry loop. Mark crashed; manual cleanup via dashboard.
+      await db.updateStatus(instance.id, { status: "crashed" });
+    }
     throw err;
   }
 }
