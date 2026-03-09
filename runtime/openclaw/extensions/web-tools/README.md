@@ -60,9 +60,7 @@ The coupon flow lets users add processing power by entering a coupon code:
 |----------|----------|
 | `INSTANCE_ID` | Identifies this instance to the pool manager |
 | `OPENCLAW_GATEWAY_TOKEN` | Auth token for pool manager API calls |
-| `POOL_URL` | Pool manager base URL |
-| `AGENTMAIL_INBOX_ID` | Displayed on services page as email identity |
-| `TELNYX_PHONE_NUMBER` | Displayed on services page as phone identity |
+| `POOL_URL` | Pool manager base URL (email/phone fetched via `/api/proxy/info`) |
 | `RAILWAY_PUBLIC_DOMAIN` | Used to build the public services URL |
 
 ### Pool manager env vars (for coupon support)

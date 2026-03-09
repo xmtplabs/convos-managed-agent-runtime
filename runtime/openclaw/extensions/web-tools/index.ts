@@ -49,18 +49,34 @@ function serveLandingPage(agentsDir: string, res: ServerResponse) {
   servePageWithToken(path.join(agentsDir, "landing.html"), res);
 }
 
-/** Build service identity + credits data from env vars and pool manager. */
+/** Build service identity + credits data from pool proxy (or env fallback). */
 async function getServicesData(): Promise<Record<string, unknown>> {
-  const email = process.env.AGENTMAIL_INBOX_ID || null;
-  const phone = process.env.TELNYX_PHONE_NUMBER || null;
   const servicesUrl = buildServicesUrl();
-
   const instanceId = process.env.INSTANCE_ID || null;
-  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
-
-  // Try to fetch credits from pool manager
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const poolUrl = process.env.POOL_URL;
+
+  let email: string | null = null;
+  let phone: string | null = null;
+
+  // Fetch identity from pool proxy (production) or fall back to env (local dev)
+  if (instanceId && gatewayToken && poolUrl) {
+    try {
+      const infoRes = await fetch(`${poolUrl}/api/proxy/info`, {
+        headers: { Authorization: `Bearer ${instanceId}:${gatewayToken}` },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (infoRes.ok) {
+        const info = await infoRes.json() as { email?: string; phone?: string };
+        email = info.email || null;
+        phone = info.phone || null;
+      }
+    } catch {}
+  }
+  if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
+  if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
+
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
 
   if (instanceId && gatewayToken && poolUrl) {
     try {
