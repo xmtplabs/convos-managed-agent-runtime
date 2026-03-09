@@ -9,7 +9,8 @@ const GQL_BASE_DELAY_MS = 5000;
 // ── Token pool for projectCreate rate-limit rotation ─────────────────────────
 
 const COOLDOWN_MS = 30_000;
-const tokenCooldowns = new Map<string, number>();
+const projectCooldowns = new Map<string, number>();
+const volumeCooldowns = new Map<string, number>();
 const badTokens = new Set<string>();
 
 function getTokenPool(): string[] {
@@ -19,13 +20,13 @@ function getTokenPool(): string[] {
   return pool.filter((t) => !badTokens.has(t));
 }
 
-function getNextProjectCreateToken(): { token: string; waitMs: number; index: number } {
+function getNextToken(cooldowns: Map<string, number>): { token: string; waitMs: number; index: number } {
   const pool = getTokenPool();
   const now = Date.now();
 
   // Find first token with expired cooldown
   for (let i = 0; i < pool.length; i++) {
-    const lastUsed = tokenCooldowns.get(pool[i]) || 0;
+    const lastUsed = cooldowns.get(pool[i]) || 0;
     if (now - lastUsed >= COOLDOWN_MS) {
       return { token: pool[i], waitMs: 0, index: i };
     }
@@ -35,7 +36,7 @@ function getNextProjectCreateToken(): { token: string; waitMs: number; index: nu
   let bestIdx = 0;
   let bestExpiry = Infinity;
   for (let i = 0; i < pool.length; i++) {
-    const lastUsed = tokenCooldowns.get(pool[i]) || 0;
+    const lastUsed = cooldowns.get(pool[i]) || 0;
     const expiresAt = lastUsed + COOLDOWN_MS;
     if (expiresAt < bestExpiry) {
       bestExpiry = expiresAt;
@@ -46,14 +47,14 @@ function getNextProjectCreateToken(): { token: string; waitMs: number; index: nu
   return { token: pool[bestIdx], waitMs: Math.max(0, bestExpiry - now), index: bestIdx };
 }
 
-function markTokenUsed(token: string): void {
-  tokenCooldowns.set(token, Date.now());
+function markToken(cooldowns: Map<string, number>, token: string): void {
+  cooldowns.set(token, Date.now());
 }
 
-export class RailwayProjectRateLimitError extends Error {
+export class RailwayRateLimitError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "RailwayProjectRateLimitError";
+    this.name = "RailwayRateLimitError";
   }
 }
 
@@ -111,8 +112,11 @@ export async function gql(
     }
     if (json.errors) {
       const msg = JSON.stringify(json.errors);
-      if (msg.includes("Only one project can be created per user")) {
-        throw new RailwayProjectRateLimitError(msg);
+      if (
+        msg.includes("Only one project can be created per user") ||
+        msg.includes("You are creating volumes too quickly")
+      ) {
+        throw new RailwayRateLimitError(msg);
       }
       throw new Error(`Railway API error: ${msg}`);
     }
@@ -159,17 +163,17 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
   const vars = { input: { name, workspaceId: tid } };
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    let { token, waitMs, index } = getNextProjectCreateToken();
+    let { token, waitMs, index } = getNextToken(projectCooldowns);
 
     if (waitMs > 0) {
       console.log(`[railway] All tokens cooling — waiting ${(waitMs / 1000).toFixed(1)}s`);
       await new Promise((r) => setTimeout(r, waitMs));
       // Re-select after sleeping — another caller may have taken our token
-      ({ token, waitMs, index } = getNextProjectCreateToken());
+      ({ token, waitMs, index } = getNextToken(projectCooldowns));
     }
 
     // Mark used BEFORE the call so concurrent callers each pick a different token
-    markTokenUsed(token);
+    markToken(projectCooldowns, token);
     const poolSize = getTokenPool().length;
     console.log(`[railway] projectCreate "${name}" — trying token ${index + 1}/${poolSize}`);
 
@@ -179,7 +183,7 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
       console.log(`[railway] Created project "${name}" → ${projectId} via token ${index + 1}/${poolSize}`);
       return { projectId };
     } catch (err) {
-      if (err instanceof RailwayProjectRateLimitError) {
+      if (err instanceof RailwayRateLimitError) {
         console.log(`[railway] Token ${index + 1}/${poolSize} rate-limited, rotating (${attempt + 1}/${maxAttempts})`);
         continue;
       }
@@ -499,22 +503,57 @@ export async function createVolume(
   return data.volumeCreate;
 }
 
-/** Try to create a volume for a service. Returns true on success. */
+/** Try to create a volume for a service with token rotation for rate limits. */
 export async function ensureVolume(
   serviceId: string,
   mountPath = "/data",
   opts?: ProjectEnvOpts,
 ): Promise<boolean> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  const projectId = resolveProjectId(opts);
+  const environmentId = resolveEnvironmentId(opts);
+  const pool = getTokenPool();
+  const maxAttempts = Math.max(pool.length * 2, 6);
+  const mutation = `mutation($input: VolumeCreateInput!) {
+    volumeCreate(input: $input) { id name }
+  }`;
+  const vars = { input: { projectId, serviceId, mountPath, environmentId } };
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let { token, waitMs, index } = getNextToken(volumeCooldowns);
+
+    if (waitMs > 0) {
+      console.log(`[railway] All tokens cooling (volume) — waiting ${(waitMs / 1000).toFixed(1)}s`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      ({ token, waitMs, index } = getNextToken(volumeCooldowns));
+    }
+
+    markToken(volumeCooldowns, token);
+    const poolSize = getTokenPool().length;
+
     try {
-      const vol = await createVolume(serviceId, mountPath, opts);
-      console.log(`[railway] Created volume: ${vol.id}`);
+      const data = await gql(mutation, vars, token);
+      console.log(`[railway] Created volume: ${data.volumeCreate.id} via token ${index + 1}/${poolSize}`);
       return true;
-    } catch (err: any) {
-      console.warn(`[railway] Volume attempt ${attempt}/3 failed for ${serviceId}:`, err.message);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
+    } catch (err) {
+      if (err instanceof RailwayRateLimitError) {
+        console.log(`[railway] Token ${index + 1}/${poolSize} volume rate-limited, rotating (${attempt + 1}/${maxAttempts})`);
+        continue;
+      }
+      if (err instanceof RailwayAuthError) {
+        badTokens.add(token);
+        const remaining = getTokenPool().length;
+        console.warn(`[railway] Token ${index + 1}/${poolSize} auth failed — removed from pool (${remaining} healthy remain)`);
+        if (remaining === 0) {
+          console.error(`[railway] ensureVolume: all tokens failed auth for ${serviceId}`);
+          return false;
+        }
+        continue;
+      }
+      console.warn(`[railway] Volume attempt ${attempt + 1}/${maxAttempts} failed for ${serviceId}:`, (err as Error).message);
     }
   }
+
+  console.error(`[railway] ensureVolume: exhausted all attempts for ${serviceId}`);
   return false;
 }
 
