@@ -7,8 +7,5 @@ export function buildInstanceEnv(): Record<string, string> {
     XMTP_ENV: config.xmtpEnv,
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_URL: config.poolUrl,
-    // API keys (email, SMS): proxied through pool manager via /api/proxy/* endpoints.
-    // Bankr key is still passed through directly.
-    BANKR_API_KEY: config.bankrApiKey,
   };
 }

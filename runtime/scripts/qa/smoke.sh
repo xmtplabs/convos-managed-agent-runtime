@@ -64,16 +64,20 @@ else
   echo "  [SKIP] no phone available (need proxy or TELNYX_API_KEY)"
 fi
 
-# --- Bankr (disabled — too slow for CI) ---
-# echo ""
-# echo "=== QA: bankr ==="
-# echo "  > bankr prompt 'Check my USDC balance'"
-# run bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>'
-# if grep -qi "USD\|balance\|0x" "$QA_TMP"; then
-#   pass "bankr"
-# else
-#   fail "bankr" "$(cat "$QA_TMP")"
-# fi
+# --- Bankr (opt-in — only runs when BANKR_API_KEY is set) ---
+echo ""
+echo "=== QA: bankr ==="
+if [ -n "$BANKR_API_KEY" ]; then
+  echo "  > bankr prompt 'Check my USDC balance'"
+  run bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>'
+  if grep -qi "USD\|balance\|0x" "$QA_TMP"; then
+    pass "bankr"
+  else
+    fail "bankr" "$(cat "$QA_TMP")"
+  fi
+else
+  echo "  [SKIP] no BANKR_API_KEY set (opt-in)"
+fi
 
 # --- Convos CLI ---
 echo ""

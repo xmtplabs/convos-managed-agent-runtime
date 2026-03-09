@@ -97,7 +97,6 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |
 | `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
 | `POOL_URL` | no | Pool manager URL — service calls (email, SMS) are proxied through this |
-| `BANKR_API_KEY` | no | Bankr API key (passed through directly to instances) |
 | `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |
 
 ### Docker / Railway only
