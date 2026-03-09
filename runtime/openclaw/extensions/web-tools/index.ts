@@ -73,6 +73,7 @@ async function getServicesData(): Promise<Record<string, unknown>> {
       }
     } catch {}
   }
+  // Direct mode fallback (local dev / QA only — live agents always use proxy)
   if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
   if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
 

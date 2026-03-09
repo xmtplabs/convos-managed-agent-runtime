@@ -34,6 +34,7 @@ export default async function info() {
       // Proxy unavailable — fall back to env
     }
   }
+  // Direct mode fallback (local dev / QA only — live agents always use proxy)
   if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
   if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
 
