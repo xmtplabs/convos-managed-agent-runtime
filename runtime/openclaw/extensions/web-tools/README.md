@@ -43,7 +43,7 @@ Browser → POST /web-tools/services/topup → instance proxies to pool manager 
 Browser → POST /web-tools/services/redeem-coupon → instance proxies to pool manager → bumps OpenRouter limit
 ```
 
-Auth uses `OPENCLAW_GATEWAY_TOKEN` + `INSTANCE_ID` to identify the instance to the pool manager. The `poolApiKey` from config is injected into HTML pages as `window.__POOL_TOKEN` for client-side API calls.
+Auth uses `OPENCLAW_GATEWAY_TOKEN` + `INSTANCE_ID` to identify the instance to the pool manager. The gateway token is injected into HTML pages as `window.__POOL_TOKEN` for client-side API calls.
 
 ## Coupon redemption
 
