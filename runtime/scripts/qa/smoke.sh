@@ -3,9 +3,10 @@
 # Requires gateway running.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+[ -f "$ROOT/.env" ] && set -a && . "$ROOT/.env" 2>/dev/null || true && set +a
+. "$ROOT/scripts/lib/paths.sh"
 cd "$ROOT"
-. "$ROOT/scripts/lib/env-load.sh"
 
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
 . "$ROOT/scripts/lib/node-path.sh"
@@ -21,28 +22,46 @@ run() { "$@" 2>&1 | tee "$QA_TMP" || true; }
 # quiet run -- captures to $QA_TMP without printing
 qrun() { "$@" > "$QA_TMP" 2>&1 || true; }
 
+SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
+
+# --- Instance info ---
+echo ""
+echo "=== QA: info ==="
+qrun node "$SERVICES" info
+QA_EMAIL=$(cat "$QA_TMP" | grep -o '"email": *"[^"]*"' | cut -d'"' -f4)
+QA_PHONE=$(cat "$QA_TMP" | grep -o '"phone": *"[^"]*"' | cut -d'"' -f4)
+[ -n "$QA_EMAIL" ] && echo "  Email: $QA_EMAIL" || echo "  Email: (none)"
+[ -n "$QA_PHONE" ] && echo "  Phone: $QA_PHONE" || echo "  Phone: (none)"
+
 # --- Email (services skill) ---
 echo ""
 echo "=== QA: email ==="
-SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
-echo "  > node services.mjs email send --to fabri@xmtp.com"
-run node "$SERVICES" email send \
-  --to "fabri@xmtp.com" --subject "QA $(date +%s)" --text "Smoke test"
-if grep -qi "Sent to" "$QA_TMP"; then
-  pass "email"
+if [ -n "$QA_EMAIL" ]; then
+  echo "  > node services.mjs email send --to fabri@xmtp.com"
+  run node "$SERVICES" email send \
+    --to "fabri@xmtp.com" --subject "QA $(date +%s)" --text "Smoke test"
+  if grep -qi "Sent to" "$QA_TMP"; then
+    pass "email"
+  else
+    fail "email" "$(cat "$QA_TMP")"
+  fi
 else
-  fail "email" "$(cat "$QA_TMP")"
+  echo "  [SKIP] no email available (need proxy or AGENTMAIL_API_KEY)"
 fi
 
 # --- SMS (services skill) ---
 echo ""
 echo "=== QA: sms ==="
-echo "  > node services.mjs sms send --to +16154376139"
-run node "$SERVICES" sms send --to "+16154376139" --text "QA $(date +%s)"
-if grep -qi "Sent SMS\|queued\|sent\|delivered\|Message ID" "$QA_TMP"; then
-  pass "sms"
+if [ -n "$QA_PHONE" ]; then
+  echo "  > node services.mjs sms send --to +16154376139"
+  run node "$SERVICES" sms send --to "+16154376139" --text "QA $(date +%s)"
+  if grep -qi "Sent SMS\|queued\|sent\|delivered\|Message ID" "$QA_TMP"; then
+    pass "sms"
+  else
+    fail "sms" "$(cat "$QA_TMP")"
+  fi
 else
-  fail "sms" "$(cat "$QA_TMP")"
+  echo "  [SKIP] no phone available (need proxy or TELNYX_API_KEY)"
 fi
 
 # --- Bankr (disabled — too slow for CI) ---
@@ -81,28 +100,36 @@ fi
 # --- Email poll ---
 echo ""
 echo "=== QA: email-poll ==="
-qrun node "$SERVICES" email poll --labels received --limit 1
-if grep -qi "Subject:\|From:" "$QA_TMP"; then
-  grep -E "Subject:|From:|Date:|Preview:" "$QA_TMP" | head -4 | sed 's/^/  /'
-  pass "email-poll"
+if [ -n "$QA_EMAIL" ]; then
+  qrun node "$SERVICES" email poll --labels received --limit 1
+  if grep -qi "Subject:\|From:\|Inbox.*message" "$QA_TMP"; then
+    grep -E "Subject:|From:|Date:|Preview:" "$QA_TMP" | head -4 | sed 's/^/  /'
+    pass "email-poll"
+  else
+    fail "email-poll" "$(cat "$QA_TMP")"
+  fi
 else
-  fail "email-poll" "$(cat "$QA_TMP")"
+  echo "  [SKIP] no email available"
 fi
 
 # --- SMS poll ---
 echo ""
 echo "=== QA: sms-poll ==="
-qrun node "$SERVICES" sms poll
-if grep -qi "From:\|Text:\|Inbound" "$QA_TMP"; then
-  SMS_FROM=$(grep -m1 "From:" "$QA_TMP" | sed 's/.*From: //')
-  SMS_DATE=$(grep -m1 "Date:" "$QA_TMP" | sed 's/.*Date: //')
-  SMS_TEXT=$(grep -m1 "Text:" "$QA_TMP" | sed 's/.*Text: //')
-  echo "  Latest: \"$SMS_TEXT\""
-  echo "  From:   $SMS_FROM"
-  echo "  Time:   $SMS_DATE"
-  pass "sms-poll"
+if [ -n "$QA_PHONE" ]; then
+  qrun node "$SERVICES" sms poll
+  if grep -qi "From:\|Text:\|Inbound" "$QA_TMP"; then
+    SMS_FROM=$(grep -m1 "From:" "$QA_TMP" | sed 's/.*From: //')
+    SMS_DATE=$(grep -m1 "Date:" "$QA_TMP" | sed 's/.*Date: //')
+    SMS_TEXT=$(grep -m1 "Text:" "$QA_TMP" | sed 's/.*Text: //')
+    echo "  Latest: \"$SMS_TEXT\""
+    echo "  From:   $SMS_FROM"
+    echo "  Time:   $SMS_DATE"
+    pass "sms-poll"
+  else
+    fail "sms-poll" "$(cat "$QA_TMP")"
+  fi
 else
-  fail "sms-poll" "$(cat "$QA_TMP")"
+  echo "  [SKIP] no phone available"
 fi
 
 # --- OpenRouter credits ---

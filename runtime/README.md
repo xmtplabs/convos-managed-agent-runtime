@@ -59,8 +59,9 @@ The `pnpm start` script runs four steps in sequence:
     ├── install-deps.sh     # extension deps
     ├── gateway.sh          # openclaw gateway with restart loop
     ├── pool-server.js      # pool health/provision endpoints
-    ├── qa.sh               # smoke test runner
-    ├── qa-prompts.sh       # QA prompt definitions
+    ├── qa/
+    │   ├── smoke.sh        # smoke tests (proxy when POOL_URL set, direct otherwise)
+    │   └── prompts.sh      # QA prompt definitions
     └── lib/
         ├── init.sh         # set ROOT, load .env, load paths
         ├── paths.sh        # derive STATE_DIR, WORKSPACE_DIR, etc.
@@ -79,7 +80,7 @@ The `pnpm start` script runs four steps in sequence:
 | `pnpm apply` | Sync workspace/skills/extensions and copy config template to state dir |
 | `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
 | `pnpm gateway` | Start the gateway |
-| `pnpm qa` | QA smoke tests (email, sms, bankr, convos, browser) |
+| `pnpm qa` | QA smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
 | `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
 | `pnpm build` | Build Docker image locally |
 | `pnpm build:run` | Build and run with .env from repo root |
@@ -94,14 +95,9 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key for LLM calls |
 | `XMTP_ENV` | yes | XMTP network (`dev` or `production`) |
 | `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |
-| `AGENTMAIL_API_KEY` | no | AgentMail API key (enables email skill) |
-| `AGENTMAIL_INBOX_ID` | no | AgentMail inbox (provisioned if API key set) |
-| `BANKR_API_KEY` | no | Bankr API key (enables crypto skill) |
-| `TELNYX_API_KEY` | no | Telnyx API key (enables SMS skill) |
-| `TELNYX_PHONE_NUMBER` | no | Telnyx phone number (provisioned if API key set) |
-| `TELNYX_MESSAGING_PROFILE_ID` | no | Telnyx messaging profile |
 | `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
-| `POOL_URL` | no | Pool manager public URL (for self-destruct) |
+| `POOL_URL` | no | Pool manager URL — service calls (email, SMS) are proxied through this |
+| `BANKR_API_KEY` | no | Bankr API key (passed through directly to instances) |
 | `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |
 
 ### Docker / Railway only

@@ -43,9 +43,8 @@ export async function createInstance(
       const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
       metricHistogram("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
       metricCount("provider.telnyx.provisioned");
-      vars.TELNYX_PHONE_NUMBER = phoneNumber;
-      vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
-      services.telnyx = { resourceId: phoneNumber };
+      // Phone stored in DB only — proxied through pool, not pushed as env var
+      services.telnyx = { resourceId: phoneNumber, messagingProfileId };
       onProgress?.("telnyx", "ok");
     } else {
       onProgress?.("telnyx", "skip", "Not configured");
@@ -71,7 +70,7 @@ export async function createInstance(
       const inboxId = await agentmail.createInbox(instanceId);
       metricHistogram("provider.agentmail.duration_ms", Date.now() - t0, { step: "create_inbox" });
       metricCount("provider.agentmail.provisioned");
-      vars.AGENTMAIL_INBOX_ID = inboxId;
+      // Inbox stored in DB only — proxied through pool, not pushed as env var
       services.agentmail = { resourceId: inboxId };
       onProgress?.("agentmail", "ok");
     } else {
@@ -223,8 +222,8 @@ export async function createInstance(
         instanceId,
         toolId: "agentmail",
         resourceId: services.agentmail.resourceId,
-        envKey: "AGENTMAIL_INBOX_ID",
-        envValue: vars.AGENTMAIL_INBOX_ID || null,
+        envKey: "agentmail",
+        envValue: services.agentmail.resourceId,
       });
     }
     if (services.telnyx) {
@@ -232,9 +231,9 @@ export async function createInstance(
         instanceId,
         toolId: "telnyx",
         resourceId: services.telnyx.resourceId,
-        envKey: "TELNYX_PHONE_NUMBER",
-        envValue: vars.TELNYX_PHONE_NUMBER,
-        resourceMeta: { messagingProfileId: vars.TELNYX_MESSAGING_PROFILE_ID },
+        envKey: "telnyx",
+        envValue: services.telnyx.resourceId,
+        resourceMeta: { messagingProfileId: services.telnyx.messagingProfileId },
       });
     }
   } catch (err) {

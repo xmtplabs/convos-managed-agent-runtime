@@ -18,6 +18,7 @@ import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
 import { couponRouter } from "./couponRoute";
+import { serviceProxyRouter } from "./routes/serviceProxy";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -83,6 +84,8 @@ const AGENT_CATALOG = (() => {
 
 const app = express();
 app.disable("x-powered-by");
+// Higher limit for proxy routes (email attachments are base64-encoded in body)
+app.use("/api/proxy", express.json({ limit: "10mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -175,6 +178,9 @@ app.post("/api/pool/self-destruct", async (req, res) => {
 // --- Railway webhook (public — auth via secret in URL path) ---
 app.use(webhookRouter);
 app.use(couponRouter);
+
+// --- Service proxy (instance auth via gateway token) ---
+app.use(serviceProxyRouter);
 
 // Credits check — instance queries its own spending balance.
 // Auth: instance sends its own ID + gateway token (same as self-destruct).
