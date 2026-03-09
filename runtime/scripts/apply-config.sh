@@ -31,12 +31,11 @@ if command -v jq >/dev/null 2>&1; then
     jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     echo "  🔧 plugins.load.paths → $STATE_DIR/extensions"
   fi
-  # Inject browser config when CHROMIUM_PATH is set (Docker sets it; macOS/Linux set in env)
-  if [ -n "${CHROMIUM_PATH:-}" ]; then
-    jq --arg p "$CHROMIUM_PATH" \
-      '.browser.executablePath = $p | .browser.headless = true | .browser.noSandbox = true' \
+  # Inject browser config when running in a container with chromium installed
+  if [ -x /usr/bin/chromium ]; then
+    jq '.browser.executablePath = "/usr/bin/chromium" | .browser.headless = true | .browser.noSandbox = true' \
       "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-    echo "  🔧 browser      → $CHROMIUM_PATH (headless, no-sandbox)"
+    echo "  🔧 browser      → /usr/bin/chromium (headless, no-sandbox)"
   fi
 fi
 unset _PORT
