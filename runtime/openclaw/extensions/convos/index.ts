@@ -248,14 +248,10 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown) {
 }
 
 function checkPoolAuth(req: IncomingMessage): boolean {
-  const runtime = getConvosRuntime();
-  const cfg = runtime.config.loadConfig() as Record<string, unknown>;
-  const channels = cfg.channels as Record<string, unknown> | undefined;
-  const convos = channels?.convos as Record<string, unknown> | undefined;
-  const poolApiKey = convos?.poolApiKey as string | undefined;
-  if (!poolApiKey) return true; // No poolApiKey configured — allow all
+  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (!token) return true; // No gateway token configured — allow all
   const authHeader = req.headers.authorization;
-  return authHeader === `Bearer ${poolApiKey}`;
+  return authHeader === `Bearer ${token}`;
 }
 
 // --- Plugin ---

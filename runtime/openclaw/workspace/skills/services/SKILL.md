@@ -4,8 +4,14 @@ description: |
   Your managed communication and account services: email, SMS, credits, and spending card.
   USE WHEN: Sending emails, calendar invites, polling inbox, sending/polling SMS, checking credits, topping up credits, checking spending card info/details, making purchases with your card, asked for your URL/link/page/contact info/services.
   DON'T USE WHEN: Task is just creating a file without sending it (use fs tools).
-  REQUIRES: Environment is already configured — do not modify env vars.
+  REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID). Email and SMS are provisioned on first use — no upfront setup needed.
 ---
+
+## How provisioning works
+
+Email and SMS are **opt-in** — they are not pre-provisioned when your instance is created. The first time you run an email or SMS command, the service handler automatically requests provisioning from the pool manager. This is a one-time operation per service; subsequent calls use the already-provisioned resource.
+
+If a user asks to send an email or SMS and it hasn't been provisioned yet, just run the command — provisioning happens transparently.
 
 ## Restrictions
 
@@ -14,7 +20,7 @@ You MUST only use the `services.mjs` script below. You are FORBIDDEN from:
 - Calling any external API directly (via curl, fetch, or any SDK) outside of this script
 - Reading, logging, printing, or exposing any API key or token value
 - Using websocket or webhook features
-- Creating, deleting, or managing inboxes, phone numbers, API keys, or domains
+- Manually creating, deleting, or managing inboxes, phone numbers, API keys, or domains
 
 Your access is limited to **sending and receiving email/SMS through your assigned addresses, and managing your credits**.
 

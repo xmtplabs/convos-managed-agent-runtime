@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 /**
  * Email handler — send, send-calendar, poll via AgentMail REST API.
+ *
+ * When POOL_URL and INSTANCE_ID are set, calls are proxied through the pool
+ * manager (no API key needed on the instance). Otherwise falls back to direct
+ * AgentMail API calls for local development.
+ *
  * Usage:
  *   node services.mjs email send --to <email> --subject <subj> --text <body> [--html <html>] [--attach <path>]
  *   node services.mjs email send-calendar --to <email> --ics <path> [--subject <subj>]
@@ -9,28 +14,85 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-const API = "https://api.agentmail.to/v0";
+// Proxy mode: route through pool manager (no API key on instance)
+const POOL_URL = process.env.POOL_URL;
+const INSTANCE_ID = process.env.INSTANCE_ID;
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
+
+// Direct mode: call AgentMail API directly (local dev — requires AGENTMAIL_* env vars)
+const DIRECT_API = "https://api.agentmail.to/v0";
 const apiKey = process.env.AGENTMAIL_API_KEY;
 const inboxId = process.env.AGENTMAIL_INBOX_ID;
 
-function requireEnv() {
-  if (!apiKey) { console.error("Email service not configured: missing API key"); process.exit(1); }
-  if (!inboxId) { console.error("Email service not configured: missing inbox"); process.exit(1); }
+/** Ensure email is available — provisions on first use in proxy mode. */
+async function requireEnv() {
+  if (!useProxy) {
+    if (!apiKey) { console.error("Email service not configured: missing API key"); process.exit(1); }
+    if (!inboxId) { console.error("Email service not configured: missing inbox"); process.exit(1); }
+    return;
+  }
+  // Proxy mode — check if inbox exists, provision if not
+  const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
+  });
+  if (!infoRes.ok) return; // let the actual call fail with a clear error
+  const info = await infoRes.json();
+  if (info.email) return; // already provisioned
+
+  // Provision on demand
+  console.log("Email not yet provisioned — requesting inbox...");
+  const provRes = await fetch(`${POOL_URL}/api/proxy/email/provision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
+  });
+  if (!provRes.ok) {
+    const err = await provRes.json().catch(() => ({}));
+    console.error(`Email provisioning failed: ${err.error || provRes.status}`);
+    process.exit(1);
+  }
+  const result = await provRes.json();
+  console.log(`Email provisioned: ${result.email}`);
 }
 
 async function api(method, path, body) {
-  const opts = {
-    method,
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-  };
+  let url, headers;
+  if (useProxy) {
+    // Proxy: /api/proxy/email/send, /api/proxy/email/messages, etc.
+    url = `${POOL_URL}${path}`;
+    headers = {
+      Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`,
+      "Content-Type": "application/json",
+    };
+  } else {
+    // Direct: AgentMail API
+    url = `${DIRECT_API}${path}`;
+    headers = {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    };
+  }
+
+  const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(`${API}${path}`, opts);
+  const res = await fetch(url, opts);
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const msg = data?.message || data?.error || JSON.stringify(data);
     throw new Error(`AgentMail ${res.status}: ${msg}`);
   }
   return data;
+}
+
+// In proxy mode, paths don't include inboxId (pool manager injects it)
+function inboxPath(suffix) {
+  if (useProxy) {
+    // Proxy routes: /api/proxy/email/send, /api/proxy/email/messages, /api/proxy/email/threads
+    // Strip "messages/" prefix for send since proxy has a dedicated /send route
+    if (suffix === "messages/send") return "/api/proxy/email/send";
+    return `/api/proxy/email/${suffix}`;
+  }
+  return `/inboxes/${inboxId}/${suffix}`;
 }
 
 function parseArgs(argv) {
@@ -50,7 +112,7 @@ function parseArgs(argv) {
 }
 
 async function send(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const to = map.to;
   const subject = map.subject;
@@ -80,12 +142,12 @@ async function send(argv) {
     ];
   }
 
-  await api("POST", `/inboxes/${inboxId}/messages/send`, payload);
+  await api("POST", inboxPath("messages/send"), payload);
   console.log("Sent to", to);
 }
 
 async function sendCalendar(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const to = map.to;
   const icsPath = map.ics;
@@ -100,7 +162,7 @@ async function sendCalendar(argv) {
   const icsContent = readFileSync(icsAbs, "utf8");
   const content = Buffer.from(icsContent, "utf8").toString("base64");
 
-  await api("POST", `/inboxes/${inboxId}/messages/send`, {
+  await api("POST", inboxPath("messages/send"), {
     to,
     subject,
     text: "Calendar invite attached. Open the .ics file to add to your calendar.",
@@ -114,7 +176,7 @@ async function sendCalendar(argv) {
 }
 
 async function poll(argv) {
-  requireEnv();
+  await requireEnv();
   const { map, flags } = parseArgs(argv);
   const limit = parseInt(map.limit, 10) || 20;
   const labels = map.labels?.split(",").map((s) => s.trim()).filter(Boolean);
@@ -125,13 +187,13 @@ async function poll(argv) {
 
   const out = { messages: [], threads: [] };
 
-  const msgData = await api("GET", `/inboxes/${inboxId}/messages?${params}`);
+  const msgData = await api("GET", `${inboxPath("messages")}?${params}`);
   out.messages = msgData?.messages ?? [];
 
   if (includeThreads) {
     const threadParams = new URLSearchParams();
     threadParams.append("labels", "unreplied");
-    const threadData = await api("GET", `/inboxes/${inboxId}/threads?${threadParams}`);
+    const threadData = await api("GET", `${inboxPath("threads")}?${threadParams}`);
     out.threads = threadData?.threads ?? [];
   }
 
@@ -140,7 +202,8 @@ async function poll(argv) {
     return;
   }
 
-  console.log(`Inbox ${inboxId}: ${out.messages.length} message(s)\n`);
+  const displayInbox = inboxId || "(proxy)";
+  console.log(`Inbox ${displayInbox}: ${out.messages.length} message(s)\n`);
   for (const m of out.messages) {
     const dir = m.labels?.includes("received") ? "received" : "sent";
     console.log(`  Subject: ${m.subject || "(none)"}`);

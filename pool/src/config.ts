@@ -6,7 +6,11 @@ export function getEnv(name: string, fallback = ""): string {
 export const config = {
   port: parseInt(getEnv("PORT", "3001"), 10),
   poolApiKey: getEnv("POOL_API_KEY"),
-  poolUrl: getEnv("POOL_URL"),
+  // Derive from RAILWAY_PUBLIC_DOMAIN if POOL_URL not explicitly set
+  poolUrl: getEnv("POOL_URL") || (() => {
+    const domain = getEnv("RAILWAY_PUBLIC_DOMAIN");
+    return domain ? `https://${domain}` : "";
+  })(),
 
   // Database — single unified DB
   databaseUrl: getEnv("DATABASE_URL"),
@@ -34,6 +38,10 @@ export const config = {
 
   // Railway (from services)
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),
+  railwayApiTokens: getEnv("RAILWAY_API_TOKENS")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean),
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
   railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
     const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
@@ -60,6 +68,4 @@ export const config = {
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
-  bankrApiKey: getEnv("BANKR_API_KEY"),
-  telnyxPhoneNumber: getEnv("TELNYX_PHONE_NUMBER"),
 };

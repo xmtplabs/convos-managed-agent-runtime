@@ -270,7 +270,6 @@
     document.getElementById('launch-url').placeholder = (C.poolEnvironment === 'production') ? 'popup.convos.org/...' : 'dev.convos.org/...';
 
     var POOL_ENV = C.poolEnvironment;
-    var BANKR_KEY = !!C.bankrConfigured;
     var authHeaders = { 'Content-Type': 'application/json' };
 
     // Pre-select the current runtime image in the picker
@@ -704,9 +703,7 @@
 
     // --- Provision log helpers ---
     var PROV_STEPS = [
-      { key: 'telnyx', label: 'Telnyx phone' },
       { key: 'openrouter', label: 'OpenRouter key' },
-      { key: 'agentmail', label: 'AgentMail inbox' },
       { key: 'railway-project', label: 'Railway project' },
       { key: 'railway-service', label: 'Railway service + volume' },
       { key: 'railway-domain', label: 'Railway domain' },
@@ -947,9 +944,9 @@
 
     // --- Drain log helpers ---
     var DRAIN_STEPS = [
-      { key: 'telnyx', label: 'Telnyx phone' },
       { key: 'openrouter', label: 'OpenRouter key' },
       { key: 'agentmail', label: 'AgentMail inbox' },
+      { key: 'telnyx', label: 'Telnyx phone' },
       { key: 'railway', label: 'Railway project' },
       { key: 'db', label: 'DB cleanup' },
     ];
@@ -1431,13 +1428,6 @@
           + '</div>'
           + '</div>';
       }
-
-      // Bankr
-      html += '<div class="expand-section" style="border-top:1px solid #EBEBEB;border-right:none">'
-        + '<div class="expand-section-header"><span class="expand-section-title">Bankr</span>'
-        + '<span class="expand-status-dot ' + (BANKR_KEY ? 'active' : 'inactive') + '"></span></div>'
-        + '<div class="expand-kv"><span class="expand-val" style="color:#9CA3AF">' + (BANKR_KEY ? 'Configured' : 'Not set') + '</span></div>'
-        + '</div>';
 
       // Telnyx
       html += '<div class="expand-section" style="border-top:1px solid #EBEBEB;border-right:none">'

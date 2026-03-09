@@ -180,10 +180,9 @@ export function adminPage({
   deployBranch,
   railwayServiceId,
   runtimeImage = "",
-  bankrConfigured = false,
   adminUrls = [],
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage, bankrConfigured, adminUrls });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, adminUrls });
   return adminHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,

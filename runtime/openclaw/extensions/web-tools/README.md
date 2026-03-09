@@ -32,7 +32,7 @@ OpenClaw plugin that serves public-facing web pages and handles billing for pool
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | Plugin entry — route registration, credit error interception, services API |
+| `index.ts` | Plugin entry — route registration, services API, coupon proxy |
 | `convos/landing.html` | Convos landing page |
 | `convos/landing-manifest.json` | PWA manifest |
 | `convos/sw.js` | Service worker for offline support |
@@ -164,8 +164,6 @@ A Stripe customer is lazy-created on first payment and stored in `instance_servi
 |----------|----------|
 | `INSTANCE_ID` | Identifies this instance to the pool manager |
 | `OPENCLAW_GATEWAY_TOKEN` | Auth token for pool manager API calls |
-| `POOL_URL` | Pool manager base URL |
-| `AGENTMAIL_INBOX_ID` | Displayed on services page as email identity |
-| `TELNYX_PHONE_NUMBER` | Displayed on services page as phone identity |
-| `RAILWAY_PUBLIC_DOMAIN` | Used to build the public services URL (takes priority) |
+| `POOL_URL` | Pool manager base URL (email/phone fetched via `/api/proxy/info`) |
+| `RAILWAY_PUBLIC_DOMAIN` | Used to build the public services URL |
 | `NGROK_URL` | Fallback for public services URL when no Railway domain |

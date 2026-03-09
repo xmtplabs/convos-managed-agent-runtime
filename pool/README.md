@@ -97,7 +97,7 @@ pnpm start
 | `AGENTMAIL_API_KEY` | AgentMail API key (provisions per-instance inboxes) |
 | `AGENTMAIL_DOMAIN` | AgentMail inbox domain |
 | `TELNYX_API_KEY` | Telnyx API key (provisions per-instance phone numbers) |
-| `TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile |
+| `TELNYX_MESSAGING_PROFILE_ID` | Telnyx messaging profile (used by proxy for SMS send) |
 | **Stripe** | |
 | `STRIPE_SECRET_KEY` | Stripe secret key for payments and card issuing |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (returned to browser) |

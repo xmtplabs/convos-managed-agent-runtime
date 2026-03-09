@@ -6,13 +6,6 @@ export function buildInstanceEnv(): Record<string, string> {
     POOL_ENVIRONMENT: config.poolEnvironment,
     OPENCLAW_PRIMARY_MODEL: config.openclawPrimaryModel,
     XMTP_ENV: config.xmtpEnv,
-    CHROMIUM_PATH: "/usr/bin/chromium",
-    POOL_API_KEY: config.poolApiKey,
     POOL_URL: config.poolUrl,
-    AGENTMAIL_API_KEY: config.agentmailApiKey,
-    BANKR_API_KEY: config.bankrApiKey,
-    TELNYX_API_KEY: config.telnyxApiKey,
-    TELNYX_PHONE_NUMBER: config.telnyxPhoneNumber,
-    TELNYX_MESSAGING_PROFILE_ID: config.telnyxMessagingProfileId,
   };
 }
