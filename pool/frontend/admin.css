@@ -85,7 +85,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hel
 .stat-dot.drain { background: var(--color-error); }
 .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; }
 .stat-card-drain { position: relative; }
-.stat-card-drain .stat-value { color: var(--color-error); }
+.stat-card-drain .stat-value { color: var(--color-foreground-secondary); }
 .btn-drain-sm { font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 6px; margin-top: 6px; width: 100%; }
 
 /* Filter pills */
