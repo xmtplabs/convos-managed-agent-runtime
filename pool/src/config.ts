@@ -24,6 +24,7 @@ export const config = {
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
   instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
+  railwayProjectId: getEnv("RAILWAY_PROJECT_ID"),
   railwayEnvironmentName: getEnv("RAILWAY_ENVIRONMENT_NAME"),
 
   // Template site
@@ -34,7 +35,7 @@ export const config = {
   notionApiKey: getEnv("NOTION_API_KEY"),
 
   // Admin dashboard
-  poolAdminUrls: getEnv("POOL_ADMIN_URLS", "vibe=https://convos-agents-vibe.up.railway.app,dev=https://convos-agents-dev.up.railway.app,scaling=https://convos-agents-scaling.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
+  poolAdminUrls: getEnv("POOL_ADMIN_URLS", "vibe=https://convos-agents-vibe.up.railway.app,dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
 
   // Railway (from services)
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),
