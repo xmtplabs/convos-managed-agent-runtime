@@ -105,7 +105,6 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENCLAW_STATE_DIR` | `~/.openclaw` | State directory (`/app` in Docker, Railway volume path in production) |
-| `CHROMIUM_PATH` | — | Path to Chromium binary (`/usr/bin/chromium` in Docker) |
 | `PORT` | `18789` | Gateway port (`8080` in Docker/Railway) |
 
 ## Local development
