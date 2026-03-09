@@ -50,7 +50,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
   logger.info("create.start", { instanceId: id, name });
 
   try {
-    const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress, runtimeImage);
+    const result = await infraCreateInstance(id, name, ["openrouter"], onProgress, runtimeImage);
     console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
     await db.upsertInstance({

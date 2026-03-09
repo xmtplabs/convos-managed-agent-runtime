@@ -22,10 +22,34 @@ const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
 const API_KEY = process.env.TELNYX_API_KEY;
 const PHONE = process.env.TELNYX_PHONE_NUMBER;
 
-function requireEnv() {
-  if (useProxy) return; // proxy mode — pool manager handles auth + phone
-  if (!API_KEY) { console.error("SMS service not configured: missing API key"); process.exit(1); }
-  if (!PHONE) { console.error("SMS service not configured: missing phone number"); process.exit(1); }
+/** Ensure SMS is available — provisions on first use in proxy mode. */
+async function requireEnv() {
+  if (!useProxy) {
+    if (!API_KEY) { console.error("SMS service not configured: missing API key"); process.exit(1); }
+    if (!PHONE) { console.error("SMS service not configured: missing phone number"); process.exit(1); }
+    return;
+  }
+  // Proxy mode — check if phone exists, provision if not
+  const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
+  });
+  if (!infoRes.ok) return; // let the actual call fail with a clear error
+  const info = await infoRes.json();
+  if (info.phone) return; // already provisioned
+
+  // Provision on demand
+  console.log("SMS not yet provisioned — requesting phone number...");
+  const provRes = await fetch(`${POOL_URL}/api/proxy/sms/provision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
+  });
+  if (!provRes.ok) {
+    const err = await provRes.json().catch(() => ({}));
+    console.error(`SMS provisioning failed: ${err.error || provRes.status}`);
+    process.exit(1);
+  }
+  const result = await provRes.json();
+  console.log(`SMS provisioned: ${result.phone}`);
 }
 
 function parseArgs(argv) {
@@ -63,7 +87,7 @@ function directHeaders() {
 }
 
 async function send(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const to = map.to;
   const text = map.text;
@@ -110,7 +134,7 @@ async function send(argv) {
 }
 
 async function poll(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const limit = parseInt(map.limit, 10) || 10;
 

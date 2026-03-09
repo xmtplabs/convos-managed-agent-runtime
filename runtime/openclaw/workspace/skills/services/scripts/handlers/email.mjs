@@ -25,10 +25,34 @@ const DIRECT_API = "https://api.agentmail.to/v0";
 const apiKey = process.env.AGENTMAIL_API_KEY;
 const inboxId = process.env.AGENTMAIL_INBOX_ID;
 
-function requireEnv() {
-  if (useProxy) return; // proxy mode — pool manager handles auth + inbox
-  if (!apiKey) { console.error("Email service not configured: missing API key"); process.exit(1); }
-  if (!inboxId) { console.error("Email service not configured: missing inbox"); process.exit(1); }
+/** Ensure email is available — provisions on first use in proxy mode. */
+async function requireEnv() {
+  if (!useProxy) {
+    if (!apiKey) { console.error("Email service not configured: missing API key"); process.exit(1); }
+    if (!inboxId) { console.error("Email service not configured: missing inbox"); process.exit(1); }
+    return;
+  }
+  // Proxy mode — check if inbox exists, provision if not
+  const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
+  });
+  if (!infoRes.ok) return; // let the actual call fail with a clear error
+  const info = await infoRes.json();
+  if (info.email) return; // already provisioned
+
+  // Provision on demand
+  console.log("Email not yet provisioned — requesting inbox...");
+  const provRes = await fetch(`${POOL_URL}/api/proxy/email/provision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
+  });
+  if (!provRes.ok) {
+    const err = await provRes.json().catch(() => ({}));
+    console.error(`Email provisioning failed: ${err.error || provRes.status}`);
+    process.exit(1);
+  }
+  const result = await provRes.json();
+  console.log(`Email provisioned: ${result.email}`);
 }
 
 async function api(method, path, body) {
@@ -88,7 +112,7 @@ function parseArgs(argv) {
 }
 
 async function send(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const to = map.to;
   const subject = map.subject;
@@ -123,7 +147,7 @@ async function send(argv) {
 }
 
 async function sendCalendar(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const to = map.to;
   const icsPath = map.ics;
@@ -152,7 +176,7 @@ async function sendCalendar(argv) {
 }
 
 async function poll(argv) {
-  requireEnv();
+  await requireEnv();
   const { map, flags } = parseArgs(argv);
   const limit = parseInt(map.limit, 10) || 20;
   const labels = map.labels?.split(",").map((s) => s.trim()).filter(Boolean);

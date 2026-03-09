@@ -14,6 +14,10 @@ import { Router } from "express";
 import { requireInstanceAuth } from "../middleware/instanceAuth";
 import { config } from "../config";
 import * as db from "../db/pool";
+import { instanceServices } from "../db/schema";
+import { db as drizzle } from "../db/connection";
+import * as agentmail from "../services/providers/agentmail";
+import * as telnyx from "../services/providers/telnyx";
 import { metricCount, metricHistogram } from "../metrics";
 
 const router = Router();
@@ -40,6 +44,67 @@ async function getResources(instanceId: string) {
 router.get("/api/proxy/info", async (req, res) => {
   const { inboxId, phoneNumber } = await getResources(req.instanceId!);
   res.json({ instanceId: req.instanceId, email: inboxId, phone: phoneNumber });
+});
+
+// ── On-demand provisioning ───────────────────────────────────────────────────
+// Instances call these once to get an email inbox or phone number assigned.
+// Idempotent: returns the existing resource if already provisioned.
+
+// POST /api/proxy/email/provision — provision an AgentMail inbox for this instance
+router.post("/api/proxy/email/provision", async (req, res) => {
+  const instanceId = req.instanceId!;
+  const { inboxId: existing } = await getResources(instanceId);
+  if (existing) { res.json({ email: existing, provisioned: false }); return; }
+  if (!config.agentmailApiKey) { res.status(503).json({ error: "Email service not configured on pool" }); return; }
+
+  try {
+    const inboxId = await agentmail.createInbox(instanceId);
+    await drizzle.insert(instanceServices).values({
+      instanceId,
+      toolId: "agentmail",
+      resourceId: inboxId,
+      envKey: "agentmail",
+      envValue: inboxId,
+    });
+    // Bust cache so subsequent calls see the new inbox
+    resourceCache.delete(instanceId);
+    metricCount("proxy.email.provision");
+    console.log(`[proxy/email] provisioned inbox ${inboxId} for instance=${instanceId}`);
+    res.json({ email: inboxId, provisioned: true });
+  } catch (err: any) {
+    console.error(`[proxy/email] provision error: instance=${instanceId} err=${err.message}`);
+    metricCount("proxy.email.provision_error");
+    res.status(502).json({ error: `Email provisioning failed: ${err.message}` });
+  }
+});
+
+// POST /api/proxy/sms/provision — provision a Telnyx phone number for this instance
+router.post("/api/proxy/sms/provision", async (req, res) => {
+  const instanceId = req.instanceId!;
+  const { phoneNumber: existing } = await getResources(instanceId);
+  if (existing) { res.json({ phone: existing, provisioned: false }); return; }
+  if (!config.telnyxApiKey) { res.status(503).json({ error: "SMS service not configured on pool" }); return; }
+
+  try {
+    const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone(instanceId);
+    await drizzle.insert(instanceServices).values({
+      instanceId,
+      toolId: "telnyx",
+      resourceId: phoneNumber,
+      envKey: "telnyx",
+      envValue: phoneNumber,
+      resourceMeta: { messagingProfileId },
+    });
+    // Bust cache so subsequent calls see the new phone
+    resourceCache.delete(instanceId);
+    metricCount("proxy.sms.provision");
+    console.log(`[proxy/sms] provisioned phone ${phoneNumber} for instance=${instanceId}`);
+    res.json({ phone: phoneNumber, provisioned: true });
+  } catch (err: any) {
+    console.error(`[proxy/sms] provision error: instance=${instanceId} err=${err.message}`);
+    metricCount("proxy.sms.provision_error");
+    res.status(502).json({ error: `SMS provisioning failed: ${err.message}` });
+  }
 });
 
 // ── Email (AgentMail) ───────────────────────────────────────────────────────
