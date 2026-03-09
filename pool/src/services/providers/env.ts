@@ -7,7 +7,7 @@ export function buildInstanceEnv(): Record<string, string> {
     XMTP_ENV: config.xmtpEnv,
     CHROMIUM_PATH: "/usr/bin/chromium",
     POOL_URL: config.poolUrl,
-    // POOL_ENVIRONMENT: derived from RAILWAY_ENVIRONMENT_NAME (auto-set by Railway)
-    // API keys: proxied through pool manager via /api/proxy/* endpoints
+    // API keys (email, SMS, bankr): proxied through pool manager via /api/proxy/* endpoints.
+    // BANKR_API_URL and BANKR_API_KEY are set in infra.ts with instance credentials.
   };
 }

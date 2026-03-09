@@ -32,6 +32,14 @@ export async function createInstance(
   vars.INSTANCE_ID = instanceId;
   vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
 
+  // Bankr: point CLI/curl at the pool proxy, auth with instance credentials.
+  // The proxy accepts X-API-Key: <instanceId>:<gatewayToken> and replaces
+  // it with the real BANKR_API_KEY before forwarding to api.bankr.bot.
+  if (config.poolUrl && config.bankrApiKey) {
+    vars.BANKR_API_URL = `${config.poolUrl}/api/proxy/bankr`;
+    vars.BANKR_API_KEY = `${instanceId}:${gatewayToken}`;
+  }
+
   // Provision requested tools (rollback on failure to avoid leaked resources)
   const services: CreateInstanceResponse["services"] = {};
 
