@@ -34,6 +34,10 @@ export const config = {
 
   // Railway (from services)
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),
+  railwayApiTokens: getEnv("RAILWAY_API_TOKENS")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean),
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
   railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
     const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
