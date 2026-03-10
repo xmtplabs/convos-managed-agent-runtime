@@ -111,9 +111,10 @@ For side-effect verification, add a JS assertion in `assertions.mjs` and referen
 
 ## CI
 
-Two ways to run eval in CI:
+Three ways to run eval in CI:
 
 - **On a PR**: add the `run-eval` label to any PR that touches `runtime/`. The eval runs after smoke tests and the HTML report is uploaded as an artifact.
+- **On dispatch build**: eval runs non-blocking alongside QA and publish in `runtime-dispatch.yml`. Failures don't block the release.
 - **One-off dispatch**: trigger the "Runtime: Eval" workflow from any branch (Actions → Runtime: Eval → Run workflow). Builds the image but does **not** publish it.
 
 Required secret: `EVAL_OPENROUTER_API_KEY`
