@@ -432,6 +432,10 @@ const plugin = {
             return;
           }
 
+          // Clean up any running setup instance (e.g. from /convos/reset)
+          // so it doesn't conflict with this provisioning flow.
+          await cleanupSetupInstance();
+
           const body = await readJsonBody(req);
           const name = typeof body.name === "string" ? body.name : "Convos Agent";
           const profileName = typeof body.profileName === "string" ? body.profileName : name;
@@ -522,6 +526,10 @@ const plugin = {
             });
             return;
           }
+
+          // Clean up any running setup instance (e.g. from /convos/reset)
+          // so it doesn't conflict with this provisioning flow.
+          await cleanupSetupInstance();
 
           const body = await readJsonBody(req);
           const inviteUrl = typeof body.inviteUrl === "string" ? body.inviteUrl : undefined;
