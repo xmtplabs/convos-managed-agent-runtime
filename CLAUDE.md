@@ -4,7 +4,6 @@
 
 - dont tour core convos extension
 - always use pnpm
-- PRIVATE_WALLET_KEY does nothing to do with Convos!
 - dont rush into action. ask
 - never update dependencies. everything breaks when bumped.
 - When in doubt, don't automate, better to think of good and manual flows and tools.

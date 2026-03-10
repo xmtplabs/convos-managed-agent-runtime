@@ -5,6 +5,16 @@
 - Add email and SMS polling to heartbeat
 - Switch heartbeat model to MiniMax M2.5, interval to 30m
 - Add MiniMax M2.5 to OpenRouter model list
+- Proxy service API calls (email, SMS) through pool manager (#396)
+  - Instances no longer receive `AGENTMAIL_API_KEY`, `TELNYX_API_KEY`, or `TELNYX_MESSAGING_PROFILE_ID`
+  - New `/api/proxy/*` endpoints on pool manager with per-instance auth (`instanceId:gatewayToken`)
+  - Email/SMS proxy enforces per-instance inbox and phone number from DB
+  - Runtime handlers auto-detect proxy mode (`POOL_URL` + `INSTANCE_ID` + `GATEWAY_TOKEN`), fall back to direct API keys for local dev
+  - Bankr key (`BANKR_API_KEY`) still passed through directly to instances
+- Simplify pool env config: derive `POOL_URL` from `RAILWAY_PUBLIC_DOMAIN` (falls back to `POOL_ENVIRONMENT` env var)
+- Unify instance auth to single `OPENCLAW_GATEWAY_TOKEN` (#395)
+  - Remove `POOL_API_KEY`, `SETUP_PASSWORD`, `PRIVATE_WALLET_KEY` from instances
+  - Legacy fallback in `authFetch.ts` for old instances
 
 ## 0.0.21
 

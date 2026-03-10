@@ -79,16 +79,12 @@ jobs:
             -e PORT=8080 \
             -e OPENCLAW_STATE_DIR=/app \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
-            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
             -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
-            -e TELNYX_API_KEY="${{ secrets.TELNYX_API_KEY }}" \
-            -e TELNYX_PHONE_NUMBER="${{ secrets.TELNYX_PHONE_NUMBER }}" \
-            -e TELNYX_MESSAGING_PROFILE_ID="${{ secrets.TELNYX_MESSAGING_PROFILE_ID }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
-            -e PRIVATE_WALLET_KEY="${{ secrets.PRIVATE_WALLET_KEY }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
+            -e POOL_URL="${{ secrets.POOL_URL }}" \
+            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
             ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }} \
             node scripts/pool-server.js
 

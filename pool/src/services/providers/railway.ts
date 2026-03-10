@@ -6,8 +6,128 @@ const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 const GQL_MAX_RETRIES = 3;
 const GQL_BASE_DELAY_MS = 5000;
 
-export async function gql(query: string, variables: Record<string, unknown> = {}): Promise<Record<string, any>> {
-  const token = config.railwayApiToken;
+// ── Token pool for projectCreate rate-limit rotation ─────────────────────────
+
+const COOLDOWN_MS = 30_000;
+const projectCooldowns = new Map<string, number>();
+const volumeCooldowns = new Map<string, number>();
+const badTokens = new Set<string>();
+
+function getTokenPool(): string[] {
+  const pool = config.railwayApiTokens.length > 0
+    ? config.railwayApiTokens
+    : [config.railwayApiToken];
+  return pool.filter((t) => !badTokens.has(t));
+}
+
+function getNextToken(cooldowns: Map<string, number>): { token: string; waitMs: number; index: number } {
+  const pool = getTokenPool();
+  const now = Date.now();
+
+  // Find first token with expired cooldown
+  for (let i = 0; i < pool.length; i++) {
+    const lastUsed = cooldowns.get(pool[i]) || 0;
+    if (now - lastUsed >= COOLDOWN_MS) {
+      return { token: pool[i], waitMs: 0, index: i };
+    }
+  }
+
+  // All cooling — find the one closest to expiry
+  let bestIdx = 0;
+  let bestExpiry = Infinity;
+  for (let i = 0; i < pool.length; i++) {
+    const lastUsed = cooldowns.get(pool[i]) || 0;
+    const expiresAt = lastUsed + COOLDOWN_MS;
+    if (expiresAt < bestExpiry) {
+      bestExpiry = expiresAt;
+      bestIdx = i;
+    }
+  }
+
+  return { token: pool[bestIdx], waitMs: Math.max(0, bestExpiry - now), index: bestIdx };
+}
+
+function markToken(cooldowns: Map<string, number>, token: string): void {
+  cooldowns.set(token, Date.now());
+}
+
+/** Shared retry loop with token rotation for rate-limited Railway mutations. */
+async function withTokenRotation<T>(
+  cooldowns: Map<string, number>,
+  label: string,
+  fn: (token: string) => Promise<T>,
+): Promise<T> {
+  const pool = getTokenPool();
+  if (pool.length === 0) {
+    throw new Error(`${label}: all Railway API tokens failed auth — no healthy tokens remaining`);
+  }
+  const maxAttempts = pool.length * 2;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let { token, waitMs, index } = getNextToken(cooldowns);
+
+    if (waitMs > 0) {
+      console.log(`[railway] All tokens cooling (${label}) — waiting ${(waitMs / 1000).toFixed(1)}s`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      ({ token, waitMs, index } = getNextToken(cooldowns));
+    }
+
+    markToken(cooldowns, token);
+    const poolSize = getTokenPool().length;
+    console.log(`[railway] ${label} — trying token ${index + 1}/${poolSize}`);
+
+    try {
+      return await fn(token);
+    } catch (err) {
+      if (err instanceof RailwayRateLimitError) {
+        console.log(`[railway] Token ${index + 1}/${poolSize} rate-limited (${label}), rotating (${attempt + 1}/${maxAttempts})`);
+        continue;
+      }
+      if (err instanceof RailwayAuthError) {
+        badTokens.add(token);
+        const remaining = getTokenPool().length;
+        console.warn(`[railway] Token ${index + 1}/${poolSize} auth failed — removed from pool (${remaining} healthy remain)`);
+        if (remaining === 0) {
+          throw new Error(`${label}: all Railway API tokens failed auth — no healthy tokens remaining`);
+        }
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error(`${label}: exhausted all token attempts`);
+}
+
+export class RailwayRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RailwayRateLimitError";
+  }
+}
+
+export class RailwayAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RailwayAuthError";
+  }
+}
+
+// Log token pool size on import
+{
+  const source = config.railwayApiTokens.length > 0 ? "RAILWAY_API_TOKENS" : "RAILWAY_API_TOKEN";
+  const pool = getTokenPool();
+  console.log(`[railway] Token pool: ${pool.length} token${pool.length === 1 ? "" : "s"} from ${source}`);
+}
+
+// ── GraphQL client ───────────────────────────────────────────────────────────
+
+export async function gql(
+  query: string,
+  variables: Record<string, unknown> = {},
+  tokenOverride?: string,
+): Promise<Record<string, any>> {
+  const token = tokenOverride || config.railwayApiToken;
   if (!token) throw new Error("RAILWAY_API_TOKEN not set");
 
   for (let attempt = 1; attempt <= GQL_MAX_RETRIES; attempt++) {
@@ -19,6 +139,10 @@ export async function gql(query: string, variables: Record<string, unknown> = {}
       },
       body: JSON.stringify({ query, variables }),
     });
+
+    if (res.status === 401 || res.status === 403) {
+      throw new RailwayAuthError(`Railway API auth failed: ${res.status}`);
+    }
 
     if (res.status === 429 && attempt < GQL_MAX_RETRIES) {
       const delay = GQL_BASE_DELAY_MS * Math.pow(2, attempt - 1);
@@ -35,7 +159,14 @@ export async function gql(query: string, variables: Record<string, unknown> = {}
       throw new Error(`Railway API error: ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     }
     if (json.errors) {
-      throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
+      const msg = JSON.stringify(json.errors);
+      if (
+        msg.includes("Only one project can be created per user") ||
+        msg.includes("You are creating volumes too quickly")
+      ) {
+        throw new RailwayRateLimitError(msg);
+      }
+      throw new Error(`Railway API error: ${msg}`);
     }
     return json.data;
   }
@@ -69,13 +200,14 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
   const tid = teamId || config.railwayTeamId;
   if (!tid) throw new Error("RAILWAY_TEAM_ID not set — required for sharded project creation");
 
-  const data = await gql(
-    `mutation($input: ProjectCreateInput!) {
-      projectCreate(input: $input) { id }
-    }`,
-    { input: { name, workspaceId: tid } },
-  );
+  const mutation = `mutation($input: ProjectCreateInput!) {
+    projectCreate(input: $input) { id }
+  }`;
+  const vars = { input: { name, workspaceId: tid } };
 
+  const data = await withTokenRotation(projectCooldowns, `projectCreate "${name}"`, (token) =>
+    gql(mutation, vars, token),
+  );
   const projectId = data.projectCreate.id;
   console.log(`[railway] Created project "${name}" → ${projectId}`);
   return { projectId };
@@ -363,41 +495,29 @@ export async function setResourceLimits(
   }
 }
 
-export async function createVolume(
-  serviceId: string,
-  mountPath = "/data",
-  opts?: ProjectEnvOpts,
-): Promise<{ id: string; name: string }> {
-  const projectId = resolveProjectId(opts);
-  const environmentId = resolveEnvironmentId(opts);
-
-  const data = await gql(
-    `mutation($input: VolumeCreateInput!) {
-      volumeCreate(input: $input) { id name }
-    }`,
-    { input: { projectId, serviceId, mountPath, environmentId } },
-  );
-
-  return data.volumeCreate;
-}
-
-/** Try to create a volume for a service. Returns true on success. */
+/** Try to create a volume for a service with token rotation for rate limits. */
 export async function ensureVolume(
   serviceId: string,
   mountPath = "/data",
   opts?: ProjectEnvOpts,
 ): Promise<boolean> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const vol = await createVolume(serviceId, mountPath, opts);
-      console.log(`[railway] Created volume: ${vol.id}`);
-      return true;
-    } catch (err: any) {
-      console.warn(`[railway] Volume attempt ${attempt}/3 failed for ${serviceId}:`, err.message);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
-    }
+  const projectId = resolveProjectId(opts);
+  const environmentId = resolveEnvironmentId(opts);
+  const mutation = `mutation($input: VolumeCreateInput!) {
+    volumeCreate(input: $input) { id name }
+  }`;
+  const vars = { input: { projectId, serviceId, mountPath, environmentId } };
+
+  try {
+    const data = await withTokenRotation(volumeCooldowns, `ensureVolume(${serviceId})`, (token) =>
+      gql(mutation, vars, token),
+    );
+    console.log(`[railway] Created volume: ${data.volumeCreate.id}`);
+    return true;
+  } catch (err) {
+    console.error(`[railway] ensureVolume failed for ${serviceId}:`, (err as Error).message);
+    return false;
   }
-  return false;
 }
 
 /** Fetch all project volumes grouped by serviceId. */
