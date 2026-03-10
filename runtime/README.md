@@ -61,7 +61,9 @@ The `pnpm start` script runs four steps in sequence:
     ├── pool-server.js      # pool health/provision endpoints
     ├── qa/
     │   ├── smoke.sh        # smoke tests (proxy when POOL_URL set, direct otherwise)
-    │   └── prompts.sh      # QA prompt definitions
+    │   ├── prompts.sh      # QA prompt definitions
+    │   ├── eval.sh          # e2e eval wrapper (loads .env, runs promptfoo)
+    │   └── eval/            # promptfoo config, provider, assertions, fixtures
     └── lib/
         ├── init.sh         # set ROOT, load .env, load paths
         ├── paths.sh        # derive STATE_DIR, WORKSPACE_DIR, etc.
@@ -81,6 +83,7 @@ The `pnpm start` script runs four steps in sequence:
 | `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
 | `pnpm gateway` | Start the gateway |
 | `pnpm qa` | QA smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
+| `pnpm qa:eval` | E2E eval suite — LLM-judged tests over a real XMTP conversation (see [qa.md](qa.md)) |
 | `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
 | `pnpm build` | Build Docker image locally |
 | `pnpm build:run` | Build and run with .env from repo root |
