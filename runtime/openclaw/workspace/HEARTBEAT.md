@@ -33,4 +33,6 @@ node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs sms rece
 
 ## Notify
 
-- If either command returned messages, send them to the group. Example: "You got a text from +1234 — they said: Hello". If no messages, stay silent.
+- If either command returned messages, only surface ones that look actionable or personal — ignore automated, marketing, or spam messages.
+- Keep it brief: "You got a text from +1234 — they said: Hello". If no messages, stay silent.
+- If there are more than 3 new messages, just say how many instead of listing each one.
