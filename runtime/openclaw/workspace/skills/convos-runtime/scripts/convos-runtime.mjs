@@ -45,6 +45,19 @@ async function version() {
 }
 
 async function upgrade() {
+  if (!process.argv.includes("--confirm")) {
+    // Print info so the agent can explain to the user before confirming
+    const info = await poolSelfRequest("self-info");
+    console.log(JSON.stringify({
+      ok: true,
+      action: "upgrade-preview",
+      currentImage: info.runtimeImage,
+      latestImage: info.latestImage,
+      runtimeVersion: info.runtimeVersion,
+      message: "Run again with --confirm to proceed. The container will restart and you'll be offline for ~30-60 seconds.",
+    }, null, 2));
+    return;
+  }
   console.log("Requesting Convos runtime upgrade from pool server...");
   const result = await poolSelfRequest("self-upgrade");
   console.log(JSON.stringify({ ok: true, action: "upgrade", image: result.image }, null, 2));
