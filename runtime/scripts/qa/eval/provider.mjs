@@ -54,14 +54,14 @@ function exec(cmd, opts = {}) {
 function setup() {
   // 0. Reset the runtime's convos identity so /join works on a fresh conversation
   console.log(`[eval] Resetting runtime convos identity...`);
-  exec(
-    `curl -sf -X POST http://localhost:${GATEWAY_PORT}/convos/reset ` +
+  const resetOut = exec(
+    `curl -s -X POST http://localhost:${GATEWAY_PORT}/convos/reset ` +
     `-H 'Content-Type: application/json' ` +
     `-H 'Authorization: Bearer ${GATEWAY_TOKEN}' ` +
     `-d '{}'`,
     { timeout: 30_000 }
   );
-  console.log(`[eval] Runtime identity reset`);
+  console.log(`[eval] Reset response: ${resetOut}`);
 
   // 1. Create conversation via convos-cli (user identity)
   const createOut = exec(

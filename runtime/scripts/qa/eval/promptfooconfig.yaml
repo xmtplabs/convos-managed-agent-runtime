@@ -5,7 +5,8 @@
 description: "OpenClaw Runtime E2E Eval"
 
 # Sequential execution — all tests share one conversation
-concurrency: 1
+evaluateOptions:
+  maxConcurrency: 1
 
 providers:
   - file://provider.mjs
