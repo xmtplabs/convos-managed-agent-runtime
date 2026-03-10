@@ -1,0 +1,137 @@
+// runtime/scripts/qa/eval/provider.mjs
+// Custom Promptfoo provider for OpenClaw agent e2e eval.
+// Creates a conversation, joins the runtime, sends messages via convos-cli,
+// polls for agent responses.
+
+import { execSync } from 'child_process';
+
+const ENV = process.env.XMTP_ENV || 'dev';
+const GATEWAY_PORT = process.env.GATEWAY_INTERNAL_PORT || '18789';
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+// Full path required — npx promptfoo doesn't source node-path.sh
+const CONVOS = '/app/node_modules/.bin/convos';
+
+let sharedConversationId = null;
+let userInboxId = null;
+
+function exec(cmd, opts = {}) {
+  return execSync(cmd, { encoding: 'utf-8', timeout: 30_000, ...opts }).trim();
+}
+
+function setup() {
+  // 1. Create conversation via convos-cli (user identity)
+  const createOut = exec(
+    `${CONVOS} conversations create --name "QA Eval ${Date.now()}" --env ${ENV} --json`
+  );
+  const data = JSON.parse(createOut);
+  sharedConversationId = data.conversationId;
+  userInboxId = data.inboxId;
+  const inviteUrl = data.invite.url;
+
+  console.log(`[eval] Created conversation ${sharedConversationId}`);
+  console.log(`[eval] User inboxId: ${userInboxId}`);
+
+  // 2. Have the runtime join via POST /convos/join
+  const joinBody = JSON.stringify({ inviteUrl, profileName: 'QA Eval Agent' });
+  exec(
+    `curl -sf -X POST http://localhost:${GATEWAY_PORT}/convos/join ` +
+    `-H 'Content-Type: application/json' ` +
+    `-H 'Authorization: Bearer ${GATEWAY_TOKEN}' ` +
+    `-d '${joinBody}'`,
+    { timeout: 30_000 }
+  );
+
+  console.log(`[eval] Runtime joined conversation`);
+
+  // 3. Wait for join to propagate
+  execSync('sleep 5');
+}
+
+function pollForAgentResponse(afterTimestamp) {
+  const deadline = Date.now() + 120_000; // 120s timeout
+  const pollInterval = 3_000; // 3s between polls
+
+  while (Date.now() < deadline) {
+    const messagesOut = exec(
+      `${CONVOS} conversation messages ${sharedConversationId} ` +
+      `--sync --limit 5 --direction descending --env ${ENV} --json`,
+      { timeout: 30_000 }
+    );
+
+    let messages;
+    try {
+      messages = JSON.parse(messagesOut);
+    } catch {
+      execSync(`sleep ${pollInterval / 1000}`);
+      continue;
+    }
+
+    // Find first message from someone other than the user, after our send
+    const agentMsg = (Array.isArray(messages) ? messages : []).find(
+      (m) => m.senderInboxId !== userInboxId && new Date(m.sentAt).getTime() > afterTimestamp
+    );
+
+    if (agentMsg) {
+      return agentMsg.content || agentMsg.text || JSON.stringify(agentMsg);
+    }
+
+    execSync(`sleep ${pollInterval / 1000}`);
+  }
+
+  throw new Error('Timed out waiting for agent response (120s)');
+}
+
+export default class OpenClawProvider {
+  id() {
+    return 'openclaw-agent';
+  }
+
+  async callApi(prompt, context) {
+    if (!sharedConversationId) {
+      setup();
+    }
+
+    const vars = context.vars || {};
+    const beforeSend = Date.now();
+
+    // If there's an attachment, send it first
+    if (vars.attachment) {
+      const attachDir = new URL('.', import.meta.url).pathname;
+      const attachPath = vars.attachment.startsWith('./')
+        ? `${attachDir}${vars.attachment.slice(2)}`
+        : vars.attachment;
+
+      exec(
+        `${CONVOS} conversation send-attachment ${sharedConversationId} ` +
+        `${attachPath} --env ${ENV}`,
+        { timeout: 30_000 }
+      );
+      console.log(`[eval] Sent attachment: ${vars.attachment}`);
+      execSync('sleep 2'); // Brief pause between attachment and text
+    }
+
+    // Send the text prompt
+    exec(
+      `${CONVOS} conversation send-text ${sharedConversationId} ` +
+      `${JSON.stringify(prompt)} --env ${ENV}`,
+      { timeout: 30_000 }
+    );
+    console.log(`[eval] Sent prompt: ${prompt}`);
+
+    // Poll for agent response
+    try {
+      const response = pollForAgentResponse(beforeSend);
+      console.log(`[eval] Agent response: ${response.substring(0, 100)}...`);
+      return {
+        output: response,
+        metadata: { conversationId: sharedConversationId },
+      };
+    } catch (err) {
+      return {
+        output: '',
+        error: err.message,
+        metadata: { conversationId: sharedConversationId },
+      };
+    }
+  }
+}

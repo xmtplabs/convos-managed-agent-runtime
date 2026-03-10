@@ -1,0 +1,57 @@
+# runtime/scripts/qa/eval/promptfooconfig.yaml
+# E2E eval suite for OpenClaw runtime.
+# Run: npx promptfoo eval -c scripts/qa/eval/promptfooconfig.yaml
+
+description: "OpenClaw Runtime E2E Eval"
+
+providers:
+  - file://provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: openrouter:anthropic/claude-sonnet-4
+      config:
+        apiKey: "{{EVAL_OPENROUTER_API_KEY}}"
+
+tests:
+  - description: "Agent can update profile name"
+    vars:
+      prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
+      expectedName: "QA Bot Alpha"
+    assert:
+      - type: llm-rubric
+        value: "The response indicates the profile name was successfully updated"
+      - type: javascript
+        value: "file://assertions.mjs:profileNameEquals"
+
+  - description: "Agent can update profile photo"
+    vars:
+      prompt: "Update your profile photo to https://xmtp.org/img/logomark-dark.png. Confirm when done."
+    assert:
+      - type: llm-rubric
+        value: "The response indicates the profile photo was successfully updated"
+      - type: javascript
+        value: "file://assertions.mjs:profileImageSet"
+
+  - description: "Agent can recognize image content"
+    vars:
+      prompt: "What do you see in that image? Describe it briefly."
+      attachment: "./test-image.png"
+    assert:
+      - type: llm-rubric
+        value: "The response describes specific visual content from the image, not a generic refusal or inability to see images"
+
+  - description: "Agent can tell the time"
+    vars:
+      prompt: "What time is it right now?"
+    assert:
+      - type: llm-rubric
+        value: "The response contains a specific time in hours and minutes, not a refusal"
+
+  - description: "Agent can see group members"
+    vars:
+      prompt: "Who is in this conversation? List the participants."
+    assert:
+      - type: llm-rubric
+        value: "The response lists one or more participants, identities, or addresses in the conversation"

@@ -14,6 +14,10 @@ on:
           - staging
           - production
           - scaling
+      run_eval:
+        description: 'Run e2e eval suite after smoke tests'
+        type: boolean
+        default: false
 
 permissions:
   packages: write
@@ -106,6 +110,15 @@ jobs:
 
       - name: Run QA smoke tests
         run: docker exec qa-runtime timeout 120 pnpm qa
+
+      - name: Run e2e eval
+        if: ${{ inputs.run_eval }}
+        run: |
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
+            qa-runtime timeout 900 pnpm qa:eval
+        env:
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: Dump logs
         if: always()

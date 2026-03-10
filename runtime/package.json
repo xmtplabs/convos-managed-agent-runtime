@@ -14,6 +14,7 @@
     "clean-sessions": "sh scripts/clean-sessions.sh",
     "qa": "sh scripts/qa/smoke.sh",
     "qa:prompts": "sh scripts/qa/prompts.sh",
+    "qa:eval": "npx promptfoo eval -c scripts/qa/eval/promptfooconfig.yaml",
     "ngrok": "ngrok http 18789 --url=c3c882cc6672.ngrok.app",
     "pool-server": "node scripts/pool-server.js",
     "build": "cd .. && docker build -f runtime/Dockerfile -t convos-runtime:local .",
