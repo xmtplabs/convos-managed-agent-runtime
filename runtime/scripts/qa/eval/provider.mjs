@@ -29,6 +29,21 @@ function resolveConvos() {
 
 const CONVOS = resolveConvos();
 
+// Check gateway is reachable before running any tests
+function checkGateway() {
+  try {
+    execSync(
+      `curl -sf http://localhost:${GATEWAY_PORT}/pool/health`,
+      { encoding: 'utf-8', timeout: 5_000 }
+    );
+  } catch {
+    console.error(`[eval] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first (pnpm gateway).`);
+    process.exit(1);
+  }
+}
+
+checkGateway();
+
 let sharedConversationId = null;
 let userInboxId = null;
 
