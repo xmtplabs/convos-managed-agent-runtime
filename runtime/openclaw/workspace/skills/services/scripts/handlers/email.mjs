@@ -11,7 +11,7 @@
  *   node services.mjs email send-calendar --to <email> --ics <path> [--subject <subj>]
  *   node services.mjs email poll [--limit 20] [--labels unread] [--threads]
  */
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 // Proxy mode: route through pool manager (no API key on instance)
@@ -216,6 +216,68 @@ async function poll(argv) {
   }
 }
 
+const EMAIL_CURSOR_FILE = "/tmp/.heartbeat-email-cursor";
+
+function readCursor() {
+  try {
+    const ts = parseInt(readFileSync(EMAIL_CURSOR_FILE, "utf8").trim(), 10);
+    return Number.isFinite(ts) ? ts : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeCursor(ts) {
+  try { writeFileSync(EMAIL_CURSOR_FILE, String(ts), "utf8"); } catch {}
+}
+
+async function recent(argv) {
+  await requireEnv();
+  const { map } = parseArgs(argv);
+  const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
+  const sinceLast = map["since-last"] !== undefined;
+  const limit = parseInt(map.limit, 10) || 5;
+
+  let cutoff;
+  if (sinceLast) {
+    cutoff = readCursor();
+    if (cutoff === 0) cutoff = Date.now() - 30 * 60 * 1000; // first run: 30min fallback
+  } else {
+    cutoff = Date.now() - (minutes || 30) * 60 * 1000;
+  }
+
+  const params = new URLSearchParams({ limit: "20" });
+  params.append("labels", "unread");
+  const msgData = await api("GET", `${inboxPath("messages")}?${params}`);
+  const all = msgData?.messages ?? [];
+  const messages = all.filter((m) => {
+    const ts = m.timestamp ? new Date(m.timestamp).getTime() : 0;
+    return ts > cutoff && m.labels?.includes("received");
+  }).slice(0, limit);
+
+  if (sinceLast && messages.length > 0) {
+    // Advance cursor to the newest message we reported
+    const newest = messages.reduce((max, m) => {
+      const ts = m.timestamp ? new Date(m.timestamp).getTime() : 0;
+      return ts > max ? ts : max;
+    }, cutoff);
+    writeCursor(newest);
+  }
+
+  if (messages.length === 0) {
+    console.log("No new emails.");
+    return;
+  }
+
+  for (const m of messages) {
+    console.log(`From: ${m.from}`);
+    console.log(`Subject: ${m.subject || "(none)"}`);
+    console.log(`Date: ${m.timestamp}`);
+    console.log(`Body: ${m.preview || "(no preview)"}`);
+    console.log("");
+  }
+}
+
 export default async function email(argv) {
   const [action, ...rest] = argv;
 
@@ -223,8 +285,9 @@ export default async function email(argv) {
     case "send":          return send(rest);
     case "send-calendar": return sendCalendar(rest);
     case "poll":          return poll(rest);
+    case "recent":        return recent(rest);
     default:
-      console.error("Usage: services.mjs email <send|send-calendar|poll> [options]");
+      console.error("Usage: services.mjs email <send|send-calendar|poll|recent> [options]");
       process.exit(1);
   }
 }
