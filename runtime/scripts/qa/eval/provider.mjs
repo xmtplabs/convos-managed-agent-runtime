@@ -3,7 +3,7 @@
 // Creates a conversation, joins the runtime, sends messages via convos-cli,
 // polls for agent responses.
 
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -32,8 +32,7 @@ const CONVOS = resolveConvos();
 // Check gateway is reachable before running any tests
 function checkGateway() {
   try {
-    execSync(
-      `curl -sf http://localhost:${GATEWAY_PORT}/pool/health`,
+    execFileSync('curl', ['-sf', `http://localhost:${GATEWAY_PORT}/pool/health`],
       { encoding: 'utf-8', timeout: 5_000 }
     );
   } catch {
@@ -54,13 +53,13 @@ function exec(cmd, opts = {}) {
 function setup() {
   // 0. Reset the runtime's convos identity so /join works on a fresh conversation
   console.log(`[eval] Resetting runtime convos identity...`);
-  const resetOut = exec(
-    `curl -s -X POST http://localhost:${GATEWAY_PORT}/convos/reset ` +
-    `-H 'Content-Type: application/json' ` +
-    `-H 'Authorization: Bearer ${GATEWAY_TOKEN}' ` +
-    `-d '{}'`,
-    { timeout: 30_000 }
-  );
+  const resetOut = execFileSync('curl', [
+    '-s', '-X', 'POST',
+    `http://localhost:${GATEWAY_PORT}/convos/reset`,
+    '-H', 'Content-Type: application/json',
+    '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
+    '-d', '{}',
+  ], { encoding: 'utf-8', timeout: 30_000 }).trim();
   console.log(`[eval] Reset response: ${resetOut}`);
 
   // 1. Create conversation via convos-cli (user identity)
@@ -77,15 +76,14 @@ function setup() {
 
   // 2. Have the runtime join via POST /convos/join
   const joinBody = JSON.stringify({ inviteUrl, profileName: 'QA Eval Agent' });
-  exec(
-    `curl -sf -X POST http://localhost:${GATEWAY_PORT}/convos/join ` +
-    `-H 'Content-Type: application/json' ` +
-    `-H 'Authorization: Bearer ${GATEWAY_TOKEN}' ` +
-    `-d '${joinBody}'`,
-    { timeout: 30_000 }
-  );
-
-  console.log(`[eval] Runtime joined conversation`);
+  const joinOut = execFileSync('curl', [
+    '-s', '-X', 'POST',
+    `http://localhost:${GATEWAY_PORT}/convos/join`,
+    '-H', 'Content-Type: application/json',
+    '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
+    '-d', joinBody,
+  ], { encoding: 'utf-8', timeout: 30_000 }).trim();
+  console.log(`[eval] Join response: ${joinOut}`);
 
   // 3. Wait for join to propagate
   execSync('sleep 5');
