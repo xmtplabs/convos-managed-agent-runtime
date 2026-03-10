@@ -32,11 +32,22 @@ function getConvosEnv() {
 }
 
 function getProfiles(conversationId) {
+  // Sync the conversation first so the local identity has up-to-date group state
+  try {
+    execSync(
+      `${CONVOS} conversation messages ${conversationId} --sync --limit 1 --env ${ENV} --json`,
+      { encoding: 'utf-8', timeout: 30_000, env: getConvosEnv() }
+    );
+  } catch {}
+
   const out = execSync(
     `${CONVOS} conversation profiles ${conversationId} --env ${ENV} --json`,
     { encoding: 'utf-8', timeout: 30_000, env: getConvosEnv() }
   ).trim();
-  return JSON.parse(out);
+
+  const parsed = JSON.parse(out);
+  // conversation profiles returns { profiles: [...] }, not a direct array
+  return parsed.profiles || parsed;
 }
 
 /**
@@ -60,15 +71,15 @@ export function profileNameEquals(output, context) {
 
   try {
     const profiles = getProfiles(conversationId);
-    const match = (Array.isArray(profiles) ? profiles : []).some(
-      (p) => p.name === expectedName
-    );
+    const arr = Array.isArray(profiles) ? profiles : [];
+    console.log(`[assertion] profileNameEquals: profiles=${JSON.stringify(arr.map(p => ({ name: p.name, inboxId: p.inboxId?.substring(0, 12) })))}`);
+    const match = arr.some((p) => p.name === expectedName);
     return {
       pass: match,
       score: match ? 1 : 0,
       reason: match
         ? `Profile name is "${expectedName}"`
-        : `Expected name "${expectedName}", got: ${(Array.isArray(profiles) ? profiles : []).map((p) => p.name).join(', ')}`,
+        : `Expected name "${expectedName}", got: ${arr.map((p) => p.name).join(', ')}`,
     };
   } catch (err) {
     return { pass: false, score: 0, reason: `Failed to query profiles: ${err.message}` };
@@ -89,15 +100,15 @@ export function profileImageSet(output, context) {
 
   try {
     const profiles = getProfiles(conversationId);
-    const hasImage = (Array.isArray(profiles) ? profiles : []).some(
-      (p) => p.image && p.image !== 'null'
-    );
+    const arr = Array.isArray(profiles) ? profiles : [];
+    console.log(`[assertion] profileImageSet: profiles=${JSON.stringify(arr.map(p => ({ name: p.name, image: p.image, imageType: typeof p.image })))}`);
+    const hasImage = arr.some((p) => p.image && p.image !== 'null');
     return {
       pass: hasImage,
       score: hasImage ? 1 : 0,
       reason: hasImage
         ? 'Profile image is set'
-        : 'Profile image is null or missing',
+        : `Profile image is null or missing. Fields: ${JSON.stringify(arr.map(p => Object.keys(p)))}`,
     };
   } catch (err) {
     return { pass: false, score: 0, reason: `Failed to query profiles: ${err.message}` };
