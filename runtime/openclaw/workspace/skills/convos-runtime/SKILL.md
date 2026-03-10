@@ -26,8 +26,20 @@ Pull the latest Convos runtime Docker image and redeploy your container on Railw
 
 **This is NOT a local npm/package update. Do NOT run `gateway update`, `npm update`, or any other local command.** It tells the pool server to pull the newest Docker image and redeploy.
 
+**Step 1 — Preview (always run this first):**
 ```bash
 node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs upgrade
 ```
+This shows the current and latest image without upgrading.
 
-**Always confirm with the user before running this.** Tell them you'll be offline for ~30-60 seconds during the upgrade.
+**Step 1b — Changelog (show what changed):**
+```bash
+curl -s https://raw.githubusercontent.com/xmtplabs/convos-agents/dev/runtime/CHANGELOG.md
+```
+Fetch the changelog and summarize what's new since the user's current version. Show the user what they'll get before asking to confirm.
+
+**Step 2 — Confirm (only after user says yes):**
+```bash
+node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs upgrade --confirm
+```
+Tell the user they'll be offline for ~30-60 seconds during the upgrade. **NEVER run --confirm without asking the user first.**
