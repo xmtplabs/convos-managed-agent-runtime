@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Settings skill dispatcher.
+ * Convos runtime skill dispatcher.
  * Usage: node settings.mjs <command>
  *
- * Commands: upgrade, reset, clear-memory
+ * Commands: version, upgrade
  */
-import { readdirSync, unlinkSync, existsSync } from "fs";
+import { readFileSync } from "fs";
 import { join } from "path";
 
 const POOL_URL = process.env.POOL_URL;
@@ -17,7 +17,7 @@ const command = process.argv[2];
 
 if (!command) {
   console.error("Usage: node settings.mjs <command>");
-  console.error("Commands: upgrade, reset, clear-memory");
+  console.error("Commands: version, upgrade");
   process.exit(1);
 }
 
@@ -35,48 +35,48 @@ async function poolSelfRequest(endpoint) {
   return data;
 }
 
+function version() {
+  const pkgPaths = [
+    join(STATE_DIR, "../../package.json"),           // deployed: /app/package.json
+    join(process.cwd(), "package.json"),              // local dev
+  ];
+  let runtimeVersion = "unknown";
+  for (const p of pkgPaths) {
+    try {
+      const pkg = JSON.parse(readFileSync(p, "utf8"));
+      if (pkg.version) { runtimeVersion = pkg.version; break; }
+    } catch {}
+  }
+  const image = process.env.RAILWAY_RUNTIME_IMAGE || "unknown";
+  console.log(JSON.stringify({
+    ok: true,
+    action: "version",
+    runtimeVersion,
+    image,
+    instanceId: INSTANCE_ID || "local",
+  }, null, 2));
+}
+
 async function upgrade() {
-  console.log("Requesting runtime upgrade from pool server...");
+  console.log("Requesting Convos runtime upgrade from pool server...");
   const result = await poolSelfRequest("self-upgrade");
   console.log(JSON.stringify({ ok: true, action: "upgrade", image: result.image }, null, 2));
 }
 
-async function reset() {
-  console.log("Requesting instance reset (redeploy) from pool server...");
-  const result = await poolSelfRequest("self-reset");
-  console.log(JSON.stringify({ ok: true, action: "reset" }, null, 2));
-}
-
-function clearMemory() {
-  const sessionsDir = join(STATE_DIR, "agents", "main", "sessions");
-  if (!existsSync(sessionsDir)) {
-    console.log(JSON.stringify({ ok: true, action: "clear-memory", cleared: 0, message: "No sessions directory found" }));
-    return;
-  }
-  const files = readdirSync(sessionsDir).filter(f => f.endsWith(".jsonl") || f === "sessions.json");
-  for (const f of files) {
-    unlinkSync(join(sessionsDir, f));
-  }
-  console.log(JSON.stringify({ ok: true, action: "clear-memory", cleared: files.length }));
-}
-
 try {
   switch (command) {
+    case "version":
+      version();
+      break;
     case "upgrade":
       await upgrade();
       break;
-    case "reset":
-      await reset();
-      break;
-    case "clear-memory":
-      clearMemory();
-      break;
     default:
       console.error(`Unknown command: ${command}`);
-      console.error("Available: upgrade, reset, clear-memory");
+      console.error("Available: version, upgrade");
       process.exit(1);
   }
 } catch (err) {
-  console.error(`[settings/${command}] ${err.message}`);
+  console.error(`[convos-runtime/${command}] ${err.message}`);
   process.exit(1);
 }
