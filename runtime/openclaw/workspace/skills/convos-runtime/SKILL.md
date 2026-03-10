@@ -13,7 +13,7 @@ description: |
 Check the current Convos runtime version and Docker image tag.
 
 ```bash
-node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/settings.mjs version
+node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs version
 ```
 
 Use this when the user asks "what version am I on?", "what runtime version?", "what's your runtime?", or before upgrading to show the current version.
@@ -25,7 +25,7 @@ Pull the latest Convos runtime Docker image and redeploy your container on Railw
 **This is NOT a local npm/package update. Do NOT run `gateway update`, `npm update`, or any other local command.** It tells the pool server to pull the newest Docker image and redeploy.
 
 ```bash
-node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/settings.mjs upgrade
+node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs upgrade
 ```
 
 **Always confirm with the user before running this.** Tell them you'll be offline for ~30-60 seconds during the upgrade.

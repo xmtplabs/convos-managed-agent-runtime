@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Convos runtime skill dispatcher.
- * Usage: node settings.mjs <command>
+ * Usage: node convos-runtime.mjs <command>
  *
  * Commands: version, upgrade
  */
@@ -16,7 +16,7 @@ const STATE_DIR = process.env.OPENCLAW_STATE_DIR || `${process.env.HOME}/.opencl
 const command = process.argv[2];
 
 if (!command) {
-  console.error("Usage: node settings.mjs <command>");
+  console.error("Usage: node convos-runtime.mjs <command>");
   console.error("Commands: version, upgrade");
   process.exit(1);
 }

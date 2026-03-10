@@ -116,12 +116,12 @@ _Note: Poll inbound SMS messages._
 
 > What version are you on? / What's your runtime?
 **Skill:** Convos Runtime
-→ `settings.mjs version`
+→ `convos-runtime.mjs version`
 _Note: Always use the convos-runtime skill. Never guess or check openclaw version._
 
 > Upgrade yourself / Update your runtime
 **Skill:** Convos Runtime
-→ `settings.mjs upgrade`
+→ `convos-runtime.mjs upgrade`
 _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm update`._
 
 > What's my ETH balance?
