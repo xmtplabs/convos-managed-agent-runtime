@@ -1,19 +1,9 @@
-name: "Runtime: Manual Build"
+name: "Runtime: Eval"
 
-run-name: "Runtime dispatch → :${{ inputs.tag }} (from ${{ github.ref_name }})"
+run-name: "Runtime eval → ${{ github.ref_name }}"
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Image tag to publish (e.g. dev, staging, production)'
-        required: true
-        type: choice
-        options:
-          - dev
-          - staging
-          - production
-          - scaling
 
 permissions:
   packages: write
@@ -23,7 +13,7 @@ jobs:
     name: "Build runtime image"
     runs-on: ubuntu-latest
     outputs:
-      sha: ${{ steps.meta.outputs.sha }}
+      pending: ${{ steps.meta.outputs.pending }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -38,29 +28,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Compute SHA
+      - name: Compute tag
         id: meta
         run: |
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-          echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "Building sha-$SHA from ${{ github.ref_name }}"
+          echo "pending=eval-$SHA" >> "$GITHUB_OUTPUT"
 
-      - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
+      - name: "Build and push :${{ steps.meta.outputs.pending }}"
         uses: docker/build-push-action@v6
         with:
           context: .
           file: runtime/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/xmtplabs/convos-runtime:pending-${{ steps.meta.outputs.sha }}
+          tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  qa:
-    name: "QA smoke tests"
+  eval:
+    name: "E2E eval"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -70,11 +59,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
+        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
 
       - name: Start container
         run: |
-          docker run -d --name qa-runtime \
+          docker run -d --name eval-runtime \
             -p 8080:8080 \
             -e PORT=8080 \
             -e OPENCLAW_STATE_DIR=/app \
@@ -85,7 +74,7 @@ jobs:
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e POOL_URL="${{ secrets.POOL_URL }}" \
             -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }} \
+            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
             node scripts/pool-server.js
 
       - name: Wait for health (up to 120s)
@@ -99,41 +88,38 @@ jobs:
           done
           if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
             echo "Failed to start"
-            docker logs qa-runtime
+            docker logs eval-runtime
             exit 1
           fi
           sleep 15
 
-      - name: Run QA smoke tests
-        run: docker exec qa-runtime timeout 120 pnpm qa
+      - name: Run e2e eval
+        run: |
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
+            -e EVAL_OUTPUT=/tmp/eval-results.html \
+            eval-runtime timeout 900 pnpm qa:eval
+        env:
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+
+      - name: Copy eval report
+        if: always()
+        run: docker cp eval-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
+
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-results.html
+          if-no-files-found: ignore
 
       - name: Dump logs
         if: always()
-        run: docker logs qa-runtime
+        run: docker logs eval-runtime
 
-  publish:
-    name: "Publish :${{ needs.build.outputs.sha }} → :${{ inputs.tag }}"
-    needs: [build, qa]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Tag and push"
+      - name: Cleanup image
+        if: always()
         run: |
-          IMAGE="ghcr.io/xmtplabs/convos-runtime"
-          SHA="${{ needs.build.outputs.sha }}"
-          TAG="${{ inputs.tag }}"
-
-          docker pull "$IMAGE:pending-$SHA"
-          docker tag "$IMAGE:pending-$SHA" "$IMAGE:$SHA"
-          docker push "$IMAGE:$SHA"
-          echo "Pushed $IMAGE:$SHA"
-
-          docker tag "$IMAGE:pending-$SHA" "$IMAGE:$TAG"
-          docker push "$IMAGE:$TAG"
-          echo "Pushed $IMAGE:$TAG"
+          docker stop eval-runtime 2>/dev/null || true
+          docker rm eval-runtime 2>/dev/null || true

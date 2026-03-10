@@ -111,6 +111,9 @@ For side-effect verification, add a JS assertion in `assertions.mjs` and referen
 
 ## CI
 
-The eval runs via `workflow_dispatch` with `run_eval: true` in `.github/workflows/runtime-dispatch.yml`. The HTML report is uploaded as a GitHub Actions artifact.
+Two ways to run eval in CI:
+
+- **On a PR**: add the `run-eval` label to any PR that touches `runtime/`. The eval runs after smoke tests and the HTML report is uploaded as an artifact.
+- **One-off dispatch**: trigger the "Runtime: Eval" workflow from any branch (Actions → Runtime: Eval → Run workflow). Builds the image but does **not** publish it.
 
 Required secret: `EVAL_OPENROUTER_API_KEY`
