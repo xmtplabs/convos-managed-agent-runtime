@@ -55,6 +55,7 @@
           "timezone": "America/New_York"
         }
       },
+      "subagents": {},
       "model": {
         "primary": "${OPENCLAW_PRIMARY_MODEL}"
       }
