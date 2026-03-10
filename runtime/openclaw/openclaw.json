@@ -5,6 +5,9 @@
     "bind": "loopback",
     "auth": {
       "mode": "token"
+    },
+    "controlUi": {
+      "allowedOrigins": ["https://${RAILWAY_PUBLIC_DOMAIN}"]
     }
   },
   "logging": {
