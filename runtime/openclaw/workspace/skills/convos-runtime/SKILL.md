@@ -30,7 +30,13 @@ Pull the latest Convos runtime Docker image and redeploy your container on Railw
 ```bash
 node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs upgrade
 ```
-This shows the current and latest image without upgrading. Explain the output to the user and ask if they want to proceed.
+This shows the current and latest image without upgrading.
+
+**Step 1b — Changelog (show what changed):**
+```bash
+curl -s https://raw.githubusercontent.com/xmtplabs/convos-agents/dev/runtime/CHANGELOG.md
+```
+Fetch the changelog and summarize what's new since the user's current version. Show the user what they'll get before asking to confirm.
 
 **Step 2 — Confirm (only after user says yes):**
 ```bash
