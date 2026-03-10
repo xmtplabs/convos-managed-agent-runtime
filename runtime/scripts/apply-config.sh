@@ -31,6 +31,14 @@ if command -v jq >/dev/null 2>&1; then
     jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     echo "  🔧 plugins.load.paths → $STATE_DIR/extensions"
   fi
+  # Trust Railway's internal proxy so connections are treated as local,
+  # and whitelist the instance's public domain for the control UI.
+  if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
+    jq --arg origin "https://$RAILWAY_PUBLIC_DOMAIN" \
+      '.gateway.trustedProxies = ["100.64.0.0/10"] | .gateway.controlUi.allowedOrigins = [($origin), "http://localhost:8080", "http://127.0.0.1:8080"]' \
+      "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    echo "  🔧 trustedProxies + allowedOrigins → $RAILWAY_PUBLIC_DOMAIN"
+  fi
   # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then
     jq '.browser.executablePath = "/usr/bin/chromium" | .browser.headless = true | .browser.noSandbox = true' \

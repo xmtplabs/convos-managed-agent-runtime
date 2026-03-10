@@ -1,4 +1,28 @@
-# 🎈 Convos runtime changelog
+# Convos runtime changelog
+
+## 0.0.24
+- OpenClaw upgrade: bumped from 2026.2.15 to 2026.3.8
+- HTTP route auth: all plugin HTTP routes now declare explicit `auth: "plugin"` (required by OpenClaw 2026.3.8)
+- Security: removed `allowInsecureAuth` from gateway config — Control UI now uses token auth
+
+## 0.0.23
+- Proxy mode: SMS and email commands now route through the pool proxy instead of calling provider APIs directly
+- Session cleanup: removed auto-clear on start, added manual `clean-sessions` command
+- Bankr opt-in: Bankr integration no longer provisioned by default, drops `BANKR_API_KEY` from infra
+- Chromium auto-detect: removed `CHROMIUM_PATH` env var, binary is auto-detected
+- Unified auth: single `OPENCLAW_GATEWAY_TOKEN` per instance replaces multiple auth tokens
+- Friendly credit errors: OpenRouter 402/403 responses rewritten to human-readable messages
+- Services page redesign: new coupon redemption flow
+- Email and SMS opt-in: provisioned on first use instead of at instance creation
+
+## 0.0.22
+- Heartbeat polling: checks latest email and SMS each heartbeat cycle
+- Heartbeat model: switched to `minimax-m2.5` at 30m interval
+- Heartbeat dedup: cursor-based deduplication for email/SMS polling
+- Removed `HEARTBEAT_OK` emission from agent prompts
+
+## 0.0.21
+- Convos CLI bump: `@xmtp/convos-cli` to ^0.4.0
 
 ## 0.0.20
 - Time awareness: agents now see the current wall-clock time in their system context each turn — no more guessing "now" (#306)

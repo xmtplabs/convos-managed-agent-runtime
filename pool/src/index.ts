@@ -10,7 +10,7 @@ import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocs
 import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
-import { updateServiceInstance, upsertVariables } from "./services/providers/railway";
+import { updateServiceInstance, upsertVariables, redeployService } from "./services/providers/railway";
 import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -145,6 +145,100 @@ app.delete("/api/pool/instances/:id", requireAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (err: any) {
     console.error("[api] Kill failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Self-info — instance queries its own runtime version and image.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/self-info", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const infraRows = await pgDb.select({
+      runtimeVersion: instanceInfra.runtimeVersion,
+      runtimeImage: instanceInfra.runtimeImage,
+    }).from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
+    }
+    res.json({
+      ok: true,
+      instanceId,
+      runtimeVersion: infra.runtimeVersion ?? null,
+      runtimeImage: infra.runtimeImage ?? null,
+      latestImage: config.railwayRuntimeImage ?? null,
+    });
+  } catch (err: any) {
+    console.error("[api] Self-info failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Self-upgrade — instance requests a runtime image update for itself.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/self-upgrade", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
+    }
+    const rawImage = config.railwayRuntimeImage;
+    if (!rawImage) {
+      res.status(400).json({ error: "No runtime image configured" }); return;
+    }
+    const image = await resolveImageDigest(rawImage);
+    const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+    await updateServiceInstance(infra.providerServiceId, { source: { image } }, opts);
+    await upsertVariables(infra.providerServiceId, { RUNTIME_UPDATED_AT: new Date().toISOString() }, { skipDeploys: false }, opts);
+    await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, instanceId));
+    console.log(`[pool] Self-upgrade requested by instance ${instanceId} → ${image}`);
+    res.json({ ok: true, instanceId, image });
+  } catch (err: any) {
+    console.error("[api] Self-upgrade failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Self-reset — instance requests a redeploy (same image, fresh container).
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/self-reset", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
+    }
+    const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+    await redeployService(infra.providerServiceId, opts);
+    console.log(`[pool] Self-reset requested by instance ${instanceId}`);
+    res.json({ ok: true, instanceId });
+  } catch (err: any) {
+    console.error("[api] Self-reset failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -339,6 +433,7 @@ app.get("/admin", (req, res) => {
     deployBranch: config.deployBranch,
     railwayServiceId: config.railwayServiceId,
     railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
     runtimeImage: config.railwayRuntimeImage,
     instanceModel: config.instanceModel,
     adminUrls: POOL_ADMIN_URLS as any,
@@ -361,6 +456,7 @@ app.get("/admin/api-docs", (req, res) => {
   res.type("html").send(apiDocsPage({
     poolEnvironment: config.poolEnvironment,
     railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
 });

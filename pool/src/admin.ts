@@ -180,11 +180,12 @@ export function adminPage({
   deployBranch,
   railwayServiceId,
   railwayProjectId = "",
+  railwayEnvironmentId = "",
   runtimeImage = "",
   instanceModel = "",
   adminUrls = [],
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, instanceModel, adminUrls });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls });
   return adminHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
@@ -194,9 +195,10 @@ export function adminPage({
 export function apiDocsPage({
   poolEnvironment,
   railwayProjectId = "",
+  railwayEnvironmentId = "",
   adminUrls = [],
 }) {
-  const config = JSON.stringify({ poolEnvironment, railwayProjectId, adminUrls });
+  const config = JSON.stringify({ poolEnvironment, railwayProjectId, railwayEnvironmentId, adminUrls });
   return apiDocsHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,

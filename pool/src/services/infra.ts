@@ -32,7 +32,7 @@ export async function createInstance(
 
   // Build env vars
   const vars: Record<string, string> = { ...buildInstanceEnv() };
-  if (model) vars.OPENCLAW_PRIMARY_MODEL = model;
+  if (model) vars.OPENCLAW_PRIMARY_MODEL = model.startsWith("openrouter/") ? model : `openrouter/${model}`;
   vars.INSTANCE_ID = instanceId;
   vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
 

@@ -60,6 +60,14 @@
             </button>
           </div>
 
+          <!-- Runtime version -->
+          <div class="service-item" id="svc-runtime" style="display:none">
+            <div class="service-body">
+              <div class="service-label">runtime</div>
+              <div class="service-value" id="runtime-value"></div>
+            </div>
+          </div>
+
           <!-- Processing power -->
           <div class="service-item" id="svc-credits">
             <div class="service-body">
@@ -129,6 +137,8 @@
       var phoneValue     = document.getElementById("phone-value");
       var copyEmail      = document.getElementById("copy-email");
       var copyPhone      = document.getElementById("copy-phone");
+      var svcRuntime     = document.getElementById("svc-runtime");
+      var runtimeValue   = document.getElementById("runtime-value");
       var creditsValue   = document.getElementById("credits-value");
       var creditsBar     = document.getElementById("credits-bar");
       var creditsBarFill = document.getElementById("credits-bar-fill");
@@ -318,6 +328,12 @@
           if (d.phone) {
             copyPhone.style.display = "block";
             copyPhone.onclick = function () { copyToClipboard(d.phone, copyPhone); };
+          }
+
+          if (d.runtimeVersion) {
+            svcRuntime.style.display = "flex";
+            runtimeValue.textContent = "v" + d.runtimeVersion;
+            runtimeValue.className = "service-value";
           }
 
           renderCredits(d.credits);

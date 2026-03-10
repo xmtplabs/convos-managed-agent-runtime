@@ -1,18 +1,17 @@
-name: "Runtime: PR"
+name: "Runtime Hermes: PR"
 
 run-name: >-
-  Runtime PR #${{ github.event.number }} → ${{ github.event.pull_request.base.ref }}
+  Runtime Hermes PR #${{ github.event.number }} → ${{ github.event.pull_request.base.ref }}
   ${{ github.event.action == 'closed' && github.event.pull_request.merged && '(merged)' || '' }}
 
 on:
   pull_request:
-    types: [opened, synchronize, closed, labeled]
+    types: [opened, synchronize, closed]
     paths:
-      - 'runtime/**'
-      - '!runtime/CHANGELOG.md'
+      - 'runtime-hermes/**'
 
 concurrency:
-  group: runtime-pr-${{ github.event.pull_request.number }}
+  group: runtime-hermes-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 permissions:
@@ -20,7 +19,7 @@ permissions:
 
 jobs:
   build:
-    name: Build runtime image
+    name: Build Hermes runtime image
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
@@ -49,16 +48,15 @@ jobs:
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA | tag=$TAG | pending=pending-$SHA"
 
       - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: runtime/Dockerfile
+          file: runtime-hermes/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
+          tags: ghcr.io/xmtplabs/convos-runtime-hermes:${{ steps.meta.outputs.pending }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -76,68 +74,35 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Pull :${{ needs.build.outputs.pending }}"
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
+        run: docker pull ghcr.io/xmtplabs/convos-runtime-hermes:${{ needs.build.outputs.pending }}
 
-      - name: "Start container from :${{ needs.build.outputs.pending }}"
+      - name: Start container
         run: |
           docker run -d --name qa-runtime \
             -p 8080:8080 \
             -e PORT=8080 \
-            -e OPENCLAW_STATE_DIR=/app \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
-            -e POOL_URL="${{ secrets.POOL_URL }}" \
-            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
-            node scripts/pool-server.js
+            ghcr.io/xmtplabs/convos-runtime-hermes:${{ needs.build.outputs.pending }}
 
-      - name: Wait for gateway health (up to 120s)
+      - name: Wait for health (up to 120s)
         run: |
-          echo "Waiting for gateway health on port 8080..."
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Gateway ready after ${i}s"
+            if curl -sf http://localhost:8080/health | grep -q '"ok":true'; then
+              echo "Ready after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-            echo "Gateway failed to start within 120s"
+          if ! curl -sf http://localhost:8080/health | grep -q '"ok":true'; then
+            echo "Failed to start"
             docker logs qa-runtime
             exit 1
           fi
-          echo "Waiting 15s for browser service to initialise..."
-          sleep 15
 
-      - name: Run QA smoke tests (timeout 120s)
-        run: docker exec qa-runtime timeout 120 pnpm qa
-
-      - name: Run e2e eval
-        if: contains(github.event.pull_request.labels.*.name, 'run-eval')
-        run: |
-          docker exec \
-            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
-            -e EVAL_OUTPUT=/tmp/eval-results.html \
-            qa-runtime timeout 900 pnpm qa:eval
-        env:
-          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
-
-      - name: Copy eval report
-        if: contains(github.event.pull_request.labels.*.name, 'run-eval') && always()
-        run: docker cp qa-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
-
-      - name: Upload eval report
-        if: contains(github.event.pull_request.labels.*.name, 'run-eval') && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-report
-          path: eval-results.html
-          if-no-files-found: ignore
-
-      - name: Dump container logs
+      - name: Dump logs
         if: always()
         run: docker logs qa-runtime
 
@@ -154,11 +119,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Pull :${{ needs.build.outputs.pending }}"
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
+        run: docker pull ghcr.io/xmtplabs/convos-runtime-hermes:${{ needs.build.outputs.pending }}
 
       - name: "Tag and push :${{ needs.build.outputs.sha }}, :${{ needs.build.outputs.tag }}"
         run: |
-          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
           PENDING="${{ needs.build.outputs.pending }}"
           SHA="${{ needs.build.outputs.sha }}"
 
@@ -187,18 +152,14 @@ jobs:
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
           case "$BASE" in
-            scaling) echo "tag=scaling" >> "$GITHUB_OUTPUT" ;;
-            dev)     echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
-            staging) echo "tag=staging" >> "$GITHUB_OUTPUT" ;;
-            main)    echo "tag=production" >> "$GITHUB_OUTPUT" ;;
-            *)       echo "tag=" >> "$GITHUB_OUTPUT" ;;
+            dev) echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "tag=" >> "$GITHUB_OUTPUT" ;;
           esac
-          echo "Merge target: $BASE → tag: $(grep tag "$GITHUB_OUTPUT" | cut -d= -f2)"
 
       - name: "Retag image → :${{ steps.env.outputs.tag }}"
         if: steps.env.outputs.tag != ''
         run: |
-          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
           SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
           ENV_TAG="${{ steps.env.outputs.tag }}"
 
@@ -206,4 +167,3 @@ jobs:
           docker pull "$IMAGE:sha-$SHA"
           docker tag "$IMAGE:sha-$SHA" "$IMAGE:$ENV_TAG"
           docker push "$IMAGE:$ENV_TAG"
-          echo "Done: $IMAGE:$ENV_TAG"

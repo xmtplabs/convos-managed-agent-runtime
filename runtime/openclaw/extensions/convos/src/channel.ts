@@ -79,6 +79,27 @@ function isConvosId(s: string): boolean {
   return /^[0-9a-f]{32}$/i.test(s) || /^[0-9a-f-]{36}$/i.test(s);
 }
 
+const CONVOS_IMG_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+/** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Fire-and-forget. */
+function pruneStaleConvosImages() {
+  const tmpDir = os.tmpdir();
+  fs.readdir(tmpDir, (err, entries) => {
+    if (err) return;
+    const now = Date.now();
+    for (const entry of entries) {
+      if (!entry.startsWith("convos-img-")) continue;
+      const fullPath = path.join(tmpDir, entry);
+      fs.stat(fullPath, (statErr, stats) => {
+        if (statErr) return;
+        if (now - stats.mtimeMs > CONVOS_IMG_MAX_AGE_MS) {
+          fs.unlink(fullPath, () => {});
+        }
+      });
+    }
+  });
+}
+
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   id: "convos",
   meta,
@@ -433,6 +454,7 @@ async function handleInboundMessage(
         const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
         mediaPath = path.join(os.tmpdir(), `convos-img-${safeId}${ext}`);
         await inst.downloadAttachment(msg.messageId, mediaPath);
+        pruneStaleConvosImages();
 
         if (account.debug) {
           debugLog(`[${account.accountId}] Image attachment downloaded: ${mediaPath}`);
@@ -527,44 +549,37 @@ async function handleInboundMessage(
     accountId: account.accountId,
   });
 
-  try {
-    await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-      ctx: ctxPayload,
-      cfg,
-      dispatcherOptions: {
-        deliver: async (payload: ReplyPayload) => {
-          // Rewrite raw provider credit errors into a friendly message
-          const t = payload.text || "";
-          if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
-            payload = { ...payload, text: buildCreditErrorMessage() };
-          }
-          // OpenClaw misclassifies 402 credit errors as context overflow —
-          // verify against the pool server and rewrite when credits are low.
-          if (isContextOverflowText(t) && await checkCreditsLow()) {
-            payload = { ...payload, text: buildCreditErrorMessage() };
-          }
-          await deliverConvosReply({
-            payload,
-            accountId: account.accountId,
-            runtime,
-            log,
-            tableMode,
-            triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
-              ? msg.messageId
-              : undefined,
-          });
-        },
-        onError: async (err, info) => {
-          errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
-        },
+  await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+    ctx: ctxPayload,
+    cfg,
+    dispatcherOptions: {
+      deliver: async (payload: ReplyPayload) => {
+        // Rewrite raw provider credit errors into a friendly message
+        const t = payload.text || "";
+        if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
+          payload = { ...payload, text: buildCreditErrorMessage() };
+        }
+        // OpenClaw misclassifies 402 credit errors as context overflow —
+        // verify against the pool server and rewrite when credits are low.
+        if (isContextOverflowText(t) && await checkCreditsLow()) {
+          payload = { ...payload, text: buildCreditErrorMessage() };
+        }
+        await deliverConvosReply({
+          payload,
+          accountId: account.accountId,
+          runtime,
+          log,
+          tableMode,
+          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+            ? msg.messageId
+            : undefined,
+        });
       },
-    });
-  } finally {
-    // Clean up temp image file after the reply pipeline is done with it
-    if (mediaPath) {
-      fs.unlink(mediaPath, () => {});
-    }
-  }
+      onError: async (err, info) => {
+        errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
+      },
+    },
+  });
 }
 
 /**
