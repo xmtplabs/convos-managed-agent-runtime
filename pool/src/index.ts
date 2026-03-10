@@ -149,6 +149,39 @@ app.delete("/api/pool/instances/:id", requireAuth, async (req, res) => {
   }
 });
 
+// Self-info — instance queries its own runtime version and image.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/self-info", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const infraRows = await pgDb.select({
+      runtimeVersion: instanceInfra.runtimeVersion,
+      runtimeImage: instanceInfra.runtimeImage,
+    }).from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
+    }
+    res.json({
+      ok: true,
+      instanceId,
+      runtimeVersion: infra.runtimeVersion ?? null,
+      runtimeImage: infra.runtimeImage ?? null,
+      latestImage: config.railwayRuntimeImage ?? null,
+    });
+  } catch (err: any) {
+    console.error("[api] Self-info failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Self-upgrade — instance requests a runtime image update for itself.
 // Auth: instance sends its own ID + gateway token (same as self-destruct).
 app.post("/api/pool/self-upgrade", async (req, res) => {

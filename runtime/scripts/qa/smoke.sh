@@ -32,9 +32,9 @@ echo "  > node convos-runtime.mjs version"
 qrun node "$CONVOS_RUNTIME" version
 if grep -qi '"runtimeVersion"' "$QA_TMP"; then
   RT_VER=$(cat "$QA_TMP" | grep -o '"runtimeVersion": *"[^"]*"' | cut -d'"' -f4)
-  RT_IMG=$(cat "$QA_TMP" | grep -o '"image": *"[^"]*"' | cut -d'"' -f4)
+  RT_IMG=$(cat "$QA_TMP" | grep -o '"runtimeImage": *"[^"]*"' | cut -d'"' -f4)
   echo "  Version: $RT_VER"
-  echo "  Image:   $RT_IMG"
+  echo "  Image:   ${RT_IMG:-none}"
   pass "convos-runtime-version"
 else
   fail "convos-runtime-version" "$(cat "$QA_TMP")"
