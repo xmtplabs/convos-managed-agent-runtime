@@ -14,6 +14,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
   - _Headless/cloud (Railway): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`)._
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
+- **Sub-Agents** — Spawn background agents for parallel work. Use `/subagents spawn` or the `sessions_spawn` tool. Sub-agents run independently and announce results back when done. Good for: running multiple browser tasks at once, doing a search while browsing, or any time you'd otherwise do things sequentially. Don't narrate — just spawn and let them work.
 
 # SKILLS
 
