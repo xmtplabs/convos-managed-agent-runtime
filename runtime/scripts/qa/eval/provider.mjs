@@ -12,6 +12,10 @@ import { resolveConvos } from './utils.mjs';
 const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.GATEWAY_INTERNAL_PORT || '18789';
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+if (!GATEWAY_TOKEN) {
+  console.error('[eval] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.');
+  process.exit(1);
+}
 
 const CONVOS = resolveConvos();
 
@@ -46,8 +50,8 @@ let sharedConversationId = null;
 let userInboxId = null;
 let messageCountAtLastCheck = 0;
 
-function exec(cmd, opts = {}) {
-  return execSync(cmd, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
+function convos(args, opts = {}) {
+  return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
 }
 
 function setup() {
@@ -64,9 +68,9 @@ function setup() {
   console.log(`[eval] Waiting for gateway to reinitialise...`);
   execSync('sleep 10');
 
-  const createOut = exec(
-    `${CONVOS} conversations create --name "QA Eval ${Date.now()}" --env ${ENV} --json`
-  );
+  const createOut = convos([
+    'conversations', 'create', '--name', `QA Eval ${Date.now()}`, '--env', ENV, '--json',
+  ]);
   const data = JSON.parse(createOut);
   sharedConversationId = data.conversationId;
   userInboxId = data.inboxId;
@@ -106,11 +110,10 @@ function setup() {
 }
 
 function fetchMessages() {
-  const out = exec(
-    `${CONVOS} conversation messages ${sharedConversationId} ` +
-    `--sync --limit 50 --direction ascending --env ${ENV} --json`,
-    { timeout: 30_000 }
-  );
+  const out = convos([
+    'conversation', 'messages', sharedConversationId,
+    '--sync', '--limit', '50', '--direction', 'ascending', '--env', ENV, '--json',
+  ], { timeout: 30_000 });
   const messages = JSON.parse(out);
   return Array.isArray(messages) ? messages : [];
 }
@@ -173,21 +176,19 @@ export default class OpenClawProvider {
         const attachPath = vars.attachment.startsWith('./')
           ? `${attachDir}${vars.attachment.slice(2)}`
           : vars.attachment;
-        exec(
-          `${CONVOS} conversation send-attachment ${sharedConversationId} ` +
-          `${attachPath} --env ${ENV}`,
-          { timeout: 30_000 }
-        );
+        convos([
+          'conversation', 'send-attachment', sharedConversationId,
+          attachPath, '--env', ENV,
+        ], { timeout: 30_000 });
         console.log(`[eval] Sent attachment: ${vars.attachment}`);
         execSync('sleep 2');
       }
 
       // Send the text prompt
-      exec(
-        `${CONVOS} conversation send-text ${sharedConversationId} ` +
-        `${JSON.stringify(prompt)} --env ${ENV}`,
-        { timeout: 30_000 }
-      );
+      convos([
+        'conversation', 'send-text', sharedConversationId,
+        prompt, '--env', ENV,
+      ], { timeout: 30_000 });
       console.log(`[eval] Sent prompt: ${prompt}`);
     } else {
       console.log(`[eval] Waiting for welcome message...`);

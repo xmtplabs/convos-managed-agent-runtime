@@ -2,7 +2,7 @@
 // Custom Promptfoo assertion functions for side-effect verification.
 // These query convos-cli to verify real state on the XMTP network.
 
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { resolveConvos } from './utils.mjs';
 
 const CONVOS = resolveConvos();
@@ -15,10 +15,9 @@ function getConvosEnv() {
 
 function getProfiles(conversationId) {
   const env = getConvosEnv();
-  const out = execSync(
-    `${CONVOS} conversation profiles ${conversationId} --env ${ENV} --json`,
-    { encoding: 'utf-8', timeout: 30_000, env }
-  ).trim();
+  const out = execFileSync(CONVOS, [
+    'conversation', 'profiles', conversationId, '--env', ENV, '--json',
+  ], { encoding: 'utf-8', timeout: 30_000, env }).trim();
   const parsed = JSON.parse(out);
   // conversation profiles returns { profiles: [...] }, not a direct array
   return parsed.profiles || parsed;
