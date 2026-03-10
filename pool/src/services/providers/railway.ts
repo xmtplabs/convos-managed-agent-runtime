@@ -360,7 +360,7 @@ export async function createService(
             [serviceId]: {
               source: { image },
               deploy: {
-                startCommand: "node scripts/pool-server",
+                ...(image.includes("runtime-hermes") ? {} : { startCommand: "node scripts/pool-server" }),
                 limitOverride: {
                   containers: {
                     cpu,
