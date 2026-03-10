@@ -4,27 +4,14 @@
 // waits for the agent, then returns the full transcript for LLM-judge evaluation.
 
 import { execSync, execFileSync, spawn } from 'child_process';
-import { existsSync, mkdtempSync, rmSync } from 'fs';
-import { resolve, dirname, join } from 'path';
+import { mkdtempSync, rmSync } from 'fs';
+import { join } from 'path';
 import { tmpdir } from 'os';
-import { fileURLToPath } from 'url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { resolveConvos } from './utils.mjs';
 
 const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.GATEWAY_INTERNAL_PORT || '18789';
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-
-function resolveConvos() {
-  const candidates = [
-    '/app/node_modules/.bin/convos',                        // Docker container
-    resolve(__dirname, '../../../node_modules/.bin/convos'), // local (runtime/)
-  ];
-  for (const c of candidates) {
-    if (existsSync(c)) return c;
-  }
-  return 'convos';
-}
 
 const CONVOS = resolveConvos();
 
@@ -98,74 +85,68 @@ function setup() {
   processChild.stdout.on('data', (d) => console.log(`[eval] process-join-requests: ${d.toString().trim()}`));
   processChild.stderr.on('data', (d) => console.log(`[eval] process-join-requests stderr: ${d.toString().trim()}`));
 
-  execSync('sleep 3');
+  try {
+    execSync('sleep 3');
 
-  const joinBody = JSON.stringify({ inviteUrl, profileName: 'QA Eval Agent' });
-  console.log(`[eval] Calling /convos/join...`);
-  const joinOut = execFileSync('curl', [
-    '-s', '-X', 'POST',
-    `http://localhost:${GATEWAY_PORT}/convos/join`,
-    '-H', 'Content-Type: application/json',
-    '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
-    '-d', joinBody,
-  ], { encoding: 'utf-8', timeout: 90_000 }).trim();
-  console.log(`[eval] Join response: ${joinOut}`);
-
-  try { processChild.kill(); } catch {}
+    const joinBody = JSON.stringify({ inviteUrl, profileName: 'QA Eval Agent' });
+    console.log(`[eval] Calling /convos/join...`);
+    const joinOut = execFileSync('curl', [
+      '-s', '-X', 'POST',
+      `http://localhost:${GATEWAY_PORT}/convos/join`,
+      '-H', 'Content-Type: application/json',
+      '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
+      '-d', joinBody,
+    ], { encoding: 'utf-8', timeout: 90_000 }).trim();
+    console.log(`[eval] Join response: ${joinOut}`);
+  } finally {
+    try { processChild.kill(); } catch {}
+  }
 
   execSync('sleep 5');
 }
 
-// Fetch all messages and return count of agent messages
-function getAgentMessageCount() {
-  try {
-    const out = exec(
-      `${CONVOS} conversation messages ${sharedConversationId} ` +
-      `--sync --limit 50 --direction ascending --env ${ENV} --json`,
-      { timeout: 30_000 }
-    );
-    const messages = JSON.parse(out);
-    const arr = Array.isArray(messages) ? messages : [];
-    return arr.filter((m) => m.senderInboxId !== userInboxId).length;
-  } catch {
-    return messageCountAtLastCheck;
-  }
-}
-
-// Wait for the agent to send at least one new message, then settle
-function waitForAgent() {
-  const deadline = Date.now() + 120_000;
-  const settleTime = 8_000;
-  let lastChangeAt = Date.now();
-  let currentCount = getAgentMessageCount();
-
-  while (Date.now() < deadline) {
-    execSync('sleep 3');
-    const newCount = getAgentMessageCount();
-    if (newCount > currentCount) {
-      currentCount = newCount;
-      lastChangeAt = Date.now();
-    } else if (currentCount > messageCountAtLastCheck && Date.now() - lastChangeAt >= settleTime) {
-      // Agent has settled — new messages arrived and no more for settleTime
-      messageCountAtLastCheck = currentCount;
-      return;
-    }
-  }
-  // Timed out — settle with whatever we have
-  messageCountAtLastCheck = currentCount;
-}
-
-// Get the full conversation transcript as a readable string
-function getTranscript() {
+function fetchMessages() {
   const out = exec(
     `${CONVOS} conversation messages ${sharedConversationId} ` +
     `--sync --limit 50 --direction ascending --env ${ENV} --json`,
     { timeout: 30_000 }
   );
   const messages = JSON.parse(out);
-  const arr = Array.isArray(messages) ? messages : [];
+  return Array.isArray(messages) ? messages : [];
+}
 
-  return arr.map((m) => {
+function agentMessageCount(messages) {
+  return messages.filter((m) => m.senderInboxId !== userInboxId).length;
+}
+
+// Wait for the agent to send at least one new message, then settle.
+// Returns the final message array for transcript building.
+function waitForAgent() {
+  const deadline = Date.now() + 120_000;
+  const settleTime = 8_000;
+  let lastChangeAt = Date.now();
+  let messages = [];
+  try { messages = fetchMessages(); } catch {}
+  let currentCount = agentMessageCount(messages);
+
+  while (Date.now() < deadline) {
+    execSync('sleep 3');
+    try { messages = fetchMessages(); } catch { continue; }
+    const newCount = agentMessageCount(messages);
+    if (newCount > currentCount) {
+      currentCount = newCount;
+      lastChangeAt = Date.now();
+    } else if (currentCount > messageCountAtLastCheck && Date.now() - lastChangeAt >= settleTime) {
+      messageCountAtLastCheck = currentCount;
+      return messages;
+    }
+  }
+  messageCountAtLastCheck = currentCount;
+  return messages;
+}
+
+function buildTranscript(messages) {
+  return messages.map((m) => {
     const sender = m.senderInboxId === userInboxId ? 'USER' : 'AGENT';
     const content = m.content || m.text || JSON.stringify(m);
     return `[${sender}] ${content}`;
@@ -212,11 +193,9 @@ export default class OpenClawProvider {
       console.log(`[eval] Waiting for welcome message...`);
     }
 
-    // Wait for the agent to respond and settle
-    waitForAgent();
-
-    // Return the full transcript for the LLM judge to evaluate
-    const transcript = getTranscript();
+    // Wait for the agent to respond and settle, then build transcript
+    const messages = waitForAgent();
+    const transcript = buildTranscript(messages);
     console.log(`[eval] Transcript length: ${transcript.length} chars`);
     return {
       output: transcript,

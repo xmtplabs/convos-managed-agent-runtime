@@ -6,4 +6,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # Kill the entire process group (promptfoo + child curl/sleep) on Ctrl+C
 trap 'kill 0' INT TERM
 
-npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" "$@"
+EVAL_OUTPUT="${EVAL_OUTPUT:-}"
+OUTPUT_FLAGS=""
+[ -n "$EVAL_OUTPUT" ] && OUTPUT_FLAGS="--output $EVAL_OUTPUT"
+
+npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" $OUTPUT_FLAGS "$@"
