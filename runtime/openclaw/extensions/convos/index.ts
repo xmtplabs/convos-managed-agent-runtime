@@ -330,39 +330,6 @@ const plugin = {
       }
     });
 
-    // ---- Agent-internal route (no auth — localhost only) ----
-    // The embedded agent calls this via exec+curl to update its profile
-    // through the running agent serve process's stdin, avoiding the
-    // one-shot CLI sync race.
-
-    api.registerHttpRoute({
-      path: "/convos/update-profile",
-      handler: async (req, res) => {
-        if (req.method !== "POST") {
-          jsonResponse(res, 405, { error: "Method Not Allowed" });
-          return;
-        }
-        try {
-          const inst = getConvosInstance();
-          if (!inst) {
-            jsonResponse(res, 400, { error: "No active conversation" });
-            return;
-          }
-          const body = await readJsonBody(req);
-          const name = typeof body.name === "string" ? body.name : undefined;
-          const image = typeof body.image === "string" ? body.image : undefined;
-          if (name === undefined && image === undefined) {
-            jsonResponse(res, 400, { error: "At least one of 'name' or 'image' is required" });
-            return;
-          }
-          await inst.updateProfile(name, image);
-          jsonResponse(res, 200, { ok: true });
-        } catch (err) {
-          jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
-        }
-      },
-    });
-
     // ---- HTTP routes (for Railway template and other HTTP clients) ----
 
     api.registerHttpRoute({

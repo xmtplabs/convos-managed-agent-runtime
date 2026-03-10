@@ -69,13 +69,13 @@ Replies and reactions both reference another message by ID. Replies include the 
 | Reply to a message | message tool | `action=send` + `replyTo` |
 | React to a message | message tool | `action=react` |
 | Send a file | message tool | `action=sendAttachment` |
-| Update your display name | exec tool | `curl -s -X POST http://127.0.0.1:18789/convos/update-profile ...` |
+| Update your display name | message tool | `action=send` with `/update-profile --name "..."` |
 | Read message history | exec tool | `convos conversation messages $CONVOS_CONVERSATION_ID` |
 | List members / profiles | exec tool | `convos conversation members` / `profiles $CONVOS_CONVERSATION_ID` |
 | View group info | exec tool | `convos conversation info` / `permissions $CONVOS_CONVERSATION_ID` |
 | Download a received file | exec tool | `convos conversation download-attachment $CONVOS_CONVERSATION_ID` |
 
-The message tool is for **sending**. The exec tool is for **reading and profile updates**. Never use the exec tool to send messages.
+The message tool is for **sending** (including profile updates). The exec tool is for **reading**. Never use the exec tool to send.
 
 ## Sending (message tool)
 
@@ -149,21 +149,14 @@ convos conversation download-attachment $CONVOS_CONVERSATION_ID <message-id> --o
 
 ### Update your profile
 
-Do NOT use `convos conversation update-profile` — it is unreliable. Instead, use curl:
+Use the message tool with `action=send` — the command is intercepted before reaching the conversation:
 
-```bash
-curl -s -X POST http://127.0.0.1:18789/convos/update-profile \
-  -H 'Content-Type: application/json' \
-  -d '{"name": "New Name"}'
+```
+action=send  message="/update-profile --name \"New Name\""
+action=send  message="/update-profile --name \"New Name\" --image \"https://example.com/avatar.jpg\""
 ```
 
-```bash
-curl -s -X POST http://127.0.0.1:18789/convos/update-profile \
-  -H 'Content-Type: application/json' \
-  -d '{"name": "New Name", "image": "https://example.com/avatar.jpg"}'
-```
-
-The `image` field requires a publicly accessible URL (`https://...`). Local file paths won't work. Your profile is per-conversation — it only affects this group.
+The `--image` flag requires a publicly accessible URL (`https://...`). Local file paths won't work. Your profile is per-conversation — it only affects this group.
 
 ## Rules
 
@@ -171,7 +164,7 @@ The `image` field requires a publicly accessible URL (`https://...`). Local file
 - **Every message costs everyone's attention.** Only speak when it adds something no one else in the room could. When in doubt, stay quiet.
 - **Reply, don't broadcast.** Use `replyTo` so people know what you are responding to.
 - **Reactions are cheap, messages are expensive.** If acknowledgment is enough, react instead of typing.
-- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), run `curl -s -X POST http://127.0.0.1:18789/convos/update-profile -H 'Content-Type: application/json' -d '{"name": "NewName"}'` right away. Do not announce you are going to do it — just do it and confirm the new name.
+- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), send `/update-profile --name "NewName"` right away. Do not announce you are going to do it — just do it and confirm the new name.
 - **You cannot rename the group.** There is no CLI command or tool action to change the conversation/group name. If someone asks you to rename the group, let them know you can't do that — only human members can rename it from their app.
 - **Always use `$CONVOS_CONVERSATION_ID`.** Never hard-code a conversation ID or try to read it from context fields. The env var is always correct.
 - **Never run the `convos` binary directly.** Only use the specific `convos conversation ...` read commands listed above (messages, members, profiles, info, permissions, download-attachment). Never run `convos agent serve`, `convos conversations create`, `convos conversations join`, or any other subcommand — they will fail or break your session.
