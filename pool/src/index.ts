@@ -433,6 +433,7 @@ app.get("/admin", (req, res) => {
     deployBranch: config.deployBranch,
     railwayServiceId: config.railwayServiceId,
     railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
     runtimeImage: config.railwayRuntimeImage,
     instanceModel: config.instanceModel,
     adminUrls: POOL_ADMIN_URLS as any,
@@ -455,6 +456,7 @@ app.get("/admin/api-docs", (req, res) => {
   res.type("html").send(apiDocsPage({
     poolEnvironment: config.poolEnvironment,
     railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
 });
