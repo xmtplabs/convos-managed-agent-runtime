@@ -10,7 +10,9 @@ import { tmpdir } from 'os';
 import { resolveConvos } from './utils.mjs';
 
 const ENV = process.env.XMTP_ENV || 'dev';
-const GATEWAY_PORT = process.env.GATEWAY_INTERNAL_PORT || '18789';
+// In CI the container runs pool-server on PORT (8080) which proxies to the gateway.
+// Locally, `pnpm gateway` runs on GATEWAY_INTERNAL_PORT (18789) with no pool-server.
+const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || '18789';
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 if (!GATEWAY_TOKEN) {
   console.error('[eval] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.');
