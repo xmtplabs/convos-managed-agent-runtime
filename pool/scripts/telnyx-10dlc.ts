@@ -28,7 +28,7 @@
  *   entityType:  PRIVATE_PROFIT
  *   displayName: XMTP Labs
  *   companyName: XMTP Labs, Inc.
- *   ein:         PENDING — Fabri to provide
+ *   ein:         86-3377822
  *   phone:       +13026001456
  *   street:      1131 4th Avenue South, Unit 230
  *   city:        Nashville
@@ -40,7 +40,7 @@
  *   vertical:    TECHNOLOGY
  *
  * Steps remaining:
- *   1. Get EIN → set BRAND_EIN in pool/.env
+ *   1. EIN is set (86-3377822)
  *   2. Set all BRAND_* env vars in pool/.env
  *   3. pnpm telnyx:10dlc brand          → register brand
  *   4. pnpm telnyx:10dlc vet <brandId>  → submit for vetting (1-7 biz days)
@@ -112,7 +112,8 @@ async function cmdStatus() {
   }
 
   // Campaigns
-  const campaigns = await api("GET", "/10dlc/campaign?page[size]=20");
+  const brandIds = brandList.map((b: any) => b.brandId ?? b.id).join(",");
+  const campaigns = await api("GET", `/10dlc/campaign?brandId=${brandIds}&page[size]=20`);
   const campaignList = Array.isArray(campaigns) ? campaigns : campaigns?.records ?? [];
   if (campaignList.length > 0) {
     console.log("\n  Campaigns:");
@@ -145,7 +146,7 @@ async function cmdBrand() {
     entityType: "PRIVATE_PROFIT",
     displayName: "XMTP Labs",
     companyName: "XMTP Labs, Inc.",
-    ein: "XX-XXXXXXX", // TODO: replace with real EIN
+    ein: "86-3377822",
     phone: "+13026001456",
     street: "1131 4th Avenue South, Unit 230",
     city: "Nashville",
@@ -157,10 +158,6 @@ async function cmdBrand() {
     vertical: "TECHNOLOGY",
   };
 
-  if (body.ein === "XX-XXXXXXX") {
-    console.error("  EIN not set — edit the ein field in this file first.\n");
-    process.exit(1);
-  }
 
   console.log("  Registering brand:");
   console.log(`    Company:  ${body.companyName}`);
