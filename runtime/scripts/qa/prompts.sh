@@ -80,6 +80,18 @@ prompt_test topup \
 prompt_test card-balance \
   "Where can I see my card balance?"
 
+prompt_test runtime-version \
+  "What version of the runtime are you running? Reply with the version."
+
+prompt_test upgrade-self \
+  "Upgrade yourself. Reply with what you're about to do before doing it."
+
+prompt_test upgrade-runtime \
+  "Upgrade your runtime. Reply with what you're about to do before doing it."
+
+prompt_test update-vague \
+  "Can you update? Reply with what you're about to do before doing it."
+
 # --- Summary ---
 
 echo ""

@@ -23,6 +23,45 @@ run() { "$@" 2>&1 | tee "$QA_TMP" || true; }
 qrun() { "$@" > "$QA_TMP" 2>&1 || true; }
 
 SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
+CONVOS_RUNTIME="$STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs"
+
+# --- Environment check ---
+echo ""
+echo "=== QA: env ==="
+HAS_POOL="no"
+if [ -n "$POOL_URL" ] && [ -n "$INSTANCE_ID" ] && [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+  HAS_POOL="yes"
+fi
+echo "  Pool proxy:       ${HAS_POOL} $([ "$HAS_POOL" = "yes" ] && echo "(${POOL_URL})" || echo "")"
+echo "  INSTANCE_ID:      $([ -n "$INSTANCE_ID" ] && echo "$INSTANCE_ID" || echo "(not set)")"
+echo "  AGENTMAIL_API_KEY:$([ -n "$AGENTMAIL_API_KEY" ] && echo " set" || echo " (not set)")"
+echo "  TELNYX_API_KEY:   $([ -n "$TELNYX_API_KEY" ] && echo "set" || echo "(not set)")"
+echo "  OPENROUTER_API_KEY:$([ -n "$OPENROUTER_API_KEY" ] && echo " set" || echo " (not set)")"
+echo "  BANKR_API_KEY:    $([ -n "$BANKR_API_KEY" ] && echo "set" || echo "(not set)")"
+echo "  Email route:      $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$AGENTMAIL_API_KEY" ] && echo "local key" || echo "none"))"
+echo "  SMS route:        $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$TELNYX_API_KEY" ] && echo "local key" || echo "none"))"
+echo "  Credits route:    $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$OPENROUTER_API_KEY" ] && echo "local key" || echo "none"))"
+
+# --- Convos runtime version ---
+echo ""
+echo "=== QA: convos-runtime-version ==="
+if [ -n "$POOL_URL" ] && [ -n "$INSTANCE_ID" ] && [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+  echo "  > node convos-runtime.mjs version"
+  qrun node "$CONVOS_RUNTIME" version
+  if grep -qi '"runtimeVersion"' "$QA_TMP"; then
+    RT_VER=$(cat "$QA_TMP" | grep -o '"runtimeVersion": *"[^"]*"' | cut -d'"' -f4)
+    RT_IMG=$(cat "$QA_TMP" | grep -o '"runtimeImage": *"[^"]*"' | cut -d'"' -f4)
+    echo "  Version: $RT_VER"
+    echo "  Image:   ${RT_IMG:-none}"
+    pass "convos-runtime-version"
+  elif grep -qi "Invalid.*API key\|self-info.*404\|not found" "$QA_TMP"; then
+    echo "  [SKIP] pool does not support self-info yet (deploy pool first)"
+  else
+    fail "convos-runtime-version" "$(cat "$QA_TMP")"
+  fi
+else
+  echo "  [SKIP] no pool env (need POOL_URL + INSTANCE_ID + OPENCLAW_GATEWAY_TOKEN)"
+fi
 
 # --- Instance info ---
 echo ""
