@@ -3,10 +3,27 @@
 // These query convos-cli to verify real state on the XMTP network.
 
 import { execSync } from 'child_process';
+import { existsSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const ENV = process.env.XMTP_ENV || 'dev';
-// Full path required — npx promptfoo doesn't source node-path.sh
-const CONVOS = '/app/node_modules/.bin/convos';
+
+// Resolve convos binary: container path, then relative to script, then PATH
+function resolveConvos() {
+  const candidates = [
+    '/app/node_modules/.bin/convos',                        // Docker container
+    resolve(__dirname, '../../../../node_modules/.bin/convos'), // local (runtime/)
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return 'convos';
+}
+
+const CONVOS = resolveConvos();
 
 function getProfiles(conversationId) {
   const out = execSync(

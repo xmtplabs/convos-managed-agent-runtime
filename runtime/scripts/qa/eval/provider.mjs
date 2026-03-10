@@ -4,12 +4,30 @@
 // polls for agent responses.
 
 import { execSync } from 'child_process';
+import { existsSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.GATEWAY_INTERNAL_PORT || '18789';
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-// Full path required — npx promptfoo doesn't source node-path.sh
-const CONVOS = '/app/node_modules/.bin/convos';
+
+// Resolve convos binary: container path, then relative to script, then PATH
+function resolveConvos() {
+  const candidates = [
+    '/app/node_modules/.bin/convos',                        // Docker container
+    resolve(__dirname, '../../../../node_modules/.bin/convos'), // local (runtime/)
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  // Fall back to PATH (works if node_modules/.bin is on PATH)
+  return 'convos';
+}
+
+const CONVOS = resolveConvos();
 
 let sharedConversationId = null;
 let userInboxId = null;
