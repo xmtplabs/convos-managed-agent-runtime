@@ -225,6 +225,85 @@ async def health():
     return {"ok": True}
 
 
+@app.get("/pool/health")
+async def pool_health():
+    return {"ready": True}
+
+
+# ---- /pool/provision ----
+
+class ProvisionRequest(BaseModel):
+    agentName: str
+    instructions: str = ""
+    joinUrl: str | None = None
+
+
+@app.post("/pool/provision", dependencies=[Depends(require_auth)])
+async def pool_provision(body: ProvisionRequest):
+    if get_adapter() and get_adapter().instance:
+        raise HTTPException(
+            status_code=409,
+            detail="Instance already bound to a conversation.",
+        )
+
+    cfg = get_config()
+    env = cfg.xmtp_env
+
+    if body.instructions:
+        write_instructions(cfg.hermes_home, body.instructions)
+
+    try:
+        if body.joinUrl:
+            inst, status, conversation_id = await ConvosInstance.join_conversation(
+                env,
+                body.joinUrl,
+                profile_name=body.agentName,
+                timeout=60,
+                debug=True,
+            )
+            if status != "joined" or not conversation_id or not inst:
+                raise HTTPException(status_code=503, detail="Join not accepted yet")
+
+            await start_wired_instance(
+                conversation_id=conversation_id,
+                identity_id=inst.identity_id,
+                env=env,
+                debug=True,
+            )
+            return {
+                "ok": True,
+                "conversationId": conversation_id,
+                "inviteUrl": body.joinUrl,
+                "joined": True,
+            }
+        else:
+            inst, result = await ConvosInstance.create_conversation(
+                env,
+                name=body.agentName,
+                profile_name=body.agentName,
+                debug=True,
+            )
+
+            ready_info = await start_wired_instance(
+                conversation_id=result["conversationId"],
+                identity_id=inst.identity_id,
+                env=env,
+                name=body.agentName,
+                debug=True,
+            )
+
+            return {
+                "ok": True,
+                "conversationId": result["conversationId"],
+                "inviteUrl": ready_info.invite_url or result["inviteUrl"],
+                "joined": False,
+            }
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
 # ---- /convos/status ----
 
 @app.get("/convos/status", dependencies=[Depends(require_auth)])
