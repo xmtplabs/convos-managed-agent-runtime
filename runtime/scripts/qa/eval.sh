@@ -3,4 +3,7 @@ set -e
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 [ -f "$ROOT/.env" ] && set -a && . "$ROOT/.env" 2>/dev/null || true && set +a
 
-exec npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" "$@"
+# Kill the entire process group (promptfoo + child curl/sleep) on Ctrl+C
+trap 'kill 0' INT TERM
+
+npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" "$@"

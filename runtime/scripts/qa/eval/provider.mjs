@@ -4,7 +4,7 @@
 // polls for agent responses.
 
 import { execSync, execFileSync } from 'child_process';
-import { existsSync, mkdtempSync } from 'fs';
+import { existsSync, mkdtempSync, rmSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -37,6 +37,14 @@ const CONVOS_ENV = { ...process.env, HOME: EVAL_HOME };
 // Share with assertions module via env var
 process.env.EVAL_CONVOS_HOME = EVAL_HOME;
 console.log(`[eval] Using separate identity store: ${EVAL_HOME}/.convos`);
+
+// Clean up temp dir on exit (normal, Ctrl+C, or crash)
+function cleanup() {
+  try { rmSync(EVAL_HOME, { recursive: true, force: true }); } catch {}
+}
+process.on('exit', cleanup);
+process.on('SIGINT', () => { cleanup(); process.exit(130); });
+process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 
 // Check gateway is reachable before running any tests
 function checkGateway() {
@@ -71,6 +79,10 @@ function setup() {
   ], { encoding: 'utf-8', timeout: 30_000 }).trim();
   console.log(`[eval] Reset response: ${resetOut}`);
 
+  // Wait for the gateway to finish reinitialising its convos agent after reset
+  console.log(`[eval] Waiting for gateway to reinitialise...`);
+  execSync('sleep 10');
+
   // 1. Create conversation via convos-cli (user identity)
   const createOut = exec(
     `${CONVOS} conversations create --name "QA Eval ${Date.now()}" --env ${ENV} --json`
@@ -85,13 +97,17 @@ function setup() {
 
   // 2. Have the runtime join via POST /convos/join
   const joinBody = JSON.stringify({ inviteUrl, profileName: 'QA Eval Agent' });
+  console.log(`[eval] Calling POST http://localhost:${GATEWAY_PORT}/convos/join`);
+  console.log(`[eval] Token present: ${!!GATEWAY_TOKEN}, length: ${GATEWAY_TOKEN?.length}`);
+  console.log(`[eval] Join body: ${joinBody.substring(0, 120)}...`);
   const joinOut = execFileSync('curl', [
+    '-v',
     '-s', '-X', 'POST',
     `http://localhost:${GATEWAY_PORT}/convos/join`,
     '-H', 'Content-Type: application/json',
     '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
     '-d', joinBody,
-  ], { encoding: 'utf-8', timeout: 30_000 }).trim();
+  ], { encoding: 'utf-8', timeout: 90_000 }).trim();
   console.log(`[eval] Join response: ${joinOut}`);
 
   // 3. Wait for join to propagate
