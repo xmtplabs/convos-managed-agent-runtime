@@ -490,6 +490,14 @@ export class ConvosInstance {
     this.writeCommand({ type: "rename", name });
   }
 
+  async updateProfile(name?: string, image?: string): Promise<void> {
+    this.assertRunning();
+    const cmd: Record<string, unknown> = { type: "update-profile" };
+    if (name !== undefined) cmd.name = name;
+    if (image !== undefined) cmd.image = image;
+    this.writeCommand(cmd);
+  }
+
   async lock(): Promise<void> {
     this.assertRunning();
     this.writeCommand({ type: "lock" });
