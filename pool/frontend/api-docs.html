@@ -93,7 +93,7 @@
     // Railway project deeplink
     if (C.railwayProjectId) {
       var rl = document.getElementById('railway-link');
-      rl.href = 'https://railway.com/project/' + C.railwayProjectId;
+      rl.href = 'https://railway.com/project/' + C.railwayProjectId + (C.railwayEnvironmentId ? '?environmentId=' + C.railwayEnvironmentId : '');
       rl.style.display = '';
     }
 
