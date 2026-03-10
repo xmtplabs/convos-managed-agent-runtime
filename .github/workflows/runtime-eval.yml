@@ -5,121 +5,80 @@ run-name: "Runtime eval → ${{ github.ref_name }}"
 on:
   workflow_dispatch:
 
-permissions:
-  packages: write
-
 jobs:
-  build:
-    name: "Build runtime image"
-    runs-on: ubuntu-latest
-    outputs:
-      pending: ${{ steps.meta.outputs.pending }}
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Compute tag
-        id: meta
-        run: |
-          SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-          echo "pending=eval-$SHA" >> "$GITHUB_OUTPUT"
-
-      - name: "Build and push :${{ steps.meta.outputs.pending }}"
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: runtime/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   eval:
     name: "E2E eval"
-    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CHROMIUM_PATH: /usr/bin/chromium
+
     steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          node-version: 22
 
-      - name: Pull image
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
+      - name: Enable pnpm
+        run: corepack enable
 
-      - name: Start container
+      - name: Install system deps
         run: |
-          docker run -d --name eval-runtime \
-            -p 8080:8080 \
-            -e PORT=8080 \
-            -e OPENCLAW_STATE_DIR=/app \
-            -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
-            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
-            -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
-            -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
-            -e POOL_URL="${{ secrets.POOL_URL }}" \
-            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
-            node scripts/pool-server.js
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            chromium \
+            fonts-liberation libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
+            libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
+            libxkbcommon0 libxrandr2 xdg-utils
 
-      - name: Wait for health (up to 120s)
+      - name: Write .env
+        working-directory: runtime
         run: |
+          cat > .env <<'DOTENV'
+          OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
+          BANKR_API_KEY=${{ secrets.BANKR_API_KEY }}
+          OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+          OPENCLAW_PRIMARY_MODEL=${{ secrets.OPENCLAW_PRIMARY_MODEL }}
+          XMTP_ENV=${{ secrets.XMTP_ENV }}
+          EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          DOTENV
+
+      - name: Install deps
+        working-directory: runtime
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Start gateway
+        working-directory: runtime
+        run: |
+          pnpm start &
+          echo "Waiting for gateway on port 18789..."
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Ready after ${i}s"
+            if curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null; then
+              echo "Gateway ready after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-            echo "Failed to start"
-            docker logs eval-runtime
+          if ! curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null; then
+            echo "Gateway failed to start within 120s"
             exit 1
           fi
+          echo "Waiting 15s for browser service to initialise..."
           sleep 15
 
       - name: Run e2e eval
-        run: |
-          docker exec \
-            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
-            -e EVAL_OUTPUT=/tmp/eval-results.html \
-            eval-runtime timeout 900 pnpm qa:eval
+        working-directory: runtime
+        run: timeout 900 pnpm qa:eval
         env:
-          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
-
-      - name: Copy eval report
-        if: always()
-        run: docker cp eval-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
+          EVAL_OUTPUT: ./eval-results.html
 
       - name: Upload eval report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
-          path: eval-results.html
+          path: runtime/eval-results.html
           if-no-files-found: ignore
-
-      - name: Dump logs
-        if: always()
-        run: docker logs eval-runtime
-
-      - name: Cleanup image
-        if: always()
-        run: |
-          docker stop eval-runtime 2>/dev/null || true
-          docker rm eval-runtime 2>/dev/null || true
