@@ -488,6 +488,7 @@
       var runtimeSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>';
       var qrSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="21" y1="14" x2="21" y2="14.01"/><line x1="21" y1="21" x2="21" y2="21.01"/><line x1="17" y1="21" x2="17" y2="21.01"/></svg>';
       var killSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+      var PROTECTED_INSTANCES = ['s9f1swI6oykI'];
 
       // Sort helper: get raw usage value for an instance
       function getUsageValue(a) {
@@ -512,6 +513,7 @@
       var html = '';
       function renderRow(a, status, badge, actions) {
         var isKilling = !!killingSet[a.id];
+        var isProtected = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
         var rUrl = railwayUrl(a.serviceId, a.id);
         var key = svcKeyMap['convos-agent-' + a.id];
         var usageCell = '';
@@ -526,7 +528,7 @@
         } else {
           usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
         }
-        var rowClass = status + (isKilling ? ' destroying' : '');
+        var rowClass = status + (isKilling ? ' destroying' : '') + (isProtected ? ' protected' : '');
         var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
         var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
         var infra = infraMap[a.id] || {};
@@ -549,7 +551,8 @@
         var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
         var hasVersion = !!(infraMap[a.id] || {}).runtime_version;
         var runtimeBtn = hasVersion ? '<button class="action-btn" data-runtime="' + a.id + '" title="Update runtime">' + runtimeSvg + '</button>' : '';
-        var killBtn = '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
+        var isProtectedInstance = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
+        var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
           renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn);
         } else if (isClaimed) {
@@ -676,6 +679,7 @@
     }
 
     async function killAgent(id) {
+      if (PROTECTED_INSTANCES.indexOf(id) !== -1) { alert('This instance is protected (QA CI) and cannot be deleted.'); return; }
       if (killingSet[id]) return;
       var row = document.getElementById('row-' + id);
       var name = row ? row.querySelector('.agent-name-cell').textContent.trim() : id;
