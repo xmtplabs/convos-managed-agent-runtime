@@ -25,10 +25,16 @@ function resolveConvos() {
 
 const CONVOS = resolveConvos();
 
+// Use the same separate HOME as the provider so we query from the eval's identity
+function getConvosEnv() {
+  const evalHome = process.env.EVAL_CONVOS_HOME;
+  return evalHome ? { ...process.env, HOME: evalHome } : process.env;
+}
+
 function getProfiles(conversationId) {
   const out = execSync(
     `${CONVOS} conversation profiles ${conversationId} --env ${ENV} --json`,
-    { encoding: 'utf-8', timeout: 30_000 }
+    { encoding: 'utf-8', timeout: 30_000, env: getConvosEnv() }
   ).trim();
   return JSON.parse(out);
 }

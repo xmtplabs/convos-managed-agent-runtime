@@ -4,8 +4,9 @@
 // polls for agent responses.
 
 import { execSync, execFileSync } from 'child_process';
-import { existsSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { existsSync, mkdtempSync } from 'fs';
+import { resolve, dirname, join } from 'path';
+import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,14 @@ function resolveConvos() {
 
 const CONVOS = resolveConvos();
 
+// Eval's convos-cli uses a separate HOME so it gets its own ~/.convos identity,
+// distinct from the gateway's agent identity.
+const EVAL_HOME = mkdtempSync(join(tmpdir(), 'eval-convos-'));
+const CONVOS_ENV = { ...process.env, HOME: EVAL_HOME };
+// Share with assertions module via env var
+process.env.EVAL_CONVOS_HOME = EVAL_HOME;
+console.log(`[eval] Using separate identity store: ${EVAL_HOME}/.convos`);
+
 // Check gateway is reachable before running any tests
 function checkGateway() {
   try {
@@ -47,7 +56,7 @@ let sharedConversationId = null;
 let userInboxId = null;
 
 function exec(cmd, opts = {}) {
-  return execSync(cmd, { encoding: 'utf-8', timeout: 30_000, ...opts }).trim();
+  return execSync(cmd, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
 }
 
 function setup() {
