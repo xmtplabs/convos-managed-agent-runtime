@@ -15,7 +15,7 @@ const ENV = process.env.XMTP_ENV || 'dev';
 function resolveConvos() {
   const candidates = [
     '/app/node_modules/.bin/convos',                        // Docker container
-    resolve(__dirname, '../../../../node_modules/.bin/convos'), // local (runtime/)
+    resolve(__dirname, '../../../node_modules/.bin/convos'), // local (runtime/)
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;

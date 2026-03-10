@@ -18,7 +18,7 @@ const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 function resolveConvos() {
   const candidates = [
     '/app/node_modules/.bin/convos',                        // Docker container
-    resolve(__dirname, '../../../../node_modules/.bin/convos'), // local (runtime/)
+    resolve(__dirname, '../../../node_modules/.bin/convos'), // local (runtime/)
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
