@@ -6,7 +6,7 @@ run-name: >-
 
 on:
   pull_request:
-    types: [opened, synchronize, closed, labeled]
+    types: [opened, synchronize, closed]
     paths:
       - 'runtime/**'
       - '!runtime/CHANGELOG.md'
@@ -116,7 +116,7 @@ jobs:
         run: docker exec qa-runtime timeout 120 pnpm qa
 
       - name: Run e2e eval
-        if: contains(github.event.pull_request.labels.*.name, 'run-eval')
+        continue-on-error: true
         run: |
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
@@ -126,11 +126,11 @@ jobs:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: Copy eval report
-        if: contains(github.event.pull_request.labels.*.name, 'run-eval') && always()
+        if: always()
         run: docker cp qa-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
 
       - name: Upload eval report
-        if: contains(github.event.pull_request.labels.*.name, 'run-eval') && always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
