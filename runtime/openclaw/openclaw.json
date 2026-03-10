@@ -5,6 +5,10 @@
     "bind": "loopback",
     "auth": {
       "mode": "token"
+    },
+    "controlUi": {
+      "allowInsecureAuth": true,
+      "dangerouslyDisableDeviceAuth": true
     }
   },
   "logging": {
