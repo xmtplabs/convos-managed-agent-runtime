@@ -334,6 +334,7 @@ const plugin = {
 
     api.registerHttpRoute({
       path: "/convos/setup",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -361,6 +362,7 @@ const plugin = {
 
     api.registerHttpRoute({
       path: "/convos/setup/status",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "GET") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -376,6 +378,7 @@ const plugin = {
 
     api.registerHttpRoute({
       path: "/convos/setup/complete",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -396,6 +399,7 @@ const plugin = {
 
     api.registerHttpRoute({
       path: "/convos/setup/cancel",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -413,6 +417,7 @@ const plugin = {
     // Create a new conversation via CLI. Used by pool manager for provisioning.
     api.registerHttpRoute({
       path: "/convos/conversation",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -504,6 +509,7 @@ const plugin = {
     // Used by pool manager to join a user-created conversation.
     api.registerHttpRoute({
       path: "/convos/join",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -590,6 +596,7 @@ const plugin = {
     // Send a message into the active conversation.
     api.registerHttpRoute({
       path: "/convos/conversation/send",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -624,6 +631,7 @@ const plugin = {
     // Rename conversation + agent profile name.
     api.registerHttpRoute({
       path: "/convos/rename",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -658,6 +666,7 @@ const plugin = {
     // Lock/unlock the conversation.
     api.registerHttpRoute({
       path: "/convos/lock",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -691,6 +700,7 @@ const plugin = {
     // Explode (destroy) the conversation.
     api.registerHttpRoute({
       path: "/convos/explode",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -719,6 +729,7 @@ const plugin = {
     // Health/status: reports whether the instance is bound and streaming.
     api.registerHttpRoute({
       path: "/convos/status",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "GET") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
@@ -744,6 +755,7 @@ const plugin = {
     // Reset: stop running instance, clear credentials, re-run setup with a fresh identity.
     api.registerHttpRoute({
       path: "/convos/reset",
+      auth: "plugin",
       handler: async (req, res) => {
         if (req.method !== "POST") {
           jsonResponse(res, 405, { error: "Method Not Allowed" });
