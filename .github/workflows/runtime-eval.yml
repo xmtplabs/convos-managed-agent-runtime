@@ -53,24 +53,21 @@ jobs:
       - name: Start gateway
         working-directory: runtime
         run: |
-          node scripts/pool-server.js &
-          echo "Waiting for health on port 8080..."
+          pnpm start &
+          echo "Waiting for gateway on port 18789..."
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Ready after ${i}s"
+            if curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null; then
+              echo "Gateway ready after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
+          if ! curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null; then
             echo "Gateway failed to start within 120s"
             exit 1
           fi
           echo "Waiting 15s for browser service to initialise..."
           sleep 15
-        env:
-          PORT: "8080"
-          GATEWAY_INTERNAL_PORT: "18789"
 
       - name: Run e2e eval
         working-directory: runtime
