@@ -2,13 +2,9 @@
 
 ## 0.0.23
 
-- Fix SMS/email `recent` command to use proxy instead of direct API calls
+- Add email and SMS polling to heartbeat
 
 ## 0.0.22
-
-- Add email and SMS polling to heartbeat
-- Switch heartbeat model to MiniMax M2.5, interval to 30m
-- Add MiniMax M2.5 to OpenRouter model list
 - Proxy service API calls (email, SMS) through pool manager (#396)
   - Instances no longer receive `AGENTMAIL_API_KEY`, `TELNYX_API_KEY`, or `TELNYX_MESSAGING_PROFILE_ID`
   - New `/api/proxy/*` endpoints on pool manager with per-instance auth (`instanceId:gatewayToken`)
