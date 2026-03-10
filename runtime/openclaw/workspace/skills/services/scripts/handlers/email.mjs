@@ -232,7 +232,7 @@ function writeCursor(ts) {
 }
 
 async function recent(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
   const sinceLast = map["since-last"] !== undefined;
