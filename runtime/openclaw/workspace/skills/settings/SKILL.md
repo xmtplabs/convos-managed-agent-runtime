@@ -1,14 +1,12 @@
 ---
 name: settings
 description: |
-  Self-management commands: upgrade runtime, reset instance, clear memory.
-  USE WHEN: User sends /upgrade, /reset, /clear-memory, or asks to update/restart/wipe sessions.
+  Self-management: upgrade runtime, reset instance, clear memory.
+  USE WHEN: User asks to upgrade, update, restart, reset, or wipe/clear memory/sessions.
   REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID + OPENCLAW_GATEWAY_TOKEN).
 ---
 
-## Commands
-
-### Upgrade (`/upgrade`)
+## Upgrade
 
 Pull the latest runtime image and redeploy. You will go offline briefly while Railway deploys the new image.
 
@@ -18,7 +16,7 @@ node $OPENCLAW_STATE_DIR/workspace/skills/settings/scripts/settings.mjs upgrade
 
 **Always confirm with the user before running this.** Tell them you'll be offline for ~30-60 seconds during the upgrade.
 
-### Reset (`/reset`)
+## Reset
 
 Redeploy the current image (same version, fresh container). Useful when something is stuck.
 
@@ -28,7 +26,7 @@ node $OPENCLAW_STATE_DIR/workspace/skills/settings/scripts/settings.mjs reset
 
 **Always confirm with the user before running this.** You will restart and lose current conversation context.
 
-### Clear Memory (`/clear-memory`)
+## Clear Memory
 
 Wipe all session history files. Keeps skills, workspace, and config intact — only clears conversation memory.
 
