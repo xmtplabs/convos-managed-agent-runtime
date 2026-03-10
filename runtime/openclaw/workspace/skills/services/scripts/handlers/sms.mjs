@@ -12,6 +12,8 @@
  *   node services.mjs sms status <message-id>
  */
 
+import { readFileSync, writeFileSync } from "fs";
+
 // Proxy mode: route through pool manager
 const POOL_URL = process.env.POOL_URL;
 const INSTANCE_ID = process.env.INSTANCE_ID;
@@ -224,6 +226,99 @@ async function status(argv) {
   if (msg.completed_at) console.log(`  Completed: ${msg.completed_at}`);
 }
 
+const SMS_CURSOR_FILE = "/tmp/.heartbeat-sms-cursor";
+
+function readCursor() {
+  try {
+    const ts = parseInt(readFileSync(SMS_CURSOR_FILE, "utf8").trim(), 10);
+    return Number.isFinite(ts) ? ts : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeCursor(ts) {
+  try { writeFileSync(SMS_CURSOR_FILE, String(ts), "utf8"); } catch {}
+}
+
+async function recent(argv) {
+  await requireEnv();
+  const { map } = parseArgs(argv);
+  const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
+  const sinceLast = map["since-last"] !== undefined;
+  const limit = parseInt(map.limit, 10) || 5;
+
+  let cutoff;
+  if (sinceLast) {
+    cutoff = readCursor();
+    if (cutoff === 0) cutoff = Date.now() - 30 * 60 * 1000; // first run: 30min fallback
+  } else {
+    cutoff = Date.now() - (minutes || 30) * 60 * 1000;
+  }
+
+  let res;
+  if (useProxy) {
+    const params = new URLSearchParams({
+      "filter[record_type]": "message",
+      "filter[direction]": "inbound",
+      "page[size]": "20",
+    });
+    res = await fetch(`${POOL_URL}/api/proxy/sms/records?${params}`, { headers: proxyHeaders() });
+  } else {
+    const params = new URLSearchParams({
+      "filter[record_type]": "message",
+      "filter[direction]": "inbound",
+      "filter[cld]": PHONE,
+      "page[size]": "20",
+    });
+    res = await fetch(`https://api.telnyx.com/v2/detail_records?${params}`, { headers: directHeaders() });
+  }
+
+  const body = await res.json();
+
+  if (!res.ok) {
+    const err = body?.errors?.[0];
+    console.error(`Failed (${res.status}): ${err?.detail || err?.title || JSON.stringify(body)}`);
+    process.exit(1);
+  }
+
+  const all = body.data || [];
+  const records = all.filter((r) => {
+    const ts = r.sent_at ? new Date(r.sent_at).getTime() : 0;
+    return ts > cutoff;
+  }).slice(0, limit);
+
+  if (sinceLast && records.length > 0) {
+    // Advance cursor to the newest message we reported
+    const newest = records.reduce((max, r) => {
+      const ts = r.sent_at ? new Date(r.sent_at).getTime() : 0;
+      return ts > max ? ts : max;
+    }, cutoff);
+    writeCursor(newest);
+  }
+
+  if (records.length === 0) {
+    console.log("No new SMS.");
+    return;
+  }
+
+  for (const r of records) {
+    let text = null;
+    if (useProxy) {
+      const msgRes = await fetch(`${POOL_URL}/api/proxy/sms/messages/${r.id}`, { headers: proxyHeaders() });
+      text = msgRes.ok ? (await msgRes.json()).data?.text : null;
+    } else {
+      const msgRes = await fetch(`https://api.telnyx.com/v2/messages/${r.id}`, { headers: directHeaders() });
+      text = msgRes.ok ? (await msgRes.json()).data?.text : null;
+    }
+
+    console.log(`From: ${r.cli}`);
+    console.log(`Date: ${r.sent_at}`);
+    console.log(`Text: ${text ?? "(unavailable)"}`);
+    console.log("");
+  }
+}
+
 export default async function sms(argv) {
   const [action, ...rest] = argv;
 
@@ -231,8 +326,9 @@ export default async function sms(argv) {
     case "send":   return send(rest);
     case "poll":   return poll(rest);
     case "status": return status(rest);
+    case "recent": return recent(rest);
     default:
-      console.error("Usage: services.mjs sms <send|poll|status> [options]");
+      console.error("Usage: services.mjs sms <send|poll|status|recent> [options]");
       process.exit(1);
   }
 }
