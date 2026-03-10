@@ -10,4 +10,4 @@ EVAL_OUTPUT="${EVAL_OUTPUT:-}"
 OUTPUT_FLAGS=""
 [ -n "$EVAL_OUTPUT" ] && OUTPUT_FLAGS="--output $EVAL_OUTPUT"
 
-npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" $OUTPUT_FLAGS "$@"
+npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" --table-cell-max-length 1000 $OUTPUT_FLAGS "$@"
