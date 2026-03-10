@@ -18,6 +18,8 @@ node $OPENCLAW_STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.
 
 Use this when the user asks "what version am I on?", "what runtime version?", "what's your runtime?", or before upgrading to show the current version.
 
+If the command fails with "Invalid or missing API key" or similar, tell the user: "The pool server doesn't support version queries yet — it needs to be updated first." Do NOT fall back to `gateway update`, `npm update`, or any other local command.
+
 ## Upgrade
 
 Pull the latest Convos runtime Docker image and redeploy your container on Railway. You will go offline briefly while Railway deploys the new image.
