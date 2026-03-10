@@ -98,26 +98,26 @@
           <label>Model</label>
           <select class="replenish-select" id="instance-model">
             <optgroup label="Anthropic">
-              <option value="openrouter/anthropic/claude-sonnet-4-6">claude-sonnet-4-6</option>
-              <option value="openrouter/anthropic/claude-opus-4-6">claude-opus-4-6</option>
+              <option value="anthropic/claude-sonnet-4-6">claude-sonnet-4-6</option>
+              <option value="anthropic/claude-opus-4-6">claude-opus-4-6</option>
             </optgroup>
             <optgroup label="OpenAI">
-              <option value="openrouter/openai/gpt-5.2-codex">gpt-5.2-codex</option>
-              <option value="openrouter/openai/gpt-5.1-codex-mini">gpt-5.1-codex-mini</option>
-              <option value="openrouter/openai/gpt-4o">gpt-4o</option>
-              <option value="openrouter/openai/gpt-4o-mini">gpt-4o-mini</option>
+              <option value="openai/gpt-5.2-codex">gpt-5.2-codex</option>
+              <option value="openai/gpt-5.1-codex-mini">gpt-5.1-codex-mini</option>
+              <option value="openai/gpt-4o">gpt-4o</option>
+              <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
             </optgroup>
             <optgroup label="Google">
-              <option value="openrouter/google/gemini-3-flash-preview">gemini-3-flash</option>
+              <option value="google/gemini-3-flash-preview">gemini-3-flash</option>
             </optgroup>
             <optgroup label="xAI">
-              <option value="openrouter/x-ai/grok-4.1-fast">grok-4.1-fast</option>
+              <option value="x-ai/grok-4.1-fast">grok-4.1-fast</option>
             </optgroup>
             <optgroup label="Other">
-              <option value="openrouter/deepseek/deepseek-r1">deepseek-r1</option>
-              <option value="openrouter/minimax/minimax-m2.5">minimax-m2.5</option>
-              <option value="openrouter/moonshotai/kimi-k2.5">kimi-k2.5</option>
-              <option value="openrouter/perplexity/sonar">perplexity sonar</option>
+              <option value="deepseek/deepseek-r1">deepseek-r1</option>
+              <option value="minimax/minimax-m2.5">minimax-m2.5</option>
+              <option value="moonshotai/kimi-k2.5">kimi-k2.5</option>
+              <option value="perplexity/sonar">perplexity sonar</option>
             </optgroup>
           </select>
         </div>
@@ -128,6 +128,7 @@
             <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
             <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
             <option value="ghcr.io/xmtplabs/convos-runtime:vibe">:vibe</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">:dev:hermes</option>
           </select>
         </div>
         <div class="replenish-field">
@@ -271,6 +272,18 @@
     </div>
   </div>
 
+  <!-- Info Modal -->
+  <div class="modal-overlay" id="info-modal">
+    <div class="modal confirm-modal">
+      <div class="confirm-icon" id="info-icon"></div>
+      <h3 id="info-title"></h3>
+      <p id="info-message" style="font-size:12px;color:var(--color-foreground-secondary);margin-bottom:16px"></p>
+      <div class="confirm-actions">
+        <button class="confirm-btn proceed" id="info-dismiss">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Confirm Modal -->
   <div class="modal-overlay" id="confirm-modal">
     <div class="modal confirm-modal">
@@ -315,7 +328,7 @@
     // Railway project deeplink
     if (C.railwayProjectId) {
       var rl = document.getElementById('railway-link');
-      rl.href = 'https://railway.com/project/' + C.railwayProjectId;
+      rl.href = 'https://railway.com/project/' + C.railwayProjectId + (C.railwayEnvironmentId ? '?environmentId=' + C.railwayEnvironmentId : '');
       rl.style.display = '';
     }
 
@@ -336,7 +349,7 @@
     // Pre-select the current model in the picker
     (function () {
       var sel = document.getElementById('instance-model');
-      var cur = C.instanceModel || '';
+      var cur = (C.instanceModel || '').replace(/^openrouter\//, '');
       for (var i = 0; i < sel.options.length; i++) {
         if (sel.options[i].value === cur) { sel.selectedIndex = i; break; }
       }
@@ -487,6 +500,8 @@
       var runtimeSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>';
       var qrSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="21" y1="14" x2="21" y2="14.01"/><line x1="21" y1="21" x2="21" y2="21.01"/><line x1="17" y1="21" x2="17" y2="21.01"/></svg>';
       var killSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+      var PROTECTED_INSTANCES = ['s9f1swI6oykI'];
+      var infoSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
 
       // Sort helper: get raw usage value for an instance
       function getUsageValue(a) {
@@ -511,6 +526,7 @@
       var html = '';
       function renderRow(a, status, badge, actions) {
         var isKilling = !!killingSet[a.id];
+        var isProtected = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
         var rUrl = railwayUrl(a.serviceId, a.id);
         var key = svcKeyMap['convos-agent-' + a.id];
         var usageCell = '';
@@ -525,7 +541,7 @@
         } else {
           usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
         }
-        var rowClass = status + (isKilling ? ' destroying' : '');
+        var rowClass = status + (isKilling ? ' destroying' : '') + (isProtected ? ' protected' : '');
         var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
         var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
         var infra = infraMap[a.id] || {};
@@ -548,15 +564,17 @@
         var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
         var hasVersion = !!(infraMap[a.id] || {}).runtime_version;
         var runtimeBtn = hasVersion ? '<button class="action-btn" data-runtime="' + a.id + '" title="Update runtime">' + runtimeSvg + '</button>' : '';
-        var killBtn = '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
+        var isProtectedInstance = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
+        var protectedBtn = isProtectedInstance ? '<button class="action-btn" data-protected-info="1" title="Protected instance">' + infoSvg + '</button>' : '';
+        var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn);
+          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isClaimed) {
-          renderRow(a, 'running', 'Running', qrBtn + runtimeBtn + recheckBtn + killBtn);
+          renderRow(a, 'running', 'Running', qrBtn + runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isIdle) {
-          renderRow(a, 'idle', 'Ready', runtimeBtn + recheckBtn + killBtn);
+          renderRow(a, 'idle', 'Ready', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else {
-          renderRow(a, 'starting', 'Starting', recheckBtn + killBtn);
+          renderRow(a, 'starting', 'Starting', recheckBtn + killBtn + protectedBtn);
         }
       });
       body.innerHTML = html;
@@ -596,6 +614,8 @@
         if (a) showQr(a.agentName || a.id, a.inviteUrl || '');
         return;
       }
+      var protectedInfo = e.target.closest('[data-protected-info]');
+      if (protectedInfo) { showInfo({ icon: '\uD83D\uDD12', title: 'Protected Instance', message: 'This instance is reserved for QA CI and cannot be deleted from the dashboard.' }); return; }
       var killBtn = e.target.closest('[data-kill]');
       if (killBtn) { killAgent(killBtn.getAttribute('data-kill')); return; }
       var recheckBtn = e.target.closest('[data-recheck]');
@@ -675,6 +695,7 @@
     }
 
     async function killAgent(id) {
+      if (PROTECTED_INSTANCES.indexOf(id) !== -1) { showInfo({ icon: '\uD83D\uDD12', title: 'Protected Instance', message: 'This instance is reserved for QA CI and cannot be deleted from the dashboard.' }); return; }
       if (killingSet[id]) return;
       var row = document.getElementById('row-' + id);
       var name = row ? row.querySelector('.agent-name-cell').textContent.trim() : id;
@@ -1216,6 +1237,17 @@
         if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
       }
     });
+
+    // --- Info Modal ---
+    var infoModal = document.getElementById('info-modal');
+    function showInfo(opts) {
+      document.getElementById('info-icon').textContent = opts.icon || '';
+      document.getElementById('info-title').textContent = opts.title || '';
+      document.getElementById('info-message').textContent = opts.message || '';
+      infoModal.classList.add('active');
+    }
+    document.getElementById('info-dismiss').addEventListener('click', function () { infoModal.classList.remove('active'); });
+    infoModal.addEventListener('click', function (e) { if (e.target === infoModal) infoModal.classList.remove('active'); });
 
     // --- Launch / Join ---
     var launchBtn = document.getElementById('launch-btn');

@@ -25,6 +25,7 @@ export const config = {
   instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
   railwayProjectId: getEnv("RAILWAY_PROJECT_ID"),
+  railwayEnvironmentId: getEnv("RAILWAY_ENVIRONMENT_ID"),
   railwayEnvironmentName: getEnv("RAILWAY_ENVIRONMENT_NAME"),
 
   // Template site

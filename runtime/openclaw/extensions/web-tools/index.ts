@@ -79,6 +79,23 @@ async function getServicesData(): Promise<Record<string, unknown>> {
 
   const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
 
+  // Fetch runtime version/image from pool
+  if (instanceId && gatewayToken && poolUrl) {
+    try {
+      const selfInfoRes = await fetch(`${poolUrl}/api/pool/self-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instanceId, gatewayToken }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (selfInfoRes.ok) {
+        const selfInfo = await selfInfoRes.json() as { runtimeVersion?: string; runtimeImage?: string };
+        result.runtimeVersion = selfInfo.runtimeVersion || null;
+        result.runtimeImage = selfInfo.runtimeImage || null;
+      }
+    } catch {}
+  }
+
   if (instanceId && gatewayToken && poolUrl) {
     try {
       const creditsUrl = `${poolUrl}/api/pool/credits-check`;
@@ -125,6 +142,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/convos",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -137,6 +155,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/convos/",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -149,6 +168,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/convos/manifest.json",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -165,6 +185,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/convos/sw.js",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -182,6 +203,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/convos/icon.svg",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -196,6 +218,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/services",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -208,6 +231,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/services/",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -220,6 +244,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/services/api",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -243,6 +268,7 @@ export default function register(api: OpenClawPluginApi) {
   // Serve extracted CSS for services page
   api.registerHttpRoute({
     path: "/web-tools/services/services.css",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -256,6 +282,7 @@ export default function register(api: OpenClawPluginApi) {
   // Credits top-up proxy — forwards request to pool manager
   api.registerHttpRoute({
     path: "/web-tools/services/topup",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "POST") {
         res.statusCode = 405;
@@ -299,6 +326,7 @@ export default function register(api: OpenClawPluginApi) {
   // Coupon redemption proxy — forwards request to pool manager
   api.registerHttpRoute({
     path: "/web-tools/services/redeem-coupon",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "POST") {
         res.statusCode = 405;

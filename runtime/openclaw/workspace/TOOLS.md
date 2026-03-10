@@ -20,6 +20,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
 - **Services** — Your managed services: send and receive email, send and receive SMS, check credits. Email and SMS are provisioned on first use (just run the command — setup is automatic). MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
+- **Convos Runtime** — Check runtime version or upgrade the runtime. MUST use for ANY upgrade/update/version request. This is about the Railway Docker container, NOT the openclaw binary. NEVER run `gateway update`, `npm update`, or any local package command — those break things. See `skills/convos-runtime/SKILL.md`.
 
 
 
@@ -113,6 +114,16 @@ _Note: US numbers (+1) only._
 **Skill:** Services (SMS)
 _Note: Poll inbound SMS messages._
 
+> What version are you on? / What's your runtime?
+**Skill:** Convos Runtime
+→ `convos-runtime.mjs version`
+_Note: Always use the convos-runtime skill. Never guess or check openclaw version._
+
+> Upgrade yourself / Update your runtime
+**Skill:** Convos Runtime
+→ `convos-runtime.mjs upgrade`
+_Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm update`._
+
 > What's my ETH balance?
 **Skill:** Crypto (Bankr)
 
@@ -150,4 +161,6 @@ _Note: Poll inbound SMS messages._
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
 | "Text +5411..." | services sms | decline | US numbers (+1) only |
 | "What's your URL?" | answer/guess | services info | Must run info to get real URL |
+| "Upgrade yourself" | `gateway update` / `npm update` | convos-runtime skill | Local updates break things; use pool redeploy |
+| "What version?" | answer from memory | convos-runtime skill | Must query live version via skill |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |
