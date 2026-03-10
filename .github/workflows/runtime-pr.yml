@@ -6,7 +6,7 @@ run-name: >-
 
 on:
   pull_request:
-    types: [opened, synchronize, closed]
+    types: [opened, synchronize, closed, labeled]
     paths:
       - 'runtime/**'
       - '!runtime/CHANGELOG.md'
@@ -114,6 +114,28 @@ jobs:
 
       - name: Run QA smoke tests (timeout 120s)
         run: docker exec qa-runtime timeout 120 pnpm qa
+
+      - name: Run e2e eval
+        if: contains(github.event.pull_request.labels.*.name, 'run-eval')
+        run: |
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
+            -e EVAL_OUTPUT=/tmp/eval-results.html \
+            qa-runtime timeout 900 pnpm qa:eval
+        env:
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+
+      - name: Copy eval report
+        if: contains(github.event.pull_request.labels.*.name, 'run-eval') && always()
+        run: docker cp qa-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
+
+      - name: Upload eval report
+        if: contains(github.event.pull_request.labels.*.name, 'run-eval') && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-results.html
+          if-no-files-found: ignore
 
       - name: Dump container logs
         if: always()
