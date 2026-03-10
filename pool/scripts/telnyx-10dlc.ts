@@ -39,19 +39,23 @@
  *   website:     https://xmtp.org
  *   vertical:    TECHNOLOGY
  *
- * Steps remaining:
- *   1. EIN is set (86-3377822)
- *   2. Set all BRAND_* env vars in pool/.env
- *   3. pnpm telnyx:10dlc brand          → register brand
- *   4. pnpm telnyx:10dlc vet <brandId>  → submit for vetting (1-7 biz days)
- *   5. pnpm telnyx:10dlc campaign <brandId> → create CUSTOMER_CARE campaign
- *   6. pnpm telnyx:10dlc assign-all <campaignId> → link all active numbers
- *   7. pnpm telnyx:sms-test             → verify SMS delivery works
+ * Progress (2026-03-10):
+ *   [x] 1. Brand registered          → 4b20019c-d7f3-0a4d-44ef-c77918e1ff50
+ *   [x] 2. Brand vetted (AEGIS)      → VETTED_VERIFIED (TCR ID: BLU7YWX)
+ *   [x] 3. Campaign created          → 4b30019c-d83d-7622-1193-d6fb73a0c8ec (TCR: CZL2FYB)
+ *       Status: Pending Telnyx Review
+ *   [ ] 4. assign-all <campaignId>   → link all active numbers (after campaign approved)
+ *   [ ] 5. Test SMS delivery
+ *
+ * Failed campaigns (for reference):
+ *   - 4b30019c-d7f3-7fba-7eb4-8f486d652277  TCR_FAILED — "Brand registration status pending"
+ *   - 4b30019c-d83b-f245-cee7-f97bf4397a2b  TCR_FAILED — missing subscriberHelp/Optin/Optout
  *
  * Notes:
  *   - One brand + one campaign covers all numbers under the same TELNYX_API_KEY
  *   - Campaign type is CUSTOMER_CARE (conversational AI, not marketing)
- *   - Can create campaigns before vetting completes (limited throughput)
+ *   - subscriberHelp/Optin/Optout booleans are REQUIRED — campaigns fail TCR without them
+ *   - optinMessage/optoutMessage/helpMessage are the actual auto-reply text
  *   - Vetting score determines throughput on AT&T/T-Mobile
  * ──────────────────────────────────────────────────────────────────────────
  */
@@ -118,7 +122,9 @@ async function cmdStatus() {
   if (campaignList.length > 0) {
     console.log("\n  Campaigns:");
     for (const c of campaignList) {
-      console.log(`    ${c.campaignId ?? c.id}  usecase=${c.usecase}  status=${c.status ?? "unknown"}  brand=${c.brandId}`);
+      const status = c.campaignStatus ?? c.submissionStatus ?? c.status ?? "unknown";
+      const failures = c.failureReasons?.length ? `  failures=${c.failureReasons.map((r: any) => r.description).join("; ")}` : "";
+      console.log(`    ${c.campaignId ?? c.id}  usecase=${c.usecase}  status=${status}  brand=${c.brandId}${failures}`);
     }
   } else {
     console.log("\n  No campaigns. Run: pnpm telnyx:10dlc campaign <brandId>");
@@ -208,15 +214,20 @@ async function cmdCampaign(brandId: string) {
     description:
       "Conversational AI agent providing customer support and notifications via SMS.",
     sample1:
-      "Hi! I'm your AI assistant. How can I help you today? Reply STOP to opt out.",
+      "Hi! I am your AI assistant. How can I help you today? Reply STOP to opt out.",
     sample2:
       "Your request has been processed. Let me know if you need anything else. Reply STOP to unsubscribe.",
     messageFlow:
       "Users initiate conversations by texting the number or opting in through the web application. They can opt out at any time by replying STOP.",
-    helpMessage: "Reply HELP for support or contact us at our website. Reply STOP to opt out.",
+    helpMessage: "Reply HELP for support or visit https://xmtp.org. Reply STOP to opt out.",
     helpKeywords: "HELP,INFO",
     optinKeywords: "START,YES",
+    optinMessage: "You are now subscribed to messages from XMTP Labs. Reply HELP for help, STOP to opt out.",
     optoutKeywords: "STOP,CANCEL,END,QUIT,UNSUBSCRIBE",
+    optoutMessage: "You have been unsubscribed and will no longer receive messages. Reply START to resubscribe.",
+    subscriberHelp: true,
+    subscriberOptin: true,
+    subscriberOptout: true,
     embeddedLink: false,
     numberPool: false,
     ageGated: false,
