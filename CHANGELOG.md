@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.23
+
+- Fix SMS/email `recent` command to use proxy instead of direct API calls
+
 ## 0.0.22
 
 - Add email and SMS polling to heartbeat

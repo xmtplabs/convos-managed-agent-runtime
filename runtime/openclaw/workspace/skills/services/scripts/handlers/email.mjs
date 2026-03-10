@@ -248,7 +248,7 @@ async function recent(argv) {
 
   const params = new URLSearchParams({ limit: "20" });
   params.append("labels", "unread");
-  const msgData = await api("GET", `/inboxes/${inboxId}/messages?${params}`);
+  const msgData = await api("GET", `${inboxPath("messages")}?${params}`);
   const all = msgData?.messages ?? [];
   const messages = all.filter((m) => {
     const ts = m.timestamp ? new Date(m.timestamp).getTime() : 0;

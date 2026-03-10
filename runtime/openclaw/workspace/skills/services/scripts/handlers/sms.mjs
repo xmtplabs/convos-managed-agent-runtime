@@ -242,7 +242,7 @@ function writeCursor(ts) {
 }
 
 async function recent(argv) {
-  requireEnv();
+  await requireEnv();
   const { map } = parseArgs(argv);
   const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
   const sinceLast = map["since-last"] !== undefined;
@@ -256,14 +256,24 @@ async function recent(argv) {
     cutoff = Date.now() - (minutes || 30) * 60 * 1000;
   }
 
-  const params = new URLSearchParams({
-    "filter[record_type]": "message",
-    "filter[direction]": "inbound",
-    "filter[cld]": PHONE,
-    "page[size]": "20",
-  });
+  let res;
+  if (useProxy) {
+    const params = new URLSearchParams({
+      "filter[record_type]": "message",
+      "filter[direction]": "inbound",
+      "page[size]": "20",
+    });
+    res = await fetch(`${POOL_URL}/api/proxy/sms/records?${params}`, { headers: proxyHeaders() });
+  } else {
+    const params = new URLSearchParams({
+      "filter[record_type]": "message",
+      "filter[direction]": "inbound",
+      "filter[cld]": PHONE,
+      "page[size]": "20",
+    });
+    res = await fetch(`https://api.telnyx.com/v2/detail_records?${params}`, { headers: directHeaders() });
+  }
 
-  const res = await fetch(`https://api.telnyx.com/v2/detail_records?${params}`, { headers: hdrs() });
   const body = await res.json();
 
   if (!res.ok) {
@@ -293,8 +303,14 @@ async function recent(argv) {
   }
 
   for (const r of records) {
-    const msgRes = await fetch(`https://api.telnyx.com/v2/messages/${r.id}`, { headers: hdrs() });
-    const text = msgRes.ok ? (await msgRes.json()).data?.text : null;
+    let text = null;
+    if (useProxy) {
+      const msgRes = await fetch(`${POOL_URL}/api/proxy/sms/messages/${r.id}`, { headers: proxyHeaders() });
+      text = msgRes.ok ? (await msgRes.json()).data?.text : null;
+    } else {
+      const msgRes = await fetch(`https://api.telnyx.com/v2/messages/${r.id}`, { headers: directHeaders() });
+      text = msgRes.ok ? (await msgRes.json()).data?.text : null;
+    }
 
     console.log(`From: ${r.cli}`);
     console.log(`Date: ${r.sent_at}`);

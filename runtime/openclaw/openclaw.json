@@ -46,7 +46,7 @@
     
       "heartbeat": {
         "every": "30m",
-        "model": "openrouter/minimax/minimax-m2.5",
+        "model": "openrouter/openai/gpt-4o-mini",
         "target": "convos",
         "activeHours": {
           "start": "08:00",
@@ -137,17 +137,7 @@
           { "id": "openrouter/x-ai/grok-4.1-fast", "name": "Grok 4.1 Fast", "input": ["text", "image"] },
           { "id": "openrouter/deepseek/deepseek-r1", "name": "DeepSeek R1" },
           { "id": "openrouter/openai/gpt-4o", "name": "GPT-4o", "input": ["text", "image"] },
-          { "id": "openrouter/openai/gpt-4o-mini", "name": "GPT-4o Mini", "input": ["text", "image"] },
-
-          { "id": "anthropic/claude-sonnet-4-6", "name": "Claude Sonnet 4", "input": ["text", "image"] },
-          { "id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6", "input": ["text", "image"] },
-          { "id": "anthropic/claude-opus-4-6", "name": "Claude Opus 4", "input": ["text", "image"] },
-          { "id": "anthropic/claude-opus-4.6", "name": "Claude Opus 4.6", "input": ["text", "image"] },
-          { "id": "openai/gpt-5.1-codex-mini", "name": "GPT-5.1 Codex Mini", "input": ["text", "image"] },
-          { "id": "openai/gpt-5.2-codex", "name": "GPT-5.2 Codex", "input": ["text", "image"] },
-          { "id": "google/gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash", "input": ["text", "image"] },
-          { "id": "openai/gpt-4o", "name": "GPT-4o", "input": ["text", "image"] },
-          { "id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "input": ["text", "image"] }
+          { "id": "openrouter/openai/gpt-4o-mini", "name": "GPT-4o Mini", "input": ["text", "image"] }
         ]
       }
     }
