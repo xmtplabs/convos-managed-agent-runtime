@@ -98,26 +98,26 @@
           <label>Model</label>
           <select class="replenish-select" id="instance-model">
             <optgroup label="Anthropic">
-              <option value="openrouter/anthropic/claude-sonnet-4-6">claude-sonnet-4-6</option>
-              <option value="openrouter/anthropic/claude-opus-4-6">claude-opus-4-6</option>
+              <option value="anthropic/claude-sonnet-4-6">claude-sonnet-4-6</option>
+              <option value="anthropic/claude-opus-4-6">claude-opus-4-6</option>
             </optgroup>
             <optgroup label="OpenAI">
-              <option value="openrouter/openai/gpt-5.2-codex">gpt-5.2-codex</option>
-              <option value="openrouter/openai/gpt-5.1-codex-mini">gpt-5.1-codex-mini</option>
-              <option value="openrouter/openai/gpt-4o">gpt-4o</option>
-              <option value="openrouter/openai/gpt-4o-mini">gpt-4o-mini</option>
+              <option value="openai/gpt-5.2-codex">gpt-5.2-codex</option>
+              <option value="openai/gpt-5.1-codex-mini">gpt-5.1-codex-mini</option>
+              <option value="openai/gpt-4o">gpt-4o</option>
+              <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
             </optgroup>
             <optgroup label="Google">
-              <option value="openrouter/google/gemini-3-flash-preview">gemini-3-flash</option>
+              <option value="google/gemini-3-flash-preview">gemini-3-flash</option>
             </optgroup>
             <optgroup label="xAI">
-              <option value="openrouter/x-ai/grok-4.1-fast">grok-4.1-fast</option>
+              <option value="x-ai/grok-4.1-fast">grok-4.1-fast</option>
             </optgroup>
             <optgroup label="Other">
-              <option value="openrouter/deepseek/deepseek-r1">deepseek-r1</option>
-              <option value="openrouter/minimax/minimax-m2.5">minimax-m2.5</option>
-              <option value="openrouter/moonshotai/kimi-k2.5">kimi-k2.5</option>
-              <option value="openrouter/perplexity/sonar">perplexity sonar</option>
+              <option value="deepseek/deepseek-r1">deepseek-r1</option>
+              <option value="minimax/minimax-m2.5">minimax-m2.5</option>
+              <option value="moonshotai/kimi-k2.5">kimi-k2.5</option>
+              <option value="perplexity/sonar">perplexity sonar</option>
             </optgroup>
           </select>
         </div>
@@ -337,7 +337,7 @@
     // Pre-select the current model in the picker
     (function () {
       var sel = document.getElementById('instance-model');
-      var cur = C.instanceModel || '';
+      var cur = (C.instanceModel || '').replace(/^openrouter\//, '');
       for (var i = 0; i < sel.options.length; i++) {
         if (sel.options[i].value === cur) { sel.selectedIndex = i; break; }
       }
