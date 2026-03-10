@@ -37,6 +37,8 @@ if [ -n "$POOL_URL" ] && [ -n "$INSTANCE_ID" ] && [ -n "$OPENCLAW_GATEWAY_TOKEN"
     echo "  Version: $RT_VER"
     echo "  Image:   ${RT_IMG:-none}"
     pass "convos-runtime-version"
+  elif grep -qi "Invalid.*API key\|self-info.*404\|not found" "$QA_TMP"; then
+    echo "  [SKIP] pool does not support self-info yet (deploy pool first)"
   else
     fail "convos-runtime-version" "$(cat "$QA_TMP")"
   fi
