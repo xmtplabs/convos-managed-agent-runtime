@@ -25,6 +25,23 @@ qrun() { "$@" > "$QA_TMP" 2>&1 || true; }
 SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
 CONVOS_RUNTIME="$STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs"
 
+# --- Environment check ---
+echo ""
+echo "=== QA: env ==="
+HAS_POOL="no"
+if [ -n "$POOL_URL" ] && [ -n "$INSTANCE_ID" ] && [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+  HAS_POOL="yes"
+fi
+echo "  Pool proxy:       ${HAS_POOL} $([ "$HAS_POOL" = "yes" ] && echo "(${POOL_URL})" || echo "")"
+echo "  INSTANCE_ID:      $([ -n "$INSTANCE_ID" ] && echo "$INSTANCE_ID" || echo "(not set)")"
+echo "  AGENTMAIL_API_KEY:$([ -n "$AGENTMAIL_API_KEY" ] && echo " set" || echo " (not set)")"
+echo "  TELNYX_API_KEY:   $([ -n "$TELNYX_API_KEY" ] && echo "set" || echo "(not set)")"
+echo "  OPENROUTER_API_KEY:$([ -n "$OPENROUTER_API_KEY" ] && echo " set" || echo " (not set)")"
+echo "  BANKR_API_KEY:    $([ -n "$BANKR_API_KEY" ] && echo "set" || echo "(not set)")"
+echo "  Email route:      $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$AGENTMAIL_API_KEY" ] && echo "local key" || echo "none"))"
+echo "  SMS route:        $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$TELNYX_API_KEY" ] && echo "local key" || echo "none"))"
+echo "  Credits route:    $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$OPENROUTER_API_KEY" ] && echo "local key" || echo "none"))"
+
 # --- Convos runtime version ---
 echo ""
 echo "=== QA: convos-runtime-version ==="
