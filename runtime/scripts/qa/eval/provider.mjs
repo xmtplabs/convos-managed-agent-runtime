@@ -36,19 +36,14 @@ process.on('SIGINT', () => { cleanup(); process.exit(130); });
 process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 
 function checkGateway() {
-  // Try pool-server health first, fall back to gateway's own endpoint
-  const endpoints = [
-    `http://localhost:${GATEWAY_PORT}/pool/health`,
-    `http://localhost:${GATEWAY_PORT}/__openclaw__/canvas/`,
-  ];
-  for (const url of endpoints) {
-    try {
-      execFileSync('curl', ['-sf', url], { encoding: 'utf-8', timeout: 5_000 });
-      return;
-    } catch {}
+  try {
+    execFileSync('curl', ['-sf', `http://localhost:${GATEWAY_PORT}/pool/health`],
+      { encoding: 'utf-8', timeout: 5_000 }
+    );
+  } catch {
+    console.error(`[eval] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first (pnpm gateway).`);
+    process.exit(1);
   }
-  console.error(`[eval] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first (pnpm gateway).`);
-  process.exit(1);
 }
 
 checkGateway();
