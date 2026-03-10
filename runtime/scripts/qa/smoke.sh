@@ -28,16 +28,20 @@ CONVOS_RUNTIME="$STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtim
 # --- Convos runtime version ---
 echo ""
 echo "=== QA: convos-runtime-version ==="
-echo "  > node convos-runtime.mjs version"
-qrun node "$CONVOS_RUNTIME" version
-if grep -qi '"runtimeVersion"' "$QA_TMP"; then
-  RT_VER=$(cat "$QA_TMP" | grep -o '"runtimeVersion": *"[^"]*"' | cut -d'"' -f4)
-  RT_IMG=$(cat "$QA_TMP" | grep -o '"runtimeImage": *"[^"]*"' | cut -d'"' -f4)
-  echo "  Version: $RT_VER"
-  echo "  Image:   ${RT_IMG:-none}"
-  pass "convos-runtime-version"
+if [ -n "$POOL_URL" ] && [ -n "$INSTANCE_ID" ] && [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+  echo "  > node convos-runtime.mjs version"
+  qrun node "$CONVOS_RUNTIME" version
+  if grep -qi '"runtimeVersion"' "$QA_TMP"; then
+    RT_VER=$(cat "$QA_TMP" | grep -o '"runtimeVersion": *"[^"]*"' | cut -d'"' -f4)
+    RT_IMG=$(cat "$QA_TMP" | grep -o '"runtimeImage": *"[^"]*"' | cut -d'"' -f4)
+    echo "  Version: $RT_VER"
+    echo "  Image:   ${RT_IMG:-none}"
+    pass "convos-runtime-version"
+  else
+    fail "convos-runtime-version" "$(cat "$QA_TMP")"
+  fi
 else
-  fail "convos-runtime-version" "$(cat "$QA_TMP")"
+  echo "  [SKIP] no pool env (need POOL_URL + INSTANCE_ID + OPENCLAW_GATEWAY_TOKEN)"
 fi
 
 # --- Instance info ---
