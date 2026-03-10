@@ -25,7 +25,7 @@ The agent runtime is a pre-built Docker image containing the OpenClaw gateway, e
 
 The `pnpm start` script runs four steps in sequence:
 
-1. **keys.sh** — Displays all env var status. Generates `OPENCLAW_GATEWAY_TOKEN`, `SETUP_PASSWORD`, `PRIVATE_WALLET_KEY` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
+1. **keys.sh** — Displays all env var status. Generates `OPENCLAW_GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
 2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
 3. **install-deps.sh** — Runs `pnpm install` in each extension directory (convos, web-tools). Links shared deps.
 4. **gateway.sh** — Starts `openclaw gateway run` with a restart loop (max 5 rapid crashes in 30s window).
@@ -59,8 +59,9 @@ The `pnpm start` script runs four steps in sequence:
     ├── install-deps.sh     # extension deps
     ├── gateway.sh          # openclaw gateway with restart loop
     ├── pool-server.js      # pool health/provision endpoints
-    ├── qa.sh               # smoke test runner
-    ├── qa-prompts.sh       # QA prompt definitions
+    ├── qa/
+    │   ├── smoke.sh        # smoke tests (proxy when POOL_URL set, direct otherwise)
+    │   └── prompts.sh      # QA prompt definitions
     └── lib/
         ├── init.sh         # set ROOT, load .env, load paths
         ├── paths.sh        # derive STATE_DIR, WORKSPACE_DIR, etc.
@@ -75,11 +76,11 @@ The `pnpm start` script runs four steps in sequence:
 | Script | Description |
 |--------|-------------|
 | `pnpm start` | Full init: keys → apply → install-deps → gateway |
-| `pnpm keys` | Generate gateway token, setup password, wallet key; create/reuse OpenRouter key; write .env |
+| `pnpm keys` | Generate gateway token; create/reuse OpenRouter key; write .env |
 | `pnpm apply` | Sync workspace/skills/extensions and copy config template to state dir |
 | `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
 | `pnpm gateway` | Start the gateway |
-| `pnpm qa` | QA smoke tests (email, sms, bankr, convos, browser) |
+| `pnpm qa` | QA smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
 | `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
 | `pnpm build` | Build Docker image locally |
 | `pnpm build:run` | Build and run with .env from repo root |
@@ -93,17 +94,9 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | `OPENCLAW_PRIMARY_MODEL` | yes | Default LLM model (e.g. `openrouter/anthropic/claude-sonnet-4-6`) |
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key for LLM calls |
 | `XMTP_ENV` | yes | XMTP network (`dev` or `production`) |
-| `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token (generated if not set) |
-| `SETUP_PASSWORD` | no | Setup UI password (generated if not set) |
-| `PRIVATE_WALLET_KEY` | no | Ethereum wallet key (generated if not set) |
-| `AGENTMAIL_API_KEY` | no | AgentMail API key (enables email skill) |
-| `AGENTMAIL_INBOX_ID` | no | AgentMail inbox (provisioned if API key set) |
-| `BANKR_API_KEY` | no | Bankr API key (enables crypto skill) |
-| `TELNYX_API_KEY` | no | Telnyx API key (enables SMS skill) |
-| `TELNYX_PHONE_NUMBER` | no | Telnyx phone number (provisioned if API key set) |
-| `TELNYX_MESSAGING_PROFILE_ID` | no | Telnyx messaging profile |
+| `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |
 | `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
-| `POOL_URL` | no | Pool manager public URL (for self-destruct) |
+| `POOL_URL` | no | Pool manager URL — service calls (email, SMS) are proxied through this |
 | `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |
 
 ### Docker / Railway only
@@ -111,7 +104,6 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENCLAW_STATE_DIR` | `~/.openclaw` | State directory (`/app` in Docker, Railway volume path in production) |
-| `CHROMIUM_PATH` | — | Path to Chromium binary (`/usr/bin/chromium` in Docker) |
 | `PORT` | `18789` | Gateway port (`8080` in Docker/Railway) |
 
 ## Local development
@@ -172,7 +164,7 @@ When deployed by the pool manager, the runtime exposes endpoints via `pool-serve
 | `GET /pool/health` | Returns `{"ready": true}` when gateway is up |
 | `POST /pool/provision` | Sets agent name, instructions, creates conversation |
 | `GET /pool/status` | Current instance status |
-| `POST /pool/self-destruct` | Instance requests own destruction via pool manager (auth: `POOL_API_KEY`) |
+| `POST /pool/self-destruct` | Instance requests own destruction via pool manager (localhost-only) |
 
 The pool manager creates a Railway service with the GHCR image, injects env vars, waits for `/pool/health`, then provisions via `/pool/provision` at claim time.
 

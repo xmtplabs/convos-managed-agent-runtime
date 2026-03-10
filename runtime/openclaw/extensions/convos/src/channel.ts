@@ -23,6 +23,7 @@ import { convosOnboardingAdapter } from "./onboarding.js";
 import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
+import { isContextOverflowText, checkCreditsLow, buildCreditErrorMessage } from "./openrouter.js";
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
@@ -535,11 +536,12 @@ async function handleInboundMessage(
           // Rewrite raw provider credit errors into a friendly message
           const t = payload.text || "";
           if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
-            const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
-            const ngrok = process.env.NGROK_URL;
-            const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
-            const base = domain ? `https://${domain}` : ngrok ? ngrok.replace(/\/$/, "") : `http://127.0.0.1:${port}`;
-            payload = { ...payload, text: `Hey! I'm out of credits. You can top up here: ${base}/web-tools/services` };
+            payload = { ...payload, text: buildCreditErrorMessage() };
+          }
+          // OpenClaw misclassifies 402 credit errors as context overflow —
+          // verify against the pool server and rewrite when credits are low.
+          if (isContextOverflowText(t) && await checkCreditsLow()) {
+            payload = { ...payload, text: buildCreditErrorMessage() };
           }
           await deliverConvosReply({
             payload,
@@ -754,9 +756,9 @@ async function stopInstance(accountId: string, log?: RuntimeLogger) {
  */
 export async function selfDestruct(reason?: string): Promise<void> {
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
-  const poolApiKey = process.env.POOL_API_KEY;
+  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (poolApiKey) headers["Authorization"] = `Bearer ${poolApiKey}`;
+  if (gatewayToken) headers["Authorization"] = `Bearer ${gatewayToken}`;
 
   console.log(`[convos] Self-destruct requested${reason ? `: ${reason}` : ""}`);
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install extension deps.
 # All deps are declared in root package.json (single source of truth).
-# CLIs (@bankr/cli, etc.) resolve via PATH (node-path.sh).
+# CLIs resolve via PATH (node-path.sh).
 # Skill scripts use REST APIs directly via fetch — no JS library imports needed.
 set -e
 export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"

@@ -15,46 +15,31 @@ import type { CreateInstanceResponse, DestroyResult } from "../types";
 export type ProgressCallback = (step: string, status: string, message?: string) => void;
 
 /**
- * Create a new instance: own Railway project + service + tools + DB rows.
+ * Create a new instance: own Railway project + service + OpenRouter key + DB rows.
+ * Email (AgentMail) and SMS (Telnyx) are provisioned on demand at first use
+ * via the proxy provision endpoints — not at creation time.
  */
 export async function createInstance(
   instanceId: string,
   name: string,
-  tools: string[] = ["openrouter", "agentmail"],
+  tools: string[] = ["openrouter"],
   onProgress?: ProgressCallback,
   runtimeImage?: string,
+  model?: string,
 ): Promise<CreateInstanceResponse> {
   // Generate secrets
   const gatewayToken = wallet.generateGatewayToken();
-  const setupPassword = wallet.generateSetupPassword();
-  const walletKey = wallet.generatePrivateWalletKey();
 
   // Build env vars
   const vars: Record<string, string> = { ...buildInstanceEnv() };
+  if (model) vars.OPENCLAW_PRIMARY_MODEL = model;
   vars.INSTANCE_ID = instanceId;
   vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
-  vars.SETUP_PASSWORD = setupPassword;
-  vars.PRIVATE_WALLET_KEY = walletKey;
 
-  // Provision requested tools (rollback on failure to avoid leaked resources)
+  // Provision OpenRouter key
   const services: CreateInstanceResponse["services"] = {};
 
   try {
-    // Telnyx first — it has the most contention (rate limits + race conditions)
-    if (tools.includes("telnyx") && config.telnyxApiKey) {
-      onProgress?.("telnyx", "active");
-      const t0 = Date.now();
-      const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
-      metricHistogram("provider.telnyx.duration_ms", Date.now() - t0, { step: "provision_phone" });
-      metricCount("provider.telnyx.provisioned");
-      vars.TELNYX_PHONE_NUMBER = phoneNumber;
-      vars.TELNYX_MESSAGING_PROFILE_ID = messagingProfileId;
-      services.telnyx = { resourceId: phoneNumber };
-      onProgress?.("telnyx", "ok");
-    } else {
-      onProgress?.("telnyx", "skip", "Not configured");
-    }
-
     if (tools.includes("openrouter") && config.openrouterManagementKey) {
       onProgress?.("openrouter", "active");
       const t0 = Date.now();
@@ -68,60 +53,22 @@ export async function createInstance(
     } else {
       onProgress?.("openrouter", "skip", "Not configured");
     }
-
-    if (tools.includes("agentmail") && config.agentmailApiKey) {
-      onProgress?.("agentmail", "active");
-      const t0 = Date.now();
-      const inboxId = await agentmail.createInbox(instanceId);
-      metricHistogram("provider.agentmail.duration_ms", Date.now() - t0, { step: "create_inbox" });
-      metricCount("provider.agentmail.provisioned");
-      vars.AGENTMAIL_INBOX_ID = inboxId;
-      services.agentmail = { resourceId: inboxId };
-      onProgress?.("agentmail", "ok");
-    } else {
-      onProgress?.("agentmail", "skip", "Not configured");
-    }
   } catch (err) {
-    // Determine which tool was being provisioned when it failed
-    const failedStep = !services.telnyx && tools.includes("telnyx") && config.telnyxApiKey ? "telnyx"
-      : !services.openrouter && tools.includes("openrouter") && config.openrouterManagementKey ? "openrouter"
-      : !services.agentmail && tools.includes("agentmail") && config.agentmailApiKey ? "agentmail"
-      : "unknown";
     const { error_class, error_message } = classifyError(err);
 
     console.error(`[infra] Provisioning failed for ${instanceId}, rolling back...`);
     logger.error("create.provider_fail", {
       instanceId,
-      failed_step: failedStep,
+      failed_step: "openrouter",
       error_class,
       error_message: error_message.slice(0, 1500),
       provisioned: Object.keys(services),
     });
 
-    metricCount("instance.create.fail", 1, { phase: "provider", provider: failedStep, error_class });
-    metricCount("provider.rollback", 1, { failed_step: failedStep });
+    metricCount("instance.create.fail", 1, { phase: "provider", provider: "openrouter", error_class });
+    metricCount("provider.rollback", 1, { failed_step: "openrouter" });
 
-    // Rollback provisioned resources
-    if (services.openrouter) {
-      try { await openrouter.deleteKey(services.openrouter.resourceId); } catch (e: any) {
-        console.warn(`[infra] Rollback openrouter failed: ${e.message}`);
-        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) });
-      }
-    }
-    if (services.agentmail) {
-      try { await agentmail.deleteInbox(services.agentmail.resourceId); } catch (e: any) {
-        console.warn(`[infra] Rollback agentmail failed: ${e.message}`);
-        logger.warn("create.rollback_fail", { instanceId, tool: "agentmail", error_message: e.message?.slice(0, 1500) });
-      }
-    }
-    if (services.telnyx) {
-      try { await telnyx.deletePhone(services.telnyx.resourceId); } catch (e: any) {
-        console.warn(`[infra] Rollback telnyx failed: ${e.message}`);
-        logger.warn("create.rollback_fail", { instanceId, tool: "telnyx", error_message: e.message?.slice(0, 1500) });
-      }
-    }
-
-    onProgress?.(failedStep, "fail", (err as Error).message);
+    onProgress?.("openrouter", "fail", (err as Error).message);
     throw err;
   }
 
@@ -138,7 +85,7 @@ export async function createInstance(
     metricCount("provider.railway.project.provisioned");
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
-    console.error(`[infra] Railway project creation failed for ${instanceId}`);
+    console.error(`[infra] Railway project creation failed for ${instanceId}:`, (err as Error).message);
     logger.error("create.railway_project_fail", { instanceId, error_class, error_message: error_message.slice(0, 1500) });
     metricCount("instance.create.fail", 1, { phase: "railway_project", error_class });
     onProgress?.("railway-project", "fail", (err as Error).message);
@@ -198,7 +145,7 @@ export async function createInstance(
   }
 
   // Insert into instance_infra + instance_services — if DB fails, clean up
-  // the Railway project and tool resources we just created.
+  // the Railway project and OpenRouter key we just created.
   try {
     await db.insert(instanceInfra).values({
       instanceId,
@@ -219,26 +166,7 @@ export async function createInstance(
         resourceId: services.openrouter.resourceId,
         envKey: "OPENROUTER_API_KEY",
         envValue: vars.OPENROUTER_API_KEY,
-        resourceMeta: {},
-      });
-    }
-    if (services.agentmail) {
-      await db.insert(instanceServices).values({
-        instanceId,
-        toolId: "agentmail",
-        resourceId: services.agentmail.resourceId,
-        envKey: "AGENTMAIL_INBOX_ID",
-        envValue: vars.AGENTMAIL_INBOX_ID || null,
-      });
-    }
-    if (services.telnyx) {
-      await db.insert(instanceServices).values({
-        instanceId,
-        toolId: "telnyx",
-        resourceId: services.telnyx.resourceId,
-        envKey: "TELNYX_PHONE_NUMBER",
-        envValue: vars.TELNYX_PHONE_NUMBER,
-        resourceMeta: { messagingProfileId: vars.TELNYX_MESSAGING_PROFILE_ID },
+        resourceMeta: { model: vars.OPENCLAW_PRIMARY_MODEL || "" },
       });
     }
   } catch (err) {
@@ -259,14 +187,6 @@ export async function createInstance(
       await openrouter.deleteKey(services.openrouter.resourceId).catch((e: any) =>
         logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) }));
     }
-    if (services.agentmail) {
-      await agentmail.deleteInbox(services.agentmail.resourceId).catch((e: any) =>
-        logger.warn("create.rollback_fail", { instanceId, tool: "agentmail", error_message: e.message?.slice(0, 1500) }));
-    }
-    if (services.telnyx) {
-      await telnyx.deletePhone(services.telnyx.resourceId).catch((e: any) =>
-        logger.warn("create.rollback_fail", { instanceId, tool: "telnyx", error_message: e.message?.slice(0, 1500) }));
-    }
     throw err;
   }
 
@@ -280,6 +200,9 @@ export async function createInstance(
  * Destroy an instance and all its resources.
  * Instances with providerProjectId → projectDelete cascades service + volumes.
  * Old DB rows without providerProjectId → service-level cleanup fallback.
+ *
+ * Note: agentmail/telnyx resources may exist if provisioned on-demand during
+ * the instance's lifetime — destroy still cleans them up from instance_services rows.
  */
 export async function destroyInstance(instanceId: string, onProgress?: ProgressCallback): Promise<DestroyResult> {
   const infraRows = await db.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));

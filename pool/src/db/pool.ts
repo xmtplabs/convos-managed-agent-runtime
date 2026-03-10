@@ -1,6 +1,6 @@
 import { eq, and, sql, notInArray, inArray } from "drizzle-orm";
 import { db } from "./connection";
-import { instances, instanceInfra } from "./schema";
+import { instances, instanceInfra, instanceServices } from "./schema";
 import type { InstanceRow, InstanceStatus } from "./schema";
 
 interface UpsertInstanceOpts {
@@ -70,11 +70,25 @@ export async function getCounts(): Promise<Record<InstanceStatus, number>> {
   return counts;
 }
 
-/** Atomically claim one idle instance using FOR UPDATE SKIP LOCKED. */
-export async function claimIdle(): Promise<InstanceRow | null> {
+/** Atomically claim one idle instance using FOR UPDATE SKIP LOCKED.
+ *  When inviteUrl is provided, aborts if another instance is already
+ *  claiming/claimed for that URL (dedup within the same transaction). */
+export async function claimIdle(inviteUrl?: string | null): Promise<InstanceRow | null> {
   return db.transaction(async (tx) => {
+    // Dedup: if an instance is already handling this inviteUrl, don't claim another
+    if (inviteUrl) {
+      const dup = await tx.execute(sql`
+        SELECT 1 FROM instances
+        WHERE invite_url = ${inviteUrl}
+          AND status IN ('claiming', 'claimed')
+        LIMIT 1
+      `);
+      if (dup.rows.length > 0) return null;
+    }
+
     const result = await tx.execute(sql`
-      UPDATE instances SET status = 'claiming'
+      UPDATE instances SET status = 'claiming',
+        invite_url = COALESCE(${inviteUrl ?? null}, invite_url)
       WHERE id = (
         SELECT id FROM instances
         WHERE status = 'idle'
@@ -116,6 +130,29 @@ export async function updateStatus(instanceId: string, { status, url }: { status
     status: sql`COALESCE(${status || null}, ${instances.status})`,
     url: sql`COALESCE(${url || null}, ${instances.url})`,
   }).where(eq(instances.id, instanceId));
+}
+
+/**
+ * Atomically recover an instance to idle, clearing all claim metadata.
+ * Uses conditional update to avoid overwriting concurrent claims.
+ */
+export async function recoverToIdle(
+  instanceId: string,
+  expectedStatus?: string,
+): Promise<boolean> {
+  const conditions = [eq(instances.id, instanceId), sql`${instances.status} != 'claiming'`];
+  if (expectedStatus) {
+    conditions.push(sql`${instances.status} = ${expectedStatus}`);
+  }
+  const result = await db.update(instances).set({
+    status: "idle" as InstanceStatus,
+    agentName: null,
+    conversationId: null,
+    inviteUrl: null,
+    instructions: null,
+    claimedAt: null,
+  }).where(and(...conditions));
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
@@ -163,6 +200,14 @@ export async function findInstanceByToken(instanceId: string, gatewayToken: stri
   return rows.length > 0;
 }
 
+/** Look up the gateway token for an instance. */
+export async function getGatewayToken(instanceId: string): Promise<string | null> {
+  const rows = await db.select({ gatewayToken: instanceInfra.gatewayToken })
+    .from(instanceInfra)
+    .where(eq(instanceInfra.instanceId, instanceId));
+  return rows[0]?.gatewayToken ?? null;
+}
+
 export async function setRuntimeVersion(instanceId: string, version: string) {
   await db.update(instanceInfra).set({
     runtimeVersion: version,
@@ -172,6 +217,30 @@ export async function setRuntimeVersion(instanceId: string, version: string) {
 
 export async function deleteById(id: string) {
   await db.delete(instances).where(eq(instances.id, id));
+}
+
+/** Look up an instance's provisioned service resources (inbox, phone). */
+export async function getServiceResources(instanceId: string): Promise<{ inboxId: string | null; phoneNumber: string | null }> {
+  const rows = await db.select({
+    toolId: instanceServices.toolId,
+    envValue: instanceServices.envValue,
+  }).from(instanceServices).where(eq(instanceServices.instanceId, instanceId));
+
+  let inboxId: string | null = null;
+  let phoneNumber: string | null = null;
+  for (const row of rows) {
+    if (row.toolId === "agentmail") inboxId = row.envValue;
+    if (row.toolId === "telnyx") phoneNumber = row.envValue;
+  }
+  return { inboxId, phoneNumber };
+}
+
+/** Check if an instance is already claiming/claimed for a given invite URL. */
+export async function hasActiveInviteUrl(inviteUrl: string): Promise<boolean> {
+  const rows = await db.select({ id: instances.id }).from(instances).where(
+    and(eq(instances.inviteUrl, inviteUrl), inArray(instances.status, ["claiming", "claimed"])),
+  ).limit(1);
+  return rows.length > 0;
 }
 
 export async function deleteOrphaned(activeInstanceIds: string[]) {
