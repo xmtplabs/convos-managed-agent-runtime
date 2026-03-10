@@ -16,6 +16,13 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **Cron** — Schedule jobs and wakeups
 - **Sub-Agents** — Spawn background agents for parallel work. Use `/subagents spawn` or the `sessions_spawn` tool. Sub-agents run independently and announce results back when done. Good for: running multiple browser tasks at once, doing a search while browsing, or any time you'd otherwise do things sequentially. Don't narrate — just spawn and let them work.
 
+## Parallelism
+
+Prefer parallel execution over sequential whenever tasks are independent:
+- **Tool calls** — call multiple tools in the same turn when they don't depend on each other (e.g. web_search + email check).
+- **Sub-agents** — spawn multiple sub-agents at once for heavier independent jobs (e.g. two browser tasks, research + booking).
+- Don't narrate each step. Fire and deliver results.
+
 # SKILLS
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
