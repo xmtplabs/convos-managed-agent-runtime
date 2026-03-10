@@ -14,14 +14,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
   - _Headless/cloud (Railway): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`)._
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
-- **Sub-Agents** — Spawn background agents for parallel work. Use `/subagents spawn` or the `sessions_spawn` tool. Sub-agents run independently and announce results back when done. Good for: running multiple browser tasks at once, doing a search while browsing, or any time you'd otherwise do things sequentially. Don't narrate — just spawn and let them work.
-
-## Parallelism
-
-Prefer parallel execution over sequential whenever tasks are independent:
-- **Tool calls** — call multiple tools in the same turn when they don't depend on each other (e.g. web_search + email check).
-- **Sub-agents** — spawn multiple sub-agents at once for heavier independent jobs (e.g. two browser tasks, research + booking).
-- Don't narrate each step. Fire and deliver results.
+- **Sub-Agents** — Spawn background agents via `sessions_spawn` for parallel or long-running work. They run independently and announce results back. Prefer parallel execution: fire multiple tool calls or sub-agents at once when tasks are independent. Don't narrate each step — just do it and deliver results.
 
 # SKILLS
 
