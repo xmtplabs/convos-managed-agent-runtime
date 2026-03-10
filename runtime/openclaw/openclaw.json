@@ -5,9 +5,6 @@
     "bind": "loopback",
     "auth": {
       "mode": "token"
-    },
-    "controlUi": {
-      "allowInsecureAuth": true
     }
   },
   "logging": {

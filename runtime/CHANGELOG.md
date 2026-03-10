@@ -1,5 +1,10 @@
 # Convos runtime changelog
 
+## 0.0.24
+- OpenClaw upgrade: bumped from 2026.2.15 to 2026.3.8
+- HTTP route auth: all plugin HTTP routes now declare explicit `auth: "plugin"` (required by OpenClaw 2026.3.8)
+- Security: removed `allowInsecureAuth` from gateway config — Control UI now uses token auth
+
 ## 0.0.23
 - Proxy mode: SMS and email commands now route through the pool proxy instead of calling provider APIs directly
 - Session cleanup: removed auto-clear on start, added manual `clean-sessions` command
