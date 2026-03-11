@@ -113,8 +113,8 @@ For side-effect verification, add a JS assertion in `assertions.mjs` and referen
 
 Three ways to run eval in CI:
 
-- **On every PR** that touches `runtime/`. Runs after smoke tests (non-blocking). The HTML report is uploaded as an artifact.
+- **On every PR** that touches `runtime/`. Runs after smoke tests (non-blocking). GitHub now shows an inline failure summary plus uploads HTML and JSON artifacts.
 - **On dispatch build**: eval runs non-blocking alongside QA and publish in `runtime-dispatch.yml`. Failures don't block the release.
-- **One-off dispatch**: trigger the "Runtime: Eval" workflow from any branch (Actions → Runtime: Eval → Run workflow). Builds the image but does **not** publish it.
+- **One-off dispatch**: trigger the "Runtime: Eval" workflow from any branch (Actions → Runtime: Eval → Run workflow). Runs eval directly from that branch checkout, does **not** build or publish an image, and fails the workflow if eval fails after uploading artifacts and the summary.
 
 Required secret: `EVAL_OPENROUTER_API_KEY`
