@@ -1,0 +1,148 @@
+# runtime/scripts/qa/eval/services.yaml
+# Services eval: email, SMS, payments, browser, search, knowledge.
+# Runs in parallel with core — skips reset, creates its own conversation.
+
+description: "OpenClaw Services Eval"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: openrouter:anthropic/claude-sonnet-4
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  # Health gate — also validates welcome quality on the services conversation
+  - description: "Agent sends welcome message after joining"
+    vars:
+      prompt: "(waiting for welcome message)"
+      waitForWelcome: true
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The AGENT should have
+          sent a welcome/greeting message introducing itself and its capabilities.
+          Pass if the transcript contains such a welcome message from the AGENT.
+
+  # --- Email & SMS ---
+
+  - description: "Agent can send an email"
+    vars:
+      prompt: "Send a short email to fabri@xmtp.com with subject 'QA Eval Test'. Reply: Email sent."
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked the agent
+          to send an email. Pass if the AGENT's response confirms the email was
+          successfully sent (e.g. "Email sent", "sent to", delivery confirmation).
+          Fail if the agent refused, errored, or said it cannot send email.
+
+  - description: "Agent can poll received emails"
+    vars:
+      prompt: "Check my latest received email. Reply with: From: <sender>, Subject: <subject>, Body: <preview>."
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked the agent
+          to check received emails. Pass if the AGENT's response includes email details
+          like a sender (From), subject, or body/preview. Fail if the agent refused,
+          errored, or said it has no email access.
+
+  - description: "Agent can send an SMS"
+    vars:
+      prompt: "Send a short SMS to +16154376139 saying 'QA eval test'. Reply: SMS sent."
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked the agent
+          to send an SMS. Pass if the AGENT's response confirms the SMS was
+          successfully sent or queued. Fail if the agent refused, errored, or said
+          it cannot send SMS.
+
+  - description: "Agent can poll received SMS"
+    vars:
+      prompt: "Check my latest received SMS. Reply with: From: <number>, Text: <message>."
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked the agent
+          to check received SMS messages. Pass if the AGENT's response includes SMS
+          details like a phone number (From) and message text. Fail if the agent
+          refused, errored, or said it has no SMS access.
+
+  - description: "Agent can check USDC balance"
+    vars:
+      prompt: "Check my USDC balance. Reply: USDC: <amount>."
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked the agent
+          to check their USDC balance. Pass if the AGENT's response includes a USDC
+          amount or balance figure. Fail if the agent refused, errored, or said it
+          cannot check balances.
+
+  # --- Browser & search ---
+
+  - description: "Agent can browse a webpage"
+    vars:
+      prompt: "Browse https://example.com and tell me what the page says."
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked the agent
+          to browse example.com and describe its content. Pass if the AGENT's response
+          describes content from the page (e.g. "Example Domain", headings, text).
+          Fail if the agent refused, errored, or gave a generic answer without
+          actually browsing.
+
+  - description: "Agent can search the web"
+    vars:
+      prompt: "Search the current BTC price. Reply: BTC: $<price>."
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked for the
+          current BTC price. Pass if the AGENT's response includes a specific dollar
+          price for Bitcoin. Fail if the agent refused, gave an outdated price
+          disclaimer without a number, or said it cannot search.
+
+  # --- Knowledge & services awareness ---
+
+  - description: "Agent knows its services page URL"
+    vars:
+      prompt: "What's your services page URL?"
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked for the
+          agent's services page URL. Pass if the AGENT's response includes a URL
+          pointing to a services or status page. Fail if the agent said it doesn't
+          have one or gave a generic non-URL answer.
+
+  - description: "Agent knows how to top up credits"
+    vars:
+      prompt: "How do I top up my credits?"
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked how to
+          top up credits. Pass if the AGENT's response explains a concrete method
+          to add credits (e.g. a URL, payment flow, or instructions). Fail if the
+          agent said it doesn't know or gave a vague non-answer.
+
+  - description: "Agent knows where to check card balance"
+    vars:
+      prompt: "Where can I see my card balance?"
+    assert:
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked where to
+          see their card balance. Pass if the AGENT's response directs the user to a
+          specific place (URL, page, command) to check their balance. Fail if the
+          agent said it doesn't know or gave a vague answer.

@@ -61,7 +61,6 @@ The `pnpm start` script runs four steps in sequence:
     ├── pool-server.js      # pool health/provision endpoints
     ├── qa/
     │   ├── smoke.sh        # smoke tests (proxy when POOL_URL set, direct otherwise)
-    │   ├── prompts.sh      # QA prompt definitions
     │   ├── eval.sh          # e2e eval wrapper (loads .env, runs promptfoo)
     │   └── eval/            # promptfoo config, provider, assertions, fixtures
     └── lib/

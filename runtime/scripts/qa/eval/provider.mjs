@@ -4,11 +4,12 @@
 // waits for the agent, then returns the full transcript for LLM-judge evaluation.
 
 import { execSync, execFileSync, spawn } from 'child_process';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { resolveConvos } from './utils.mjs';
 
+const SUITE_NAME = process.env.EVAL_SUITE_NAME || 'eval';
 const ENV = process.env.XMTP_ENV || 'dev';
 // In CI the container runs pool-server on PORT (8080) which proxies to the gateway.
 // Locally, `pnpm gateway` runs on GATEWAY_INTERNAL_PORT (18789) with no pool-server.
@@ -26,10 +27,24 @@ const CONVOS = resolveConvos();
 const EVAL_HOME = mkdtempSync(join(tmpdir(), 'eval-convos-'));
 const CONVOS_ENV = { ...process.env, HOME: EVAL_HOME };
 process.env.EVAL_CONVOS_HOME = EVAL_HOME;
-console.log(`[eval] Using separate identity store: ${EVAL_HOME}/.convos`);
+console.log(`[${SUITE_NAME}] Using separate identity store: ${EVAL_HOME}/.convos`);
 
+// Cleanup: the last suite to run cleans up everything.
+// If state file exists and we're reusing, we're the last suite — clean up both.
+// If we created the conversation but another suite follows, skip cleanup (it persists via state file).
+const isResumingSuite = process.env.EVAL_SKIP_RESET === '1' && existsSync(STATE_FILE);
 function cleanup() {
   try { rmSync(EVAL_HOME, { recursive: true, force: true }); } catch {}
+  if (isResumingSuite) {
+    // Clean up the original suite's eval home too
+    try {
+      const state = JSON.parse(readFileSync(STATE_FILE, 'utf-8'));
+      if (state.evalHome && state.evalHome !== EVAL_HOME) {
+        rmSync(state.evalHome, { recursive: true, force: true });
+      }
+    } catch {}
+    try { rmSync(STATE_FILE, { force: true }); } catch {}
+  }
 }
 process.on('exit', cleanup);
 process.on('SIGINT', () => { cleanup(); process.exit(130); });
@@ -41,12 +56,16 @@ function checkGateway() {
       { encoding: 'utf-8', timeout: 5_000 }
     );
   } catch {
-    console.error(`[eval] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first (pnpm gateway).`);
+    console.error(`[${SUITE_NAME}] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first (pnpm gateway).`);
     process.exit(1);
   }
 }
 
 checkGateway();
+
+// State file lets sequential suites share the same conversation.
+// Core writes it after setup; services reads it to skip setup entirely.
+const STATE_FILE = join(tmpdir(), 'eval-state.json');
 
 let sharedConversationId = null;
 let userInboxId = null;
@@ -56,19 +75,36 @@ function convos(args, opts = {}) {
 }
 
 function setup() {
-  console.log(`[eval] Resetting runtime convos identity...`);
-  const resetOut = execFileSync('curl', [
-    '-s', '-X', 'POST',
-    `http://localhost:${GATEWAY_PORT}/convos/reset`,
-    '-H', 'Content-Type: application/json',
-    '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
-    '-d', '{}',
-  ], { encoding: 'utf-8', timeout: 30_000 }).trim();
-  console.log(`[eval] Reset response: ${resetOut}`);
+  const setupStart = Date.now();
 
-  console.log(`[eval] Waiting for gateway to reinitialise...`);
-  execSync('sleep 10');
+  // If a previous suite already set up the conversation, reuse it
+  if (process.env.EVAL_SKIP_RESET === '1' && existsSync(STATE_FILE)) {
+    const state = JSON.parse(readFileSync(STATE_FILE, 'utf-8'));
+    sharedConversationId = state.conversationId;
+    userInboxId = state.userInboxId;
+    // Restore the eval identity so convos-cli can read messages
+    if (state.evalHome && existsSync(state.evalHome)) {
+      Object.assign(CONVOS_ENV, { HOME: state.evalHome });
+    }
+    log(`Reusing conversation from core: ${sharedConversationId}`);
+    log('');
+    return;
+  }
 
+  if (process.env.EVAL_SKIP_RESET !== '1') {
+    log('Resetting agent identity...');
+    execFileSync('curl', [
+      '-s', '-X', 'POST',
+      `http://localhost:${GATEWAY_PORT}/convos/reset`,
+      '-H', 'Content-Type: application/json',
+      '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
+      '-d', '{}',
+    ], { encoding: 'utf-8', timeout: 30_000 });
+    log('Waiting for gateway to reinitialise (10s)...');
+    execSync('sleep 10');
+  }
+
+  log('Creating conversation...');
   const createOut = convos([
     'conversations', 'create', '--name', `QA Eval ${Date.now()}`, '--env', ENV, '--json',
   ]);
@@ -79,38 +115,41 @@ function setup() {
   sharedConversationId = data.conversationId;
   userInboxId = data.inboxId;
   const inviteUrl = data.invite.url;
+  log(`Conversation created: ${sharedConversationId}`);
 
-  console.log(`[eval] Created conversation ${sharedConversationId}`);
-  console.log(`[eval] User inboxId: ${userInboxId}`);
-
-  console.log(`[eval] Starting process-join-requests --watch in background...`);
+  log('Joining agent to conversation...');
   const processChild = spawn(CONVOS, [
     'conversations', 'process-join-requests',
     '--conversation', sharedConversationId,
     '--watch',
     '--env', ENV,
   ], { env: CONVOS_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
-  processChild.stdout.on('data', (d) => console.log(`[eval] process-join-requests: ${d.toString().trim()}`));
-  processChild.stderr.on('data', (d) => console.log(`[eval] process-join-requests stderr: ${d.toString().trim()}`));
 
   try {
     execSync('sleep 3');
-
     const joinBody = JSON.stringify({ inviteUrl, profileName: 'QA Eval Agent' });
-    console.log(`[eval] Calling /convos/join...`);
-    const joinOut = execFileSync('curl', [
+    execFileSync('curl', [
       '-s', '-X', 'POST',
       `http://localhost:${GATEWAY_PORT}/convos/join`,
       '-H', 'Content-Type: application/json',
       '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
       '-d', joinBody,
-    ], { encoding: 'utf-8', timeout: 90_000 }).trim();
-    console.log(`[eval] Join response: ${joinOut}`);
+    ], { encoding: 'utf-8', timeout: 90_000 });
   } finally {
     try { processChild.kill(); } catch {}
   }
 
+  // Persist state so the next suite can reuse this conversation
+  writeFileSync(STATE_FILE, JSON.stringify({
+    conversationId: sharedConversationId,
+    userInboxId,
+    evalHome: EVAL_HOME,
+  }));
+
   execSync('sleep 5');
+  const sec = ((Date.now() - setupStart) / 1000).toFixed(1);
+  log(`Setup complete (${sec}s). Running tests...`);
+  log('');
 }
 
 function fetchMessages() {
@@ -159,15 +198,25 @@ function buildTranscript(messages) {
   }).join('\n');
 }
 
+let testIndex = 0;
+
+function log(msg) {
+  console.log(`[${SUITE_NAME}] ${msg}`);
+}
+
 export default class OpenClawProvider {
   id() {
     return 'openclaw-agent';
   }
 
   async callApi(prompt, context) {
+    testIndex++;
+    const description = context.test?.description || `Test ${testIndex}`;
+    const startTime = Date.now();
+
+    log(`--- ${testIndex}. ${description} ---`);
+
     // Snapshot agent message count BEFORE the action that triggers a response.
-    // For the first call (welcome test), this is 0 (before setup/join).
-    // For subsequent calls, it captures the count before we send the prompt.
     let baseline = 0;
 
     if (!sharedConversationId) {
@@ -178,7 +227,11 @@ export default class OpenClawProvider {
 
     // Self-destruct test: remove agent from group, verify gateway exits
     if (vars.selfDestruct) {
-      return handleSelfDestructTest();
+      log('Removing agent from group...');
+      const result = handleSelfDestructTest();
+      const ok = result.output === 'SELF_DESTRUCT_CONFIRMED';
+      log(`${ok ? 'OK' : 'FAIL'} ${description} (${elapsed(startTime)})`);
+      return result;
     }
 
     // For the welcome message test, just wait for the agent to send something
@@ -192,29 +245,47 @@ export default class OpenClawProvider {
         const attachPath = vars.attachment.startsWith('./')
           ? `${attachDir}${vars.attachment.slice(2)}`
           : vars.attachment;
+        log(`Sending attachment: ${vars.attachment}`);
         convos([
           'conversation', 'send-attachment', sharedConversationId,
           attachPath, '--env', ENV,
         ], { timeout: 30_000 });
-        console.log(`[eval] Sent attachment: ${vars.attachment}`);
         execSync('sleep 2');
       }
 
       // Send the text prompt
+      log(`Sending: "${prompt}"`);
       convos([
         'conversation', 'send-text', sharedConversationId,
         prompt, '--env', ENV,
       ], { timeout: 30_000 });
-      console.log(`[eval] Sent prompt: ${prompt}`);
     } else {
-      // Welcome test: baseline is 0 (set above), so any agent message counts
-      console.log(`[eval] Waiting for welcome message...`);
+      log('Waiting for agent welcome message...');
     }
 
     // Wait for the agent to respond and settle, then build transcript
+    log('Waiting for agent response...');
     const messages = waitForAgent(baseline);
+    const agentMsgs = agentMessageCount(messages) - baseline;
     const transcript = buildTranscript(messages);
-    console.log(`[eval] Transcript length: ${transcript.length} chars`);
+
+    // Fail fast: if the welcome test got zero real agent responses, abort the
+    // entire eval — every subsequent test will fail too.
+    if (vars.waitForWelcome && agentMessageCount(messages) === 0) {
+      log('ABORT — agent never responded. Check gateway logs.');
+      throw new Error(
+        'Agent never sent a welcome message. The agent may not be running, ' +
+        'or the LLM provider is returning errors. Check gateway logs. Aborting eval.'
+      );
+    }
+
+    // Extract last agent message for a preview
+    const lastAgent = messages.filter((m) => m.senderInboxId !== userInboxId).pop();
+    const preview = lastAgent
+      ? (lastAgent.content || lastAgent.text || '').slice(0, 120)
+      : '(no response)';
+    log(`Agent replied (${agentMsgs} msg, ${elapsed(startTime)}): ${preview}${preview.length >= 120 ? '...' : ''}`);
+
     return {
       output: transcript,
       metadata: { conversationId: sharedConversationId },
@@ -222,10 +293,14 @@ export default class OpenClawProvider {
   }
 }
 
-function handleSelfDestructTest() {
-  console.log(`[eval] Self-destruct test: removing agent from group...`);
+function elapsed(start) {
+  const sec = ((Date.now() - start) / 1000).toFixed(1);
+  return `${sec}s`;
+}
 
+function handleSelfDestructTest() {
   // Find the agent's inboxId from profiles
+  log('Looking up agent profile...');
   const profilesOut = convos([
     'conversation', 'profiles', sharedConversationId, '--env', ENV, '--json',
   ], { timeout: 30_000 });
@@ -234,31 +309,30 @@ function handleSelfDestructTest() {
   const agentProfile = profiles.find((p) => p.inboxId !== userInboxId);
 
   if (!agentProfile) {
+    log('FAIL — could not find agent profile');
     return {
       output: 'SELF_DESTRUCT_FAILED: could not find agent profile',
       metadata: { conversationId: sharedConversationId, selfDestruct: true },
     };
   }
 
-  console.log(`[eval] Agent inboxId: ${agentProfile.inboxId}`);
-
   // Remove the agent from the group
+  log('Removing agent from group...');
   try {
     convos([
       'conversation', 'remove-members', sharedConversationId,
       agentProfile.inboxId, '--env', ENV,
     ], { timeout: 30_000 });
-    console.log(`[eval] Agent removed from group`);
   } catch (err) {
+    log(`FAIL — remove-members failed: ${err.message}`);
     return {
       output: `SELF_DESTRUCT_FAILED: remove-members failed: ${err.message}`,
       metadata: { conversationId: sharedConversationId, selfDestruct: true },
     };
   }
 
-  // Wait for the agent to process the group_updated event and self-destruct.
-  // Poll /convos/status — after self-destruct the instance is nulled out so
-  // conversation will be null and streaming will be false.
+  // Poll /convos/status — after self-destruct the instance is nulled out
+  log('Polling /convos/status for shutdown...');
   let selfDestructed = false;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
@@ -271,7 +345,7 @@ function handleSelfDestructTest() {
         `http://localhost:${GATEWAY_PORT}/convos/status`,
       ], { encoding: 'utf-8', timeout: 5_000 });
     } catch {
-      // Gateway process exited entirely (pool-server mode) — also counts
+      // Gateway process exited entirely — counts as self-destruct
       selfDestructed = true;
       break;
     }
@@ -280,23 +354,17 @@ function handleSelfDestructTest() {
     try {
       status = JSON.parse(statusOut);
     } catch {
-      // Malformed JSON — gateway still running but returning bad data, continue polling
-      console.log(`[eval] /convos/status returned invalid JSON, continuing poll`);
       continue;
     }
 
-    console.log(`[eval] /convos/status:`, JSON.stringify(status));
     if (status.conversation === null && status.streaming === false) {
       selfDestructed = true;
       break;
     }
   }
 
-  const result = selfDestructed ? 'SELF_DESTRUCT_CONFIRMED' : 'SELF_DESTRUCT_FAILED: instance still active';
-  console.log(`[eval] Self-destruct result: ${result}`);
-
   return {
-    output: result,
+    output: selfDestructed ? 'SELF_DESTRUCT_CONFIRMED' : 'SELF_DESTRUCT_FAILED: instance still active',
     metadata: { conversationId: sharedConversationId, selfDestruct: true },
   };
 }
