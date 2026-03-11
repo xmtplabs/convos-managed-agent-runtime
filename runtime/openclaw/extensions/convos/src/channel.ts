@@ -88,21 +88,26 @@ const CONVOS_IMG_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
  * and openclaw's allowed-directory check realpaths the file but not the root, causing
  * a startsWith failure. {stateDir}/media is an allowed root without symlink issues.
  */
+let cachedMediaDir: string | undefined;
 function resolveMediaDir(): string {
+  if (cachedMediaDir) return cachedMediaDir;
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
   const mediaDir = path.join(stateDir, "media");
-  if (!fs.existsSync(mediaDir)) {
-    fs.mkdirSync(mediaDir, { recursive: true });
-  }
+  fs.mkdirSync(mediaDir, { recursive: true });
+  cachedMediaDir = mediaDir;
   return mediaDir;
 }
 
-/** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Fire-and-forget. */
+/** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Throttled to at most once per 5 minutes. */
+const PRUNE_THROTTLE_MS = 5 * 60 * 1000;
+let lastPruneAt = 0;
 function pruneStaleConvosImages() {
+  const now = Date.now();
+  if (now - lastPruneAt < PRUNE_THROTTLE_MS) return;
+  lastPruneAt = now;
   const tmpDir = resolveMediaDir();
   fs.readdir(tmpDir, (err, entries) => {
     if (err) return;
-    const now = Date.now();
     for (const entry of entries) {
       if (!entry.startsWith("convos-img-")) continue;
       const fullPath = path.join(tmpDir, entry);
@@ -116,6 +121,16 @@ function pruneStaleConvosImages() {
   });
 }
 
+/** Map file extension to MIME type for the media pipeline. */
+const extToMime: Record<string, string> = {
+  ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+  ".png": "image/png", ".gif": "image/gif",
+  ".webp": "image/webp", ".heic": "image/heic",
+  ".heif": "image/heif", ".bmp": "image/bmp",
+  ".tif": "image/tiff", ".tiff": "image/tiff",
+  ".avif": "image/avif", ".svg": "image/svg+xml",
+};
+
 /**
  * Pending image attachment downloads waiting for a companion text message.
  * XMTP sends image+text as separate protocol messages. The image arrives first
@@ -128,8 +143,6 @@ const pendingCompanionImage = new Map<string, {
   originalMsg: InboundMessage;
   timer: ReturnType<typeof setTimeout>;
 }>();
-/** Pre-resolved media paths for held attachments re-entering handleInboundMessage via timeout. */
-const resolvedMediaPaths = new Map<string, string | undefined>();
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   id: "convos",
@@ -406,6 +419,8 @@ async function handleInboundMessage(
   msg: InboundMessage,
   runtime: PluginRuntime,
   log?: RuntimeLogger,
+  /** Pre-resolved media path for held attachments re-entering via timeout/flush. */
+  preResolvedMediaPath?: string,
 ) {
   const inst = getConvosInstance();
   const debugLog = (msg: string) => log ? log.info(msg) : console.log(msg);
@@ -479,15 +494,9 @@ async function handleInboundMessage(
   // Content format from the CLI:
   //   remoteStaticAttachment: "[remote attachment: filename (-1 bytes) https://...encrypted.bin]"
   //   attachment:             "[attachment: filename (size bytes)]"
-  let mediaPath: string | undefined;
+  let mediaPath: string | undefined = preResolvedMediaPath;
 
-  // 1. Check for pre-resolved media from a held attachment timeout (re-entry)
-  if (resolvedMediaPaths.has(msg.messageId)) {
-    mediaPath = resolvedMediaPaths.get(msg.messageId);
-    resolvedMediaPaths.delete(msg.messageId);
-  }
-
-  // 2. Check for a pending companion image to merge with this text message
+  // Check for a pending companion image to merge with this text message
   if (!mediaPath && (msg.contentType === "text" || msg.contentType === "reply")) {
     const pendingKey = `${msg.conversationId}:${msg.senderId}`;
     const pending = pendingCompanionImage.get(pendingKey);
@@ -501,7 +510,7 @@ async function handleInboundMessage(
     }
   }
 
-  // 3. Hold new image attachment for companion text
+  // Hold new image attachment for companion text
   if (!mediaPath && (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment")) {
     try {
       const filenameMatch = msg.content.match(/:\s+(\S+\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?|avif|svg))\s/i);
@@ -534,8 +543,7 @@ async function handleInboundMessage(
           clearTimeout(existing.timer);
           pendingCompanionImage.delete(holdKey);
           existing.downloadPromise.then((resolvedPath) => {
-            resolvedMediaPaths.set(existing.originalMsg.messageId, resolvedPath);
-            handleInboundMessage(account, existing.originalMsg, runtime, log).catch((err) => {
+            handleInboundMessage(account, existing.originalMsg, runtime, log, resolvedPath).catch((err) => {
               errorLog(`[${account.accountId}] Failed to flush held attachment: ${String(err)}`);
             });
           });
@@ -547,8 +555,7 @@ async function handleInboundMessage(
           pendingCompanionImage.delete(holdKey);
           // No companion text arrived — dispatch attachment alone via re-entry
           const resolvedPath = await entry.downloadPromise;
-          resolvedMediaPaths.set(msg.messageId, resolvedPath);
-          handleInboundMessage(account, msg, runtime, log).catch((err) => {
+          handleInboundMessage(account, msg, runtime, log, resolvedPath).catch((err) => {
             errorLog(`[${account.accountId}] Failed to process held attachment: ${String(err)}`);
           });
         }, COMPANION_SETTLE_MS);
@@ -562,15 +569,6 @@ async function handleInboundMessage(
     }
   }
 
-  // Map file extension to MIME type for the media pipeline
-  const extToMime: Record<string, string> = {
-    ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".png": "image/png", ".gif": "image/gif",
-    ".webp": "image/webp", ".heic": "image/heic",
-    ".heif": "image/heif", ".bmp": "image/bmp",
-    ".tif": "image/tiff", ".tiff": "image/tiff",
-    ".avif": "image/avif", ".svg": "image/svg+xml",
-  };
   const mediaMime = mediaPath ? extToMime[path.extname(mediaPath).toLowerCase()] ?? "image/jpeg" : undefined;
 
   // Inject current wall-clock time as per-turn system context so the agent
