@@ -27,6 +27,10 @@ import { isContextOverflowText, checkCreditsLow, buildCreditErrorMessage } from 
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
+const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
+const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
+const EXPLOSION_IMMEDIATE_SKEW_MS = 3_000;
+const GROUP_UPDATE_SEPARATOR_RE = /\s*;\s*/;
 
 type RuntimeLogger = {
   info: (msg: string) => void;
@@ -38,6 +42,8 @@ type RuntimeLogger = {
 // selfDestruct() calls this to unblock startAccount after stopping the instance,
 // preventing the gateway from becoming a zombie process.
 let resolveStartAccountBlock: (() => void) | null = null;
+let nextExpirationCheckTimer: ReturnType<typeof setTimeout> | null = null;
+let nextExpirationCheckAtMs: number | null = null;
 
 const meta = {
   id: "convos",
@@ -72,7 +78,6 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
     return inst.conversationId;
   }
   return normalized;
-
 }
 
 /** Check if a string looks like a Convos conversation ID (hex-32 or UUID). */
@@ -631,6 +636,30 @@ async function handleInboundMessage(
     });
   }
 
+  const expirationUpdate = detectConversationExpirationUpdate(msg);
+  if (expirationUpdate?.kind === "set") {
+    const expirationReachedReason = checkAndRescheduleConversationExpiration(
+      expirationUpdate.expiresAtMs,
+      account.accountId,
+      log,
+    );
+    if (expirationReachedReason) {
+      log?.info(`[${account.accountId}] Conversation exploded, self-destructing (${expirationReachedReason})`);
+      await selfDestruct(expirationReachedReason);
+      return;
+    }
+  }
+  if (expirationUpdate?.kind === "cleared") {
+    clearConversationExpirationCheck(account.accountId, log);
+  }
+
+  const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst, log);
+  if (membershipTerminationReason) {
+    log?.info(`[${account.accountId}] Membership ended, self-destructing (${membershipTerminationReason})`);
+    await selfDestruct(membershipTerminationReason);
+    return;
+  }
+
   // System events (group updates, reactions) are recorded in the session above
   // so the agent has context, but should not trigger a reply.
   if (msg.contentType === "group_updated" || msg.contentType === "reaction") {
@@ -677,6 +706,166 @@ async function handleInboundMessage(
       },
     },
   });
+}
+
+function detectConversationExpirationUpdate(msg: InboundMessage):
+  | { kind: "set"; expiresAtMs: number }
+  | { kind: "cleared" }
+  | null {
+  if (msg.contentType !== "group_updated") {
+    return null;
+  }
+
+  if (GROUP_EXPIRATION_CLEARED_RE.test(msg.content)) {
+    return { kind: "cleared" };
+  }
+
+  const match = msg.content.match(GROUP_EXPIRATION_UPDATE_RE);
+  if (!match) {
+    return null;
+  }
+
+  const expiresAtRaw = match[1]?.trim();
+  if (!expiresAtRaw) {
+    return null;
+  }
+
+  const expiresAtMs = Date.parse(expiresAtRaw);
+  if (Number.isNaN(expiresAtMs)) {
+    return null;
+  }
+
+  return { kind: "set", expiresAtMs };
+}
+
+function checkAndRescheduleConversationExpiration(
+  expiresAtMs: number,
+  accountId: string,
+  log?: RuntimeLogger,
+): string | null {
+  const reason = getConversationExpirationReachedReason(expiresAtMs);
+  if (reason) {
+    clearConversationExpirationCheck(accountId, log, false);
+    return reason;
+  }
+
+  if (nextExpirationCheckAtMs === expiresAtMs && nextExpirationCheckTimer) {
+    return null;
+  }
+
+  clearConversationExpirationCheck(accountId, log, false);
+
+  nextExpirationCheckAtMs = expiresAtMs;
+  const delayMs = Math.max(0, expiresAtMs - Date.now());
+  log?.info(
+    `[${accountId}] Scheduled conversation expiration check for ${new Date(expiresAtMs).toISOString()}`,
+  );
+
+  nextExpirationCheckTimer = setTimeout(() => {
+    nextExpirationCheckTimer = null;
+    nextExpirationCheckAtMs = null;
+
+    const expirationReachedReason = getConversationExpirationReachedReason(expiresAtMs);
+    if (!expirationReachedReason) {
+      return;
+    }
+
+    void selfDestruct(expirationReachedReason);
+  }, delayMs);
+  nextExpirationCheckTimer.unref?.();
+  return null;
+}
+
+function getConversationExpirationReachedReason(expiresAtMs: number): string | null {
+  if (expiresAtMs > Date.now() + EXPLOSION_IMMEDIATE_SKEW_MS) {
+    return null;
+  }
+  return `expiration reached at ${new Date(expiresAtMs).toISOString()}`;
+}
+
+function clearConversationExpirationCheck(
+  accountId: string,
+  log?: RuntimeLogger,
+  announce = true,
+): void {
+  if (nextExpirationCheckTimer) {
+    clearTimeout(nextExpirationCheckTimer);
+    nextExpirationCheckTimer = null;
+  }
+  if (nextExpirationCheckAtMs !== null && announce) {
+    log?.info(`[${accountId}] Cleared scheduled conversation expiration check`);
+  }
+  nextExpirationCheckAtMs = null;
+}
+
+async function detectMembershipTerminationReason(
+  msg: InboundMessage,
+  inst: ConvosInstance | null,
+  log?: RuntimeLogger,
+): Promise<string | null> {
+  if (!inst || msg.contentType !== "group_updated" || !isMemberRemovalGroupUpdate(msg.content)) {
+    return null;
+  }
+
+  let profiles;
+  try {
+    profiles = await inst.refreshMemberNamesStrict();
+  } catch (err) {
+    if (isInactiveGroupError(err)) {
+      return "removed from group";
+    }
+    log?.error(`[convos] Unexpected error checking membership: ${String(err)}`);
+    return null;
+  }
+
+  if (profiles.length === 0) {
+    return null;
+  }
+
+  const agentStillPresent = profiles.some((profile) =>
+    profile.isMe === true || (Boolean(inst.inboxId) && profile.inboxId === inst.inboxId)
+  );
+
+  if (!agentStillPresent) {
+    return "removed from group";
+  }
+
+  if (profiles.length !== 1) {
+    return null;
+  }
+
+  return "last member in group";
+}
+
+function isMemberRemovalGroupUpdate(content: string): boolean {
+  for (const segment of splitGroupUpdateSegments(content)) {
+    if (!segment) {
+      continue;
+    }
+    if (/\bleft the group$/i.test(segment)) {
+      return true;
+    }
+    if (
+      /^[^;]+ removed [^;]+$/i.test(segment) &&
+      !/\bwas removed$/i.test(segment) &&
+      !/\bremoved .+ as admin$/i.test(segment) &&
+      !/\bremoved .+ as super admin$/i.test(segment) &&
+      !/\bremoved their profile photo$/i.test(segment)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function splitGroupUpdateSegments(content: string): string[] {
+  return content.split(GROUP_UPDATE_SEPARATOR_RE).map((segment) => segment.trim()).filter(Boolean);
+}
+
+function isInactiveGroupError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /\bgroup is inactive\b/i.test(message);
 }
 
 /**
@@ -849,6 +1038,7 @@ export async function startWiredInstance(params: {
 }
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
+  clearConversationExpirationCheck(accountId, log, false);
   const inst = getConvosInstance();
   if (inst) {
     try {
@@ -867,10 +1057,12 @@ async function stopInstance(accountId: string, log?: RuntimeLogger) {
  * so the gateway can exit cleanly.
  */
 export async function selfDestruct(reason?: string): Promise<void> {
+  clearConversationExpirationCheck(DEFAULT_ACCOUNT_ID, undefined, false);
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (gatewayToken) headers["Authorization"] = `Bearer ${gatewayToken}`;
+  let poolSelfDestructAck = false;
 
   console.log(`[convos] Self-destruct requested${reason ? `: ${reason}` : ""}`);
 
@@ -882,8 +1074,13 @@ export async function selfDestruct(reason?: string): Promise<void> {
     });
     const data = await res.json();
     console.log(`[convos] Self-destruct response:`, data);
+    poolSelfDestructAck = data?.ok === true;
   } catch (err) {
     console.error(`[convos] Self-destruct call failed: ${String(err)}`);
+  }
+
+  if (!poolSelfDestructAck) {
+    await disableConvosAccountAfterSelfDestruct(reason);
   }
 
   // Stop the Convos instance and unblock startAccount so the gateway exits
@@ -901,5 +1098,26 @@ export async function selfDestruct(reason?: string): Promise<void> {
     const resolve = resolveStartAccountBlock;
     resolveStartAccountBlock = null;
     resolve();
+  }
+}
+
+async function disableConvosAccountAfterSelfDestruct(reason?: string): Promise<void> {
+  try {
+    const runtime = getConvosRuntime();
+    const cfg = runtime.config.loadConfig() as CoreConfig;
+    const nextCfg: CoreConfig = {
+      ...cfg,
+      channels: {
+        ...(cfg.channels ?? {}),
+        convos: {
+          ...(cfg.channels?.convos ?? {}),
+          enabled: false,
+        },
+      },
+    };
+    await runtime.config.writeConfigFile(nextCfg);
+    console.log(`[convos] Disabled Convos account after self-destruct${reason ? `: ${reason}` : ""}`);
+  } catch (err) {
+    console.error(`[convos] Failed to disable Convos account after self-destruct: ${String(err)}`);
   }
 }

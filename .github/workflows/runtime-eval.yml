@@ -70,15 +70,33 @@ jobs:
           sleep 15
 
       - name: Run e2e eval
+        id: eval
+        continue-on-error: true
         working-directory: runtime
-        run: timeout 900 pnpm qa:eval
+        run: |
+          set +e
+          timeout 900 pnpm qa:eval
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit $status
         env:
           EVAL_OUTPUT: ./eval-results.html
+          EVAL_JSON_OUTPUT: ./eval-results.json
 
       - name: Upload eval report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
-          path: runtime/eval-results.html
+          path: |
+            runtime/eval-results.html
+            runtime/eval-results.json
           if-no-files-found: ignore
+
+      - name: Summarize eval results
+        if: always()
+        run: node runtime/scripts/qa/eval/summarize-results.mjs runtime/eval-results.json
+        env:
+          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code || '1' }}
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          EVAL_STRICT: '1'

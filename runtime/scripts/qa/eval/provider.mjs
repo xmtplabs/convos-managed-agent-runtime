@@ -176,6 +176,11 @@ export default class OpenClawProvider {
 
     const vars = context.vars || {};
 
+    // Self-destruct test: remove agent from group, verify gateway exits
+    if (vars.selfDestruct) {
+      return handleSelfDestructTest();
+    }
+
     // For the welcome message test, just wait for the agent to send something
     if (!vars.waitForWelcome) {
       // Snapshot before sending — any agent messages already present are "old"
@@ -215,4 +220,83 @@ export default class OpenClawProvider {
       metadata: { conversationId: sharedConversationId },
     };
   }
+}
+
+function handleSelfDestructTest() {
+  console.log(`[eval] Self-destruct test: removing agent from group...`);
+
+  // Find the agent's inboxId from profiles
+  const profilesOut = convos([
+    'conversation', 'profiles', sharedConversationId, '--env', ENV, '--json',
+  ], { timeout: 30_000 });
+  const profilesData = JSON.parse(profilesOut);
+  const profiles = profilesData.profiles || [];
+  const agentProfile = profiles.find((p) => p.inboxId !== userInboxId);
+
+  if (!agentProfile) {
+    return {
+      output: 'SELF_DESTRUCT_FAILED: could not find agent profile',
+      metadata: { conversationId: sharedConversationId, selfDestruct: true },
+    };
+  }
+
+  console.log(`[eval] Agent inboxId: ${agentProfile.inboxId}`);
+
+  // Remove the agent from the group
+  try {
+    convos([
+      'conversation', 'remove-members', sharedConversationId,
+      agentProfile.inboxId, '--env', ENV,
+    ], { timeout: 30_000 });
+    console.log(`[eval] Agent removed from group`);
+  } catch (err) {
+    return {
+      output: `SELF_DESTRUCT_FAILED: remove-members failed: ${err.message}`,
+      metadata: { conversationId: sharedConversationId, selfDestruct: true },
+    };
+  }
+
+  // Wait for the agent to process the group_updated event and self-destruct.
+  // Poll /convos/status — after self-destruct the instance is nulled out so
+  // conversation will be null and streaming will be false.
+  let selfDestructed = false;
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    execSync('sleep 3');
+    let statusOut;
+    try {
+      statusOut = execFileSync('curl', [
+        '-sf',
+        '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
+        `http://localhost:${GATEWAY_PORT}/convos/status`,
+      ], { encoding: 'utf-8', timeout: 5_000 });
+    } catch {
+      // Gateway process exited entirely (pool-server mode) — also counts
+      selfDestructed = true;
+      break;
+    }
+
+    let status;
+    try {
+      status = JSON.parse(statusOut);
+    } catch {
+      // Malformed JSON — gateway still running but returning bad data, continue polling
+      console.log(`[eval] /convos/status returned invalid JSON, continuing poll`);
+      continue;
+    }
+
+    console.log(`[eval] /convos/status:`, JSON.stringify(status));
+    if (status.conversation === null && status.streaming === false) {
+      selfDestructed = true;
+      break;
+    }
+  }
+
+  const result = selfDestructed ? 'SELF_DESTRUCT_CONFIRMED' : 'SELF_DESTRUCT_FAILED: instance still active';
+  console.log(`[eval] Self-destruct result: ${result}`);
+
+  return {
+    output: result,
+    metadata: { conversationId: sharedConversationId, selfDestruct: true },
+  };
 }

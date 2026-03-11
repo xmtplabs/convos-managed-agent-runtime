@@ -7,7 +7,10 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 trap 'kill 0' INT TERM
 
 EVAL_OUTPUT="${EVAL_OUTPUT:-}"
-OUTPUT_FLAGS=""
-[ -n "$EVAL_OUTPUT" ] && OUTPUT_FLAGS="--output $EVAL_OUTPUT"
+EVAL_JSON_OUTPUT="${EVAL_JSON_OUTPUT:-}"
 
-npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" --table-cell-max-length 1000 $OUTPUT_FLAGS "$@"
+set -- npx promptfoo eval -c "$ROOT/scripts/qa/eval/promptfooconfig.yaml" --table-cell-max-length 1000 "$@"
+[ -n "$EVAL_OUTPUT" ] && set -- "$@" --output "$EVAL_OUTPUT"
+[ -n "$EVAL_JSON_OUTPUT" ] && set -- "$@" --output "$EVAL_JSON_OUTPUT"
+
+"$@"
