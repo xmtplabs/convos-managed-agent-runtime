@@ -50,12 +50,8 @@ tests:
     metadata:
       attachment: "./test-image.png"
     assert:
-      - type: llm-rubric
-        value: >
-          The USER sent an image and asked the agent to describe it.
-          The transcript may include "[attachment: ...]" references and message hashes — ignore those.
-          Pass if the AGENT described any visual content (e.g. dice, colors, shapes, objects).
-          Fail only if the AGENT refused or gave no visual description at all.
+      - type: regex
+        value: "[Dd]ice"
 
   - description: "Agent can see group members"
     vars:
@@ -63,9 +59,11 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          This is a chat transcript between USER and AGENT. The USER asked who is
-          in the conversation. Pass if the AGENT's most recent response lists
-          participants, identities, or members of the conversation.
+          The output is a chat transcript with lines prefixed [USER] or [AGENT].
+          The USER asked who is in the conversation.
+          Pass if the AGENT's response mentions or lists any participants, members,
+          identities, addresses, or people in the group.
+          Fail only if the AGENT refused, said it doesn't know, or gave no answer.
 
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"

@@ -31,7 +31,7 @@ pnpm evals:convos -- --filter-pattern "welcome"
 Required in `runtime/.env`:
 
 - `OPENCLAW_GATEWAY_TOKEN`
-- `EVAL_OPENROUTER_API_KEY`
+- `EVAL_OPENROUTER_API_KEY` (falls back to `OPENROUTER_API_KEY` if unset)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`
 - `BANKR_API_KEY`
@@ -47,6 +47,7 @@ evals/
 ├── assertions.mjs         # JS assertions (profile name/image, self-destruct)
 ├── utils.mjs              # shared helpers
 ├── run.sh                 # entry point (runs both suites)
+├── run-suite.sh           # single-suite entry point
 ├── summarize.mjs          # CI summary generation
 └── test-image.png         # fixture for image recognition test
 ```
