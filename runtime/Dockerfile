@@ -28,6 +28,7 @@ COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/openclaw/workspace /app/openclaw/workspace
 COPY runtime/openclaw/extensions /app/openclaw/extensions
 COPY runtime/scripts ./scripts
+COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
