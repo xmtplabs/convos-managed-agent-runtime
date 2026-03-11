@@ -6,6 +6,7 @@ const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY;
 const strictMode = process.env.EVAL_STRICT === '1';
 const llmEnabled = process.env.EVAL_USE_LLM_SUMMARY !== '0';
 const evalExitCode = Number.parseInt(process.env.EVAL_EXIT_CODE || '0', 10) || 0;
+const FALLBACK_FAILURE_REASON = 'Assertion failed without a structured reason';
 
 function clip(value, max = 220) {
   if (typeof value !== 'string') {
@@ -37,6 +38,18 @@ function escapeAnnotation(value) {
     .replace(/%/g, '%25')
     .replace(/\r/g, '%0D')
     .replace(/\n/g, '%0A');
+}
+
+function emptySummary(parseError = '') {
+  return {
+    total: 0,
+    passed: 0,
+    failed: evalExitCode ? 1 : 0,
+    failures: [],
+    topReasons: [],
+    commonFailure: null,
+    parseError,
+  };
 }
 
 function readJson(path) {
@@ -127,10 +140,8 @@ function analyzeFailurePatterns(failures) {
       const entry = reasonCounts.get(normalized) || {
         text: reason,
         count: 0,
-        tests: [],
       };
       entry.count += 1;
-      entry.tests.push(failure.name);
       reasonCounts.set(normalized, entry);
     }
   }
@@ -163,46 +174,23 @@ function normalizeOutput(output, index) {
     'vars.prompt',
     'prompt.raw',
   ]) || `Test ${index + 1}`), 80);
-  const transcript = clip(String(firstValue(output, [
-    'output',
-    'response.output',
-    'response.text',
-    'response.raw',
-  ]) || ''), 280);
   const reasons = gatherFailureReasons(output);
 
   return {
     name,
     pass,
-    transcript,
-    reason: reasons[0] || (pass ? '' : 'Assertion failed without a structured reason'),
+    reason: reasons[0] || (pass ? '' : FALLBACK_FAILURE_REASON),
     reasons,
   };
 }
 
 function buildSummary(data) {
   if (!data) {
-    return {
-      total: 0,
-      passed: 0,
-      failed: 0,
-      failures: [],
-      topReasons: [],
-      commonFailure: null,
-      parseError: '',
-    };
+    return emptySummary();
   }
 
   if (data.parseError) {
-    return {
-      total: 0,
-      passed: 0,
-      failed: evalExitCode ? 1 : 0,
-      failures: [],
-      topReasons: [],
-      commonFailure: null,
-      parseError: `Could not parse eval JSON: ${data.parseError}`,
-    };
+    return emptySummary(`Could not parse eval JSON: ${data.parseError}`);
   }
 
   const root = data.results || data;
@@ -261,10 +249,9 @@ async function generateLlmSummary(summary) {
           },
           common_failure: summary.commonFailure,
           top_reasons: summary.topReasons,
-          failures: summary.failures.map((failure) => ({
+          failed_tests: summary.failures.slice(0, 7).map((failure) => ({
             test: failure.name,
-            reasons: failure.reasons,
-            transcript_excerpt: failure.transcript,
+            reason: failure.reason,
           })),
         }),
       },
