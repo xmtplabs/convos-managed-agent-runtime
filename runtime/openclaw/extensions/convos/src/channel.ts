@@ -29,7 +29,7 @@ import { isContextOverflowText, checkCreditsLow, buildCreditErrorMessage } from 
 const SYSTEM_SENDER_ID = "system" as const;
 const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
 const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
-const EXPLOSION_IMMEDIATE_SKEW_MS = 5_000;
+const EXPLOSION_IMMEDIATE_SKEW_MS = 3_000;
 const GROUP_UPDATE_SEPARATOR_RE = /\s*;\s*/;
 
 type RuntimeLogger = {
