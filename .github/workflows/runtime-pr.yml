@@ -100,12 +100,13 @@ jobs:
 
       - name: Wait for gateway
         run: |
-          for i in $(seq 1 120); do
+          SECONDS=0
+          while (( SECONDS < 120 )); do
             if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Gateway ready after ${i}s"
+              echo "Gateway ready after ${SECONDS}s"
               exit 0
             fi
-            sleep 1
+            sleep 0.25
           done
           echo "Gateway failed to start within 120s"
           docker logs eval-runtime
@@ -154,20 +155,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Tag and push :${{ needs.build.outputs.sha }}, :${{ needs.build.outputs.tag }}"
+      - name: "Retag :${{ needs.build.outputs.pending }} → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           PENDING="${{ needs.build.outputs.pending }}"
-          SHA="${{ needs.build.outputs.sha }}"
 
-          docker pull "$IMAGE:$PENDING"
-          docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
-          docker push "$IMAGE:$SHA"
-          echo "Pushed $IMAGE:$SHA"
-
-          docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
-          docker push "$IMAGE:pr-${{ github.event.number }}"
-          echo "Pushed $IMAGE:pr-${{ github.event.number }}"
+          AUTH="$HOME/.docker/config.json"
+          skopeo copy --all --authfile "$AUTH" \
+            "docker://$IMAGE:$PENDING" \
+            "docker://$IMAGE:${{ needs.build.outputs.sha }}"
+          skopeo copy --all --authfile "$AUTH" \
+            "docker://$IMAGE:$PENDING" \
+            "docker://$IMAGE:pr-${{ github.event.number }}"
+          echo "Retagged → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }}"
 
   promote:
     name: Promote on merge
@@ -202,7 +202,8 @@ jobs:
           ENV_TAG="${{ steps.env.outputs.tag }}"
 
           echo "Promoting $IMAGE:sha-$SHA → $IMAGE:$ENV_TAG"
-          docker pull "$IMAGE:sha-$SHA"
-          docker tag "$IMAGE:sha-$SHA" "$IMAGE:$ENV_TAG"
-          docker push "$IMAGE:$ENV_TAG"
+          AUTH="$HOME/.docker/config.json"
+          skopeo copy --all --authfile "$AUTH" \
+            "docker://$IMAGE:sha-$SHA" \
+            "docker://$IMAGE:$ENV_TAG"
           echo "Done: $IMAGE:$ENV_TAG"
