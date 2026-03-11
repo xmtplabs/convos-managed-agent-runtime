@@ -6,17 +6,23 @@ type RuntimeStatusMain = {
   conversationId?: string | null;
 } | null;
 
+type RuntimeStatusProvision = {
+  state?: string | null;
+} | null;
+
 export type RuntimeStatusResponse = {
   ready?: boolean;
   conversation?: RuntimeStatusConversation;
   main?: RuntimeStatusMain;
-  reusable?: boolean;
+  clean?: boolean;
+  provision?: RuntimeStatusProvision;
   dirtyReasons?: unknown;
 };
 
 export type ParsedRuntimeStatus = {
   conversationId: string | null;
-  reusable: boolean | null;
+  clean: boolean | null;
+  provisionState: string | null;
   dirtyReasons: string[];
 };
 
@@ -30,7 +36,8 @@ export function parseRuntimeStatus(status: RuntimeStatusResponse): ParsedRuntime
 
   return {
     conversationId,
-    reusable: typeof status.reusable === "boolean" ? status.reusable : null,
+    clean: typeof status.clean === "boolean" ? status.clean : null,
+    provisionState: typeof status.provision?.state === "string" ? status.provision.state : null,
     dirtyReasons: Array.isArray(status.dirtyReasons)
       ? status.dirtyReasons.filter((reason): reason is string => typeof reason === "string")
       : [],

@@ -8,7 +8,7 @@
  * Stdin commands: send, react, attach, remote-attach, rename, lock, unlock, explode, stop
  */
 
-import { execFile, spawn, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess, type ExecFileOptions } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -193,7 +193,10 @@ export class ConvosInstance {
   // ---- CLI helpers ----
 
   /** Run a one-shot convos command and return raw stdout. */
-  private async exec(args: string[]): Promise<string> {
+  private async exec(
+    args: string[],
+    execOptions?: Pick<ExecFileOptions, "signal">,
+  ): Promise<string> {
     const bin = resolveConvosBin();
     const finalArgs = [...args, "--env", this.env];
     if (this.options.debug) {
@@ -202,14 +205,17 @@ export class ConvosInstance {
     const { stdout } = await execFileAsync(
       bin === "convos" ? bin : process.execPath,
       bin === "convos" ? finalArgs : [bin, ...finalArgs],
-      { env: { ...process.env, CONVOS_ENV: this.env } },
+      { env: { ...process.env, CONVOS_ENV: this.env }, signal: execOptions?.signal },
     );
     return stdout;
   }
 
   /** Run a one-shot convos command with --json and parse the JSON output. */
-  private async execJson<T>(args: string[]): Promise<T> {
-    const stdout = await this.exec([...args, "--json"]);
+  private async execJson<T>(
+    args: string[],
+    execOptions?: Pick<ExecFileOptions, "signal">,
+  ): Promise<T> {
+    const stdout = await this.exec([...args, "--json"], execOptions);
     const lastBrace = stdout.lastIndexOf("}");
     if (lastBrace !== -1) {
       let depth = 0;
@@ -288,7 +294,7 @@ export class ConvosInstance {
   static async join(
     env: "production" | "dev",
     invite: string,
-    params?: { profileName?: string; timeout?: number },
+    params?: { profileName?: string; timeout?: number; signal?: AbortSignal },
     options?: ConvosInstanceOptions,
   ): Promise<{
     instance: ConvosInstance | null;
@@ -313,7 +319,7 @@ export class ConvosInstance {
     };
 
     try {
-      data = await tmp.execJson<typeof data>(args);
+      data = await tmp.execJson<typeof data>(args, { signal: params?.signal });
     } catch (err) {
       const msg = err instanceof Error ? (err as Error & { stderr?: string }).stderr ?? err.message : String(err);
       const alreadyJoined = /Already joined this conversation/i.test(msg);

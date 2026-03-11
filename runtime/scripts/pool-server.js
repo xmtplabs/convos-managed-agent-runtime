@@ -164,14 +164,17 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
           throw new Error(`/convos/join returned ${res.status}: ${text}`);
         }
         const data = await res.json();
-        if (data.status === "waiting_for_acceptance") {
-          throw Object.assign(
-            new Error("Join request is still waiting for acceptance"),
-            { nonRetriable: true },
-          );
+        if (data.status === "pending_acceptance" || data.status === "waiting_for_acceptance") {
+          console.log(`[pool-server] Join request is pending acceptance on attempt ${i}`);
+          return {
+            inviteUrl: joinUrl,
+            conversationId: null,
+            joined: false,
+            status: "pending_acceptance",
+          };
         }
         console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
-        return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
+        return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true, status: "joined" };
       } else {
         // Create a new conversation (instructions written to IDENTITY.md by convos extension)
         const res = await fetch(`${gatewayUrl}/convos/conversation`, {
@@ -186,7 +189,7 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
         }
         const data = await res.json();
         console.log(`[pool-server] Created conversation on attempt ${i}: ${data.inviteUrl}`);
-        return { inviteUrl: data.inviteUrl, conversationId: data.conversationId, joined: false };
+        return { inviteUrl: data.inviteUrl, conversationId: data.conversationId, joined: false, status: "created" };
       }
     } catch (err) {
       lastError = err;
@@ -312,6 +315,7 @@ const server = http.createServer(async (req, res) => {
         inviteUrl: convosResult.inviteUrl || null,
         conversationId: convosResult.conversationId || null,
         joined: convosResult.joined || false,
+        status: convosResult.status || null,
       });
     } catch (err) {
       console.error("[pool-server] Provision failed:", err);

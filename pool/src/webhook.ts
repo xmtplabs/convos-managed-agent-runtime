@@ -144,7 +144,8 @@ async function runHealthCheckWithRetries(
     if (hc?.ready) {
       // Ask the runtime whether it has an active conversation
       let runtimeConvoId: string | null = null;
-      let runtimeReusable: boolean | null = null;
+      let runtimeClean: boolean | null = null;
+      let runtimeProvisionState: string | null = null;
       let runtimeDirtyReasons: string[] = [];
       let statusKnown = false;
       try {
@@ -155,7 +156,8 @@ async function runHealthCheckWithRetries(
         if (csRes.ok) {
           const cs = parseRuntimeStatus(await csRes.json());
           runtimeConvoId = cs.conversationId;
-          runtimeReusable = cs.reusable;
+          runtimeClean = cs.clean;
+          runtimeProvisionState = cs.provisionState;
           runtimeDirtyReasons = cs.dirtyReasons;
           statusKnown = true;
         }
@@ -169,21 +171,28 @@ async function runHealthCheckWithRetries(
       let updated: boolean;
       let newStatus: string;
       if (runtimeConvoId) {
-        // Verify the conversation matches what we provisioned
         const inst = await db.findById(instanceId);
-        if (inst?.conversationId && inst.conversationId === runtimeConvoId) {
+        if (inst?.status === "pending_acceptance") {
+          newStatus = "claimed";
+          updated = await db.completePendingAcceptance(instanceId, runtimeConvoId);
+        } else if (inst?.conversationId && inst.conversationId === runtimeConvoId) {
           newStatus = "claimed";
           updated = await db.conditionalUpdateStatus(instanceId, "claimed", statusAtWebhookTime);
         } else {
-          // Stuck provision failure or mismatch — don't promote
-          console.log(`[webhook] ${instanceId}: runtime has conversation ${runtimeConvoId} but DB has ${inst?.conversationId || "none"} — leaving as ${statusAtWebhookTime}`);
-          return;
+          newStatus = "tainted";
+          updated = await db.conditionalUpdateStatus(instanceId, "tainted", statusAtWebhookTime);
         }
-      } else if (runtimeReusable === true) {
+      } else if (runtimeProvisionState === "pending_acceptance" && statusAtWebhookTime === "pending_acceptance") {
+        console.log(`[webhook] ${instanceId}: pending acceptance still active`);
+        return;
+      } else if (runtimeClean === true) {
         newStatus = "idle";
         updated = await db.recoverToIdle(instanceId, statusAtWebhookTime);
+      } else if (runtimeProvisionState === "failed" && statusAtWebhookTime === "pending_acceptance") {
+        newStatus = "tainted";
+        updated = await db.failPendingAcceptance(instanceId);
       } else {
-        console.log(`[webhook] ${instanceId}: runtime reported no conversation but reusable=${runtimeReusable} dirty=${runtimeDirtyReasons.join(",") || "unknown"} — leaving as ${statusAtWebhookTime}`);
+        console.log(`[webhook] ${instanceId}: runtime reported no conversation but clean=${runtimeClean} provision=${runtimeProvisionState} dirty=${runtimeDirtyReasons.join(",") || "unknown"} — leaving as ${statusAtWebhookTime}`);
         return;
       }
       if (!updated) {

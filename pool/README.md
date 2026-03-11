@@ -31,11 +31,13 @@ Pool is a unified service — instance lifecycle management and all provider int
 ```
 starting  →  idle  →  claiming  →  claimed
 (building)   (ready)   (atomic)     (in use)
+                          ├──────────────→ pending_acceptance
+                          │          (join is still waiting for approval)
                           ├──────────────→ idle
                           │         (provision failed, runtime reset proved clean)
                           ↓
-                       crashed
-                 (provision failed, reset could not prove clean)
+                       tainted / crashed
+                 (runtime stayed dirty, or runtime actually became unhealthy)
 ```
 
 State transitions are driven by **Railway webhooks** (push-based, near-real-time):
@@ -46,7 +48,7 @@ State transitions are driven by **Railway webhooks** (push-based, near-real-time
 
 Webhook rules are auto-registered on startup. Instances in `claiming` status are never touched by webhooks (atomic claim in progress). Crashed/dead instances are only marked in the DB — manual cleanup via the dashboard is required.
 
-When `/pool/provision` fails, the pool now calls the runtime's `/convos/reset` endpoint and verifies `/convos/status.reusable` before deciding whether `claiming` can safely return to `idle`. A runtime that still reports residue after reset stays `crashed`.
+When `/pool/provision` fails, the pool now calls the runtime's `/convos/reset` endpoint and verifies `/convos/status.clean` before deciding whether `claiming` can safely return to `idle`. A runtime that still reports residue after reset is marked `tainted` or `crashed` depending on the failure mode.
 
 New instances are created via the admin dashboard or `POST /api/pool/replenish`. Manual recheck via dashboard buttons still works as a fallback.
 
@@ -125,7 +127,7 @@ Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` 
 | `id` | TEXT PK | Instance ID (12-char nanoid) |
 | `name` | TEXT | Service name (`convos-agent-{id}`) |
 | `url` | TEXT | Public HTTPS URL |
-| `status` | TEXT | `starting`, `idle`, `claiming`, `claimed`, `crashed`, `dead`, `sleeping` |
+| `status` | TEXT | `starting`, `idle`, `claiming`, `pending_acceptance`, `claimed`, `tainted`, `crashed`, `dead`, `sleeping` |
 | `agent_name` | TEXT | Name given at claim time |
 | `conversation_id` | TEXT | Convos conversation ID |
 | `invite_url` | TEXT | Join/invite URL (QR code) |

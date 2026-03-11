@@ -5,7 +5,12 @@ import os from "node:os";
 import path from "node:path";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
-import { clearConvosSessionState, convosPlugin, startWiredInstance } from "./src/channel.js";
+import {
+  clearConvosSessionState,
+  convosPlugin,
+  hasConvosSessionState,
+  startWiredInstance,
+} from "./src/channel.js";
 import { getConvosInstance, setConvosInstance } from "./src/outbound.js";
 import { getConvosRuntime, setConvosRuntime } from "./src/runtime.js";
 import { ConvosInstance } from "./src/sdk-client.js";
@@ -16,6 +21,31 @@ import {
 } from "./src/credentials.js";
 
 const CUSTOM_INSTRUCTIONS_MARKER = "## Custom Instructions";
+const JOIN_RESPONSE_WAIT_MS = 55_000;
+const PENDING_JOIN_TIMEOUT_SECONDS = 24 * 60 * 60;
+
+type ProvisionState = "idle" | "creating" | "joining" | "pending_acceptance" | "active" | "failed";
+
+type PersistedPendingJoin = {
+  state: "pending_acceptance" | "failed";
+  startedAt: string;
+  inviteUrl: string;
+  watching: boolean;
+  lastError: string | null;
+};
+
+type RuntimeProvision = {
+  state: ProvisionState;
+  startedAt: string | null;
+  inviteUrl: string | null;
+  watching: boolean;
+  lastError: string | null;
+};
+
+let provisionState: RuntimeProvision | null = null;
+let provisionGeneration = 0;
+let pendingJoinAbortController: AbortController | null = null;
+let pendingJoinPromise: Promise<void> | null = null;
 
 function convosStateDir(): string {
   return process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
@@ -31,6 +61,10 @@ function convosIdentityPath(): string {
 
 function convosHomeDir(): string {
   return path.join(os.homedir(), ".convos");
+}
+
+function pendingJoinStatePath(): string {
+  return path.join(convosStateDir(), "pending-join.json");
 }
 
 function pathHasState(target: string): boolean {
@@ -53,6 +87,144 @@ function hasCustomInstructions(): boolean {
   }
 }
 
+function readPersistedPendingJoin(): PersistedPendingJoin | null {
+  try {
+    const raw = JSON.parse(fs.readFileSync(pendingJoinStatePath(), "utf-8")) as PersistedPendingJoin;
+    if ((raw.state === "pending_acceptance" || raw.state === "failed")
+      && typeof raw.startedAt === "string"
+      && typeof raw.inviteUrl === "string"
+      && typeof raw.watching === "boolean") {
+      return {
+        state: raw.state,
+        startedAt: raw.startedAt,
+        inviteUrl: raw.inviteUrl,
+        watching: raw.watching,
+        lastError: typeof raw.lastError === "string" ? raw.lastError : null,
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function writePersistedPendingJoin(record: PersistedPendingJoin | null): void {
+  const target = pendingJoinStatePath();
+  if (!record) {
+    fs.rmSync(target, { force: true });
+    return;
+  }
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, JSON.stringify(record, null, 2) + "\n");
+}
+
+function setProvisionState(
+  state: ProvisionState,
+  params?: { startedAt?: string; inviteUrl?: string | null; watching?: boolean; lastError?: string | null },
+): number {
+  provisionGeneration += 1;
+  provisionState = {
+    state,
+    startedAt: params?.startedAt ?? new Date().toISOString(),
+    inviteUrl: params?.inviteUrl ?? null,
+    watching: params?.watching ?? false,
+    lastError: params?.lastError ?? null,
+  };
+  if (state === "pending_acceptance" || state === "failed") {
+    writePersistedPendingJoin({
+      state: state === "failed" ? "failed" : "pending_acceptance",
+      startedAt: provisionState.startedAt ?? new Date().toISOString(),
+      inviteUrl: provisionState.inviteUrl ?? "",
+      watching: provisionState.watching,
+      lastError: provisionState.lastError,
+    });
+  } else {
+    writePersistedPendingJoin(null);
+  }
+  return provisionGeneration;
+}
+
+function updateProvisionState(
+  generation: number,
+  patch: Partial<Omit<RuntimeProvision, "startedAt">> & { startedAt?: string | null },
+): void {
+  if (generation !== provisionGeneration || !provisionState) {
+    return;
+  }
+  provisionState = { ...provisionState, ...patch };
+  if (provisionState.state === "pending_acceptance" || provisionState.state === "failed") {
+    writePersistedPendingJoin({
+      state: provisionState.state === "failed" ? "failed" : "pending_acceptance",
+      startedAt: provisionState.startedAt ?? new Date().toISOString(),
+      inviteUrl: provisionState.inviteUrl ?? "",
+      watching: provisionState.watching,
+      lastError: provisionState.lastError,
+    });
+  } else {
+    writePersistedPendingJoin(null);
+  }
+}
+
+function clearProvisionState(generation?: number): void {
+  if (generation !== undefined && generation !== provisionGeneration) {
+    return;
+  }
+  provisionGeneration += 1;
+  provisionState = null;
+  pendingJoinAbortController = null;
+  pendingJoinPromise = null;
+  writePersistedPendingJoin(null);
+}
+
+function getProvisionStatus(): RuntimeProvision {
+  const inst = getConvosInstance();
+  if (inst) {
+    return {
+      state: "active",
+      startedAt: null,
+      inviteUrl: null,
+      watching: false,
+      lastError: null,
+    };
+  }
+  if (provisionState) {
+    return provisionState;
+  }
+  const persisted = readPersistedPendingJoin();
+  if (!persisted) {
+    return {
+      state: "idle",
+      startedAt: null,
+      inviteUrl: null,
+      watching: false,
+      lastError: null,
+    };
+  }
+  return {
+    state: persisted.watching ? persisted.state : "failed",
+    startedAt: persisted.startedAt,
+    inviteUrl: persisted.inviteUrl,
+    watching: persisted.watching,
+    lastError: persisted.lastError,
+  };
+}
+
+function resolveSessionProbeConversationId(
+  convos: Record<string, unknown>,
+  activeConversationId: string | null,
+): string {
+  if (activeConversationId) {
+    return activeConversationId;
+  }
+  if (typeof convos.ownerConversationId === "string" && convos.ownerConversationId.trim()) {
+    return convos.ownerConversationId;
+  }
+  if (typeof process.env.CONVOS_CONVERSATION_ID === "string" && process.env.CONVOS_CONVERSATION_ID.trim()) {
+    return process.env.CONVOS_CONVERSATION_ID;
+  }
+  return "status-probe";
+}
+
 function buildRuntimeStatus() {
   const runtime = getConvosRuntime();
   const cfg = runtime.config.loadConfig() as Record<string, unknown>;
@@ -61,6 +233,8 @@ function buildRuntimeStatus() {
   const inst = getConvosInstance();
   const conversationId = inst?.conversationId ?? null;
   const streaming = inst?.isStreaming() ?? false;
+  const provision = getProvisionStatus();
+  const sessionProbeConversationId = resolveSessionProbeConversationId(convos, conversationId);
 
   const persisted = {
     credentialsPresent: loadConvosCredentials() !== null,
@@ -70,6 +244,7 @@ function buildRuntimeStatus() {
     customInstructionsPresent: hasCustomInstructions(),
     cliIdentityPresent: pathHasState(path.join(convosHomeDir(), "identities")),
     cliDbPresent: pathHasState(path.join(convosHomeDir(), "db")),
+    sessionStatePresent: hasConvosSessionState(sessionProbeConversationId),
     conversationEnvPresent:
       typeof process.env.CONVOS_CONVERSATION_ID === "string"
       && process.env.CONVOS_CONVERSATION_ID.trim().length > 0,
@@ -82,7 +257,9 @@ function buildRuntimeStatus() {
   if (persisted.customInstructionsPresent) dirtyReasons.push("custom_instructions");
   if (persisted.cliIdentityPresent) dirtyReasons.push("cli_identity");
   if (persisted.cliDbPresent) dirtyReasons.push("cli_db");
+  if (persisted.sessionStatePresent) dirtyReasons.push("session_state");
   if (persisted.conversationEnvPresent) dirtyReasons.push("conversation_env");
+  if (provision.state !== "idle") dirtyReasons.push(`provision_${provision.state}`);
 
   const clean = dirtyReasons.length === 0;
 
@@ -95,10 +272,10 @@ function buildRuntimeStatus() {
       conversationId,
       streaming,
     },
+    provision,
     persisted,
     dirtyReasons,
     clean,
-    reusable: clean,
   };
 }
 
@@ -172,6 +349,8 @@ async function clearPersistedBinding(
   clearConvosCredentials();
   delete process.env.CONVOS_CONVERSATION_ID;
 
+  conversationIds.add(account.ownerConversationId ?? "status-probe");
+
   for (const conversationId of conversationIds) {
     clearConvosSessionState(conversationId);
   }
@@ -190,7 +369,92 @@ function clearCliIdentityState(): void {
   }
 }
 
+async function saveBoundConversation(params: {
+  env: "production" | "dev";
+  conversationId: string;
+  identityId: string;
+}): Promise<void> {
+  const runtime = getConvosRuntime();
+  const cfg = runtime.config.loadConfig();
+  const existingChannels = (cfg as Record<string, unknown>).channels as
+    | Record<string, unknown>
+    | undefined;
+  const existingConvos = (existingChannels?.convos ?? {}) as Record<string, unknown>;
+
+  await runtime.config.writeConfigFile({
+    ...cfg,
+    channels: {
+      ...existingChannels,
+      convos: {
+        ...existingConvos,
+        env: params.env,
+        enabled: true,
+      },
+    },
+  });
+
+  saveConvosCredentials({
+    identityId: params.identityId,
+    ownerConversationId: params.conversationId,
+  });
+
+  await startWiredInstance({
+    conversationId: params.conversationId,
+    identityId: params.identityId,
+    env: params.env,
+  });
+}
+
+async function notifyPoolPendingJoin(event: "claimed" | "tainted", params: {
+  conversationId?: string;
+  error?: string;
+}): Promise<void> {
+  const poolUrl = process.env.POOL_URL;
+  const instanceId = process.env.INSTANCE_ID;
+  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (!poolUrl || !instanceId || !gatewayToken) {
+    return;
+  }
+
+  const endpoint = event === "claimed"
+    ? `${poolUrl}/api/pool/pending-acceptance/complete`
+    : `${poolUrl}/api/pool/pending-acceptance/fail`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instanceId,
+        gatewayToken,
+        conversationId: params.conversationId ?? null,
+        error: params.error ?? null,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn(`[convos] Pending join pool callback failed: ${res.status} ${text.slice(0, 500)}`);
+    }
+  } catch (err) {
+    console.warn(`[convos] Pending join pool callback failed: ${String(err)}`);
+  }
+}
+
 async function factoryReset(accountId?: string) {
+  const resetGeneration = provisionGeneration + 1;
+  provisionGeneration = resetGeneration;
+  const pendingAbort = pendingJoinAbortController;
+  const pendingPromise = pendingJoinPromise;
+  provisionState = null;
+  pendingJoinAbortController = null;
+  pendingJoinPromise = null;
+  writePersistedPendingJoin(null);
+  pendingAbort?.abort();
+  if (pendingPromise) {
+    await pendingPromise.catch(() => {});
+  }
+
   const conversationIds = new Set<string>();
   const inst = getConvosInstance();
   if (inst) {
@@ -201,7 +465,7 @@ async function factoryReset(accountId?: string) {
   await clearPersistedBinding(accountId, conversationIds);
   clearCustomInstructions();
   clearCliIdentityState();
-  return { ok: true, reset: true, status: buildRuntimeStatus() };
+  return { ok: true, reset: true, status: buildRuntimeStatus(), generation: resetGeneration };
 }
 
 // --- HTTP helpers ---
@@ -236,6 +500,10 @@ function checkPoolAuth(req: IncomingMessage): boolean {
   if (!token) return true; // No gateway token configured — allow all
   const authHeader = req.headers.authorization;
   return authHeader === `Bearer ${token}`;
+}
+
+function isProvisionBusy(): boolean {
+  return getProvisionStatus().state !== "idle";
 }
 
 // --- Plugin ---
@@ -281,11 +549,10 @@ const plugin = {
           return;
         }
         try {
-          // Guard: reject if instance already bound
-          if (getConvosInstance()) {
+          if (isProvisionBusy()) {
             jsonResponse(res, 409, {
               error:
-                "Instance already bound to a conversation. Terminate process and provision a new one.",
+                "Instance already has active convos state. Reset it before provisioning again.",
             });
             return;
           }
@@ -309,49 +576,37 @@ const plugin = {
           const cfg = runtime.config.loadConfig();
           const account = resolveConvosAccount({ cfg: cfg as CoreConfig, accountId });
           const env = body.env === "dev" || body.env === "production" ? body.env : account.env;
+          const generation = setProvisionState("creating");
 
-          const { instance, result } = await ConvosInstance.create(env, {
-            name,
-            profileName,
-            description,
-            imageUrl,
-            permissions,
-          });
+          try {
+            const { instance, result } = await ConvosInstance.create(env, {
+              name,
+              profileName,
+              description,
+              imageUrl,
+              permissions,
+            });
 
-          // Save to config so startAccount can restore on restart
-          const existingChannels = (cfg as Record<string, unknown>).channels as
-            | Record<string, unknown>
-            | undefined;
-          const existingConvos = (existingChannels?.convos ?? {}) as Record<string, unknown>;
-          await runtime.config.writeConfigFile({
-            ...cfg,
-            channels: {
-              ...existingChannels,
-              convos: {
-                ...existingConvos,
-                env,
-                enabled: true,
-              },
-            },
-          });
-          saveConvosCredentials({
-            identityId: instance.identityId,
-            ownerConversationId: result.conversationId,
-          });
+            await saveBoundConversation({
+              env,
+              conversationId: result.conversationId,
+              identityId: instance.identityId,
+            });
+            clearProvisionState(generation);
 
-          // Start with full message handling pipeline (must happen before
-          // updateProfile so the join-approval stream handler is active)
-          await startWiredInstance({
-            conversationId: result.conversationId,
-            identityId: instance.identityId,
-            env,
-          });
-
-          jsonResponse(res, 200, {
-            conversationId: result.conversationId,
-            inviteUrl: result.inviteUrl,
-            inviteSlug: result.inviteSlug,
-          });
+            jsonResponse(res, 200, {
+              conversationId: result.conversationId,
+              inviteUrl: result.inviteUrl,
+              inviteSlug: result.inviteSlug,
+            });
+          } catch (err) {
+            updateProvisionState(generation, {
+              state: "failed",
+              watching: false,
+              lastError: err instanceof Error ? err.message : String(err),
+            });
+            throw err;
+          }
         } catch (err) {
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
         }
@@ -373,11 +628,10 @@ const plugin = {
           return;
         }
         try {
-          // Guard: reject if instance already bound
-          if (getConvosInstance()) {
+          if (isProvisionBusy()) {
             jsonResponse(res, 409, {
               error:
-                "Instance already bound to a conversation. Terminate process and provision a new one.",
+                "Instance already has active convos state. Reset it before provisioning again.",
             });
             return;
           }
@@ -400,45 +654,99 @@ const plugin = {
           const cfg = runtime.config.loadConfig();
           const account = resolveConvosAccount({ cfg: cfg as CoreConfig, accountId });
           const env = body.env === "dev" || body.env === "production" ? body.env : account.env;
-
-          const { instance, status, conversationId } = await ConvosInstance.join(env, inviteUrl, {
+          const generation = setProvisionState("joining", { inviteUrl });
+          const abortController = new AbortController();
+          const joinPromise = ConvosInstance.join(env, inviteUrl, {
             profileName,
-            timeout: 60,
+            timeout: PENDING_JOIN_TIMEOUT_SECONDS,
+            signal: abortController.signal,
           });
 
-          if (status !== "joined" || !conversationId || !instance) {
-            jsonResponse(res, 200, { status: "waiting_for_acceptance" });
+          const onPendingJoinSettled = async () => {
+            try {
+              const { instance, status, conversationId } = await joinPromise;
+              if (generation !== provisionGeneration) {
+                return;
+              }
+              pendingJoinAbortController = null;
+              pendingJoinPromise = null;
+
+              if (status !== "joined" || !conversationId || !instance) {
+                updateProvisionState(generation, {
+                  state: "failed",
+                  watching: false,
+                  lastError: "Join timed out without approval",
+                });
+                await notifyPoolPendingJoin("tainted", {
+                  error: "Join timed out without approval",
+                });
+                return;
+              }
+
+              await saveBoundConversation({
+                env,
+                conversationId,
+                identityId: instance.identityId,
+              });
+              clearProvisionState(generation);
+              await notifyPoolPendingJoin("claimed", { conversationId });
+            } catch (err) {
+              if (generation !== provisionGeneration) {
+                return;
+              }
+              pendingJoinAbortController = null;
+              pendingJoinPromise = null;
+              const aborted = err instanceof Error && err.name === "AbortError";
+              if (aborted) {
+                return;
+              }
+              updateProvisionState(generation, {
+                state: "failed",
+                watching: false,
+                lastError: err instanceof Error ? err.message : String(err),
+              });
+              await notifyPoolPendingJoin("tainted", {
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          };
+
+          const outcome = await Promise.race([
+            joinPromise.then((result) => ({ type: "result" as const, result })),
+            new Promise<{ type: "timeout" }>((resolve) => {
+              setTimeout(() => resolve({ type: "timeout" }), JOIN_RESPONSE_WAIT_MS);
+            }),
+          ]);
+
+          if (outcome.type === "timeout") {
+            pendingJoinAbortController = abortController;
+            pendingJoinPromise = onPendingJoinSettled();
+            updateProvisionState(generation, {
+              state: "pending_acceptance",
+              watching: true,
+              lastError: null,
+            });
+            jsonResponse(res, 200, { status: "pending_acceptance" });
             return;
           }
 
-          // Save to config
-          const existingChannels = (cfg as Record<string, unknown>).channels as
-            | Record<string, unknown>
-            | undefined;
-          const existingConvos = (existingChannels?.convos ?? {}) as Record<string, unknown>;
-          await runtime.config.writeConfigFile({
-            ...cfg,
-            channels: {
-              ...existingChannels,
-              convos: {
-                ...existingConvos,
-                env,
-                enabled: true,
-              },
-            },
-          });
-          saveConvosCredentials({
-            identityId: instance.identityId,
-            ownerConversationId: conversationId,
-          });
+          const { instance, status, conversationId } = outcome.result;
+          if (status !== "joined" || !conversationId || !instance) {
+            updateProvisionState(generation, {
+              state: "pending_acceptance",
+              watching: false,
+              lastError: "Join is still waiting for acceptance",
+            });
+            jsonResponse(res, 200, { status: "pending_acceptance" });
+            return;
+          }
 
-          // Start with full message handling pipeline
-          await startWiredInstance({
+          await saveBoundConversation({
+            env,
             conversationId,
             identityId: instance.identityId,
-            env,
           });
-
+          clearProvisionState(generation);
           jsonResponse(res, 200, { status: "joined", conversationId });
         } catch (err) {
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });

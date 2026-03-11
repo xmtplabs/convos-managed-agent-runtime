@@ -24,7 +24,12 @@ export function decideAction(
 
   switch (eventType) {
     case "Deployment.deployed": {
-      if (currentStatus === "starting" || currentStatus === "sleeping") {
+      if (
+        currentStatus === "starting"
+        || currentStatus === "sleeping"
+        || currentStatus === "pending_acceptance"
+        || currentStatus === "tainted"
+      ) {
         return { action: "health_check" };
       }
       if (currentStatus === "crashed" || currentStatus === "dead") {
@@ -48,7 +53,13 @@ export function decideAction(
     }
 
     case "Deployment.resumed": {
-      if (currentStatus === "sleeping" || currentStatus === "crashed" || currentStatus === "dead") {
+      if (
+        currentStatus === "sleeping"
+        || currentStatus === "crashed"
+        || currentStatus === "dead"
+        || currentStatus === "pending_acceptance"
+        || currentStatus === "tainted"
+      ) {
         return { action: "health_check" };
       }
       return { action: "noop" };

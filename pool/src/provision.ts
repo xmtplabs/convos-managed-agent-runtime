@@ -101,29 +101,62 @@ export async function provision(opts: ProvisionOpts) {
         { status: provisionRes.status },
       );
     }
-    const result = await provisionRes.json() as { conversationId: string; inviteUrl?: string; joined?: boolean };
+    const result = await provisionRes.json() as {
+      conversationId: string | null;
+      inviteUrl?: string | null;
+      joined?: boolean;
+      status?: string | null;
+    };
+
+    if (result.status === "pending_acceptance") {
+      report("provision", "ok", "Join is waiting for acceptance");
+      report("convo", "active", "Saving pending state to database…");
+      const updated = await db.markClaimPendingAcceptance(instance.id, {
+        agentName,
+        inviteUrl: result.inviteUrl || joinUrl || null,
+        instructions,
+      });
+      if (!updated) {
+        throw new Error("Claim status changed before pending acceptance could be recorded");
+      }
+      report("convo", "ok", "Instance reserved while join waits for approval");
+
+      return {
+        inviteUrl: result.inviteUrl || joinUrl || null,
+        conversationId: null,
+        instanceId: instance.id,
+        joined: false,
+        status: "pending_acceptance" as const,
+        gatewayUrl: instance.url || null,
+        agentName,
+      };
+    }
 
     report("provision", "ok", "Agent provisioned on instance");
 
     report("convo", "active", "Saving to database…");
+    const conversationId = result.conversationId;
+    if (!conversationId) {
+      throw new Error("Provision succeeded without a conversationId");
+    }
     await db.completeClaim(instance.id, {
       agentName,
-      conversationId: result.conversationId,
+      conversationId,
       inviteUrl: result.inviteUrl || joinUrl || null,
       instructions,
     });
 
     const convoMsg = result.joined
-      ? `Joined conversation ${result.conversationId.slice(0, 8)}…`
-      : `Created conversation ${result.conversationId.slice(0, 8)}…`;
+      ? `Joined conversation ${conversationId.slice(0, 8)}…`
+      : `Created conversation ${conversationId.slice(0, 8)}…`;
     report("convo", "ok", convoMsg);
 
     const durationMs = Date.now() - claimStart;
-    console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${result.conversationId}`);
+    console.log(`[provision] Provisioned ${instance.id}: ${result.joined ? "joined" : "created"} conversation ${conversationId}`);
     logger.info("claim.complete", {
       instanceId: instance.id,
       agentName,
-      conversationId: result.conversationId,
+      conversationId,
       joined: !!result.joined,
       duration_ms: durationMs,
       source,
@@ -134,9 +167,10 @@ export async function provision(opts: ProvisionOpts) {
 
     return {
       inviteUrl: result.inviteUrl || null,
-      conversationId: result.conversationId,
+      conversationId,
       instanceId: instance.id,
       joined: result.joined,
+      status: result.status || "claimed",
       gatewayUrl: instance.url || null,
       agentName,
     };
@@ -172,7 +206,7 @@ export async function provision(opts: ProvisionOpts) {
       report("cleanup", "active", "Resetting runtime…");
       try {
         const runtimeStatus = await resetAndVerifyRuntime(instance.url, await db.getGatewayToken(instance.id));
-        if (runtimeStatus.reusable === true) {
+        if (runtimeStatus.clean === true) {
           const updated = await db.recoverClaimToIdle(instance.id);
           if (updated) {
             logger.info("claim.rollback_complete", {
@@ -197,7 +231,8 @@ export async function provision(opts: ProvisionOpts) {
             source,
             runtimeConversationId: runtimeStatus.conversationId,
             dirtyReasons: runtimeStatus.dirtyReasons,
-            reusable: runtimeStatus.reusable,
+            clean: runtimeStatus.clean,
+            provisionState: runtimeStatus.provisionState,
           });
           report("cleanup", "fail", "Runtime remained dirty after reset");
         }

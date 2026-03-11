@@ -1019,7 +1019,7 @@ export async function startWiredInstance(params: {
   });
 }
 
-export function clearConvosSessionState(conversationId: string): void {
+function resolveConvosSessionStateDir(conversationId: string): string {
   const runtime = getConvosRuntime();
   const cfg = runtime.config.loadConfig();
   const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
@@ -1033,7 +1033,23 @@ export function clearConvosSessionState(conversationId: string): void {
   const storePath = runtime.channel.session.resolveStorePath(cfg.session?.store, {
     agentId: route.agentId,
   });
-  const sessionsDir = path.dirname(storePath);
+  return path.dirname(storePath);
+}
+
+export function hasConvosSessionState(conversationId: string): boolean {
+  const sessionsDir = resolveConvosSessionStateDir(conversationId);
+  if (!fs.existsSync(sessionsDir)) {
+    return false;
+  }
+  try {
+    return fs.readdirSync(sessionsDir).length > 0;
+  } catch {
+    return true;
+  }
+}
+
+export function clearConvosSessionState(conversationId: string): void {
+  const sessionsDir = resolveConvosSessionStateDir(conversationId);
   if (!fs.existsSync(sessionsDir)) {
     return;
   }

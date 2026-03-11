@@ -46,7 +46,7 @@ All routes are registered on the gateway server (default `http://127.0.0.1:18789
 | `/convos/rename` | POST | Rename the conversation |
 | `/convos/lock` | POST | Lock/unlock the conversation |
 | `/convos/explode` | POST | Permanently destroy the conversation |
-| `/convos/status` | GET | Report the active conversation plus residue flags that determine whether the runtime is reusable |
+| `/convos/status` | GET | Report the active conversation, provision state, and residue flags that determine whether the runtime is clean |
 | `/convos/reset` | POST | Factory-reset local Convos state and return the post-reset status |
 
 ## Config
@@ -129,17 +129,24 @@ curl -s http://localhost:18789/convos/status | jq .
 #   "ready": true,
 #   "conversation": null,
 #   "main": { "active": false, "conversationId": null, "streaming": false },
+#   "provision": {
+#     "state": "idle",
+#     "startedAt": null,
+#     "inviteUrl": null,
+#     "watching": false,
+#     "lastError": null
+#   },
 #   "persisted": {
 #     "credentialsPresent": false,
 #     "configBindingPresent": false,
 #     "customInstructionsPresent": false,
 #     "cliIdentityPresent": false,
 #     "cliDbPresent": false,
+#     "sessionStatePresent": false,
 #     "conversationEnvPresent": false
 #   },
 #   "dirtyReasons": [],
-#   "clean": true,
-#   "reusable": true
+#   "clean": true
 # }
 
 # Reset local state and wipe the current identity

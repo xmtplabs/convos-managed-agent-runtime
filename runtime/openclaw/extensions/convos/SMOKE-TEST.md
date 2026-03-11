@@ -87,7 +87,7 @@ curl -s -X POST http://localhost:18789/convos/reset \
   -d '{}' | jq .
 ```
 
-Expected: `{ ok: true, reset: true, status: { reusable: true, dirtyReasons: [] } }`.
+Expected: `{ ok: true, reset: true, status: { clean: true, dirtyReasons: [] } }`.
 
 ```bash
 pnpm openclaw config get channels.convos
@@ -99,7 +99,7 @@ pnpm openclaw config get channels.convos
 curl -s http://localhost:18789/convos/status | jq .
 ```
 
-Expected: `conversation: null`, `clean: true`, `reusable: true`, and all `persisted.*` flags `false`.
+Expected: `conversation: null`, `clean: true`, `provision.state: "idle"`, and all `persisted.*` flags `false`.
 
 ## Test 4: HTTP Create Conversation
 
@@ -135,7 +135,7 @@ curl -s -X POST http://localhost:18789/convos/join \
   -d '{"inviteUrl":"https://convos.app/join/SLUG","name":"Join Test"}' | jq .
 ```
 
-Expected: `{ status: "joined", conversationId: "..." }` or `{ status: "waiting_for_acceptance" }`.
+Expected: `{ status: "joined", conversationId: "..." }` or `{ status: "pending_acceptance" }`.
 
 ## Test 6: Send Message via HTTP
 

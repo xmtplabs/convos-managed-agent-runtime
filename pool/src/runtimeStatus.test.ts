@@ -8,12 +8,14 @@ describe("parseRuntimeStatus", () => {
       parseRuntimeStatus({
         main: { conversationId: "convo-main" },
         conversation: { id: "convo-legacy" },
-        reusable: false,
+        clean: false,
+        provision: { state: "active" },
         dirtyReasons: ["active_conversation"],
       }),
       {
         conversationId: "convo-main",
-        reusable: false,
+        clean: false,
+        provisionState: "active",
         dirtyReasons: ["active_conversation"],
       },
     );
@@ -26,13 +28,14 @@ describe("parseRuntimeStatus", () => {
       }),
       {
         conversationId: "convo-legacy",
-        reusable: null,
+        clean: null,
+        provisionState: null,
         dirtyReasons: [],
       },
     );
   });
 
-  it("treats missing reusable as unknown", () => {
+  it("treats missing clean as unknown", () => {
     assert.deepEqual(
       parseRuntimeStatus({
         ready: true,
@@ -41,7 +44,8 @@ describe("parseRuntimeStatus", () => {
       }),
       {
         conversationId: null,
-        reusable: null,
+        clean: null,
+        provisionState: null,
         dirtyReasons: ["custom_instructions"],
       },
     );

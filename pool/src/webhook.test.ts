@@ -49,6 +49,16 @@ describe("webhook state machine", () => {
     assert.equal(d.action, "health_check");
   });
 
+  it("deployed + pending_acceptance → schedules health check", () => {
+    const d = decideAction("Deployment.deployed", "pending_acceptance", true);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("deployed + tainted → schedules health check", () => {
+    const d = decideAction("Deployment.deployed", "tainted", true);
+    assert.equal(d.action, "health_check");
+  });
+
   // ── Destructive events ──────────────────────────────────────────────────
 
   it("crashed + unclaimed → dead", () => {
@@ -135,6 +145,11 @@ describe("webhook state machine", () => {
 
   it("resumed + dead → schedules health check", () => {
     const d = decideAction("Deployment.resumed", "dead", false);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("resumed + pending_acceptance → schedules health check", () => {
+    const d = decideAction("Deployment.resumed", "pending_acceptance", true);
     assert.equal(d.action, "health_check");
   });
 
