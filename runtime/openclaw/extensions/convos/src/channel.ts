@@ -1036,26 +1036,30 @@ function resolveConvosSessionStateDir(conversationId: string): string {
   return path.dirname(storePath);
 }
 
+function resolveConvosSessionRootDir(conversationId: string): string {
+  return path.dirname(resolveConvosSessionStateDir(conversationId));
+}
+
 export function hasConvosSessionState(conversationId: string): boolean {
-  const sessionsDir = resolveConvosSessionStateDir(conversationId);
-  if (!fs.existsSync(sessionsDir)) {
+  const sessionRootDir = resolveConvosSessionRootDir(conversationId);
+  if (!fs.existsSync(sessionRootDir)) {
     return false;
   }
   try {
-    return fs.readdirSync(sessionsDir).length > 0;
+    return fs.readdirSync(sessionRootDir).length > 0;
   } catch {
     return true;
   }
 }
 
 export function clearConvosSessionState(conversationId: string): void {
-  const sessionsDir = resolveConvosSessionStateDir(conversationId);
-  if (!fs.existsSync(sessionsDir)) {
+  const sessionRootDir = resolveConvosSessionRootDir(conversationId);
+  if (!fs.existsSync(sessionRootDir)) {
     return;
   }
   try {
-    fs.rmSync(sessionsDir, { recursive: true, force: true });
-    console.log(`[convos] Cleared session state: ${sessionsDir}`);
+    fs.rmSync(sessionRootDir, { recursive: true, force: true });
+    console.log(`[convos] Cleared session state: ${sessionRootDir}`);
   } catch (err) {
     console.error(`[convos] Failed to clear sessions: ${String(err)}`);
   }

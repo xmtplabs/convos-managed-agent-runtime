@@ -201,11 +201,11 @@ function getProvisionStatus(): RuntimeProvision {
     };
   }
   return {
-    state: persisted.watching ? persisted.state : "failed",
+    state: "failed",
     startedAt: persisted.startedAt,
     inviteUrl: persisted.inviteUrl,
-    watching: persisted.watching,
-    lastError: persisted.lastError,
+    watching: false,
+    lastError: persisted.lastError ?? "Pending join did not survive process restart",
   };
 }
 
