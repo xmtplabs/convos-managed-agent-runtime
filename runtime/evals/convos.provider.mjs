@@ -120,8 +120,27 @@ function fetchMessages() {
   return Array.isArray(msgs) ? msgs : [];
 }
 
+// System content types that are not actual agent replies
+const SYSTEM_TYPES = new Set([
+  'group_updated', 'member_added', 'member_removed',
+  'group_membership_change', 'membership_change',
+]);
+
+// System-generated text patterns (profile changes, membership, invite tags)
+const SYSTEM_TEXT = /^(Somebody |.+ set their |.+ added |.+ removed |.+ set the )/;
+
+function isSystemMsg(m) {
+  if (SYSTEM_TYPES.has(m.contentType)) return true;
+  const text = m.content || m.text || '';
+  return SYSTEM_TEXT.test(text);
+}
+
+function isAgentReply(m) {
+  return m.senderInboxId !== userInboxId && !isSystemMsg(m);
+}
+
 function agentCount(msgs) {
-  return msgs.filter((m) => m.senderInboxId !== userInboxId && m.contentType !== 'group_updated').length;
+  return msgs.filter(isAgentReply).length;
 }
 
 // Wait for at least one new agent message after `baseline`, then settle.
@@ -147,10 +166,12 @@ function waitForAgent(baseline) {
 }
 
 function transcript(msgs, afterIndex = 0) {
-  return msgs.slice(afterIndex).map((m) => {
-    const who = m.senderInboxId === userInboxId ? 'USER' : 'AGENT';
-    return `[${who}] ${m.content || m.text || JSON.stringify(m)}`;
-  }).join('\n');
+  return msgs.slice(afterIndex)
+    .filter((m) => !isSystemMsg(m))
+    .map((m) => {
+      const who = m.senderInboxId === userInboxId ? 'USER' : 'AGENT';
+      return `[${who}] ${m.content || m.text || JSON.stringify(m)}`;
+    }).join('\n');
 }
 
 export default class OpenClawProvider {
