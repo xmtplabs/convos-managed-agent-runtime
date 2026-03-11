@@ -105,7 +105,7 @@ jobs:
           sleep 15
 
       - name: Run smoke tests
-        run: docker exec qa-runtime timeout 120 pnpm qa
+        run: docker exec qa-runtime timeout 120 pnpm smoke
 
       - name: Dump logs
         if: always()
@@ -204,7 +204,7 @@ jobs:
             -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
             -e EVAL_OUTPUT=/tmp/eval-results.html \
             -e EVAL_JSON_OUTPUT=/tmp/eval-results.json \
-            eval-runtime timeout 900 pnpm qa:eval
+            eval-runtime timeout 900 pnpm evals
           status=$?
           echo "exit_code=$status" >> "$GITHUB_OUTPUT"
           exit $status

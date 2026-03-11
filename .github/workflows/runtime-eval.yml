@@ -75,7 +75,7 @@ jobs:
         working-directory: runtime
         run: |
           set +e
-          timeout 900 pnpm qa:eval
+          timeout 900 pnpm evals
           status=$?
           echo "exit_code=$status" >> "$GITHUB_OUTPUT"
           exit $status
