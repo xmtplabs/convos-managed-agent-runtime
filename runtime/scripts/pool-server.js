@@ -8,7 +8,7 @@
  * Serves (on public PORT):
  *   GET  /pool/health           → { ready: boolean }
  *   POST /pool/restart-gateway  → write env overrides to volume, restart gateway.sh
- *   POST /pool/provision        → invite/join convos (instructions written by convos extension), return { ok, inviteUrl?, conversationId?, joined }
+ *   POST /pool/provision        → invite/join convos (instructions written to IDENTITY.md by convos extension), return { ok, inviteUrl?, conversationId?, joined }
  */
 
 const http = require("node:http");
@@ -157,22 +157,28 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
           method: "POST",
           headers,
           body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName, instructions }),
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(70_000),
         });
         if (!res.ok) {
           const text = await res.text();
           throw new Error(`/convos/join returned ${res.status}: ${text}`);
         }
         const data = await res.json();
+        if (data.status === "waiting_for_acceptance") {
+          throw Object.assign(
+            new Error("Join request is still waiting for acceptance"),
+            { nonRetriable: true },
+          );
+        }
         console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
         return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
       } else {
-        // Create a new conversation (instructions written to INSTRUCTIONS.md by convos extension)
+        // Create a new conversation (instructions written to IDENTITY.md by convos extension)
         const res = await fetch(`${gatewayUrl}/convos/conversation`, {
           method: "POST",
           headers,
           body: JSON.stringify({ name: agentName, profileName: agentName, instructions }),
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(70_000),
         });
         if (!res.ok) {
           const text = await res.text();
@@ -184,6 +190,9 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
       }
     } catch (err) {
       lastError = err;
+      if (err?.nonRetriable) {
+        throw err;
+      }
       if (i < maxAttempts) {
         console.log(`[pool-server] Convos ${joinUrl ? "join" : "invite"} attempt ${i}/${maxAttempts} failed, retrying in 1s...`);
         await new Promise((r) => setTimeout(r, 1000));
@@ -295,7 +304,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      // Create or join conversation — convos extension writes INSTRUCTIONS.md with the instructions
+      // Create or join conversation — convos extension writes IDENTITY.md with the instructions
       const convosResult = await callConvosWithRetry(agentName, instructions, joinUrl);
 
       json(res, 200, {

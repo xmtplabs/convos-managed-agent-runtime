@@ -77,50 +77,29 @@ Convos should show `running: true`, probe `ok: true`.
 3. Expected: gateway logs show inbound message, agent processes and replies
 4. Verify the reply appears in the Convos iOS app
 
-## Test 3: HTTP Setup Flow (Control UI path)
+## Test 3: HTTP Reset
 
-Tests `POST /convos/setup` -> status polling -> `POST /convos/setup/complete`.
-
-Start with a clean config or use `force: true`.
+Tests `POST /convos/reset`.
 
 ```bash
-# 1. Start setup — creates a conversation + returns QR invite
-curl -s -X POST http://localhost:18789/convos/setup \
+curl -s -X POST http://localhost:18789/convos/reset \
   -H 'Content-Type: application/json' \
-  -d '{"env":"dev","name":"Smoke Test","force":true}' | jq .
+  -d '{}' | jq .
 ```
 
-Expected: `{ inviteUrl, conversationId, qrDataUrl }`.
+Expected: `{ ok: true, reset: true, status: { reusable: true, dirtyReasons: [] } }`.
 
 ```bash
-# 2. Poll join status
-curl -s http://localhost:18789/convos/setup/status | jq .
-```
-
-Expected: `{ active: true, joined: false, joinerInboxId: null }`.
-
-3. Scan the QR or paste the invite URL in Convos iOS app and join the conversation.
-
-```bash
-# 4. Poll again — should flip to joined
-curl -s http://localhost:18789/convos/setup/status | jq .
-```
-
-Expected: `{ active: true, joined: true, joinerInboxId: "<hex>" }`.
-
-```bash
-# 5. Complete setup — writes config
-curl -s -X POST http://localhost:18789/convos/setup/complete | jq .
-```
-
-Expected: `{ saved: true, conversationId: "..." }`.
-
-```bash
-# 6. Verify config was written
 pnpm openclaw config get channels.convos
 ```
 
-Should show `identityId`, `ownerConversationId`, `env`, `enabled: true`, `allowFrom` containing the joiner inbox ID.
+`ownerConversationId` and `identityId` should be empty or missing after reset.
+
+```bash
+curl -s http://localhost:18789/convos/status | jq .
+```
+
+Expected: `conversation: null`, `clean: true`, `reusable: true`, and all `persisted.*` flags `false`.
 
 ## Test 4: HTTP Create Conversation
 

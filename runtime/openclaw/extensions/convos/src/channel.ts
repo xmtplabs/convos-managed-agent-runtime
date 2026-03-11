@@ -980,25 +980,7 @@ export async function startWiredInstance(params: {
   const cfg = runtime.config.loadConfig();
   const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
 
-  // Clear all previous session state so the agent starts fresh for this conversation.
-  const route = runtime.channel.routing.resolveAgentRoute({
-    cfg,
-    channel: "convos",
-    accountId: account.accountId,
-    peer: { kind: "group", id: params.conversationId },
-  });
-  const storePath = runtime.channel.session.resolveStorePath(cfg.session?.store, {
-    agentId: route.agentId,
-  });
-  const sessionsDir = path.dirname(storePath);
-  if (fs.existsSync(sessionsDir)) {
-    try {
-      fs.rmSync(sessionsDir, { recursive: true, force: true });
-      console.log(`[convos] Cleared session state: ${sessionsDir}`);
-    } catch (err) {
-      console.error(`[convos] Failed to clear sessions: ${String(err)}`);
-    }
-  }
+  clearConvosSessionState(params.conversationId);
 
   // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
   process.env.CONVOS_CONVERSATION_ID = params.conversationId;
@@ -1031,6 +1013,32 @@ export async function startWiredInstance(params: {
   dispatchGreeting(account, runtime).catch((err) => {
     console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
   });
+}
+
+export function clearConvosSessionState(conversationId: string): void {
+  const runtime = getConvosRuntime();
+  const cfg = runtime.config.loadConfig();
+  const account = resolveConvosAccount({ cfg: cfg as CoreConfig });
+
+  const route = runtime.channel.routing.resolveAgentRoute({
+    cfg,
+    channel: "convos",
+    accountId: account.accountId,
+    peer: { kind: "group", id: conversationId },
+  });
+  const storePath = runtime.channel.session.resolveStorePath(cfg.session?.store, {
+    agentId: route.agentId,
+  });
+  const sessionsDir = path.dirname(storePath);
+  if (!fs.existsSync(sessionsDir)) {
+    return;
+  }
+  try {
+    fs.rmSync(sessionsDir, { recursive: true, force: true });
+    console.log(`[convos] Cleared session state: ${sessionsDir}`);
+  } catch (err) {
+    console.error(`[convos] Failed to clear sessions: ${String(err)}`);
+  }
 }
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {

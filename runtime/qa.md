@@ -58,7 +58,7 @@ EVAL_OUTPUT=./eval-results.html pnpm qa:eval
 
 All tests share a single conversation (sequential execution):
 
-1. **Reset** — calls `/convos/reset` to create a fresh agent identity
+1. **Reset** — calls `/convos/reset` to wipe any bound conversation and local Convos identity state
 2. **Create conversation** — eval identity creates a new group via convos-cli
 3. **Join** — spawns `process-join-requests --watch` to accept the agent, then calls `/convos/join`
 4. **Test loop** — for each test case: send prompt → wait for agent to settle → return full transcript
