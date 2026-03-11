@@ -557,7 +557,7 @@ async function handleInboundMessage(
     clearConversationExpirationCheck(account.accountId, log);
   }
 
-  const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst);
+  const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst, log);
   if (membershipTerminationReason) {
     log?.info(`[${account.accountId}] Membership ended, self-destructing (${membershipTerminationReason})`);
     await selfDestruct(membershipTerminationReason);
@@ -705,6 +705,7 @@ function clearConversationExpirationCheck(
 async function detectMembershipTerminationReason(
   msg: InboundMessage,
   inst: ConvosInstance | null,
+  log?: RuntimeLogger,
 ): Promise<string | null> {
   if (!inst || msg.contentType !== "group_updated" || !isMemberRemovalGroupUpdate(msg.content)) {
     return null;
@@ -717,6 +718,7 @@ async function detectMembershipTerminationReason(
     if (isInactiveGroupError(err)) {
       return "removed from group";
     }
+    log?.error(`[convos] Unexpected error checking membership: ${String(err)}`);
     return null;
   }
 
