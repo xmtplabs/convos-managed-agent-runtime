@@ -184,8 +184,9 @@ export function adminPage({
   runtimeImage = "",
   instanceModel = "",
   adminUrls = [],
+  protectedInstances = [] as string[],
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls, protectedInstances });
   return adminHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,

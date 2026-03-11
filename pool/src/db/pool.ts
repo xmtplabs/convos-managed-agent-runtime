@@ -2,6 +2,7 @@ import { eq, and, sql, notInArray, inArray } from "drizzle-orm";
 import { db } from "./connection";
 import { instances, instanceInfra, instanceServices } from "./schema";
 import type { InstanceRow, InstanceStatus } from "./schema";
+import { config } from "../config";
 
 interface UpsertInstanceOpts {
   id: string;
@@ -86,12 +87,18 @@ export async function claimIdle(inviteUrl?: string | null): Promise<InstanceRow 
       if (dup.rows.length > 0) return null;
     }
 
+    const protected_ = config.protectedInstances;
+    const excludeClause = protected_.length > 0
+      ? sql`AND id NOT IN (${sql.join(protected_.map((id) => sql`${id}`), sql`, `)})`
+      : sql``;
+
     const result = await tx.execute(sql`
       UPDATE instances SET status = 'claiming',
         invite_url = COALESCE(${inviteUrl ?? null}, invite_url)
       WHERE id = (
         SELECT id FROM instances
         WHERE status = 'idle'
+        ${excludeClause}
         ORDER BY created_at
         LIMIT 1
         FOR UPDATE SKIP LOCKED
