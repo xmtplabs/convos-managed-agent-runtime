@@ -41,6 +41,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Compute image tags
         id: meta
@@ -60,8 +62,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}
+          cache-to: type=inline
 
   eval:
     name: "E2E eval"
