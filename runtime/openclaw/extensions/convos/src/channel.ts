@@ -81,9 +81,25 @@ function isConvosId(s: string): boolean {
 
 const CONVOS_IMG_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
+/**
+ * Resolve the media directory for downloaded image attachments.
+ * Uses {stateDir}/media instead of os.tmpdir() to avoid macOS symlink mismatch:
+ * os.tmpdir() returns /var/folders/... but realpath resolves to /private/var/folders/...
+ * and openclaw's allowed-directory check realpaths the file but not the root, causing
+ * a startsWith failure. {stateDir}/media is an allowed root without symlink issues.
+ */
+function resolveMediaDir(): string {
+  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const mediaDir = path.join(stateDir, "media");
+  if (!fs.existsSync(mediaDir)) {
+    fs.mkdirSync(mediaDir, { recursive: true });
+  }
+  return mediaDir;
+}
+
 /** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Fire-and-forget. */
 function pruneStaleConvosImages() {
-  const tmpDir = os.tmpdir();
+  const tmpDir = resolveMediaDir();
   fs.readdir(tmpDir, (err, entries) => {
     if (err) return;
     const now = Date.now();
@@ -99,6 +115,20 @@ function pruneStaleConvosImages() {
     }
   });
 }
+
+/**
+ * Pending image attachment downloads waiting for a companion text message.
+ * XMTP sends image+text as separate protocol messages. The image arrives first
+ * but takes seconds to download, while the text arrives almost immediately.
+ * We hold the image and merge it with the companion text when it arrives.
+ */
+const COMPANION_SETTLE_MS = 1500;
+const pendingCompanionImage = new Map<string, {
+  downloadPromise: Promise<string | undefined>;
+  timer: ReturnType<typeof setTimeout>;
+}>();
+/** Pre-resolved media paths for held attachments re-entering handleInboundMessage via timeout. */
+const resolvedMediaPaths = new Map<string, string | undefined>();
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   id: "convos",
@@ -435,30 +465,84 @@ async function handleInboundMessage(
   });
 
   // --- Image attachment handling ---
-  // Download image before finalizeInboundContext so MediaPath/MediaType are
-  // included in the finalized context and picked up by the media pipeline.
+  // XMTP sends image+text as two separate protocol messages. The image arrives
+  // first but takes seconds to download, while the companion text arrives almost
+  // immediately after. Without coordination the text races ahead (no download
+  // needed) and the agent responds to text alone, then responds again to the
+  // image — producing two replies instead of one.
+  //
+  // Fix: hold image attachments briefly. If a text from the same sender arrives
+  // within the settle window, merge them into one dispatch (text body + image).
+  // If no text follows, dispatch the image alone after timeout.
   //
   // Content format from the CLI:
   //   remoteStaticAttachment: "[remote attachment: filename (-1 bytes) https://...encrypted.bin]"
   //   attachment:             "[attachment: filename (size bytes)]"
-  //
-  // The URL points to an encrypted blob — we must always download via the CLI
-  // which handles decryption. Detect image type from the filename extension.
   let mediaPath: string | undefined;
-  if (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment") {
+
+  // 1. Check for pre-resolved media from a held attachment timeout (re-entry)
+  if (resolvedMediaPaths.has(msg.messageId)) {
+    mediaPath = resolvedMediaPaths.get(msg.messageId);
+    resolvedMediaPaths.delete(msg.messageId);
+  }
+
+  // 2. Check for a pending companion image to merge with this text message
+  if (!mediaPath && (msg.contentType === "text" || msg.contentType === "reply")) {
+    const pendingKey = `${msg.conversationId}:${msg.senderId}`;
+    const pending = pendingCompanionImage.get(pendingKey);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingCompanionImage.delete(pendingKey);
+      mediaPath = await pending.downloadPromise;
+      if (account.debug) {
+        debugLog(`[${account.accountId}] Merged companion image with text message`);
+      }
+    }
+  }
+
+  // 3. Hold new image attachment for companion text
+  if (!mediaPath && (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment")) {
     try {
       const filenameMatch = msg.content.match(/:\s+(\S+\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?|avif|svg))\s/i);
       const ext = filenameMatch?.[2] ? `.${filenameMatch[2].toLowerCase()}` : "";
 
       if (filenameMatch && inst) {
         const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
-        mediaPath = path.join(os.tmpdir(), `convos-img-${safeId}${ext}`);
-        await inst.downloadAttachment(msg.messageId, mediaPath);
-        pruneStaleConvosImages();
+        const imgPath = path.join(resolveMediaDir(), `convos-img-${safeId}${ext}`);
 
-        if (account.debug) {
-          debugLog(`[${account.accountId}] Image attachment downloaded: ${mediaPath}`);
-        }
+        const downloadPromise: Promise<string | undefined> = inst
+          .downloadAttachment(msg.messageId, imgPath)
+          .then(() => {
+            pruneStaleConvosImages();
+            if (account.debug) {
+              debugLog(`[${account.accountId}] Image attachment downloaded: ${imgPath}`);
+            }
+            return imgPath;
+          })
+          .catch((err) => {
+            errorLog(`[${account.accountId}] Failed to download attachment: ${String(err)}`);
+            return undefined;
+          });
+
+        // Hold — wait for companion text from the same sender
+        const holdKey = `${msg.conversationId}:${msg.senderId}`;
+        const existing = pendingCompanionImage.get(holdKey);
+        if (existing) clearTimeout(existing.timer);
+
+        const timer = setTimeout(async () => {
+          const entry = pendingCompanionImage.get(holdKey);
+          if (!entry) return; // Already merged with companion text
+          pendingCompanionImage.delete(holdKey);
+          // No companion text arrived — dispatch attachment alone via re-entry
+          const resolvedPath = await entry.downloadPromise;
+          resolvedMediaPaths.set(msg.messageId, resolvedPath);
+          handleInboundMessage(account, msg, runtime, log).catch((err) => {
+            errorLog(`[${account.accountId}] Failed to process held attachment: ${String(err)}`);
+          });
+        }, COMPANION_SETTLE_MS);
+
+        pendingCompanionImage.set(holdKey, { downloadPromise, timer });
+        return; // Don't dispatch yet — wait for companion text or timeout
       }
     } catch (err) {
       errorLog(`[${account.accountId}] Failed to process image attachment: ${String(err)}`);
