@@ -85,6 +85,11 @@ function firstValue(value, paths) {
   return undefined;
 }
 
+function parseCount(value, fallback = 0) {
+  const parsed = typeof value === 'number' ? value : Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function normalizeReason(reason) {
   return clip(String(reason || ''), 180).toLowerCase();
 }
@@ -199,9 +204,9 @@ function buildSummary(data) {
   const passed = normalized.filter((output) => output.pass).length;
   const failedOutputs = normalized.filter((output) => !output.pass);
   const stats = root.stats && typeof root.stats === 'object' ? root.stats : {};
-  const total = Number(firstValue(stats, ['tests', 'total']) ?? rawOutputs.length);
-  const statsPassed = Number(firstValue(stats, ['passed', 'successes']));
-  const failed = Number(firstValue(stats, ['failed', 'failures']) ?? failedOutputs.length);
+  const total = parseCount(firstValue(stats, ['tests', 'total']), rawOutputs.length);
+  const statsPassed = parseCount(firstValue(stats, ['passed', 'successes']));
+  const failed = parseCount(firstValue(stats, ['failed', 'failures']), failedOutputs.length);
   const inferredFailed = Math.max(failed, failedOutputs.length, evalExitCode ? 1 : 0);
   const inferredPassed = Math.max(0, Math.max(Number.isFinite(statsPassed) ? statsPassed : 0, Math.min(total || normalized.length, passed)));
   const finalTotal = Math.max(total, normalized.length, inferredPassed + inferredFailed);
