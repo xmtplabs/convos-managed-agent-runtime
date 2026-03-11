@@ -111,36 +111,35 @@ jobs:
           docker logs eval-runtime
           exit 1
 
-      - name: "Eval: prompt (parallel)"
-        id: eval-prompt
+      - name: "Run eval suites (parallel)"
+        id: result
         continue-on-error: true
         run: |
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
-            eval-runtime timeout 300 pnpm evals:prompt
+            eval-runtime timeout 300 pnpm evals:prompt &
+          PID_PROMPT=$!
 
-      - name: "Eval: convos (sequential)"
-        id: eval-convos
-        continue-on-error: true
-        run: |
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
-            eval-runtime timeout 600 pnpm evals:convos
+            eval-runtime timeout 600 pnpm evals:convos &
+          PID_CONVOS=$!
+
+          PROMPT_OK=0; CONVOS_OK=0
+          wait $PID_PROMPT || PROMPT_OK=1
+          wait $PID_CONVOS || CONVOS_OK=1
+
+          echo "prompt=$PROMPT_OK convos=$CONVOS_OK"
+          if [[ $PROMPT_OK -eq 0 && $CONVOS_OK -eq 0 ]]; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Evals failed (prompt=$PROMPT_OK, convos=$CONVOS_OK) — skipping publish"
+          fi
 
       - name: Dump container logs
         if: always()
         run: docker logs eval-runtime
-
-      - name: Set eval result
-        id: result
-        if: always()
-        run: |
-          if [[ "${{ steps.eval-prompt.outcome }}" == "success" && "${{ steps.eval-convos.outcome }}" == "success" ]]; then
-            echo "passed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "passed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Evals failed (prompt=${{ steps.eval-prompt.outcome }}, convos=${{ steps.eval-convos.outcome }}) — skipping publish"
-          fi
 
   publish:
     name: "Publish :${{ needs.build.outputs.sha }}"
