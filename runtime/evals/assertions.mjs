@@ -1,4 +1,4 @@
-// runtime/scripts/qa/eval/assertions.mjs
+// runtime/evals/assertions.mjs
 // Custom Promptfoo assertion functions for side-effect verification.
 
 import { execFileSync } from 'child_process';

@@ -1,4 +1,4 @@
-// runtime/scripts/qa/eval/provider.mjs
+// runtime/evals/provider.mjs
 // Custom Promptfoo provider for OpenClaw agent e2e eval.
 // Creates a conversation, joins the runtime, sends messages via convos-cli,
 // waits for the agent, then returns the transcript for assertion.

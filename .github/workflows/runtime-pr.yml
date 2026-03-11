@@ -212,7 +212,7 @@ jobs:
 
       - name: Summarize eval results
         if: always()
-        run: node runtime/scripts/qa/eval/summarize-results.mjs ./eval-results.json
+        run: node runtime/evals/summarize-results.mjs ./eval-results.json
         env:
           EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code }}
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}

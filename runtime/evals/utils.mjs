@@ -1,4 +1,4 @@
-// runtime/scripts/qa/eval/utils.mjs
+// runtime/evals/utils.mjs
 // Shared utilities for eval provider and assertions.
 
 import { existsSync } from 'fs';
