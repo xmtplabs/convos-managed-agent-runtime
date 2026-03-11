@@ -3,13 +3,12 @@
 // Each test gets its own session so they can run in parallel.
 
 import { execFileSync } from 'child_process';
+import { elapsed, log as _log } from './utils.mjs';
 
 const ENTRY = process.env.OPENCLAW_ENTRY || 'openclaw';
 let testIndex = 0;
 
-function log(msg) { console.log(`[eval:prompt] ${msg}`); }
-
-function elapsed(start) { return `${((Date.now() - start) / 1000).toFixed(1)}s`; }
+function log(msg) { _log('eval:prompt', msg); }
 
 export default class PromptProvider {
   id() { return 'openclaw-prompt'; }

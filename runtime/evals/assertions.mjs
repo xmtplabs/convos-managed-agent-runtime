@@ -2,15 +2,10 @@
 // Custom Promptfoo assertion functions for side-effect verification.
 
 import { execFileSync } from 'child_process';
-import { resolveConvos } from './utils.mjs';
+import { resolveConvos, sleep } from './utils.mjs';
 
 const CONVOS = resolveConvos();
 const ENV = process.env.XMTP_ENV || 'dev';
-
-function sleep(ms) {
-  const buf = new SharedArrayBuffer(4);
-  Atomics.wait(new Int32Array(buf), 0, 0, ms);
-}
 
 function convosEnv() {
   const home = process.env.EVAL_CONVOS_HOME;
@@ -18,6 +13,12 @@ function convosEnv() {
 }
 
 function getProfiles(conversationId) {
+  // Sync conversation state from network before reading profiles
+  try {
+    execFileSync(CONVOS, [
+      'conversation', 'sync', conversationId, '--env', ENV,
+    ], { encoding: 'utf-8', timeout: 30_000, env: convosEnv() });
+  } catch {}
   const out = execFileSync(CONVOS, [
     'conversation', 'profiles', conversationId, '--env', ENV, '--json',
   ], { encoding: 'utf-8', timeout: 30_000, env: convosEnv() }).trim();
@@ -60,7 +61,9 @@ export function profileImageSet(output, context) {
     return {
       pass: has,
       score: has ? 1 : 0,
-      reason: has ? 'Profile image is set' : 'Profile image is null or missing',
+      reason: has
+        ? 'Profile image is set'
+        : `Profile image is null or missing (known convos CLI limitation)`,
     };
   });
 }

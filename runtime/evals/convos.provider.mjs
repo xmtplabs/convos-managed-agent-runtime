@@ -7,7 +7,7 @@ import { execSync, execFileSync, spawn } from 'child_process';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { resolveConvos } from './utils.mjs';
+import { resolveConvos, sleep, elapsed, log as _log } from './utils.mjs';
 
 const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || '18789';
@@ -48,18 +48,11 @@ let sharedConversationId = null;
 let userInboxId = null;
 let testIndex = 0;
 
-function log(msg) { console.log(`[eval] ${msg}`); }
-
-function sleep(ms) {
-  const buf = new SharedArrayBuffer(4);
-  Atomics.wait(new Int32Array(buf), 0, 0, ms);
-}
+function log(msg) { _log('eval', msg); }
 
 function convos(args, opts = {}) {
   return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
 }
-
-function elapsed(start) { return `${((Date.now() - start) / 1000).toFixed(1)}s`; }
 
 function setup() {
   const t = Date.now();

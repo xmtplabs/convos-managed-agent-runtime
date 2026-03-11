@@ -1,5 +1,5 @@
 // runtime/evals/utils.mjs
-// Shared utilities for eval provider and assertions.
+// Shared utilities for eval providers and assertions.
 
 import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -16,4 +16,17 @@ export function resolveConvos() {
     if (existsSync(c)) return c;
   }
   return 'convos';
+}
+
+export function sleep(ms) {
+  const buf = new SharedArrayBuffer(4);
+  Atomics.wait(new Int32Array(buf), 0, 0, ms);
+}
+
+export function elapsed(start) {
+  return `${((Date.now() - start) / 1000).toFixed(1)}s`;
+}
+
+export function log(prefix, msg) {
+  console.log(`[${prefix}] ${msg}`);
 }
