@@ -887,6 +887,7 @@ export async function selfDestruct(reason?: string): Promise<void> {
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (gatewayToken) headers["Authorization"] = `Bearer ${gatewayToken}`;
+  let poolSelfDestructAck = false;
 
   console.log(`[convos] Self-destruct requested${reason ? `: ${reason}` : ""}`);
 
@@ -898,8 +899,13 @@ export async function selfDestruct(reason?: string): Promise<void> {
     });
     const data = await res.json();
     console.log(`[convos] Self-destruct response:`, data);
+    poolSelfDestructAck = data?.ok === true;
   } catch (err) {
     console.error(`[convos] Self-destruct call failed: ${String(err)}`);
+  }
+
+  if (!poolSelfDestructAck) {
+    await disableConvosAccountAfterSelfDestruct(reason);
   }
 
   // Stop the Convos instance and unblock startAccount so the gateway exits
@@ -917,5 +923,26 @@ export async function selfDestruct(reason?: string): Promise<void> {
     const resolve = resolveStartAccountBlock;
     resolveStartAccountBlock = null;
     resolve();
+  }
+}
+
+async function disableConvosAccountAfterSelfDestruct(reason?: string): Promise<void> {
+  try {
+    const runtime = getConvosRuntime();
+    const cfg = runtime.config.loadConfig() as CoreConfig;
+    const nextCfg: CoreConfig = {
+      ...cfg,
+      channels: {
+        ...(cfg.channels ?? {}),
+        convos: {
+          ...(cfg.channels?.convos ?? {}),
+          enabled: false,
+        },
+      },
+    };
+    await runtime.config.writeConfigFile(nextCfg);
+    console.log(`[convos] Disabled Convos account after self-destruct${reason ? `: ${reason}` : ""}`);
+  } catch (err) {
+    console.error(`[convos] Failed to disable Convos account after self-destruct: ${String(err)}`);
   }
 }
