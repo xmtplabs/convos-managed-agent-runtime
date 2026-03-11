@@ -199,7 +199,11 @@ function buildSummary(data) {
   }
 
   const root = data.results || data;
-  const rawOutputs = Array.isArray(root.outputs) ? root.outputs : [];
+  const rawOutputs = Array.isArray(root.results)
+    ? root.results
+    : Array.isArray(root.outputs)
+      ? root.outputs
+      : [];
   const normalized = rawOutputs.map(normalizeOutput);
   const passed = normalized.filter((output) => output.pass).length;
   const failedOutputs = normalized.filter((output) => !output.pass);
