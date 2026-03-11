@@ -28,7 +28,8 @@ import { isContextOverflowText, checkCreditsLow, buildCreditErrorMessage } from 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
 const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
-const EXPLOSION_TRIGGER_GRACE_MS = 60_000;
+const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
+const EXPLOSION_IMMEDIATE_SKEW_MS = 5_000;
 const GROUP_UPDATE_SEPARATOR_RE = /\s*;\s*/;
 
 type RuntimeLogger = {
@@ -41,6 +42,8 @@ type RuntimeLogger = {
 // selfDestruct() calls this to unblock startAccount after stopping the instance,
 // preventing the gateway from becoming a zombie process.
 let resolveStartAccountBlock: (() => void) | null = null;
+let scheduledExpirationTimer: ReturnType<typeof setTimeout> | null = null;
+let scheduledExpirationAtMs: number | null = null;
 
 const meta = {
   id: "convos",
@@ -537,11 +540,17 @@ async function handleInboundMessage(
     });
   }
 
-  const explosionReason = detectConversationExplosion(msg);
-  if (explosionReason) {
-    log?.info(`[${account.accountId}] Conversation exploded, self-destructing (${explosionReason})`);
-    await selfDestruct(explosionReason);
+  const expirationUpdate = detectConversationExpirationUpdate(msg);
+  if (expirationUpdate?.kind === "expired") {
+    log?.info(`[${account.accountId}] Conversation exploded, self-destructing (${expirationUpdate.reason})`);
+    await selfDestruct(expirationUpdate.reason);
     return;
+  }
+  if (expirationUpdate?.kind === "scheduled") {
+    scheduleConversationExpiration(expirationUpdate.expiresAtMs, account.accountId, log);
+  }
+  if (expirationUpdate?.kind === "cleared") {
+    clearScheduledConversationExpiration(account.accountId, log);
   }
 
   const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst);
@@ -599,9 +608,17 @@ async function handleInboundMessage(
   });
 }
 
-function detectConversationExplosion(msg: InboundMessage): string | null {
+function detectConversationExpirationUpdate(msg: InboundMessage):
+  | { kind: "expired"; reason: string }
+  | { kind: "scheduled"; expiresAtMs: number }
+  | { kind: "cleared" }
+  | null {
   if (msg.contentType !== "group_updated") {
     return null;
+  }
+
+  if (GROUP_EXPIRATION_CLEARED_RE.test(msg.content)) {
+    return { kind: "cleared" };
   }
 
   const match = msg.content.match(GROUP_EXPIRATION_UPDATE_RE);
@@ -620,11 +637,51 @@ function detectConversationExplosion(msg: InboundMessage): string | null {
   }
 
   const observedAtMs = Number.isNaN(msg.timestamp.getTime()) ? Date.now() : msg.timestamp.getTime();
-  if (expiresAtMs > observedAtMs + EXPLOSION_TRIGGER_GRACE_MS) {
-    return null;
+  if (expiresAtMs > observedAtMs + EXPLOSION_IMMEDIATE_SKEW_MS) {
+    return { kind: "scheduled", expiresAtMs };
   }
 
-  return `expiration reached at ${new Date(expiresAtMs).toISOString()}`;
+  return { kind: "expired", reason: `expiration reached at ${new Date(expiresAtMs).toISOString()}` };
+}
+
+function scheduleConversationExpiration(
+  expiresAtMs: number,
+  accountId: string,
+  log?: RuntimeLogger,
+): void {
+  if (scheduledExpirationAtMs === expiresAtMs && scheduledExpirationTimer) {
+    return;
+  }
+
+  clearScheduledConversationExpiration(accountId, log, false);
+
+  scheduledExpirationAtMs = expiresAtMs;
+  const delayMs = Math.max(0, expiresAtMs - Date.now());
+  log?.info(
+    `[${accountId}] Scheduled self-destruct for conversation expiration at ${new Date(expiresAtMs).toISOString()}`,
+  );
+
+  scheduledExpirationTimer = setTimeout(() => {
+    scheduledExpirationTimer = null;
+    scheduledExpirationAtMs = null;
+    void selfDestruct(`expiration reached at ${new Date(expiresAtMs).toISOString()}`);
+  }, delayMs);
+  scheduledExpirationTimer.unref?.();
+}
+
+function clearScheduledConversationExpiration(
+  accountId: string,
+  log?: RuntimeLogger,
+  announce = true,
+): void {
+  if (scheduledExpirationTimer) {
+    clearTimeout(scheduledExpirationTimer);
+    scheduledExpirationTimer = null;
+  }
+  if (scheduledExpirationAtMs !== null && announce) {
+    log?.info(`[${accountId}] Cleared scheduled conversation expiration self-destruct`);
+  }
+  scheduledExpirationAtMs = null;
 }
 
 async function detectMembershipTerminationReason(
@@ -865,6 +922,7 @@ export async function startWiredInstance(params: {
 }
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
+  clearScheduledConversationExpiration(accountId, log, false);
   const inst = getConvosInstance();
   if (inst) {
     try {
@@ -883,6 +941,7 @@ async function stopInstance(accountId: string, log?: RuntimeLogger) {
  * so the gateway can exit cleanly.
  */
 export async function selfDestruct(reason?: string): Promise<void> {
+  clearScheduledConversationExpiration(DEFAULT_ACCOUNT_ID, undefined, false);
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
