@@ -17,7 +17,11 @@ function clip(value, max = 220) {
     return singleLine;
   }
 
-  return `${singleLine.slice(0, max - 1)}...`;
+  if (max <= 3) {
+    return singleLine.slice(0, max);
+  }
+
+  return `${singleLine.slice(0, max - 3)}...`;
 }
 
 function formatPercent(numerator, denominator) {
