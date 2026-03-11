@@ -85,3 +85,11 @@ tests:
           This is a chat transcript between USER and AGENT. The USER asked who is
           in the conversation. Pass if the AGENT's most recent response lists
           participants, identities, or members of the conversation.
+
+  - description: "Agent self-destructs when removed from group"
+    vars:
+      prompt: "(self-destruct trigger)"
+      selfDestruct: true
+    assert:
+      - type: javascript
+        value: "file://assertions.mjs:agentSelfDestructed"

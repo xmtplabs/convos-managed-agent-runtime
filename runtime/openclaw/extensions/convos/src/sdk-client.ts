@@ -77,6 +77,12 @@ export interface HeartbeatEvent {
   activeStreams: number;
 }
 
+export interface ConversationProfile {
+  inboxId: string;
+  name?: string;
+  isMe?: boolean;
+}
+
 // ---- Binary resolution ----
 
 let cachedBinPath: string | undefined;
@@ -415,26 +421,33 @@ export class ConvosInstance {
   // ==== Member Cache ====
 
   /** Fetch conversation profiles via the CLI. */
-  private async listProfiles(): Promise<Array<{ inboxId: string; name?: string; isMe?: boolean }>> {
-    const data = await this.execJson<{ profiles: Array<{ inboxId: string; name?: string; isMe?: boolean }> }>([
+  private async listProfiles(): Promise<ConversationProfile[]> {
+    const data = await this.execJson<{ profiles: ConversationProfile[] }>([
       "conversation", "profiles", this.conversationId,
     ]);
     return data.profiles ?? [];
   }
 
+  /** Rebuild the member name cache from conversation profiles. Throws on CLI errors. */
+  async refreshMemberNamesStrict(): Promise<ConversationProfile[]> {
+    const profiles = await this.listProfiles();
+    this.memberNames.clear();
+    for (const p of profiles) {
+      this.memberNames.set(p.inboxId, p.name || "anonymous");
+    }
+    if (this.options.debug) {
+      console.log(`[convos] Refreshed member names: ${this.memberNames.size} members`);
+    }
+    return profiles;
+  }
+
   /** Rebuild the member name cache from conversation profiles. */
-  async refreshMemberNames(): Promise<void> {
+  async refreshMemberNames(): Promise<ConversationProfile[] | null> {
     try {
-      const profiles = await this.listProfiles();
-      this.memberNames.clear();
-      for (const p of profiles) {
-        this.memberNames.set(p.inboxId, p.name || "anonymous");
-      }
-      if (this.options.debug) {
-        console.log(`[convos] Refreshed member names: ${this.memberNames.size} members`);
-      }
+      return await this.refreshMemberNamesStrict();
     } catch (err) {
       console.error(`[convos] Failed to refresh member names: ${String(err)}`);
+      return null;
     }
   }
 
