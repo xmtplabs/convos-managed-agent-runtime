@@ -1667,34 +1667,50 @@
     var PIE_COLORS = ['#34C759', '#FF9500', '#007AFF', '#AF52DE', '#FF2D55', '#5856D6', '#FF3B30', '#30B0C7', '#FFD60A', '#AC8E68'];
     var upgradeRunning = false;
 
+    function parseSemver(v) {
+      if (!v) return null;
+      var m = v.match(/^v?(\d+)\.(\d+)\.(\d+)/);
+      return m ? [parseInt(m[1]), parseInt(m[2]), parseInt(m[3])] : null;
+    }
+    function cmpSemver(a, b) {
+      for (var i = 0; i < 3; i++) { if (a[i] !== b[i]) return a[i] - b[i]; }
+      return 0;
+    }
+
     function getVersionBuckets() {
       var all = claimedCache.concat(idleCache).concat(startingCache).concat(crashedCache);
-      var latestImage = (C.runtimeImage || '').split('/').pop() || '';
-      var buckets = {}; // version → { version, image, instances[], isLatest }
+      var buckets = {}; // label → { version, image, instances[], isLatest }
       all.forEach(function (a) {
         var infra = infraMap[a.id] || {};
         var ver = infra.runtime_version || null;
-        var img = infra.runtime_image ? infra.runtime_image.split('/').pop() : null;
-        var label = ver || img || 'unknown';
+        var label = ver || 'unknown';
         if (!buckets[label]) {
-          buckets[label] = { version: ver, image: img, label: label, instances: [], isLatest: false };
+          buckets[label] = { version: ver, label: label, instances: [], isLatest: false };
         }
         var status = crashedCache.indexOf(a) !== -1 ? 'crashed'
           : claimedCache.indexOf(a) !== -1 ? 'running'
           : idleCache.indexOf(a) !== -1 ? 'idle' : 'starting';
         buckets[label].instances.push({ id: a.id, name: a.agentName || a.name || a.id, status: status });
       });
-      // Determine latest: match image tag or highest version
-      if (latestImage) {
-        Object.keys(buckets).forEach(function (k) {
-          var b = buckets[k];
-          if (b.image === latestImage) b.isLatest = true;
-        });
-      }
-      // Sort: latest first, then by count desc
+      // Find highest semver among all buckets
+      var highestVer = null;
+      var highestKey = null;
+      Object.keys(buckets).forEach(function (k) {
+        var sv = parseSemver(buckets[k].version);
+        if (sv && (!highestVer || cmpSemver(sv, highestVer) > 0)) {
+          highestVer = sv;
+          highestKey = k;
+        }
+      });
+      if (highestKey) buckets[highestKey].isLatest = true;
+      // Sort: latest first, then by semver desc, unknown last
       var sorted = Object.values(buckets).sort(function (a, b) {
         if (a.isLatest && !b.isLatest) return -1;
         if (!a.isLatest && b.isLatest) return 1;
+        var sa = parseSemver(a.version), sb = parseSemver(b.version);
+        if (sa && sb) return cmpSemver(sb, sa);
+        if (sa) return -1;
+        if (sb) return 1;
         return b.instances.length - a.instances.length;
       });
       return sorted;
