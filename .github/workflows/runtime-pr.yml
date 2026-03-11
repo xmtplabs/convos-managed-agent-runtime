@@ -62,8 +62,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  qa:
-    name: "QA smoke tests (:${{ needs.build.outputs.pending }})"
+  smoke-test:
+    name: "Smoke tests (:${{ needs.build.outputs.pending }})"
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -112,7 +112,7 @@ jobs:
           echo "Waiting 15s for browser service to initialise..."
           sleep 15
 
-      - name: Run QA smoke tests (timeout 120s)
+      - name: Run smoke tests (timeout 120s)
         run: docker exec qa-runtime timeout 120 pnpm qa
 
       - name: Dump container logs
@@ -223,7 +223,7 @@ jobs:
 
   publish:
     name: "Publish :${{ needs.build.outputs.sha }}"
-    needs: [build, qa]
+    needs: [build, smoke-test]
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
