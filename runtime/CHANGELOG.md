@@ -1,5 +1,8 @@
 # Convos runtime changelog
 
+## 0.0.26
+- Group cleanup: agents self-destruct when removed from a group, left as the last member, or when disappearing messages expire — no more zombie instances
+
 ## 0.0.25
 - Sub-agents: agents can now spawn background workers for parallel task execution instead of doing things sequentially
 - Self-upgrade: users can ask the agent to "upgrade yourself" and it redeploys to the latest runtime version
