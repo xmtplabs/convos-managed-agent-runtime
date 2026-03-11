@@ -3,6 +3,11 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "$ROOT/.env" ] && set -a && . "$ROOT/.env" 2>/dev/null || true && set +a
 
+if [ -z "$EVAL_OPENROUTER_API_KEY" ]; then
+  echo "ERROR: EVAL_OPENROUTER_API_KEY is not set" >&2
+  exit 1
+fi
+
 SUITE="$1"; shift
 # Strip leading "--" that pnpm injects
 [ "$1" = "--" ] && shift
