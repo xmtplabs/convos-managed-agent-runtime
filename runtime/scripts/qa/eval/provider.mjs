@@ -256,20 +256,33 @@ function handleSelfDestructTest() {
     };
   }
 
-  // Wait for the agent to process the group_updated event and self-destruct
-  execSync('sleep 10');
-
-  // Verify the gateway exited by checking the health endpoint
-  let gatewayDown = false;
-  try {
-    execFileSync('curl', ['-sf', `http://localhost:${GATEWAY_PORT}/pool/health`],
-      { encoding: 'utf-8', timeout: 5_000 }
-    );
-  } catch {
-    gatewayDown = true;
+  // Wait for the agent to process the group_updated event and self-destruct.
+  // Poll /convos/status — after self-destruct the instance is nulled out so
+  // conversation will be null and streaming will be false.
+  let selfDestructed = false;
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    execSync('sleep 3');
+    try {
+      const statusOut = execFileSync('curl', [
+        '-sf',
+        '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
+        `http://localhost:${GATEWAY_PORT}/convos/status`,
+      ], { encoding: 'utf-8', timeout: 5_000 });
+      const status = JSON.parse(statusOut);
+      console.log(`[eval] /convos/status:`, JSON.stringify(status));
+      if (status.conversation === null && status.streaming === false) {
+        selfDestructed = true;
+        break;
+      }
+    } catch {
+      // Gateway process exited entirely (pool-server mode) — also counts
+      selfDestructed = true;
+      break;
+    }
   }
 
-  const result = gatewayDown ? 'SELF_DESTRUCT_CONFIRMED' : 'SELF_DESTRUCT_FAILED: gateway still running';
+  const result = selfDestructed ? 'SELF_DESTRUCT_CONFIRMED' : 'SELF_DESTRUCT_FAILED: instance still active';
   console.log(`[eval] Self-destruct result: ${result}`);
 
   return {
