@@ -12,10 +12,12 @@ sleep 1
 # Kill the entire process group on Ctrl+C
 trap 'kill -9 0; wait 2>/dev/null; exit 130' INT TERM
 
+EVAL_OPENROUTER_API_KEY="${EVAL_OPENROUTER_API_KEY:-$OPENROUTER_API_KEY}"
 if [ -z "$EVAL_OPENROUTER_API_KEY" ]; then
-  echo "ERROR: EVAL_OPENROUTER_API_KEY is not set" >&2
+  echo "ERROR: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY) is not set" >&2
   exit 1
 fi
+export EVAL_OPENROUTER_API_KEY
 
 EVAL_DIR="$ROOT/evals"
 EVAL_OUTPUT="${EVAL_OUTPUT:-}"
