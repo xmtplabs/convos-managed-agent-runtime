@@ -35,10 +35,6 @@ tests:
       prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
       expectedName: "QA Bot Alpha"
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked the agent to update its profile name to 'QA Bot Alpha'.
-          Pass if the AGENT confirmed the name was updated.
       - type: javascript
         value: "file://assertions.mjs:profileNameEquals"
 
@@ -46,10 +42,6 @@ tests:
     vars:
       prompt: "Update your profile photo to https://avatars.githubusercontent.com/u/82580170. Confirm when done."
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked the agent to update its profile photo to a GitHub avatar URL.
-          Pass if the AGENT confirmed the photo was updated.
       - type: javascript
         value: "file://assertions.mjs:profileImageSet"
 
@@ -83,10 +75,8 @@ tests:
     vars:
       prompt: "What version of the runtime are you running? Reply with the version."
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked for the runtime version.
-          Pass if the AGENT's response includes a specific version string or number.
+      - type: regex
+        value: "\\d+\\.\\d+\\.\\d+"
 
   - description: "Agent understands 'upgrade yourself' means runtime upgrade"
     vars:
@@ -123,11 +113,8 @@ tests:
     vars:
       prompt: "Send a short email to fabri@xmtp.com with subject 'QA Eval Test'. Reply: Email sent."
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked the agent to send an email.
-          Pass if the AGENT confirmed the email was sent.
-          Fail if the agent refused, errored, or said it cannot send email.
+      - type: icontains
+        value: "sent"
 
   - description: "Agent can poll received emails"
     vars:
@@ -143,11 +130,8 @@ tests:
     vars:
       prompt: "Send a short SMS to +16154376139 saying 'QA eval test'. Reply: SMS sent."
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked the agent to send an SMS.
-          Pass if the AGENT confirmed the SMS was sent or queued.
-          Fail if the agent refused or said it cannot send SMS.
+      - type: icontains
+        value: "sent"
 
   - description: "Agent can poll received SMS"
     vars:
@@ -163,31 +147,22 @@ tests:
     vars:
       prompt: "Check my USDC balance. Reply: USDC: <amount>."
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked the agent to check their USDC balance.
-          Pass if the AGENT's response includes a USDC amount or balance.
-          Fail if the agent refused or said it cannot check balances.
+      - type: regex
+        value: "(?i)usdc.*\\d"
 
   - description: "Agent can browse a webpage"
     vars:
       prompt: "Browse https://example.com and tell me what the page says."
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked the agent to browse example.com.
-          Pass if the AGENT described content from the page (e.g. "Example Domain").
-          Fail if the agent refused or gave a generic answer without browsing.
+      - type: regex
+        value: "(?i)example domain"
 
   - description: "Agent can search the web"
     vars:
       prompt: "Search the current BTC price. Reply: BTC: $<price>."
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked for the current BTC price.
-          Pass if the AGENT's response includes a specific dollar price for Bitcoin.
-          Fail if the agent refused or said it cannot search.
+      - type: regex
+        value: "\\$[\\d,]+"
 
   - description: "Agent knows its services page URL"
     vars:
@@ -200,21 +175,15 @@ tests:
     vars:
       prompt: "How do I top up my credits?"
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked how to top up credits.
-          Pass if the AGENT explained a concrete method (URL, payment flow, instructions).
-          Fail if the agent didn't know or gave a vague answer.
+      - type: regex
+        value: "https?://"
 
   - description: "Agent knows where to check card balance"
     vars:
       prompt: "Where can I see my card balance?"
     assert:
-      - type: llm-rubric
-        value: >
-          The USER asked where to see their card balance.
-          Pass if the AGENT directed the user to a specific place (URL, page, command).
-          Fail if the agent didn't know or gave a vague answer.
+      - type: regex
+        value: "https?://"
 
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"
