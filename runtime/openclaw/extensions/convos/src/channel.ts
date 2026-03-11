@@ -27,6 +27,9 @@ import { isContextOverflowText, checkCreditsLow, buildCreditErrorMessage } from 
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
+const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
+const EXPLOSION_TRIGGER_GRACE_MS = 60_000;
+const GROUP_UPDATE_SEPARATOR_RE = /\s*;\s*/;
 
 type RuntimeLogger = {
   info: (msg: string) => void;
@@ -534,6 +537,20 @@ async function handleInboundMessage(
     });
   }
 
+  const explosionReason = detectConversationExplosion(msg);
+  if (explosionReason) {
+    log?.info(`[${account.accountId}] Conversation exploded, self-destructing (${explosionReason})`);
+    await selfDestruct(explosionReason);
+    return;
+  }
+
+  const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst);
+  if (membershipTerminationReason) {
+    log?.info(`[${account.accountId}] Membership ended, self-destructing (${membershipTerminationReason})`);
+    await selfDestruct(membershipTerminationReason);
+    return;
+  }
+
   // System events (group updates, reactions) are recorded in the session above
   // so the agent has context, but should not trigger a reply.
   if (msg.contentType === "group_updated" || msg.contentType === "reaction") {
@@ -580,6 +597,85 @@ async function handleInboundMessage(
       },
     },
   });
+}
+
+function detectConversationExplosion(msg: InboundMessage): string | null {
+  if (msg.contentType !== "group_updated") {
+    return null;
+  }
+
+  const match = msg.content.match(GROUP_EXPIRATION_UPDATE_RE);
+  if (!match) {
+    return null;
+  }
+
+  const expiresAtRaw = match[1]?.trim();
+  if (!expiresAtRaw) {
+    return null;
+  }
+
+  const expiresAtMs = Date.parse(expiresAtRaw);
+  if (Number.isNaN(expiresAtMs)) {
+    return null;
+  }
+
+  const observedAtMs = Number.isNaN(msg.timestamp.getTime()) ? Date.now() : msg.timestamp.getTime();
+  if (expiresAtMs > observedAtMs + EXPLOSION_TRIGGER_GRACE_MS) {
+    return null;
+  }
+
+  return `expiration reached at ${new Date(expiresAtMs).toISOString()}`;
+}
+
+async function detectMembershipTerminationReason(
+  msg: InboundMessage,
+  inst: ConvosInstance | null,
+): Promise<string | null> {
+  if (!inst || msg.contentType !== "group_updated" || !isMemberRemovalGroupUpdate(msg.content)) {
+    return null;
+  }
+
+  const profiles = await inst.refreshMemberNames();
+  if (!profiles || profiles.length === 0) {
+    return null;
+  }
+
+  const agentStillPresent = profiles.some((profile) =>
+    profile.isMe === true || (Boolean(inst.inboxId) && profile.inboxId === inst.inboxId)
+  );
+
+  if (!agentStillPresent) {
+    return "removed from group";
+  }
+
+  if (profiles.length !== 1) {
+    return null;
+  }
+
+  return "last member in group";
+}
+
+function isMemberRemovalGroupUpdate(content: string): boolean {
+  for (const rawSegment of content.split(GROUP_UPDATE_SEPARATOR_RE)) {
+    const segment = rawSegment.trim();
+    if (!segment) {
+      continue;
+    }
+    if (/\bleft the group$/i.test(segment)) {
+      return true;
+    }
+    if (
+      /^[^;]+ removed [^;]+$/i.test(segment) &&
+      !/\bwas removed$/i.test(segment) &&
+      !/\bremoved .+ as admin$/i.test(segment) &&
+      !/\bremoved .+ as super admin$/i.test(segment) &&
+      !/\bremoved their profile photo$/i.test(segment)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

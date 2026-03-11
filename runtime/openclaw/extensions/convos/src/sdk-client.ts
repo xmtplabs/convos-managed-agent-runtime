@@ -423,7 +423,7 @@ export class ConvosInstance {
   }
 
   /** Rebuild the member name cache from conversation profiles. */
-  async refreshMemberNames(): Promise<void> {
+  async refreshMemberNames(): Promise<Array<{ inboxId: string; name?: string; isMe?: boolean }> | null> {
     try {
       const profiles = await this.listProfiles();
       this.memberNames.clear();
@@ -433,8 +433,10 @@ export class ConvosInstance {
       if (this.options.debug) {
         console.log(`[convos] Refreshed member names: ${this.memberNames.size} members`);
       }
+      return profiles;
     } catch (err) {
       console.error(`[convos] Failed to refresh member names: ${String(err)}`);
+      return null;
     }
   }
 
