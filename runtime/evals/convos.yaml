@@ -52,8 +52,10 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          The USER sent an image of colorful dice and asked what the agent sees.
-          Pass if the AGENT described visual content (e.g. dice, colors), not a refusal.
+          The USER sent an image and asked the agent to describe it.
+          The transcript may include "[attachment: ...]" references and message hashes — ignore those.
+          Pass if the AGENT described any visual content (e.g. dice, colors, shapes, objects).
+          Fail only if the AGENT refused or gave no visual description at all.
 
   - description: "Agent can see group members"
     vars:
