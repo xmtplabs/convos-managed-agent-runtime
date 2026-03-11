@@ -159,6 +159,16 @@ tests:
           Pass if the AGENT's response includes SMS details (phone number, message text).
           Fail if the agent refused or said it has no SMS access.
 
+  - description: "Agent can check USDC balance"
+    vars:
+      prompt: "Check my USDC balance. Reply: USDC: <amount>."
+    assert:
+      - type: llm-rubric
+        value: >
+          The USER asked the agent to check their USDC balance.
+          Pass if the AGENT's response includes a USDC amount or balance.
+          Fail if the agent refused or said it cannot check balances.
+
   - description: "Agent can browse a webpage"
     vars:
       prompt: "Browse https://example.com and tell me what the page says."

@@ -37,7 +37,6 @@ echo "  INSTANCE_ID:      $([ -n "$INSTANCE_ID" ] && echo "$INSTANCE_ID" || echo
 echo "  AGENTMAIL_API_KEY:$([ -n "$AGENTMAIL_API_KEY" ] && echo " set" || echo " (not set)")"
 echo "  TELNYX_API_KEY:   $([ -n "$TELNYX_API_KEY" ] && echo "set" || echo "(not set)")"
 echo "  OPENROUTER_API_KEY:$([ -n "$OPENROUTER_API_KEY" ] && echo " set" || echo " (not set)")"
-echo "  BANKR_API_KEY:    $([ -n "$BANKR_API_KEY" ] && echo "set" || echo "(not set)")"
 echo "  Email route:      $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$AGENTMAIL_API_KEY" ] && echo "local key" || echo "none"))"
 echo "  SMS route:        $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$TELNYX_API_KEY" ] && echo "local key" || echo "none"))"
 echo "  Credits route:    $([ "$HAS_POOL" = "yes" ] && echo "proxy" || ([ -n "$OPENROUTER_API_KEY" ] && echo "local key" || echo "none"))"
@@ -101,21 +100,6 @@ if [ -n "$QA_PHONE" ]; then
   fi
 else
   echo "  [SKIP] no phone available (need proxy or TELNYX_API_KEY)"
-fi
-
-# --- Bankr (opt-in — only runs when BANKR_API_KEY is set) ---
-echo ""
-echo "=== QA: bankr ==="
-if [ -n "$BANKR_API_KEY" ]; then
-  echo "  > bankr prompt 'Check my USDC balance'"
-  run bankr prompt 'Check my USDC balance. Reply only: USDC: <amount>'
-  if grep -qi "USD\|balance\|0x" "$QA_TMP"; then
-    pass "bankr"
-  else
-    fail "bankr" "$(cat "$QA_TMP")"
-  fi
-else
-  echo "  [SKIP] no BANKR_API_KEY set (opt-in)"
 fi
 
 # --- Convos CLI ---
