@@ -263,20 +263,30 @@ function handleSelfDestructTest() {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     execSync('sleep 3');
+    let statusOut;
     try {
-      const statusOut = execFileSync('curl', [
+      statusOut = execFileSync('curl', [
         '-sf',
         '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
         `http://localhost:${GATEWAY_PORT}/convos/status`,
       ], { encoding: 'utf-8', timeout: 5_000 });
-      const status = JSON.parse(statusOut);
-      console.log(`[eval] /convos/status:`, JSON.stringify(status));
-      if (status.conversation === null && status.streaming === false) {
-        selfDestructed = true;
-        break;
-      }
     } catch {
       // Gateway process exited entirely (pool-server mode) — also counts
+      selfDestructed = true;
+      break;
+    }
+
+    let status;
+    try {
+      status = JSON.parse(statusOut);
+    } catch {
+      // Malformed JSON — gateway still running but returning bad data, continue polling
+      console.log(`[eval] /convos/status returned invalid JSON, continuing poll`);
+      continue;
+    }
+
+    console.log(`[eval] /convos/status:`, JSON.stringify(status));
+    if (status.conversation === null && status.streaming === false) {
       selfDestructed = true;
       break;
     }
