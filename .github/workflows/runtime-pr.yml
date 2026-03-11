@@ -10,6 +10,7 @@ on:
     paths:
       - 'runtime/**'
       - '!runtime/CHANGELOG.md'
+      - '!runtime/evals/**'
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
