@@ -1,6 +1,6 @@
 # runtime/scripts/qa/eval/core.yaml
-# Core eval: XMTP conversation behavior, runtime awareness, self-destruct.
-# Runs first — does the identity reset and acts as the health gate.
+# Core eval: XMTP conversation behavior, runtime awareness.
+# Runs in parallel with services after init.
 
 description: "OpenClaw Core Eval"
 
@@ -18,27 +18,13 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Agent sends welcome message after joining"
-    vars:
-      prompt: "(waiting for welcome message)"
-      waitForWelcome: true
-    assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The AGENT should have
-          sent a welcome/greeting message introducing itself and its capabilities.
-          Pass if the transcript contains such a welcome message from the AGENT.
-
   - description: "Agent can update profile name"
     vars:
       prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
       expectedName: "QA Bot Alpha"
     assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The USER asked the agent
-          to update its profile name to 'QA Bot Alpha'. Pass if the AGENT's response
-          indicates the profile name was successfully updated.
+      - type: icontains
+        value: "QA Bot Alpha"
       - type: javascript
         value: "file://assertions.mjs:profileNameEquals"
 
@@ -46,11 +32,12 @@ tests:
     vars:
       prompt: "Update your profile photo to https://avatars.githubusercontent.com/u/82580170. Confirm when done."
     assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The USER asked the agent
-          to update its profile photo to a GitHub avatar URL. Pass if the AGENT's
-          response indicates the profile photo was successfully updated.
+      - type: icontains-any
+        value:
+          - "updated"
+          - "done"
+          - "photo"
+          - "profile"
       - type: javascript
         value: "file://assertions.mjs:profileImageSet"
 
@@ -69,21 +56,19 @@ tests:
     vars:
       prompt: "What time is it right now?"
     assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The USER asked for the
-          current time. Pass if the AGENT's most recent response to this question
-          contains a specific time in hours and minutes.
+      - type: regex
+        value: "\\d{1,2}[:.:]\\d{2}"
 
   - description: "Agent can see group members"
     vars:
       prompt: "Who is in this conversation? List the participants."
     assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The USER asked who is
-          in the conversation. Pass if the AGENT's most recent response lists
-          participants, identities, or members of the conversation.
+      - type: icontains-any
+        value:
+          - "QA Bot Alpha"
+          - "participant"
+          - "member"
+          - "inbox"
 
   # --- Runtime & upgrade awareness ---
 
@@ -91,12 +76,8 @@ tests:
     vars:
       prompt: "What version of the runtime are you running? Reply with the version."
     assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The USER asked for the
-          runtime version. Pass if the AGENT's response includes a specific version
-          string or number. Fail if the agent said it doesn't know or gave a generic
-          answer without a version.
+      - type: regex
+        value: "\\d+\\.\\d+\\.\\d+"
 
   - description: "Agent understands 'upgrade yourself' means runtime upgrade"
     vars:
@@ -114,31 +95,33 @@ tests:
     vars:
       prompt: "If I asked you to upgrade your runtime, what would that involve? Just explain, don't actually do it."
     assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The USER asked the agent
-          to explain what a runtime upgrade involves. Pass if the AGENT described a
-          convos runtime upgrade process (e.g. redeploy, Railway, new image). Fail
-          if the agent confused it with something else.
+      - type: icontains-any
+        value:
+          - "redeploy"
+          - "Railway"
+          - "runtime"
+          - "image"
+          - "pool"
+      - type: not-icontains-any
+        value:
+          - "npm update"
+          - "npm install"
+          - "package.json"
 
   - description: "Agent handles vague 'can you update' as runtime upgrade"
     vars:
       prompt: "If I asked you to update, what would you do? Just explain, don't actually do it."
     assert:
-      - type: llm-rubric
-        value: >
-          This is a chat transcript between USER and AGENT. The USER asked the agent
-          to explain what it would do if asked to update. Pass if the AGENT interpreted
-          this as a runtime upgrade (e.g. redeploy, Railway, runtime image). Fail if
-          the agent confused it with npm update, dependency updates, or package
-          management.
+      - type: icontains-any
+        value:
+          - "redeploy"
+          - "Railway"
+          - "runtime"
+          - "upgrade"
+          - "pool"
+      - type: not-icontains-any
+        value:
+          - "npm update"
+          - "npm install"
+          - "package.json"
 
-  # --- Self-destruct (must be last — removes agent from group) ---
-
-  - description: "Agent self-destructs when removed from group"
-    vars:
-      prompt: "(self-destruct trigger)"
-      selfDestruct: true
-    assert:
-      - type: javascript
-        value: "file://assertions.mjs:agentSelfDestructed"

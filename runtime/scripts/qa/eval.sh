@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 [ -f "$ROOT/.env" ] && set -a && . "$ROOT/.env" 2>/dev/null || true && set +a
 
@@ -10,7 +9,7 @@ EVAL_DIR="$ROOT/scripts/qa/eval"
 EVAL_OUTPUT="${EVAL_OUTPUT:-}"
 EVAL_JSON_OUTPUT="${EVAL_JSON_OUTPUT:-}"
 
-# --suite=core or --suite=services to run a single suite
+# --suite=X to run a single suite (init, core, services, teardown)
 SUITE=""
 PASSTHROUGH=""
 for arg in "$@"; do
@@ -31,7 +30,6 @@ run_suite() {
 
   cmd="npx promptfoo eval -c $config --table-cell-max-length 1000"
 
-  # Per-suite output files: append suite name before extension
   if [ -n "$EVAL_OUTPUT" ]; then
     ext="${EVAL_OUTPUT##*.}"
     base="${EVAL_OUTPUT%.*}"
@@ -49,29 +47,62 @@ run_suite() {
 if [ -n "$SUITE" ]; then
   # Single suite mode
   skip="0"
-  [ "$SUITE" = "services" ] && skip="1"
+  [ "$SUITE" != "init" ] && skip="1"
   run_suite "$SUITE" "$skip"
-else
-  # Sequential: core (with reset) then services (skip reset, reuse conversation)
-  CORE_EXIT=0
-  SERVICES_EXIT=0
+  exit $?
+fi
 
-  echo "[eval] Running core suite..."
-  echo ""
-  run_suite core 0 || CORE_EXIT=$?
+# === Full run: init → core + services (parallel) → teardown ===
 
-  echo ""
-  echo "[eval] Running services suite..."
-  echo ""
-  run_suite services 1 || SERVICES_EXIT=$?
+INIT_EXIT=0
+CORE_EXIT=0
+SERVICES_EXIT=0
+TEARDOWN_EXIT=0
 
+# Phase 1: Init (reset, join, welcome test)
+echo "[eval] === Phase 1: Init ==="
+echo ""
+run_suite init 0 || INIT_EXIT=$?
+
+if [ "$INIT_EXIT" -ne 0 ]; then
   echo ""
   echo "=== Eval Results ==="
-  [ "$CORE_EXIT" -eq 0 ] && echo "  core:     PASS" || echo "  core:     FAIL (exit $CORE_EXIT)"
-  [ "$SERVICES_EXIT" -eq 0 ] && echo "  services: PASS" || echo "  services: FAIL (exit $SERVICES_EXIT)"
+  echo "  init:     FAIL (exit $INIT_EXIT)"
+  echo "  core:     SKIP"
+  echo "  services: SKIP"
+  echo "  teardown: SKIP"
+  exit 1
+fi
 
-  # Fail if either suite failed
-  if [ "$CORE_EXIT" -ne 0 ] || [ "$SERVICES_EXIT" -ne 0 ]; then
-    exit 1
-  fi
+# Phase 2: Core + Services in parallel
+echo ""
+echo "[eval] === Phase 2: Core + Services (parallel) ==="
+echo ""
+
+run_suite core 1 &
+CORE_PID=$!
+
+run_suite services 1 &
+SERVICES_PID=$!
+
+wait $CORE_PID || CORE_EXIT=$?
+wait $SERVICES_PID || SERVICES_EXIT=$?
+
+# Phase 3: Teardown (self-destruct)
+echo ""
+echo "[eval] === Phase 3: Teardown ==="
+echo ""
+run_suite teardown 1 || TEARDOWN_EXIT=$?
+
+# Summary
+echo ""
+echo "=== Eval Results ==="
+echo "  init:     PASS"
+[ "$CORE_EXIT" -eq 0 ] && echo "  core:     PASS" || echo "  core:     FAIL (exit $CORE_EXIT)"
+[ "$SERVICES_EXIT" -eq 0 ] && echo "  services: PASS" || echo "  services: FAIL (exit $SERVICES_EXIT)"
+[ "$TEARDOWN_EXIT" -eq 0 ] && echo "  teardown: PASS" || echo "  teardown: FAIL (exit $TEARDOWN_EXIT)"
+
+# Fail if any suite failed
+if [ "$CORE_EXIT" -ne 0 ] || [ "$SERVICES_EXIT" -ne 0 ] || [ "$TEARDOWN_EXIT" -ne 0 ]; then
+  exit 1
 fi

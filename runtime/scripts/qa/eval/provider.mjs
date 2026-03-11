@@ -22,6 +22,9 @@ if (!GATEWAY_TOKEN) {
 
 const CONVOS = resolveConvos();
 
+// State file lets sequential suites share the same conversation.
+const STATE_FILE = join(tmpdir(), 'eval-state.json');
+
 // Eval's convos-cli uses a separate HOME so it gets its own ~/.convos identity,
 // distinct from the gateway's agent identity.
 const EVAL_HOME = mkdtempSync(join(tmpdir(), 'eval-convos-'));
@@ -62,10 +65,6 @@ function checkGateway() {
 }
 
 checkGateway();
-
-// State file lets sequential suites share the same conversation.
-// Core writes it after setup; services reads it to skip setup entirely.
-const STATE_FILE = join(tmpdir(), 'eval-state.json');
 
 let sharedConversationId = null;
 let userInboxId = null;
