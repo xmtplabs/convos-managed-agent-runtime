@@ -795,6 +795,7 @@
           btn.style.color = '#FF9500';
           setTimeout(function () { btn.style.color = ''; }, 1500);
         }
+        await refreshInstances();
         refresh();
       } catch (err) {
         console.error('[pool] recheck failed for %s:', id, err.message);
