@@ -543,6 +543,7 @@ async function handleInboundMessage(
           clearTimeout(existing.timer);
           pendingCompanionImage.delete(holdKey);
           existing.downloadPromise.then((resolvedPath) => {
+            if (!resolvedPath) return; // Download failed — don't retry
             handleInboundMessage(account, existing.originalMsg, runtime, log, resolvedPath).catch((err) => {
               errorLog(`[${account.accountId}] Failed to flush held attachment: ${String(err)}`);
             });
@@ -555,6 +556,7 @@ async function handleInboundMessage(
           pendingCompanionImage.delete(holdKey);
           // No companion text arrived — dispatch attachment alone via re-entry
           const resolvedPath = await entry.downloadPromise;
+          if (!resolvedPath) return; // Download failed — don't retry
           handleInboundMessage(account, msg, runtime, log, resolvedPath).catch((err) => {
             errorLog(`[${account.accountId}] Failed to process held attachment: ${String(err)}`);
           });
