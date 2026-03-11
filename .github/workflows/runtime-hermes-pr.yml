@@ -107,7 +107,7 @@ jobs:
         run: docker logs qa-runtime
 
   publish:
-    name: "Publish :${{ needs.build.outputs.sha }}"
+    name: Publish image
     needs: [build, smoke-test]
     runs-on: ubuntu-latest
     steps:

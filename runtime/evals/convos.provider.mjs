@@ -56,7 +56,7 @@ function sleep(ms) {
 }
 
 function convos(args, opts = {}) {
-  return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 15_000, env: CONVOS_ENV, ...opts }).trim();
+  return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
 }
 
 function elapsed(start) { return `${((Date.now() - start) / 1000).toFixed(1)}s`; }
@@ -72,8 +72,8 @@ function setup() {
     '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
     '-d', '{}',
   ], { encoding: 'utf-8', timeout: 30_000 });
-  log('Waiting for gateway to reinitialise (5s)...');
-  sleep(5_000);
+  log('Waiting for gateway to reinitialise (10s)...');
+  sleep(10_000);
 
   log('Creating conversation...');
   const createOut = convos([
@@ -95,7 +95,7 @@ function setup() {
   ], { env: CONVOS_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
 
   try {
-    sleep(1_000);
+    sleep(3_000);
     execFileSync('curl', [
       '-s', '-X', 'POST',
       `http://localhost:${GATEWAY_PORT}/convos/join`,
@@ -107,7 +107,7 @@ function setup() {
     try { watcher.kill(); } catch {}
   }
 
-  sleep(2_000);
+  sleep(5_000);
   log(`Setup complete (${elapsed(t)})\n`);
 }
 
@@ -121,8 +121,11 @@ function fetchMessages() {
 }
 
 function isSystemMsg(m) {
-  // Filter by contentType — anything that isn't 'text' is a system message
-  return m.contentType && m.contentType !== 'text';
+  // Filter by contentType — anything that isn't 'text' is a system message.
+  // contentType may be a string ("text") or an object ({ typeId: "text", ... }).
+  if (!m.contentType) return false;
+  const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
+  return typeId && typeId !== 'text';
 }
 
 function isAgentReply(m) {
@@ -142,13 +145,13 @@ function waitForAgent(baseline) {
   let lastChange = Date.now();
 
   while (Date.now() < deadline) {
-    sleep(1_500);
+    sleep(3_000);
     try { msgs = fetchMessages(); } catch { continue; }
     const n = agentCount(msgs);
     if (n > count) {
       count = n;
       lastChange = Date.now();
-    } else if (count > baseline && Date.now() - lastChange >= 2_000) {
+    } else if (count > baseline && Date.now() - lastChange >= 5_000) {
       return msgs;
     }
   }
@@ -157,7 +160,11 @@ function waitForAgent(baseline) {
 
 function transcript(msgs, afterIndex = 0) {
   return msgs.slice(afterIndex)
-    .filter((m) => m.contentType === 'text' || !m.contentType)
+    .filter((m) => {
+      if (!m.contentType) return true;
+      const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
+      return typeId === 'text';
+    })
     .map((m) => {
       const who = m.senderInboxId === userInboxId ? 'USER' : 'AGENT';
       return `[${who}] ${m.content || m.text || JSON.stringify(m)}`;

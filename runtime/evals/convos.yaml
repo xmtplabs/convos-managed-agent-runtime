@@ -61,8 +61,11 @@ tests:
     vars:
       prompt: "Who is in this conversation? List the participants."
     assert:
-      - type: regex
-        value: "[Pp]articipant|[Mm]ember|[Pp]eople|\\btwo\\b|\\bTwo\\b|\\b2\\b"
+      - type: llm-rubric
+        value: >
+          This is a chat transcript between USER and AGENT. The USER asked who is
+          in the conversation. Pass if the AGENT's most recent response lists
+          participants, identities, or members of the conversation.
 
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"

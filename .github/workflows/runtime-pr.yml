@@ -66,12 +66,18 @@ jobs:
           cache-to: type=inline
 
   eval:
-    name: "E2E eval"
+    name: "Eval: ${{ matrix.suite }}"
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    outputs:
-      passed: ${{ steps.result.outputs.passed }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: prompt
+            timeout: 300
+          - suite: convos
+            timeout: 600
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -112,40 +118,20 @@ jobs:
           docker logs eval-runtime
           exit 1
 
-      - name: "Run eval suites (parallel)"
-        id: result
-        continue-on-error: true
+      - name: "Run ${{ matrix.suite }} suite"
         run: |
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
-            eval-runtime timeout 300 pnpm evals:prompt &
-          PID_PROMPT=$!
-
-          docker exec \
-            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
-            eval-runtime timeout 600 pnpm evals:convos &
-          PID_CONVOS=$!
-
-          PROMPT_OK=0; CONVOS_OK=0
-          wait $PID_PROMPT || PROMPT_OK=1
-          wait $PID_CONVOS || CONVOS_OK=1
-
-          echo "prompt=$PROMPT_OK convos=$CONVOS_OK"
-          if [[ $PROMPT_OK -eq 0 && $CONVOS_OK -eq 0 ]]; then
-            echo "passed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "passed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Evals failed (prompt=$PROMPT_OK, convos=$CONVOS_OK) — skipping publish"
-          fi
+            eval-runtime timeout ${{ matrix.timeout }} pnpm evals:${{ matrix.suite }}
 
       - name: Dump container logs
         if: always()
         run: docker logs eval-runtime
 
   publish:
-    name: "Publish :${{ needs.build.outputs.sha }}"
+    name: Publish image
     needs: [build, eval]
-    if: always() && needs.build.result == 'success' && needs.eval.outputs.passed == 'true'
+    if: always() && needs.build.result == 'success' && needs.eval.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
