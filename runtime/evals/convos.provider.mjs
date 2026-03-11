@@ -120,19 +120,9 @@ function fetchMessages() {
   return Array.isArray(msgs) ? msgs : [];
 }
 
-// System content types that are not actual agent replies
-const SYSTEM_TYPES = new Set([
-  'group_updated', 'member_added', 'member_removed',
-  'group_membership_change', 'membership_change',
-]);
-
-// System-generated text patterns (profile changes, membership, invite tags)
-const SYSTEM_TEXT = /^(Somebody |.+ set their |.+ added |.+ removed |.+ set the )/;
-
 function isSystemMsg(m) {
-  if (SYSTEM_TYPES.has(m.contentType)) return true;
-  const text = m.content || m.text || '';
-  return SYSTEM_TEXT.test(text);
+  // Filter by contentType — anything that isn't 'text' is a system message
+  return m.contentType && m.contentType !== 'text';
 }
 
 function isAgentReply(m) {
@@ -167,7 +157,7 @@ function waitForAgent(baseline) {
 
 function transcript(msgs, afterIndex = 0) {
   return msgs.slice(afterIndex)
-    .filter((m) => !isSystemMsg(m))
+    .filter((m) => m.contentType === 'text' || !m.contentType)
     .map((m) => {
       const who = m.senderInboxId === userInboxId ? 'USER' : 'AGENT';
       return `[${who}] ${m.content || m.text || JSON.stringify(m)}`;
