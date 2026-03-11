@@ -72,6 +72,10 @@ function firstValue(value, paths) {
   return undefined;
 }
 
+function normalizeReason(reason) {
+  return clip(String(reason || ''), 180).toLowerCase();
+}
+
 function gatherFailureReasons(output) {
   const reasons = [];
 
@@ -110,6 +114,45 @@ function gatherFailureReasons(output) {
   return [...new Set(reasons.map((reason) => clip(String(reason), 180)).filter(Boolean))];
 }
 
+function analyzeFailurePatterns(failures) {
+  const reasonCounts = new Map();
+
+  for (const failure of failures) {
+    for (const reason of failure.reasons) {
+      const normalized = normalizeReason(reason);
+      if (!normalized) {
+        continue;
+      }
+
+      const entry = reasonCounts.get(normalized) || {
+        text: reason,
+        count: 0,
+        tests: [],
+      };
+      entry.count += 1;
+      entry.tests.push(failure.name);
+      reasonCounts.set(normalized, entry);
+    }
+  }
+
+  const topReasons = [...reasonCounts.values()]
+    .sort((a, b) => b.count - a.count || a.text.localeCompare(b.text))
+    .slice(0, 3);
+
+  const dominantReason = topReasons[0] && topReasons[0].count >= 2 ? topReasons[0] : null;
+
+  return {
+    topReasons,
+    commonFailure:
+      dominantReason && dominantReason.count === failures.length
+        ? {
+            reason: dominantReason.text,
+            count: dominantReason.count,
+          }
+        : null,
+  };
+}
+
 function normalizeOutput(output, index) {
   const passValue = firstValue(output, ['pass', 'success']);
   const pass = typeof passValue === 'boolean' ? passValue : passValue === 1;
@@ -144,6 +187,8 @@ function buildSummary(data) {
       passed: 0,
       failed: 0,
       failures: [],
+      topReasons: [],
+      commonFailure: null,
       parseError: '',
     };
   }
@@ -154,6 +199,8 @@ function buildSummary(data) {
       passed: 0,
       failed: evalExitCode ? 1 : 0,
       failures: [],
+      topReasons: [],
+      commonFailure: null,
       parseError: `Could not parse eval JSON: ${data.parseError}`,
     };
   }
@@ -170,12 +217,15 @@ function buildSummary(data) {
   const inferredFailed = Math.max(failed, failedOutputs.length, evalExitCode ? 1 : 0);
   const inferredPassed = Math.max(0, Math.max(Number.isFinite(statsPassed) ? statsPassed : 0, Math.min(total || normalized.length, passed)));
   const finalTotal = Math.max(total, normalized.length, inferredPassed + inferredFailed);
+  const patterns = analyzeFailurePatterns(failedOutputs);
 
   return {
     total: finalTotal,
     passed: inferredPassed,
     failed: inferredFailed,
-    failures: failedOutputs.slice(0, 5),
+    failures: failedOutputs,
+    topReasons: patterns.topReasons,
+    commonFailure: patterns.commonFailure,
     parseError: '',
   };
 }
@@ -199,7 +249,7 @@ async function generateLlmSummary(summary) {
       {
         role: 'system',
         content:
-          'You summarize CI eval failures for engineers. Be concise, specific, and factual. Respond in plain markdown with 2-4 short bullets. Do not mention that you are an AI.',
+          'You summarize CI eval failures for engineers from structured JSON data. Be concise, specific, and factual. Prefer repeated concrete causes over per-test details. Do not speculate about missing context. If a shared upstream failure appears across multiple tests, state that explicitly. Respond in plain markdown with 2-4 short bullets. Do not mention that you are an AI.',
       },
       {
         role: 'user',
@@ -209,9 +259,11 @@ async function generateLlmSummary(summary) {
             passed: summary.passed,
             failed: summary.failed,
           },
+          common_failure: summary.commonFailure,
+          top_reasons: summary.topReasons,
           failures: summary.failures.map((failure) => ({
             test: failure.name,
-            reason: failure.reason,
+            reasons: failure.reasons,
             transcript_excerpt: failure.transcript,
           })),
         }),
@@ -257,10 +309,12 @@ function writeStepSummary(markdown) {
 
 function emitError(summary, llmSummary) {
   const headline = `${summary.failed}/${summary.total || summary.failed} eval tests failed`;
-  const details = summary.failures
-    .slice(0, 3)
-    .map((failure) => `${failure.name}: ${failure.reason}`)
-    .join(' | ');
+  const details = summary.commonFailure
+    ? `common cause across all failures: ${summary.commonFailure.reason}`
+    : summary.failures
+        .slice(0, 3)
+        .map((failure) => `${failure.name}: ${failure.reason}`)
+        .join(' | ');
   const llmLine = llmSummary ? ` | ${clip(llmSummary.replace(/[*`#>\n-]+/g, ' '), 180)}` : '';
   const message = clip(`${headline}${details ? ` | ${details}` : ''}${llmLine}`, 500);
   console.log(`::error title=E2E eval failed::${escapeAnnotation(message)}`);
@@ -284,10 +338,24 @@ if (summary.parseError) {
   lines.push('');
 }
 
+if (summary.commonFailure) {
+  lines.push('### Common Cause');
+  lines.push('');
+  lines.push(`- ${summary.commonFailure.reason} (${summary.commonFailure.count}/${summary.failed} failed tests)`);
+  lines.push('');
+} else if (summary.topReasons.length > 0) {
+  lines.push('### Top Failure Reasons');
+  lines.push('');
+  for (const entry of summary.topReasons) {
+    lines.push(`- ${entry.text} (${entry.count}/${summary.failed} failed tests)`);
+  }
+  lines.push('');
+}
+
 if (summary.failures.length > 0) {
   lines.push('### Failed Tests');
   lines.push('');
-  for (const failure of summary.failures) {
+  for (const failure of summary.failures.slice(0, 7)) {
     lines.push(`- \`${failure.name}\` — ${failure.reason}`);
   }
   lines.push('');
