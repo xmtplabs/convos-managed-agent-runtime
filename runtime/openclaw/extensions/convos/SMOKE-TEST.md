@@ -100,6 +100,7 @@ curl -s http://localhost:18789/convos/status | jq .
 ```
 
 Expected: `conversation: null`, `clean: true`, `provision.state: "idle"`, and all `persisted.*` flags `false`.
+`transient.pendingCompanionStatePresent` should also be `false`.
 
 ## Test 4: HTTP Create Conversation
 

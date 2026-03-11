@@ -1065,6 +1065,42 @@ export function clearConvosSessionState(conversationId: string): void {
   }
 }
 
+export function hasConvosMediaState(): boolean {
+  const mediaDir = resolveMediaDir();
+  if (!fs.existsSync(mediaDir)) {
+    return false;
+  }
+  try {
+    return fs.readdirSync(mediaDir).length > 0;
+  } catch {
+    return true;
+  }
+}
+
+export function clearConvosMediaState(): void {
+  const mediaDir = resolveMediaDir();
+  if (!fs.existsSync(mediaDir)) {
+    return;
+  }
+  try {
+    fs.rmSync(mediaDir, { recursive: true, force: true });
+    console.log(`[convos] Cleared media state: ${mediaDir}`);
+  } catch (err) {
+    console.error(`[convos] Failed to clear media state: ${String(err)}`);
+  }
+}
+
+export function hasPendingCompanionState(): boolean {
+  return pendingCompanionImage.size > 0;
+}
+
+export function clearPendingCompanionState(): void {
+  for (const entry of pendingCompanionImage.values()) {
+    clearTimeout(entry.timer);
+  }
+  pendingCompanionImage.clear();
+}
+
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
   clearConversationExpirationCheck(accountId, log, false);
   const inst = getConvosInstance();

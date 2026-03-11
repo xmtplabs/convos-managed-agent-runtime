@@ -143,7 +143,11 @@ curl -s http://localhost:18789/convos/status | jq .
 #     "cliIdentityPresent": false,
 #     "cliDbPresent": false,
 #     "sessionStatePresent": false,
+#     "mediaCachePresent": false,
 #     "conversationEnvPresent": false
+#   },
+#   "transient": {
+#     "pendingCompanionStatePresent": false
 #   },
 #   "dirtyReasons": [],
 #   "clean": true
@@ -166,3 +170,14 @@ curl -s -X POST http://localhost:18789/convos/reset \
 | Network down | Stream exits, gateway logs exit code |
 
 See [SMOKE-TEST.md](./SMOKE-TEST.md) for the full manual checklist.
+
+`clean: true` is meant to match a fresh runtime with respect to Convos-owned state. That now includes:
+- no active conversation
+- no in-flight provision or pending join
+- no saved credentials or config binding
+- no custom instructions residue
+- no CLI identity/db under `~/.convos`
+- no Convos session files
+- no downloaded Convos media cache
+- no in-process held companion-image state
+- no `CONVOS_CONVERSATION_ID`

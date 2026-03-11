@@ -6,8 +6,12 @@ import path from "node:path";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
 import {
+  clearConvosMediaState,
   clearConvosSessionState,
   convosPlugin,
+  clearPendingCompanionState,
+  hasConvosMediaState,
+  hasPendingCompanionState,
   hasConvosSessionState,
   startWiredInstance,
 } from "./src/channel.js";
@@ -245,9 +249,13 @@ function buildRuntimeStatus() {
     cliIdentityPresent: pathHasState(path.join(convosHomeDir(), "identities")),
     cliDbPresent: pathHasState(path.join(convosHomeDir(), "db")),
     sessionStatePresent: hasConvosSessionState(sessionProbeConversationId),
+    mediaCachePresent: hasConvosMediaState(),
     conversationEnvPresent:
       typeof process.env.CONVOS_CONVERSATION_ID === "string"
       && process.env.CONVOS_CONVERSATION_ID.trim().length > 0,
+  };
+  const transient = {
+    pendingCompanionStatePresent: hasPendingCompanionState(),
   };
 
   const dirtyReasons: string[] = [];
@@ -258,7 +266,9 @@ function buildRuntimeStatus() {
   if (persisted.cliIdentityPresent) dirtyReasons.push("cli_identity");
   if (persisted.cliDbPresent) dirtyReasons.push("cli_db");
   if (persisted.sessionStatePresent) dirtyReasons.push("session_state");
+  if (persisted.mediaCachePresent) dirtyReasons.push("media_cache");
   if (persisted.conversationEnvPresent) dirtyReasons.push("conversation_env");
+  if (transient.pendingCompanionStatePresent) dirtyReasons.push("pending_companion_state");
   if (provision.state !== "idle") dirtyReasons.push(`provision_${provision.state}`);
 
   const clean = dirtyReasons.length === 0;
@@ -274,6 +284,7 @@ function buildRuntimeStatus() {
     },
     provision,
     persisted,
+    transient,
     dirtyReasons,
     clean,
   };
@@ -465,6 +476,8 @@ async function factoryReset(accountId?: string) {
   await clearPersistedBinding(accountId, conversationIds);
   clearCustomInstructions();
   clearCliIdentityState();
+  clearConvosMediaState();
+  clearPendingCompanionState();
   return { ok: true, reset: true, status: buildRuntimeStatus(), generation: resetGeneration };
 }
 
