@@ -231,7 +231,7 @@ jobs:
         if: always()
         run: node runtime/scripts/qa/eval/summarize-results.mjs ./eval-results.json
         env:
-          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code }}
+          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code || '1' }}
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: Dump logs

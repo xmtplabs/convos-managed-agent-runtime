@@ -300,7 +300,11 @@ function writeStepSummary(markdown) {
     return;
   }
 
-  appendFileSync(stepSummaryPath, `${markdown}\n`);
+  try {
+    appendFileSync(stepSummaryPath, `${markdown}\n`);
+  } catch {
+    // Step summary is optional; don't block primary output
+  }
 }
 
 function emitError(summary, llmSummary) {
