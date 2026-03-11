@@ -69,34 +69,36 @@ jobs:
           echo "Waiting 15s for browser service to initialise..."
           sleep 15
 
-      - name: Run e2e eval
-        id: eval
+      - name: "Eval: prompt (parallel)"
+        id: eval-prompt
         continue-on-error: true
         working-directory: runtime
         run: |
           set +e
-          timeout 900 pnpm evals
-          status=$?
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-          exit $status
+          timeout 300 pnpm evals:prompt
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
         env:
-          EVAL_OUTPUT: ./eval-results.html
-          EVAL_JSON_OUTPUT: ./eval-results.json
-
-      - name: Upload eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-report
-          path: |
-            runtime/eval-results.html
-            runtime/eval-results.json
-          if-no-files-found: ignore
-
-      - name: Summarize eval results
-        if: always()
-        run: node runtime/evals/summarize-results.mjs runtime/eval-results.json
-        env:
-          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code || '1' }}
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
-          EVAL_STRICT: '1'
+
+      - name: "Eval: convos (sequential)"
+        id: eval-convos
+        continue-on-error: true
+        working-directory: runtime
+        run: |
+          set +e
+          timeout 600 pnpm evals:convos
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        env:
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+
+      - name: "Eval: check results"
+        if: always()
+        run: |
+          PROMPT=${{ steps.eval-prompt.outputs.exit_code || '1' }}
+          CONVOS=${{ steps.eval-convos.outputs.exit_code || '1' }}
+          echo "Prompt eval: exit $PROMPT"
+          echo "Convos eval: exit $CONVOS"
+          if [ "$PROMPT" != "0" ] || [ "$CONVOS" != "0" ]; then
+            echo "::error::Eval failed — prompt=$PROMPT convos=$CONVOS"
+            exit 1
+          fi

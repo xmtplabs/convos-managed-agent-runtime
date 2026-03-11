@@ -196,44 +196,40 @@ jobs:
           fi
           sleep 15
 
-      - name: Run e2e eval
-        id: eval
+      - name: "Eval: prompt (parallel)"
+        id: eval-prompt
         continue-on-error: true
         run: |
           set +e
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
-            -e EVAL_OUTPUT=/tmp/eval-results.html \
-            -e EVAL_JSON_OUTPUT=/tmp/eval-results.json \
-            eval-runtime timeout 900 pnpm evals
-          status=$?
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-          exit $status
+            eval-runtime timeout 300 pnpm evals:prompt
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
-      - name: Copy eval reports
+      - name: "Eval: convos (sequential)"
+        id: eval-convos
+        continue-on-error: true
+        run: |
+          set +e
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
+            eval-runtime timeout 600 pnpm evals:convos
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        env:
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+
+      - name: "Eval: check results"
         if: always()
         run: |
-          docker cp eval-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
-          docker cp eval-runtime:/tmp/eval-results.json ./eval-results.json 2>/dev/null || true
-
-      - name: Upload eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-report
-          path: |
-            eval-results.html
-            eval-results.json
-          if-no-files-found: ignore
-
-      - name: Summarize eval results
-        if: always()
-        run: node runtime/evals/summarize-results.mjs ./eval-results.json
-        env:
-          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code || '1' }}
-          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          PROMPT=${{ steps.eval-prompt.outputs.exit_code || '1' }}
+          CONVOS=${{ steps.eval-convos.outputs.exit_code || '1' }}
+          echo "Prompt eval: exit $PROMPT"
+          echo "Convos eval: exit $CONVOS"
+          if [ "$PROMPT" != "0" ] || [ "$CONVOS" != "0" ]; then
+            echo "::warning::Eval failed — prompt=$PROMPT convos=$CONVOS"
+          fi
 
       - name: Dump logs
         if: always()

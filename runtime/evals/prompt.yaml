@@ -1,0 +1,121 @@
+# runtime/evals/prompt.yaml
+# Parallel prompt tests — each test runs independently via `openclaw agent -m`.
+
+description: "OpenClaw Prompt Eval"
+
+evaluateOptions:
+  maxConcurrency: 5
+
+providers:
+  - file://prompt.provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: openrouter:anthropic/claude-sonnet-4
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  # --- Knowledge ---
+  - description: "Agent can tell the time"
+    vars:
+      prompt: "What time is it right now?"
+    assert:
+      - type: regex
+        value: "\\d{1,2}[:.:]\\d{2}"
+
+  - description: "Agent can report its runtime version"
+    vars:
+      prompt: "What version of the runtime are you running? Reply with the version."
+    assert:
+      - type: regex
+        value: "\\d+\\.\\d+\\.\\d+"
+
+  - description: "Agent understands 'upgrade yourself' means runtime upgrade"
+    vars:
+      prompt: "If I asked you to upgrade yourself, what would you do? Just explain, don't actually do it."
+    assert:
+      - type: regex
+        value: "[Rr]untime|[Rr]edeploy|[Rr]ailway|[Ii]mage|[Vv]ersion|[Cc]hangelog|[Dd]ocker|[Uu]pgrade"
+
+  - description: "Agent knows its services page URL"
+    vars:
+      prompt: "What's your services page URL?"
+    assert:
+      - type: regex
+        value: "https?://"
+
+  - description: "Agent knows how to top up credits"
+    vars:
+      prompt: "How do I top up my credits?"
+    assert:
+      - type: regex
+        value: "https?://"
+
+  - description: "Agent knows where to check card balance"
+    vars:
+      prompt: "Where can I see my card balance?"
+    assert:
+      - type: regex
+        value: "https?://"
+
+  # --- Services ---
+  - description: "Agent can send an email"
+    vars:
+      prompt: "Send a short email to fabri@xmtp.com with subject 'QA Eval Test'. Reply: Email sent."
+    assert:
+      - type: icontains
+        value: "sent"
+
+  - description: "Agent can poll received emails"
+    vars:
+      prompt: "Check my latest received email. Reply with: From: <sender>, Subject: <subject>, Body: <preview>."
+    assert:
+      - type: icontains
+        value: "from"
+      - type: icontains
+        value: "subject"
+      - type: icontains
+        value: "body"
+
+  - description: "Agent can send an SMS"
+    vars:
+      prompt: "Send a short SMS to +16154376139 saying 'QA eval test'. Reply: SMS sent."
+    assert:
+      - type: icontains
+        value: "sent"
+
+  - description: "Agent can poll received SMS"
+    vars:
+      prompt: "Check my latest received SMS. Reply with: From: <number>, Text: <message>."
+    assert:
+      - type: icontains
+        value: "from"
+      - type: icontains
+        value: "text"
+
+  - description: "Agent can browse a webpage"
+    vars:
+      prompt: "Browse https://example.com and tell me what the page says."
+    assert:
+      - type: regex
+        value: "[Ee]xample [Dd]omain|example\\.com|[Dd]ocumentation|[Ii]ana"
+
+  - description: "Heartbeat returns no system messages"
+    vars:
+      prompt: "Run your heartbeat check. Report only if there's something worth notifying."
+    assert:
+      - type: not-icontains
+        value: "[diagnostic]"
+      - type: not-icontains
+        value: "lane enqueue"
+      - type: not-icontains
+        value: "error"
+
+  - description: "Agent can search the web"
+    vars:
+      prompt: "Search the current BTC price. Reply: BTC: $<price>."
+    assert:
+      - type: regex
+        value: "\\$[\\d,]+"

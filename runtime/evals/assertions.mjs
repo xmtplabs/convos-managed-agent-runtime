@@ -32,8 +32,8 @@ function withProfiles(context, fn) {
 }
 
 export function profileNameEquals(output, context) {
-  const expected = context.vars?.expectedName;
-  if (!expected) return { pass: false, score: 0, reason: 'Missing vars.expectedName' };
+  const expected = context.test?.metadata?.expectedName || context.vars?.expectedName;
+  if (!expected) return { pass: false, score: 0, reason: 'Missing metadata.expectedName' };
 
   return withProfiles(context, (profiles) => {
     const match = profiles.some((p) => p.name === expected);

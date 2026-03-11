@@ -1,4 +1,4 @@
-// runtime/evals/provider.mjs
+// runtime/evals/convos.provider.mjs
 // Custom Promptfoo provider for OpenClaw agent e2e eval.
 // Creates a conversation, joins the runtime, sends messages via convos-cli,
 // waits for the agent, then returns the transcript for assertion.
@@ -50,10 +50,13 @@ let testIndex = 0;
 
 function log(msg) { console.log(`[eval] ${msg}`); }
 
-function sleep(ms) { execSync(`sleep ${(ms / 1000).toFixed(1)}`); }
+function sleep(ms) {
+  const buf = new SharedArrayBuffer(4);
+  Atomics.wait(new Int32Array(buf), 0, 0, ms);
+}
 
 function convos(args, opts = {}) {
-  return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
+  return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 15_000, env: CONVOS_ENV, ...opts }).trim();
 }
 
 function elapsed(start) { return `${((Date.now() - start) / 1000).toFixed(1)}s`; }
@@ -69,8 +72,8 @@ function setup() {
     '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
     '-d', '{}',
   ], { encoding: 'utf-8', timeout: 30_000 });
-  log('Waiting for gateway to reinitialise (10s)...');
-  sleep(10_000);
+  log('Waiting for gateway to reinitialise (5s)...');
+  sleep(5_000);
 
   log('Creating conversation...');
   const createOut = convos([
@@ -92,7 +95,7 @@ function setup() {
   ], { env: CONVOS_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
 
   try {
-    sleep(3_000);
+    sleep(1_000);
     execFileSync('curl', [
       '-s', '-X', 'POST',
       `http://localhost:${GATEWAY_PORT}/convos/join`,
@@ -104,7 +107,7 @@ function setup() {
     try { watcher.kill(); } catch {}
   }
 
-  sleep(5_000);
+  sleep(2_000);
   log(`Setup complete (${elapsed(t)})\n`);
 }
 
@@ -118,25 +121,25 @@ function fetchMessages() {
 }
 
 function agentCount(msgs) {
-  return msgs.filter((m) => m.senderInboxId !== userInboxId).length;
+  return msgs.filter((m) => m.senderInboxId !== userInboxId && m.contentType !== 'group_updated').length;
 }
 
 // Wait for at least one new agent message after `baseline`, then settle.
 function waitForAgent(baseline) {
-  const deadline = Date.now() + 120_000;
+  const deadline = Date.now() + 60_000;
   let msgs = [];
   try { msgs = fetchMessages(); } catch {}
   let count = agentCount(msgs);
   let lastChange = Date.now();
 
   while (Date.now() < deadline) {
-    sleep(2_000);
+    sleep(1_500);
     try { msgs = fetchMessages(); } catch { continue; }
     const n = agentCount(msgs);
     if (n > count) {
       count = n;
       lastChange = Date.now();
-    } else if (count > baseline && Date.now() - lastChange >= 3_000) {
+    } else if (count > baseline && Date.now() - lastChange >= 2_000) {
       return msgs;
     }
   }
@@ -161,10 +164,10 @@ export default class OpenClawProvider {
 
     if (!sharedConversationId) setup();
 
-    const vars = context.vars || {};
+    const meta = context.test?.metadata || {};
 
     // Self-destruct: remove agent, verify shutdown
-    if (vars.selfDestruct) {
+    if (meta.selfDestruct) {
       const result = handleSelfDestruct();
       log(`${result.output === 'SELF_DESTRUCT_CONFIRMED' ? 'OK' : 'FAIL'} ${desc} (${elapsed(t)})`);
       return result;
@@ -173,17 +176,17 @@ export default class OpenClawProvider {
     let baseline = 0;
     let msgsBefore = 0;
 
-    if (!vars.waitForWelcome) {
+    if (!meta.waitForWelcome) {
       const existing = fetchMessages();
       baseline = agentCount(existing);
       msgsBefore = existing.length;
 
-      if (vars.attachment) {
+      if (meta.attachment) {
         const dir = new URL('.', import.meta.url).pathname;
-        const path = vars.attachment.startsWith('./') ? `${dir}${vars.attachment.slice(2)}` : vars.attachment;
-        log(`Sending attachment: ${vars.attachment}`);
+        const path = meta.attachment.startsWith('./') ? `${dir}${meta.attachment.slice(2)}` : meta.attachment;
+        log(`Sending attachment: ${meta.attachment}`);
         convos(['conversation', 'send-attachment', sharedConversationId, path, '--env', ENV], { timeout: 30_000 });
-        sleep(2_000);
+        sleep(1_000);
       }
 
       log(`Sending: "${prompt}"`);
@@ -196,13 +199,13 @@ export default class OpenClawProvider {
     const newAgentMsgs = agentCount(msgs) - baseline;
 
     // Fail fast on welcome — if agent never responded, everything else will fail
-    if (vars.waitForWelcome && agentCount(msgs) === 0) {
+    if (meta.waitForWelcome && agentCount(msgs) === 0) {
       log('ABORT — agent never responded. Check gateway logs.');
       throw new Error('Agent never sent a welcome message. Check gateway logs. Aborting eval.');
     }
 
     // Only return this test's messages (after baseline) for focused assertions
-    const output = transcript(msgs, vars.waitForWelcome ? 0 : msgsBefore);
+    const output = transcript(msgs, meta.waitForWelcome ? 0 : msgsBefore);
 
     const last = msgs.filter((m) => m.senderInboxId !== userInboxId).pop();
     const preview = last ? (last.content || last.text || '').slice(0, 120) : '(no response)';
@@ -236,7 +239,7 @@ function handleSelfDestruct() {
   log('Polling /convos/status for shutdown...');
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
-    sleep(2_000);
+    sleep(1_000);
     try {
       const out = execFileSync('curl', [
         '-sf', '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
