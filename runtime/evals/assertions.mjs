@@ -29,7 +29,7 @@ function withProfiles(context, fn) {
   const id = context.providerResponse?.metadata?.conversationId;
   if (!id) return { pass: false, score: 0, reason: 'No conversationId in provider metadata' };
   // Wait for XMTP profile changes to propagate
-  sleep(3_000);
+  sleep(8_000);
   try {
     const profiles = getProfiles(id);
     return fn(Array.isArray(profiles) ? profiles : []);
