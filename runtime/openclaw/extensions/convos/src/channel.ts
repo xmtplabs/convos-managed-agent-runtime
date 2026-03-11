@@ -72,6 +72,7 @@ function normalizeConvosMessagingTarget(raw: string): string | undefined {
     return inst.conversationId;
   }
   return normalized;
+
 }
 
 /** Check if a string looks like a Convos conversation ID (hex-32 or UUID). */
@@ -81,12 +82,33 @@ function isConvosId(s: string): boolean {
 
 const CONVOS_IMG_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
-/** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Fire-and-forget. */
+/**
+ * Resolve the media directory for downloaded image attachments.
+ * Uses {stateDir}/media instead of os.tmpdir() to avoid macOS symlink mismatch:
+ * os.tmpdir() returns /var/folders/... but realpath resolves to /private/var/folders/...
+ * and openclaw's allowed-directory check realpaths the file but not the root, causing
+ * a startsWith failure. {stateDir}/media is an allowed root without symlink issues.
+ */
+let cachedMediaDir: string | undefined;
+function resolveMediaDir(): string {
+  if (cachedMediaDir) return cachedMediaDir;
+  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const mediaDir = path.join(stateDir, "media");
+  fs.mkdirSync(mediaDir, { recursive: true });
+  cachedMediaDir = mediaDir;
+  return mediaDir;
+}
+
+/** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Throttled to at most once per 5 minutes. */
+const PRUNE_THROTTLE_MS = 5 * 60 * 1000;
+let lastPruneAt = 0;
 function pruneStaleConvosImages() {
-  const tmpDir = os.tmpdir();
+  const now = Date.now();
+  if (now - lastPruneAt < PRUNE_THROTTLE_MS) return;
+  lastPruneAt = now;
+  const tmpDir = resolveMediaDir();
   fs.readdir(tmpDir, (err, entries) => {
     if (err) return;
-    const now = Date.now();
     for (const entry of entries) {
       if (!entry.startsWith("convos-img-")) continue;
       const fullPath = path.join(tmpDir, entry);
@@ -99,6 +121,29 @@ function pruneStaleConvosImages() {
     }
   });
 }
+
+/** Map file extension to MIME type for the media pipeline. */
+const extToMime: Record<string, string> = {
+  ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+  ".png": "image/png", ".gif": "image/gif",
+  ".webp": "image/webp", ".heic": "image/heic",
+  ".heif": "image/heif", ".bmp": "image/bmp",
+  ".tif": "image/tiff", ".tiff": "image/tiff",
+  ".avif": "image/avif", ".svg": "image/svg+xml",
+};
+
+/**
+ * Pending image attachment downloads waiting for a companion text message.
+ * XMTP sends image+text as separate protocol messages. The image arrives first
+ * but takes seconds to download, while the text arrives almost immediately.
+ * We hold the image and merge it with the companion text when it arrives.
+ */
+const COMPANION_SETTLE_MS = 1500;
+const pendingCompanionImage = new Map<string, {
+  downloadPromise: Promise<string | undefined>;
+  originalMsg: InboundMessage;
+  timer: ReturnType<typeof setTimeout>;
+}>();
 
 export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   id: "convos",
@@ -122,7 +167,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
       "- To send a file: use `action=sendAttachment` with `file` (local path).",
       "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
-      "- To update your display name or avatar: `convos conversation update-profile $CONVOS_CONVERSATION_ID --name \"Name\"` or `--image \"https://...\"`. Image must be a public URL, not a local file path.",
+      "- To update your display name or avatar: use `action=send` with `message=\"/update-profile --name \\\"Name\\\"\"` or add `--image \\\"https://...\\\"`. The command is intercepted — it won't be sent as a message.",
       "- CRITICAL — NEVER narrate tool calls: Every text block you produce becomes a separate chat message pushed to every member's phone. NEVER write text before, between, or alongside tool calls — not even to report errors, explain retries, or describe a change in approach. If a tool fails, silently try the next approach. Call all tools silently, then write ONE message after you have the final result. This overrides the Tool Call Style defaults above.",
       "- Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji=\"👀\"` — literal emoji, not a shortcode) to signal you are working on it. After you post the final result, remove the reaction (`action=react`, `remove=true`).",
       "- CRITICAL — Do not reply endlessly: You do NOT need to reply to every message. After you send a message, your turn is OVER. If the response to your message is acknowledgment, agreement, thanks, encouragement, or anything that does not directly ask you a question or give you a task — do not reply. Stay silent or react with an emoji. You are not obligated to respond just because someone (human or agent) responded to you.",
@@ -375,6 +420,8 @@ async function handleInboundMessage(
   msg: InboundMessage,
   runtime: PluginRuntime,
   log?: RuntimeLogger,
+  /** Pre-resolved media path for held attachments re-entering via timeout/flush. */
+  preResolvedMediaPath?: string,
 ) {
   const inst = getConvosInstance();
   const debugLog = (msg: string) => log ? log.info(msg) : console.log(msg);
@@ -435,30 +482,89 @@ async function handleInboundMessage(
   });
 
   // --- Image attachment handling ---
-  // Download image before finalizeInboundContext so MediaPath/MediaType are
-  // included in the finalized context and picked up by the media pipeline.
+  // XMTP sends image+text as two separate protocol messages. The image arrives
+  // first but takes seconds to download, while the companion text arrives almost
+  // immediately after. Without coordination the text races ahead (no download
+  // needed) and the agent responds to text alone, then responds again to the
+  // image — producing two replies instead of one.
+  //
+  // Fix: hold image attachments briefly. If a text from the same sender arrives
+  // within the settle window, merge them into one dispatch (text body + image).
+  // If no text follows, dispatch the image alone after timeout.
   //
   // Content format from the CLI:
   //   remoteStaticAttachment: "[remote attachment: filename (-1 bytes) https://...encrypted.bin]"
   //   attachment:             "[attachment: filename (size bytes)]"
-  //
-  // The URL points to an encrypted blob — we must always download via the CLI
-  // which handles decryption. Detect image type from the filename extension.
-  let mediaPath: string | undefined;
-  if (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment") {
+  let mediaPath: string | undefined = preResolvedMediaPath;
+
+  // Check for a pending companion image to merge with this text message
+  if (!mediaPath && (msg.contentType === "text" || msg.contentType === "reply")) {
+    const pendingKey = `${msg.conversationId}:${msg.senderId}`;
+    const pending = pendingCompanionImage.get(pendingKey);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingCompanionImage.delete(pendingKey);
+      mediaPath = await pending.downloadPromise;
+      if (account.debug) {
+        debugLog(`[${account.accountId}] Merged companion image with text message`);
+      }
+    }
+  }
+
+  // Hold new image attachment for companion text
+  if (!mediaPath && (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment")) {
     try {
       const filenameMatch = msg.content.match(/:\s+(\S+\.(jpe?g|png|gif|webp|heic|heif|bmp|tiff?|avif|svg))\s/i);
       const ext = filenameMatch?.[2] ? `.${filenameMatch[2].toLowerCase()}` : "";
 
       if (filenameMatch && inst) {
         const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
-        mediaPath = path.join(os.tmpdir(), `convos-img-${safeId}${ext}`);
-        await inst.downloadAttachment(msg.messageId, mediaPath);
-        pruneStaleConvosImages();
+        const imgPath = path.join(resolveMediaDir(), `convos-img-${safeId}${ext}`);
 
-        if (account.debug) {
-          debugLog(`[${account.accountId}] Image attachment downloaded: ${mediaPath}`);
+        const downloadPromise: Promise<string | undefined> = inst
+          .downloadAttachment(msg.messageId, imgPath)
+          .then(() => {
+            pruneStaleConvosImages();
+            if (account.debug) {
+              debugLog(`[${account.accountId}] Image attachment downloaded: ${imgPath}`);
+            }
+            return imgPath;
+          })
+          .catch((err) => {
+            errorLog(`[${account.accountId}] Failed to download attachment: ${String(err)}`);
+            return undefined;
+          });
+
+        // Hold — wait for companion text from the same sender
+        const holdKey = `${msg.conversationId}:${msg.senderId}`;
+        const existing = pendingCompanionImage.get(holdKey);
+        if (existing) {
+          // A previous image is already held (e.g. multiple photos in quick
+          // succession). Dispatch it now so it isn't silently dropped.
+          clearTimeout(existing.timer);
+          pendingCompanionImage.delete(holdKey);
+          existing.downloadPromise.then((resolvedPath) => {
+            if (!resolvedPath) return; // Download failed — don't retry
+            handleInboundMessage(account, existing.originalMsg, runtime, log, resolvedPath).catch((err) => {
+              errorLog(`[${account.accountId}] Failed to flush held attachment: ${String(err)}`);
+            });
+          });
         }
+
+        const timer = setTimeout(async () => {
+          const entry = pendingCompanionImage.get(holdKey);
+          if (!entry) return; // Already merged with companion text
+          pendingCompanionImage.delete(holdKey);
+          // No companion text arrived — dispatch attachment alone via re-entry
+          const resolvedPath = await entry.downloadPromise;
+          if (!resolvedPath) return; // Download failed — don't retry
+          handleInboundMessage(account, msg, runtime, log, resolvedPath).catch((err) => {
+            errorLog(`[${account.accountId}] Failed to process held attachment: ${String(err)}`);
+          });
+        }, COMPANION_SETTLE_MS);
+
+        pendingCompanionImage.set(holdKey, { downloadPromise, originalMsg: msg, timer });
+        return; // Don't dispatch yet — wait for companion text or timeout
       }
     } catch (err) {
       errorLog(`[${account.accountId}] Failed to process image attachment: ${String(err)}`);
@@ -466,15 +572,6 @@ async function handleInboundMessage(
     }
   }
 
-  // Map file extension to MIME type for the media pipeline
-  const extToMime: Record<string, string> = {
-    ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".png": "image/png", ".gif": "image/gif",
-    ".webp": "image/webp", ".heic": "image/heic",
-    ".heif": "image/heif", ".bmp": "image/bmp",
-    ".tif": "image/tiff", ".tiff": "image/tiff",
-    ".avif": "image/avif", ".svg": "image/svg+xml",
-  };
   const mediaMime = mediaPath ? extToMime[path.extname(mediaPath).toLowerCase()] ?? "image/jpeg" : undefined;
 
   // Inject current wall-clock time as per-turn system context so the agent

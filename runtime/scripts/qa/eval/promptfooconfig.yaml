@@ -45,12 +45,12 @@ tests:
 
   - description: "Agent can update profile photo"
     vars:
-      prompt: "Update your profile photo to https://xmtp.org/img/logomark-dark.png. Confirm when done."
+      prompt: "Update your profile photo to https://avatars.githubusercontent.com/u/82580170. Confirm when done."
     assert:
       - type: llm-rubric
         value: >
           This is a chat transcript between USER and AGENT. The USER asked the agent
-          to update its profile photo to an XMTP logomark URL. Pass if the AGENT's
+          to update its profile photo to a GitHub avatar URL. Pass if the AGENT's
           response indicates the profile photo was successfully updated.
       - type: javascript
         value: "file://assertions.mjs:profileImageSet"
