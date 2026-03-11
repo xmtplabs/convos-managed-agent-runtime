@@ -50,7 +50,6 @@ checkGateway();
 
 let sharedConversationId = null;
 let userInboxId = null;
-let messageCountAtLastCheck = 0;
 
 function convos(args, opts = {}) {
   return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
@@ -127,15 +126,16 @@ function agentMessageCount(messages) {
   return messages.filter((m) => m.senderInboxId !== userInboxId).length;
 }
 
-// Wait for the agent to send at least one new message, then settle.
-// Returns the final message array for transcript building.
-function waitForAgent() {
+// Wait for the agent to send at least one new message after `baseline`, then settle.
+// Caller provides baseline (agent message count before the triggering action)
+// so late responses already in the list are absorbed.
+function waitForAgent(baseline) {
   const deadline = Date.now() + 120_000;
-  const settleTime = 8_000;
-  let lastChangeAt = Date.now();
+  const settleTime = 5_000;
   let messages = [];
   try { messages = fetchMessages(); } catch {}
   let currentCount = agentMessageCount(messages);
+  let lastChangeAt = Date.now();
 
   while (Date.now() < deadline) {
     execSync('sleep 3');
@@ -144,12 +144,10 @@ function waitForAgent() {
     if (newCount > currentCount) {
       currentCount = newCount;
       lastChangeAt = Date.now();
-    } else if (currentCount > messageCountAtLastCheck && Date.now() - lastChangeAt >= settleTime) {
-      messageCountAtLastCheck = currentCount;
+    } else if (currentCount > baseline && Date.now() - lastChangeAt >= settleTime) {
       return messages;
     }
   }
-  messageCountAtLastCheck = currentCount;
   return messages;
 }
 
@@ -167,6 +165,11 @@ export default class OpenClawProvider {
   }
 
   async callApi(prompt, context) {
+    // Snapshot agent message count BEFORE the action that triggers a response.
+    // For the first call (welcome test), this is 0 (before setup/join).
+    // For subsequent calls, it captures the count before we send the prompt.
+    let baseline = 0;
+
     if (!sharedConversationId) {
       setup();
     }
@@ -175,6 +178,9 @@ export default class OpenClawProvider {
 
     // For the welcome message test, just wait for the agent to send something
     if (!vars.waitForWelcome) {
+      // Snapshot before sending — any agent messages already present are "old"
+      try { baseline = agentMessageCount(fetchMessages()); } catch {}
+
       // Send attachment if present
       if (vars.attachment) {
         const attachDir = new URL('.', import.meta.url).pathname;
@@ -196,11 +202,12 @@ export default class OpenClawProvider {
       ], { timeout: 30_000 });
       console.log(`[eval] Sent prompt: ${prompt}`);
     } else {
+      // Welcome test: baseline is 0 (set above), so any agent message counts
       console.log(`[eval] Waiting for welcome message...`);
     }
 
     // Wait for the agent to respond and settle, then build transcript
-    const messages = waitForAgent();
+    const messages = waitForAgent(baseline);
     const transcript = buildTranscript(messages);
     console.log(`[eval] Transcript length: ${transcript.length} chars`);
     return {

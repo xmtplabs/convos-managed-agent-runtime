@@ -455,6 +455,21 @@ export class ConvosInstance {
 
   async sendMessage(text: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
     this.assertRunning();
+
+    // Intercept /update-profile commands so the agent can update its profile
+    // by simply sending a message — no curl or exec required.
+    if (/^\/update-profile\b/.test(text)) {
+      const nameMatch = text.match(/--name\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
+      const imageMatch = text.match(/--image\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
+      const name = nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3];
+      const image = imageMatch?.[1] ?? imageMatch?.[2] ?? imageMatch?.[3];
+      if (name || image) {
+        await this.updateProfile(name, image);
+        return { success: true, messageId: undefined };
+      }
+      return { success: false, messageId: undefined };
+    }
+
     const cmd: Record<string, unknown> = { type: "send", text };
     if (replyTo) cmd.replyTo = replyTo;
     return this.sendAndWait(cmd);
@@ -488,6 +503,14 @@ export class ConvosInstance {
   async rename(name: string): Promise<void> {
     this.assertRunning();
     this.writeCommand({ type: "rename", name });
+  }
+
+  async updateProfile(name?: string, image?: string): Promise<void> {
+    this.assertRunning();
+    const cmd: Record<string, unknown> = { type: "update-profile" };
+    if (name !== undefined) cmd.name = name;
+    if (image !== undefined) cmd.image = image;
+    this.writeCommand(cmd);
   }
 
   async lock(): Promise<void> {

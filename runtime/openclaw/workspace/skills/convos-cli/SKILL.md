@@ -69,13 +69,13 @@ Replies and reactions both reference another message by ID. Replies include the 
 | Reply to a message | message tool | `action=send` + `replyTo` |
 | React to a message | message tool | `action=react` |
 | Send a file | message tool | `action=sendAttachment` |
+| Update your display name | message tool | `action=send` with `/update-profile --name "..."` |
 | Read message history | exec tool | `convos conversation messages $CONVOS_CONVERSATION_ID` |
 | List members / profiles | exec tool | `convos conversation members` / `profiles $CONVOS_CONVERSATION_ID` |
 | View group info | exec tool | `convos conversation info` / `permissions $CONVOS_CONVERSATION_ID` |
 | Download a received file | exec tool | `convos conversation download-attachment $CONVOS_CONVERSATION_ID` |
-| Update your display name | exec tool | `convos conversation update-profile $CONVOS_CONVERSATION_ID` |
 
-The message tool is for **sending**. The exec tool is for **reading and profile management**. Never use the exec tool to send.
+The message tool is for **sending** (including profile updates). The exec tool is for **reading**. Never use the exec tool to send.
 
 ## Sending (message tool)
 
@@ -109,7 +109,7 @@ action=sendAttachment  file="./path/to/file.jpg"
 
 Just pass a file path. Convos handles encryption and upload automatically.
 
-## Reading and profile management (exec tool)
+## Reading and profile updates (exec tool)
 
 These operations use the `convos` CLI via the exec tool. Always use `$CONVOS_CONVERSATION_ID` for the conversation ID — it is always set in your environment. Always pass `--json` when you need to parse the output.
 
@@ -149,14 +149,14 @@ convos conversation download-attachment $CONVOS_CONVERSATION_ID <message-id> --o
 
 ### Update your profile
 
-```bash
-convos conversation update-profile $CONVOS_CONVERSATION_ID --name "New Name"
-convos conversation update-profile $CONVOS_CONVERSATION_ID --name "New Name" --image "https://example.com/avatar.jpg"
+Use the message tool with `action=send` — the command is intercepted before reaching the conversation:
+
+```
+action=send  message="/update-profile --name \"New Name\""
+action=send  message="/update-profile --name \"New Name\" --image \"https://example.com/avatar.jpg\""
 ```
 
-The `--image` flag requires a publicly accessible URL (`https://...`). Local file paths like `./avatar.jpg` or `/tmp/image.png` won't work — the image must already be hosted and reachable over the internet.
-
-Your profile is per-conversation — it only affects this group.
+The `--image` flag requires a publicly accessible URL (`https://...`). Local file paths won't work. Your profile is per-conversation — it only affects this group.
 
 ## Rules
 
@@ -164,9 +164,9 @@ Your profile is per-conversation — it only affects this group.
 - **Every message costs everyone's attention.** Only speak when it adds something no one else in the room could. When in doubt, stay quiet.
 - **Reply, don't broadcast.** Use `replyTo` so people know what you are responding to.
 - **Reactions are cheap, messages are expensive.** If acknowledgment is enough, react instead of typing.
-- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), run `convos conversation update-profile $CONVOS_CONVERSATION_ID --name "NewName"` right away. Do not announce you are going to do it — just do it and confirm the new name.
+- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), send `/update-profile --name "NewName"` right away. Do not announce you are going to do it — just do it and confirm the new name.
 - **You cannot rename the group.** There is no CLI command or tool action to change the conversation/group name. If someone asks you to rename the group, let them know you can't do that — only human members can rename it from their app.
 - **Always use `$CONVOS_CONVERSATION_ID`.** Never hard-code a conversation ID or try to read it from context fields. The env var is always correct.
-- **Never run the `convos` binary directly.** Only use the specific `convos conversation ...` read commands listed above (messages, members, profiles, info, permissions, download-attachment, update-profile). Never run `convos agent serve`, `convos conversations create`, `convos conversations join`, or any other subcommand — they will fail or break your session.
+- **Never run the `convos` binary directly.** Only use the specific `convos conversation ...` read commands listed above (messages, members, profiles, info, permissions, download-attachment). Never run `convos agent serve`, `convos conversations create`, `convos conversations join`, or any other subcommand — they will fail or break your session.
 - **Know who you're talking to.** Fetch profiles at the start of every conversation. Use names, not inbox IDs, when referring to people. Refresh profiles when someone joins or when you see a `Group updated` event.
 - **Don't narrate your actions or expose internals.** Never announce what tool you're about to use, explain the steps you're taking, or reference technical details like metadata, app data, inbox IDs, or content types. People in the chat don't know or care how you work — just talk like a person.
