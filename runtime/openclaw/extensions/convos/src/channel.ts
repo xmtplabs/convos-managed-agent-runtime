@@ -635,6 +635,10 @@ async function detectMembershipTerminationReason(
     return null;
   }
 
+  if (isDirectRemovalOfSelf(msg.content, inst)) {
+    return "removed from group";
+  }
+
   const profiles = await inst.refreshMemberNames();
   if (!profiles || profiles.length === 0) {
     return null;
@@ -656,8 +660,7 @@ async function detectMembershipTerminationReason(
 }
 
 function isMemberRemovalGroupUpdate(content: string): boolean {
-  for (const rawSegment of content.split(GROUP_UPDATE_SEPARATOR_RE)) {
-    const segment = rawSegment.trim();
+  for (const segment of splitGroupUpdateSegments(content)) {
     if (!segment) {
       continue;
     }
@@ -676,6 +679,37 @@ function isMemberRemovalGroupUpdate(content: string): boolean {
   }
 
   return false;
+}
+
+function isDirectRemovalOfSelf(content: string, inst: ConvosInstance): boolean {
+  const selfNames = inst.getKnownSelfNames().map((name) => name.toLowerCase());
+  if (selfNames.length === 0) {
+    return false;
+  }
+
+  for (const segment of splitGroupUpdateSegments(content)) {
+    const match = segment.match(/^(.+?) removed (.+)$/i);
+    if (!match) {
+      continue;
+    }
+
+    const removed = match[2]?.trim().toLowerCase();
+    if (!removed) {
+      continue;
+    }
+    if (removed.endsWith(" as admin") || removed.endsWith(" as super admin") || removed === "their profile photo") {
+      continue;
+    }
+    if (selfNames.includes(removed)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function splitGroupUpdateSegments(content: string): string[] {
+  return content.split(GROUP_UPDATE_SEPARATOR_RE).map((segment) => segment.trim()).filter(Boolean);
 }
 
 /**

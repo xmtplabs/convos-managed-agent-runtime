@@ -147,6 +147,8 @@ export class ConvosInstance {
   readonly label: string | undefined;
   /** XMTP inbox ID — set from the `ready` event. */
   inboxId: string | null = null;
+  /** Current conversation display name for this identity, from the ready event. */
+  selfName: string | null = null;
 
   private env: "production" | "dev";
   private child: ChildProcess | null = null;
@@ -453,6 +455,21 @@ export class ConvosInstance {
     return Array.from(this.memberNames.values()).join(", ");
   }
 
+  /** Best-effort self display names from ready state and cached profiles. */
+  getKnownSelfNames(): string[] {
+    const names = new Set<string>();
+    if (this.selfName?.trim()) {
+      names.add(this.selfName.trim());
+    }
+    if (this.inboxId) {
+      const cached = this.memberNames.get(this.inboxId);
+      if (cached?.trim()) {
+        names.add(cached.trim());
+      }
+    }
+    return Array.from(names);
+  }
+
   // ==== Operations (via stdin commands) ====
 
   async sendMessage(text: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
@@ -650,6 +667,7 @@ export class ConvosInstance {
           qrCodePath: data.qrCodePath as string | undefined,
         };
         this.inboxId = info.inboxId;
+        this.selfName = info.name || null;
         this.options.onReady?.(info);
         if (this.readyPromiseResolve) {
           this.readyPromiseResolve(info);
