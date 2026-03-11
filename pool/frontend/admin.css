@@ -324,6 +324,57 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 .syncing { pointer-events: none; opacity: 0.5; }
 .syncing svg { animation: spin 0.8s linear infinite; }
 
+/* Upgrades panel */
+.upgrades-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.upgrade-card { background: var(--color-surface); border: 1px solid var(--color-edge); border-radius: 12px; overflow: hidden; }
+.upgrade-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--color-edge); }
+.upgrade-card-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+.upgrade-card-subtitle { font-size: 12px; color: var(--color-foreground-secondary); }
+.upgrade-chart-body { display: flex; align-items: center; gap: 24px; padding: 24px 20px; }
+.upgrade-chart-body canvas { flex-shrink: 0; }
+.upgrade-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.upgrade-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.upgrade-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.upgrade-legend-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.upgrade-legend-count { font-variant-numeric: tabular-nums; color: var(--color-foreground-secondary); font-weight: 600; }
+.upgrade-actions-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.upgrade-hint { font-size: 13px; color: var(--color-foreground-secondary); line-height: 1.5; margin: 0; }
+.upgrade-target-info { font-size: 12px; color: var(--color-foreground-secondary); display: flex; flex-direction: column; gap: 4px; }
+.upgrade-target-info .upgrade-stat { display: flex; align-items: center; gap: 6px; }
+.upgrade-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+.upgrade-stat-dot.current { background: var(--color-success); }
+.upgrade-stat-dot.outdated { background: #FF9500; }
+.upgrade-stat-dot.unknown { background: var(--color-foreground-tertiary); }
+.upgrade-btn-row { display: flex; gap: 8px; }
+.btn-upgrade { padding: 10px 20px; font-size: 13px; }
+.upgrade-progress { display: flex; align-items: center; gap: 12px; }
+.upgrade-progress-bar-wrap { flex: 1; height: 6px; background: var(--color-edge-muted); border-radius: 3px; overflow: hidden; }
+.upgrade-progress-bar { height: 100%; background: var(--color-brand); border-radius: 3px; transition: width 0.3s; width: 0; }
+.upgrade-progress-text { font-size: 12px; font-weight: 600; color: var(--color-foreground-secondary); white-space: nowrap; }
+.upgrade-log { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.upgrade-log-entry { font-size: 11px; font-family: 'SF Mono', Monaco, 'Courier New', monospace; padding: 2px 0; color: var(--color-foreground-secondary); }
+.upgrade-log-entry.ok { color: var(--color-success); }
+.upgrade-log-entry.fail { color: var(--color-error); }
+.upgrade-version-list { padding: 0; }
+.upgrade-version-group { border-bottom: 1px solid var(--color-edge-muted); }
+.upgrade-version-group:last-child { border-bottom: none; }
+.upgrade-version-header { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; user-select: none; }
+.upgrade-version-header:hover { background: var(--color-surface-hover); }
+.upgrade-version-tag { font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 12px; font-weight: 600; }
+.upgrade-version-count { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--color-surface-muted); color: var(--color-foreground-secondary); }
+.upgrade-version-badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.upgrade-version-badge.latest { background: var(--color-success-bg); color: #065F46; }
+.upgrade-version-badge.outdated { background: #FEF3C7; color: #92400E; }
+.upgrade-version-instances { padding: 0 20px 12px 20px; display: none; }
+.upgrade-version-group.open .upgrade-version-instances { display: block; }
+.upgrade-version-instance { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-edge-muted); font-size: 12px; }
+.upgrade-version-instance:last-child { border-bottom: none; }
+.upgrade-instance-name { font-weight: 500; }
+.upgrade-instance-status { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+.upgrade-instance-btn { font-family: inherit; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-brand); background: var(--color-surface); color: var(--color-brand); transition: all 0.15s; }
+.upgrade-instance-btn:hover:not(:disabled) { background: var(--color-brand); color: #fff; }
+.upgrade-instance-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Responsive */
 @media (max-width: 640px) {
   .stats, .stats.stats-5, .stats-credits { grid-template-columns: repeat(2, 1fr); }
@@ -332,5 +383,7 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
   .content { padding: 16px; }
   .replenish-card-body { gap: 12px; }
   .replenish-actions { margin-left: 0; width: 100%; }
+  .upgrades-grid { grid-template-columns: 1fr; }
+  .upgrade-chart-body { flex-direction: column; align-items: center; }
   th, td { padding: 10px 12px; }
 }

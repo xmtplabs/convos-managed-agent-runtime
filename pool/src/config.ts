@@ -63,6 +63,12 @@ export const config = {
   telnyxApiKey: getEnv("TELNYX_API_KEY"),
   telnyxMessagingProfileId: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
 
+  // Protected instances — cannot be claimed, killed, or drained
+  protectedInstances: getEnv("PROTECTED_INSTANCES")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),

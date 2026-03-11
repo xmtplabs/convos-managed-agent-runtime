@@ -1,12 +1,17 @@
 import { nanoid } from "nanoid";
 import * as db from "./db/pool";
 import { authFetch } from "./authFetch";
+import { config } from "./config";
 import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance, type ProgressCallback } from "./services/infra";
 import { fetchBatchStatus } from "./services/status";
 import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
+
+function isProtected(id: string): boolean {
+  return config.protectedInstances.includes(id);
+}
 
 // Destroy via services. If not in infra DB but we have a Railway serviceId, delete that directly.
 async function safeDestroy(instanceId: string, railwayServiceId?: string, projectId?: string) {
@@ -112,7 +117,8 @@ export async function checkStarting() {
 
 export async function drainPool(count: number) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
-  const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
+  const unclaimed = (await db.getByStatus(["idle", "starting", "dead"]))
+    .filter((i: any) => !isProtected(i.id));
   const toDrain = unclaimed.slice(0, count);
   if (toDrain.length === 0) return [];
 
@@ -171,7 +177,8 @@ export type DrainProgressCallback = (instanceNum: number, instanceId: string, in
 
 export async function drainPoolStream(count: number, concurrency: number, onProgress: DrainProgressCallback) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
-  const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
+  const unclaimed = (await db.getByStatus(["idle", "starting", "dead"]))
+    .filter((i: any) => !isProtected(i.id));
   const toDrain = unclaimed.slice(0, count);
   if (toDrain.length === 0) return { drained: 0, failed: 0, instances: [] as string[] };
 
@@ -218,6 +225,7 @@ export async function drainPoolStream(count: number, concurrency: number, onProg
 }
 
 export async function killInstance(id: string) {
+  if (isProtected(id)) throw new Error(`Instance ${id} is protected and cannot be killed`);
   const inst = await db.findById(id);
   if (!inst) return;
 

@@ -145,6 +145,14 @@ jobs:
     timeout-minutes: 20
     continue-on-error: true
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -188,25 +196,43 @@ jobs:
           sleep 15
 
       - name: Run e2e eval
+        id: eval
+        continue-on-error: true
         run: |
+          set +e
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
             -e EVAL_OUTPUT=/tmp/eval-results.html \
+            -e EVAL_JSON_OUTPUT=/tmp/eval-results.json \
             eval-runtime timeout 900 pnpm qa:eval
+          status=$?
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          exit $status
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
-      - name: Copy eval report
+      - name: Copy eval reports
         if: always()
-        run: docker cp eval-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
+        run: |
+          docker cp eval-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
+          docker cp eval-runtime:/tmp/eval-results.json ./eval-results.json 2>/dev/null || true
 
       - name: Upload eval report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
-          path: eval-results.html
+          path: |
+            eval-results.html
+            eval-results.json
           if-no-files-found: ignore
+
+      - name: Summarize eval results
+        if: always()
+        run: node runtime/scripts/qa/eval/summarize-results.mjs ./eval-results.json
+        env:
+          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code || '1' }}
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: Dump logs
         if: always()

@@ -76,3 +76,18 @@ export function profileImageSet(output, context) {
     };
   });
 }
+
+/**
+ * Verify agent self-destructed after being removed from the group.
+ * Usage in YAML: file://assertions.mjs:agentSelfDestructed
+ */
+export function agentSelfDestructed(output) {
+  const pass = output === 'SELF_DESTRUCT_CONFIRMED';
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Agent self-destructed after removal from group'
+      : `Expected SELF_DESTRUCT_CONFIRMED, got: ${output}`,
+  };
+}
