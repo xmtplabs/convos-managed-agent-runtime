@@ -6,6 +6,7 @@ import { metricCount, metricHistogram } from "./metrics";
 import { logger } from "./logger";
 import { gql } from "./services/providers/railway";
 import { decideAction } from "./webhookLogic";
+import { parseRuntimeStatus } from "./runtimeStatus";
 
 export { decideAction } from "./webhookLogic";
 export type { WebhookAction, WebhookDecision } from "./webhookLogic";
@@ -143,6 +144,8 @@ async function runHealthCheckWithRetries(
     if (hc?.ready) {
       // Ask the runtime whether it has an active conversation
       let runtimeConvoId: string | null = null;
+      let runtimeReusable: boolean | null = null;
+      let runtimeDirtyReasons: string[] = [];
       let statusKnown = false;
       try {
         const csRes = await authFetch(`${url}/convos/status`, {
@@ -150,8 +153,10 @@ async function runHealthCheckWithRetries(
           signal: AbortSignal.timeout(5000),
         });
         if (csRes.ok) {
-          const cs = await csRes.json() as { conversation?: { id: string } | null };
-          runtimeConvoId = cs.conversation?.id ?? null;
+          const cs = parseRuntimeStatus(await csRes.json());
+          runtimeConvoId = cs.conversationId;
+          runtimeReusable = cs.reusable;
+          runtimeDirtyReasons = cs.dirtyReasons;
           statusKnown = true;
         }
       } catch {}
@@ -174,9 +179,12 @@ async function runHealthCheckWithRetries(
           console.log(`[webhook] ${instanceId}: runtime has conversation ${runtimeConvoId} but DB has ${inst?.conversationId || "none"} — leaving as ${statusAtWebhookTime}`);
           return;
         }
-      } else {
+      } else if (runtimeReusable === true) {
         newStatus = "idle";
         updated = await db.recoverToIdle(instanceId, statusAtWebhookTime);
+      } else {
+        console.log(`[webhook] ${instanceId}: runtime reported no conversation but reusable=${runtimeReusable} dirty=${runtimeDirtyReasons.join(",") || "unknown"} — leaving as ${statusAtWebhookTime}`);
+        return;
       }
       if (!updated) {
         console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);

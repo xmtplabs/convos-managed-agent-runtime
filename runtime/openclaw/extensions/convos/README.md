@@ -17,7 +17,7 @@ openclaw gateway
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | Plugin entry — registers HTTP routes for create, join, send, rename, lock, explode |
+| `index.ts` | Plugin entry — registers HTTP routes for create, join, send, rename, lock, explode, reset |
 | `src/channel.ts` | Channel plugin — gateway start/stop, inbound message handling, reply delivery |
 | `src/outbound.ts` | Outbound adapter — `sendText` and `sendMedia` via the CLI |
 | `src/sdk-client.ts` | `ConvosInstance` — thin wrapper around `convos agent serve` ndjson protocol |
@@ -25,9 +25,8 @@ openclaw gateway
 | `src/actions.ts` | Message actions (send, react) exposed to the agent |
 | `src/config-schema.ts` | Zod schema for `channels.convos` config |
 | `src/onboarding.ts` | Interactive CLI onboarding (paste invite link) |
-| `src/setup.ts` | HTTP setup flow (create conversation, poll join, complete) |
 | `src/credentials.ts` | Save/clear identity credentials in config |
-| `src/runtime.ts` | Singleton runtime and setup state |
+| `src/runtime.ts` | Singleton runtime reference |
 
 ## Target resolution
 
@@ -47,9 +46,8 @@ All routes are registered on the gateway server (default `http://127.0.0.1:18789
 | `/convos/rename` | POST | Rename the conversation |
 | `/convos/lock` | POST | Lock/unlock the conversation |
 | `/convos/explode` | POST | Permanently destroy the conversation |
-| `/convos/setup` | POST | Start interactive setup (returns QR + invite) |
-| `/convos/setup/status` | GET | Poll join status during setup |
-| `/convos/setup/complete` | POST | Persist config after setup |
+| `/convos/status` | GET | Report the active conversation plus residue flags that determine whether the runtime is reusable |
+| `/convos/reset` | POST | Factory-reset local Convos state and return the post-reset status |
 
 ## Config
 
@@ -67,7 +65,7 @@ All routes are registered on the gateway server (default `http://127.0.0.1:18789
 }
 ```
 
-Identity keys are managed by the CLI in `~/.convos/identities/`. The extension only stores the identity ID reference.
+Identity keys are managed by the CLI in `~/.convos/identities/`. The extension only stores the identity ID reference, and `/convos/reset` clears both the stored binding and the local CLI identity/db so the next create/join starts fresh.
 
 ## Testing
 
@@ -123,21 +121,31 @@ curl -s -X POST http://localhost:18789/convos/rename \
 # Lock / unlock
 curl -s -X POST http://localhost:18789/convos/lock -H 'Content-Type: application/json' -d '{}' | jq .
 curl -s -X POST http://localhost:18789/convos/lock -H 'Content-Type: application/json' -d '{"unlock":true}' | jq .
-```
+# Status
+curl -s http://localhost:18789/convos/status | jq .
 
-### 4. Setup flow (Control UI path)
+# Example fields:
+# {
+#   "ready": true,
+#   "conversation": null,
+#   "main": { "active": false, "conversationId": null, "streaming": false },
+#   "persisted": {
+#     "credentialsPresent": false,
+#     "configBindingPresent": false,
+#     "customInstructionsPresent": false,
+#     "cliIdentityPresent": false,
+#     "cliDbPresent": false,
+#     "conversationEnvPresent": false
+#   },
+#   "dirtyReasons": [],
+#   "clean": true,
+#   "reusable": true
+# }
 
-```bash
-# Start setup
-curl -s -X POST http://localhost:18789/convos/setup \
+# Reset local state and wipe the current identity
+curl -s -X POST http://localhost:18789/convos/reset \
   -H 'Content-Type: application/json' \
-  -d '{"env":"dev","name":"Setup Test","force":true}' | jq .
-
-# Poll until joined
-curl -s http://localhost:18789/convos/setup/status | jq .
-
-# Complete (after scanning QR from iOS app)
-curl -s -X POST http://localhost:18789/convos/setup/complete | jq .
+  -d '{}' | jq .
 ```
 
 ### Expected failures

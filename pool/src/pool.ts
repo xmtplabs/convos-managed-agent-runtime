@@ -7,6 +7,7 @@ import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
+import { parseRuntimeStatus } from "./runtimeStatus";
 
 // Destroy via services. If not in infra DB but we have a Railway serviceId, delete that directly.
 async function safeDestroy(instanceId: string, railwayServiceId?: string, projectId?: string) {
@@ -251,6 +252,8 @@ export async function recheckInstance(id: string) {
 
   // Ask the runtime for its conversation state
   let runtimeConvoId: string | null = null;
+  let runtimeReusable: boolean | null = null;
+  let runtimeDirtyReasons: string[] = [];
   let statusKnown = false;
   try {
     const csRes = await authFetch(`${inst.url}/convos/status`, {
@@ -258,8 +261,10 @@ export async function recheckInstance(id: string) {
       signal: AbortSignal.timeout(5000),
     });
     if (csRes.ok) {
-      const cs = await csRes.json() as { conversation?: { id: string } | null };
-      runtimeConvoId = cs.conversation?.id ?? null;
+      const cs = parseRuntimeStatus(await csRes.json());
+      runtimeConvoId = cs.conversationId;
+      runtimeReusable = cs.reusable;
+      runtimeDirtyReasons = cs.dirtyReasons;
       statusKnown = true;
     }
   } catch {}
@@ -283,9 +288,14 @@ export async function recheckInstance(id: string) {
     return { id, status: inst.status, changed: false, reason: "conversation_mismatch", agentName: inst.agentName || null };
   }
 
-  // No active conversation — instance is clean, recover to idle
-  await db.recoverToIdle(id, inst.status);
+  if (runtimeReusable === true) {
+    await db.recoverToIdle(id, inst.status);
+    if (hc.version) await db.setRuntimeVersion(id, hc.version);
+    console.log(`[pool] recheck ${id}: ${inst.status} → idle (runtime reusable, v${hc.version || '?'})`);
+    return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
+  }
+
   if (hc.version) await db.setRuntimeVersion(id, hc.version);
-  console.log(`[pool] recheck ${id}: ${inst.status} → idle (no conversation, v${hc.version || '?'})`);
-  return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
+  console.log(`[pool] recheck ${id}: runtime reported no conversation but reusable=${runtimeReusable} dirty=${runtimeDirtyReasons.join(",") || "unknown"} — staying ${inst.status}`);
+  return { id, status: inst.status, changed: false, reason: "runtime_not_reusable", agentName: inst.agentName || null };
 }

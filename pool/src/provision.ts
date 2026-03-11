@@ -2,6 +2,7 @@ import * as db from "./db/pool";
 import { authFetch } from "./authFetch";
 import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
+import { parseRuntimeStatus } from "./runtimeStatus";
 
 export type ProvisionProgressCallback = (step: string, status: string, message?: string) => void;
 
@@ -11,6 +12,34 @@ interface ProvisionOpts {
   joinUrl?: string;
   source?: string;
   onProgress?: ProvisionProgressCallback;
+}
+
+async function resetAndVerifyRuntime(instanceUrl: string | null, gatewayToken: string | null) {
+  if (!instanceUrl) {
+    throw new Error("Instance URL missing during rollback");
+  }
+  const resetRes = await authFetch(`${instanceUrl}/convos/reset`, {
+    gatewayToken,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000),
+    body: JSON.stringify({}),
+  });
+  if (!resetRes.ok) {
+    const text = await resetRes.text();
+    throw new Error(`/convos/reset returned ${resetRes.status}: ${text.slice(0, 1500)}`);
+  }
+
+  const statusRes = await authFetch(`${instanceUrl}/convos/status`, {
+    gatewayToken,
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!statusRes.ok) {
+    const text = await statusRes.text();
+    throw new Error(`/convos/status returned ${statusRes.status}: ${text.slice(0, 1500)}`);
+  }
+
+  return parseRuntimeStatus(await statusRes.json());
 }
 
 export async function provision(opts: ProvisionOpts) {
@@ -62,7 +91,7 @@ export async function provision(opts: ProvisionOpts) {
       gatewayToken,
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(75_000),
       body: JSON.stringify({ agentName, instructions: instructions || "", joinUrl }),
     });
     if (!provisionRes.ok) {
@@ -140,11 +169,49 @@ export async function provision(opts: ProvisionOpts) {
       // this instance's lifecycle — don't touch its status.
       logger.warn("claim.already_bound", { instanceId: instance.id, agentName, source });
     } else {
-      // Any other provision failure taints the instance — even transient errors
-      // (timeouts, network blips) may have partially executed on the runtime
-      // (wrote instructions, started a join). Releasing back to idle risks an
-      // infinite retry loop. Mark crashed; manual cleanup via dashboard.
-      await db.updateStatus(instance.id, { status: "crashed" });
+      report("cleanup", "active", "Resetting runtime…");
+      try {
+        const runtimeStatus = await resetAndVerifyRuntime(instance.url, await db.getGatewayToken(instance.id));
+        if (runtimeStatus.reusable === true) {
+          const updated = await db.recoverClaimToIdle(instance.id);
+          if (updated) {
+            logger.info("claim.rollback_complete", {
+              instanceId: instance.id,
+              agentName,
+              source,
+            });
+            report("cleanup", "ok", "Runtime reset and returned to idle");
+          } else {
+            logger.warn("claim.rollback_skipped", {
+              instanceId: instance.id,
+              agentName,
+              source,
+            });
+            report("cleanup", "skip", "Claim status changed before rollback completed");
+          }
+        } else {
+          await db.failClaim(instance.id);
+          logger.error("claim.rollback_failed", {
+            instanceId: instance.id,
+            agentName,
+            source,
+            runtimeConversationId: runtimeStatus.conversationId,
+            dirtyReasons: runtimeStatus.dirtyReasons,
+            reusable: runtimeStatus.reusable,
+          });
+          report("cleanup", "fail", "Runtime remained dirty after reset");
+        }
+      } catch (resetErr) {
+        const { error_message: reset_error_message } = classifyError(resetErr);
+        await db.failClaim(instance.id);
+        logger.error("claim.rollback_failed", {
+          instanceId: instance.id,
+          agentName,
+          source,
+          error_message: reset_error_message.slice(0, 1500),
+        });
+        report("cleanup", "fail", "Runtime reset failed");
+      }
     }
     throw err;
   }

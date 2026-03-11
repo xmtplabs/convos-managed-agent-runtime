@@ -12,15 +12,3 @@ export function getConvosRuntime(): PluginRuntime {
   }
   return runtime;
 }
-
-// Setup-active flag: when true, probes should be skipped to avoid
-// hitting the XMTP "10/10 installations" limit with the old identity.
-let setupActive = false;
-
-export function isConvosSetupActive(): boolean {
-  return setupActive;
-}
-
-export function setConvosSetupActive(active: boolean) {
-  setupActive = active;
-}

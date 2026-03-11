@@ -523,7 +523,7 @@
       // Reset identity
       var resetBtn = document.getElementById("reset-btn");
       resetBtn.addEventListener("click", function () {
-        if (!confirm("Reset convos identity? This will create a fresh identity and clear the current conversation.")) return;
+        if (!confirm("Reset local convos state? This clears the current conversation binding and local identity data.")) return;
         showError("");
         resetBtn.disabled = true;
         resetBtn.textContent = "Resetting…";
@@ -538,7 +538,7 @@
             resetBtn.disabled = false;
             resetBtn.textContent = "Reset identity";
             if (_.ok) {
-              showSuccess("Identity reset.");
+              showSuccess("Runtime reset.");
               setStatus(null, "no conversation bound");
               showTwoModes();
             } else {

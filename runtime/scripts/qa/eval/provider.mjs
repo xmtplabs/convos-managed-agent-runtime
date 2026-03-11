@@ -66,9 +66,6 @@ function setup() {
   ], { encoding: 'utf-8', timeout: 30_000 }).trim();
   console.log(`[eval] Reset response: ${resetOut}`);
 
-  console.log(`[eval] Waiting for gateway to reinitialise...`);
-  execSync('sleep 10');
-
   const createOut = convos([
     'conversations', 'create', '--name', `QA Eval ${Date.now()}`, '--env', ENV, '--json',
   ]);

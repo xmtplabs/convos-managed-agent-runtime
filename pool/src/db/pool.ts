@@ -125,6 +125,15 @@ export async function releaseClaim(instanceId: string) {
   await db.update(instances).set({ status: "idle" }).where(and(eq(instances.id, instanceId), eq(instances.status, "claiming")));
 }
 
+const IDLE_RECOVERY_FIELDS = {
+  status: "idle" as InstanceStatus,
+  agentName: null,
+  conversationId: null,
+  inviteUrl: null,
+  instructions: null,
+  claimedAt: null,
+};
+
 export async function updateStatus(instanceId: string, { status, url }: { status?: string | null; url?: string | null }) {
   await db.update(instances).set({
     status: sql`COALESCE(${status || null}, ${instances.status})`,
@@ -144,14 +153,21 @@ export async function recoverToIdle(
   if (expectedStatus) {
     conditions.push(sql`${instances.status} = ${expectedStatus}`);
   }
-  const result = await db.update(instances).set({
-    status: "idle" as InstanceStatus,
-    agentName: null,
-    conversationId: null,
-    inviteUrl: null,
-    instructions: null,
-    claimedAt: null,
-  }).where(and(...conditions));
+  const result = await db.update(instances).set(IDLE_RECOVERY_FIELDS).where(and(...conditions));
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function recoverClaimToIdle(instanceId: string): Promise<boolean> {
+  const result = await db.update(instances)
+    .set(IDLE_RECOVERY_FIELDS)
+    .where(and(eq(instances.id, instanceId), eq(instances.status, "claiming")));
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function failClaim(instanceId: string, status: InstanceStatus = "crashed"): Promise<boolean> {
+  const result = await db.update(instances)
+    .set({ status })
+    .where(and(eq(instances.id, instanceId), eq(instances.status, "claiming")));
   return (result.rowCount ?? 0) > 0;
 }
 

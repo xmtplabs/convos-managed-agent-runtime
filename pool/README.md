@@ -31,9 +31,11 @@ Pool is a unified service — instance lifecycle management and all provider int
 ```
 starting  →  idle  →  claiming  →  claimed
 (building)   (ready)   (atomic)     (in use)
+                          ├──────────────→ idle
+                          │         (provision failed, runtime reset proved clean)
                           ↓
                        crashed
-                    (provision failed)
+                 (provision failed, reset could not prove clean)
 ```
 
 State transitions are driven by **Railway webhooks** (push-based, near-real-time):
@@ -43,6 +45,8 @@ State transitions are driven by **Railway webhooks** (push-based, near-real-time
 - `Deployment.resumed` → health-checks and restores to `idle` or `claimed`
 
 Webhook rules are auto-registered on startup. Instances in `claiming` status are never touched by webhooks (atomic claim in progress). Crashed/dead instances are only marked in the DB — manual cleanup via the dashboard is required.
+
+When `/pool/provision` fails, the pool now calls the runtime's `/convos/reset` endpoint and verifies `/convos/status.reusable` before deciding whether `claiming` can safely return to `idle`. A runtime that still reports residue after reset stays `crashed`.
 
 New instances are created via the admin dashboard or `POST /api/pool/replenish`. Manual recheck via dashboard buttons still works as a fallback.
 
