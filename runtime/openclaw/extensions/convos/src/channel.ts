@@ -125,6 +125,7 @@ function pruneStaleConvosImages() {
 const COMPANION_SETTLE_MS = 1500;
 const pendingCompanionImage = new Map<string, {
   downloadPromise: Promise<string | undefined>;
+  originalMsg: InboundMessage;
   timer: ReturnType<typeof setTimeout>;
 }>();
 /** Pre-resolved media paths for held attachments re-entering handleInboundMessage via timeout. */
@@ -527,7 +528,18 @@ async function handleInboundMessage(
         // Hold — wait for companion text from the same sender
         const holdKey = `${msg.conversationId}:${msg.senderId}`;
         const existing = pendingCompanionImage.get(holdKey);
-        if (existing) clearTimeout(existing.timer);
+        if (existing) {
+          // A previous image is already held (e.g. multiple photos in quick
+          // succession). Dispatch it now so it isn't silently dropped.
+          clearTimeout(existing.timer);
+          pendingCompanionImage.delete(holdKey);
+          existing.downloadPromise.then((resolvedPath) => {
+            resolvedMediaPaths.set(existing.originalMsg.messageId, resolvedPath);
+            handleInboundMessage(account, existing.originalMsg, runtime, log).catch((err) => {
+              errorLog(`[${account.accountId}] Failed to flush held attachment: ${String(err)}`);
+            });
+          });
+        }
 
         const timer = setTimeout(async () => {
           const entry = pendingCompanionImage.get(holdKey);
@@ -541,7 +553,7 @@ async function handleInboundMessage(
           });
         }, COMPANION_SETTLE_MS);
 
-        pendingCompanionImage.set(holdKey, { downloadPromise, timer });
+        pendingCompanionImage.set(holdKey, { downloadPromise, originalMsg: msg, timer });
         return; // Don't dispatch yet — wait for companion text or timeout
       }
     } catch (err) {
