@@ -13,12 +13,6 @@ function convosEnv() {
 }
 
 function getProfiles(conversationId) {
-  // Sync conversation state from network before reading profiles
-  try {
-    execFileSync(CONVOS, [
-      'conversation', 'sync', conversationId, '--env', ENV,
-    ], { encoding: 'utf-8', timeout: 30_000, env: convosEnv() });
-  } catch {}
   const out = execFileSync(CONVOS, [
     'conversation', 'profiles', conversationId, '--env', ENV, '--json',
   ], { encoding: 'utf-8', timeout: 30_000, env: convosEnv() }).trim();
@@ -63,7 +57,7 @@ export function profileImageSet(output, context) {
       score: has ? 1 : 0,
       reason: has
         ? 'Profile image is set'
-        : `Profile image is null or missing (known convos CLI limitation)`,
+        : 'Profile image is null or missing',
     };
   });
 }
