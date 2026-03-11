@@ -1,6 +1,7 @@
 import type { ChannelMessageActionAdapter } from "openclaw/plugin-sdk";
 import { jsonResult, readStringParam, readReactionParams } from "openclaw/plugin-sdk";
 import { listConvosAccountIds, type CoreConfig } from "./accounts.js";
+import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosInstance } from "./outbound.js";
 
 export const convosMessageActions: ChannelMessageActionAdapter = {
@@ -23,7 +24,11 @@ export const convosMessageActions: ChannelMessageActionAdapter = {
     if (action === "send") {
       const message = readStringParam(params, "message", { required: true, allowEmpty: true });
       const replyTo = readStringParam(params, "replyTo");
-      const result = await inst.sendMessage(message, replyTo);
+      const policy = await applyOutboundTextPolicy(message);
+      if (policy.suppress) {
+        return jsonResult({ ok: true, suppressed: true, messageId: `convos-suppressed-${Date.now()}` });
+      }
+      const result = await inst.sendMessage(policy.text, replyTo);
       return jsonResult({ ok: true, messageId: result.messageId ?? `convos-${Date.now()}` });
     }
 
