@@ -437,6 +437,7 @@ app.get("/admin", (req, res) => {
     runtimeImage: config.railwayRuntimeImage,
     instanceModel: config.instanceModel,
     adminUrls: POOL_ADMIN_URLS as any,
+    protectedInstances: config.protectedInstances,
   }));
 });
 
