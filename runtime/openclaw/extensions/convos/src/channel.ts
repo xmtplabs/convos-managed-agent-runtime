@@ -42,8 +42,8 @@ type RuntimeLogger = {
 // selfDestruct() calls this to unblock startAccount after stopping the instance,
 // preventing the gateway from becoming a zombie process.
 let resolveStartAccountBlock: (() => void) | null = null;
-let scheduledExpirationTimer: ReturnType<typeof setTimeout> | null = null;
-let scheduledExpirationAtMs: number | null = null;
+let nextExpirationCheckTimer: ReturnType<typeof setTimeout> | null = null;
+let nextExpirationCheckAtMs: number | null = null;
 
 const meta = {
   id: "convos",
@@ -541,16 +541,20 @@ async function handleInboundMessage(
   }
 
   const expirationUpdate = detectConversationExpirationUpdate(msg);
-  if (expirationUpdate?.kind === "expired") {
-    log?.info(`[${account.accountId}] Conversation exploded, self-destructing (${expirationUpdate.reason})`);
-    await selfDestruct(expirationUpdate.reason);
-    return;
-  }
-  if (expirationUpdate?.kind === "scheduled") {
-    scheduleConversationExpiration(expirationUpdate.expiresAtMs, account.accountId, log);
+  if (expirationUpdate?.kind === "set") {
+    const expirationReachedReason = checkAndRescheduleConversationExpiration(
+      expirationUpdate.expiresAtMs,
+      account.accountId,
+      log,
+    );
+    if (expirationReachedReason) {
+      log?.info(`[${account.accountId}] Conversation exploded, self-destructing (${expirationReachedReason})`);
+      await selfDestruct(expirationReachedReason);
+      return;
+    }
   }
   if (expirationUpdate?.kind === "cleared") {
-    clearScheduledConversationExpiration(account.accountId, log);
+    clearConversationExpirationCheck(account.accountId, log);
   }
 
   const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst);
@@ -609,8 +613,7 @@ async function handleInboundMessage(
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
-  | { kind: "expired"; reason: string }
-  | { kind: "scheduled"; expiresAtMs: number }
+  | { kind: "set"; expiresAtMs: number }
   | { kind: "cleared" }
   | null {
   if (msg.contentType !== "group_updated") {
@@ -636,52 +639,67 @@ function detectConversationExpirationUpdate(msg: InboundMessage):
     return null;
   }
 
-  const observedAtMs = Number.isNaN(msg.timestamp.getTime()) ? Date.now() : msg.timestamp.getTime();
-  if (expiresAtMs > observedAtMs + EXPLOSION_IMMEDIATE_SKEW_MS) {
-    return { kind: "scheduled", expiresAtMs };
-  }
-
-  return { kind: "expired", reason: `expiration reached at ${new Date(expiresAtMs).toISOString()}` };
+  return { kind: "set", expiresAtMs };
 }
 
-function scheduleConversationExpiration(
+function checkAndRescheduleConversationExpiration(
   expiresAtMs: number,
   accountId: string,
   log?: RuntimeLogger,
-): void {
-  if (scheduledExpirationAtMs === expiresAtMs && scheduledExpirationTimer) {
-    return;
+): string | null {
+  const reason = getConversationExpirationReachedReason(expiresAtMs);
+  if (reason) {
+    clearConversationExpirationCheck(accountId, log, false);
+    return reason;
   }
 
-  clearScheduledConversationExpiration(accountId, log, false);
+  if (nextExpirationCheckAtMs === expiresAtMs && nextExpirationCheckTimer) {
+    return null;
+  }
 
-  scheduledExpirationAtMs = expiresAtMs;
+  clearConversationExpirationCheck(accountId, log, false);
+
+  nextExpirationCheckAtMs = expiresAtMs;
   const delayMs = Math.max(0, expiresAtMs - Date.now());
   log?.info(
-    `[${accountId}] Scheduled self-destruct for conversation expiration at ${new Date(expiresAtMs).toISOString()}`,
+    `[${accountId}] Scheduled conversation expiration check for ${new Date(expiresAtMs).toISOString()}`,
   );
 
-  scheduledExpirationTimer = setTimeout(() => {
-    scheduledExpirationTimer = null;
-    scheduledExpirationAtMs = null;
-    void selfDestruct(`expiration reached at ${new Date(expiresAtMs).toISOString()}`);
+  nextExpirationCheckTimer = setTimeout(() => {
+    nextExpirationCheckTimer = null;
+    nextExpirationCheckAtMs = null;
+
+    const expirationReachedReason = getConversationExpirationReachedReason(expiresAtMs);
+    if (!expirationReachedReason) {
+      return;
+    }
+
+    void selfDestruct(expirationReachedReason);
   }, delayMs);
-  scheduledExpirationTimer.unref?.();
+  nextExpirationCheckTimer.unref?.();
+  return null;
 }
 
-function clearScheduledConversationExpiration(
+function getConversationExpirationReachedReason(expiresAtMs: number): string | null {
+  if (expiresAtMs > Date.now() + EXPLOSION_IMMEDIATE_SKEW_MS) {
+    return null;
+  }
+  return `expiration reached at ${new Date(expiresAtMs).toISOString()}`;
+}
+
+function clearConversationExpirationCheck(
   accountId: string,
   log?: RuntimeLogger,
   announce = true,
 ): void {
-  if (scheduledExpirationTimer) {
-    clearTimeout(scheduledExpirationTimer);
-    scheduledExpirationTimer = null;
+  if (nextExpirationCheckTimer) {
+    clearTimeout(nextExpirationCheckTimer);
+    nextExpirationCheckTimer = null;
   }
-  if (scheduledExpirationAtMs !== null && announce) {
-    log?.info(`[${accountId}] Cleared scheduled conversation expiration self-destruct`);
+  if (nextExpirationCheckAtMs !== null && announce) {
+    log?.info(`[${accountId}] Cleared scheduled conversation expiration check`);
   }
-  scheduledExpirationAtMs = null;
+  nextExpirationCheckAtMs = null;
 }
 
 async function detectMembershipTerminationReason(
@@ -922,7 +940,7 @@ export async function startWiredInstance(params: {
 }
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
-  clearScheduledConversationExpiration(accountId, log, false);
+  clearConversationExpirationCheck(accountId, log, false);
   const inst = getConvosInstance();
   if (inst) {
     try {
@@ -941,7 +959,7 @@ async function stopInstance(accountId: string, log?: RuntimeLogger) {
  * so the gateway can exit cleanly.
  */
 export async function selfDestruct(reason?: string): Promise<void> {
-  clearScheduledConversationExpiration(DEFAULT_ACCOUNT_ID, undefined, false);
+  clearConversationExpirationCheck(DEFAULT_ACCOUNT_ID, undefined, false);
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
