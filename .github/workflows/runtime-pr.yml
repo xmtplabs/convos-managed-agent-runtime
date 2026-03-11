@@ -68,6 +68,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      passed: ${{ steps.result.outputs.passed }}
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -108,24 +110,40 @@ jobs:
           exit 1
 
       - name: "Eval: prompt (parallel)"
+        id: eval-prompt
+        continue-on-error: true
         run: |
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
             eval-runtime timeout 300 pnpm evals:prompt
 
       - name: "Eval: convos (sequential)"
+        id: eval-convos
+        continue-on-error: true
         run: |
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
             eval-runtime timeout 600 pnpm evals:convos
 
       - name: Dump container logs
-        if: failure()
+        if: always()
         run: docker logs eval-runtime
+
+      - name: Set eval result
+        id: result
+        if: always()
+        run: |
+          if [[ "${{ steps.eval-prompt.outcome }}" == "success" && "${{ steps.eval-convos.outcome }}" == "success" ]]; then
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Evals failed (prompt=${{ steps.eval-prompt.outcome }}, convos=${{ steps.eval-convos.outcome }}) — skipping publish"
+          fi
 
   publish:
     name: "Publish :${{ needs.build.outputs.sha }}"
     needs: [build, eval]
+    if: always() && needs.build.result == 'success' && needs.eval.outputs.passed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
