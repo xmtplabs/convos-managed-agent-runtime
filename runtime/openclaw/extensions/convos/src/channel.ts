@@ -87,8 +87,22 @@ function isConvosId(s: string): boolean {
 
 const CONVOS_IMG_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
-/** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Fire-and-forget. */
+/** Map file extension to MIME type for the media pipeline. */
+const extToMime: Record<string, string> = {
+  ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+  ".png": "image/png", ".gif": "image/gif",
+  ".webp": "image/webp", ".heic": "image/heic",
+  ".heif": "image/heif", ".bmp": "image/bmp",
+  ".tif": "image/tiff", ".tiff": "image/tiff",
+  ".avif": "image/avif", ".svg": "image/svg+xml",
+};
+
+/** Remove convos-img-* temp files older than CONVOS_IMG_MAX_AGE_MS. Throttled to at most once per 5 minutes. */
+const PRUNE_THROTTLE_MS = 5 * 60 * 1000;
+let lastPruneAt = 0;
 function pruneStaleConvosImages() {
+  if (Date.now() - lastPruneAt < PRUNE_THROTTLE_MS) return;
+  lastPruneAt = Date.now();
   const tmpDir = os.tmpdir();
   fs.readdir(tmpDir, (err, entries) => {
     if (err) return;
@@ -472,15 +486,6 @@ async function handleInboundMessage(
     }
   }
 
-  // Map file extension to MIME type for the media pipeline
-  const extToMime: Record<string, string> = {
-    ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-    ".png": "image/png", ".gif": "image/gif",
-    ".webp": "image/webp", ".heic": "image/heic",
-    ".heif": "image/heif", ".bmp": "image/bmp",
-    ".tif": "image/tiff", ".tiff": "image/tiff",
-    ".avif": "image/avif", ".svg": "image/svg+xml",
-  };
   const mediaMime = mediaPath ? extToMime[path.extname(mediaPath).toLowerCase()] ?? "image/jpeg" : undefined;
 
   // Inject current wall-clock time as per-turn system context so the agent
@@ -557,7 +562,7 @@ async function handleInboundMessage(
     clearConversationExpirationCheck(account.accountId, log);
   }
 
-  const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst);
+  const membershipTerminationReason = await detectMembershipTerminationReason(msg, inst, log);
   if (membershipTerminationReason) {
     log?.info(`[${account.accountId}] Membership ended, self-destructing (${membershipTerminationReason})`);
     await selfDestruct(membershipTerminationReason);
@@ -705,6 +710,7 @@ function clearConversationExpirationCheck(
 async function detectMembershipTerminationReason(
   msg: InboundMessage,
   inst: ConvosInstance | null,
+  log?: RuntimeLogger,
 ): Promise<string | null> {
   if (!inst || msg.contentType !== "group_updated" || !isMemberRemovalGroupUpdate(msg.content)) {
     return null;
@@ -717,6 +723,7 @@ async function detectMembershipTerminationReason(
     if (isInactiveGroupError(err)) {
       return "removed from group";
     }
+    log?.error(`[convos] Unexpected error checking membership: ${String(err)}`);
     return null;
   }
 
