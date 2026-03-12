@@ -1,7 +1,7 @@
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { convosMessageActions } from "./actions.js";
-import { deliverConvosReply } from "./channel.js";
+import { convosPlugin, deliverConvosReply, handleInboundMessage } from "./channel.js";
 import { setConvosInstance } from "./outbound.js";
 import { ConvosInstance } from "./sdk-client.js";
 
@@ -161,5 +161,90 @@ describe("deliverConvosReply", () => {
     });
 
     assert.deepEqual(sent, [{ text: "Following up.", replyTo: "01JEXPLICIT" }]);
+  });
+});
+
+describe("Convos reply filtering", () => {
+  it("does not advertise block streaming support", () => {
+    assert.equal(convosPlugin.capabilities.blockStreaming, false);
+  });
+
+  it("uses the normal reply dispatcher with block streaming disabled", async () => {
+    const dispatchCalls: Array<{
+      ctx: unknown;
+      cfg: unknown;
+      dispatcher: unknown;
+      replyOptions: Record<string, unknown>;
+    }> = [];
+
+    setConvosInstance({
+      conversationId: "conv-1",
+      label: "chat",
+      getGroupMembers: () => [],
+      setMemberName() {},
+    } as unknown as ConvosInstance);
+
+    const runtime = {
+      config: {
+        loadConfig: () => ({ session: {} }),
+      },
+      channel: {
+        routing: {
+          resolveAgentRoute: () => ({ agentId: "agent", accountId: "default", sessionKey: "session-1" }),
+        },
+        session: {
+          resolveStorePath: () => "/tmp/session-store",
+          readSessionUpdatedAt: () => undefined,
+          recordInboundSession: async () => {},
+        },
+        reply: {
+          resolveEnvelopeFormatOptions: () => ({}),
+          formatAgentEnvelope: ({ body }: { body: string }) => body,
+          finalizeInboundContext: (ctx: unknown) => ctx,
+          createReplyDispatcherWithTyping: () => ({
+            dispatcher: Symbol("dispatcher"),
+            replyOptions: { existing: true },
+            markDispatchIdle() {},
+          }),
+          dispatchReplyFromConfig: async (params: {
+            ctx: unknown;
+            cfg: unknown;
+            dispatcher: unknown;
+            replyOptions: Record<string, unknown>;
+          }) => {
+            dispatchCalls.push(params);
+          },
+        },
+        text: {
+          resolveMarkdownTableMode: () => "auto",
+        },
+      },
+    };
+
+    await handleInboundMessage(
+      {
+        accountId: "default",
+        debug: false,
+        config: {},
+      } as never,
+      {
+        content: "Hello",
+        contentType: "text",
+        conversationId: "conv-1",
+        senderId: "sender-1",
+        senderName: "Saul",
+        messageId: "01JMSG",
+        timestamp: new Date("2026-03-12T05:00:00.000Z"),
+      } as never,
+      runtime as never,
+      {
+        info() {},
+        error() {},
+      },
+    );
+
+    assert.equal(dispatchCalls.length, 1);
+    assert.equal(dispatchCalls[0]?.replyOptions.disableBlockStreaming, true);
+    assert.equal(dispatchCalls[0]?.replyOptions.existing, true);
   });
 });

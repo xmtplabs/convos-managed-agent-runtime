@@ -51,7 +51,7 @@ Via HTTP route `POST /convos/join`:
 
 ### Sending Messages
 
-Ordinary agent chat should be written as the assistant's normal response. After tool calls finish, that response is automatically posted to the conversation. Mid-run `send` actions are reserved for intercepted `/update-profile ...` commands. External callers can still send text via HTTP route `POST /convos/conversation/send`:
+Ordinary agent chat should be written as the assistant's normal response. After tool calls finish, that response is automatically posted to the conversation. Convos does not stream partial text blocks into the chat. Mid-run `send` actions are reserved for intercepted `/update-profile ...` commands. External callers can still send text via HTTP route `POST /convos/conversation/send`:
 
 ```json
 { "message": "Hello!" }

@@ -158,6 +158,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
     reactions: true,
     threads: false,
     media: true,
+    blockStreaming: false,
   },
   groups: {
     resolveRequireMention: () => false,
@@ -420,7 +421,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 /**
  * Handle inbound messages from CLI stream — dispatches to the reply pipeline
  */
-async function handleInboundMessage(
+export async function handleInboundMessage(
   account: ResolvedConvosAccount,
   msg: InboundMessage,
   runtime: PluginRuntime,
@@ -675,10 +676,8 @@ async function handleInboundMessage(
     accountId: account.accountId,
   });
 
-  await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-    ctx: ctxPayload,
-    cfg,
-    dispatcherOptions: {
+  const { dispatcher, replyOptions, markDispatchIdle } =
+    runtime.channel.reply.createReplyDispatcherWithTyping({
       deliver: async (payload: ReplyPayload) => {
         const policy = await applyOutboundTextPolicy(payload.text || "");
         if (policy.suppress) {
@@ -700,8 +699,18 @@ async function handleInboundMessage(
       onError: async (err, info) => {
         errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
       },
+    });
+
+  await runtime.channel.reply.dispatchReplyFromConfig({
+    ctx: ctxPayload,
+    cfg,
+    dispatcher,
+    replyOptions: {
+      ...replyOptions,
+      disableBlockStreaming: true,
     },
   });
+  markDispatchIdle();
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
