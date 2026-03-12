@@ -65,8 +65,8 @@ Replies and reactions both reference another message by ID. Replies include the 
 
 | I want to... | Use | Tool |
 | --- | --- | --- |
-| Send a message | final response | Plain text response |
-| Reply to a message | final response | `[[reply_to:<message-id>]]` or `[[reply_to_current]]` |
+| Send a message | assistant response | Plain text response |
+| Reply to a message | assistant response | `[[reply_to:<message-id>]]` or `[[reply_to_current]]` |
 | React to a message | message tool | `action=react` |
 | Send a file | message tool | `action=sendAttachment` |
 | Update your display name | message tool | `action=send` with `/update-profile --name "..."` |
@@ -75,9 +75,9 @@ Replies and reactions both reference another message by ID. Replies include the 
 | View group info | exec tool | `convos conversation info` / `permissions $CONVOS_CONVERSATION_ID` |
 | Download a received file | exec tool | `convos conversation download-attachment $CONVOS_CONVERSATION_ID` |
 
-Your final text response is automatically sent to the conversation. Use the message tool only for reactions, attachments, and intercepted profile updates. The exec tool is for **reading**. Never use the exec tool to send.
+When you answer normally, that assistant response is automatically sent to the conversation after your tool calls finish. Use the message tool only for reactions, attachments, and intercepted profile updates. The exec tool is for **reading**. Never use the exec tool to send.
 
-## Sending text (final response)
+## Sending text (assistant response)
 
 ### Text
 
@@ -172,7 +172,7 @@ The `--image` flag requires a publicly accessible URL (`https://...`). Local fil
 
 - **Plain text only.** Convos does not render markdown. Never use `**bold**`, `*italic*`, `` `code` ``, `[links](url)`, or list markers like `- ` or `* `. Write naturally.
 - **Every message costs everyone's attention.** Only speak when it adds something no one else in the room could. When in doubt, stay quiet.
-- **Reply, don't broadcast.** Use reply markers in your final response so people know what you are responding to.
+- **Reply, don't broadcast.** Use reply markers in your assistant response so people know what you are responding to.
 - **Reactions are cheap, messages are expensive.** If acknowledgment is enough, react instead of typing.
 - **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), send `/update-profile --name "NewName"` right away. Do not announce you are going to do it — just do it and confirm the new name.
 - **You cannot rename the group.** There is no CLI command or tool action to change the conversation/group name. If someone asks you to rename the group, let them know you can't do that — only human members can rename it from their app.

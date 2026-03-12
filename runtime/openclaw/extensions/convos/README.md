@@ -35,7 +35,7 @@ Since each process has exactly one conversation, target resolution is simple: an
 
 This matters for the **heartbeat system** — the heartbeat agent doesn't know the conversation ID and may pass arbitrary target strings to the message tool. The normalizer ensures they all route correctly.
 
-For agent-authored chat, ordinary text goes through the final reply pipeline. The Convos `send` action is reserved for intercepted `/update-profile ...` commands, so mid-run tool chatter cannot leak into the conversation.
+For agent-authored chat, ordinary text should be written as the assistant's normal response. Once tool calls finish, that response is posted to the bound conversation automatically. The Convos `send` action is reserved for intercepted `/update-profile ...` commands, so mid-run tool chatter cannot leak into the conversation.
 
 ## HTTP routes
 
