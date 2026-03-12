@@ -81,3 +81,4 @@ else
 fi
 
 brand_done "Identity check complete"
+brand_flush

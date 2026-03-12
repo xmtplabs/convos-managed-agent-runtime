@@ -175,6 +175,7 @@ fi
 unset _cron_dir _cron_store
 
 brand_done "Assistant is starting up"
+brand_flush
 
 # In-process restart: SIGUSR1 reloads config inside the same process instead
 # of exiting. This prevents the container from dying on config-level changes

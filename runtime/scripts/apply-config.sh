@@ -47,3 +47,4 @@ unset _PORT
 
 brand_ok "config" "$CONFIG"
 brand_done "Assistant brain ready"
+brand_flush

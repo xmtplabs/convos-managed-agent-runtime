@@ -37,3 +37,4 @@ brand_ok "node" "$node_ver"
 brand_ok "pnpm" "$pnpm_ver"
 
 brand_done "Assistant extensions ready"
+brand_flush

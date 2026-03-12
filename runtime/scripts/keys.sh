@@ -86,3 +86,5 @@ if [ -n "$RAILWAY_ENVIRONMENT" ]; then
 else
   brand_ok ".env" "loaded (${_env_count:-0} vars)"
 fi
+
+brand_flush
