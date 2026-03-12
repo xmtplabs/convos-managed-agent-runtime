@@ -11,6 +11,7 @@ on:
       - 'runtime/**'
       - '!runtime/CHANGELOG.md'
       - '!runtime/evals/**'
+      - '!runtime/scripts/**'
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
