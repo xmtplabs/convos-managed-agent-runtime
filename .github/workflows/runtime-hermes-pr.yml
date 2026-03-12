@@ -60,8 +60,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  qa:
-    name: "QA smoke tests (:${{ needs.build.outputs.pending }})"
+  smoke-test:
+    name: "Smoke tests (:${{ needs.build.outputs.pending }})"
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -108,8 +108,8 @@ jobs:
         run: docker logs qa-runtime
 
   publish:
-    name: "Publish :${{ needs.build.outputs.sha }}"
-    needs: [build, qa]
+    name: Publish image
+    needs: [build, smoke-test]
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR

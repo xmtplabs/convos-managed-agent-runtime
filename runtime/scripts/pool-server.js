@@ -351,8 +351,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Exit after responding — Railway will kill the service once pool manager destroys it
-    setTimeout(() => process.exit(0), 1000);
+    // Exit after responding — Railway will kill the service once pool manager destroys it.
+    // Skip exit during evals so the container stays alive for result collection.
+    if (!process.env.EVAL_MODE) {
+      setTimeout(() => process.exit(0), 1000);
+    }
     return;
   }
 
