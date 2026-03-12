@@ -16,6 +16,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { ProfileImageRenewal } from "./profile-image-renewal.js";
 import type { CreateConversationResult } from "./types.js";
 
 const execFileAsync = promisify(execFile);
@@ -163,6 +164,7 @@ export class ConvosInstance {
 
   /** Cached member display names: inboxId → name */
   private memberNames = new Map<string, string>();
+  private profileImageRenewal: ProfileImageRenewal;
 
   /** Resolves when the `ready` event is received after start(). */
   private readyPromiseResolve?: (info: ReadyEvent) => void;
@@ -188,6 +190,9 @@ export class ConvosInstance {
     this.label = params.label;
     this.env = params.env;
     this.options = params.options ?? {};
+    this.profileImageRenewal = new ProfileImageRenewal({
+      conversationId: params.conversationId,
+    });
   }
 
   // ---- CLI helpers ----
@@ -483,6 +488,8 @@ export class ConvosInstance {
       return { success: false, messageId: undefined };
     }
 
+    await this.renewProfileImageOnActivity();
+
     const cmd: Record<string, unknown> = { type: "send", text };
     if (replyTo) cmd.replyTo = replyTo;
     return this.sendAndWait(cmd);
@@ -524,6 +531,19 @@ export class ConvosInstance {
     if (name !== undefined) cmd.name = name;
     if (image !== undefined) cmd.image = image;
     this.writeCommand(cmd);
+    if (image !== undefined) {
+      this.profileImageRenewal.recordAppliedImage(image);
+    }
+  }
+
+  async renewProfileImageOnActivity(): Promise<boolean> {
+    this.assertRunning();
+    const sourceUrl = this.profileImageRenewal.getSourceToRenew();
+    if (!sourceUrl) {
+      return false;
+    }
+    await this.updateProfile(undefined, sourceUrl);
+    return true;
   }
 
   async lock(): Promise<void> {
