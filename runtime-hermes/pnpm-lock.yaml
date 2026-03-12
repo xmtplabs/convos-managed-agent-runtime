@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@xmtp/convos-cli':
-        specifier: ^0.4.1
-        version: 0.4.1(@types/node@25.4.0)
+        specifier: ^0.5.0
+        version: 0.5.0(@types/node@25.4.0)
 
 packages:
 
@@ -261,8 +261,8 @@ packages:
   '@xmtp/content-type-remote-attachment@2.0.4':
     resolution: {integrity: sha512-dHXXIsbn1y+PbNMXbQPkfjXr9LQ0QfQS8tIu/Hz6nL4h5QG5ECHsHfHVzVWE3P0eHlGfLVnQaKqg2dFiP8uwXw==}
 
-  '@xmtp/convos-cli@0.4.1':
-    resolution: {integrity: sha512-Kww4TNvFw2Bumi5Qeu0b1l2096Jm3TPr5YOwrC/UsyYcYOXhLTM+rjoplFZQ5qBEBgHhPYF4oxZ8ThPeLZz7rw==}
+  '@xmtp/convos-cli@0.5.0':
+    resolution: {integrity: sha512-Y7OJfnmpotSm7eP6qV7OL671ipV+/9tpalhhjSO6pgItJiJR/S4/bmaw+kqPh2SiBlXnMCQXAP1wwm1VWv0DDg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -958,7 +958,7 @@ snapshots:
       '@xmtp/content-type-primitives': 2.0.3
       '@xmtp/proto': 3.78.0
 
-  '@xmtp/convos-cli@0.4.1(@types/node@25.4.0)':
+  '@xmtp/convos-cli@0.5.0(@types/node@25.4.0)':
     dependencies:
       '@noble/curves': 2.0.1
       '@oclif/core': 4.8.3
