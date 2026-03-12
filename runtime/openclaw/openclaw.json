@@ -53,6 +53,18 @@
       "subagents": {},
       "model": {
         "primary": "${OPENCLAW_PRIMARY_MODEL}"
+      },
+      "memorySearch": {
+        "provider": "openai",
+        "model": "openai/text-embedding-3-small",
+        "remote": {
+          "baseUrl": "https://openrouter.ai/api/v1",
+          "apiKey": "${OPENROUTER_API_KEY}"
+        },
+        "query": {
+          "maxResults": 10,
+          "hybrid": { "enabled": true }
+        }
       }
     }
   },
@@ -98,9 +110,13 @@
     }
   },
  "plugins": {
-    "allow": ["convos", "web-tools"],
-    "slots": { "memory": "none" },
-    "entries": { "convos": { "enabled": true }, "web-tools": { "enabled": true } }
+    "allow": ["convos", "memory-core", "web-tools"],
+    "slots": { "memory": "memory-core" },
+    "entries": {
+      "convos": { "enabled": true },
+      "memory-core": { "enabled": true },
+      "web-tools": { "enabled": true }
+    }
   },
   "models": {
     "mode": "merge",
