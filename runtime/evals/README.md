@@ -1,11 +1,14 @@
 # Eval Suite
 
-Two [Promptfoo](https://promptfoo.dev) eval suites for the OpenClaw runtime.
+Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
-| **prompt** | `prompt.yaml` | Parallel (5x) | LLM knowledge, services, tools — each test gets its own session |
+| **knows** | `knows.yaml` | Parallel (5x) | Knowledge — time, version, URLs, credits |
+| **skills** | `skills.yaml` | Parallel (5x) | Services — email, SMS, browse, search |
+| **soul** | `soul.yaml` | Parallel (5x) | Personality & values — brevity, privacy, empathy, identity |
 | **convos** | `convos.yaml` | Sequential (1x) | XMTP lifecycle — welcome, profile, image, members, self-destruct |
+| **async** | `async.yaml` | Sequential (1x) | Non-blocking — agent stays responsive during complex tasks |
 
 ## Running
 
@@ -13,16 +16,19 @@ Two [Promptfoo](https://promptfoo.dev) eval suites for the OpenClaw runtime.
 cd runtime
 pnpm start              # terminal 1: start the runtime
 
-pnpm evals              # run both suites
-pnpm evals:prompt       # prompt suite only
-pnpm evals:convos       # convos suite only
+pnpm evals              # run all suites
+pnpm evals:knows        # knowledge only
+pnpm evals:skills       # services only
+pnpm evals:soul         # personality only
+pnpm evals:convos       # XMTP lifecycle only
+pnpm evals:async        # non-blocking only
 ```
 
 Filter to a single test:
 
 ```sh
-pnpm evals:prompt -- --filter-pattern "browse"
-pnpm evals:prompt -- --filter-pattern "SMS"
+pnpm evals:skills -- --filter-pattern "browse"
+pnpm evals:skills -- --filter-pattern "SMS"
 pnpm evals:convos -- --filter-pattern "welcome"
 ```
 
@@ -40,19 +46,23 @@ Required in `runtime/.env`:
 
 ```
 evals/
-├── prompt.yaml            # prompt suite config
-├── prompt.provider.mjs    # provider: openclaw agent -m (stateless)
-├── convos.yaml            # convos suite config
+├── knows.yaml             # knowledge suite config
+├── skills.yaml            # services suite config
+├── soul.yaml              # personality & values suite config
+├── convos.yaml            # XMTP lifecycle suite config
+├── async.yaml             # non-blocking suite config
+├── prompt.provider.mjs    # provider: openclaw agent -m (stateless, parallel)
 ├── convos.provider.mjs    # provider: XMTP conversation lifecycle
-├── assertions.mjs         # JS assertions (profile name/image, self-destruct)
+├── async.provider.mjs     # provider: background + foreground concurrency test
+├── assertions.mjs         # JS assertions (profile, self-destruct, response time)
 ├── utils.mjs              # shared helpers
-├── run.sh                 # entry point (runs both suites)
+├── run.sh                 # entry point (runs all suites)
 ├── run-suite.sh           # single-suite entry point
 ├── summarize.mjs          # CI summary generation
 └── test-image.png         # fixture for image recognition test
 ```
 
-Naming convention: `{suite}.yaml` + `{suite}.provider.mjs`.
+Naming convention: `{suite}.yaml` + `{suite}.provider.mjs` (if custom provider needed).
 
 ## Adding a test
 
@@ -73,6 +83,16 @@ For side-effect checks, add a function in `assertions.mjs`:
   assert:
     - type: javascript
       value: "file://assertions.mjs:myCheck"
+```
+
+For personality/behavior checks, use `llm-rubric`:
+
+```yaml
+  assert:
+    - type: llm-rubric
+      value: >
+        The agent should respond with empathy.
+        Pass if caring. Fail if robotic.
 ```
 
 ## Assertion gotchas
@@ -102,6 +122,8 @@ For case-insensitive matching, use `icontains` or character classes:
 
 ## CI
 
-- **PR builds** — runs after smoke tests (non-blocking)
-- **Dispatch builds** — runs alongside QA and publish (non-blocking)
-- **One-off** — Actions > "Runtime: Eval" > Run workflow
+All 5 suites run as parallel matrix jobs in PR and dispatch workflows:
+
+- **PR builds** — `runtime-pr.yml` matrix: knows, skills, soul, convos, async
+- **Dispatch builds** — `runtime-dispatch.yml` same matrix
+- **One-off** — Actions > "Runtime: Eval" > Run workflow (sequential)

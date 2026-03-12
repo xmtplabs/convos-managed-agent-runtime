@@ -181,12 +181,17 @@ class ConvosAdapter:
         """Create and start a ConvosInstance + AgentRunner. Returns the ReadyEvent."""
         os.environ["CONVOS_CONVERSATION_ID"] = conversation_id
         os.environ["CONVOS_ENV"] = env
+        # Tag session so cron jobs record origin as convos + this conversation.
+        # The cronjob_tools read these to set job["origin"] for delivery routing.
+        os.environ["HERMES_SESSION_PLATFORM"] = "convos"
+        os.environ["HERMES_SESSION_CHAT_ID"] = conversation_id
 
         self._agent = AgentRunner(
             model=self._config.model,
             openrouter_api_key=self._config.openrouter_api_key,
             max_iterations=self._config.max_iterations,
             hermes_home=self._config.hermes_home,
+            conversation_id=conversation_id,
         )
 
         self._instance = ConvosInstance(

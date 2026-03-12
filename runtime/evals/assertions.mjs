@@ -70,3 +70,64 @@ export function agentSelfDestructed(output) {
     reason: pass ? 'Agent self-destructed' : `Expected SELF_DESTRUCT_CONFIRMED, got: ${output}`,
   };
 }
+
+export function gatewayHealthDuringLoad(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pass = meta.healthOk === true;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Gateway health endpoint responded during load'
+      : 'Gateway health endpoint did not respond — event loop may be blocked',
+  };
+}
+
+export function agentDelegatedHeavyTask(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const ack = meta.heavyAck || '';
+  const duration = meta.heavyDurationMs;
+  const error = meta.heavyError;
+
+  if (error) {
+    return { pass: false, score: 0, reason: `Heavy task errored: ${error}` };
+  }
+
+  // The agent should have acknowledged quickly and spawned a sub-agent.
+  // Check the ack mentions delegation (spawn, background, working on it, etc.)
+  const delegationSignals = /spawn|sub.?agent|background|working on|on it|report back|get back|let me|i'll/i;
+  const hasDelegation = delegationSignals.test(ack);
+
+  // Also check it didn't return the full result inline (which would mean it blocked)
+  const tooLong = ack.length > 500;
+
+  const pass = hasDelegation && !tooLong;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Agent delegated in ${duration}ms: "${ack.slice(0, 80)}"`
+      : tooLong
+        ? `Agent returned full result inline (${ack.length} chars, ${duration}ms) instead of delegating`
+        : `Agent ack'd in ${duration}ms but no delegation signal found: "${ack.slice(0, 120)}"`,
+  };
+}
+
+export function responseTimeBelowThreshold(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const actual = meta.responseTimeMs;
+  const threshold = meta.maxResponseTime;
+
+  if (actual == null || threshold == null) {
+    return { pass: false, score: 0, reason: 'Missing responseTimeMs or maxResponseTime in metadata' };
+  }
+
+  const pass = actual <= threshold;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Response time ${actual}ms is within ${threshold}ms threshold`
+      : `Response time ${actual}ms exceeds ${threshold}ms threshold`,
+  };
+}
