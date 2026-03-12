@@ -1,19 +1,41 @@
 // runtime/evals/prompt.provider.mjs
 // Lightweight provider that prompts the agent directly via `openclaw agent -m`.
-// Each test gets its own session so they can run in parallel.
+// Clears session history on first call so the agent starts fresh.
 
 import { execFileSync } from 'child_process';
+import { readdirSync, unlinkSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import { elapsed, log as _log } from './utils.mjs';
 
 const ENTRY = process.env.OPENCLAW_ENTRY || 'openclaw';
+const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
 let testIndex = 0;
+let sessionsCleared = false;
 
 function log(msg) { _log('eval:prompt', msg); }
+
+// Wipe session files once per eval run so the agent has no memory of previous runs.
+// The session key `agent:main:main` always maps to the same file regardless of --session-id.
+function clearSessionsOnce() {
+  if (sessionsCleared) return;
+  const sessionsDir = join(STATE_DIR, 'agents', 'main', 'sessions');
+  try {
+    for (const f of readdirSync(sessionsDir)) {
+      try { unlinkSync(join(sessionsDir, f)); } catch {}
+    }
+    log(`Cleared sessions in ${sessionsDir}`);
+  } catch {
+    log(`No sessions dir at ${sessionsDir} (ok for Docker)`);
+  }
+  sessionsCleared = true;
+}
 
 export default class PromptProvider {
   id() { return 'openclaw-prompt'; }
 
   async callApi(prompt, context) {
+    clearSessionsOnce();
     testIndex++;
     const desc = context.test?.description || `Test ${testIndex}`;
     const session = `eval-prompt-${Date.now()}-${testIndex}`;
