@@ -10,6 +10,4 @@ if [ -f "$ROOT/.env" ]; then
   set +a
   [ -n "$_save_token" ] && export OPENCLAW_GATEWAY_TOKEN="$_save_token"
   unset _save_token
-  count="$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ROOT/.env" 2>/dev/null || echo 0)"
-  echo "  📦 .env loaded ($count vars)"
 fi

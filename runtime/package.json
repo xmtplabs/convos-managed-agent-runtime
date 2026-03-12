@@ -6,7 +6,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/gateway.sh",
+    "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/gateway.sh",
     "keys": "sh scripts/keys.sh",
     "apply": "sh scripts/apply-config.sh",
     "install-deps": "sh scripts/install-deps.sh",
