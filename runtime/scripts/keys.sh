@@ -5,73 +5,61 @@
 set -e
 
 . "$(dirname "$0")/lib/init.sh"
+. "$ROOT/scripts/lib/brand.sh"
 ENV_FILE="$ROOT/.env"
 
-if [ -f "$ENV_FILE" ]; then set -a; . "$ENV_FILE" 2>/dev/null || true; set +a; fi
+if [ -f "$ENV_FILE" ]; then
+  set -a; . "$ENV_FILE" 2>/dev/null || true; set +a
+  _env_count="$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE" 2>/dev/null || echo 0)"
+fi
 
-# ── Version banner ────────────────────────────────────────────────────────
 _version="unknown"
 if command -v jq >/dev/null 2>&1 && [ -f "$ROOT/package.json" ]; then
   _version=$(jq -r '.version // "unknown"' "$ROOT/package.json")
 fi
-echo ""
-echo "  convos-runtime v${_version}"
-echo "  ═══════════════════════════"
-echo ""
-echo "  🔑 Provisioning keys"
-echo "  ═══════════════════"
-echo ""
-[ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && echo "  📦 VOLUME                  → $RAILWAY_VOLUME_MOUNT_PATH" || echo "  ⬚  VOLUME                  → none"
+brand_banner "$_version"
+
+brand_section "Provisioning assistant keys"
+[ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 
 # ── Hard dependency: agent needs a model key to function ───────────────────
 
 if [ -z "$OPENROUTER_API_KEY" ]; then
-  echo "  ❌ OPENROUTER_API_KEY is required but not set" >&2
+  brand_err "OPENROUTER_API_KEY" "required but not set"
   exit 1
 fi
 
 # ── Pool ──────────────────────────────────────────────────────────────────
-echo ""
-echo "  ── pool ──────────────────────"
-[ -n "$POOL_URL" ] && echo "  ✅ POOL_URL                → $POOL_URL" || echo "  ⬚  POOL_URL                → not set"
-[ -n "$INSTANCE_ID" ] && echo "  ✅ INSTANCE_ID             → $INSTANCE_ID" || echo "  ⬚  INSTANCE_ID             → not set"
-if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
-  echo "  ✅ SERVICE_URL             → https://$RAILWAY_PUBLIC_DOMAIN"
-elif [ -n "$NGROK_URL" ]; then
-  echo "  ✅ SERVICE_URL             → $NGROK_URL (ngrok)"
-else
-  echo "  ⬚  SERVICE_URL             → localhost"
-fi
+brand_subsection "pool"
+[ -n "$POOL_URL" ] && brand_ok "POOL_URL" "$POOL_URL" || brand_dim "POOL_URL" "not set"
+[ -n "$INSTANCE_ID" ] && brand_ok "INSTANCE_ID" "$INSTANCE_ID" || brand_dim "INSTANCE_ID" "not set"
 
 # ── OpenClaw ──────────────────────────────────────────────────────────────
-echo ""
-echo "  ── openclaw ──────────────────"
+brand_subsection "openclaw"
 
 if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
   gateway_token="$OPENCLAW_GATEWAY_TOKEN"
-  echo "  ✅ OPENCLAW_GATEWAY_TOKEN  → from env"
+  brand_ok "OPENCLAW_GATEWAY_TOKEN" "from env"
 else
   gateway_token=$(openssl rand -hex 32)
-  echo "  🔧 OPENCLAW_GATEWAY_TOKEN  → generated"
+  brand_info "OPENCLAW_GATEWAY_TOKEN" "generated"
 fi
 
 if [ -n "$OPENCLAW_PRIMARY_MODEL" ]; then
-  echo "  ✅ OPENCLAW_PRIMARY_MODEL  → $OPENCLAW_PRIMARY_MODEL"
+  brand_ok "OPENCLAW_PRIMARY_MODEL" "$OPENCLAW_PRIMARY_MODEL"
 else
-  echo "  ⬚  OPENCLAW_PRIMARY_MODEL  → not set"
+  brand_dim "OPENCLAW_PRIMARY_MODEL" "not set"
 fi
 
 if [ -n "$XMTP_ENV" ]; then
-  echo "  ✅ XMTP_ENV               → $XMTP_ENV"
+  brand_ok "XMTP_ENV" "$XMTP_ENV"
 else
-  echo "  ⬚  XMTP_ENV               → not set"
+  brand_dim "XMTP_ENV" "not set"
 fi
 
 # ── Services ──────────────────────────────────────────────────────────────
-echo ""
-echo "  ── services ──────────────────"
-[ -n "$OPENROUTER_API_KEY" ] && echo "  ✅ OPENROUTER_API_KEY      → set" || echo "  ⬚  OPENROUTER_API_KEY      → not set"
-[ -n "$POOL_URL" ] && echo "  ✅ email/sms              → proxied via pool ($POOL_URL)" || echo "  ⬚  email/sms              → no POOL_URL"
+brand_subsection "services"
+[ -n "$OPENROUTER_API_KEY" ] && brand_ok "OPENROUTER_API_KEY" "set" || brand_dim "OPENROUTER_API_KEY" "not set"
 
 # ── Write .env ─────────────────────────────────────────────────────────────
 
@@ -91,11 +79,10 @@ if [ -n "$RAILWAY_ENVIRONMENT" ]; then
   if [ -n "$instance_id" ]; then echo "INSTANCE_ID=$instance_id" >> "$tmp"; fi
   mv "$tmp" "$ENV_FILE"
 
-  echo ""
-  echo "  📝 Written to .env"
-  echo ""
+  _env_count="$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE" 2>/dev/null || echo 0)"
+  brand_ok ".env" "written ($_env_count vars)"
 else
-  echo ""
-  echo "  📝 .env → kept as-is (local mode)"
-  echo ""
+  brand_ok ".env" "loaded (${_env_count:-0} vars)"
 fi
+
+brand_flush
