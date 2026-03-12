@@ -71,6 +71,18 @@ export function agentSelfDestructed(output) {
   };
 }
 
+export function gatewayHealthDuringLoad(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pass = meta.healthOk === true;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Gateway health endpoint responded while processing complex task'
+      : 'Gateway health endpoint did not respond — event loop may be blocked',
+  };
+}
+
 export function responseTimeBelowThreshold(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const actual = meta.responseTimeMs;

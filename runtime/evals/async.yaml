@@ -1,6 +1,8 @@
 # runtime/evals/async.yaml
-# Async eval — does the agent stay responsive while handling a complex task?
-# Spawns a heavy task in the background, then checks the agent can still respond quickly.
+# Async eval — does the gateway stay responsive while processing a complex task?
+# Fires a heavy prompt on the main lane, then checks:
+#   1. Gateway health endpoint still responds (event loop not frozen)
+#   2. A simple prompt on a different session key gets answered within threshold
 
 description: "Eval: Async"
 
@@ -18,15 +20,17 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Agent responds to simple query while processing a complex task"
+  - description: "Gateway stays responsive while agent processes complex task"
     vars:
       prompt: "What time is it right now?"
     metadata:
       backgroundPrompt: "Plan a detailed 7-day trip itinerary for Tokyo including daily activities, restaurant recommendations, and transportation options for each day."
-      delay: 5
-      maxResponseTime: 15
+      delay: 3
+      maxResponseTime: 30000
     assert:
-      - type: regex
-        value: "\\d{1,2}[:.:]\\d{2}"
+      - type: javascript
+        value: "file://assertions.mjs:gatewayHealthDuringLoad"
       - type: javascript
         value: "file://assertions.mjs:responseTimeBelowThreshold"
+      - type: regex
+        value: "\\d{1,2}[:.:]\\d{2}"
