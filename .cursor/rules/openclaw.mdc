@@ -9,7 +9,7 @@ This repo hosts the Convos agents pool (`pool/`), runtime (`runtime/` with OpenC
 ## Hard project rules
 
 - **Package management**: Always use `pnpm`. Never bump or add dependencies unless explicitly requested.
-- **Convos extension**: Do not modify or “tour” `runtime/openclaw/extensions/convos/` without explicit approval.
+- **Convos extension**: Do not modify or "tour" `runtime/openclaw/extensions/convos/` without explicit approval.
 - **Safety over automation**: When in doubt, prefer simple manual flows and tools over automation. **Never** add automatic cleanup or destroy logic to the tick loop or background schedules.
 - **Infrastructure cleanup**: Do not auto-delete Railway projects, services, or volumes. Dead or crashed instances must be cleaned up manually via the dashboard; only explicit user actions (kill, drain, dismiss) may destroy infrastructure.
 - **Security (pool / backend)**:
@@ -21,7 +21,7 @@ This repo hosts the Convos agents pool (`pool/`), runtime (`runtime/` with OpenC
   - Flow: `feature-branch → dev → staging → main`.
   - Feature PRs target `dev`. Always create feature branches from the **target** branch, for example `git checkout origin/dev && git checkout -b my-branch`.
   - Never PR directly to `main` or `staging` unless explicitly asked.
-  - Do not include “Test plan” sections in PR descriptions; keep them to Summary and Why only.
+  - Do not include "Test plan" sections in PR descriptions; keep them to Summary and Why only.
   - When promoting `dev → staging → main`, always merge locally (for example `merge/dev-to-staging` from `origin/staging` + `git merge origin/dev`) instead of PRs that directly diff long-lived branches.
 
 ## How to use OpenClaw docs
