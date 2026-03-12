@@ -44,6 +44,8 @@ export type ConvosAccountConfig = {
   };
   /** Controls agent reaction behavior. */
   reactionLevel?: ConvosReactionLevel;
+  /** Extra system instructions prepended to each group turn. */
+  systemPrompt?: string;
   /** The conversation ID where OpenClaw communicates with its owner. */
   ownerConversationId?: string;
 };
