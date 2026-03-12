@@ -26,7 +26,7 @@ The agent runtime is a pre-built Docker image containing the OpenClaw gateway, e
 The `pnpm start` script runs four steps in sequence:
 
 1. **keys.sh** — Displays all env var status. Generates `OPENCLAW_GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
-2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
+2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
 3. **install-deps.sh** — Runs `pnpm install` in each extension directory (convos, web-tools). Links shared deps.
 4. **gateway.sh** — Starts `openclaw gateway run` with a restart loop (max 5 rapid crashes in 30s window).
 
@@ -45,7 +45,8 @@ The `pnpm start` script runs four steps in sequence:
 │       ├── IDENTITY.md     # agent identity
 │       ├── SOUL.md         # personality / welcome message
 │       ├── TOOLS.md        # tool usage guidelines
-│       ├── USER.md         # user context
+│       ├── USER.md         # quick current snapshot
+│       ├── MEMORY.md       # durable long-term memory
 │       ├── HEARTBEAT.md    # heartbeat checklist
 │       ├── BOOTSTRAP.md    # first-run ritual
 │       └── skills/
@@ -68,7 +69,7 @@ The `pnpm start` script runs four steps in sequence:
 |--------|-------------|
 | `pnpm start` | Full init: keys → apply → install-deps → gateway |
 | `pnpm keys` | Generate gateway token; create/reuse OpenRouter key; write .env |
-| `pnpm apply` | Sync workspace/skills/extensions and copy config template to state dir |
+| `pnpm apply` | Sync workspace/skills/extensions, preserve local workspace edits, and copy config template to state dir |
 | `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
 | `pnpm gateway` | Start the gateway |
 | `pnpm smoke` | Smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
@@ -170,3 +171,5 @@ The pool manager creates a Railway service with the GHCR image, injects env vars
 - 5 rapid crashes within 30s → give up
 
 The `OPENCLAW_NO_RESPAWN=1` flag tells OpenClaw to reload config in-process (SIGUSR1) instead of spawning a new process, preventing container restarts on config changes.
+
+Sessions live under `OPENCLAW_STATE_DIR`, so gateway restarts reconnect to the existing conversation instead of wiping session history. The main restart-time data loss risk was workspace template overwrite, which `apply-config.sh` now avoids for locally edited workspace files.

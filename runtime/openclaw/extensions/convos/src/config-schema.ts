@@ -60,6 +60,9 @@ export const ConvosConfigSchema = z.object({
   /** Controls agent reaction behavior. */
   reactionLevel: z.enum(["off", "ack", "minimal", "extensive"]).optional(),
 
+  /** Extra system instructions prepended to each group turn. */
+  systemPrompt: z.string().optional(),
+
   /** The conversation ID where OpenClaw communicates with its owner. */
   ownerConversationId: z.string().optional(),
 });
