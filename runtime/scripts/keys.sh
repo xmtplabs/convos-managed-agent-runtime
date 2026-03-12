@@ -13,6 +13,12 @@ if [ -f "$ENV_FILE" ]; then
   _env_count="$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$ENV_FILE" 2>/dev/null || echo 0)"
 fi
 
+_version="unknown"
+if command -v jq >/dev/null 2>&1 && [ -f "$ROOT/package.json" ]; then
+  _version=$(jq -r '.version // "unknown"' "$ROOT/package.json")
+fi
+brand_banner "$_version"
+
 brand_section "Provisioning assistant keys"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 
