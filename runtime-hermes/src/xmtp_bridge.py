@@ -340,16 +340,29 @@ class ConvosInstance:
 
     # ---- Member cache ----
 
-    async def refresh_member_names(self) -> None:
+    async def list_profiles(self) -> list[dict[str, Any]]:
+        data = await self._exec_json(["conversation", "profiles", self.conversation_id])
+        profiles = data.get("profiles", [])
+        return profiles if isinstance(profiles, list) else []
+
+    async def refresh_member_names_strict(self) -> list[dict[str, Any]]:
+        profiles = await self.list_profiles()
+        self._member_names.clear()
+        for p in profiles:
+            inbox_id = p.get("inboxId")
+            if not inbox_id:
+                continue
+            self._member_names[inbox_id] = p.get("name") or "anonymous"
+        if self.debug:
+            logger.info(f"Refreshed member names: {len(self._member_names)} members")
+        return profiles
+
+    async def refresh_member_names(self) -> list[dict[str, Any]] | None:
         try:
-            data = await self._exec_json(["conversation", "profiles", self.conversation_id])
-            self._member_names.clear()
-            for p in data.get("profiles", []):
-                self._member_names[p["inboxId"]] = p.get("name", "anonymous")
-            if self.debug:
-                logger.info(f"Refreshed member names: {len(self._member_names)} members")
+            return await self.refresh_member_names_strict()
         except Exception as err:
             logger.error(f"Failed to refresh member names: {err}")
+            return None
 
     def set_member_name(self, inbox_id: str, name: str) -> None:
         if inbox_id and name:
@@ -358,7 +371,8 @@ class ConvosInstance:
     def get_group_members(self) -> str | None:
         if not self._member_names:
             return None
-        return ", ".join(self._member_names.values())
+        names = [name or "anonymous" for name in self._member_names.values()]
+        return ", ".join(names)
 
     # ---- Operations (via stdin commands) ----
 

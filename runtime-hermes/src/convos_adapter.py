@@ -35,6 +35,7 @@ from .config import RuntimeConfig
 logger = logging.getLogger(__name__)
 
 XMTP_MESSAGE_LIMIT = 4000
+GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
 
 
 @dataclass
@@ -231,13 +232,19 @@ class ConvosAdapter:
 
     async def _handle_message(self, msg: InboundMessage) -> None:
         """Full message pipeline: eyes -> agent -> parse -> execute -> send -> remove eyes."""
-        if msg.content_type in ("group_updated", "reaction"):
-            return
-
         inst = self._instance
         agent = self._agent
         if not inst or not agent:
             logger.warning("Message received but no instance/agent active")
+            return
+
+        membership_termination_reason = await self._detect_membership_termination_reason(msg)
+        if membership_termination_reason:
+            logger.info(f"Membership ended, self-destructing ({membership_termination_reason})")
+            await self.stop()
+            return
+
+        if msg.content_type in ("group_updated", "reaction"):
             return
 
         # Update member name cache
@@ -269,6 +276,60 @@ class ConvosAdapter:
                 await inst.react(msg.message_id, "\U0001f440", "remove")
             except Exception:
                 pass  # silently ignore if eyes weren't placed
+
+    async def _detect_membership_termination_reason(self, msg: InboundMessage) -> str | None:
+        inst = self._instance
+        if not inst or msg.content_type != "group_updated" or not self._is_member_removal_group_update(msg.content):
+            return None
+
+        try:
+            profiles = await inst.refresh_member_names_strict()
+        except Exception as err:
+            if self._is_inactive_group_error(err):
+                return "removed from group"
+            logger.error(f"Unexpected error checking membership: {err}")
+            return None
+
+        if not profiles:
+            return None
+
+        agent_still_present = any(
+            profile.get("isMe") is True
+            or (bool(inst.inbox_id) and profile.get("inboxId") == inst.inbox_id)
+            for profile in profiles
+            if isinstance(profile, dict)
+        )
+
+        if not agent_still_present:
+            return "removed from group"
+
+        if len(profiles) != 1:
+            return None
+
+        return "last member in group"
+
+    @staticmethod
+    def _is_member_removal_group_update(content: str) -> bool:
+        for segment in ConvosAdapter._split_group_update_segments(content):
+            if re.search(r"\bleft the group$", segment, re.IGNORECASE):
+                return True
+            if (
+                re.match(r"^[^;]+ removed [^;]+$", segment, re.IGNORECASE)
+                and not re.search(r"\bwas removed$", segment, re.IGNORECASE)
+                and not re.search(r"\bremoved .+ as admin$", segment, re.IGNORECASE)
+                and not re.search(r"\bremoved .+ as super admin$", segment, re.IGNORECASE)
+                and not re.search(r"\bremoved their profile photo$", segment, re.IGNORECASE)
+            ):
+                return True
+        return False
+
+    @staticmethod
+    def _split_group_update_segments(content: str) -> list[str]:
+        return [segment.strip() for segment in GROUP_UPDATE_SEPARATOR_RE.split(content) if segment.strip()]
+
+    @staticmethod
+    def _is_inactive_group_error(err: Exception) -> bool:
+        return bool(re.search(r"\bgroup is inactive\b", str(err), re.IGNORECASE))
 
 
 
