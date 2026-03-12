@@ -195,7 +195,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         cfg: cfg as CoreConfig,
         sectionKey: "convos",
         accountId,
-        clearBaseFields: ["name", "identityId", "env", "debug", "ownerConversationId"],
+        clearBaseFields: ["name", "identityId", "env", "debug", "systemPrompt", "ownerConversationId"],
       }),
     isConfigured: (account) => account.configured,
     describeAccount: (account) => ({
@@ -395,6 +395,12 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
         `[${account.accountId}] Convos provider started (conversation: ${inst.conversationId.slice(0, 12)}...)`,
       );
 
+      try {
+        await dispatchWorkspaceRefresh(account, runtime, log);
+      } catch (err) {
+        log?.error(`[${account.accountId}] Workspace refresh dispatch failed: ${String(err)}`);
+      }
+
       // Block until abort signal fires or selfDestruct() resolves the promise.
       await new Promise<void>((resolve) => {
         resolveStartAccountBlock = resolve;
@@ -427,6 +433,7 @@ async function handleInboundMessage(
   log?: RuntimeLogger,
   /** Pre-resolved media path for held attachments re-entering via timeout/flush. */
   preResolvedMediaPath?: string,
+  suppressOutboundReply = false,
 ) {
   const inst = getConvosInstance();
   const debugLog = (msg: string) => log ? log.info(msg) : console.log(msg);
@@ -674,6 +681,24 @@ async function handleInboundMessage(
     channel: "convos",
     accountId: account.accountId,
   });
+
+  if (suppressOutboundReply) {
+    if (account.debug) {
+      debugLog(`[${account.accountId}] Suppressing outbound reply for synthetic system refresh`);
+    }
+
+    await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+      ctx: ctxPayload,
+      cfg,
+      dispatcherOptions: {
+        deliver: async (_payload: ReplyPayload) => {},
+        onError: async (err, info) => {
+          errorLog(`[${account.accountId}] Convos ${info.kind} refresh failed: ${String(err)}`);
+        },
+      },
+    });
+    return;
+  }
 
   await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
     ctx: ctxPayload,
@@ -962,6 +987,32 @@ async function dispatchGreeting(
 
   console.log("[convos] Dispatching greeting message");
   await handleInboundMessage(account, syntheticMsg, runtime);
+}
+
+async function dispatchWorkspaceRefresh(
+  account: ResolvedConvosAccount,
+  runtime: PluginRuntime,
+  log?: RuntimeLogger,
+): Promise<void> {
+  const inst = getConvosInstance();
+  if (!inst) {
+    log?.warn?.(`[${account.accountId}] No instance available for workspace refresh dispatch`);
+    return;
+  }
+
+  const syntheticMsg: InboundMessage = {
+    conversationId: inst.conversationId,
+    messageId: `system-refresh-${crypto.randomUUID()}`,
+    senderId: SYSTEM_SENDER_ID,
+    senderName: "System",
+    content:
+      "[System: Gateway restart detected. This is an internal refresh only. Re-read AGENTS.md, IDENTITY.md, SOUL.md, USER.md, MEMORY.md, and current memory files now. Do not send a reply or call tools unless strictly required to refresh your workspace context.]",
+    contentType: "text",
+    timestamp: new Date(),
+  };
+
+  log?.info(`[${account.accountId}] Dispatching silent workspace refresh`);
+  await handleInboundMessage(account, syntheticMsg, runtime, log, undefined, true);
 }
 
 /**
