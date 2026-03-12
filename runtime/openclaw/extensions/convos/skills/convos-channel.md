@@ -51,7 +51,7 @@ Via HTTP route `POST /convos/join`:
 
 ### Sending Messages
 
-Via message action `send` with `message` param, or HTTP route `POST /convos/conversation/send`:
+Ordinary agent chat is sent through the final reply pipeline. Mid-run `send` actions are reserved for intercepted `/update-profile ...` commands. External callers can still send text via HTTP route `POST /convos/conversation/send`:
 
 ```json
 { "message": "Hello!" }
@@ -88,9 +88,10 @@ The owner conversation (`ownerConversationId`) is your primary communication cha
 
 When sending messages via Convos:
 
-- Messages are sent to the single bound conversation
+- Final replies and outbound messages are sent to the single bound conversation
 - The conversation ID is set during setup/onboarding
-- To send: use action `send` with `message` param
+- Ordinary agent text should use the final response path
+- Mid-run `action=send` is reserved for `/update-profile ...`
 
 ## Heartbeat
 

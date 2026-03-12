@@ -168,11 +168,11 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   actions: convosMessageActions,
   agentPrompt: {
     messageToolHints: () => [
-      "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID. In a 2-member conversation, only use `replyTo` when referencing an older message — replying to the most recent message is redundant when there is only one other person.",
+      "- Ordinary chat text must be your final response. It is automatically sent to the conversation after your tool calls finish. To reply to a specific message in your final response, include `[[reply_to:<message-id>]]` or `[[reply_to_current]]`. In a 2-member conversation, only use reply markers when referencing an older message — replying to the most recent message is redundant when there is only one other person.",
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
       "- To send a file: use `action=sendAttachment` with `file` (local path).",
       "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
-      "- To update your display name or avatar: use `action=send` with `message=\"/update-profile --name \\\"Name\\\"\"` or add `--image \\\"https://...\\\"`. The command is intercepted — it won't be sent as a message.",
+      "- `action=send` is reserved for profile updates only. To update your display name or avatar mid-run, use `action=send` with `message=\"/update-profile --name \\\"Name\\\"\"` or add `--image \\\"https://...\\\"`. The command is intercepted — it won't be sent as a message.",
       "- CRITICAL — NEVER narrate tool calls: Every text block you produce becomes a separate chat message pushed to every member's phone. NEVER write text before, between, or alongside tool calls — not even to report errors, explain retries, or describe a change in approach. If a tool fails, silently try the next approach. Call all tools silently, then write ONE message after you have the final result. This overrides the Tool Call Style defaults above.",
       "- Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji=\"👀\"` — literal emoji, not a shortcode) to signal you are working on it. After you post the final result, remove the reaction (`action=react`, `remove=true`).",
       "- CRITICAL — Do not reply endlessly: You do NOT need to reply to every message. After you send a message, your turn is OVER. If the response to your message is acknowledgment, agreement, thanks, encouragement, or anything that does not directly ask you a question or give you a task — do not reply. Stay silent or react with an emoji. You are not obligated to respond just because someone (human or agent) responded to you.",
@@ -890,7 +890,7 @@ function stripMarkdown(text: string): string {
 /**
  * Deliver a reply to the Convos conversation
  */
-async function deliverConvosReply(params: {
+export async function deliverConvosReply(params: {
   payload: ReplyPayload;
   accountId: string;
   runtime: PluginRuntime;

@@ -22,7 +22,7 @@ openclaw gateway
 | `src/outbound.ts` | Outbound adapter — `sendText` and `sendMedia` via the CLI |
 | `src/sdk-client.ts` | `ConvosInstance` — thin wrapper around `convos agent serve` ndjson protocol |
 | `src/accounts.ts` | Account resolution from config |
-| `src/actions.ts` | Message actions (send, react) exposed to the agent |
+| `src/actions.ts` | Mid-run message actions (profile update, react, attachment) exposed to the agent |
 | `src/config-schema.ts` | Zod schema for `channels.convos` config |
 | `src/onboarding.ts` | Interactive CLI onboarding (paste invite link) |
 | `src/setup.ts` | HTTP setup flow (create conversation, poll join, complete) |
@@ -34,6 +34,8 @@ openclaw gateway
 Since each process has exactly one conversation, target resolution is simple: any non-ID target string (e.g. `"heartbeat"`, `"group"`) is resolved to the bound conversation's ID in `normalizeConvosMessagingTarget`. The outbound adapter always delivers to the bound conversation regardless of the `to` value.
 
 This matters for the **heartbeat system** — the heartbeat agent doesn't know the conversation ID and may pass arbitrary target strings to the message tool. The normalizer ensures they all route correctly.
+
+For agent-authored chat, ordinary text goes through the final reply pipeline. The Convos `send` action is reserved for intercepted `/update-profile ...` commands, so mid-run tool chatter cannot leak into the conversation.
 
 ## HTTP routes
 
