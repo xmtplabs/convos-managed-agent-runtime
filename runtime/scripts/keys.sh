@@ -20,8 +20,6 @@ if command -v jq >/dev/null 2>&1 && [ -f "$ROOT/package.json" ]; then
 fi
 
 brand_banner "$_version"
-brand_flush
-
 brand_section "Provisioning assistant keys"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 

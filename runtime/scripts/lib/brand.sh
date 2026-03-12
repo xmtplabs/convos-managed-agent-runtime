@@ -26,13 +26,15 @@ _brand_print() {
 }
 
 brand_flush() {
-  # On Railway, emit line-by-line with 10ms gaps so each line gets a
+  # On Railway, emit line-by-line with small gaps so each line gets a
   # distinct timestamp and the log collector preserves ordering.
   # Locally, just cat the buffer (instant).
   if [ -n "${RAILWAY_ENVIRONMENT:-}" ]; then
     while IFS= read -r _line || [ -n "$_line" ]; do
       printf '%s\n' "$_line"
-      sleep 0.01
+      # Tiny delay — ensures Railway assigns distinct timestamps per line.
+      # Using /dev/tcp or : as a no-op if sleep doesn't support fractions.
+      sleep 0.02 2>/dev/null || true
     done < "$_BRAND_BUF"
   else
     cat "$_BRAND_BUF" 2>/dev/null
