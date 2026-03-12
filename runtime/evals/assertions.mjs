@@ -73,18 +73,43 @@ export function agentSelfDestructed(output) {
 
 export function gatewayHealthDuringLoad(output, context) {
   const meta = context.providerResponse?.metadata || {};
-  const passed = meta.probesPassed || 0;
-  const total = meta.probeCount || 0;
-  const allOk = meta.allProbesOk === true;
-  const avg = meta.avgProbeLatencyMs;
-  const max = meta.maxProbeLatencyMs;
-
+  const pass = meta.healthOk === true;
   return {
-    pass: allOk,
-    score: allOk ? 1 : 0,
-    reason: allOk
-      ? `All ${total} gateway probes responded (avg ${avg}ms, max ${max}ms)`
-      : `Only ${passed}/${total} gateway probes responded (avg ${avg}ms, max ${max}ms) — event loop may be blocked`,
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Gateway health endpoint responded during load'
+      : 'Gateway health endpoint did not respond — event loop may be blocked',
+  };
+}
+
+export function agentDelegatedHeavyTask(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const ack = meta.heavyAck || '';
+  const duration = meta.heavyDurationMs;
+  const error = meta.heavyError;
+
+  if (error) {
+    return { pass: false, score: 0, reason: `Heavy task errored: ${error}` };
+  }
+
+  // The agent should have acknowledged quickly and spawned a sub-agent.
+  // Check the ack mentions delegation (spawn, background, working on it, etc.)
+  const delegationSignals = /spawn|sub.?agent|background|working on|on it|report back|get back|let me|i'll/i;
+  const hasDelegation = delegationSignals.test(ack);
+
+  // Also check it didn't return the full result inline (which would mean it blocked)
+  const tooLong = ack.length > 500;
+
+  const pass = hasDelegation && !tooLong;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Agent delegated in ${duration}ms: "${ack.slice(0, 80)}"`
+      : tooLong
+        ? `Agent returned full result inline (${ack.length} chars, ${duration}ms) instead of delegating`
+        : `Agent ack'd in ${duration}ms but no delegation signal found: "${ack.slice(0, 120)}"`,
   };
 }
 

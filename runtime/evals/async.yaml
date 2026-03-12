@@ -1,9 +1,9 @@
 # runtime/evals/async.yaml
-# Async eval — does the gateway main thread stay responsive under load?
+# Async eval — does the agent delegate heavy tasks and stay responsive?
 #
-# Fires a complex prompt (occupies the main lane), then repeatedly probes the
-# gateway HTTP endpoint to verify the Node.js event loop isn't blocked.
-# After probing, sends a simple prompt to verify the agent still works.
+# Sends a complex task that should trigger sessions_spawn delegation, then
+# immediately sends a simple query in a fresh session to verify the agent
+# isn't blocked.
 
 description: "Eval: Async"
 
@@ -21,16 +21,20 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Gateway stays responsive while agent processes complex task"
+  - description: "Agent delegates heavy task and responds to follow-up quickly"
     vars:
       prompt: "What time is it right now?"
     metadata:
-      backgroundPrompt: "Research the top 5 AI frameworks released this year. For each one, search the web, find their GitHub repo, and write a comparison table with stars, language, and key features."
-      probeCount: 5
-      probeInterval: 2
-      maxProbeLatency: 2
+      heavyPrompt: "Research the top 5 AI frameworks released this year. For each one, search the web, find their GitHub repo, and write a comparison table with stars, language, and key features."
+      ackTimeout: 30
+      followUpTimeout: 15
     assert:
-      - type: javascript
-        value: "file://assertions.mjs:gatewayHealthDuringLoad"
+      # Follow-up response contains a valid time
       - type: regex
         value: "\\d{1,2}[:.:]\\d{2}"
+      # Gateway stayed responsive
+      - type: javascript
+        value: "file://assertions.mjs:gatewayHealthDuringLoad"
+      # Agent delegated the heavy task (ack'd quickly, didn't block)
+      - type: javascript
+        value: "file://assertions.mjs:agentDelegatedHeavyTask"
