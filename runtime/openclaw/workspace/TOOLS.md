@@ -21,6 +21,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
 - **Services** — Your managed services: send and receive email, send and receive SMS, check credits. Email and SMS are provisioned on first use (just run the command — setup is automatic). MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
 - **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
+- **Card (AgentCard)** — Prepaid virtual Visa cards for online purchases. Sign up, create cards, check balance, get card details. MUST use for ANY purchase/payment task. Run `agent-cards <command>`. See `skills/services/SKILL.md`.
 - **Convos Runtime** — Check runtime version or upgrade the runtime. MUST use for ANY upgrade/update/version request. This is about the Railway Docker container, NOT the openclaw binary. NEVER run `gateway update`, `npm update`, or any local package command — those break things. See `skills/convos-runtime/SKILL.md`.
 
 
@@ -100,9 +101,9 @@ _Note: If no URL is provided, use web_search first to find the booking page, the
 **Skill:** Services (info)
 _Note: Run `services.mjs info` and share the `servicesUrl` from the result. Never make up a URL._
 
-> How do I top up credits? / Where can I see my balance? / Card details?
+> How do I top up credits? / Where can I see my balance?
 **Skill:** Services (info)
-_Note: Run `services.mjs info` and share the `servicesUrl`. The services landing page is where users manage credits, card, and account status._
+_Note: Run `services.mjs info` and share the `servicesUrl`. The services landing page is where users manage credits and account status._
 
 > Text +1555123456 that I'm running late.
 **Skill:** Services (SMS)
@@ -137,6 +138,18 @@ _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm
 > What tokens are trending?
 **Skill:** Crypto (Bankr)
 
+> Buy me a domain / Purchase API credits / Pay for this subscription
+**Skill:** Card (AgentCard)
+_Note: Use `agent-cards` to create a card, fund it, and get card details for payment._
+
+> Create a virtual card with $50
+**Skill:** Card (AgentCard)
+→ `agent-cards cards create --amount 50`
+
+> What's my card balance?
+**Skill:** Card (AgentCard)
+→ `agent-cards balance <card-id>`
+
 > Book in Farid restaurant.
 **Tools:** Web Search → Browser
 
@@ -158,10 +171,12 @@ _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm
 | "Send invite" | browser | services email | Email delivery, not browsing |
 | "Send me an email" | answer with text | services email | Must execute, not suggest |
 | "Text my friend" | answer with text | services sms | Must send SMS via services skill |
-| "What's my balance?" | answer from memory | bankr CLI | Must query live data |
+| "What's my crypto balance?" | answer from memory | bankr CLI | Must query live data |
+| "What's my virtual card balance?" | services info | `agent-cards balance <id>` | AgentCard CLI, not services page |
 | "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
 | "Text +5411..." | services sms | decline | US numbers (+1) only |
 | "What's your URL?" | answer/guess | services info | Must run info to get real URL |
 | "Upgrade yourself" | `gateway update` / `npm update` | convos-runtime skill | Local updates break things; use pool redeploy |
 | "What version?" | answer from memory | convos-runtime skill | Must query live version via skill |
+| "Buy me X online" | web_search | agent-cards + browser | Create card, then use browser to pay |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |
