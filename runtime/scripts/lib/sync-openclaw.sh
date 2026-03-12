@@ -72,11 +72,6 @@ for subdir in workspace extensions; do
     rm -rf "${STATE_DIR:?}/$subdir"/*
     cp -r "$RUNTIME_DIR/$subdir/"* "$STATE_DIR/$subdir/" 2>/dev/null || true
   fi
-
-  case "$subdir" in
-    workspace)  emoji="📁" ;;
-    extensions) emoji="🔌" ;;
-    *)          emoji="" ;;
-  esac
-  echo "  $emoji $subdir → $STATE_DIR/$subdir"
+  . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+  brand_ok "$subdir" "$STATE_DIR/$subdir"
 done
