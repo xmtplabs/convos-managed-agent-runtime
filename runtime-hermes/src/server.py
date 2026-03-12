@@ -236,6 +236,10 @@ async def lifespan(app: FastAPI):
     yield
     if _cron_task:
         _cron_task.cancel()
+        try:
+            await _cron_task
+        except asyncio.CancelledError:
+            pass
     try:
         adapter = get_adapter()
         if adapter:

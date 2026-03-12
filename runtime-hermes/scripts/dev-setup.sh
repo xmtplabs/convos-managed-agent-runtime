@@ -45,10 +45,11 @@ fi
 
 # ---- Clone hermes-agent ----
 
-if [ -d "$HERMES_DIR/hermes-agent" ]; then
+if [ -d "$HERMES_DIR/hermes-agent/.git" ] && [ -f "$HERMES_DIR/hermes-agent/.gitmodules" ]; then
   echo "  hermes-agent already cloned at $HERMES_DIR/hermes-agent"
 else
   echo "  Cloning hermes-agent $HERMES_TAG ..."
+  rm -rf "$HERMES_DIR/hermes-agent"
   mkdir -p "$HERMES_DIR"
   git clone --recurse-submodules --branch "$HERMES_TAG" --depth 1 \
     https://github.com/NousResearch/hermes-agent.git "$HERMES_DIR/hermes-agent"
@@ -58,18 +59,18 @@ fi
 
 echo "  Installing hermes-agent Python deps ..."
 cd "$HERMES_DIR/hermes-agent"
-uv pip install --system -e ".[all]" 2>&1 | tail -1
-uv pip install --system -e "./mini-swe-agent" 2>&1 | tail -1
+uv pip install --system -e ".[all]"
+uv pip install --system -e "./mini-swe-agent"
 
 echo "  Installing runtime Python deps ..."
 cd "$RUNTIME_DIR"
-uv pip install --system --no-cache -r requirements.txt 2>&1 | tail -1
+uv pip install --system --no-cache -r requirements.txt
 
 # ---- Node deps (convos-cli) ----
 
 echo "  Installing Node deps (convos-cli) ..."
 cd "$RUNTIME_DIR"
-pnpm install --no-frozen-lockfile 2>&1 | tail -1
+pnpm install --no-frozen-lockfile
 
 # ---- HERMES_HOME ----
 
