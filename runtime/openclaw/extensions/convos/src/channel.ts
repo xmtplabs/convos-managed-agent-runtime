@@ -677,6 +677,7 @@ export async function handleInboundMessage(
     channel: "convos",
     accountId: account.accountId,
   });
+  let finalPayload: ReplyPayload | null = null;
 
   const { dispatcher, replyOptions, markDispatchIdle } =
     runtime.channel.reply.createReplyDispatcherWithTyping({
@@ -686,17 +687,7 @@ export async function handleInboundMessage(
           log?.info(`[${account.accountId}] Suppressed outbound text reply`);
           return;
         }
-        payload = { ...payload, text: policy.text };
-        await deliverConvosReply({
-          payload,
-          accountId: account.accountId,
-          runtime,
-          log,
-          tableMode,
-          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
-            ? msg.messageId
-            : undefined,
-        });
+        finalPayload = { ...payload, text: policy.text };
       },
       onError: async (err, info) => {
         errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
@@ -713,6 +704,19 @@ export async function handleInboundMessage(
     },
   });
   markDispatchIdle();
+
+  if (finalPayload) {
+    await deliverConvosReply({
+      payload: finalPayload,
+      accountId: account.accountId,
+      runtime,
+      log,
+      tableMode,
+      triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+        ? msg.messageId
+        : undefined,
+    });
+  }
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):

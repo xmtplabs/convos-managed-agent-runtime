@@ -255,4 +255,87 @@ describe("Convos reply filtering", () => {
     assert.equal(dispatchCalls[0]?.replyOptions.disableBlockStreaming, true);
     assert.equal(dispatchCalls[0]?.replyOptions.existing, true);
   });
+
+  it("only posts the last visible reply payload for a run", async () => {
+    const sent: Array<{ text: string; replyTo?: string }> = [];
+    let deliverHook:
+      | ((payload: { text?: string }, info?: { kind?: string }) => Promise<void>)
+      | undefined;
+
+    setConvosInstance({
+      conversationId: "conv-1",
+      label: "chat",
+      getGroupMembers: () => [],
+      setMemberName() {},
+      sendMessage: async (text: string, replyTo?: string) => {
+        sent.push({ text, replyTo });
+        return { success: true, messageId: "msg-last" };
+      },
+    } as unknown as ConvosInstance);
+
+    const runtime = {
+      config: {
+        loadConfig: () => ({ session: {} }),
+      },
+      channel: {
+        routing: {
+          resolveAgentRoute: () => ({ agentId: "agent", accountId: "default", sessionKey: "session-1" }),
+        },
+        session: {
+          resolveStorePath: () => "/tmp/session-store",
+          readSessionUpdatedAt: () => undefined,
+          recordInboundSession: async () => {},
+        },
+        reply: {
+          resolveEnvelopeFormatOptions: () => ({}),
+          formatAgentEnvelope: ({ body }: { body: string }) => body,
+          finalizeInboundContext: (ctx: unknown) => ctx,
+          createReplyDispatcherWithTyping: (opts: {
+            deliver: (payload: { text?: string }, info?: { kind?: string }) => Promise<void>;
+          }) => {
+            deliverHook = opts.deliver;
+            return {
+              dispatcher: Symbol("dispatcher"),
+              replyOptions: {},
+              markDispatchIdle() {},
+            };
+          },
+          dispatchReplyFromConfig: async () => {
+            await deliverHook?.({ text: "First draft." }, { kind: "final" });
+            await deliverHook?.({ text: "Actual final answer." }, { kind: "final" });
+          },
+        },
+        text: {
+          resolveMarkdownTableMode: () => "auto",
+          convertMarkdownTables: (text: string) => text,
+          resolveTextChunkLimit: () => 4000,
+          chunkMarkdownText: (text: string) => [text],
+        },
+      },
+    };
+
+    await handleInboundMessage(
+      {
+        accountId: "default",
+        debug: false,
+        config: {},
+      } as never,
+      {
+        content: "Hello",
+        contentType: "text",
+        conversationId: "conv-1",
+        senderId: "sender-1",
+        senderName: "Saul",
+        messageId: "01JMSG",
+        timestamp: new Date("2026-03-12T05:00:00.000Z"),
+      } as never,
+      runtime as never,
+      {
+        info() {},
+        error() {},
+      },
+    );
+
+    assert.deepEqual(sent, [{ text: "Actual final answer.", replyTo: undefined }]);
+  });
 });
