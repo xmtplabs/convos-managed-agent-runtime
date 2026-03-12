@@ -10,6 +10,7 @@ on:
     paths:
       - 'runtime/**'
       - '!runtime/CHANGELOG.md'
+      - '!runtime/evals/**'
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
@@ -40,6 +41,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Compute image tags
         id: meta
@@ -59,82 +62,23 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  qa:
-    name: "QA smoke tests (:${{ needs.build.outputs.pending }})"
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Pull :${{ needs.build.outputs.pending }}"
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
-
-      - name: "Start container from :${{ needs.build.outputs.pending }}"
-        run: |
-          docker run -d --name qa-runtime \
-            -p 8080:8080 \
-            -e PORT=8080 \
-            -e OPENCLAW_STATE_DIR=/app \
-            -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
-            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
-            -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
-            -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
-            -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            -e POOL_URL="${{ secrets.POOL_URL }}" \
-            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
-            node scripts/pool-server.js
-
-      - name: Wait for gateway health (up to 120s)
-        run: |
-          echo "Waiting for gateway health on port 8080..."
-          for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Gateway ready after ${i}s"
-              break
-            fi
-            sleep 1
-          done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-            echo "Gateway failed to start within 120s"
-            docker logs qa-runtime
-            exit 1
-          fi
-          echo "Waiting 15s for browser service to initialise..."
-          sleep 15
-
-      - name: Run QA smoke tests (timeout 120s)
-        run: docker exec qa-runtime timeout 120 pnpm qa
-
-      - name: Dump container logs
-        if: always()
-        run: docker logs qa-runtime
+          cache-from: type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}
+          cache-to: type=inline
 
   eval:
-    name: "E2E eval (non-blocking)"
+    name: "Eval: ${{ matrix.suite }}"
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: prompt
+            timeout: 300
+          - suite: convos
+            timeout: 600
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -142,15 +86,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Pull :${{ needs.build.outputs.pending }}"
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
-
-      - name: "Start container from :${{ needs.build.outputs.pending }}"
+      - name: "Start container (:${{ needs.build.outputs.pending }})"
         run: |
+          docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
           docker run -d --name eval-runtime \
             -p 8080:8080 \
             -e PORT=8080 \
             -e OPENCLAW_STATE_DIR=/app \
+            -e EVAL_MODE=1 \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
             -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
@@ -162,70 +105,34 @@ jobs:
             ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
             node scripts/pool-server.js
 
-      - name: Wait for gateway health (up to 120s)
+      - name: Wait for gateway
         run: |
-          echo "Waiting for gateway health on port 8080..."
-          for i in $(seq 1 120); do
+          SECONDS=0
+          while (( SECONDS < 120 )); do
             if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Gateway ready after ${i}s"
-              break
+              echo "Gateway ready after ${SECONDS}s"
+              exit 0
             fi
-            sleep 1
+            sleep 0.25
           done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-            echo "Gateway failed to start within 120s"
-            docker logs eval-runtime
-            exit 1
-          fi
-          echo "Waiting 15s for browser service to initialise..."
-          sleep 15
+          echo "Gateway failed to start within 120s"
+          docker logs eval-runtime
+          exit 1
 
-      - name: Run e2e eval
-        id: eval
-        continue-on-error: true
+      - name: "Run ${{ matrix.suite }} suite"
         run: |
-          set +e
           docker exec \
-            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
-            -e EVAL_OUTPUT=/tmp/eval-results.html \
-            -e EVAL_JSON_OUTPUT=/tmp/eval-results.json \
-            eval-runtime timeout 900 pnpm qa:eval
-          status=$?
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-          exit $status
-        env:
-          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
-
-      - name: Copy eval reports
-        if: always()
-        run: |
-          docker cp eval-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
-          docker cp eval-runtime:/tmp/eval-results.json ./eval-results.json 2>/dev/null || true
-
-      - name: Upload eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-report
-          path: |
-            eval-results.html
-            eval-results.json
-          if-no-files-found: ignore
-
-      - name: Summarize eval results
-        if: always()
-        run: node runtime/scripts/qa/eval/summarize-results.mjs ./eval-results.json
-        env:
-          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code }}
-          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
+            eval-runtime timeout ${{ matrix.timeout }} pnpm evals:${{ matrix.suite }}
 
       - name: Dump container logs
         if: always()
         run: docker logs eval-runtime
 
   publish:
-    name: "Publish :${{ needs.build.outputs.sha }}"
-    needs: [build, qa]
+    name: Publish image
+    needs: [build, eval]
+    if: always() && needs.build.result == 'success' && needs.eval.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
@@ -235,22 +142,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Pull :${{ needs.build.outputs.pending }}"
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
-
-      - name: "Tag and push :${{ needs.build.outputs.sha }}, :${{ needs.build.outputs.tag }}"
+      - name: "Retag :${{ needs.build.outputs.pending }} → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           PENDING="${{ needs.build.outputs.pending }}"
-          SHA="${{ needs.build.outputs.sha }}"
 
-          docker tag "$IMAGE:$PENDING" "$IMAGE:$SHA"
-          docker push "$IMAGE:$SHA"
-          echo "Pushed $IMAGE:$SHA"
-
-          docker tag "$IMAGE:$PENDING" "$IMAGE:pr-${{ github.event.number }}"
-          docker push "$IMAGE:pr-${{ github.event.number }}"
-          echo "Pushed $IMAGE:pr-${{ github.event.number }}"
+          AUTH="$HOME/.docker/config.json"
+          skopeo copy --all --authfile "$AUTH" \
+            "docker://$IMAGE:$PENDING" \
+            "docker://$IMAGE:${{ needs.build.outputs.sha }}"
+          skopeo copy --all --authfile "$AUTH" \
+            "docker://$IMAGE:$PENDING" \
+            "docker://$IMAGE:pr-${{ github.event.number }}"
+          echo "Retagged → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }}"
 
   promote:
     name: Promote on merge
@@ -285,7 +189,8 @@ jobs:
           ENV_TAG="${{ steps.env.outputs.tag }}"
 
           echo "Promoting $IMAGE:sha-$SHA → $IMAGE:$ENV_TAG"
-          docker pull "$IMAGE:sha-$SHA"
-          docker tag "$IMAGE:sha-$SHA" "$IMAGE:$ENV_TAG"
-          docker push "$IMAGE:$ENV_TAG"
+          AUTH="$HOME/.docker/config.json"
+          skopeo copy --all --authfile "$AUTH" \
+            "docker://$IMAGE:sha-$SHA" \
+            "docker://$IMAGE:$ENV_TAG"
           echo "Done: $IMAGE:$ENV_TAG"

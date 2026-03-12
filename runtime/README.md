@@ -59,18 +59,7 @@ The `pnpm start` script runs four steps in sequence:
     ├── install-deps.sh     # extension deps
     ├── gateway.sh          # openclaw gateway with restart loop
     ├── pool-server.js      # pool health/provision endpoints
-    ├── qa/
-    │   ├── smoke.sh        # smoke tests (proxy when POOL_URL set, direct otherwise)
-    │   ├── prompts.sh      # QA prompt definitions
-    │   ├── eval.sh          # e2e eval wrapper (loads .env, runs promptfoo)
-    │   └── eval/            # promptfoo config, provider, assertions, fixtures
-    └── lib/
-        ├── init.sh         # set ROOT, load .env, load paths
-        ├── paths.sh        # derive STATE_DIR, WORKSPACE_DIR, etc.
-        ├── env-load.sh     # load .env with token preservation
-        ├── node-path.sh    # add node_modules to NODE_PATH and PATH
-        ├── sync-openclaw.sh # rsync workspace + extensions to state dir
-        └── config-inject-extensions.sh
+    ├── smoke.sh            # smoke tests (proxy when POOL_URL set, direct otherwise)
 ```
 
 ## Scripts
@@ -82,8 +71,10 @@ The `pnpm start` script runs four steps in sequence:
 | `pnpm apply` | Sync workspace/skills/extensions and copy config template to state dir |
 | `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
 | `pnpm gateway` | Start the gateway |
-| `pnpm qa` | QA smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
-| `pnpm qa:eval` | E2E eval suite — LLM-judged tests over a real XMTP conversation (see [qa.md](qa.md)) |
+| `pnpm smoke` | Smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
+| `pnpm evals` | Run both eval suites (see [evals/README.md](evals/README.md)) |
+| `pnpm evals:prompt` | Prompt eval only (parallel) |
+| `pnpm evals:convos` | Convos lifecycle eval only (sequential) |
 | `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
 | `pnpm build` | Build Docker image locally |
 | `pnpm build:run` | Build and run with .env from repo root |
