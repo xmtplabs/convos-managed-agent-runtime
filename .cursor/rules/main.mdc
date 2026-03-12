@@ -2,7 +2,50 @@
 alwaysApply: true
 ---
 
-# IMPORTANT
+## Convos agents and OpenClaw
 
-- dont tour core convos extension
-- always use pnpm
+This repo hosts the Convos agents pool (`pool/`), runtime (`runtime/` with OpenClaw + XMTP), and dashboard (`dashboard/`). Treat this workspace as private agent memory and **always** run commands with `pnpm`, never `npm` or `yarn`.
+
+## Hard project rules
+
+- **Package management**: Always use `pnpm`. Never bump or add dependencies unless explicitly requested.
+- **Convos extension**: Do not modify or “tour” `runtime/openclaw/extensions/convos/` without explicit approval.
+- **Safety over automation**: When in doubt, prefer simple manual flows and tools over automation. **Never** add automatic cleanup or destroy logic to the tick loop or background schedules.
+- **Infrastructure cleanup**: Do not auto-delete Railway projects, services, or volumes. Dead or crashed instances must be cleaned up manually via the dashboard; only explicit user actions (kill, drain, dismiss) may destroy infrastructure.
+- **Security (pool / backend)**:
+  - Every new Express router must be mounted with `requireAuth` unless it is explicitly public.
+  - Never use `SELECT *` in queries that reach the browser. Always select explicit columns and exclude secrets (`gateway_token`, `env_value`, API keys, tokens).
+  - Never embed secrets (API keys, tokens) in HTML/JS; use httpOnly session cookies for browser auth.
+  - Never pass secrets in URL query parameters (for example `?key=`).
+- **Git and branches**:
+  - Flow: `feature-branch → dev → staging → main`.
+  - Feature PRs target `dev`. Always create feature branches from the **target** branch, for example `git checkout origin/dev && git checkout -b my-branch`.
+  - Never PR directly to `main` or `staging` unless explicitly asked.
+  - Do not include “Test plan” sections in PR descriptions; keep them to Summary and Why only.
+  - When promoting `dev → staging → main`, always merge locally (for example `merge/dev-to-staging` from `origin/staging` + `git merge origin/dev`) instead of PRs that directly diff long-lived branches.
+
+## How to use OpenClaw docs
+
+This workspace intentionally keeps OpenClaw behavior **thin** and defers to the official docs. For configuration details, examples, and edge cases, prefer the docs instead of copying text into rules.
+
+- **Home and overview**
+  - OpenClaw home: `https://docs.openclaw.ai/`
+- **Gateway, configuration, and sandboxing**
+  - Gateway and configuration: `https://docs.openclaw.ai/gateway/configuration`
+  - Sandbox and Docker isolation: `https://docs.openclaw.ai/gateway/sandboxing`
+  - Remote access and control UI: `https://docs.openclaw.ai/gateway/remote`
+- **Channels and routing**
+  - Channels and routing overview: `https://docs.openclaw.ai/channels/channel-routing`
+  - Individual channel setup (WhatsApp, Telegram, Discord, iMessage, etc.): channel pages under `https://docs.openclaw.ai/channels/`
+- **Tools and exec**
+  - Tools overview and web tools: `https://docs.openclaw.ai/tools/web`
+  - Exec and approvals: `https://docs.openclaw.ai/tools/exec` and `https://docs.openclaw.ai/tools/exec-approvals`
+  - Browser and Canvas tools: `https://docs.openclaw.ai/tools/browser` and `https://docs.openclaw.ai/tools/canvas`
+- **Skills, plugins, and extensions**
+  - Skills and ClawHub: `https://docs.openclaw.ai/tools/skills` and `https://docs.openclaw.ai/tools/clawhub`
+  - Plugins and extensions: `https://docs.openclaw.ai/plugins` and `https://docs.openclaw.ai/tools/plugin`
+- **Sessions, memory, and compaction**
+  - Memory and daily logs: `https://docs.openclaw.ai/concepts/memory`
+  - Sessions, pruning, and compaction: `https://docs.openclaw.ai/concepts/session-pruning` and `https://docs.openclaw.ai/concepts/compaction`
+
+When making behavioral changes, keep this rule file focused on **local constraints** (pnpm, safety, security, branch strategy) and rely on the OpenClaw docs for detailed reference.
