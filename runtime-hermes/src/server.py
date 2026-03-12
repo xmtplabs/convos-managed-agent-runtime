@@ -192,11 +192,86 @@ class LockRequest(BaseModel):
     unlock: bool = False
 
 
+# ---- Cron delivery ----
+
+_cron_task: asyncio.Task | None = None
+_event_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _patch_cron_delivery() -> None:
+    """Monkey-patch the Hermes cron scheduler to deliver to Convos.
+
+    _deliver_result() has a platform_map that doesn't include "convos",
+    so job output silently drops. This patch intercepts convos delivery
+    and sends through our adapter.
+    """
+    try:
+        import cron.scheduler as cron_mod
+    except ImportError:
+        logger.debug("Cron module not available — skipping delivery patch")
+        return
+
+    original_deliver = cron_mod._deliver_result
+
+    def _patched_deliver(job: dict, content: str) -> None:
+        deliver = job.get("deliver", "local")
+        origin = cron_mod._resolve_origin(job)
+
+        # Resolve platform name from deliver config
+        if deliver == "origin" and origin:
+            platform_name = origin["platform"]
+        elif ":" in deliver:
+            platform_name = deliver.split(":", 1)[0]
+        else:
+            platform_name = deliver
+
+        if platform_name != "convos":
+            return original_deliver(job, content)
+
+        # Send through our adapter
+        adapter = get_adapter()
+        if not adapter or not adapter.instance:
+            logger.warning("Cron job '%s': convos adapter not active, skipping delivery", job.get("name", job["id"]))
+            return
+
+        loop = _event_loop
+        if not loop or loop.is_closed():
+            logger.error("Cron job '%s': no event loop for convos delivery", job.get("name", job["id"]))
+            return
+
+        try:
+            future = asyncio.run_coroutine_threadsafe(adapter.send_message(content), loop)
+            future.result(timeout=30)
+            logger.info("Cron job '%s': delivered to convos", job.get("name", job["id"]))
+        except Exception as err:
+            logger.error("Cron job '%s': convos delivery failed: %s", job.get("name", job["id"]), err)
+
+    cron_mod._deliver_result = _patched_deliver
+    logger.info("Patched cron delivery for convos platform")
+
+
+async def _cron_tick_loop() -> None:
+    """Run the Hermes cron scheduler every 60 seconds."""
+    while True:
+        await asyncio.sleep(60)
+        try:
+            from cron.scheduler import tick
+            loop = asyncio.get_event_loop()
+            ran = await loop.run_in_executor(None, tick, False)
+            if ran:
+                logger.info("Cron tick: %d job(s) executed", ran)
+        except ImportError:
+            logger.debug("Cron module not available — skipping tick")
+            return
+        except Exception as err:
+            logger.error("Cron tick error: %s", err)
+
+
 # ---- App ----
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _config
+    global _config, _cron_task, _event_loop
     _config = RuntimeConfig.from_env()
     errors = _config.validate()
     if errors:
@@ -205,8 +280,17 @@ async def lifespan(app: FastAPI):
         raise RuntimeError(f"Config validation failed: {'; '.join(errors)}")
     ensure_workspace(_config.workspace_dir)
     warm_imports()
+    _event_loop = asyncio.get_event_loop()
+    _patch_cron_delivery()
+    _cron_task = asyncio.create_task(_cron_tick_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
     yield
+    if _cron_task:
+        _cron_task.cancel()
+        try:
+            await _cron_task
+        except asyncio.CancelledError:
+            pass
     try:
         adapter = get_adapter()
         if adapter:
