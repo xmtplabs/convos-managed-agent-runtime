@@ -21,7 +21,6 @@ fi
 
 brand_banner "$_version"
 brand_flush
-sleep 0.1
 
 brand_section "Provisioning assistant keys"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"

@@ -202,7 +202,8 @@ while true; do
 
   # Clean shutdown (exit 0) — do not restart
   if [ "$_exit_code" -eq 0 ]; then
-    printf "  ${C_GRAY}[assistant] exited cleanly (code 0) — not restarting${C_RESET}\n"
+    brand_dim "[assistant]" "exited cleanly (code 0) — not restarting"
+    brand_flush
     break
   fi
 
@@ -214,10 +215,12 @@ while true; do
   fi
 
   if [ "$_crash_count" -ge "$MAX_RAPID_CRASHES" ]; then
-    printf "  ${C_RED}[assistant] too many rapid crashes ($_crash_count in <${RAPID_WINDOW}s each) — giving up${C_RESET}\n"
+    brand_err "[assistant]" "too many rapid crashes ($_crash_count in <${RAPID_WINDOW}s each) — giving up"
+    brand_flush
     exit "$_exit_code"
   fi
 
-  printf "  ${C_YELLOW}[assistant] exited with code $_exit_code — restarting in 2s (crash $_crash_count/$MAX_RAPID_CRASHES)${C_RESET}\n"
+  brand_warn "[assistant]" "exited with code $_exit_code — restarting in 2s (crash $_crash_count/$MAX_RAPID_CRASHES)"
+  brand_flush
   sleep 2
 done
