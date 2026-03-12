@@ -10,26 +10,7 @@ afterEach(() => {
 });
 
 describe("convosMessageActions send", () => {
-  it("allows /update-profile commands to pass through the action gate", async () => {
-    const sent: Array<{ text: string; replyTo?: string }> = [];
-    setConvosInstance({
-      sendMessage: async (text: string, replyTo?: string) => {
-        sent.push({ text, replyTo });
-        return { success: true, messageId: undefined };
-      },
-      sendAttachment: async () => ({ success: true, messageId: "attachment-1" }),
-      react: async () => ({ success: true, action: "added" as const }),
-    } as unknown as ConvosInstance);
-
-    await convosMessageActions.handleAction({
-      action: "send",
-      params: { message: "/update-profile --name \"Whiteclaw\"" },
-    });
-
-    assert.deepEqual(sent, [{ text: "/update-profile --name \"Whiteclaw\"", replyTo: undefined }]);
-  });
-
-  it("blocks plain text sends during tool execution", async () => {
+  it("rejects send actions during tool execution", async () => {
     setConvosInstance({
       sendMessage: async () => ({ success: true, messageId: "unexpected" }),
       sendAttachment: async () => ({ success: true, messageId: "attachment-1" }),
@@ -41,11 +22,11 @@ describe("convosMessageActions send", () => {
         action: "send",
         params: { message: "Now let me find an image" },
       }),
-      /only supports \/update-profile/i,
+      /action=send is disabled/i,
     );
   });
 
-  it("blocks replyTo on the send action", async () => {
+  it("rejects profile update send actions too", async () => {
     setConvosInstance({
       sendMessage: async () => ({ success: true, messageId: "unexpected" }),
       sendAttachment: async () => ({ success: true, messageId: "attachment-1" }),
@@ -57,10 +38,9 @@ describe("convosMessageActions send", () => {
         action: "send",
         params: {
           message: "/update-profile --name \"Whiteclaw\"",
-          replyTo: "01JTESTMSG",
         },
       }),
-      /does not support replyTo/i,
+      /action=send is disabled/i,
     );
   });
 });
@@ -161,6 +141,34 @@ describe("deliverConvosReply", () => {
     });
 
     assert.deepEqual(sent, [{ text: "Following up.", replyTo: "01JEXPLICIT" }]);
+  });
+
+  it("applies a final-response profile directive without leaking it into chat", async () => {
+    const sent: Array<{ text: string; replyTo?: string }> = [];
+    let updated: { name?: string; image?: string } | undefined;
+    setConvosInstance({
+      sendMessage: async (text: string, replyTo?: string) => {
+        sent.push({ text, replyTo });
+        return { success: true, messageId: "msg-3" };
+      },
+      updateProfile: async (name?: string, image?: string) => {
+        updated = { name, image };
+      },
+    } as unknown as ConvosInstance);
+
+    await deliverConvosReply({
+      payload: {
+        text: "[[convos_update_profile name=\"Whiteclaw\" image=\"https://example.com/can.png\"]]\nDone.",
+      } as never,
+      accountId: "default",
+      runtime: makeRuntime() as never,
+    });
+
+    assert.deepEqual(updated, {
+      name: "Whiteclaw",
+      image: "https://example.com/can.png",
+    });
+    assert.deepEqual(sent, [{ text: "Done.", replyTo: undefined }]);
   });
 });
 

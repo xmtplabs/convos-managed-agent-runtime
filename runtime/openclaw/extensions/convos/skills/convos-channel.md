@@ -51,7 +51,7 @@ Via HTTP route `POST /convos/join`:
 
 ### Sending Messages
 
-Ordinary agent chat should be written as the assistant's normal response. After tool calls finish, that response is automatically posted to the conversation. Convos does not stream partial text blocks into the chat. Mid-run `send` actions are reserved for intercepted `/update-profile ...` commands. External callers can still send text via HTTP route `POST /convos/conversation/send`:
+Ordinary agent chat should be written as the assistant's normal response. After tool calls finish, that response is automatically posted to the conversation. Convos does not stream partial text blocks into the chat. Profile updates should be expressed in the final response with `[[convos_update_profile name="..." image="https://..."]]`, which is intercepted and removed before the visible message is sent. External callers can still send text via HTTP route `POST /convos/conversation/send`:
 
 ```json
 { "message": "Hello!" }
@@ -91,7 +91,7 @@ When sending messages via Convos:
 - Assistant responses and outbound messages are sent to the single bound conversation
 - The conversation ID is set during setup/onboarding
 - Ordinary agent text should be written as the assistant's normal response
-- Mid-run `action=send` is reserved for `/update-profile ...`
+- Final-response `[[convos_update_profile ...]]` directives are intercepted for profile changes
 
 ## Heartbeat
 

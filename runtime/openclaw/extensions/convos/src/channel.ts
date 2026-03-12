@@ -86,6 +86,8 @@ function isConvosId(s: string): boolean {
 }
 
 const CONVOS_IMG_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+const CONVOS_UPDATE_PROFILE_DIRECTIVE_RE =
+  /\[\[convos_update_profile(?:\s+name=(?:"([^"]*)"|'([^']*)'|(\S+)))?(?:\s+image=(?:"([^"]*)"|'([^']*)'|(\S+)))?\s*\]\]/gi;
 
 /**
  * Resolve the media directory for downloaded image attachments.
@@ -173,7 +175,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       "- For reactions: use `action=react` with `messageId` and `emoji`.",
       "- To send a file: use `action=sendAttachment` with `file` (local path).",
       "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
-      "- `action=send` is reserved for profile updates only. To update your display name or avatar mid-run, use `action=send` with `message=\"/update-profile --name \\\"Name\\\"\"` or add `--image \\\"https://...\\\"`. The command is intercepted — it won't be sent as a message.",
+      "- To update your display name or avatar, put `[[convos_update_profile name=\"Name\" image=\"https://...\"]]` in your final response. The directive is intercepted and removed before the visible message is sent. Omit either field if unchanged.",
       "- CRITICAL — NEVER narrate tool calls: Every text block you produce becomes a separate chat message pushed to every member's phone. NEVER write text before, between, or alongside tool calls — not even to report errors, explain retries, or describe a change in approach. If a tool fails, silently try the next approach. Call all tools silently, then write ONE message after you have the final result. This overrides the Tool Call Style defaults above.",
       "- Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji=\"👀\"` — literal emoji, not a shortcode) to signal you are working on it. After you post the final result, remove the reaction (`action=react`, `remove=true`).",
       "- CRITICAL — Do not reply endlessly: You do NOT need to reply to every message. After you send a message, your turn is OVER. If the response to your message is acknowledgment, agreement, thanks, encouragement, or anything that does not directly ask you a question or give you a task — do not reply. Stay silent or react with an emoji. You are not obligated to respond just because someone (human or agent) responded to you.",
@@ -918,7 +920,18 @@ export async function deliverConvosReply(params: {
   const replyTo = payload.replyToId ?? (payload.replyToCurrent ? triggerMessageId : undefined);
 
   const raw = runtime.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
-  const text = stripMarkdown(raw);
+  const profileUpdate = extractConvosProfileUpdate(raw);
+  if (profileUpdate) {
+    try {
+      await inst.updateProfile(profileUpdate.name, profileUpdate.image);
+    } catch (err) {
+      log?.error(`[${accountId}] Profile update failed: ${String(err)}`);
+      throw err;
+    }
+  }
+
+  const cleaned = stripConvosProfileUpdateDirectives(raw);
+  const text = stripMarkdown(cleaned);
 
   if (text) {
     const cfg = runtime.config.loadConfig();
@@ -940,6 +953,25 @@ export async function deliverConvosReply(params: {
       }
     }
   }
+}
+
+function extractConvosProfileUpdate(text: string): { name?: string; image?: string } | null {
+  let name: string | undefined;
+  let image: string | undefined;
+
+  for (const match of text.matchAll(CONVOS_UPDATE_PROFILE_DIRECTIVE_RE)) {
+    name = match[1] ?? match[2] ?? match[3] ?? name;
+    image = match[4] ?? match[5] ?? match[6] ?? image;
+  }
+
+  if (name === undefined && image === undefined) {
+    return null;
+  }
+  return { name, image };
+}
+
+function stripConvosProfileUpdateDirectives(text: string): string {
+  return text.replace(CONVOS_UPDATE_PROFILE_DIRECTIVE_RE, "").trim();
 }
 
 /**

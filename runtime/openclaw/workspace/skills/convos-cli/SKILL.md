@@ -69,13 +69,13 @@ Replies and reactions both reference another message by ID. Replies include the 
 | Reply to a message | assistant response | `[[reply_to:<message-id>]]` or `[[reply_to_current]]` |
 | React to a message | message tool | `action=react` |
 | Send a file | message tool | `action=sendAttachment` |
-| Update your display name | message tool | `action=send` with `/update-profile --name "..."` |
+| Update your display name or photo | assistant response | `[[convos_update_profile name="..." image="https://..."]]` |
 | Read message history | exec tool | `convos conversation messages $CONVOS_CONVERSATION_ID` |
 | List members / profiles | exec tool | `convos conversation members` / `profiles $CONVOS_CONVERSATION_ID` |
 | View group info | exec tool | `convos conversation info` / `permissions $CONVOS_CONVERSATION_ID` |
 | Download a received file | exec tool | `convos conversation download-attachment $CONVOS_CONVERSATION_ID` |
 
-When you answer normally, that assistant response is automatically sent to the conversation after your tool calls finish. Use the message tool only for reactions, attachments, and intercepted profile updates. The exec tool is for **reading**. Never use the exec tool to send.
+When you answer normally, that assistant response is automatically sent to the conversation after your tool calls finish. Use the message tool only for reactions and attachments. The exec tool is for **reading**. Never use the exec tool to send.
 
 ## Sending text (assistant response)
 
@@ -159,14 +159,19 @@ convos conversation download-attachment $CONVOS_CONVERSATION_ID <message-id> --o
 
 ### Update your profile
 
-Use the message tool with `action=send` only for profile updates — the command is intercepted before reaching the conversation:
+Put a hidden directive in your final response. It is intercepted before the visible message is sent:
 
 ```
-action=send  message="/update-profile --name \"New Name\""
-action=send  message="/update-profile --name \"New Name\" --image \"https://example.com/avatar.jpg\""
+[[convos_update_profile name="New Name"]]
+Done.
 ```
 
-The `--image` flag requires a publicly accessible URL (`https://...`). Local file paths won't work. Your profile is per-conversation — it only affects this group.
+```
+[[convos_update_profile name="New Name" image="https://example.com/avatar.jpg"]]
+Done.
+```
+
+The `image` value must be a publicly accessible URL (`https://...`). Local file paths won't work. Your profile is per-conversation — it only affects this group.
 
 ## Rules
 
@@ -174,7 +179,7 @@ The `--image` flag requires a publicly accessible URL (`https://...`). Local fil
 - **Every message costs everyone's attention.** Only speak when it adds something no one else in the room could. When in doubt, stay quiet.
 - **Reply, don't broadcast.** Use reply markers in your assistant response so people know what you are responding to.
 - **Reactions are cheap, messages are expensive.** If acknowledgment is enough, react instead of typing.
-- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), send `/update-profile --name "NewName"` right away. Do not announce you are going to do it — just do it and confirm the new name.
+- **Honor renames immediately.** When someone gives you a new name (conversationally or via a group update), include `[[convos_update_profile name="NewName"]]` in your final response right away. Do not announce you are going to do it — just do it and confirm the new name.
 - **You cannot rename the group.** There is no CLI command or tool action to change the conversation/group name. If someone asks you to rename the group, let them know you can't do that — only human members can rename it from their app.
 - **Always use `$CONVOS_CONVERSATION_ID`.** Never hard-code a conversation ID or try to read it from context fields. The env var is always correct.
 - **Never run the `convos` binary directly.** Only use the specific `convos conversation ...` read commands listed above (messages, members, profiles, info, permissions, download-attachment). Never run `convos agent serve`, `convos conversations create`, `convos conversations join`, or any other subcommand — they will fail or break your session.
