@@ -67,6 +67,7 @@ async def start_wired_instance(
     identity_id: str,
     env: str,
     name: str | None = None,
+    profile_image: str | None = None,
     debug: bool = False,
 ):
     """Create and start a ConvosAdapter with full message pipeline.
@@ -83,6 +84,7 @@ async def start_wired_instance(
         conversation_id=conversation_id,
         env=env,
         name=name,
+        profile_image=profile_image,
         identity_id=identity_id,
         debug=debug,
     )
@@ -326,6 +328,7 @@ class ProvisionRequest(BaseModel):
     agentName: str
     instructions: str = ""
     joinUrl: str | None = None
+    profileImage: str | None = None
 
 
 @app.post("/pool/provision", dependencies=[Depends(require_auth)])
@@ -358,6 +361,7 @@ async def pool_provision(body: ProvisionRequest):
                 conversation_id=conversation_id,
                 identity_id=inst.identity_id,
                 env=env,
+                profile_image=body.profileImage,
                 debug=True,
             )
             return {
@@ -379,6 +383,7 @@ async def pool_provision(body: ProvisionRequest):
                 identity_id=inst.identity_id,
                 env=env,
                 name=body.agentName,
+                profile_image=body.profileImage,
                 debug=True,
             )
 
@@ -442,6 +447,7 @@ async def convos_conversation(body: ConversationRequest):
             identity_id=inst.identity_id,
             env=env,
             name=body.name,
+            profile_image=body.profileImage,
             debug=True,
         )
 
@@ -486,6 +492,7 @@ async def convos_join(body: JoinRequest):
             conversation_id=conversation_id,
             identity_id=inst.identity_id,
             env=env,
+            profile_image=body.profileImage,
             debug=True,
         )
 

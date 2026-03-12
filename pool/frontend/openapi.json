@@ -119,7 +119,7 @@
         "tags": ["Admin"],
         "summary": "Claim an idle instance for a user",
         "security": [{ "BearerAuth": [] }],
-        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "agentName": { "type": "string" }, "instructions": { "type": "string" }, "joinUrl": { "type": "string" }, "source": { "type": "string" } } } } } },
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "agentName": { "type": "string" }, "instructions": { "type": "string" }, "joinUrl": { "type": "string" }, "profileImage": { "type": "string" }, "source": { "type": "string" } } } } } },
         "responses": {
           "200": { "description": "Claimed instance", "content": { "application/json": { "schema": { "type": "object", "properties": { "inviteUrl": { "type": "string" }, "conversationId": { "type": "string" }, "instanceId": { "type": "string" }, "joined": { "type": "boolean" }, "gatewayToken": { "type": "string" }, "gatewayUrl": { "type": "string" } } } } } },
           "503": { "description": "No idle instances" }
@@ -135,6 +135,7 @@
           { "name": "agentName", "in": "query", "schema": { "type": "string" } },
           { "name": "instructions", "in": "query", "schema": { "type": "string" } },
           { "name": "joinUrl", "in": "query", "schema": { "type": "string" } },
+          { "name": "profileImage", "in": "query", "schema": { "type": "string" } },
           { "name": "source", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": { "200": { "description": "SSE stream" } }

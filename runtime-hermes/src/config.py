@@ -30,6 +30,7 @@ class RuntimeConfig:
 
     # Agent behavior
     max_iterations: int = 90
+    profile_image_renewal_seconds: int = 3600
 
     @classmethod
     def from_env(cls) -> RuntimeConfig:
@@ -59,6 +60,10 @@ class RuntimeConfig:
             instance_id=os.environ.get("INSTANCE_ID", ""),
             hermes_home=hermes_home,
             workspace_dir=workspace_dir,
+            profile_image_renewal_seconds=max(
+                0,
+                int(os.environ.get("CONVOS_PROFILE_IMAGE_RENEWAL_SECONDS", "3600")),
+            ),
         )
 
     def validate(self) -> list[str]:

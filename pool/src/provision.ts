@@ -9,12 +9,31 @@ interface ProvisionOpts {
   agentName: string;
   instructions: string;
   joinUrl?: string;
+  profileImage?: string;
   source?: string;
   onProgress?: ProvisionProgressCallback;
 }
 
-export async function provision(opts: ProvisionOpts) {
-  const { agentName, instructions, joinUrl, source, onProgress } = opts;
+type ProvisionDeps = {
+  hasActiveInviteUrl: typeof db.hasActiveInviteUrl;
+  claimIdle: typeof db.claimIdle;
+  getGatewayToken: typeof db.getGatewayToken;
+  completeClaim: typeof db.completeClaim;
+  updateStatus: typeof db.updateStatus;
+  authFetch: typeof authFetch;
+};
+
+const defaultDeps: ProvisionDeps = {
+  hasActiveInviteUrl: db.hasActiveInviteUrl,
+  claimIdle: db.claimIdle,
+  getGatewayToken: db.getGatewayToken,
+  completeClaim: db.completeClaim,
+  updateStatus: db.updateStatus,
+  authFetch,
+};
+
+export async function provision(opts: ProvisionOpts, deps: ProvisionDeps = defaultDeps) {
+  const { agentName, instructions, joinUrl, profileImage, source, onProgress } = opts;
   const claimStart = Date.now();
   const report = (step: string, status: string, message?: string) => {
     if (onProgress) onProgress(step, status, message);
@@ -24,7 +43,7 @@ export async function provision(opts: ProvisionOpts) {
 
   // Fast-path dedup: skip the claim transaction if an instance is already handling this joinUrl.
   // The real atomic guard is inside claimIdle(), but this avoids the heavier transaction.
-  if (joinUrl && await db.hasActiveInviteUrl(joinUrl)) {
+  if (joinUrl && await deps.hasActiveInviteUrl(joinUrl)) {
     logger.info("claim.dedup", { joinUrl, agentName, source });
     report("claim", "ok", "Already provisioning for this conversation");
     return null;
@@ -33,7 +52,7 @@ export async function provision(opts: ProvisionOpts) {
   report("claim", "active", "Finding available instance…");
   let instance;
   try {
-    instance = await db.claimIdle(joinUrl);
+    instance = await deps.claimIdle(joinUrl);
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
     metricCount("instance.claim.fail", 1, { reason: "db_error", error_class, stage: "claim" });
@@ -56,14 +75,14 @@ export async function provision(opts: ProvisionOpts) {
 
     report("provision", "active", joinUrl ? "Joining conversation…" : "Configuring agent…");
 
-    const gatewayToken = await db.getGatewayToken(instance.id);
+    const gatewayToken = await deps.getGatewayToken(instance.id);
 
-    const provisionRes = await authFetch(`${instance.url}/pool/provision`, {
+    const provisionRes = await deps.authFetch(`${instance.url}/pool/provision`, {
       gatewayToken,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(60_000),
-      body: JSON.stringify({ agentName, instructions: instructions || "", joinUrl }),
+      body: JSON.stringify({ agentName, instructions: instructions || "", joinUrl, profileImage }),
     });
     if (!provisionRes.ok) {
       const text = await provisionRes.text();
@@ -77,7 +96,7 @@ export async function provision(opts: ProvisionOpts) {
     report("provision", "ok", "Agent provisioned on instance");
 
     report("convo", "active", "Saving to database…");
-    await db.completeClaim(instance.id, {
+    await deps.completeClaim(instance.id, {
       agentName,
       conversationId: result.conversationId,
       inviteUrl: result.inviteUrl || joinUrl || null,
@@ -144,7 +163,7 @@ export async function provision(opts: ProvisionOpts) {
       // (timeouts, network blips) may have partially executed on the runtime
       // (wrote instructions, started a join). Releasing back to idle risks an
       // infinite retry loop. Mark crashed; manual cleanup via dashboard.
-      await db.updateStatus(instance.id, { status: "crashed" });
+      await deps.updateStatus(instance.id, { status: "crashed" });
     }
     throw err;
   }

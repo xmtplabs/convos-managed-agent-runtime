@@ -160,6 +160,8 @@ class ConvosAdapter:
         self._config = config
         self._instance: ConvosInstance | None = None
         self._agent: AgentRunner | None = None
+        self._profile_image_source: str | None = None
+        self._profile_image_refresh_task: asyncio.Task | None = None
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -175,6 +177,7 @@ class ConvosAdapter:
         conversation_id: str,
         env: str,
         name: str | None = None,
+        profile_image: str | None = None,
         identity_id: str = "",
         debug: bool = False,
     ):
@@ -218,13 +221,24 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Initial rename failed: {err}")
 
+        if profile_image:
+            await self._set_profile_image_source(profile_image, apply_now=True)
+
         return ready_info
 
     async def stop(self) -> None:
         """Stop the ConvosInstance."""
+        if self._profile_image_refresh_task:
+            self._profile_image_refresh_task.cancel()
+            try:
+                await self._profile_image_refresh_task
+            except asyncio.CancelledError:
+                pass
+            self._profile_image_refresh_task = None
         if self._instance:
             await self._instance.stop()
             self._instance = None
+        self._profile_image_source = None
         self._agent = None
 
     # ---- Message pipeline ----
@@ -295,7 +309,7 @@ class ConvosAdapter:
 
         if parsed.profile_image:
             try:
-                await self._update_profile(image=parsed.profile_image)
+                await self._set_profile_image_source(parsed.profile_image, apply_now=True)
             except Exception as err:
                 logger.error(f"Profile image update failed: {err}")
 
@@ -350,6 +364,53 @@ class ConvosAdapter:
             logger.info(f"Profile updated: name={name}, image={image}")
         except Exception as err:
             logger.error(f"Profile update failed: {err}")
+
+    async def _set_profile_image_source(self, image: str, *, apply_now: bool = False) -> None:
+        image = image.strip()
+        if not image:
+            return
+
+        self._profile_image_source = image
+
+        if apply_now:
+            await self._update_profile(image=image)
+
+        self._ensure_profile_image_refresh_task()
+
+    def _ensure_profile_image_refresh_task(self) -> None:
+        if self._config.profile_image_renewal_seconds <= 0:
+            return
+        if not self._profile_image_source:
+            return
+        if self._profile_image_refresh_task and not self._profile_image_refresh_task.done():
+            return
+
+        self._profile_image_refresh_task = asyncio.create_task(self._profile_image_refresh_loop())
+        logger.info(
+            "Profile image renewal scheduled every %ss",
+            self._config.profile_image_renewal_seconds,
+        )
+
+    async def _profile_image_refresh_loop(self) -> None:
+        try:
+            while True:
+                await asyncio.sleep(self._config.profile_image_renewal_seconds)
+
+                inst = self._instance
+                image = self._profile_image_source
+                if not inst or not image:
+                    return
+
+                try:
+                    await inst.update_profile(image=image)
+                    logger.info("Profile image renewed")
+                except Exception as err:
+                    logger.error(f"Profile image renewal failed: {err}")
+        except asyncio.CancelledError:
+            raise
+        finally:
+            if self._profile_image_refresh_task is asyncio.current_task():
+                self._profile_image_refresh_task = None
 
     # ---- Delegated operations (called by server.py pool endpoints) ----
 
