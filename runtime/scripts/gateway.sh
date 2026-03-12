@@ -111,8 +111,8 @@ else
           _or_is_low=$(echo "$_or_remaining < 0.5" | bc 2>/dev/null) || true
           if [ "$_or_is_zero" = "1" ]; then
             brand_err "OpenRouter" "NO CREDITS remaining (\$$_or_usage / \$$_or_limit used)"
-            printf "  ${C_RED}   ↳ Assistant calls will fail with misleading 'Context overflow' errors${C_RESET}\n"
-            printf "  ${C_RED}   ↳ Top up at https://openrouter.ai/settings/credits${C_RESET}\n"
+            _brand_print "  ${C_RED}   ↳ Assistant calls will fail with misleading 'Context overflow' errors${C_RESET}\n"
+            _brand_print "  ${C_RED}   ↳ Top up at https://openrouter.ai/settings/credits${C_RESET}\n"
           elif [ "$_or_is_low" = "1" ]; then
             brand_warn "OpenRouter" "low credits: \$$_or_remaining remaining (\$$_or_usage / \$$_or_limit used)"
           else
