@@ -1,7 +1,8 @@
 // runtime/evals/async.provider.mjs
 // Provider that tests the agent doesn't block on complex tasks.
 // Spawns a heavy prompt in the background, waits, then sends a simple prompt
-// and measures response time.
+// and measures response time. If the foreground times out, the test FAILS
+// (not errors) — that means the agent was blocked.
 
 import { execFileSync, spawn } from 'child_process';
 import { elapsed, log as _log } from './utils.mjs';
@@ -40,16 +41,20 @@ export default class AsyncProvider {
     log(`Waiting ${delay / 1000}s for background task to engage...`);
     await new Promise((resolve) => setTimeout(resolve, delay));
 
-    // 3. Send simple prompt in a new session and measure response time
+    // 3. Send simple prompt in a new session — timeout matches threshold
+    //    If it times out, the agent was blocked → return that as output (not error)
+    //    so promptfoo assertions can properly fail.
     const fgSession = `eval-async-fg-${Date.now()}`;
     log(`Sending foreground prompt: "${prompt}"`);
     const fgStart = Date.now();
 
     let output = '';
+    let timedOut = false;
+
     try {
       const raw = execFileSync(ENTRY, [
         'agent', '-m', prompt, '--agent', 'main', '--session-id', fgSession,
-      ], { encoding: 'utf-8', timeout: 60_000 }).trim();
+      ], { encoding: 'utf-8', timeout: maxResponseTime }).trim();
 
       output = raw.split('\n')
         .filter((l) => !l.match(/^\d{2}:\d{2}:\d{2} \[/))
@@ -57,13 +62,22 @@ export default class AsyncProvider {
         .replace(/\x1b\[[0-9;]*m/g, '')
         .trim();
     } catch (err) {
-      log(`Foreground error (${elapsed(fgStart)}): ${err.message}`);
-      try { bg.kill(); } catch {}
-      return { output: '', error: err.message };
+      const responseTimeMs = Date.now() - fgStart;
+      timedOut = err.killed || err.signal === 'SIGTERM';
+
+      if (timedOut) {
+        log(`Foreground TIMED OUT after ${elapsed(fgStart)} (threshold: ${maxResponseTime}ms)`);
+        output = `BLOCKED: agent did not respond within ${maxResponseTime}ms`;
+      } else {
+        log(`Foreground error (${elapsed(fgStart)}): ${err.message}`);
+        output = `ERROR: ${err.message}`;
+      }
     }
 
     const responseTimeMs = Date.now() - fgStart;
-    log(`Foreground replied (${elapsed(fgStart)}): ${output.slice(0, 80)}`);
+    if (!timedOut) {
+      log(`Foreground replied (${elapsed(fgStart)}): ${output.slice(0, 80)}`);
+    }
     log(`Response time: ${responseTimeMs}ms (threshold: ${maxResponseTime}ms)`);
 
     // 4. Clean up background process
