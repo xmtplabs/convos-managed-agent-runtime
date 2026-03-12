@@ -72,4 +72,5 @@ export const config = {
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
+  convosApiKey: getEnv("CONVOS_API_KEY"),
 };
