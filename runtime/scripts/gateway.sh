@@ -4,6 +4,7 @@ set -e
 . "$(dirname "$0")/lib/init.sh"
 cd "$ROOT"
 . "$ROOT/scripts/lib/env-load.sh"
+. "$ROOT/scripts/lib/brand.sh"
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
@@ -19,7 +20,7 @@ $ENTRY gateway stop >/dev/null 2>&1 || true
 # Kill stale gateway.sh wrapper scripts (excluding ourselves and ancestors) so
 # their restart loops don't respawn the gateway we're about to kill.
 _my_pid=$$
-# Collect ancestor PIDs so we never kill our own process tree (pnpm → sh chain)
+# Collect ancestor PIDs so we never kill our own process tree (pnpm -> sh chain)
 _ancestors=" $$ "
 _ap=$$
 while true; do
@@ -47,64 +48,58 @@ lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 sleep 1
-echo ""
-echo "  🚀 Starting gateway"
-echo "  ═══════════════════"
+
+brand_section "Launching assistant"
 
 # Port availability checks
 _gw_busy=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
 if [ -n "$_gw_busy" ]; then
-  echo "  ⚠️  port $PORT    → in use (pid $_gw_busy) — gateway may fail to bind"
+  brand_warn "port $PORT" "in use (pid $_gw_busy) — may fail to bind"
 else
-  echo "  ✅ port $PORT    → available (gateway)"
+  brand_ok "port $PORT" "available (gateway)"
 fi
 
 _relay_busy=$(lsof -ti "tcp:$RELAY_PORT" 2>/dev/null) || true
 if [ -n "$_relay_busy" ]; then
-  echo "  ⚠️  port $RELAY_PORT   → in use (pid $_relay_busy) — browser relay may conflict"
+  brand_warn "port $RELAY_PORT" "in use (pid $_relay_busy) — relay may conflict"
 else
-  echo "  ✅ port $RELAY_PORT   → available (browser relay)"
+  brand_ok "port $RELAY_PORT" "available (browser relay)"
 fi
 _cdp_busy=$(lsof -ti "tcp:$CDP_PORT" 2>/dev/null) || true
 if [ -n "$_cdp_busy" ]; then
-  echo "  ⚠️  port $CDP_PORT   → in use (pid $_cdp_busy) — browser CDP may conflict"
+  brand_warn "port $CDP_PORT" "in use (pid $_cdp_busy) — CDP may conflict"
 else
-  echo "  ✅ port $CDP_PORT   → available (browser CDP)"
+  brand_ok "port $CDP_PORT" "available (browser CDP)"
 fi
 unset _gw_busy _relay_busy _cdp_busy
 
-# Chrome path (read from the patched config)
-if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
-  _chrome=$(jq -r '.browser.executablePath // "not set"' "$STATE_DIR/openclaw.json")
-  _headless=$(jq -r '.browser.headless // "not set"' "$STATE_DIR/openclaw.json")
-  _sandbox=$(jq -r 'if .browser.noSandbox == true then "off" elif .browser.noSandbox == false then "on" else "not set" end' "$STATE_DIR/openclaw.json")
-  _loglevel=$(jq -r '.logging.consoleLevel // "not set"' "$STATE_DIR/openclaw.json")
-  echo "  🌐 chrome       → $_chrome"
-  echo "  🖥  headless     → $_headless"
-  echo "  🔒 sandbox      → $_sandbox"
-  echo "  📝 log level    → $_loglevel"
-  unset _chrome _headless _sandbox _loglevel
+# Service URL
+if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
+  brand_ok "SERVICE_URL" "https://$RAILWAY_PUBLIC_DOMAIN"
+elif [ -n "$NGROK_URL" ]; then
+  brand_ok "SERVICE_URL" "$NGROK_URL (ngrok)"
+else
+  brand_dim "SERVICE_URL" "localhost"
 fi
-echo "  📂 state dir    → $STATE_DIR"
-echo "  convos paths"
-echo "  ═══════════════════════════════════════════════"
-echo "  ROOT              $ROOT"
-echo "  STATE_DIR         $STATE_DIR"
-echo "  WORKSPACE_DIR     $WORKSPACE_DIR"
-echo "  CONFIG            $CONFIG"
-echo "  SKILLS_DIR        $SKILLS_DIR"
+
+# Chrome (read from the patched config)
+if command -v jq >/dev/null 2>&1 && [ -f "$STATE_DIR/openclaw.json" ]; then
+  _chrome=$(jq -r '.browser.executablePath // empty' "$STATE_DIR/openclaw.json")
+  [ -n "$_chrome" ] && brand_ok "chrome" "$_chrome"
+  unset _chrome
+fi
 
 # OpenRouter credit check
 if [ -z "${OPENROUTER_API_KEY:-}" ]; then
-  echo "  ⬚  OpenRouter   → no API key set, skipping credit check"
+  brand_dim "OpenRouter" "no API key set, skipping credit check"
 elif ! command -v curl >/dev/null 2>&1; then
-  echo "  ⬚  OpenRouter   → curl not found, skipping credit check"
+  brand_dim "OpenRouter" "curl not found, skipping credit check"
 else
   _or_resp=$(curl -s -H "Authorization: Bearer $OPENROUTER_API_KEY" \
     "https://openrouter.ai/api/v1/auth/key" 2>/dev/null) || true
   _or_error=$(echo "$_or_resp" | jq -r '.error.message // empty' 2>/dev/null) || true
   if [ -n "$_or_error" ]; then
-    echo "  ⚠️  OpenRouter   → credit check failed: $_or_error"
+    brand_warn "OpenRouter" "credit check failed: $_or_error"
   elif [ -n "$_or_resp" ] && command -v jq >/dev/null 2>&1; then
     _or_limit=$(echo "$_or_resp" | jq -r '.data.limit // empty' 2>/dev/null) || true
     _or_usage=$(echo "$_or_resp" | jq -r '.data.usage // empty' 2>/dev/null) || true
@@ -115,25 +110,25 @@ else
           _or_is_zero=$(echo "$_or_remaining <= 0" | bc 2>/dev/null) || true
           _or_is_low=$(echo "$_or_remaining < 0.5" | bc 2>/dev/null) || true
           if [ "$_or_is_zero" = "1" ]; then
-            echo "  ❌ OpenRouter   → NO CREDITS remaining (\$$_or_usage / \$$_or_limit used)"
-            echo "     ↳ Agent calls will fail with misleading 'Context overflow' errors"
-            echo "     ↳ Top up at https://openrouter.ai/settings/credits"
+            brand_err "OpenRouter" "NO CREDITS remaining (\$$_or_usage / \$$_or_limit used)"
+            _brand_print "  ${C_RED}   ↳ Assistant calls will fail with misleading 'Context overflow' errors${C_RESET}\n"
+            _brand_print "  ${C_RED}   ↳ Top up at https://openrouter.ai/settings/credits${C_RESET}\n"
           elif [ "$_or_is_low" = "1" ]; then
-            echo "  ⚠️  OpenRouter   → low credits: \$$_or_remaining remaining (\$$_or_usage / \$$_or_limit used)"
+            brand_warn "OpenRouter" "low credits: \$$_or_remaining remaining (\$$_or_usage / \$$_or_limit used)"
           else
-            echo "  💳 OpenRouter   → \$$_or_remaining credits remaining"
+            brand_ok "OpenRouter" "\$$_or_remaining credits remaining"
           fi
         else
-          echo "  ⚠️  OpenRouter   → could not calculate balance"
+          brand_warn "OpenRouter" "could not calculate balance"
         fi
       else
-        echo "  💳 OpenRouter   → \$$_or_usage used (no limit set)"
+        brand_ok "OpenRouter" "\$$_or_usage used (no limit set)"
       fi
     else
-      echo "  ⚠️  OpenRouter   → unexpected API response (no limit/usage data)"
+      brand_warn "OpenRouter" "unexpected API response (no limit/usage data)"
     fi
   else
-    echo "  ⚠️  OpenRouter   → credit check failed (empty response)"
+    brand_warn "OpenRouter" "credit check failed (empty response)"
   fi
   unset _or_resp _or_error _or_limit _or_usage _or_remaining _or_is_zero _or_is_low
 fi
@@ -175,11 +170,12 @@ if [ ! -f "$_cron_store" ] || ! grep -q "seed-morning-checkin" "$_cron_store" 2>
 }
 CRONEOF
   fi
-  echo "  📅 Seeded morning check-in cron job"
+  brand_ok "cron" "Seeded morning check-in"
 fi
 unset _cron_dir _cron_store
 
-echo ""
+brand_done "Assistant is starting up"
+brand_flush
 
 # In-process restart: SIGUSR1 reloads config inside the same process instead
 # of exiting. This prevents the container from dying on config-level changes
@@ -206,7 +202,8 @@ while true; do
 
   # Clean shutdown (exit 0) — do not restart
   if [ "$_exit_code" -eq 0 ]; then
-    echo "  [gateway] exited cleanly (code 0) — not restarting"
+    brand_dim "[assistant]" "exited cleanly (code 0) — not restarting"
+    brand_flush
     break
   fi
 
@@ -218,10 +215,12 @@ while true; do
   fi
 
   if [ "$_crash_count" -ge "$MAX_RAPID_CRASHES" ]; then
-    echo "  [gateway] too many rapid crashes ($_crash_count in <${RAPID_WINDOW}s each) — giving up"
+    brand_err "[assistant]" "too many rapid crashes ($_crash_count in <${RAPID_WINDOW}s each) — giving up"
+    brand_flush
     exit "$_exit_code"
   fi
 
-  echo "  [gateway] exited with code $_exit_code — restarting in 2s (crash $_crash_count/$MAX_RAPID_CRASHES)"
+  brand_warn "[assistant]" "exited with code $_exit_code — restarting in 2s (crash $_crash_count/$MAX_RAPID_CRASHES)"
+  brand_flush
   sleep 2
 done
