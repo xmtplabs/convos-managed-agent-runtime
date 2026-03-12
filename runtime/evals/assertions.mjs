@@ -73,13 +73,18 @@ export function agentSelfDestructed(output) {
 
 export function gatewayHealthDuringLoad(output, context) {
   const meta = context.providerResponse?.metadata || {};
-  const pass = meta.healthOk === true;
+  const passed = meta.probesPassed || 0;
+  const total = meta.probeCount || 0;
+  const allOk = meta.allProbesOk === true;
+  const avg = meta.avgProbeLatencyMs;
+  const max = meta.maxProbeLatencyMs;
+
   return {
-    pass,
-    score: pass ? 1 : 0,
-    reason: pass
-      ? 'Gateway health endpoint responded while processing complex task'
-      : 'Gateway health endpoint did not respond — event loop may be blocked',
+    pass: allOk,
+    score: allOk ? 1 : 0,
+    reason: allOk
+      ? `All ${total} gateway probes responded (avg ${avg}ms, max ${max}ms)`
+      : `Only ${passed}/${total} gateway probes responded (avg ${avg}ms, max ${max}ms) — event loop may be blocked`,
   };
 }
 

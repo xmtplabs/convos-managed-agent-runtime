@@ -1,8 +1,9 @@
 # runtime/evals/async.yaml
-# Async eval — does the gateway stay responsive while processing a complex task?
-# Fires a heavy prompt on the main lane, then checks:
-#   1. Gateway health endpoint still responds (event loop not frozen)
-#   2. A simple prompt on a different session key gets answered within threshold
+# Async eval — does the gateway main thread stay responsive under load?
+#
+# Fires a complex prompt (occupies the main lane), then repeatedly probes the
+# gateway HTTP endpoint to verify the Node.js event loop isn't blocked.
+# After probing, sends a simple prompt to verify the agent still works.
 
 description: "Eval: Async"
 
@@ -25,12 +26,11 @@ tests:
       prompt: "What time is it right now?"
     metadata:
       backgroundPrompt: "Plan a detailed 7-day trip itinerary for Tokyo including daily activities, restaurant recommendations, and transportation options for each day."
-      delay: 3
-      maxResponseTime: 30000
+      probeCount: 5
+      probeInterval: 2
+      maxProbeLatency: 2
     assert:
       - type: javascript
         value: "file://assertions.mjs:gatewayHealthDuringLoad"
-      - type: javascript
-        value: "file://assertions.mjs:responseTimeBelowThreshold"
       - type: regex
         value: "\\d{1,2}[:.:]\\d{2}"
