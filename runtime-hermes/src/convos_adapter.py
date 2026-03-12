@@ -31,6 +31,7 @@ from typing import Any
 from .xmtp_bridge import ConvosInstance, InboundMessage
 from .agent_runner import AgentRunner
 from .config import RuntimeConfig
+from .profile_image_renewal import ProfileImageRenewalStore
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,7 @@ class ConvosAdapter:
         self._config = config
         self._instance: ConvosInstance | None = None
         self._agent: AgentRunner | None = None
+        self._profile_image_renewal: ProfileImageRenewalStore | None = None
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -210,6 +212,11 @@ class ConvosAdapter:
             send_attachment=self._instance.send_attachment,
         )
 
+        self._profile_image_renewal = ProfileImageRenewalStore(
+            self._config.hermes_home,
+            conversation_id,
+        )
+
         ready_info = await self._instance.start()
 
         if name:
@@ -225,6 +232,7 @@ class ConvosAdapter:
         if self._instance:
             await self._instance.stop()
             self._instance = None
+        self._profile_image_renewal = None
         self._agent = None
 
     # ---- Message pipeline ----
@@ -239,6 +247,12 @@ class ConvosAdapter:
         if not inst or not agent:
             logger.warning("Message received but no instance/agent active")
             return
+
+        if not msg.catchup:
+            try:
+                await self._renew_profile_image_on_activity()
+            except Exception as err:
+                logger.error(f"Profile image renewal on inbound activity failed: {err}")
 
         # Update member name cache
         if msg.sender_id and msg.sender_name and msg.sender_id != "system":
@@ -308,6 +322,12 @@ class ConvosAdapter:
 
         # Send text message (either as reply or new message)
         text = strip_markdown(parsed.text)
+        if parsed.media or text:
+            try:
+                await self._renew_profile_image_on_activity()
+            except Exception as err:
+                logger.error(f"Profile image renewal on outbound activity failed: {err}")
+
         if text:
             chunks = chunk_text(text)
             for chunk in chunks:
@@ -347,9 +367,24 @@ class ConvosAdapter:
 
         try:
             await inst.update_profile(name=name, image=image)
+            if image is not None and self._profile_image_renewal is not None:
+                self._profile_image_renewal.record_applied_image(image)
             logger.info(f"Profile updated: name={name}, image={image}")
         except Exception as err:
             logger.error(f"Profile update failed: {err}")
+
+    async def _renew_profile_image_on_activity(self) -> None:
+        inst = self._instance
+        renewal = self._profile_image_renewal
+        if not inst or renewal is None:
+            return
+
+        source = renewal.due_source()
+        if not source:
+            return
+
+        await self._update_profile(image=source)
+        logger.info("Profile image renewed on activity")
 
     # ---- Delegated operations (called by server.py pool endpoints) ----
 
