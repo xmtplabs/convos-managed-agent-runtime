@@ -191,6 +191,7 @@ class ConvosAdapter:
             openrouter_api_key=self._config.openrouter_api_key,
             max_iterations=self._config.max_iterations,
             hermes_home=self._config.hermes_home,
+            conversation_id=conversation_id,
         )
 
         self._instance = ConvosInstance(
