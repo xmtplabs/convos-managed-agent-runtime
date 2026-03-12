@@ -10,7 +10,7 @@ import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocs
 import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
-import { updateServiceInstance, upsertVariables, redeployService } from "./services/providers/railway";
+import { updateServiceInstance, redeployService } from "./services/providers/railway";
 import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
 
@@ -206,7 +206,6 @@ app.post("/api/pool/self-upgrade", async (req, res) => {
     const image = await resolveImageDigest(rawImage);
     const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
     await updateServiceInstance(infra.providerServiceId, { source: { image } }, opts);
-    await upsertVariables(infra.providerServiceId, { RUNTIME_UPDATED_AT: new Date().toISOString() }, { skipDeploys: false }, opts);
     await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, instanceId));
     console.log(`[pool] Self-upgrade requested by instance ${instanceId} → ${image}`);
     res.json({ ok: true, instanceId, image });
@@ -403,9 +402,6 @@ app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
     const image = await resolveImageDigest(rawImage);
     const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
     await updateServiceInstance(infra.providerServiceId, { source: { image } }, opts);
-    // Upsert a variable to trigger a NEW deployment with the updated image.
-    // redeployService replays the old deployment (old image), so we need this instead.
-    await upsertVariables(infra.providerServiceId, { RUNTIME_UPDATED_AT: new Date().toISOString() }, { skipDeploys: false }, opts);
     await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, id));
     console.log(`[api] Updated runtime for ${id} → ${image}`);
     res.json({ ok: true, instanceId: id, image });
