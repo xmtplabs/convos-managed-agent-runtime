@@ -27,8 +27,9 @@ _brand_print() {
 }
 
 brand_flush() {
-  # Emit buffered output as one write, then reset.
-  cat "$_BRAND_BUF" 2>/dev/null
+  # Emit buffered output as a single printf (one write syscall) so Railway's
+  # log collector cannot reorder lines within the block.
+  printf '%s' "$(cat "$_BRAND_BUF" 2>/dev/null)"
   : > "$_BRAND_BUF"
 }
 
