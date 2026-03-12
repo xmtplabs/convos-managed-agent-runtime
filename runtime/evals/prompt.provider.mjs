@@ -1,9 +1,9 @@
 // runtime/evals/prompt.provider.mjs
 // Lightweight provider that prompts the agent directly via `openclaw agent -m`.
-// Each test gets its own session so they can run in parallel.
+// Clears session history on first call so the agent starts fresh.
 
 import { execFileSync } from 'child_process';
-import { elapsed, log as _log } from './utils.mjs';
+import { elapsed, log as _log, clearSessionsOnce } from './utils.mjs';
 
 const ENTRY = process.env.OPENCLAW_ENTRY || 'openclaw';
 let testIndex = 0;
@@ -14,6 +14,7 @@ export default class PromptProvider {
   id() { return 'openclaw-prompt'; }
 
   async callApi(prompt, context) {
+    clearSessionsOnce();
     testIndex++;
     const desc = context.test?.description || `Test ${testIndex}`;
     const session = `eval-prompt-${Date.now()}-${testIndex}`;
