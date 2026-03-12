@@ -13,11 +13,15 @@
 //   - Gateway stays responsive
 
 import { execFileSync, spawn } from 'child_process';
+import { readdirSync, unlinkSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import http from 'http';
 import { elapsed, log as _log } from './utils.mjs';
 
 const ENTRY = process.env.OPENCLAW_ENTRY || 'openclaw';
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || '18789';
+const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
 let testIndex = 0;
 
 function log(msg) { _log('eval:async', msg); }
@@ -33,6 +37,21 @@ function httpGet(port, path, timeoutMs = 5000) {
     req.on('error', (err) => reject(err));
     req.setTimeout(timeoutMs, () => { req.destroy(new Error('timeout')); });
   });
+}
+
+// Wipe all session files so the agent starts fresh with no history.
+// The session key `agent:main:main` always maps to the same session file,
+// regardless of --session-id, so we need to clean between runs.
+function clearSessions() {
+  const sessionsDir = join(STATE_DIR, 'agents', 'main', 'sessions');
+  try {
+    for (const f of readdirSync(sessionsDir)) {
+      try { unlinkSync(join(sessionsDir, f)); } catch {}
+    }
+    log(`Cleared sessions in ${sessionsDir}`);
+  } catch {
+    log(`No sessions dir at ${sessionsDir} (ok for Docker)`);
+  }
 }
 
 function runPrompt(prompt, sessionId, timeoutMs = 30_000) {
@@ -71,6 +90,9 @@ export default class AsyncProvider {
     if (!heavyPrompt) {
       return { output: '', error: 'metadata.heavyPrompt is required' };
     }
+
+    // Clear all session history so the agent starts fresh
+    clearSessions();
 
     // 1. Send heavy task in a fresh session — agent should delegate and ack fast
     const heavySession = `eval-async-heavy-${Date.now()}-${testIndex}`;
