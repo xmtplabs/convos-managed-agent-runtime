@@ -56,11 +56,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  qa:
-    name: "QA smoke tests"
+  eval:
+    name: "Eval: ${{ matrix.suite }}"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: prompt
+            timeout: 300
+          - suite: convos
+            timeout: 600
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -69,15 +77,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull image
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
-
-      - name: Start container
+      - name: "Start container (:pending-${{ needs.build.outputs.sha }})"
         run: |
-          docker run -d --name qa-runtime \
+          docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
+          docker run -d --name eval-runtime \
             -p 8080:8080 \
             -e PORT=8080 \
             -e OPENCLAW_STATE_DIR=/app \
+            -e EVAL_MODE=1 \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
             -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
@@ -89,32 +96,32 @@ jobs:
             ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }} \
             node scripts/pool-server.js
 
-      - name: Wait for health (up to 120s)
+      - name: Wait for gateway
         run: |
           for i in $(seq 1 120); do
             if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Ready after ${i}s"
-              break
+              echo "Gateway ready after ${i}s"
+              exit 0
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-            echo "Failed to start"
-            docker logs qa-runtime
-            exit 1
-          fi
-          sleep 15
+          echo "Gateway failed to start within 120s"
+          docker logs eval-runtime
+          exit 1
 
-      - name: Run QA smoke tests
-        run: docker exec qa-runtime timeout 120 pnpm qa
+      - name: "Run ${{ matrix.suite }} suite"
+        run: |
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
+            eval-runtime timeout ${{ matrix.timeout }} pnpm evals:${{ matrix.suite }}
 
-      - name: Dump logs
+      - name: Dump container logs
         if: always()
-        run: docker logs qa-runtime
+        run: docker logs eval-runtime
 
   publish:
-    name: "Publish :${{ needs.build.outputs.sha }} → :${{ inputs.tag }}"
-    needs: [build, qa]
+    name: Publish image
+    needs: [build, eval]
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
@@ -138,104 +145,3 @@ jobs:
           docker tag "$IMAGE:pending-$SHA" "$IMAGE:$TAG"
           docker push "$IMAGE:$TAG"
           echo "Pushed $IMAGE:$TAG"
-
-  eval:
-    name: "E2E eval (non-blocking)"
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    continue-on-error: true
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull image
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
-
-      - name: Start container
-        run: |
-          docker run -d --name eval-runtime \
-            -p 8080:8080 \
-            -e PORT=8080 \
-            -e OPENCLAW_STATE_DIR=/app \
-            -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
-            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
-            -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
-            -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
-            -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            -e POOL_URL="${{ secrets.POOL_URL }}" \
-            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }} \
-            node scripts/pool-server.js
-
-      - name: Wait for health (up to 120s)
-        run: |
-          for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Ready after ${i}s"
-              break
-            fi
-            sleep 1
-          done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-            echo "Failed to start"
-            docker logs eval-runtime
-            exit 1
-          fi
-          sleep 15
-
-      - name: Run e2e eval
-        id: eval
-        continue-on-error: true
-        run: |
-          set +e
-          docker exec \
-            -e EVAL_OPENROUTER_API_KEY=$EVAL_OPENROUTER_API_KEY \
-            -e EVAL_OUTPUT=/tmp/eval-results.html \
-            -e EVAL_JSON_OUTPUT=/tmp/eval-results.json \
-            eval-runtime timeout 900 pnpm qa:eval
-          status=$?
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-          exit $status
-        env:
-          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
-
-      - name: Copy eval reports
-        if: always()
-        run: |
-          docker cp eval-runtime:/tmp/eval-results.html ./eval-results.html 2>/dev/null || true
-          docker cp eval-runtime:/tmp/eval-results.json ./eval-results.json 2>/dev/null || true
-
-      - name: Upload eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-report
-          path: |
-            eval-results.html
-            eval-results.json
-          if-no-files-found: ignore
-
-      - name: Summarize eval results
-        if: always()
-        run: node runtime/scripts/qa/eval/summarize-results.mjs ./eval-results.json
-        env:
-          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code || '1' }}
-          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
-
-      - name: Dump logs
-        if: always()
-        run: docker logs eval-runtime

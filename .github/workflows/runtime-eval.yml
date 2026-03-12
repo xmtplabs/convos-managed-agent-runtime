@@ -22,9 +22,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: Enable pnpm
-        run: corepack enable
-
       - name: Install system deps
         run: |
           sudo apt-get update
@@ -33,6 +30,12 @@ jobs:
             fonts-liberation libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
             libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
             libxkbcommon0 libxrandr2 xdg-utils
+
+      - name: Enable pnpm + install deps
+        working-directory: runtime
+        run: |
+          corepack enable
+          pnpm install --no-frozen-lockfile
 
       - name: Write .env
         working-directory: runtime
@@ -47,57 +50,28 @@ jobs:
           EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}
           DOTENV
 
-      - name: Install deps
-        working-directory: runtime
-        run: pnpm install --no-frozen-lockfile
-
       - name: Start gateway
         working-directory: runtime
         run: |
           pnpm start &
-          echo "Waiting for gateway on port 18789..."
           for i in $(seq 1 120); do
             if curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null; then
               echo "Gateway ready after ${i}s"
-              break
+              exit 0
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:18789/__openclaw__/canvas/ > /dev/null; then
-            echo "Gateway failed to start within 120s"
-            exit 1
-          fi
-          echo "Waiting 15s for browser service to initialise..."
-          sleep 15
+          echo "Gateway failed to start within 120s"
+          exit 1
 
-      - name: Run e2e eval
-        id: eval
-        continue-on-error: true
+      - name: "Eval: prompt (parallel)"
         working-directory: runtime
-        run: |
-          set +e
-          timeout 900 pnpm qa:eval
-          status=$?
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-          exit $status
+        run: timeout 300 pnpm evals:prompt
         env:
-          EVAL_OUTPUT: ./eval-results.html
-          EVAL_JSON_OUTPUT: ./eval-results.json
-
-      - name: Upload eval report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-report
-          path: |
-            runtime/eval-results.html
-            runtime/eval-results.json
-          if-no-files-found: ignore
-
-      - name: Summarize eval results
-        if: always()
-        run: node runtime/scripts/qa/eval/summarize-results.mjs runtime/eval-results.json
-        env:
-          EVAL_EXIT_CODE: ${{ steps.eval.outputs.exit_code || '1' }}
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
-          EVAL_STRICT: '1'
+
+      - name: "Eval: convos (sequential)"
+        working-directory: runtime
+        run: timeout 600 pnpm evals:convos
+        env:
+          EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
