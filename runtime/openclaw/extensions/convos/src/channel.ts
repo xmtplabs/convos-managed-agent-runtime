@@ -21,9 +21,9 @@ import { convosMessageActions } from "./actions.js";
 import { convosChannelConfigSchema } from "./config-schema.js";
 import { convosOnboardingAdapter } from "./onboarding.js";
 import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound.js";
+import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
-import { isContextOverflowText, checkCreditsLow, buildCreditErrorMessage } from "./openrouter.js";
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
@@ -680,16 +680,12 @@ async function handleInboundMessage(
     cfg,
     dispatcherOptions: {
       deliver: async (payload: ReplyPayload) => {
-        // Rewrite raw provider credit errors into a friendly message
-        const t = payload.text || "";
-        if (t.includes("limit exceeded") || t.includes("openrouter.ai/settings") || t.includes("afford")) {
-          payload = { ...payload, text: buildCreditErrorMessage() };
+        const policy = await applyOutboundTextPolicy(payload.text || "");
+        if (policy.suppress) {
+          log?.info(`[${account.accountId}] Suppressed outbound text reply`);
+          return;
         }
-        // OpenClaw misclassifies 402 credit errors as context overflow —
-        // verify against the pool server and rewrite when credits are low.
-        if (isContextOverflowText(t) && await checkCreditsLow()) {
-          payload = { ...payload, text: buildCreditErrorMessage() };
-        }
+        payload = { ...payload, text: policy.text };
         await deliverConvosReply({
           payload,
           accountId: account.accountId,

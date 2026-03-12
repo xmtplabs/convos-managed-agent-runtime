@@ -46,6 +46,7 @@ jobs:
           OPENCLAW_GATEWAY_TOKEN=${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
           OPENCLAW_PRIMARY_MODEL=${{ secrets.OPENCLAW_PRIMARY_MODEL }}
           XMTP_ENV=${{ secrets.XMTP_ENV }}
+          CONVOS_API_KEY=${{ secrets.CONVOS_API_KEY }}
           EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}
           DOTENV
 

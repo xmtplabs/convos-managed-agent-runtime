@@ -78,6 +78,7 @@ jobs:
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
+            -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             ghcr.io/xmtplabs/convos-runtime-hermes:pending-${{ needs.build.outputs.sha }}
 
       - name: Wait for health (up to 120s)
