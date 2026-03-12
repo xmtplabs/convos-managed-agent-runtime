@@ -25,7 +25,7 @@ tests:
     vars:
       prompt: "What time is it right now?"
     metadata:
-      backgroundPrompt: "Plan a detailed 7-day trip itinerary for Tokyo including daily activities, restaurant recommendations, and transportation options for each day."
+      backgroundPrompt: "Research the top 5 AI frameworks released this year. For each one, search the web, find their GitHub repo, and write a comparison table with stars, language, and key features."
       probeCount: 5
       probeInterval: 2
       maxProbeLatency: 2
