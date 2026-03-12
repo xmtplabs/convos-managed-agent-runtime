@@ -194,9 +194,35 @@ class LockRequest(BaseModel):
 
 # ---- App ----
 
+_cron_task: asyncio.Task | None = None
+
+
+async def _cron_tick_loop() -> None:
+    """Run the Hermes cron scheduler every 60 seconds.
+
+    Jobs are stored in HERMES_HOME/cron/jobs.json. The tick() function
+    checks for due jobs, runs them, and saves output. Delivery to the
+    active Convos conversation is not wired yet — jobs with
+    deliver="local" save output that the agent can check via list_cronjobs.
+    """
+    while True:
+        await asyncio.sleep(60)
+        try:
+            from cron.scheduler import tick
+            loop = asyncio.get_event_loop()
+            ran = await loop.run_in_executor(None, tick, False)
+            if ran:
+                logger.info("Cron tick: %d job(s) executed", ran)
+        except ImportError:
+            logger.debug("Cron module not available — skipping tick")
+            return
+        except Exception as err:
+            logger.error("Cron tick error: %s", err)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _config
+    global _config, _cron_task
     _config = RuntimeConfig.from_env()
     errors = _config.validate()
     if errors:
@@ -205,8 +231,15 @@ async def lifespan(app: FastAPI):
         raise RuntimeError(f"Config validation failed: {'; '.join(errors)}")
     ensure_workspace(_config.workspace_dir)
     warm_imports()
+    _cron_task = asyncio.create_task(_cron_tick_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
     yield
+    if _cron_task:
+        _cron_task.cancel()
+        try:
+            await _cron_task
+        except asyncio.CancelledError:
+            pass
     try:
         adapter = get_adapter()
         if adapter:

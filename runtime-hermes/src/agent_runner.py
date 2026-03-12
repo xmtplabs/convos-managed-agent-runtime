@@ -17,11 +17,13 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _AIAgent = None
+_SessionDB = None
 _toolset_registered = False
 
 
@@ -32,12 +34,20 @@ def warm_imports() -> None:
     Must run on main thread because tools/browser_tool.py calls
     signal.signal() at import time.
     """
-    global _AIAgent, _toolset_registered
+    global _AIAgent, _SessionDB, _toolset_registered
 
     if _AIAgent is None:
         from run_agent import AIAgent
         _AIAgent = AIAgent
         logger.info("Hermes AIAgent imported successfully")
+
+    if _SessionDB is None:
+        try:
+            from hermes_state import SessionDB
+            _SessionDB = SessionDB
+            logger.info("Hermes SessionDB imported successfully")
+        except ImportError:
+            logger.warning("hermes_state not available — session search will be disabled")
 
     if not _toolset_registered:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
@@ -134,14 +144,17 @@ class AgentRunner:
         openrouter_api_key: str = "",
         max_iterations: int = 90,
         hermes_home: str = "",
+        conversation_id: str = "",
     ):
         self._model = model
         self._openrouter_api_key = openrouter_api_key
         self._max_iterations = max_iterations
         self._hermes_home = hermes_home
+        self._conversation_id = conversation_id
 
         self._conversation_history: list[dict[str, Any]] = []
         self._agent: Any = None
+        self._session_db: Any = None
         self._history_lock = asyncio.Lock()  # protects history append only, not agent calls
 
     def _ensure_agent(self) -> Any:
@@ -155,6 +168,20 @@ class AgentRunner:
         if self._hermes_home:
             os.environ["HERMES_HOME"] = self._hermes_home
 
+        # Session DB — gives the agent persistent session storage and
+        # powers the session_search tool for cross-session recall.
+        if _SessionDB is not None and self._session_db is None:
+            try:
+                db_path = Path(self._hermes_home or os.path.expanduser("~/.hermes")) / "state.db"
+                self._session_db = _SessionDB(db_path=db_path)
+                logger.info("SessionDB initialized at %s", db_path)
+            except Exception as err:
+                logger.warning("Failed to initialize SessionDB: %s", err)
+
+        # Honcho session key — enables cross-session user modeling when
+        # HONCHO_API_KEY is set or ~/.honcho/config.json exists.
+        honcho_key = f"convos:{self._conversation_id}" if self._conversation_id else None
+
         AIAgent = _get_ai_agent_class()
         self._agent = AIAgent(
             model=self._model,
@@ -163,6 +190,8 @@ class AgentRunner:
             platform="convos",
             ephemeral_system_prompt=CONVOS_EPHEMERAL_PROMPT,
             quiet_mode=True,
+            session_db=self._session_db,
+            honcho_session_key=honcho_key,
         )
         return self._agent
 
@@ -222,7 +251,9 @@ class AgentRunner:
             logger.error(f"Agent error: {err}")
             return "I encountered an error processing your message. Please try again."
 
-        # Append to shared history after the call completes
+        # Append to shared history after the call completes.
+        # Hermes handles context window management internally via
+        # ContextCompressor and session splitting.
         async with self._history_lock:
             self._conversation_history.append({"role": "user", "content": envelope})
             if result.get("final_response"):
@@ -230,9 +261,6 @@ class AgentRunner:
                     "role": "assistant",
                     "content": result["final_response"],
                 })
-            max_history = 100
-            if len(self._conversation_history) > max_history:
-                self._conversation_history = self._conversation_history[-max_history:]
 
         response = result.get("final_response", "")
         if not response or not response.strip():
