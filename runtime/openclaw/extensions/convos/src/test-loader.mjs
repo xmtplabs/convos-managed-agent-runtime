@@ -16,7 +16,11 @@ export async function resolve(specifier, context, nextResolve) {
 
     const parentPath = fileURLToPath(context.parentURL);
     const tsPath = path.resolve(path.dirname(parentPath), specifier.replace(/\.js$/, ".ts"));
-    await access(tsPath);
+    try {
+      await access(tsPath);
+    } catch {
+      throw err;
+    }
     return {
       url: pathToFileURL(tsPath).href,
       shortCircuit: true,
