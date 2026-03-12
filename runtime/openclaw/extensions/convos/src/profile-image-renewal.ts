@@ -18,7 +18,7 @@ type ProfileImageRenewalOptions = {
 
 function resolveStatePath(conversationId: string): string {
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
-  return path.join(stateDir, "credentials", `convos-profile-image-${conversationId}.json`);
+  return path.join(stateDir, "profile-image", `${conversationId}.json`);
 }
 
 function parseState(raw: string): PersistedProfileImageState | null {

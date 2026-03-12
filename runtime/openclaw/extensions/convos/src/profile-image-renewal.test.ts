@@ -42,6 +42,21 @@ test("ProfileImageRenewal persists and reloads profile image sources", () =>
     assert.equal(second.getSourceToRenew(), null);
   }));
 
+test("ProfileImageRenewal stores conversation state under profile-image", () =>
+  withTempStateDir((stateDir) => {
+    const tracker = new ProfileImageRenewal({
+      conversationId: "conversation-1",
+      now: () => 100,
+    });
+
+    tracker.recordAppliedImage("https://example.com/profile-image.png");
+
+    const expectedPath = path.join(stateDir, "profile-image", "conversation-1.json");
+    const legacyPath = path.join(stateDir, "credentials", "convos-profile-image-conversation-1.json");
+    assert.equal(fs.existsSync(expectedPath), true);
+    assert.equal(fs.existsSync(legacyPath), false);
+  }));
+
 test("ProfileImageRenewal only returns a source once the renew window passes", () =>
   withTempStateDir((stateDir) => {
     const tracker = new ProfileImageRenewal({
