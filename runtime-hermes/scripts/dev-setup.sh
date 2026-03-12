@@ -19,21 +19,20 @@ echo ""
 
 # ---- Pre-flight checks ----
 
-if command -v uv &>/dev/null; then
-  PIP="uv pip install --system"
-else
-  echo "  uv not found, falling back to pip"
-  PIP="pip install"
-fi
-
-if ! command -v pnpm &>/dev/null; then
-  echo "ERROR: pnpm is required. Install: npm install -g pnpm@9"
-  exit 1
-fi
-
 if ! command -v python3 &>/dev/null; then
   echo "ERROR: python3 is required (3.11+)"
   exit 1
+fi
+
+if ! command -v uv &>/dev/null; then
+  echo "  Installing uv ..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+if ! command -v pnpm &>/dev/null; then
+  echo "  Installing pnpm ..."
+  npm install -g pnpm@9
 fi
 
 # ---- .env check ----
@@ -59,12 +58,12 @@ fi
 
 echo "  Installing hermes-agent Python deps ..."
 cd "$HERMES_DIR/hermes-agent"
-$PIP -e ".[all]" 2>&1 | tail -1
-$PIP -e "./mini-swe-agent" 2>&1 | tail -1
+uv pip install --system -e ".[all]" 2>&1 | tail -1
+uv pip install --system -e "./mini-swe-agent" 2>&1 | tail -1
 
 echo "  Installing runtime Python deps ..."
 cd "$RUNTIME_DIR"
-$PIP -r requirements.txt 2>&1 | tail -1
+uv pip install --system --no-cache -r requirements.txt 2>&1 | tail -1
 
 # ---- Node deps (convos-cli) ----
 
