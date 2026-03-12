@@ -1,8 +1,8 @@
 ---
 name: services
 description: |
-  Your managed communication and account services: email, SMS, and credits.
-  USE WHEN: Sending emails, calendar invites, polling inbox, sending/polling SMS, checking credits, topping up credits, asked for your URL/link/page/contact info/services.
+  Your managed communication and account services: email, SMS, credits, and virtual cards (AgentCard).
+  USE WHEN: Sending emails, calendar invites, polling inbox, sending/polling SMS, checking credits, topping up credits, creating/managing virtual Visa cards (AgentCard), asked for your URL/link/page/contact info/services.
   DON'T USE WHEN: Task is just creating a file without sending it (use fs tools).
   REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID). Email and SMS are provisioned on first use — no upfront setup needed.
 ---
@@ -115,14 +115,59 @@ Top up your credits:
 node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs credits topup
 ```
 
+## Card (AgentCard)
+
+Prepaid virtual Visa cards you can use to pay for things online. Cards are funded with a fixed USD amount and work anywhere Visa is accepted.
+
+**When to use:** You need to buy something online (API credits, domains, SaaS subscriptions, licenses), need a virtual card with a hard spending limit, need to make an x402 payment, or a human has asked you to purchase something.
+
+**When NOT to use:** Physical in-store purchases (virtual only), recurring billing that auto-renews (prepaid/single-use), sending money to another person, merchants requiring 3DS/SMS verification.
+
+### First-time setup
+
+Each user must sign up once:
+
+```bash
+agent-cards signup
+```
+
+Enter your email and click the magic link in your inbox.
+
+### Create a card
+
+```bash
+agent-cards cards create --amount 50
+```
+
+Opens a Stripe checkout page. After payment, card details print in your terminal.
+
+### List your cards
+
+```bash
+agent-cards cards list
+```
+
+### Get card details (PAN, CVV, expiry)
+
+```bash
+agent-cards cards details <card-id>
+```
+
+### Check balance
+
+```bash
+agent-cards balance <card-id>
+```
+
 ## Services Landing Page
 
-Your services landing page is the central place for users to manage everything: view email, phone, card details, credit balance, and top up credits. When users ask about **any** of the following, run `services.mjs info` and share the `servicesUrl`:
+Your services landing page is the central place for users to manage everything: view email, phone, credit balance, and top up credits. When users ask about **any** of the following, run `services.mjs info` and share the `servicesUrl`:
 
 - Topping up credits or adding funds
-- Credit card balance or card details
 - Checking service status
 - Managing their account
 - "Where can I see my balance / services / status"
+
+**Note:** "card", "virtual card", "card balance", "card details" refer to **AgentCard virtual Visa cards** — use `agent-cards` CLI for those, NOT the services landing page.
 
 **Never make up URLs or direct users to external docs.** Always share the real `servicesUrl` from the info command.
