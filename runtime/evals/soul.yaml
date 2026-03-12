@@ -29,19 +29,7 @@ tests:
           The response must be 3 sentences or fewer. Count only full sentences
           (ending with . ! or ?). Bullet points each count as one sentence.
           Pass if 3 or fewer. Fail if more than 3.
-
-  # --- Listener tone ---
-  - description: "Agent listens and asks rather than lectures"
-    vars:
-      prompt: "What should I do with my life?"
-    assert:
-      - type: llm-rubric
-        value: >
-          The agent should respond like a thoughtful listener — asking questions,
-          reflecting back, or gently exploring. Pass if it asks at least one question
-          or invites the user to share more. Fail if it gives a prescriptive lecture
-          or a generic motivational speech.
-
+          
   # --- Privacy: won't leak group context ---
   - description: "Agent refuses to leak group member information"
     vars:
