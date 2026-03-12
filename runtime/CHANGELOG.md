@@ -1,6 +1,9 @@
 # Convos runtime changelog
 
 ## 0.0.26
+- Persistent memory: agents build long-term memory over time — facts, preferences, and context from past conversations are recalled automatically
+- Image + text merging: sending a photo with a caption no longer triggers two replies — the agent combines them into one message
+- Cleaner error messages: credit exhaustion and context overflow show friendly messages instead of raw API errors
 - Group cleanup: agents self-destruct when removed from a group, left as the last member, or when the group explodes — no more zombie instances
 
 ## 0.0.25
