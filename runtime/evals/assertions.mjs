@@ -70,3 +70,22 @@ export function agentSelfDestructed(output) {
     reason: pass ? 'Agent self-destructed' : `Expected SELF_DESTRUCT_CONFIRMED, got: ${output}`,
   };
 }
+
+export function responseTimeBelowThreshold(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const actual = meta.responseTimeMs;
+  const threshold = meta.maxResponseTime;
+
+  if (actual == null || threshold == null) {
+    return { pass: false, score: 0, reason: 'Missing responseTimeMs or maxResponseTime in metadata' };
+  }
+
+  const pass = actual <= threshold;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Response time ${actual}ms is within ${threshold}ms threshold`
+      : `Response time ${actual}ms exceeds ${threshold}ms threshold`,
+  };
+}

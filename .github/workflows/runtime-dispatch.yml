@@ -65,10 +65,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - suite: prompt
+          - suite: knows
+            timeout: 180
+          - suite: skills
             timeout: 300
+          - suite: soul
+            timeout: 180
           - suite: convos
             timeout: 600
+          - suite: async
+            timeout: 120
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v3

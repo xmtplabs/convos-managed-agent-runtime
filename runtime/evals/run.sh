@@ -32,15 +32,25 @@ if [ -n "$EVAL_JSON_OUTPUT" ]; then
   base_cmd="$base_cmd --output $EVAL_JSON_OUTPUT"
 fi
 
-echo "=== Prompt eval (parallel) ==="
-$base_cmd -c "$EVAL_DIR/prompt.yaml" "$@"
-prompt_exit=$?
+failed=0
+
+echo "=== Knowledge eval (parallel) ==="
+$base_cmd -c "$EVAL_DIR/knows.yaml" "$@" || failed=1
+
+echo ""
+echo "=== Skills eval (parallel) ==="
+$base_cmd -c "$EVAL_DIR/skills.yaml" "$@" || failed=1
+
+echo ""
+echo "=== Soul eval (parallel) ==="
+$base_cmd -c "$EVAL_DIR/soul.yaml" "$@" || failed=1
 
 echo ""
 echo "=== Convos lifecycle eval (sequential) ==="
-$base_cmd -c "$EVAL_DIR/convos.yaml" "$@"
-convos_exit=$?
+$base_cmd -c "$EVAL_DIR/convos.yaml" "$@" || failed=1
 
-# Exit with failure if either suite failed
-[ $prompt_exit -ne 0 ] || [ $convos_exit -ne 0 ] && exit 1
-exit 0
+echo ""
+echo "=== Async eval (sequential) ==="
+$base_cmd -c "$EVAL_DIR/async.yaml" "$@" || failed=1
+
+exit $failed

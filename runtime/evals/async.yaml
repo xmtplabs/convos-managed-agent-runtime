@@ -1,0 +1,32 @@
+# runtime/evals/async.yaml
+# Async eval — does the agent stay responsive while handling a complex task?
+# Spawns a heavy task in the background, then checks the agent can still respond quickly.
+
+description: "Eval: Async"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://async.provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: openrouter:anthropic/claude-sonnet-4
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  - description: "Agent responds to simple query while processing a complex task"
+    vars:
+      prompt: "What time is it right now?"
+    metadata:
+      backgroundPrompt: "Plan a detailed 7-day trip itinerary for Tokyo including daily activities, restaurant recommendations, and transportation options for each day."
+      delay: 5
+      maxResponseTime: 15
+    assert:
+      - type: regex
+        value: "\\d{1,2}[:.:]\\d{2}"
+      - type: javascript
+        value: "file://assertions.mjs:responseTimeBelowThreshold"
