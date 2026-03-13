@@ -1,9 +1,5 @@
 # Convos runtime changelog
 
-## 0.0.27
-- Email and SMS no longer auto-provision on heartbeat — only provisioned via explicit endpoint calls
-- Heartbeat polls use `--no-provision` flag to silently skip when services aren't provisioned
-
 ## 0.0.26
 - Persistent memory: agents build long-term memory over time — facts, preferences, and context from past conversations are recalled automatically
 - Image + text merging: sending a photo with a caption no longer triggers two replies — the agent combines them into one message
