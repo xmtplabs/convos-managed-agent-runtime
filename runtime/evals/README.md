@@ -49,7 +49,6 @@ Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
 
 - `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
-- `PORT` — defaults to `18789` (openclaw) or `8080` (hermes)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`
 - `BANKR_API_KEY`
@@ -67,6 +66,7 @@ export default {
   name: '<name>',
   bin: '<cli-binary>',                                       // e.g. 'hermes', 'openclaw'
   args: (prompt, session) => ['<subcommand>', prompt, ...],  // CLI args to send a prompt
+  defaultPort: '8080',                                       // fallback when PORT env is unset
   healthPath: '/health',                                     // gateway health endpoint
   filterLines: (lines) => lines,                             // strip runtime-specific output noise
   needsSessionClear: false,                                  // true if file-based sessions need clearing

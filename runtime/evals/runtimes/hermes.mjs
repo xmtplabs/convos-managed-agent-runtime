@@ -7,6 +7,7 @@ export default {
   name: 'hermes',
   bin: 'hermes',
   args: (prompt, _session) => ['chat', '-q', prompt, '--quiet'],
+  defaultPort: '8080',
   healthPath: '/pool/health',
   filterLines: (lines) => lines.filter((l) => !l.match(/^session_id:\s/)),
   needsSessionClear: false,

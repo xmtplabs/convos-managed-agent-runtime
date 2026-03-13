@@ -17,7 +17,7 @@ import http from 'http';
 import { runtime } from './runtime.mjs';
 import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from './utils.mjs';
 
-const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || '18789';
+const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
 let testIndex = 0;
 
 function log(msg) { _log('eval:async', msg); }

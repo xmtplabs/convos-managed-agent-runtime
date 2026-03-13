@@ -8,9 +8,10 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { resolveConvos, sleep, elapsed, log as _log } from './utils.mjs';
+import { runtime } from './runtime.mjs';
 
 const ENV = process.env.XMTP_ENV || 'dev';
-const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || '18789';
+const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 if (!GATEWAY_TOKEN) {
   console.error('[eval] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.');
