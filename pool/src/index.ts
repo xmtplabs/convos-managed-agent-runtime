@@ -211,8 +211,8 @@ async function upgradeInstanceRuntime(
 
   await deployImage(infra.providerServiceId, image, opts);
   console.log(`[upgrade] deployImage done`);
-  await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, instanceId));
-  return image;
+  await pgDb.update(instanceInfra).set({ runtimeImage: rawImage }).where(eq(instanceInfra.instanceId, instanceId));
+  return rawImage;
 }
 
 // Self-upgrade — instance requests a runtime image update for itself.
