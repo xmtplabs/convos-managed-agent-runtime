@@ -271,16 +271,47 @@ async function recent(argv) {
   }
 }
 
+async function provision() {
+  if (!useProxy) {
+    console.log("Email provisioning is only available in proxy mode (pool-managed instances).");
+    process.exit(1);
+  }
+  // Check if already provisioned
+  const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
+  });
+  if (infoRes.ok) {
+    const info = await infoRes.json();
+    if (info.email) {
+      console.log(`Email already provisioned: ${info.email}`);
+      return;
+    }
+  }
+  // Provision
+  const provRes = await fetch(`${POOL_URL}/api/proxy/email/provision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
+  });
+  if (!provRes.ok) {
+    const err = await provRes.json().catch(() => ({}));
+    console.error(`Email provisioning failed: ${err.error || provRes.status}`);
+    process.exit(1);
+  }
+  const result = await provRes.json();
+  console.log(`Email provisioned: ${result.email}`);
+}
+
 export default async function email(argv) {
   const [action, ...rest] = argv;
 
   switch (action) {
+    case "provision":     return provision();
     case "send":          return send(rest);
     case "send-calendar": return sendCalendar(rest);
     case "poll":          return poll(rest);
     case "recent":        return recent(rest);
     default:
-      console.error("Usage: services.mjs email <send|send-calendar|poll|recent> [options]");
+      console.error("Usage: services.mjs email <provision|send|send-calendar|poll|recent> [options]");
       process.exit(1);
   }
 }
