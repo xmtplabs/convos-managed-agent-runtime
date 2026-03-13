@@ -278,7 +278,7 @@ async function recent(argv) {
 
   const messages = localServicesEnabled() && !useProxy
     ? listRecentLocalEmails({ cutoff, limit })
-    : (() => { throw new Error("UNREACHABLE"); })();
+    : [];
 
   if (!(localServicesEnabled() && !useProxy)) {
     const params = new URLSearchParams({ limit: "20" });
