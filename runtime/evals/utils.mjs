@@ -13,12 +13,9 @@ let _sessionsCleared = false;
 
 export function resolveConvos() {
   const candidates = [
-    '/app/node_modules/.bin/convos',                        // Docker container
-    resolve(__dirname, '../../../node_modules/.bin/convos'), // local (runtime/)
+    '/app/node_modules/.bin/convos',                          // Docker container
+    resolve(__dirname, runtime.convosPath),                    // runtime-specific local path
   ];
-  if (runtime.convosPath) {
-    candidates.unshift(resolve(__dirname, runtime.convosPath));
-  }
   for (const c of candidates) {
     if (existsSync(c)) return c;
   }

@@ -12,6 +12,10 @@ export EVAL_RUNTIME
 case "$EVAL_RUNTIME" in
   openclaw)
     [ -f "$_ENV_RUNTIME_DIR/.env" ] && set -a && . "$_ENV_RUNTIME_DIR/.env" 2>/dev/null || true && set +a
+    if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
+      echo "Error: OPENCLAW_GATEWAY_TOKEN must be set in runtime/.env" >&2
+      exit 1
+    fi
     ;;
   hermes)
     _ENV_HERMES_DIR="$_ENV_REPO_ROOT/runtime-hermes"

@@ -17,22 +17,22 @@ cd runtime
 pnpm start              # terminal 1: start the runtime
 
 pnpm evals              # run all suites (openclaw, the default)
-pnpm evals:knows        # single suite
-pnpm evals:skills
-pnpm evals:soul
-pnpm evals:convos
-pnpm evals:async
+pnpm evals:knows        # knowledge only
+pnpm evals:skills       # services only
+pnpm evals:soul         # personality only
+pnpm evals:convos       # XMTP lifecycle only
+pnpm evals:async        # non-blocking only
 ```
 
 Any runtime is supported via `EVAL_RUNTIME`:
 
 ```sh
 pnpm evals:hermes              # all suites against hermes
-pnpm evals:hermes:knows        # single suite against hermes
-pnpm evals:hermes:skills
-pnpm evals:hermes:soul
-pnpm evals:hermes:convos
-pnpm evals:hermes:async
+pnpm evals:hermes:knows        # knowledge only
+pnpm evals:hermes:skills       # services only
+pnpm evals:hermes:soul         # personality only
+pnpm evals:hermes:convos       # XMTP lifecycle only
+pnpm evals:hermes:async        # non-blocking only
 ```
 
 Filter to a single test:
@@ -40,6 +40,7 @@ Filter to a single test:
 ```sh
 pnpm evals:skills -- --filter-pattern "browse"
 pnpm evals:hermes:skills -- --filter-pattern "browse"
+pnpm evals:convos -- --filter-pattern "welcome"
 ```
 
 ## Env vars
@@ -111,6 +112,8 @@ evals/
 ├── summarize.mjs          # CI summary generation
 └── test-image.png         # fixture for image recognition test
 ```
+
+Naming convention: `{suite}.yaml` + `{suite}.provider.mjs` (if custom provider needed).
 
 ## Adding a test
 

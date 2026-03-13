@@ -7,5 +7,5 @@ export default {
   healthPath: '/__openclaw__/canvas/',
   filterLines: (lines) => lines,
   needsSessionClear: true,
-  convosPath: null, // uses default resolution
+  convosPath: '../../../node_modules/.bin/convos', // repo root node_modules (from evals/)
 };
