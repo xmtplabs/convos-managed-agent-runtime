@@ -14,10 +14,9 @@
 
 import { execFileSync } from 'child_process';
 import http from 'http';
-import { elapsed, log as _log, clearSessionsOnce } from './utils.mjs';
+import { runtime } from './runtime.mjs';
+import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from './utils.mjs';
 
-const RUNTIME = process.env.EVAL_RUNTIME || 'openclaw';
-const ENTRY = process.env.OPENCLAW_ENTRY || 'openclaw';
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || '18789';
 let testIndex = 0;
 
@@ -39,19 +38,11 @@ function httpGet(port, path, timeoutMs = 5000) {
 function runPrompt(prompt, sessionId, timeoutMs = 30_000) {
   const start = Date.now();
   try {
-    const args = RUNTIME === 'hermes'
-      ? ['chat', '-q', prompt, '--quiet']
-      : ['agent', '-m', prompt, '--agent', 'main', '--session-id', sessionId];
-    const bin = RUNTIME === 'hermes' ? 'hermes' : ENTRY;
-    const raw = execFileSync(bin, args, { encoding: 'utf-8', timeout: timeoutMs }).trim();
+    const raw = execFileSync(runtime.bin, runtime.args(prompt, sessionId), {
+      encoding: 'utf-8', timeout: timeoutMs,
+    }).trim();
 
-    const output = raw.split('\n')
-      .filter((l) => !l.match(/^\d{2}:\d{2}:\d{2} \[/))
-      .filter((l) => !l.match(/^session_id:\s/))
-      .join('\n')
-      .replace(/\x1b\[[0-9;]*m/g, '')
-      .trim();
-
+    const output = cleanOutput(raw);
     return { output, durationMs: Date.now() - start, error: null };
   } catch (err) {
     return { output: '', durationMs: Date.now() - start, error: err.message };
@@ -91,8 +82,7 @@ export default class AsyncProvider {
     // 2. Probe gateway health
     let healthOk = false;
     try {
-      const healthPath = RUNTIME === 'hermes' ? '/pool/health' : '/__openclaw__/canvas/';
-      const res = await httpGet(GATEWAY_PORT, healthPath, 5000);
+      const res = await httpGet(GATEWAY_PORT, runtime.healthPath, 5000);
       healthOk = res.status === 200;
       log(`Health probe: ${healthOk ? 'OK' : res.status} (${res.latencyMs}ms)`);
     } catch (err) {

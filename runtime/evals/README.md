@@ -12,43 +12,34 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 
 ## Running
 
-### OpenClaw runtime
-
 ```sh
 cd runtime
 pnpm start              # terminal 1: start the runtime
 
-pnpm evals              # run all suites
-pnpm evals:knows        # knowledge only
-pnpm evals:skills       # services only
-pnpm evals:soul         # personality only
-pnpm evals:convos       # XMTP lifecycle only
-pnpm evals:async        # non-blocking only
+pnpm evals              # run all suites (openclaw, the default)
+pnpm evals:knows        # single suite
+pnpm evals:skills
+pnpm evals:soul
+pnpm evals:convos
+pnpm evals:async
 ```
 
-### Hermes runtime
-
-The same 5 YAML suites run against Hermes via `EVAL_RUNTIME=hermes`. Providers switch to `hermes chat -q` instead of `openclaw agent -m`.
+Any runtime is supported via `EVAL_RUNTIME`:
 
 ```sh
-cd runtime
-# terminal 1: start hermes (in runtime-hermes/)
-pnpm evals:hermes              # run all suites against hermes
-pnpm evals:hermes:knows        # knowledge only
-pnpm evals:hermes:skills       # services only
-pnpm evals:hermes:soul         # personality only
-pnpm evals:hermes:convos       # XMTP lifecycle only
-pnpm evals:hermes:async        # non-blocking only
+pnpm evals:hermes              # all suites against hermes
+pnpm evals:hermes:knows        # single suite against hermes
+pnpm evals:hermes:skills
+pnpm evals:hermes:soul
+pnpm evals:hermes:convos
+pnpm evals:hermes:async
 ```
-
-### Filtering
 
 Filter to a single test:
 
 ```sh
 pnpm evals:skills -- --filter-pattern "browse"
 pnpm evals:hermes:skills -- --filter-pattern "browse"
-pnpm evals:convos -- --filter-pattern "welcome"
 ```
 
 ## Env vars
@@ -67,6 +58,35 @@ Additional for Hermes (in `runtime-hermes/.env`):
 - `PORT` (defaults to `8080`)
 - `OPENROUTER_API_KEY`
 
+## Multi-runtime architecture
+
+The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`runtimes/<name>.mjs`) that defines how to invoke the CLI, which health endpoint to probe, and how to filter output. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
+
+To add a new runtime:
+
+1. Create `evals/runtimes/<name>.mjs`:
+
+```js
+export default {
+  name: '<name>',
+  bin: '<cli-binary>',
+  args: (prompt, session) => ['<subcommand>', prompt, ...],
+  healthPath: '/health',
+  filterLines: (lines) => lines,    // strip runtime-specific noise
+  needsSessionClear: false,         // true if file-based sessions need clearing
+  convosPath: null,                 // relative path to convos-cli, or null for default
+};
+```
+
+2. Add a case in `evals/runtimes/env.sh` to source the runtime's `.env`.
+
+3. Add npm scripts in `package.json`:
+
+```json
+"evals:<name>": "EVAL_RUNTIME=<name> sh evals/run.sh",
+"evals:<name>:knows": "EVAL_RUNTIME=<name> sh evals/run-suite.sh knows.yaml",
+```
+
 ## Files
 
 ```
@@ -76,20 +96,21 @@ evals/
 ├── soul.yaml              # personality & values suite config
 ├── convos.yaml            # XMTP lifecycle suite config
 ├── async.yaml             # non-blocking suite config
-├── prompt.provider.mjs    # provider: openclaw agent -m (stateless, parallel)
+├── prompt.provider.mjs    # provider: stateless prompt (parallel)
 ├── convos.provider.mjs    # provider: XMTP conversation lifecycle
 ├── async.provider.mjs     # provider: background + foreground concurrency test
 ├── assertions.mjs         # JS assertions (profile, self-destruct, response time)
-├── utils.mjs              # shared helpers
-├── run.sh                 # entry point (runs all suites)
-├── run-suite.sh           # single-suite entry point
-├── run-hermes.sh          # entry point (runs all suites against hermes)
-├── run-hermes-suite.sh    # single-suite entry point for hermes
+├── runtime.mjs            # loads the active runtime adapter
+├── utils.mjs              # shared helpers (cleanOutput, session clearing, etc.)
+├── runtimes/
+│   ├── openclaw.mjs       # runtime adapter: openclaw
+│   ├── hermes.mjs         # runtime adapter: hermes
+│   └── env.sh             # shared env setup (sources .env per runtime)
+├── run.sh                 # entry point (runs all suites, any runtime)
+├── run-suite.sh           # single-suite entry point (any runtime)
 ├── summarize.mjs          # CI summary generation
 └── test-image.png         # fixture for image recognition test
 ```
-
-Naming convention: `{suite}.yaml` + `{suite}.provider.mjs` (if custom provider needed).
 
 ## Adding a test
 

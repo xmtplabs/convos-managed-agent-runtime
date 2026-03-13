@@ -1,10 +1,16 @@
 #!/bin/sh
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[ -f "$ROOT/.env" ] && set -a && . "$ROOT/.env" 2>/dev/null || true && set +a
+# Run all eval suites. Supports any runtime via EVAL_RUNTIME env var.
+# Usage: EVAL_RUNTIME=hermes sh evals/run.sh [promptfoo args...]
+
+EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$EVAL_DIR/runtimes/env.sh"
+
+RUNTIME_LABEL="${EVAL_RUNTIME}"
 
 # Kill any leftover eval processes from previous runs
 pkill -9 -f "promptfoo eval" 2>/dev/null || true
 pkill -9 -f "openclaw agent" 2>/dev/null || true
+pkill -9 -f "hermes chat" 2>/dev/null || true
 pkill -9 -f "convos-cli" 2>/dev/null || true
 pkill -9 -f "node.*provider\.mjs" 2>/dev/null || true
 sleep 1
@@ -12,14 +18,6 @@ sleep 1
 # Kill the entire process group on Ctrl+C
 trap 'kill -9 0; wait 2>/dev/null; exit 130' INT TERM
 
-EVAL_OPENROUTER_API_KEY="${EVAL_OPENROUTER_API_KEY:-$OPENROUTER_API_KEY}"
-if [ -z "$EVAL_OPENROUTER_API_KEY" ]; then
-  echo "ERROR: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY) is not set" >&2
-  exit 1
-fi
-export EVAL_OPENROUTER_API_KEY
-
-EVAL_DIR="$ROOT/evals"
 EVAL_OUTPUT="${EVAL_OUTPUT:-}"
 EVAL_JSON_OUTPUT="${EVAL_JSON_OUTPUT:-}"
 
@@ -34,23 +32,23 @@ fi
 
 failed=0
 
-echo "=== Knowledge eval (parallel) ==="
+echo "=== ${RUNTIME_LABEL}: Knowledge eval (parallel) ==="
 $base_cmd -c "$EVAL_DIR/knows.yaml" "$@" || failed=1
 
 echo ""
-echo "=== Skills eval (parallel) ==="
+echo "=== ${RUNTIME_LABEL}: Skills eval (parallel) ==="
 $base_cmd -c "$EVAL_DIR/skills.yaml" "$@" || failed=1
 
 echo ""
-echo "=== Soul eval (parallel) ==="
+echo "=== ${RUNTIME_LABEL}: Soul eval (parallel) ==="
 $base_cmd -c "$EVAL_DIR/soul.yaml" "$@" || failed=1
 
 echo ""
-echo "=== Convos lifecycle eval (sequential) ==="
+echo "=== ${RUNTIME_LABEL}: Convos lifecycle eval (sequential) ==="
 $base_cmd -c "$EVAL_DIR/convos.yaml" "$@" || failed=1
 
 echo ""
-echo "=== Async eval (sequential) ==="
+echo "=== ${RUNTIME_LABEL}: Async eval (sequential) ==="
 $base_cmd -c "$EVAL_DIR/async.yaml" "$@" || failed=1
 
 exit $failed
