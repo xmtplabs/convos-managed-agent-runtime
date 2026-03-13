@@ -5,7 +5,7 @@
 
 import { execSync, execFileSync, spawn } from 'child_process';
 import { mkdtempSync, rmSync } from 'fs';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { tmpdir } from 'os';
 import { resolveConvos, sleep, elapsed, log as _log } from '../lib/utils.mjs';
 import { runtime } from '../lib/runtime.mjs';
@@ -195,7 +195,7 @@ export default class OpenClawProvider {
 
       if (meta.attachment) {
         const dir = new URL('.', import.meta.url).pathname;
-        const path = meta.attachment.startsWith('./') ? `${dir}${meta.attachment.slice(2)}` : meta.attachment;
+        const path = meta.attachment.startsWith('/') ? meta.attachment : resolve(dir, meta.attachment);
         log(`Sending attachment: ${meta.attachment}`);
         convos(['conversation', 'send-attachment', sharedConversationId, path, '--env', ENV], { timeout: 30_000 });
         sleep(1_000);
