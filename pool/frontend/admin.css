@@ -324,48 +324,45 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 .syncing { pointer-events: none; opacity: 0.5; }
 .syncing svg { animation: spin 0.8s linear infinite; }
 
-/* Upgrades panel */
-.upgrade-card { background: var(--color-surface); border: 1px solid var(--color-edge); border-radius: 12px; overflow: hidden; }
-.upgrade-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--color-edge); }
-.upgrade-card-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
-.upgrade-card-subtitle { font-size: 12px; color: var(--color-foreground-secondary); }
-.upgrade-hero { display: flex; gap: 32px; padding: 24px 20px; align-items: flex-start; }
-.upgrade-hero-left { display: flex; align-items: center; gap: 20px; flex: 1; min-width: 0; }
-.upgrade-hero-left canvas { flex-shrink: 0; }
-.upgrade-hero-right { display: flex; flex-direction: column; gap: 16px; flex: 1; min-width: 0; justify-content: center; }
-.upgrade-hero-controls { display: flex; align-items: center; gap: 10px; }
-.upgrade-image-select { padding: 8px 32px 8px 12px; font-size: 13px; font-family: inherit; border: 1px solid var(--color-edge); border-radius: 8px; background: var(--color-surface); color: var(--color-foreground); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; transition: border-color 0.15s; flex: 1; min-width: 0; }
-.upgrade-image-select:hover { border-color: var(--color-foreground-tertiary); }
-.upgrade-image-select:focus { outline: none; border-color: var(--color-foreground-secondary); }
-.upgrade-changelog-link { color: var(--color-brand); text-decoration: none; font-weight: 500; }
+/* ── Upgrades hero card ── */
+.upgrade-hero-card { display: flex; background: var(--color-surface); border: 1px solid var(--color-edge); border-radius: 12px; overflow: hidden; }
+.upgrade-hero-chart { display: flex; align-items: center; justify-content: center; padding: 28px 24px; border-right: 1px solid var(--color-edge); flex-shrink: 0; }
+.upgrade-hero-body { flex: 1; display: flex; flex-direction: column; padding: 20px 24px; gap: 16px; min-width: 0; }
+.upgrade-hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.upgrade-hero-title { display: flex; flex-direction: column; gap: 2px; }
+.upgrade-hero-heading { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+.upgrade-hero-meta { font-size: 11px; color: var(--color-foreground-secondary); }
+.upgrade-changelog-link { color: var(--color-brand); text-decoration: none; font-weight: 600; font-size: 11px; }
 .upgrade-changelog-link:hover { text-decoration: underline; }
-.upgrade-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
-.upgrade-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.upgrade-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-.upgrade-legend-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-.upgrade-legend-count { font-variant-numeric: tabular-nums; color: var(--color-foreground-secondary); font-weight: 600; }
-.upgrade-target-info { font-size: 12px; color: var(--color-foreground-secondary); display: flex; flex-direction: column; gap: 4px; }
-.upgrade-target-info .upgrade-stat { display: flex; align-items: center; gap: 6px; }
-.upgrade-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+.upgrade-hero-stats { display: flex; gap: 12px; flex-shrink: 0; }
+.upgrade-hero-stats .upgrade-stat { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-foreground-secondary); white-space: nowrap; }
+.upgrade-hero-stats .upgrade-stat strong { color: var(--color-foreground); }
+.upgrade-stat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .upgrade-stat-dot.current { background: var(--color-success); }
 .upgrade-stat-dot.outdated { background: #FF9500; }
 .upgrade-stat-dot.unknown { background: var(--color-foreground-tertiary); }
-.upgrade-btn-row { display: flex; gap: 8px; }
-.btn-upgrade { padding: 10px 20px; font-size: 13px; }
-.upgrade-progress { display: flex; align-items: center; gap: 12px; }
-.upgrade-progress-bar-wrap { flex: 1; height: 6px; background: var(--color-edge-muted); border-radius: 3px; overflow: hidden; }
-.upgrade-progress-bar { height: 100%; background: var(--color-brand); border-radius: 3px; transition: width 0.3s; width: 0; }
-.upgrade-progress-text { font-size: 12px; font-weight: 600; color: var(--color-foreground-secondary); white-space: nowrap; }
-.upgrade-log { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-.upgrade-log-entry { font-size: 11px; font-family: 'SF Mono', Monaco, 'Courier New', monospace; padding: 2px 0; color: var(--color-foreground-secondary); }
-.upgrade-log-entry.ok { color: var(--color-success); }
-.upgrade-log-entry.fail { color: var(--color-error); }
-/* Upgrade stream grid (compact cards, 4 per row) */
+.upgrade-hero-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.upgrade-legend-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; padding: 4px 10px; background: var(--color-surface-muted); border: 1px solid var(--color-edge-muted); border-radius: 6px; }
+.upgrade-legend-dot { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+.upgrade-legend-ver { font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 11px; font-weight: 600; }
+.upgrade-legend-count { font-variant-numeric: tabular-nums; color: var(--color-foreground-secondary); font-weight: 600; font-size: 11px; }
+.upgrade-hero-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; }
+.upgrade-image-select { padding: 8px 32px 8px 12px; font-size: 12px; font-family: inherit; border: 1px solid var(--color-edge); border-radius: 8px; background: var(--color-surface); color: var(--color-foreground); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; transition: border-color 0.15s; flex: 1; min-width: 0; }
+.upgrade-image-select:hover { border-color: var(--color-foreground-tertiary); }
+.upgrade-image-select:focus { outline: none; border-color: var(--color-foreground-secondary); }
+.btn-upgrade { padding: 10px 20px; font-size: 13px; white-space: nowrap; }
+
+/* ── Upgrade stream grid ── */
 .upgrade-stream-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 16px 20px; }
 .upgrade-stream-card { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 12px; background: var(--color-surface-hover); border: 1px solid var(--color-edge-muted); border-radius: 8px; min-width: 0; }
 .upgrade-stream-name { font-size: 11px; font-weight: 600; letter-spacing: -0.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .upgrade-stream-name a { color: var(--color-brand); text-decoration: none; }
 .upgrade-stream-name a:hover { text-decoration: underline; }
+
+/* ── Upgrade sub-cards ── */
+.upgrade-card { background: var(--color-surface); border: 1px solid var(--color-edge); border-radius: 12px; overflow: hidden; }
+.upgrade-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--color-edge); }
+.upgrade-card-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
 
 .upgrade-version-list { padding: 0; }
 .upgrade-version-group { border-bottom: 1px solid var(--color-edge-muted); }
@@ -403,8 +400,11 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
   .content { padding: 16px; }
   .replenish-card-body { gap: 12px; }
   .replenish-actions { margin-left: 0; width: 100%; }
-  .upgrade-hero { flex-direction: column; gap: 16px; }
-  .upgrade-hero-left { flex-direction: column; align-items: center; }
+  .upgrade-hero-card { flex-direction: column; }
+  .upgrade-hero-chart { border-right: none; border-bottom: 1px solid var(--color-edge); padding: 20px; }
+  .upgrade-hero-top { flex-direction: column; gap: 12px; }
+  .upgrade-hero-stats { flex-wrap: wrap; }
+  .upgrade-hero-actions { flex-direction: column; }
   .upgrade-stream-grid { grid-template-columns: repeat(2, 1fr); }
   th, td { padding: 10px 12px; }
 }
