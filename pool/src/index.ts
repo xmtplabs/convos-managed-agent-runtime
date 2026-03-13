@@ -11,7 +11,6 @@ import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
 import { updateServiceInstance, redeployService } from "./services/providers/railway";
-import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
 
 import { initMetrics } from "./metrics";
@@ -182,6 +181,36 @@ app.post("/api/pool/self-info", async (req, res) => {
   }
 });
 
+/**
+ * Upgrade an instance's runtime image on Railway.
+ *
+ * 1. Sets the service source to the raw image tag (e.g. :dev) so Railway
+ *    pulls whatever that tag currently points to.
+ * 2. Forces a redeploy via serviceInstanceRedeploy so the container actually
+ *    restarts (serviceInstanceUpdate alone doesn't always trigger a deploy).
+ * 3. Persists the tag in our DB for tracking.
+ *
+ * NOTE: we intentionally do NOT resolve the tag to a sha256 digest. Pinning
+ * to a digest prevents future upgrades because Railway sees no config change
+ * when the tag moves to a new build.
+ */
+async function upgradeInstanceRuntime(
+  instanceId: string,
+  infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string },
+): Promise<string> {
+  const rawImage = config.railwayRuntimeImage;
+  if (!rawImage) throw new Error("No runtime image configured");
+
+  // Use the raw tag (e.g. :dev) so Railway pulls the latest image for that tag.
+  // Do NOT resolve to a sha256 digest — pinning to a digest prevents future upgrades
+  // because Railway sees no config change when the tag moves to a new build.
+  const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+  await updateServiceInstance(infra.providerServiceId, { source: { image: rawImage } }, opts);
+  await redeployService(infra.providerServiceId, opts);
+  await pgDb.update(instanceInfra).set({ runtimeImage: rawImage }).where(eq(instanceInfra.instanceId, instanceId));
+  return rawImage;
+}
+
 // Self-upgrade — instance requests a runtime image update for itself.
 // Auth: instance sends its own ID + gateway token (same as self-destruct).
 app.post("/api/pool/self-upgrade", async (req, res) => {
@@ -199,14 +228,7 @@ app.post("/api/pool/self-upgrade", async (req, res) => {
     if (!infra) {
       res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
     }
-    const rawImage = config.railwayRuntimeImage;
-    if (!rawImage) {
-      res.status(400).json({ error: "No runtime image configured" }); return;
-    }
-    const image = await resolveImageDigest(rawImage);
-    const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
-    await updateServiceInstance(infra.providerServiceId, { source: { image } }, opts);
-    await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, instanceId));
+    const image = await upgradeInstanceRuntime(instanceId, infra);
     console.log(`[pool] Self-upgrade requested by instance ${instanceId} → ${image}`);
     res.json({ ok: true, instanceId, image });
   } catch (err: any) {
@@ -395,14 +417,7 @@ app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
     if (!infra) {
       res.status(404).json({ error: `Instance ${id} not found` }); return;
     }
-    const rawImage = config.railwayRuntimeImage;
-    if (!rawImage) {
-      res.status(400).json({ error: "No runtime image configured" }); return;
-    }
-    const image = await resolveImageDigest(rawImage);
-    const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
-    await updateServiceInstance(infra.providerServiceId, { source: { image } }, opts);
-    await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, id));
+    const image = await upgradeInstanceRuntime(id, infra);
     console.log(`[api] Updated runtime for ${id} → ${image}`);
     res.json({ ok: true, instanceId: id, image });
   } catch (err: any) {

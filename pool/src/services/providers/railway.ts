@@ -438,23 +438,16 @@ export async function updateServiceInstance(
   );
 }
 
+/**
+ * Redeploy a service instance, picking up the latest config (e.g. updated image).
+ */
 export async function redeployService(serviceId: string, opts?: ProjectEnvOpts): Promise<void> {
   const environmentId = resolveEnvironmentId(opts);
-  const data = await gql(
-    `query($id: String!) {
-      service(id: $id) {
-        deployments(first: 1) { edges { node { id } } }
-      }
-    }`,
-    { id: serviceId },
-  );
-  const latestDeploy = data.service?.deployments?.edges?.[0]?.node;
-  if (!latestDeploy) throw new Error("No deployment found to redeploy");
   await gql(
-    `mutation($id: String!) {
-      deploymentRedeploy(id: $id) { id status }
+    `mutation($serviceId: String!, $environmentId: String!) {
+      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
     }`,
-    { id: latestDeploy.id },
+    { serviceId, environmentId },
   );
 }
 

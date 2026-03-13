@@ -425,7 +425,7 @@
       _refreshing = true;
       console.log('[pool] refresh start');
       try {
-        await Promise.all([refreshCounts(), refreshAgents()]);
+        await Promise.all([refreshCounts(), refreshAgents(), refreshInstances()]);
         console.log('[pool] refresh done — claimed:%d idle:%d starting:%d crashed:%d',
           claimedCache.length, idleCache.length, startingCache.length, crashedCache.length);
       } finally {
