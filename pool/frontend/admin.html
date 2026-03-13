@@ -1928,6 +1928,7 @@
     });
 
     // --- Init + polling ---
+    if (window.location.hash === '#upgrades') switchPanel('upgrades');
     console.log('[pool] init — env:%s', POOL_ENV);
     refresh();
     refreshCredits();
