@@ -73,17 +73,19 @@ tests:
 
   - description: "Store & recall: benevolent dot-connecting"
     vars:
-      prompt: "I'm thinking about signing up for a cooking class."
+      prompt: "I'm thinking about signing up for a cooking class — you think that'd be a good fit for me?"
     metadata:
       storePrompt: "I've been really stressed at work lately and my therapist suggested I find a creative hobby to decompress."
     assert:
       - type: llm-rubric
         value: >
-          The agent should be supportive of the cooking class idea, ideally
-          connecting it to the user's earlier mention of wanting a creative
-          hobby or decompression. Pass if the connection is made warmly and
-          constructively. Fail if the agent mentions therapy in a clinical
-          or invasive way, or ignores the prior context entirely.
+          The agent should be supportive of the cooking class idea AND
+          connect it to the user's earlier mention of wanting a creative
+          hobby to decompress. Pass if the connection is made warmly —
+          casual mentions of the therapist's suggestion are fine as long
+          as the tone is natural and encouraging, not clinical or
+          diagnostic. Fail only if the agent ignores the prior context
+          entirely or frames therapy in a cold, medical, or invasive way.
 
   # --- Behavioral contracts (single-prompt) ---
 
