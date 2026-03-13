@@ -3,6 +3,7 @@
 # Usage: EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml [promptfoo args...]
 
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
+_ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 . "$EVAL_DIR/runtimes/env.sh"
 
 SUITE="$1"; shift

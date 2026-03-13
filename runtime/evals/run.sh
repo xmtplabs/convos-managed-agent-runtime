@@ -3,6 +3,7 @@
 # Usage: EVAL_RUNTIME=hermes sh evals/run.sh [promptfoo args...]
 
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
+_ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 . "$EVAL_DIR/runtimes/env.sh"
 
 RUNTIME_LABEL="${EVAL_RUNTIME}"
