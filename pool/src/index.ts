@@ -192,8 +192,9 @@ app.post("/api/pool/self-info", async (req, res) => {
 async function upgradeInstanceRuntime(
   instanceId: string,
   infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string },
+  imageOverride?: string,
 ): Promise<string> {
-  const rawImage = config.railwayRuntimeImage;
+  const rawImage = imageOverride || config.railwayRuntimeImage;
   if (!rawImage) throw new Error("No runtime image configured");
 
   const image = await resolveImageDigest(rawImage);
@@ -408,16 +409,38 @@ app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
 app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const { image: imageOverride } = req.body || {};
     const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, id));
     const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${id} not found` }); return;
     }
-    const image = await upgradeInstanceRuntime(id, infra);
+    const image = await upgradeInstanceRuntime(id, infra, imageOverride);
     console.log(`[api] Updated runtime for ${id} → ${image}`);
     res.json({ ok: true, instanceId: id, image });
   } catch (err: any) {
     console.error("[api] Update runtime failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/pool/refresh-versions", requireAuth, async (_req, res) => {
+  try {
+    const rows = await db.getByStatus(["idle", "claimed"]);
+    let updated = 0;
+    for (const row of rows) {
+      if (!row.url) continue;
+      const token = await db.getGatewayToken(row.id);
+      const hc = await pool.healthCheck(row.url, token);
+      if (hc?.version) {
+        await db.setRuntimeVersion(row.id, hc.version);
+        updated++;
+      }
+    }
+    console.log(`[api] Refreshed versions for ${updated}/${rows.length} instances`);
+    res.json({ ok: true, updated, total: rows.length });
+  } catch (err: any) {
+    console.error("[api] Refresh versions failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
