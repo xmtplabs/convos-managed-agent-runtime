@@ -5,6 +5,7 @@
 import { execFileSync } from 'child_process';
 import { elapsed, log as _log, clearSessionsOnce } from './utils.mjs';
 
+const RUNTIME = process.env.EVAL_RUNTIME || 'openclaw';
 const ENTRY = process.env.OPENCLAW_ENTRY || 'openclaw';
 let testIndex = 0;
 
@@ -23,14 +24,18 @@ export default class PromptProvider {
     log(`Sending: "${prompt.slice(0, 80)}${prompt.length > 80 ? '...' : ''}"`);
 
     try {
-      const raw = execFileSync(ENTRY, [
-        'agent', '-m', prompt, '--agent', 'main', '--session-id', session,
-      ], { encoding: 'utf-8', timeout: 60_000 }).trim();
+      const args = RUNTIME === 'hermes'
+        ? ['chat', '-q', prompt, '--quiet']
+        : ['agent', '-m', prompt, '--agent', 'main', '--session-id', session];
+      const bin = RUNTIME === 'hermes' ? 'hermes' : ENTRY;
+      const raw = execFileSync(bin, args, { encoding: 'utf-8', timeout: 60_000 }).trim();
 
-      // Strip diagnostic/log lines that openclaw dumps to stdout
-      // and ANSI escape codes that break regex assertions
+      // Strip diagnostic/log lines that openclaw dumps to stdout,
+      // ANSI escape codes that break regex assertions,
+      // and the session_id footer that hermes prints in quiet mode
       const output = raw.split('\n')
         .filter((l) => !l.match(/^\d{2}:\d{2}:\d{2} \[/))
+        .filter((l) => !l.match(/^session_id:\s/))
         .join('\n')
         .replace(/\x1b\[[0-9;]*m/g, '')
         .trim();

@@ -15,6 +15,9 @@ export function resolveConvos() {
     '/app/node_modules/.bin/convos',                        // Docker container
     resolve(__dirname, '../../../node_modules/.bin/convos'), // local (runtime/)
   ];
+  if (process.env.EVAL_RUNTIME === 'hermes') {
+    candidates.unshift(resolve(__dirname, '../../runtime-hermes/node_modules/.bin/convos'));
+  }
   for (const c of candidates) {
     if (existsSync(c)) return c;
   }
@@ -39,6 +42,11 @@ export function log(prefix, msg) {
 // --session-id, so previous eval runs bleed into new ones without this.
 export function clearSessionsOnce(agentId = 'main') {
   if (_sessionsCleared) return;
+  if (process.env.EVAL_RUNTIME === 'hermes') {
+    log('eval', 'Hermes: skipping session clear (each -q call is fresh)');
+    _sessionsCleared = true;
+    return;
+  }
   const sessionsDir = join(STATE_DIR, 'agents', agentId, 'sessions');
   try {
     for (const f of readdirSync(sessionsDir)) {

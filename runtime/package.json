@@ -14,6 +14,7 @@
     "clean-sessions": "sh scripts/clean-sessions.sh",
     "smoke": "sh scripts/smoke.sh",
     "evals": "sh evals/run.sh",
+    "evals:hermes": "sh evals/run-hermes.sh",
     "evals:knows": "sh evals/run-suite.sh knows.yaml",
     "evals:skills": "sh evals/run-suite.sh skills.yaml",
     "evals:soul": "sh evals/run-suite.sh soul.yaml",
