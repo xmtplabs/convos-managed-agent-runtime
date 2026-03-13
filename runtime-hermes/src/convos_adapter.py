@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 XMTP_MESSAGE_LIMIT = 4000
 GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
+COMPANION_SETTLE_S = 1.5
 
 
 @dataclass
@@ -170,6 +171,31 @@ def is_inactive_group_error(err: Exception) -> bool:
     return bool(re.search(r"\bgroup is inactive\b", str(err), flags=re.IGNORECASE))
 
 
+def is_attachment_message(msg: InboundMessage) -> bool:
+    return msg.content_type in ("attachment", "remoteStaticAttachment")
+
+
+def attachment_hold_key(msg: InboundMessage) -> str | None:
+    if not msg.conversation_id or not msg.sender_id:
+        return None
+    return f"{msg.conversation_id}:{msg.sender_id}"
+
+
+def merge_attachment_with_message(attachment_msg: InboundMessage, msg: InboundMessage) -> InboundMessage:
+    attachment_context = f"Attachment reference {attachment_msg.message_id}: {attachment_msg.content}"
+    merged_content = f"{attachment_context}\n{msg.content}".strip()
+    return InboundMessage(
+        conversation_id=msg.conversation_id,
+        message_id=msg.message_id,
+        sender_id=msg.sender_id,
+        sender_name=msg.sender_name,
+        content=merged_content,
+        content_type=msg.content_type,
+        timestamp=msg.timestamp,
+        catchup=msg.catchup,
+    )
+
+
 class ConvosAdapter:
     """
     Convos XMTP platform adapter.
@@ -186,6 +212,7 @@ class ConvosAdapter:
         self._instance: ConvosInstance | None = None
         self._agent: AgentRunner | None = None
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
+        self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[Any]]] = {}
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -253,6 +280,10 @@ class ConvosAdapter:
 
     async def stop(self) -> None:
         """Stop the ConvosInstance."""
+        for _, task in self._pending_attachments.values():
+            task.cancel()
+        self._pending_attachments.clear()
+
         if self._instance:
             await self._instance.stop()
             self._instance = None
@@ -262,6 +293,21 @@ class ConvosAdapter:
     # ---- Message pipeline ----
 
     async def _handle_message(self, msg: InboundMessage) -> None:
+        """Route attachments through the hold/merge system, then process."""
+        hold_key = attachment_hold_key(msg)
+
+        if is_attachment_message(msg):
+            await self._hold_attachment(hold_key, msg)
+            return
+
+        if hold_key:
+            held = self._pop_held_attachment(hold_key)
+            if held:
+                msg = merge_attachment_with_message(held, msg)
+
+        await self._process_message(msg)
+
+    async def _process_message(self, msg: InboundMessage) -> None:
         """Full message pipeline: eyes -> agent -> parse -> execute -> send -> remove eyes."""
         if msg.content_type == "reaction":
             return
@@ -317,6 +363,40 @@ class ConvosAdapter:
                 await inst.react(msg.message_id, "\U0001f440", "remove")
             except Exception:
                 pass  # silently ignore if eyes weren't placed
+
+    # ---- Attachment hold/merge ----
+
+    async def _hold_attachment(self, hold_key: str | None, msg: InboundMessage) -> None:
+        """Hold an attachment message, waiting for a companion text message to merge with."""
+        if not hold_key:
+            await self._process_message(msg)
+            return
+
+        existing = self._pop_held_attachment(hold_key)
+        if existing:
+            asyncio.create_task(self._process_message(existing))
+
+        async def flush_attachment() -> None:
+            try:
+                await asyncio.sleep(COMPANION_SETTLE_S)
+                current = self._pending_attachments.get(hold_key)
+                if not current or current[0].message_id != msg.message_id:
+                    return
+                self._pending_attachments.pop(hold_key, None)
+                await self._process_message(msg)
+            except asyncio.CancelledError:
+                return
+
+        self._pending_attachments[hold_key] = (msg, asyncio.create_task(flush_attachment()))
+
+    def _pop_held_attachment(self, hold_key: str) -> InboundMessage | None:
+        """Cancel and return a held attachment for the given key, if any."""
+        entry = self._pending_attachments.pop(hold_key, None)
+        if not entry:
+            return None
+        attachment_msg, task = entry
+        task.cancel()
+        return attachment_msg
 
     async def _detect_membership_termination_reason(self, msg: InboundMessage) -> str | None:
         inst = self._instance
