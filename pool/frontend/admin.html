@@ -283,21 +283,24 @@
           <div class="upgrade-actions-body">
             <p class="upgrade-hint">Push the latest runtime image to instances that are behind.</p>
             <div class="upgrade-target-info" id="upgrade-target-info"></div>
-            <div class="upgrade-btn-row" style="align-items:center;gap:8px;flex-wrap:wrap">
-              <select id="upgrade-image-picker" style="padding:6px 10px;border-radius:6px;border:1px solid var(--color-border);font-size:13px;background:#fff">
-                <option value="">Default (pool config)</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
-              </select>
-              <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade Outdated</button>
-              <button class="btn btn-danger btn-upgrade" id="btn-upgrade-all" disabled>Upgrade All</button>
-            </div>
-            <div class="upgrade-btn-row" style="margin-top:8px">
-              <button class="btn" id="btn-refresh-versions" style="font-size:12px;padding:4px 12px">Refresh All Versions</button>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:12px;color:var(--color-muted);white-space:nowrap">Image</label>
+                <select id="upgrade-image-picker" style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--color-border);font-size:13px;background:#fff;font-family:var(--font-mono);cursor:pointer">
+                  <option value="">Default (pool config)</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
+                </select>
+              </div>
+              <div class="upgrade-btn-row" style="gap:8px">
+                <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade Outdated</button>
+                <button class="btn btn-danger btn-upgrade" id="btn-upgrade-all" disabled>Upgrade All</button>
+                <button class="btn" id="btn-refresh-versions" style="margin-left:auto;font-size:12px;opacity:0.7">Refresh Versions</button>
+              </div>
             </div>
             <div class="upgrade-progress" id="upgrade-progress" style="display:none">
               <div class="upgrade-progress-bar-wrap">
@@ -1963,7 +1966,16 @@
       btn.disabled = true;
       btn.textContent = 'Refreshing...';
       try {
-        var res = await fetch('/api/pool/refresh-versions', { method: 'POST', headers: authHeaders });
+        var buckets = getVersionBuckets();
+        var ids = [];
+        buckets.forEach(function (b) {
+          if (!b.isLatest) b.instances.forEach(function (inst) { ids.push(inst.id); });
+        });
+        var res = await fetch('/api/pool/refresh-versions', {
+          method: 'POST',
+          headers: Object.assign({}, authHeaders, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ ids: ids }),
+        });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
         btn.textContent = 'Updated ' + data.updated + '/' + data.total;
@@ -1972,7 +1984,7 @@
       } catch (err) {
         btn.textContent = 'Failed: ' + err.message;
       }
-      setTimeout(function () { btn.textContent = 'Refresh All Versions'; btn.disabled = false; }, 3000);
+      setTimeout(function () { btn.textContent = 'Refresh Versions'; btn.disabled = false; }, 3000);
     });
 
     // --- Init + polling ---

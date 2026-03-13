@@ -424,11 +424,15 @@ app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/pool/refresh-versions", requireAuth, async (_req, res) => {
+app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
   try {
+    const { ids } = req.body || {};
     const rows = await db.getByStatus(["idle", "claimed"]);
+    const targets = Array.isArray(ids) && ids.length > 0
+      ? rows.filter((r) => ids.includes(r.id))
+      : rows;
     let updated = 0;
-    for (const row of rows) {
+    for (const row of targets) {
       if (!row.url) continue;
       const token = await db.getGatewayToken(row.id);
       const hc = await pool.healthCheck(row.url, token);
@@ -437,8 +441,8 @@ app.post("/api/pool/refresh-versions", requireAuth, async (_req, res) => {
         updated++;
       }
     }
-    console.log(`[api] Refreshed versions for ${updated}/${rows.length} instances`);
-    res.json({ ok: true, updated, total: rows.length });
+    console.log(`[api] Refreshed versions for ${updated}/${targets.length} instances`);
+    res.json({ ok: true, updated, total: targets.length });
   } catch (err: any) {
     console.error("[api] Refresh versions failed:", err);
     res.status(500).json({ error: err.message });
