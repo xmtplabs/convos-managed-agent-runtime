@@ -10,7 +10,8 @@ import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocs
 import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
-import { updateServiceInstance, redeployService } from "./services/providers/railway";
+import { deployImage, redeployService, fetchServiceStatus } from "./services/providers/railway";
+import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
 
 import { initMetrics } from "./metrics";
@@ -184,15 +185,9 @@ app.post("/api/pool/self-info", async (req, res) => {
 /**
  * Upgrade an instance's runtime image on Railway.
  *
- * 1. Sets the service source to the raw image tag (e.g. :dev) so Railway
- *    pulls whatever that tag currently points to.
- * 2. Forces a redeploy via serviceInstanceRedeploy so the container actually
- *    restarts (serviceInstanceUpdate alone doesn't always trigger a deploy).
- * 3. Persists the tag in our DB for tracking.
- *
- * NOTE: we intentionally do NOT resolve the tag to a sha256 digest. Pinning
- * to a digest prevents future upgrades because Railway sees no config change
- * when the tag moves to a new build.
+ * Resolves the tag to a sha256 digest and deploys via environmentPatchCommit
+ * (the same atomic mechanism used by createService). This ensures Railway
+ * treats it as a real config change and pulls the new image.
  */
 async function upgradeInstanceRuntime(
   instanceId: string,
@@ -201,14 +196,23 @@ async function upgradeInstanceRuntime(
   const rawImage = config.railwayRuntimeImage;
   if (!rawImage) throw new Error("No runtime image configured");
 
-  // Use the raw tag (e.g. :dev) so Railway pulls the latest image for that tag.
-  // Do NOT resolve to a sha256 digest — pinning to a digest prevents future upgrades
-  // because Railway sees no config change when the tag moves to a new build.
+  const image = await resolveImageDigest(rawImage);
   const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
-  await updateServiceInstance(infra.providerServiceId, { source: { image: rawImage } }, opts);
-  await redeployService(infra.providerServiceId, opts);
-  await pgDb.update(instanceInfra).set({ runtimeImage: rawImage }).where(eq(instanceInfra.instanceId, instanceId));
-  return rawImage;
+
+  // Log current state for debugging
+  const status = await fetchServiceStatus(infra.providerServiceId, infra.providerEnvId);
+  console.log(`[upgrade] instanceId=${instanceId}`);
+  console.log(`[upgrade] serviceId=${infra.providerServiceId}`);
+  console.log(`[upgrade] envId=${infra.providerEnvId}`);
+  console.log(`[upgrade] rawImage=${rawImage}`);
+  console.log(`[upgrade] resolvedImage=${image}`);
+  console.log(`[upgrade] currentImage=${status?.image ?? "unknown"}`);
+  console.log(`[upgrade] deployStatus=${status?.deployStatus ?? "unknown"}`);
+
+  await deployImage(infra.providerServiceId, image, opts);
+  console.log(`[upgrade] deployImage done`);
+  await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, instanceId));
+  return image;
 }
 
 // Self-upgrade — instance requests a runtime image update for itself.

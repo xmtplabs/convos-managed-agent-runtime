@@ -313,7 +313,7 @@ export async function createService(
   const image = await resolveImageDigest(imageOverride || config.railwayRuntimeImage);
 
   const input = { projectId, environmentId, name };
-  console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);
+  console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}, project=${projectId}`);
 
   const data = await gql(
     `mutation($input: ServiceCreateInput!) {
@@ -486,6 +486,41 @@ export async function setResourceLimits(
   } catch (err: any) {
     console.warn(`[railway] Failed to set limits for ${serviceId}: ${err.message}`);
   }
+}
+
+/**
+ * Deploy a new image to an existing service via environmentPatchCommit.
+ * This is the same atomic mechanism used by createService, ensuring Railway
+ * treats it as a real config change and pulls the new image.
+ */
+export async function deployImage(
+  serviceId: string,
+  image: string,
+  opts?: ProjectEnvOpts,
+): Promise<void> {
+  const environmentId = resolveEnvironmentId(opts);
+  const patch = {
+    services: {
+      [serviceId]: {
+        source: { image },
+        variables: {
+          _DEPLOY_TS: { value: Date.now().toString() },
+        },
+      },
+    },
+  };
+  console.log(`[railway] deployImage: envId=${environmentId}, service=${serviceId}, image=${image}`);
+  const result = await gql(
+    `mutation($environmentId: String!, $patch: EnvironmentConfig!, $commitMessage: String) {
+      environmentPatchCommit(environmentId: $environmentId, patch: $patch, commitMessage: $commitMessage)
+    }`,
+    {
+      environmentId,
+      patch,
+      commitMessage: `Upgrade runtime image to ${image.slice(0, 80)}`,
+    },
+  );
+  console.log(`[railway] deployImage: result=${JSON.stringify(result)}`);
 }
 
 /** Try to create a volume for a service with token rotation for rate limits. */
