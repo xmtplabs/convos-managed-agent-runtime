@@ -29,6 +29,7 @@ jobs:
       pending: ${{ steps.meta.outputs.pending }}
       tag: ${{ steps.meta.outputs.tag }}
       sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -50,12 +51,14 @@ jobs:
         run: |
           SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
           TAG="pr-${{ github.event.number }}"
+          VERSION="$(jq -r '.version' runtime/package.json)"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA | tag=$TAG | pending=pending-$SHA"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA | tag=$TAG | pending=pending-$SHA | version=$VERSION"
 
-      - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
+      - name: "Build and push v${{ steps.meta.outputs.version }} (:pending-${{ steps.meta.outputs.sha }})"
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -137,7 +140,7 @@ jobs:
         run: docker logs eval-runtime
 
   publish:
-    name: Publish image
+    name: "Publish v${{ needs.build.outputs.version }}"
     needs: [build, eval]
     if: always() && needs.build.result == 'success' && needs.eval.result == 'success'
     runs-on: ubuntu-latest
@@ -149,7 +152,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Retag :${{ needs.build.outputs.pending }} → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }}"
+      - name: "Retag v${{ needs.build.outputs.version }} (:${{ needs.build.outputs.pending }} → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }})"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           PENDING="${{ needs.build.outputs.pending }}"
@@ -164,10 +167,13 @@ jobs:
           echo "Retagged → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }}"
 
   promote:
-    name: Promote on merge
+    name: "Promote on merge"
     if: github.event.action == 'closed' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -179,6 +185,7 @@ jobs:
         id: env
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
+          VERSION="$(jq -r '.version' runtime/package.json)"
           case "$BASE" in
             scaling) echo "tag=scaling" >> "$GITHUB_OUTPUT" ;;
             dev)     echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
@@ -186,18 +193,32 @@ jobs:
             main)    echo "tag=production" >> "$GITHUB_OUTPUT" ;;
             *)       echo "tag=" >> "$GITHUB_OUTPUT" ;;
           esac
-          echo "Merge target: $BASE → tag: $(grep tag "$GITHUB_OUTPUT" | cut -d= -f2)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: "Retag image → :${{ steps.env.outputs.tag }}"
+      - name: "Verify source image exists"
+        id: verify
         if: steps.env.outputs.tag != ''
+        run: |
+          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          if skopeo inspect --authfile "$HOME/.docker/config.json" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Source image $IMAGE:sha-$SHA exists"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Source image $IMAGE:sha-$SHA not found — skipping promote (no runtime/ changes were built for this PR)"
+          fi
+
+      - name: "Promote v${{ steps.env.outputs.version }} → :${{ steps.env.outputs.tag }}"
+        if: steps.env.outputs.tag != '' && steps.verify.outputs.found == 'true'
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
           ENV_TAG="${{ steps.env.outputs.tag }}"
 
-          echo "Promoting $IMAGE:sha-$SHA → $IMAGE:$ENV_TAG"
+          echo "Promoting v${{ steps.env.outputs.version }}: $IMAGE:sha-$SHA → $IMAGE:$ENV_TAG"
           AUTH="$HOME/.docker/config.json"
           skopeo copy --all --authfile "$AUTH" \
             "docker://$IMAGE:sha-$SHA" \
             "docker://$IMAGE:$ENV_TAG"
-          echo "Done: $IMAGE:$ENV_TAG"
+          echo "Done: $IMAGE:$ENV_TAG (v${{ steps.env.outputs.version }})"

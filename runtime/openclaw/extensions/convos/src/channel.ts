@@ -461,6 +461,19 @@ async function handleInboundMessage(
     return;
   }
 
+  if (
+    inst &&
+    !msg.catchup &&
+    msg.contentType !== "group_updated" &&
+    msg.contentType !== "reaction"
+  ) {
+    try {
+      await inst.renewProfileImageOnActivity();
+    } catch (err) {
+      errorLog(`[${account.accountId}] Failed to renew profile image on activity: ${String(err)}`);
+    }
+  }
+
   const cfg = runtime.config.loadConfig();
   const rawBody = msg.content;
 

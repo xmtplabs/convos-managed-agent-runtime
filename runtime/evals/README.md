@@ -16,7 +16,7 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 cd runtime
 pnpm start              # terminal 1: start the runtime
 
-pnpm evals              # run all suites
+pnpm evals              # run all suites (openclaw, the default)
 pnpm evals:knows        # knowledge only
 pnpm evals:skills       # services only
 pnpm evals:soul         # personality only
@@ -24,23 +24,68 @@ pnpm evals:convos       # XMTP lifecycle only
 pnpm evals:async        # non-blocking only
 ```
 
+Any runtime is supported via `EVAL_RUNTIME`:
+
+```sh
+pnpm evals:hermes              # all suites against hermes
+pnpm evals:hermes:knows        # knowledge only
+pnpm evals:hermes:skills       # services only
+pnpm evals:hermes:soul         # personality only
+pnpm evals:hermes:convos       # XMTP lifecycle only
+pnpm evals:hermes:async        # non-blocking only
+```
+
 Filter to a single test:
 
 ```sh
 pnpm evals:skills -- --filter-pattern "browse"
-pnpm evals:skills -- --filter-pattern "SMS"
+pnpm evals:hermes:skills -- --filter-pattern "browse"
 pnpm evals:convos -- --filter-pattern "welcome"
 ```
 
 ## Env vars
 
-Required in `runtime/.env`:
+Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
 
-- `OPENCLAW_GATEWAY_TOKEN`
-- `EVAL_OPENROUTER_API_KEY` (falls back to `OPENROUTER_API_KEY` if unset)
+- `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
+- `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`
 - `BANKR_API_KEY`
+
+## Multi-runtime architecture
+
+The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`runtimes/<name>.mjs`) that defines how to invoke the CLI, which health endpoint to probe, and how to filter output. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
+
+To add a new runtime:
+
+1. Create `evals/runtimes/<name>.mjs` — see `hermes.mjs` for a real example:
+
+```js
+export default {
+  name: '<name>',
+  bin: '<cli-binary>',                                       // e.g. 'hermes', 'openclaw'
+  args: (prompt, session) => ['<subcommand>', prompt, ...],  // CLI args to send a prompt
+  defaultPort: '8080',                                       // fallback when PORT env is unset
+  healthPath: '/health',                                     // gateway health endpoint
+  filterLines: (lines) => lines,                             // strip runtime-specific output noise
+  needsSessionClear: false,                                  // true if file-based sessions need clearing
+  convosPath: '../../runtime-<name>/node_modules/.bin/convos', // path to convos-cli relative to evals/
+};
+```
+
+2. Add a case in `evals/runtimes/env.sh` to source the runtime's `.env` and validate required vars.
+
+3. Add npm scripts in `package.json` (all 6):
+
+```json
+"evals:<name>": "EVAL_RUNTIME=<name> sh evals/run.sh",
+"evals:<name>:knows": "EVAL_RUNTIME=<name> sh evals/run-suite.sh knows.yaml",
+"evals:<name>:skills": "EVAL_RUNTIME=<name> sh evals/run-suite.sh skills.yaml",
+"evals:<name>:soul": "EVAL_RUNTIME=<name> sh evals/run-suite.sh soul.yaml",
+"evals:<name>:convos": "EVAL_RUNTIME=<name> sh evals/run-suite.sh convos.yaml",
+"evals:<name>:async": "EVAL_RUNTIME=<name> sh evals/run-suite.sh async.yaml",
+```
 
 ## Files
 
@@ -51,13 +96,18 @@ evals/
 ├── soul.yaml              # personality & values suite config
 ├── convos.yaml            # XMTP lifecycle suite config
 ├── async.yaml             # non-blocking suite config
-├── prompt.provider.mjs    # provider: openclaw agent -m (stateless, parallel)
+├── prompt.provider.mjs    # provider: stateless prompt (parallel)
 ├── convos.provider.mjs    # provider: XMTP conversation lifecycle
 ├── async.provider.mjs     # provider: background + foreground concurrency test
 ├── assertions.mjs         # JS assertions (profile, self-destruct, response time)
-├── utils.mjs              # shared helpers
-├── run.sh                 # entry point (runs all suites)
-├── run-suite.sh           # single-suite entry point
+├── runtime.mjs            # loads the active runtime adapter
+├── utils.mjs              # shared helpers (cleanOutput, session clearing, etc.)
+├── runtimes/
+│   ├── openclaw.mjs       # runtime adapter: openclaw
+│   ├── hermes.mjs         # runtime adapter: hermes
+│   └── env.sh             # shared env setup (sources .env per runtime)
+├── run.sh                 # entry point (runs all suites, any runtime)
+├── run-suite.sh           # single-suite entry point (any runtime)
 ├── summarize.mjs          # CI summary generation
 └── test-image.png         # fixture for image recognition test
 ```

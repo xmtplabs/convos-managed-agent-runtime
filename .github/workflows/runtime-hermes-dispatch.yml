@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -39,10 +40,12 @@ jobs:
         id: meta
         run: |
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
+          VERSION="$(jq -r '.version // "unknown"' runtime-hermes/package.json 2>/dev/null || echo 'unknown')"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "Building sha-$SHA from ${{ github.ref_name }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building v$VERSION (sha-$SHA) from ${{ github.ref_name }}"
 
-      - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
+      - name: "Build and push v${{ steps.meta.outputs.version }} (:pending-${{ steps.meta.outputs.sha }})"
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -101,7 +104,7 @@ jobs:
         run: docker logs qa-runtime
 
   publish:
-    name: Publish image
+    name: "Publish v${{ needs.build.outputs.version }} → :${{ inputs.tag }}"
     needs: [build, smoke-test]
     runs-on: ubuntu-latest
     steps:
@@ -112,7 +115,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Tag and push"
+      - name: "Tag and push v${{ needs.build.outputs.version }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
           SHA="${{ needs.build.outputs.sha }}"
@@ -125,4 +128,4 @@ jobs:
 
           docker tag "$IMAGE:pending-$SHA" "$IMAGE:$TAG"
           docker push "$IMAGE:$TAG"
-          echo "Pushed $IMAGE:$TAG"
+          echo "Pushed v${{ needs.build.outputs.version }} as $IMAGE:$TAG"
