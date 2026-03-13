@@ -10,8 +10,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __adminDir = path.dirname(fileURLToPath(import.meta.url));
-const adminHtmlTemplate = fs.readFileSync(
-  path.join(__adminDir, "..", "frontend", "admin.html"),
+const dashboardHtmlTemplate = fs.readFileSync(
+  path.join(__adminDir, "..", "frontend", "dashboard.html"),
+  "utf-8",
+);
+const upgradesHtmlTemplate = fs.readFileSync(
+  path.join(__adminDir, "..", "frontend", "upgrades.html"),
   "utf-8",
 );
 const apiDocsHtmlTemplate = fs.readFileSync(
@@ -73,9 +77,13 @@ export function loginPage(error) {
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#ffffff" />
   <title>Convos Pool — Login</title>
   <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -175,7 +183,7 @@ export function loginPage(error) {
 }
 
 // --- Admin dashboard HTML ---
-export function adminPage({
+export function dashboardPage({
   poolEnvironment,
   deployBranch,
   railwayServiceId,
@@ -187,7 +195,26 @@ export function adminPage({
   protectedInstances = [] as string[],
 }) {
   const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls, protectedInstances });
-  return adminHtmlTemplate.replace(
+  return dashboardHtmlTemplate.replace(
+    "<!--__POOL_CONFIG__-->",
+    `<script>window.__POOL_CONFIG__=${config}</script>`,
+  );
+}
+
+/** @deprecated Use dashboardPage instead */
+export const adminPage = dashboardPage;
+
+// --- Upgrades page HTML ---
+export function upgradesPage({
+  poolEnvironment,
+  railwayProjectId = "",
+  railwayEnvironmentId = "",
+  runtimeImage = "",
+  adminUrls = [],
+  protectedInstances = [] as string[],
+}) {
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, adminUrls, protectedInstances });
+  return upgradesHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
   );
