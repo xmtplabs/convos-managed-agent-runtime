@@ -396,19 +396,98 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 .upgrade-refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-/* Responsive */
+/* ── Mobile (PWA-optimized) ── */
 @media (max-width: 640px) {
-  .stats, .stats.stats-5, .stats-credits { grid-template-columns: repeat(2, 1fr); }
-  .header, .header-right { flex-wrap: wrap; }
-  .header { gap: 8px; }
-  .content { padding: 16px; }
-  .replenish-card-body { gap: 12px; }
+  /* Safe area insets for notch phones */
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+
+  /* Header: compact, single row */
+  .header { padding: 8px 12px; gap: 6px; }
+  .header-left { gap: 8px; }
+  .brand-name { font-size: 14px; }
+  .brand-icon svg { width: 18px; height: 24px; }
+  .top-nav { gap: 1px; padding: 2px; }
+  .nav-link { font-size: 11px; padding: 6px 8px; }
+  .nav-sep { display: none; }
+  .logout-btn { font-size: 11px; padding: 6px 8px; }
+
+  /* Content */
+  .content { padding: 12px; }
+
+  /* Stats: 2-col on mobile, compact */
+  .stats, .stats.stats-5 { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px; }
+  .stats-credits { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-card { padding: 12px 14px; border-radius: 10px; }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 10px; }
+
+  /* Replenish: stack fields vertically */
+  .replenish-card { margin-bottom: 16px; }
+  .replenish-card-header { padding: 10px 14px; }
+  .replenish-card-title { font-size: 13px; }
+  .replenish-card-body { flex-direction: column; gap: 10px; padding: 12px 14px; }
+  .replenish-field { width: 100%; }
+  .replenish-field label { font-size: 10px; }
+  .replenish-select { width: 100%; padding: 10px 32px 10px 12px; font-size: 14px; min-height: 44px; }
+  .replenish-select-sm { min-width: unset; }
+  .replenish-input { width: 100%; padding: 10px; font-size: 14px; min-height: 44px; }
   .replenish-actions { margin-left: 0; width: 100%; }
+  .replenish-actions .btn { width: 100%; min-height: 44px; font-size: 14px; padding: 12px; }
+
+  /* Buttons: 44px min tap target */
+  .btn { min-height: 44px; padding: 10px 16px; font-size: 13px; }
+  .btn-drain-sm { min-height: 36px; font-size: 11px; }
+  .btn-upgrade { min-height: 44px; padding: 12px 20px; font-size: 14px; }
+
+  /* Launch card */
+  .launch-card { margin-bottom: 16px; }
+  .launch-card-header { padding: 12px 14px; }
+  .launch-card-body { padding: 14px; }
+  .launch-fields { grid-template-columns: 1fr; gap: 10px; }
+  .launch-field input, .launch-field textarea { padding: 10px 14px; font-size: 14px; min-height: 44px; }
+
+  /* Provision log */
+  .provision-log-body { padding: 12px; gap: 10px; }
+  .provision-instance { min-width: 100%; max-width: 100%; }
+  #drain-log .provision-instance { min-width: 100%; max-width: 100%; }
+
+  /* Table: horizontal scroll, bigger tap targets */
+  .table-card { border-radius: 10px; }
+  .table-header { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+  .search-input { min-width: 100%; font-size: 14px; padding: 10px 12px; min-height: 44px; }
+  .table-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-card table { min-width: 700px; }
+  th { padding: 8px 12px; font-size: 9px; }
+  td { padding: 10px 12px; font-size: 12px; }
+  .action-btn { width: 36px; height: 36px; }
+
+  /* Filter pills */
+  .filter-pills { flex-wrap: wrap; }
+  .filter-pill { padding: 6px 12px; font-size: 11px; min-height: 32px; }
+
+  /* Modals: full-width on mobile */
+  .modal { max-width: calc(100vw - 32px); padding: 20px; border-radius: 14px; }
+  .confirm-btn { min-height: 44px; padding: 10px 24px; font-size: 13px; }
+
+  /* Upgrade hero card */
   .upgrade-hero-card { flex-direction: column; }
   .upgrade-hero-chart { border-right: none; border-bottom: 1px solid var(--color-edge); padding: 20px; }
-  .upgrade-hero-top { flex-direction: column; gap: 12px; }
-  .upgrade-hero-stats { flex-wrap: wrap; }
+  .upgrade-hero-body { padding: 16px 14px; gap: 12px; }
+  .upgrade-hero-top { flex-direction: column; gap: 8px; }
+  .upgrade-hero-stats { flex-wrap: wrap; gap: 8px; }
   .upgrade-hero-actions { flex-direction: column; }
-  .upgrade-stream-grid { grid-template-columns: repeat(2, 1fr); }
-  th, td { padding: 10px 12px; }
+  .upgrade-hero-actions .upgrade-image-select { width: 100%; padding: 10px 32px 10px 12px; font-size: 14px; min-height: 44px; }
+  .upgrade-hero-actions .btn { width: 100%; }
+
+  /* Upgrade stream */
+  .upgrade-stream-grid { grid-template-columns: 1fr 1fr; gap: 6px; padding: 12px; }
+  .upgrade-stream-card { padding: 10px; }
+
+  /* Upgrade version list */
+  .upgrade-card-header { padding: 12px 14px; }
+  .upgrade-version-header { padding: 12px 14px; }
+  .upgrade-version-instances { padding: 0 14px 10px 14px; }
+  .upgrade-version-instance { padding: 8px 0; }
+  .upgrade-instance-btn { min-height: 36px; padding: 6px 14px; }
+  .upgrade-refresh-btn { width: 36px; height: 36px; }
 }
