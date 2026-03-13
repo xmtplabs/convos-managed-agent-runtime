@@ -31,10 +31,13 @@ from typing import Any
 from .xmtp_bridge import ConvosInstance, InboundMessage
 from .agent_runner import AgentRunner
 from .config import RuntimeConfig
+from .profile_image_renewal import ProfileImageRenewalStore
 
 logger = logging.getLogger(__name__)
 
 XMTP_MESSAGE_LIMIT = 4000
+GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
+COMPANION_SETTLE_S = 1.5
 
 
 @dataclass
@@ -145,6 +148,54 @@ def chunk_text(text: str, limit: int = XMTP_MESSAGE_LIMIT) -> list[str]:
     return chunks
 
 
+def split_group_update_segments(content: str) -> list[str]:
+    return [segment.strip() for segment in GROUP_UPDATE_SEPARATOR_RE.split(content) if segment.strip()]
+
+
+def is_member_removal_group_update(content: str) -> bool:
+    for segment in split_group_update_segments(content):
+        if re.search(r"\bleft the group$", segment, flags=re.IGNORECASE):
+            return True
+        if (
+            re.match(r"^[^;]+ removed [^;]+$", segment, flags=re.IGNORECASE)
+            and not re.search(r"\bwas removed$", segment, flags=re.IGNORECASE)
+            and not re.search(r"\bremoved .+ as admin$", segment, flags=re.IGNORECASE)
+            and not re.search(r"\bremoved .+ as super admin$", segment, flags=re.IGNORECASE)
+            and not re.search(r"\bremoved their profile photo$", segment, flags=re.IGNORECASE)
+        ):
+            return True
+    return False
+
+
+def is_inactive_group_error(err: Exception) -> bool:
+    return bool(re.search(r"\bgroup is inactive\b", str(err), flags=re.IGNORECASE))
+
+
+def is_attachment_message(msg: InboundMessage) -> bool:
+    return msg.content_type in ("attachment", "remoteStaticAttachment")
+
+
+def attachment_hold_key(msg: InboundMessage) -> str | None:
+    if not msg.conversation_id or not msg.sender_id:
+        return None
+    return f"{msg.conversation_id}:{msg.sender_id}"
+
+
+def merge_attachment_with_message(attachment_msg: InboundMessage, msg: InboundMessage) -> InboundMessage:
+    attachment_context = f"Attachment reference {attachment_msg.message_id}: {attachment_msg.content}"
+    merged_content = f"{attachment_context}\n{msg.content}".strip()
+    return InboundMessage(
+        conversation_id=msg.conversation_id,
+        message_id=msg.message_id,
+        sender_id=msg.sender_id,
+        sender_name=msg.sender_name,
+        content=merged_content,
+        content_type=msg.content_type,
+        timestamp=msg.timestamp,
+        catchup=msg.catchup,
+    )
+
+
 class ConvosAdapter:
     """
     Convos XMTP platform adapter.
@@ -160,6 +211,8 @@ class ConvosAdapter:
         self._config = config
         self._instance: ConvosInstance | None = None
         self._agent: AgentRunner | None = None
+        self._profile_image_renewal: ProfileImageRenewalStore | None = None
+        self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[Any]]] = {}
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -210,6 +263,11 @@ class ConvosAdapter:
             send_attachment=self._instance.send_attachment,
         )
 
+        self._profile_image_renewal = ProfileImageRenewalStore(
+            self._config.hermes_home,
+            conversation_id,
+        )
+
         ready_info = await self._instance.start()
 
         if name:
@@ -222,22 +280,58 @@ class ConvosAdapter:
 
     async def stop(self) -> None:
         """Stop the ConvosInstance."""
+        for _, task in self._pending_attachments.values():
+            task.cancel()
+        self._pending_attachments.clear()
+
         if self._instance:
             await self._instance.stop()
             self._instance = None
+        self._profile_image_renewal = None
         self._agent = None
 
     # ---- Message pipeline ----
 
     async def _handle_message(self, msg: InboundMessage) -> None:
+        """Route attachments through the hold/merge system, then process."""
+        hold_key = attachment_hold_key(msg)
+
+        if is_attachment_message(msg):
+            await self._hold_attachment(hold_key, msg)
+            return
+
+        if hold_key:
+            held = self._pop_held_attachment(hold_key)
+            if held:
+                msg = merge_attachment_with_message(held, msg)
+
+        await self._process_message(msg)
+
+    async def _process_message(self, msg: InboundMessage) -> None:
         """Full message pipeline: eyes -> agent -> parse -> execute -> send -> remove eyes."""
-        if msg.content_type in ("group_updated", "reaction"):
+        if msg.content_type == "reaction":
             return
 
         inst = self._instance
         agent = self._agent
         if not inst or not agent:
             logger.warning("Message received but no instance/agent active")
+            return
+
+        if msg.content_type == "group_updated":
+            termination_reason = await self._detect_membership_termination_reason(msg)
+            if termination_reason:
+                logger.info(f"Membership ended, self-destructing ({termination_reason})")
+                await self.stop()
+                return
+
+        if not msg.catchup:
+            try:
+                await self._renew_profile_image_on_activity()
+            except Exception as err:
+                logger.error(f"Profile image renewal on inbound activity failed: {err}")
+
+        if msg.content_type == "group_updated":
             return
 
         # Update member name cache
@@ -269,6 +363,68 @@ class ConvosAdapter:
                 await inst.react(msg.message_id, "\U0001f440", "remove")
             except Exception:
                 pass  # silently ignore if eyes weren't placed
+
+    # ---- Attachment hold/merge ----
+
+    async def _hold_attachment(self, hold_key: str | None, msg: InboundMessage) -> None:
+        """Hold an attachment message, waiting for a companion text message to merge with."""
+        if not hold_key:
+            await self._process_message(msg)
+            return
+
+        existing = self._pop_held_attachment(hold_key)
+        if existing:
+            asyncio.create_task(self._process_message(existing))
+
+        async def flush_attachment() -> None:
+            try:
+                await asyncio.sleep(COMPANION_SETTLE_S)
+                current = self._pending_attachments.get(hold_key)
+                if not current or current[0].message_id != msg.message_id:
+                    return
+                self._pending_attachments.pop(hold_key, None)
+                await self._process_message(msg)
+            except asyncio.CancelledError:
+                return
+
+        self._pending_attachments[hold_key] = (msg, asyncio.create_task(flush_attachment()))
+
+    def _pop_held_attachment(self, hold_key: str) -> InboundMessage | None:
+        """Cancel and return a held attachment for the given key, if any."""
+        entry = self._pending_attachments.pop(hold_key, None)
+        if not entry:
+            return None
+        attachment_msg, task = entry
+        task.cancel()
+        return attachment_msg
+
+    async def _detect_membership_termination_reason(self, msg: InboundMessage) -> str | None:
+        inst = self._instance
+        if not inst or msg.content_type != "group_updated" or not is_member_removal_group_update(msg.content):
+            return None
+
+        try:
+            profiles = await inst.refresh_member_names_strict()
+        except Exception as err:
+            if is_inactive_group_error(err):
+                return "removed from group"
+            logger.error(f"Unexpected error checking membership: {err}")
+            return None
+
+        if not profiles:
+            return None
+
+        agent_still_present = any(
+            profile.get("isMe") is True or (bool(inst.inbox_id) and profile.get("inboxId") == inst.inbox_id)
+            for profile in profiles
+        )
+        if not agent_still_present:
+            return "removed from group"
+
+        if len(profiles) == 1:
+            return "last member in group"
+
+        return None
 
 
 
@@ -308,6 +464,12 @@ class ConvosAdapter:
 
         # Send text message (either as reply or new message)
         text = strip_markdown(parsed.text)
+        if parsed.media or text:
+            try:
+                await self._renew_profile_image_on_activity()
+            except Exception as err:
+                logger.error(f"Profile image renewal on outbound activity failed: {err}")
+
         if text:
             chunks = chunk_text(text)
             for chunk in chunks:
@@ -347,9 +509,24 @@ class ConvosAdapter:
 
         try:
             await inst.update_profile(name=name, image=image)
+            if image is not None and self._profile_image_renewal is not None:
+                self._profile_image_renewal.record_applied_image(image)
             logger.info(f"Profile updated: name={name}, image={image}")
         except Exception as err:
             logger.error(f"Profile update failed: {err}")
+
+    async def _renew_profile_image_on_activity(self) -> None:
+        inst = self._instance
+        renewal = self._profile_image_renewal
+        if not inst or renewal is None:
+            return
+
+        source = renewal.due_source()
+        if not source:
+            return
+
+        await self._update_profile(image=source)
+        logger.info("Profile image renewed on activity")
 
     # ---- Delegated operations (called by server.py pool endpoints) ----
 
