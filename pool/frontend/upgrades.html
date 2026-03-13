@@ -51,7 +51,7 @@
       <div class="upgrade-hero-body">
         <div class="upgrade-hero-top">
           <div class="upgrade-hero-title">
-            <span class="upgrade-hero-heading">Runtime Upgrades</span>
+            <span class="upgrade-hero-heading">Runtime upgrades</span>
             <span class="upgrade-hero-meta"><span id="upgrade-total-count"></span> &middot; <a href="https://github.com/xmtplabs/convos-agents/blob/dev/runtime/CHANGELOG.md" target="_blank" rel="noopener" class="upgrade-changelog-link">Changelog</a></span>
           </div>
           <div class="upgrade-hero-stats" id="upgrade-target-info"></div>
@@ -75,6 +75,7 @@
     <div class="provision-log" id="upgrade-stream-log" style="margin-top:16px">
       <div class="provision-log-header" onclick="toggleUpgradeLog()">
         <span class="provision-log-title">Upgrading <span class="prov-count" id="upgrade-stream-count">0/0</span></span>
+
         <div class="provision-log-actions">
           <button class="provision-log-toggle" id="upgrade-stream-toggle">Collapse</button>
           <button class="provision-log-close" onclick="event.stopPropagation(); closeUpgradeLog()">&times;</button>
@@ -85,7 +86,7 @@
     <!-- Per-version breakdown table -->
     <div class="upgrade-card" style="margin-top:16px">
       <div class="upgrade-card-header">
-        <span class="upgrade-card-title">Instances by Version</span>
+        <span class="upgrade-card-title">Instances by version</span>
       </div>
       <div class="upgrade-version-list" id="upgrade-version-list"></div>
     </div>
@@ -254,14 +255,14 @@
 
       var btnOutdated = document.getElementById('btn-upgrade-outdated');
       btnOutdated.disabled = outdatedCount === 0 || upgradeRunning;
-      btnOutdated.textContent = outdatedCount > 0 ? 'Upgrade ' + outdatedCount + ' Outdated' : 'All Up to Date';
+      btnOutdated.textContent = outdatedCount > 0 ? 'Upgrade ' + outdatedCount + ' outdated' : 'All up to date';
 
       var listHtml = '';
       var refreshSvg = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8a6.5 6.5 0 0 1 11.25-4.5M14.5 8a6.5 6.5 0 0 1-11.25 4.5"/><path d="M14.5 2v4h-4"/><path d="M1.5 14v-4h4"/></svg>';
       buckets.forEach(function (b, i) {
         var badge = b.isLatest
-          ? '<span class="upgrade-version-badge latest">Latest</span>'
-          : (b.label === 'unknown' ? '' : '<span class="upgrade-version-badge outdated">Outdated</span>');
+          ? '<span class="upgrade-version-badge latest">latest</span>'
+          : (b.label === 'unknown' ? '' : '<span class="upgrade-version-badge outdated">outdated</span>');
         var versionIds = b.instances.map(function (inst) { return inst.id; });
         listHtml += '<div class="upgrade-version-group" data-vgroup="' + i + '">'
           + '<div class="upgrade-version-header">'
@@ -444,9 +445,9 @@
       if (!ids.length) return;
       var ok = await showConfirm({
         icon: '\u26A1',
-        title: 'Upgrade ' + ids.length + ' Instances',
+        title: 'Upgrade ' + ids.length + ' instances',
         message: 'This will redeploy ' + ids.length + ' outdated instances with the latest runtime image. They will restart sequentially.',
-        confirmLabel: 'Upgrade All',
+        confirmLabel: 'Upgrade all',
       });
       if (ok) massUpgrade(ids);
     });
