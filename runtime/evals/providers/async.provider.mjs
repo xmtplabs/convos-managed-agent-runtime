@@ -14,8 +14,8 @@
 
 import { execFileSync } from 'child_process';
 import http from 'http';
-import { runtime } from './runtime.mjs';
-import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from './utils.mjs';
+import { runtime } from '../lib/runtime.mjs';
+import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from '../lib/utils.mjs';
 
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
 let testIndex = 0;

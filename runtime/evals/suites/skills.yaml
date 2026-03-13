@@ -8,7 +8,7 @@ evaluateOptions:
   maxConcurrency: 5
 
 providers:
-  - file://prompt.provider.mjs
+  - file://../providers/prompt.provider.mjs
 
 defaultTest:
   options:
