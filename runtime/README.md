@@ -86,12 +86,11 @@ All values are injected by the pool manager via Railway env vars at instance cre
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENCLAW_PRIMARY_MODEL` | yes | Default LLM model (e.g. `openrouter/anthropic/claude-sonnet-4-6`) |
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key for LLM calls |
 | `XMTP_ENV` | yes | XMTP network (`dev` or `production`) |
 | `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |
 | `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
-| `POOL_URL` | no | Pool manager URL — service calls (email, SMS) are proxied through this |
+| `POOL_URL` | no | Pool manager URL — auto-derived from `config/pool-urls.json` on Railway; set manually for local dev |
 | `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |
 
 ### Docker / Railway only
