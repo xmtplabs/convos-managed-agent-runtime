@@ -12,6 +12,8 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 
 ## Running
 
+### OpenClaw runtime
+
 ```sh
 cd runtime
 pnpm start              # terminal 1: start the runtime
@@ -24,11 +26,28 @@ pnpm evals:convos       # XMTP lifecycle only
 pnpm evals:async        # non-blocking only
 ```
 
+### Hermes runtime
+
+The same 5 YAML suites run against Hermes via `EVAL_RUNTIME=hermes`. Providers switch to `hermes chat -q` instead of `openclaw agent -m`.
+
+```sh
+cd runtime
+# terminal 1: start hermes (in runtime-hermes/)
+pnpm evals:hermes              # run all suites against hermes
+pnpm evals:hermes:knows        # knowledge only
+pnpm evals:hermes:skills       # services only
+pnpm evals:hermes:soul         # personality only
+pnpm evals:hermes:convos       # XMTP lifecycle only
+pnpm evals:hermes:async        # non-blocking only
+```
+
+### Filtering
+
 Filter to a single test:
 
 ```sh
 pnpm evals:skills -- --filter-pattern "browse"
-pnpm evals:skills -- --filter-pattern "SMS"
+pnpm evals:hermes:skills -- --filter-pattern "browse"
 pnpm evals:convos -- --filter-pattern "welcome"
 ```
 
@@ -41,6 +60,12 @@ Required in `runtime/.env`:
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`
 - `BANKR_API_KEY`
+
+Additional for Hermes (in `runtime-hermes/.env`):
+
+- `OPENCLAW_GATEWAY_TOKEN` (must be set explicitly — hermes auto-generates one otherwise, but the eval runner needs to know it)
+- `PORT` (defaults to `8080`)
+- `OPENROUTER_API_KEY`
 
 ## Files
 
@@ -58,6 +83,8 @@ evals/
 ├── utils.mjs              # shared helpers
 ├── run.sh                 # entry point (runs all suites)
 ├── run-suite.sh           # single-suite entry point
+├── run-hermes.sh          # entry point (runs all suites against hermes)
+├── run-hermes-suite.sh    # single-suite entry point for hermes
 ├── summarize.mjs          # CI summary generation
 └── test-image.png         # fixture for image recognition test
 ```
