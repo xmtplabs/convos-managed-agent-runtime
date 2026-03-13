@@ -6,6 +6,8 @@ echo "  convos-runtime-hermes"
 echo "  ====================="
 echo ""
 
+export CONVOS_REPO_ROOT="/app"
+
 # Validate required env vars
 if [ -z "$OPENROUTER_API_KEY" ]; then
   echo "  ERROR: OPENROUTER_API_KEY is required but not set" >&2
@@ -19,6 +21,13 @@ if [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ]; then
   mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
   # Seed SOUL.md from the image if not already on the volume
   [ ! -f "$HERMES_HOME/SOUL.md" ] && cp /app/.hermes/SOUL.md "$HERMES_HOME/SOUL.md"
+  [ ! -f "$HERMES_HOME/config.yaml" ] && cp /app/.hermes/config.yaml "$HERMES_HOME/config.yaml"
+  for skill_dir in /app/.hermes/skills/*; do
+    [ -d "$skill_dir" ] || continue
+    skill_name="$(basename "$skill_dir")"
+    rm -rf "$HERMES_HOME/skills/$skill_name"
+    cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
+  done
   echo "  HERMES_HOME      -> $HERMES_HOME (volume-backed)"
 else
   echo "  HERMES_HOME      -> ${HERMES_HOME:-/app/.hermes} (ephemeral)"

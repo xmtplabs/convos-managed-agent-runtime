@@ -1,0 +1,32 @@
+#!/bin/sh
+set -e
+
+SOURCE_PATH="$0"
+if [ -n "${BASH_SOURCE:-}" ]; then
+  SOURCE_PATH="${BASH_SOURCE[0]}"
+elif [ -n "${ZSH_VERSION:-}" ]; then
+  SOURCE_PATH="$(eval 'printf %s "${(%):-%N}"')"
+fi
+
+BIN_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
+RUNTIME_DIR="$(cd "$BIN_DIR/.." && pwd)"
+
+if [ -z "${HERMES_HOME:-}" ]; then
+  . "$RUNTIME_DIR/scripts/eval-env.sh"
+fi
+
+export PYTHONPATH="$RUNTIME_DIR/.hermes-dev/hermes-agent${PYTHONPATH:+:$PYTHONPATH}"
+
+if [ "$1" = "chat" ]; then
+  shift
+
+  case " $* " in
+    *" -q "*|*" --query "*)
+      exec python3 "$RUNTIME_DIR/scripts/eval-chat.py" "$@"
+      ;;
+  esac
+
+  exec python3 -m hermes_cli.main chat "$@"
+fi
+
+exec python3 -m hermes_cli.main "$@"
