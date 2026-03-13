@@ -123,6 +123,14 @@ export default class MemoryProvider {
         log(`Store reply (${elapsed(t)}): "${store.output.slice(0, 100)}"`);
       }
 
+      // 1b. Diagnostic: check if store phase wrote to MEMORY.md
+      const postStore = readMemoryFile();
+      const postStoreLines = postStore.split('\n').filter(l => {
+        const t = l.trim();
+        return t && t !== '---' && !t.startsWith('#') && !/^_.*_$/.test(t) && !/^title:|^summary:/.test(t);
+      });
+      log(`Post-store MEMORY.md: ${postStoreLines.length} substantive line(s)${postStoreLines.length > 0 ? ` — first: "${postStoreLines[0].trim().slice(0, 80)}"` : ' (empty — agent did NOT write)'}`);
+
       // 2. Clear sessions so recall has ZERO conversation history.
       //    The agent:main:main session key is shared across --session-id values,
       //    so without this the recall would just read the store prompt from history.
