@@ -5,6 +5,7 @@ import { existsSync, readdirSync, unlinkSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
+import { runtime } from './runtime.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
@@ -12,8 +13,8 @@ let _sessionsCleared = false;
 
 export function resolveConvos() {
   const candidates = [
-    '/app/node_modules/.bin/convos',                        // Docker container
-    resolve(__dirname, '../../../node_modules/.bin/convos'), // local (runtime/)
+    '/app/node_modules/.bin/convos',                          // Docker container
+    resolve(__dirname, runtime.convosPath),                    // runtime-specific local path
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -39,6 +40,11 @@ export function log(prefix, msg) {
 // --session-id, so previous eval runs bleed into new ones without this.
 export function clearSessionsOnce(agentId = 'main') {
   if (_sessionsCleared) return;
+  if (!runtime.needsSessionClear) {
+    log('eval', `${runtime.name}: skipping session clear (not needed)`);
+    _sessionsCleared = true;
+    return;
+  }
   const sessionsDir = join(STATE_DIR, 'agents', agentId, 'sessions');
   try {
     for (const f of readdirSync(sessionsDir)) {
@@ -49,4 +55,16 @@ export function clearSessionsOnce(agentId = 'main') {
     log('eval', `No sessions dir at ${sessionsDir} (ok for Docker)`);
   }
   _sessionsCleared = true;
+}
+
+// Strip runtime-specific noise from CLI output.
+// Removes ANSI escape codes, openclaw timestamp lines, and any
+// runtime-specific lines via the adapter's filterLines().
+export function cleanOutput(raw) {
+  const lines = raw.split('\n')
+    .filter((l) => !l.match(/^\d{2}:\d{2}:\d{2} \[/));
+  return runtime.filterLines(lines)
+    .join('\n')
+    .replace(/\x1b\[[0-9;]*m/g, '')
+    .trim();
 }
