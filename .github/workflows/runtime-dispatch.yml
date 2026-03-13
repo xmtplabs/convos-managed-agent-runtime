@@ -78,6 +78,8 @@ jobs:
             timeout: 600
           - suite: async
             timeout: 120
+          - suite: memory
+            timeout: 300
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v3
