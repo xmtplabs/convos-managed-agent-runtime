@@ -65,27 +65,31 @@ The eval suite supports multiple runtimes via an adapter pattern. Each runtime p
 
 To add a new runtime:
 
-1. Create `evals/runtimes/<name>.mjs`:
+1. Create `evals/runtimes/<name>.mjs` — see `hermes.mjs` for a real example:
 
 ```js
 export default {
   name: '<name>',
-  bin: '<cli-binary>',
-  args: (prompt, session) => ['<subcommand>', prompt, ...],
-  healthPath: '/health',
-  filterLines: (lines) => lines,    // strip runtime-specific noise
-  needsSessionClear: false,         // true if file-based sessions need clearing
-  convosPath: null,                 // relative path to convos-cli, or null for default
+  bin: '<cli-binary>',                                       // e.g. 'hermes', 'openclaw'
+  args: (prompt, session) => ['<subcommand>', prompt, ...],  // CLI args to send a prompt
+  healthPath: '/health',                                     // gateway health endpoint
+  filterLines: (lines) => lines,                             // strip runtime-specific output noise
+  needsSessionClear: false,                                  // true if file-based sessions need clearing
+  convosPath: '../../runtime-<name>/node_modules/.bin/convos', // path to convos-cli relative to evals/
 };
 ```
 
-2. Add a case in `evals/runtimes/env.sh` to source the runtime's `.env`.
+2. Add a case in `evals/runtimes/env.sh` to source the runtime's `.env` and validate required vars.
 
-3. Add npm scripts in `package.json`:
+3. Add npm scripts in `package.json` (all 6):
 
 ```json
 "evals:<name>": "EVAL_RUNTIME=<name> sh evals/run.sh",
 "evals:<name>:knows": "EVAL_RUNTIME=<name> sh evals/run-suite.sh knows.yaml",
+"evals:<name>:skills": "EVAL_RUNTIME=<name> sh evals/run-suite.sh skills.yaml",
+"evals:<name>:soul": "EVAL_RUNTIME=<name> sh evals/run-suite.sh soul.yaml",
+"evals:<name>:convos": "EVAL_RUNTIME=<name> sh evals/run-suite.sh convos.yaml",
+"evals:<name>:async": "EVAL_RUNTIME=<name> sh evals/run-suite.sh async.yaml",
 ```
 
 ## Files
