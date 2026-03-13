@@ -66,6 +66,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
+          build-args: |
+            POOL_URL=https://convos-agents-dev.up.railway.app
           cache-from: type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}
           cache-to: type=inline
 
@@ -111,7 +113,6 @@ jobs:
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            -e POOL_URL="${{ secrets.POOL_URL }}" \
             -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
             ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
             node scripts/pool-server.js

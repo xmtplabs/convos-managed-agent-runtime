@@ -32,22 +32,22 @@ fi
 # ── Pool ──────────────────────────────────────────────────────────────────
 brand_subsection "pool"
 
-# Derive POOL_URL from config/pool-urls.json when not explicitly set
-if [ -z "$POOL_URL" ] && [ -n "$RAILWAY_ENVIRONMENT_NAME" ] && command -v jq >/dev/null 2>&1; then
-  _pool_urls_file="$ROOT/config/pool-urls.json"
-  if [ -f "$_pool_urls_file" ]; then
-    _derived_url=$(jq -r --arg env "$RAILWAY_ENVIRONMENT_NAME" '.[$env] // empty' "$_pool_urls_file")
-    if [ -n "$_derived_url" ]; then
-      export POOL_URL="$_derived_url"
-      brand_ok "POOL_URL" "$POOL_URL (from config)"
+# Derive POOL_URL from baked-in config/pool-url when not explicitly set
+if [ -z "$POOL_URL" ]; then
+  _pool_url_file="$ROOT/config/pool-url"
+  if [ -f "$_pool_url_file" ]; then
+    _baked_url="$(cat "$_pool_url_file" | tr -d '[:space:]')"
+    if [ -n "$_baked_url" ]; then
+      export POOL_URL="$_baked_url"
+      brand_ok "POOL_URL" "$POOL_URL (from image)"
     else
-      brand_dim "POOL_URL" "no mapping for '$RAILWAY_ENVIRONMENT_NAME'"
+      brand_dim "POOL_URL" "config/pool-url is empty"
     fi
   else
-    brand_dim "POOL_URL" "config/pool-urls.json not found"
+    brand_dim "POOL_URL" "not set"
   fi
 else
-  [ -n "$POOL_URL" ] && brand_ok "POOL_URL" "$POOL_URL" || brand_dim "POOL_URL" "not set"
+  brand_ok "POOL_URL" "$POOL_URL"
 fi
 [ -n "$INSTANCE_ID" ] && brand_ok "INSTANCE_ID" "$INSTANCE_ID" || brand_dim "INSTANCE_ID" "not set"
 
