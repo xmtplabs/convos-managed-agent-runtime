@@ -1,0 +1,5 @@
+{
+  "dev": "https://convos-agents-dev.up.railway.app",
+  "staging": "https://convos-agents-staging.up.railway.app",
+  "production": "https://convos-agents-production.up.railway.app"
+}

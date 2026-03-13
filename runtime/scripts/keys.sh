@@ -31,7 +31,24 @@ fi
 
 # ── Pool ──────────────────────────────────────────────────────────────────
 brand_subsection "pool"
-[ -n "$POOL_URL" ] && brand_ok "POOL_URL" "$POOL_URL" || brand_dim "POOL_URL" "not set"
+
+# Derive POOL_URL from config/pool-urls.json when not explicitly set
+if [ -z "$POOL_URL" ] && [ -n "$RAILWAY_ENVIRONMENT_NAME" ] && command -v jq >/dev/null 2>&1; then
+  _pool_urls_file="$ROOT/config/pool-urls.json"
+  if [ -f "$_pool_urls_file" ]; then
+    _derived_url=$(jq -r --arg env "$RAILWAY_ENVIRONMENT_NAME" '.[$env] // empty' "$_pool_urls_file")
+    if [ -n "$_derived_url" ]; then
+      export POOL_URL="$_derived_url"
+      brand_ok "POOL_URL" "$POOL_URL (from config)"
+    else
+      brand_dim "POOL_URL" "no mapping for '$RAILWAY_ENVIRONMENT_NAME'"
+    fi
+  else
+    brand_dim "POOL_URL" "config/pool-urls.json not found"
+  fi
+else
+  [ -n "$POOL_URL" ] && brand_ok "POOL_URL" "$POOL_URL" || brand_dim "POOL_URL" "not set"
+fi
 [ -n "$INSTANCE_ID" ] && brand_ok "INSTANCE_ID" "$INSTANCE_ID" || brand_dim "INSTANCE_ID" "not set"
 
 # ── OpenClaw ──────────────────────────────────────────────────────────────
@@ -43,12 +60,6 @@ if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
 else
   gateway_token=$(openssl rand -hex 32)
   brand_info "OPENCLAW_GATEWAY_TOKEN" "generated"
-fi
-
-if [ -n "$OPENCLAW_PRIMARY_MODEL" ]; then
-  brand_ok "OPENCLAW_PRIMARY_MODEL" "$OPENCLAW_PRIMARY_MODEL"
-else
-  brand_dim "OPENCLAW_PRIMARY_MODEL" "not set"
 fi
 
 if [ -n "$XMTP_ENV" ]; then
