@@ -43,42 +43,30 @@
   </div>
 
   <div class="content">
-    <div class="upgrades-grid">
-      <!-- Pie chart card -->
-      <div class="upgrade-card upgrade-chart-card">
-        <div class="upgrade-card-header">
-          <span class="upgrade-card-title">Version Distribution</span>
-          <span class="upgrade-card-subtitle" id="upgrade-total-count"></span>
-        </div>
-        <div class="upgrade-chart-body">
+    <!-- Unified upgrade hero card -->
+    <div class="upgrade-card">
+      <div class="upgrade-card-header">
+        <span class="upgrade-card-title">Runtime Upgrades</span>
+        <span class="upgrade-card-subtitle"><span id="upgrade-total-count"></span> &middot; <a href="https://github.com/xmtplabs/convos-agents/blob/dev/runtime/CHANGELOG.md" target="_blank" rel="noopener" class="upgrade-changelog-link">Changelog</a></span>
+      </div>
+      <div class="upgrade-hero">
+        <div class="upgrade-hero-left">
           <canvas id="version-pie" width="200" height="200"></canvas>
           <div class="upgrade-legend" id="version-legend"></div>
         </div>
-      </div>
-      <!-- Upgrade actions card -->
-      <div class="upgrade-card">
-        <div class="upgrade-card-header">
-          <span class="upgrade-card-title">Upgrade in mass</span>
-        </div>
-        <div class="upgrade-actions-body">
-          <p class="upgrade-hint">Push the latest runtime image to instances that are behind.</p>
+        <div class="upgrade-hero-right">
           <div class="upgrade-target-info" id="upgrade-target-info"></div>
-          <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <label style="font-size:12px;color:var(--color-muted);white-space:nowrap">Image</label>
-              <select id="upgrade-image-picker" style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--color-border);font-size:13px;background:#fff;font-family:var(--font-mono);cursor:pointer">
-                <option value="">Default (pool config)</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
-                <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
-              </select>
-            </div>
-            <div class="upgrade-btn-row" style="gap:8px;align-items:center">
-              <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled style="font-size:12px;padding:5px 14px">Upgrade Outdated</button>
-            </div>
+          <div class="upgrade-hero-controls">
+            <select id="upgrade-image-picker" class="upgrade-image-select">
+              <option value="">Default (pool config)</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
+            </select>
+            <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade Outdated</button>
           </div>
         </div>
       </div>
@@ -92,7 +80,7 @@
           <button class="provision-log-close" onclick="event.stopPropagation(); closeUpgradeLog()">&times;</button>
         </div>
       </div>
-      <div class="provision-log-body" id="upgrade-stream-body"></div>
+      <div class="upgrade-stream-grid" id="upgrade-stream-body"></div>
     </div>
     <!-- Per-version breakdown table -->
     <div class="upgrade-card" style="margin-top:16px">
@@ -331,10 +319,6 @@
     }
 
     // --- Upgrade streaming log ---
-    var UPGRADE_STEPS = [
-      { key: 'deploy', label: 'Deploy image' }
-    ];
-
     var upgradeStreamTotal = 0;
     var upgradeStreamDone = 0;
     var upgradeInstanceInfo = {};
@@ -353,19 +337,10 @@
 
       for (var i = 1; i <= count; i++) {
         var card = document.createElement('div');
-        card.className = 'provision-instance';
+        card.className = 'upgrade-stream-card';
         card.id = 'upgrade-inst-' + i;
-        var stepsHtml = '';
-        UPGRADE_STEPS.forEach(function (s) {
-          stepsHtml += '<div class="provision-step pending" id="upgrade-step-' + i + '-' + s.key + '">'
-            + '<span class="provision-step-icon"></span>'
-            + '<span class="provision-step-label">' + s.label + '</span>'
-            + '<span class="provision-step-msg"></span>'
-            + '</div>';
-        });
-        card.innerHTML = '<div class="provision-instance-header" id="upgrade-inst-header-' + i + '">Instance ' + i
-          + ' <span class="prov-status in-progress" id="upgrade-inst-status-' + i + '">Pending</span></div>'
-          + '<div class="provision-steps">' + stepsHtml + '</div>';
+        card.innerHTML = '<span class="upgrade-stream-name" id="upgrade-inst-header-' + i + '">Instance ' + i + '</span>'
+          + ' <span class="prov-status in-progress" id="upgrade-inst-status-' + i + '">Pending</span>';
         body.appendChild(card);
       }
     }
@@ -375,26 +350,16 @@
       if (!info) return;
       var header = document.getElementById('upgrade-inst-header-' + instanceNum);
       if (!header) return;
-      var statusEl = document.getElementById('upgrade-inst-status-' + instanceNum);
-      var statusHtml = statusEl ? statusEl.outerHTML : '';
       var nameHtml = info.railwayUrl
         ? '<a class="provision-step-link" href="' + esc(info.railwayUrl) + '" target="_blank" rel="noopener">' + esc(info.name) + '</a>'
         : esc(info.name);
       var versionHtml = info.version && info.version !== 'unknown'
         ? ' <span style="font-size:10px;color:var(--color-foreground-tertiary);font-weight:400">' + esc(info.version) + '</span>'
         : '';
-      header.innerHTML = nameHtml + versionHtml + ' ' + statusHtml;
+      header.innerHTML = nameHtml + versionHtml;
     }
 
-    function updateUpgradeStep(instanceNum, step, status, message) {
-      var el = document.getElementById('upgrade-step-' + instanceNum + '-' + step);
-      if (!el) return;
-      el.className = 'provision-step ' + status;
-      var msgEl = el.querySelector('.provision-step-msg');
-      if (msgEl && message) msgEl.textContent = message;
-    }
-
-    function markUpgradeInstance(instanceNum, success) {
+    function markUpgradeInstance(instanceNum, success, message) {
       upgradeStreamDone++;
       document.getElementById('upgrade-stream-count').textContent = upgradeStreamDone + '/' + upgradeStreamTotal;
       var statusEl = document.getElementById('upgrade-inst-status-' + instanceNum);
@@ -404,7 +369,7 @@
           statusEl.textContent = 'Done';
         } else {
           statusEl.className = 'prov-status failed';
-          statusEl.textContent = 'Failed';
+          statusEl.textContent = message || 'Failed';
         }
       }
     }
@@ -444,14 +409,10 @@
             if (data.step === 'done') {
               markUpgradeInstance(data.instanceNum, true);
             } else if (data.step === 'error') {
-              updateUpgradeStep(data.instanceNum, 'deploy', 'fail', data.message);
-              markUpgradeInstance(data.instanceNum, false);
-            } else {
-              updateUpgradeStep(data.instanceNum, data.step, data.status, data.message);
-              if (data.status === 'active') {
-                var statusEl = document.getElementById('upgrade-inst-status-' + data.instanceNum);
-                if (statusEl) { statusEl.className = 'prov-status in-progress'; statusEl.textContent = 'Upgrading'; }
-              }
+              markUpgradeInstance(data.instanceNum, false, data.message);
+            } else if (data.status === 'active') {
+              var statusEl = document.getElementById('upgrade-inst-status-' + data.instanceNum);
+              if (statusEl) { statusEl.className = 'prov-status in-progress'; statusEl.textContent = 'Upgrading'; }
             }
           } else if (data.type === 'complete') {
             es.close();
