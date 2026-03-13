@@ -298,7 +298,6 @@
               </div>
               <div class="upgrade-btn-row" style="gap:8px;align-items:center">
                 <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled style="font-size:12px;padding:5px 14px">Upgrade Outdated</button>
-                <button class="btn btn-danger btn-upgrade" id="btn-upgrade-all" disabled style="font-size:12px;padding:5px 14px">Upgrade All</button>
                 <button class="btn" id="btn-refresh-versions" style="margin-left:auto;font-size:11px;padding:4px 10px;opacity:0.6">Refresh Versions</button>
               </div>
             </div>
@@ -1820,10 +1819,8 @@
 
       // Buttons
       var btnOutdated = document.getElementById('btn-upgrade-outdated');
-      var btnAll = document.getElementById('btn-upgrade-all');
       btnOutdated.disabled = outdatedCount === 0 || upgradeRunning;
       btnOutdated.textContent = outdatedCount > 0 ? 'Upgrade ' + outdatedCount + ' Outdated' : 'All Up to Date';
-      btnAll.disabled = total === 0 || upgradeRunning;
 
       // Version breakdown list
       var listHtml = '';
@@ -1943,20 +1940,6 @@
         title: 'Upgrade ' + ids.length + ' Instances',
         message: 'This will redeploy ' + ids.length + ' outdated instances with the latest runtime image. They will restart sequentially.',
         confirmLabel: 'Upgrade All',
-      });
-      if (ok) massUpgrade(ids);
-    });
-
-    document.getElementById('btn-upgrade-all').addEventListener('click', async function () {
-      var all = claimedCache.concat(idleCache).concat(startingCache);
-      var ids = all.map(function (a) { return a.id; });
-      if (!ids.length) return;
-      var ok = await showConfirm({
-        icon: '\u26A0\uFE0F',
-        title: 'Upgrade ALL ' + ids.length + ' Instances',
-        message: 'This will redeploy every instance (including ones already on the latest version). They will restart sequentially.',
-        confirmLabel: 'Upgrade All',
-        danger: true,
       });
       if (ok) massUpgrade(ids);
     });
