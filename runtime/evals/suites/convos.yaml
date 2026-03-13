@@ -7,7 +7,7 @@ evaluateOptions:
   maxConcurrency: 1
 
 providers:
-  - file://convos.provider.mjs
+  - file://../providers/convos.provider.mjs
 
 defaultTest:
   options:
@@ -35,20 +35,20 @@ tests:
       expectedName: "QA Bot Alpha"
     assert:
       - type: javascript
-        value: "file://assertions.mjs:profileNameEquals"
+        value: "file://../lib/assertions.mjs:profileNameEquals"
 
   - description: "Agent can update profile photo"
     vars:
       prompt: "Update your profile photo to https://avatars.githubusercontent.com/u/82580170. Confirm when done."
     assert:
       - type: javascript
-        value: "file://assertions.mjs:profileImageSet"
+        value: "file://../lib/assertions.mjs:profileImageSet"
 
   - description: "Agent can recognize image content"
     vars:
       prompt: "What do you see in that image? Describe it briefly."
     metadata:
-      attachment: "./test-image.png"
+      attachment: "../fixtures/test-image.png"
     assert:
       - type: regex
         value: "[Dd]ice"
@@ -84,4 +84,4 @@ tests:
       selfDestruct: true
     assert:
       - type: javascript
-        value: "file://assertions.mjs:agentSelfDestructed"
+        value: "file://../lib/assertions.mjs:agentSelfDestructed"

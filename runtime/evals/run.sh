@@ -34,22 +34,22 @@ fi
 failed=0
 
 echo "=== ${RUNTIME_LABEL}: Knowledge eval (parallel) ==="
-$base_cmd -c "$EVAL_DIR/knows.yaml" "$@" || failed=1
+$base_cmd -c "$EVAL_DIR/suites/knows.yaml" "$@" || failed=1
 
 echo ""
 echo "=== ${RUNTIME_LABEL}: Skills eval (parallel) ==="
-$base_cmd -c "$EVAL_DIR/skills.yaml" "$@" || failed=1
+$base_cmd -c "$EVAL_DIR/suites/skills.yaml" "$@" || failed=1
 
 echo ""
 echo "=== ${RUNTIME_LABEL}: Soul eval (parallel) ==="
-$base_cmd -c "$EVAL_DIR/soul.yaml" "$@" || failed=1
+$base_cmd -c "$EVAL_DIR/suites/soul.yaml" "$@" || failed=1
 
 echo ""
 echo "=== ${RUNTIME_LABEL}: Convos lifecycle eval (sequential) ==="
-$base_cmd -c "$EVAL_DIR/convos.yaml" "$@" || failed=1
+$base_cmd -c "$EVAL_DIR/suites/convos.yaml" "$@" || failed=1
 
 echo ""
 echo "=== ${RUNTIME_LABEL}: Async eval (sequential) ==="
-$base_cmd -c "$EVAL_DIR/async.yaml" "$@" || failed=1
+$base_cmd -c "$EVAL_DIR/suites/async.yaml" "$@" || failed=1
 
 exit $failed

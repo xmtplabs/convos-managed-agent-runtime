@@ -3,8 +3,8 @@
 // Clears session history on first call so the agent starts fresh.
 
 import { execFileSync } from 'child_process';
-import { runtime } from './runtime.mjs';
-import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from './utils.mjs';
+import { runtime } from '../lib/runtime.mjs';
+import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from '../lib/utils.mjs';
 
 let testIndex = 0;
 

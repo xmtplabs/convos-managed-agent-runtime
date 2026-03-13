@@ -7,8 +7,8 @@ import { execSync, execFileSync, spawn } from 'child_process';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { resolveConvos, sleep, elapsed, log as _log } from './utils.mjs';
-import { runtime } from './runtime.mjs';
+import { resolveConvos, sleep, elapsed, log as _log } from '../lib/utils.mjs';
+import { runtime } from '../lib/runtime.mjs';
 
 const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;

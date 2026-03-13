@@ -9,4 +9,4 @@ _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 SUITE="$1"; shift
 # Strip leading "--" that pnpm injects
 [ "$1" = "--" ] && shift
-exec npx promptfoo eval -c "$EVAL_DIR/$SUITE" --table-cell-max-length 1000 "$@"
+exec npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@"

@@ -11,7 +11,7 @@ evaluateOptions:
   maxConcurrency: 1
 
 providers:
-  - file://async.provider.mjs
+  - file://../providers/async.provider.mjs
 
 defaultTest:
   options:
@@ -34,7 +34,7 @@ tests:
         value: "\\d{1,2}[:.:]\\d{2}"
       # Gateway stayed responsive
       - type: javascript
-        value: "file://assertions.mjs:gatewayHealthDuringLoad"
+        value: "file://../lib/assertions.mjs:gatewayHealthDuringLoad"
       # Agent delegated the heavy task (ack'd quickly, didn't block)
       - type: javascript
-        value: "file://assertions.mjs:agentDelegatedHeavyTask"
+        value: "file://../lib/assertions.mjs:agentDelegatedHeavyTask"
