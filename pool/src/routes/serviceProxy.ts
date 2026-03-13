@@ -11,6 +11,7 @@
  */
 
 import { Router } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { requireInstanceAuth } from "../middleware/instanceAuth";
 import { config } from "../config";
 import * as db from "../db/pool";
@@ -22,8 +23,33 @@ import { metricCount, metricHistogram } from "../metrics";
 
 const router = Router();
 
-// All proxy routes require instance auth
-router.use("/api/proxy", requireInstanceAuth);
+/**
+ * Admin-or-instance auth for provision endpoints.
+ * Accepts either:
+ *   - Instance auth (Bearer <instanceId>:<gatewayToken>) — instanceId from token
+ *   - Admin auth (Bearer <poolApiKey>) — instanceId from request body
+ */
+async function requireInstanceOrAdminAuth(req: Request, res: Response, next: NextFunction) {
+  // Try instance auth first
+  const authHeader = req.headers.authorization || "";
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch) {
+    const token = bearerMatch[1];
+    // Admin auth: token matches pool API key, instanceId from body
+    if (token === config.poolApiKey) {
+      const instanceId = req.body?.instanceId;
+      if (!instanceId) {
+        res.status(400).json({ error: "instanceId required in body when using admin auth" });
+        return;
+      }
+      req.instanceId = instanceId;
+      next();
+      return;
+    }
+  }
+  // Fall through to instance auth
+  return requireInstanceAuth(req, res, next);
+}
 
 // ── Service resource cache ──────────────────────────────────────────────────
 // inbox/phone are static for instance lifetime — cache to avoid DB hits per request
@@ -38,20 +64,12 @@ async function getResources(instanceId: string) {
   return data;
 }
 
-// ── Instance info ────────────────────────────────────────────────────────────
-
-// GET /api/proxy/info — return instance's provisioned resources
-router.get("/api/proxy/info", async (req, res) => {
-  const { inboxId, phoneNumber } = await getResources(req.instanceId!);
-  res.json({ instanceId: req.instanceId, email: inboxId, phone: phoneNumber });
-});
-
 // ── On-demand provisioning ───────────────────────────────────────────────────
-// Instances call these once to get an email inbox or phone number assigned.
+// Explicit provisioning only. Accepts instance auth OR admin auth (pool API key + instanceId in body).
 // Idempotent: returns the existing resource if already provisioned.
 
 // POST /api/proxy/email/provision — provision an AgentMail inbox for this instance
-router.post("/api/proxy/email/provision", async (req, res) => {
+router.post("/api/proxy/email/provision", requireInstanceOrAdminAuth, async (req, res) => {
   const instanceId = req.instanceId!;
   const { inboxId: existing } = await getResources(instanceId);
   if (existing) { res.json({ email: existing, provisioned: false }); return; }
@@ -79,7 +97,7 @@ router.post("/api/proxy/email/provision", async (req, res) => {
 });
 
 // POST /api/proxy/sms/provision — provision a Telnyx phone number for this instance
-router.post("/api/proxy/sms/provision", async (req, res) => {
+router.post("/api/proxy/sms/provision", requireInstanceOrAdminAuth, async (req, res) => {
   const instanceId = req.instanceId!;
   const { phoneNumber: existing } = await getResources(instanceId);
   if (existing) { res.json({ phone: existing, provisioned: false }); return; }
@@ -105,6 +123,17 @@ router.post("/api/proxy/sms/provision", async (req, res) => {
     metricCount("proxy.sms.provision_error");
     res.status(502).json({ error: `SMS provisioning failed: ${err.message}` });
   }
+});
+
+// All other proxy routes require instance auth
+router.use("/api/proxy", requireInstanceAuth);
+
+// ── Instance info ────────────────────────────────────────────────────────────
+
+// GET /api/proxy/info — return instance's provisioned resources
+router.get("/api/proxy/info", async (req, res) => {
+  const { inboxId, phoneNumber } = await getResources(req.instanceId!);
+  res.json({ instanceId: req.instanceId, email: inboxId, phone: phoneNumber });
 });
 
 // ── Email (AgentMail) ───────────────────────────────────────────────────────

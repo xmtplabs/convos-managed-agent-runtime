@@ -25,14 +25,14 @@ const DIRECT_API = "https://api.agentmail.to/v0";
 const apiKey = process.env.AGENTMAIL_API_KEY;
 const inboxId = process.env.AGENTMAIL_INBOX_ID;
 
-/** Ensure email is available — provisions on first use in proxy mode. */
-async function requireEnv() {
+/** Ensure email is available. Use --no-provision to silently exit when not provisioned. */
+async function requireEnv({ noProvision = false } = {}) {
   if (!useProxy) {
     if (!apiKey) { console.error("Email service not configured: missing API key"); process.exit(1); }
     if (!inboxId) { console.error("Email service not configured: missing inbox"); process.exit(1); }
     return;
   }
-  // Proxy mode — check if inbox exists, provision if not
+  // Proxy mode — check if inbox exists
   const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
     headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
   });
@@ -40,19 +40,12 @@ async function requireEnv() {
   const info = await infoRes.json();
   if (info.email) return; // already provisioned
 
-  // Provision on demand
-  console.log("Email not yet provisioned — requesting inbox...");
-  const provRes = await fetch(`${POOL_URL}/api/proxy/email/provision`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
-  });
-  if (!provRes.ok) {
-    const err = await provRes.json().catch(() => ({}));
-    console.error(`Email provisioning failed: ${err.error || provRes.status}`);
-    process.exit(1);
+  // Not provisioned — either skip silently or fail
+  if (noProvision) {
+    process.exit(0);
   }
-  const result = await provRes.json();
-  console.log(`Email provisioned: ${result.email}`);
+  console.error("Email not provisioned. Use the provision endpoint first.");
+  process.exit(1);
 }
 
 async function api(method, path, body) {
@@ -112,8 +105,8 @@ function parseArgs(argv) {
 }
 
 async function send(argv) {
-  await requireEnv();
-  const { map } = parseArgs(argv);
+  const { map, flags } = parseArgs(argv);
+  await requireEnv({ noProvision: flags.includes("no-provision") });
   const to = map.to;
   const subject = map.subject;
   const text = map.text;
@@ -147,8 +140,8 @@ async function send(argv) {
 }
 
 async function sendCalendar(argv) {
-  await requireEnv();
-  const { map } = parseArgs(argv);
+  const { map, flags } = parseArgs(argv);
+  await requireEnv({ noProvision: flags.includes("no-provision") });
   const to = map.to;
   const icsPath = map.ics;
   const subject = map.subject || "Calendar invite";
@@ -176,8 +169,8 @@ async function sendCalendar(argv) {
 }
 
 async function poll(argv) {
-  await requireEnv();
   const { map, flags } = parseArgs(argv);
+  await requireEnv({ noProvision: flags.includes("no-provision") });
   const limit = parseInt(map.limit, 10) || 20;
   const labels = map.labels?.split(",").map((s) => s.trim()).filter(Boolean);
   const includeThreads = flags.includes("threads");
@@ -232,8 +225,8 @@ function writeCursor(ts) {
 }
 
 async function recent(argv) {
-  await requireEnv();
-  const { map } = parseArgs(argv);
+  const { map, flags } = parseArgs(argv);
+  await requireEnv({ noProvision: flags.includes("no-provision") });
   const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
   const sinceLast = map["since-last"] !== undefined;
   const limit = parseInt(map.limit, 10) || 5;
