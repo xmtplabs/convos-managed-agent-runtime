@@ -10,8 +10,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __adminDir = path.dirname(fileURLToPath(import.meta.url));
-const adminHtmlTemplate = fs.readFileSync(
-  path.join(__adminDir, "..", "frontend", "admin.html"),
+const dashboardHtmlTemplate = fs.readFileSync(
+  path.join(__adminDir, "..", "frontend", "dashboard.html"),
+  "utf-8",
+);
+const upgradesHtmlTemplate = fs.readFileSync(
+  path.join(__adminDir, "..", "frontend", "upgrades.html"),
   "utf-8",
 );
 const apiDocsHtmlTemplate = fs.readFileSync(
@@ -175,7 +179,7 @@ export function loginPage(error) {
 }
 
 // --- Admin dashboard HTML ---
-export function adminPage({
+export function dashboardPage({
   poolEnvironment,
   deployBranch,
   railwayServiceId,
@@ -187,7 +191,26 @@ export function adminPage({
   protectedInstances = [] as string[],
 }) {
   const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls, protectedInstances });
-  return adminHtmlTemplate.replace(
+  return dashboardHtmlTemplate.replace(
+    "<!--__POOL_CONFIG__-->",
+    `<script>window.__POOL_CONFIG__=${config}</script>`,
+  );
+}
+
+/** @deprecated Use dashboardPage instead */
+export const adminPage = dashboardPage;
+
+// --- Upgrades page HTML ---
+export function upgradesPage({
+  poolEnvironment,
+  railwayProjectId = "",
+  railwayEnvironmentId = "",
+  runtimeImage = "",
+  adminUrls = [],
+  protectedInstances = [] as string[],
+}) {
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, adminUrls, protectedInstances });
+  return upgradesHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
   );

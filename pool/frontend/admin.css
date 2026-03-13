@@ -358,7 +358,7 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 .upgrade-version-list { padding: 0; }
 .upgrade-version-group { border-bottom: 1px solid var(--color-edge-muted); }
 .upgrade-version-group:last-child { border-bottom: none; }
-.upgrade-version-header { display: flex; align-items: center; gap: 10px; padding: 12px 20px; cursor: pointer; user-select: none; }
+.upgrade-version-header { display: flex; align-items: center; gap: 10px; padding: 12px 20px; user-select: none; }
 .upgrade-version-header:hover { background: var(--color-surface-hover); }
 .upgrade-version-tag { font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 12px; font-weight: 600; }
 .upgrade-version-count { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--color-surface-muted); color: var(--color-foreground-secondary); }
@@ -374,6 +374,14 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 .upgrade-instance-btn { font-family: inherit; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-brand); background: var(--color-surface); color: var(--color-brand); transition: all 0.15s; }
 .upgrade-instance-btn:hover:not(:disabled) { background: var(--color-brand); color: #fff; }
 .upgrade-instance-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.upgrade-instance-link { color: var(--color-brand); text-decoration: none; font-weight: 500; }
+.upgrade-instance-link:hover { text-decoration: underline; }
+.upgrade-version-expand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+.upgrade-refresh-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--color-edge-muted); background: var(--color-surface); color: var(--color-foreground-tertiary); cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+.upgrade-refresh-btn:hover:not(:disabled) { color: var(--color-brand); border-color: var(--color-brand); background: var(--color-surface-hover); }
+.upgrade-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.upgrade-refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* Responsive */
 @media (max-width: 640px) {

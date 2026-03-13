@@ -6,8 +6,8 @@ import * as pool from "./pool";
 import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocsPage } from "./admin";
-import { eq, and } from "drizzle-orm";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upgradesPage, apiDocsPage } from "./admin";
+import { eq, and, inArray } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
 import { deployImage, redeployService, fetchServiceStatus } from "./services/providers/railway";
@@ -424,6 +424,79 @@ app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   }
 });
 
+// --- SSE streaming endpoint for mass runtime upgrade ---
+app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
+  const idList = ((req.query.ids as string) || "").split(",").filter(Boolean);
+  const imageOverride = (req.query.image as string) || "";
+
+  if (!idList.length) { res.status(400).json({ error: "No instance IDs" }); return; }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Look up all instances + infra
+  const allRows = await db.getByStatus(["idle", "claimed", "starting", "crashed"]);
+  const infraRows = await pgDb.select({
+    instanceId: instanceInfra.instanceId,
+    providerServiceId: instanceInfra.providerServiceId,
+    providerProjectId: instanceInfra.providerProjectId,
+    providerEnvId: instanceInfra.providerEnvId,
+    runtimeVersion: instanceInfra.runtimeVersion,
+    runtimeImage: instanceInfra.runtimeImage,
+  }).from(instanceInfra).where(inArray(instanceInfra.instanceId, idList));
+  const infraById: Record<string, typeof infraRows[0]> = {};
+  infraRows.forEach(r => { infraById[r.instanceId] = r; });
+
+  // Send instance info upfront so the frontend can render cards
+  idList.forEach((id, i) => {
+    const agent = allRows.find(a => a.id === id);
+    const infra = infraById[id];
+    const name = agent ? ((agent as any).agentName || (agent as any).name || id) : id;
+    const version = infra?.runtimeVersion || "unknown";
+    let railwayUrl: string | null = null;
+    if (infra?.providerProjectId && infra?.providerServiceId) {
+      railwayUrl = `https://railway.com/project/${infra.providerProjectId}/service/${infra.providerServiceId}`;
+      if (infra.providerEnvId) railwayUrl += `?environmentId=${infra.providerEnvId}`;
+    }
+    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, railwayUrl });
+  });
+
+  let upgraded = 0, failed = 0;
+
+  for (let i = 0; i < idList.length; i++) {
+    const id = idList[i];
+    const instanceNum = i + 1;
+    const infra = infraById[id];
+
+    if (!infra) {
+      send({ type: "step", instanceNum, step: "error", status: "fail", message: "Instance infra not found" });
+      failed++;
+      continue;
+    }
+
+    try {
+      send({ type: "step", instanceNum, step: "deploy", status: "active", message: "Deploying..." });
+      const image = await upgradeInstanceRuntime(id, infra, imageOverride || undefined);
+      send({ type: "step", instanceNum, step: "deploy", status: "ok", message: image });
+      send({ type: "step", instanceNum, step: "done", status: "ok", message: "" });
+      upgraded++;
+    } catch (err: any) {
+      send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
+      failed++;
+    }
+  }
+
+  send({ type: "complete", upgraded, failed, total: idList.length });
+  res.end();
+});
+
 app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
   try {
     const { ids } = req.body || {};
@@ -434,14 +507,19 @@ app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
     let updated = 0;
     for (const row of targets) {
       if (!row.url) continue;
-      const token = await db.getGatewayToken(row.id);
-      const hc = await pool.healthCheck(row.url, token);
-      if (hc?.version) {
-        await db.setRuntimeVersion(row.id, hc.version);
-        updated++;
+      try {
+        const token = await db.getGatewayToken(row.id);
+        const hc = await pool.healthCheck(row.url, token);
+        console.log(`[pool] refresh-version ${row.id}: url=${row.url} version=${hc?.version ?? "null"} ready=${hc?.ready ?? "null"}`);
+        if (hc?.version) {
+          await db.setRuntimeVersion(row.id, hc.version);
+          updated++;
+        }
+      } catch (err: any) {
+        console.log(`[pool] refresh-version ${row.id}: url=${row.url} error=${err.message}`);
       }
     }
-    console.log(`[api] Refreshed versions for ${updated}/${targets.length} instances`);
+    console.log(`[pool] Refreshed versions for ${updated}/${targets.length} instances`);
     res.json({ ok: true, updated, total: targets.length });
   } catch (err: any) {
     console.error("[api] Refresh versions failed:", err);
@@ -462,7 +540,7 @@ const POOL_ADMIN_URLS = config.poolAdminUrls.split(",").filter(Boolean).map((ent
 
 app.get("/admin", (req, res) => {
   if (!isAuthenticated(req)) { res.type("html").send(loginPage(null)); return; }
-  res.type("html").send(adminPage({
+  res.type("html").send(dashboardPage({
     poolEnvironment: config.poolEnvironment,
     deployBranch: config.deployBranch,
     railwayServiceId: config.railwayServiceId,
@@ -470,6 +548,20 @@ app.get("/admin", (req, res) => {
     railwayEnvironmentId: config.railwayEnvironmentId,
     runtimeImage: config.railwayRuntimeImage,
     instanceModel: config.instanceModel,
+    adminUrls: POOL_ADMIN_URLS as any,
+    protectedInstances: config.protectedInstances,
+  }));
+});
+
+app.get("/admin/dashboard", (_req, res) => res.redirect(302, "/admin"));
+
+app.get("/admin/upgrades", (req, res) => {
+  if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
+  res.type("html").send(upgradesPage({
+    poolEnvironment: config.poolEnvironment,
+    railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
+    runtimeImage: config.railwayRuntimeImage,
     adminUrls: POOL_ADMIN_URLS as any,
     protectedInstances: config.protectedInstances,
   }));
