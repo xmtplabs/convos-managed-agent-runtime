@@ -45,7 +45,7 @@ pnpm evals:convos -- --filter-pattern "welcome"
 
 ## Env vars
 
-Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
+Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime/hermes/.env`):
 
 - `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)

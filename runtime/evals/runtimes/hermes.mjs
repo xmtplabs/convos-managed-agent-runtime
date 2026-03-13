@@ -11,5 +11,5 @@ export default {
   healthPath: '/pool/health',
   filterLines: (lines) => lines.filter((l) => !l.match(/^session_id:\s/)),
   needsSessionClear: false,
-  convosPath: '../../runtime-hermes/node_modules/.bin/convos',
+  convosPath: '../../hermes/node_modules/.bin/convos',
 };

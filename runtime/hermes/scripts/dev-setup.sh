@@ -107,7 +107,7 @@ fi
 
 export PYTHONPATH="$HERMES_DIR/hermes-agent:$RUNTIME_DIR:${PYTHONPATH:-}"
 export HERMES_HOME="$HERMES_DIR/home"
-export CONVOS_REPO_ROOT="$(cd "$RUNTIME_DIR/.." && pwd)"
+export CONVOS_REPO_ROOT="$(cd "$RUNTIME_DIR/../.." && pwd)"
 export NODE_PATH="$RUNTIME_DIR/node_modules"
 export PATH="$RUNTIME_DIR/node_modules/.bin:$PATH"
 export PORT="${PORT:-8080}"

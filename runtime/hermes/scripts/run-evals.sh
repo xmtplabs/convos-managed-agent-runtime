@@ -9,11 +9,11 @@ elif [ -n "${ZSH_VERSION:-}" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 . "$SCRIPT_DIR/eval-env.sh"
 
-export PATH="$REPO_ROOT/runtime-hermes/bin:$PATH"
+export PATH="$REPO_ROOT/runtime/hermes/bin:$PATH"
 export EVAL_RUNTIME=hermes
 
 cd "$REPO_ROOT/runtime"

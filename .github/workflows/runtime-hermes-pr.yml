@@ -8,7 +8,7 @@ on:
   pull_request:
     types: [opened, synchronize, closed]
     paths:
-      - 'runtime-hermes/**'
+      - 'runtime/hermes/**'
 
 concurrency:
   group: runtime-hermes-pr-${{ github.event.pull_request.number }}
@@ -46,7 +46,7 @@ jobs:
         run: |
           SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
           TAG="pr-${{ github.event.number }}"
-          VERSION="$(jq -r '.version // "unknown"' runtime-hermes/package.json 2>/dev/null || echo 'unknown')"
+          VERSION="$(jq -r '.version // "unknown"' runtime/hermes/package.json 2>/dev/null || echo 'unknown')"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
@@ -56,7 +56,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: runtime-hermes/Dockerfile
+          file: runtime/hermes/Dockerfile
           push: true
           platforms: linux/amd64
           tags: ghcr.io/xmtplabs/convos-runtime-hermes:${{ steps.meta.outputs.pending }}
@@ -158,7 +158,7 @@ jobs:
         id: env
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
-          VERSION="$(jq -r '.version // "unknown"' runtime-hermes/package.json 2>/dev/null || echo 'unknown')"
+          VERSION="$(jq -r '.version // "unknown"' runtime/hermes/package.json 2>/dev/null || echo 'unknown')"
           case "$BASE" in
             dev) echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
             *)   echo "tag=" >> "$GITHUB_OUTPUT" ;;
@@ -176,7 +176,7 @@ jobs:
             echo "Source image $IMAGE:sha-$SHA exists"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Source image $IMAGE:sha-$SHA not found — skipping promote (no runtime-hermes/ changes were built for this PR)"
+            echo "::warning::Source image $IMAGE:sha-$SHA not found — skipping promote (no runtime/hermes/ changes were built for this PR)"
           fi
 
       - name: "Promote v${{ steps.env.outputs.version }} → :${{ steps.env.outputs.tag }}"

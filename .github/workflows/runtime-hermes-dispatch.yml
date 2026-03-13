@@ -40,7 +40,7 @@ jobs:
         id: meta
         run: |
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-          VERSION="$(jq -r '.version // "unknown"' runtime-hermes/package.json 2>/dev/null || echo 'unknown')"
+          VERSION="$(jq -r '.version // "unknown"' runtime/hermes/package.json 2>/dev/null || echo 'unknown')"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Building v$VERSION (sha-$SHA) from ${{ github.ref_name }}"
@@ -49,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: runtime-hermes/Dockerfile
+          file: runtime/hermes/Dockerfile
           push: true
           platforms: linux/amd64
           tags: ghcr.io/xmtplabs/convos-runtime-hermes:pending-${{ steps.meta.outputs.sha }}
