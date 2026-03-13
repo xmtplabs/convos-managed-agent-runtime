@@ -45,19 +45,14 @@ pnpm evals:convos -- --filter-pattern "welcome"
 
 ## Env vars
 
-Required in `runtime/.env`:
+Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
 
-- `OPENCLAW_GATEWAY_TOKEN`
-- `EVAL_OPENROUTER_API_KEY` (falls back to `OPENROUTER_API_KEY` if unset)
+- `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
+- `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
+- `PORT` — defaults to `18789` (openclaw) or `8080` (hermes)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`
 - `BANKR_API_KEY`
-
-Additional for Hermes (in `runtime-hermes/.env`):
-
-- `OPENCLAW_GATEWAY_TOKEN` (must be set explicitly — hermes auto-generates one otherwise, but the eval runner needs to know it)
-- `PORT` (defaults to `8080`)
-- `OPENROUTER_API_KEY`
 
 ## Multi-runtime architecture
 
