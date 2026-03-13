@@ -112,7 +112,7 @@ def main(argv: list[str]) -> int:
     agent = AIAgent(
         model=resolve_model(args.model),
         enabled_toolsets=resolve_toolsets(args.toolsets),
-        quiet_mode=True,
+        quiet_mode=args.quiet,
         ephemeral_system_prompt=build_ephemeral_prompt(),
     )
 

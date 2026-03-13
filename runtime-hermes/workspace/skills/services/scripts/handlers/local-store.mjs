@@ -61,8 +61,8 @@ export function recordLocalEmail({ to, subject, text, html }) {
   const state = loadState();
   const message = {
     id: makeId("email"),
-    from: to,
-    to: [localEmailAddress()],
+    from: localEmailAddress(),
+    to: [to],
     subject,
     preview: previewText(text, html).slice(0, 120),
     body: previewText(text, html),

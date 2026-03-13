@@ -198,7 +198,7 @@ async function getMessages(limit, labels, includeThreads) {
   if (localServicesEnabled() && !useProxy) {
     return {
       messages: listLocalEmails({ limit, labels }),
-      threads: includeThreads ? [] : [],
+      threads: [],
     };
   }
 
@@ -263,9 +263,9 @@ function writeCursor(ts) {
 
 async function recent(argv) {
   await requireEnv();
-  const { map } = parseArgs(argv);
+  const { map, flags } = parseArgs(argv);
   const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
-  const sinceLast = map["since-last"] !== undefined;
+  const sinceLast = flags.includes("since-last");
   const limit = parseInt(map.limit, 10) || 5;
 
   let cutoff;
