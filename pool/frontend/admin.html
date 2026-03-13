@@ -144,7 +144,7 @@
         </div>
         <div class="replenish-field">
           <label>Qty</label>
-          <input class="replenish-input" id="replenish-count" type="number" min="1" max="20" value="5" />
+          <input class="replenish-input" id="replenish-count" type="number" min="1" max="20" value="1" />
         </div>
         <div class="replenish-actions">
           <button class="btn btn-primary" id="replenish-btn">+ Add</button>
@@ -278,14 +278,28 @@
         <!-- Upgrade actions card -->
         <div class="upgrade-card">
           <div class="upgrade-card-header">
-            <span class="upgrade-card-title">Mass Upgrade</span>
+            <span class="upgrade-card-title">Upgrade in mass</span>
           </div>
           <div class="upgrade-actions-body">
             <p class="upgrade-hint">Push the latest runtime image to instances that are behind.</p>
             <div class="upgrade-target-info" id="upgrade-target-info"></div>
-            <div class="upgrade-btn-row">
-              <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade Outdated</button>
-              <button class="btn btn-danger btn-upgrade" id="btn-upgrade-all" disabled>Upgrade All</button>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:12px;color:var(--color-muted);white-space:nowrap">Image</label>
+                <select id="upgrade-image-picker" style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--color-border);font-size:13px;background:#fff;font-family:var(--font-mono);cursor:pointer">
+                  <option value="">Default (pool config)</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
+                  <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
+                </select>
+              </div>
+              <div class="upgrade-btn-row" style="gap:8px;align-items:center">
+                <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled style="font-size:12px;padding:5px 14px">Upgrade Outdated</button>
+                <button class="btn" id="btn-refresh-versions" style="margin-left:auto;font-size:11px;padding:4px 10px;opacity:0.6">Refresh Versions</button>
+              </div>
             </div>
             <div class="upgrade-progress" id="upgrade-progress" style="display:none">
               <div class="upgrade-progress-bar-wrap">
@@ -1805,10 +1819,8 @@
 
       // Buttons
       var btnOutdated = document.getElementById('btn-upgrade-outdated');
-      var btnAll = document.getElementById('btn-upgrade-all');
       btnOutdated.disabled = outdatedCount === 0 || upgradeRunning;
       btnOutdated.textContent = outdatedCount > 0 ? 'Upgrade ' + outdatedCount + ' Outdated' : 'All Up to Date';
-      btnAll.disabled = total === 0 || upgradeRunning;
 
       // Version breakdown list
       var listHtml = '';
@@ -1839,10 +1851,22 @@
       document.getElementById('upgrade-version-list').innerHTML = listHtml;
     }
 
+    function getSelectedImage() {
+      var picker = document.getElementById('upgrade-image-picker');
+      return picker ? picker.value : '';
+    }
+
     async function upgradeSingle(id, btn) {
       if (btn) { btn.disabled = true; btn.textContent = 'Upgrading...'; }
       try {
-        var res = await fetch('/api/pool/update-runtime/' + id, { method: 'POST', headers: authHeaders });
+        var body = {};
+        var img = getSelectedImage();
+        if (img) body.image = img;
+        var res = await fetch('/api/pool/update-runtime/' + id, {
+          method: 'POST',
+          headers: Object.assign({}, authHeaders, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body),
+        });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
         if (btn) { btn.textContent = 'Done'; btn.style.background = 'var(--color-success)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--color-success)'; }
@@ -1874,7 +1898,14 @@
         var agent = all.find(function (a) { return a.id === id; });
         var name = agent ? (agent.agentName || agent.name || id) : id;
         try {
-          var res = await fetch('/api/pool/update-runtime/' + id, { method: 'POST', headers: authHeaders });
+          var mbody = {};
+          var mimg = getSelectedImage();
+          if (mimg) mbody.image = mimg;
+          var res = await fetch('/api/pool/update-runtime/' + id, {
+            method: 'POST',
+            headers: Object.assign({}, authHeaders, { 'Content-Type': 'application/json' }),
+            body: JSON.stringify(mbody),
+          });
           var data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Failed');
           done++;
@@ -1913,18 +1944,30 @@
       if (ok) massUpgrade(ids);
     });
 
-    document.getElementById('btn-upgrade-all').addEventListener('click', async function () {
-      var all = claimedCache.concat(idleCache).concat(startingCache);
-      var ids = all.map(function (a) { return a.id; });
-      if (!ids.length) return;
-      var ok = await showConfirm({
-        icon: '\u26A0\uFE0F',
-        title: 'Upgrade ALL ' + ids.length + ' Instances',
-        message: 'This will redeploy every instance (including ones already on the latest version). They will restart sequentially.',
-        confirmLabel: 'Upgrade All',
-        danger: true,
-      });
-      if (ok) massUpgrade(ids);
+    document.getElementById('btn-refresh-versions').addEventListener('click', async function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Refreshing...';
+      try {
+        var buckets = getVersionBuckets();
+        var ids = [];
+        buckets.forEach(function (b) {
+          if (!b.isLatest) b.instances.forEach(function (inst) { ids.push(inst.id); });
+        });
+        var res = await fetch('/api/pool/refresh-versions', {
+          method: 'POST',
+          headers: Object.assign({}, authHeaders, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ ids: ids }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        btn.textContent = 'Updated ' + data.updated + '/' + data.total;
+        await refreshInstances();
+        setTimeout(function () { if (activePanel === 'upgrades') renderUpgradesPanel(); }, 500);
+      } catch (err) {
+        btn.textContent = 'Failed: ' + err.message;
+      }
+      setTimeout(function () { btn.textContent = 'Refresh Versions'; btn.disabled = false; }, 3000);
     });
 
     // --- Init + polling ---

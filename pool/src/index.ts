@@ -10,7 +10,8 @@ import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage, apiDocs
 import { eq, and } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
-import { updateServiceInstance, redeployService } from "./services/providers/railway";
+import { deployImage, redeployService, fetchServiceStatus } from "./services/providers/railway";
+import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
 
 import { initMetrics } from "./metrics";
@@ -184,29 +185,25 @@ app.post("/api/pool/self-info", async (req, res) => {
 /**
  * Upgrade an instance's runtime image on Railway.
  *
- * 1. Sets the service source to the raw image tag (e.g. :dev) so Railway
- *    pulls whatever that tag currently points to.
- * 2. Forces a redeploy via serviceInstanceRedeploy so the container actually
- *    restarts (serviceInstanceUpdate alone doesn't always trigger a deploy).
- * 3. Persists the tag in our DB for tracking.
- *
- * NOTE: we intentionally do NOT resolve the tag to a sha256 digest. Pinning
- * to a digest prevents future upgrades because Railway sees no config change
- * when the tag moves to a new build.
+ * Resolves the tag to a sha256 digest and deploys via environmentPatchCommit
+ * (the same atomic mechanism used by createService). This ensures Railway
+ * treats it as a real config change and pulls the new image.
  */
 async function upgradeInstanceRuntime(
   instanceId: string,
   infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string },
+  imageOverride?: string,
 ): Promise<string> {
-  const rawImage = config.railwayRuntimeImage;
+  const rawImage = imageOverride || config.railwayRuntimeImage;
   if (!rawImage) throw new Error("No runtime image configured");
 
-  // Use the raw tag (e.g. :dev) so Railway pulls the latest image for that tag.
-  // Do NOT resolve to a sha256 digest — pinning to a digest prevents future upgrades
-  // because Railway sees no config change when the tag moves to a new build.
+  const image = await resolveImageDigest(rawImage);
   const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
-  await updateServiceInstance(infra.providerServiceId, { source: { image: rawImage } }, opts);
-  await redeployService(infra.providerServiceId, opts);
+
+  const status = await fetchServiceStatus(infra.providerServiceId, infra.providerEnvId);
+  console.log(`[upgrade] ${instanceId}: service=${infra.providerServiceId} env=${infra.providerEnvId} raw=${rawImage} resolved=${image} current=${status?.image ?? "unknown"} status=${status?.deployStatus ?? "unknown"}`);
+  await deployImage(infra.providerServiceId, image, opts);
+  console.log(`[upgrade] ${instanceId}: deploy committed`);
   await pgDb.update(instanceInfra).set({ runtimeImage: rawImage }).where(eq(instanceInfra.instanceId, instanceId));
   return rawImage;
 }
@@ -412,16 +409,42 @@ app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
 app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const { image: imageOverride } = req.body || {};
     const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, id));
     const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${id} not found` }); return;
     }
-    const image = await upgradeInstanceRuntime(id, infra);
+    const image = await upgradeInstanceRuntime(id, infra, imageOverride);
     console.log(`[api] Updated runtime for ${id} → ${image}`);
     res.json({ ok: true, instanceId: id, image });
   } catch (err: any) {
     console.error("[api] Update runtime failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    const rows = await db.getByStatus(["idle", "claimed"]);
+    const targets = Array.isArray(ids) && ids.length > 0
+      ? rows.filter((r) => ids.includes(r.id))
+      : rows;
+    let updated = 0;
+    for (const row of targets) {
+      if (!row.url) continue;
+      const token = await db.getGatewayToken(row.id);
+      const hc = await pool.healthCheck(row.url, token);
+      if (hc?.version) {
+        await db.setRuntimeVersion(row.id, hc.version);
+        updated++;
+      }
+    }
+    console.log(`[api] Refreshed versions for ${updated}/${targets.length} instances`);
+    res.json({ ok: true, updated, total: targets.length });
+  } catch (err: any) {
+    console.error("[api] Refresh versions failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
