@@ -61,10 +61,11 @@ export function clearSessionsOnce(agentId = 'main') {
 // Removes ANSI escape codes, openclaw timestamp lines, and any
 // runtime-specific lines via the adapter's filterLines().
 export function cleanOutput(raw) {
+  const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
   const lines = raw.split('\n')
+    .map(stripAnsi)
     .filter((l) => !l.match(/^\d{2}:\d{2}:\d{2} \[/));
   return runtime.filterLines(lines)
     .join('\n')
-    .replace(/\x1b\[[0-9;]*m/g, '')
     .trim();
 }
