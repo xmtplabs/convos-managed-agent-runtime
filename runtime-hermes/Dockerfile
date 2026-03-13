@@ -28,7 +28,7 @@ RUN uv pip install --system --no-cache -r requirements.txt
 
 # Node dependencies (convos CLI only)
 COPY runtime-hermes/package.json runtime-hermes/pnpm-lock.yaml* /app/
-RUN pnpm install --no-frozen-lockfile
+RUN CI=true pnpm install --frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 ENV PATH="/app/node_modules/.bin:${PATH}"
 
@@ -52,6 +52,8 @@ RUN chmod +x /app/scripts/*.sh
 ENV HERMES_HOME=/app/.hermes
 RUN mkdir -p /app/.hermes/skills /app/.hermes/memories /app/.hermes/sessions
 COPY runtime-hermes/workspace/SOUL.md /app/.hermes/SOUL.md
+COPY runtime-hermes/workspace/config.yaml /app/.hermes/config.yaml
+COPY runtime-hermes/workspace/skills /app/.hermes/skills
 COPY runtime-hermes/workspace/AGENTS.md /app/AGENTS.md
 
 ENV PORT=8080

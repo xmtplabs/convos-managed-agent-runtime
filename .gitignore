@@ -41,3 +41,4 @@ dist/
 
 migration-plan/
 migration-plan/*
+.worktrees/
