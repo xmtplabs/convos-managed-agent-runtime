@@ -9,46 +9,35 @@
 // Memory files (MEMORY.md, USER.md) are reset to their templates before each
 // test so results don't bleed between tests.
 //
-// ── Gateway reload (SIGUSR1) ──────────────────────────────────────────
+// ── Why --local? ──────────────────────────────────────────────────────
 //
-// In Docker/CI the agent runs through a persistent gateway. The gateway has
-// a bootstrap cache (Map keyed by sessionKey) that loads workspace files
-// — including MEMORY.md — once and never re-reads them, even for brand-new
-// sessions. This means:
+// In Docker/CI the agent runs through a persistent gateway. The gateway's
+// bootstrap cache (a module-level Map in bootstrap-cache.ts, keyed by
+// sessionKey) loads workspace files — including MEMORY.md — once and never
+// re-reads them, even for brand-new sessions. The cache is only cleared on
+// session rollover (stale previous session + no explicit --session-id), and
+// SIGUSR1 in-process restart does NOT clear it (the Map survives because
+// the process doesn't die).
 //
-//   1. The store phase writes facts to MEMORY.md on disk.
-//   2. A new recall session still gets the OLD MEMORY.md baked into its
-//      system prompt, because the bootstrap cache returns the stale snapshot.
-//   3. The memory_search vector index is also stale — it was built from the
-//      template at gateway startup and never re-indexed after the write.
+// This means store+recall tests fail in gateway mode: the store phase
+// writes facts to MEMORY.md on disk, but the recall session's system prompt
+// still contains the stale pre-store content from the bootstrap cache.
 //
-// Both paths to recall (system prompt + memory_search) fail, so the agent
-// cannot find the stored facts.
-//
-// Workaround: send SIGUSR1 to the openclaw-gateway binary. This triggers an
-// in-process restart (OPENCLAW_NO_RESPAWN=1 in gateway.sh) that clears all
-// in-memory caches — bootstrap cache, system prompt memoization, and the
-// memory search index — without killing the process or exiting the restart
-// loop. The next session then reads fresh workspace files from disk.
-//
-// We reload twice per store+recall test:
-//   - After resetMemory(): so the store phase sees the clean template
-//   - After the store phase: so the recall phase sees the updated MEMORY.md
-//
-// Locally (no gateway), reloadGateway() is a no-op — each `openclaw agent`
-// invocation runs in embedded mode and reads MEMORY.md fresh from disk.
+// The --local flag forces embedded mode, where each CLI invocation reads
+// MEMORY.md fresh from disk. This is the correct mode for cross-session
+// memory evals. Production is unaffected because it uses a durable session
+// (same sessionKey, same cache entry) — the cache bug only manifests when
+// testing cross-session persistence, which is eval-specific.
 //
 // Upstream bug: https://github.com/openclaw/openclaw/issues/28594
-// Remove this workaround when the bootstrap cache gets mtime-based
-// invalidation.
 
-import { execFileSync, execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { runtime } from '../lib/runtime.mjs';
-import { elapsed, log as _log, cleanOutput, sleep } from '../lib/utils.mjs';
+import { elapsed, log as _log, cleanOutput } from '../lib/utils.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
@@ -76,42 +65,6 @@ function clearSessions() {
     log('Cleared sessions');
   } catch {
     log(`No sessions dir at ${SESSIONS_DIR} (ok for Docker)`);
-  }
-}
-
-// Send SIGUSR1 to the gateway binary to trigger an in-process restart.
-// This clears the bootstrap cache so the next session reads fresh workspace
-// files. No-op when no gateway is running (local/embedded mode).
-// See: https://github.com/openclaw/openclaw/issues/28594
-function reloadGateway() {
-  try {
-    // Find the gateway binary PID (not the shell wrapper)
-    const pid = execSync(
-      'ps -eo pid,comm | grep "openclaw-gate" | awk \'{print $1}\' | head -1',
-      { encoding: 'utf-8', timeout: 5000 },
-    ).trim();
-    if (!pid) {
-      log('No gateway process found — skip reload (embedded mode)');
-      return;
-    }
-    process.kill(Number(pid), 'SIGUSR1');
-    log(`Sent SIGUSR1 to gateway (PID ${pid}) — waiting for reload`);
-
-    // Give the gateway time to complete its in-process restart
-    sleep(5000);
-
-    // Verify it's still healthy
-    try {
-      execSync(
-        `curl -sf -o /dev/null --max-time 3 http://localhost:${runtime.defaultPort || 18789}/__openclaw__/canvas/`,
-        { timeout: 8000 },
-      );
-      log('Gateway reloaded and healthy');
-    } catch {
-      log('WARNING: Gateway health check failed after reload');
-    }
-  } catch (err) {
-    log(`Gateway reload skipped: ${err.message}`);
   }
 }
 
@@ -143,7 +96,9 @@ function resetMemory() {
 function runPrompt(prompt, sessionId, timeoutMs = 60_000) {
   const start = Date.now();
   try {
-    const raw = execFileSync(runtime.bin, runtime.args(prompt, sessionId), {
+    // --local forces embedded mode so each invocation reads MEMORY.md fresh
+    // from disk, bypassing the gateway's stale bootstrap cache (#28594).
+    const raw = execFileSync(runtime.bin, [...runtime.args(prompt, sessionId), '--local'], {
       encoding: 'utf-8', timeout: timeoutMs,
     }).trim();
 
@@ -173,10 +128,8 @@ export default class MemoryProvider {
     const t = Date.now();
     log(`--- ${testIndex}. ${desc} ---`);
 
-    // Reset memory + sessions to template before each test, then reload the
-    // gateway so the store phase starts with a clean bootstrap cache.
+    // Reset memory + sessions to template before each test.
     resetMemory();
-    reloadGateway();
 
     if (meta.storePrompt) {
       // Store+recall mode: two sessions
@@ -206,12 +159,7 @@ export default class MemoryProvider {
       //    so without this the recall would just read the store prompt from history.
       clearSessions();
 
-      // 3. Reload the gateway so its bootstrap cache picks up the updated
-      //    MEMORY.md. Without this, the recall session's system prompt would
-      //    contain the stale pre-store MEMORY.md (openclaw/openclaw#28594).
-      reloadGateway();
-
-      // 4. Recall phase — fresh session, only MEMORY.md persists
+      // 3. Recall phase — fresh session, only MEMORY.md persists
       log(`Recall (session: ${recallSession}): "${prompt.slice(0, 80)}"`);
       const recall = runPrompt(prompt, recallSession, 60_000);
 
