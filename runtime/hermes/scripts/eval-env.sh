@@ -31,5 +31,14 @@ done
 # Copy AGENTS.md to eval HOME root (hermes loads it from cwd)
 [ -f "$RUNTIME_DIR/workspace/AGENTS.md" ] && cp "$RUNTIME_DIR/workspace/AGENTS.md" "$HOME/AGENTS.md"
 
+# Copy Convos platform prompt to HERMES_HOME (agent_runner.py reads it from there)
+[ -f "$RUNTIME_DIR/workspace/CONVOS_PROMPT.md" ] && cp "$RUNTIME_DIR/workspace/CONVOS_PROMPT.md" "$HERMES_HOME/CONVOS_PROMPT.md"
+
+# Load Convos platform prompt as ephemeral system prompt for CLI evals
+if [ -f "$HERMES_HOME/CONVOS_PROMPT.md" ] && [ -z "${HERMES_EPHEMERAL_SYSTEM_PROMPT:-}" ]; then
+  HERMES_EPHEMERAL_SYSTEM_PROMPT="$(cat "$HERMES_HOME/CONVOS_PROMPT.md")"
+  export HERMES_EPHEMERAL_SYSTEM_PROMPT
+fi
+
 export HERMES_EVAL_LOCAL_SERVICES="${HERMES_EVAL_LOCAL_SERVICES:-1}"
 export PATH="$RUNTIME_DIR/node_modules/.bin:$PATH"
