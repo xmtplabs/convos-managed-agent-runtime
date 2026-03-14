@@ -13,9 +13,9 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 ## Running
 
 ```sh
-cd runtime/openclaw
-pnpm start              # terminal 1: start the runtime
+cd runtime/openclaw && pnpm start   # terminal 1: start the openclaw runtime
 
+cd runtime                          # terminal 2: run evals
 pnpm evals              # run all suites (openclaw, the default)
 pnpm evals:knows        # knowledge only
 pnpm evals:skills       # services only
