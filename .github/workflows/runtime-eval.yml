@@ -65,31 +65,31 @@ jobs:
           exit 1
 
       - name: "Eval: knows (parallel)"
-        working-directory: runtime
-        run: timeout 180 sh evals/run-suite.sh knows.yaml
+        working-directory: runtime/openclaw
+        run: timeout 180 pnpm evals:knows
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: skills (parallel)"
-        working-directory: runtime
-        run: timeout 300 sh evals/run-suite.sh skills.yaml
+        working-directory: runtime/openclaw
+        run: timeout 300 pnpm evals:skills
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: soul (parallel)"
-        working-directory: runtime
-        run: timeout 180 sh evals/run-suite.sh soul.yaml
+        working-directory: runtime/openclaw
+        run: timeout 180 pnpm evals:soul
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: convos (sequential)"
-        working-directory: runtime
-        run: timeout 600 sh evals/run-suite.sh convos.yaml
+        working-directory: runtime/openclaw
+        run: timeout 600 pnpm evals:convos
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: async (sequential)"
-        working-directory: runtime
-        run: timeout 120 sh evals/run-suite.sh async.yaml
+        working-directory: runtime/openclaw
+        run: timeout 120 pnpm evals:async
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
