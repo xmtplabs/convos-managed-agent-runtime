@@ -16,6 +16,11 @@
     "evals:hermes:soul": "EVAL_RUNTIME=hermes sh evals/run-suite.sh soul.yaml",
     "evals:hermes:convos": "EVAL_RUNTIME=hermes sh evals/run-suite.sh convos.yaml",
     "evals:hermes:async": "EVAL_RUNTIME=hermes sh evals/run-suite.sh async.yaml",
-    "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml"
+    "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml",
+    "start": "cd openclaw && sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/gateway.sh",
+    "gateway": "cd openclaw && sh scripts/gateway.sh",
+    "build": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
+    "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
+    "build:run": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local"
   }
 }
