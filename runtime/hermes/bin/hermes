@@ -29,4 +29,8 @@ fi
 
 export PYTHONPATH="$RUNTIME_DIR:$RUNTIME_DIR/.hermes-dev/hermes-agent${PYTHONPATH:+:$PYTHONPATH}"
 
+# cd to $HOME so hermes finds AGENTS.md and SOUL.md via cwd discovery
+# (mirrors Docker where cwd=/app and AGENTS.md is at /app/AGENTS.md)
+cd "$HOME"
+
 exec python3 -m src.agent_runner "$@"
