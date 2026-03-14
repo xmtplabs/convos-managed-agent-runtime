@@ -177,10 +177,9 @@ jobs:
       - name: "Run ${{ matrix.suite }} suite"
         run: |
           docker exec \
-            -e EVAL_RUNTIME=hermes \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
             eval-runtime timeout ${{ matrix.timeout }} \
-              sh /app/evals/run-suite.sh ${{ matrix.suite }}.yaml
+              pnpm evals:${{ matrix.suite }}
 
       - name: Dump container logs
         if: always()
