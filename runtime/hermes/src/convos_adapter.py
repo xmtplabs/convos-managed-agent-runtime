@@ -41,6 +41,9 @@ GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
 COMPANION_SETTLE_S = 1.5
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".heic", ".heif", ".avif"}
 ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
+CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
+PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
+_last_prune_at = 0.0
 
 
 
@@ -187,6 +190,26 @@ def _extract_attachment_filename(content: str) -> str | None:
 
 def _is_image_filename(filename: str) -> bool:
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def _prune_stale_convos_images(media_dir: Path) -> None:
+    """Remove convos-img-* temp files older than 1 hour. Throttled to at most once per 5 minutes."""
+    global _last_prune_at
+    import time as _time
+    now = _time.time()
+    if now - _last_prune_at < PRUNE_THROTTLE_S:
+        return
+    _last_prune_at = now
+    if not media_dir.exists():
+        return
+    for entry in media_dir.iterdir():
+        if not entry.name.startswith("convos-img-"):
+            continue
+        try:
+            if now - entry.stat().st_mtime > CONVOS_IMG_MAX_AGE_S:
+                entry.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def attachment_hold_key(msg: InboundMessage) -> str | None:
@@ -406,6 +429,7 @@ class ConvosAdapter:
 
         media_dir = Path(self._config.hermes_home) / "media"
         media_dir.mkdir(parents=True, exist_ok=True)
+        _prune_stale_convos_images(media_dir)
         ext = Path(filename).suffix.lower() or ".jpg"
         local_path = media_dir / f"convos-img-{msg.message_id[:16]}{ext}"
 

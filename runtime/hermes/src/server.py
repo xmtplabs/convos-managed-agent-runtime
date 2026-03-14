@@ -591,7 +591,6 @@ async def convos_reset(body: SetupRequest | None = None):
 
     # Clear the XMTP identity so the next join creates a fresh one
     # (matches OpenClaw's clearConvosCredentials behavior)
-    from pathlib import Path
     convos_dir = Path.home() / ".convos" / "identities"
     if identity_id:
         cred_file = convos_dir / f"{identity_id}.json"

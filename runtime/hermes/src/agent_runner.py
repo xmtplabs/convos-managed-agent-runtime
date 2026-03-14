@@ -246,7 +246,7 @@ class AgentRunner:
     def run_single_query(self, query: str) -> str:
         """Run a single query with no conversation history. Returns response text."""
         result = self._run_agent_sync(query, [])
-        text = result.get("final_response") or "" if isinstance(result, dict) else str(result)
+        text = (result.get("final_response", "") if isinstance(result, dict) else str(result))
         return text.strip()
 
     def reset_history(self) -> None:
