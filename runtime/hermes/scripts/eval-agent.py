@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 """
-Eval entrypoint — mirrors production agent_runner.py AIAgent setup.
+Eval entrypoint — thin CLI wrapper around the production AgentRunner.
 
-Uses the same AIAgent configuration as production:
-  - enabled_toolsets=["hermes-convos"]
-  - platform="convos"
-  - ephemeral_system_prompt from CONVOS_PROMPT.md
-  - quiet_mode=True
-
-Does NOT go through hermes_cli/main.py, so no sync_skills() runs
-and no bundled skills are injected. Only workspace skills in
-HERMES_HOME/skills/ are available — matching the Docker production image.
+No custom AIAgent setup. Uses the same code path as the production server.
 """
 from __future__ import annotations
 
@@ -40,33 +32,22 @@ def main() -> int:
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-q", "--query", required=True)
-    parser.add_argument("-Q", "--quiet", action="store_true")
     args, _ = parser.parse_known_args()
 
-    from src.agent_runner import warm_imports, CONVOS_EPHEMERAL_PROMPT
-
-    warm_imports()
-
-    from run_agent import AIAgent
+    from src.agent_runner import AgentRunner, warm_imports
 
     model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-sonnet-4-6"
     if model.startswith("openrouter/"):
         model = model.removeprefix("openrouter/")
 
-    agent = AIAgent(
+    warm_imports()
+    runner = AgentRunner(
         model=model,
-        enabled_toolsets=["hermes-convos"],
-        platform="convos",
-        ephemeral_system_prompt=CONVOS_EPHEMERAL_PROMPT,
-        quiet_mode=True,
+        hermes_home=os.environ.get("HERMES_HOME", ""),
     )
-
-    result = agent.run_conversation(user_message=args.query)
-    response = result.get("final_response", "") if isinstance(result, dict) else str(result)
-
+    response = runner.run_single_query(args.query)
     if response:
         print(response)
-
     return 0
 
 
