@@ -59,17 +59,23 @@ runtime/
 
 ## Scripts
 
-| Script | Where | Description |
-|--------|-------|-------------|
-| `pnpm start` | `runtime/` or `openclaw/` | Full init: keys → apply → install-deps → gateway |
-| `pnpm gateway` | `runtime/` or `openclaw/` | Start the openclaw gateway |
-| `pnpm build` | `runtime/` or `openclaw/` | Build Docker image locally |
-| `pnpm build:run` | `runtime/` or `openclaw/` | Build and run with runtime/.env |
-| `pnpm evals` | `runtime/` | Run all eval suites (see [evals/README.md](evals/README.md)) |
-| `pnpm evals:knows` | `runtime/` | Knowledge eval only |
-| `pnpm evals:hermes` | `runtime/` | All suites against hermes |
-| `pnpm smoke` | `openclaw/` | Smoke tests (email, sms, convos, browser) |
-| `pnpm pool-server` | `openclaw/` | Pool-managed container entrypoint |
+All scripts run from `cd runtime`.
+
+| Script | Description |
+|--------|-------------|
+| `pnpm start` | OpenClaw: full init (keys → apply → install-deps → gateway) |
+| `pnpm gateway` | OpenClaw: start the gateway only |
+| `pnpm smoke` | OpenClaw: smoke tests (email, sms, convos, browser) |
+| `pnpm pool-server` | OpenClaw: pool-managed container entrypoint |
+| `pnpm build` | OpenClaw: build Docker image locally |
+| `pnpm build:run` | OpenClaw: build and run with .env |
+| `pnpm start:hermes` | Hermes: start local dev server |
+| `pnpm setup:hermes` | Hermes: first-time local dev setup (clone + deps) |
+| `pnpm build:hermes` | Hermes: build Docker image locally |
+| `pnpm build:run:hermes` | Hermes: build and run with .env |
+| `pnpm evals` | Run all eval suites (see [evals/README.md](evals/README.md)) |
+| `pnpm evals:knows` | Knowledge eval only |
+| `pnpm evals:hermes` | All suites against hermes |
 
 ## Environment variables
 
