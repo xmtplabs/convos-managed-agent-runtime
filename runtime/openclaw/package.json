@@ -1,0 +1,30 @@
+{
+  "name": "convos-agents",
+  "version": "0.0.26",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/gateway.sh",
+    "keys": "sh scripts/keys.sh",
+    "apply": "sh scripts/apply-config.sh",
+    "install-deps": "sh scripts/install-deps.sh",
+    "gateway": "sh scripts/gateway.sh",
+    "clean-sessions": "sh scripts/clean-sessions.sh",
+    "smoke": "sh scripts/smoke.sh",
+    "ngrok": "ngrok http 18789 --url=c3c882cc6672.ngrok.app",
+    "pool-server": "node scripts/pool-server.js",
+    "build": "cd ../.. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
+    "docker:run": "cd ../.. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
+    "build:run": "cd ../.. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local"
+  },
+  "dependencies": {
+    "@bankr/cli": "^0.1.0",
+    "@xmtp/convos-cli": "^0.5.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
+    "openclaw": "2026.3.11",
+    "pg": "^8.18.0"
+  }
+}

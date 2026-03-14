@@ -13,9 +13,9 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 ## Running
 
 ```sh
-cd runtime
-pnpm start              # terminal 1: start the runtime
+cd runtime/openclaw && pnpm start   # terminal 1: start the openclaw runtime
 
+cd runtime                          # terminal 2: run evals
 pnpm evals              # run all suites (openclaw, the default)
 pnpm evals:knows        # knowledge only
 pnpm evals:skills       # services only
@@ -45,7 +45,7 @@ pnpm evals:convos -- --filter-pattern "welcome"
 
 ## Env vars
 
-Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
+Required in `runtime/.env` (shared by all runtimes):
 
 - `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
@@ -55,11 +55,11 @@ Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
 
 ## Multi-runtime architecture
 
-The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`runtimes/<name>.mjs`) that defines how to invoke the CLI, which health endpoint to probe, and how to filter output. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
+The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`adapters/<name>.mjs`) that defines how to invoke the CLI, which health endpoint to probe, and how to filter output. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
 
 To add a new runtime:
 
-1. Create `evals/runtimes/<name>.mjs` — see `hermes.mjs` for a real example:
+1. Create `evals/adapters/<name>.mjs` — see `hermes.mjs` for a real example:
 
 ```js
 export default {
@@ -74,7 +74,7 @@ export default {
 };
 ```
 
-2. Add a case in `evals/runtimes/env.sh` to source the runtime's `.env` and validate required vars.
+2. Add a case in `evals/adapters/env.sh` to source the runtime's `.env` and validate required vars.
 
 3. Add npm scripts in `package.json` (all 6):
 
@@ -102,7 +102,7 @@ evals/
 ├── assertions.mjs         # JS assertions (profile, self-destruct, response time)
 ├── runtime.mjs            # loads the active runtime adapter
 ├── utils.mjs              # shared helpers (cleanOutput, session clearing, etc.)
-├── runtimes/
+├── adapters/
 │   ├── openclaw.mjs       # runtime adapter: openclaw
 │   ├── hermes.mjs         # runtime adapter: hermes
 │   └── env.sh             # shared env setup (sources .env per runtime)

@@ -133,8 +133,8 @@ export function memoryFileUpdated(output, context) {
     pass,
     score: pass ? 1 : 0,
     reason: pass
-      ? `MEMORY.md has ${lines.length} substantive line(s) beyond the template`
-      : 'MEMORY.md still matches the empty template — agent did not write to memory',
+      ? `Memory has ${lines.length} substantive line(s) beyond the template`
+      : 'Memory still matches the empty template — agent did not write to memory',
   };
 }
 

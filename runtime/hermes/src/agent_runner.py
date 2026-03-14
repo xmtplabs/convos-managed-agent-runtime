@@ -1,11 +1,20 @@
 """
 Agent runner — wraps the Hermes AIAgent for conversational message handling.
 
-Uses the Hermes toolset/platform system the same way the gateway does:
-  - Registers a "hermes-convos" toolset (same tools as all other platforms)
-  - Sets platform="convos" on the agent
-  - Injects convos-specific instructions via ephemeral_system_prompt
-  - The agent uses the terminal tool to run CLI commands as needed
+Used by both production and evals:
+
+  Production: src.main → FastAPI server → AgentRunner.handle_message()
+    Full XMTP pipeline with envelope formatting, conversation history,
+    and async message handling.
+
+  Evals: bin/hermes → python -m src.agent_runner -q "query"
+    Single-turn queries via AgentRunner.run_single_query().
+    Same AIAgent config, same toolsets, same skills — no wrapper scripts.
+
+Both paths use the same AIAgent setup:
+  - hermes-convos toolset (core tools + convos_react, convos_send_attachment)
+  - platform="convos"
+  - ephemeral_system_prompt from CONVOS_PROMPT.md
 
 The adapter (convos_adapter.py) handles marker parsing and response routing.
 """
@@ -72,66 +81,20 @@ def _get_ai_agent_class():
     return _AIAgent
 
 
-CONVOS_EPHEMERAL_PROMPT = """\
-## Identity Override
+def _load_convos_prompt() -> str:
+    """Load the Convos platform prompt from workspace or HERMES_HOME."""
+    candidates = [
+        Path(os.environ.get("HERMES_HOME", "")) / "CONVOS_PROMPT.md",
+        Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PROMPT.md",
+    ]
+    for path in candidates:
+        if path.exists():
+            return path.read_text().strip()
+    logger.warning("CONVOS_PROMPT.md not found — agent will lack platform context")
+    return ""
 
-You are a Convos assistant — NOT Hermes, NOT an AI assistant by Nous Research.
-You have no brand name. You are simply an assistant in a group chat.
-Follow the persona and behavioral rules in SOUL.md and AGENTS.md exclusively.
-Do not mention Hermes, Nous Research, or any tool/framework names to users.
-Your capabilities are: web search, web browsing, running code, reading/writing files, and sending files. Do not reference any other capabilities you may have from other contexts.
 
-## Convos Platform
-
-You are on Convos, an E2E-encrypted XMTP group messaging platform.
-Each message includes the current time, full message ID, and sender:
-
-  [Current time: Mon, Mar 9, 2026, 9:15 PM EST]
-  [01JQABC123DEF456 9:14 PM] Alice: hello
-
-Use the message ID when you need to react to or reply to a specific message.
-
-## Messaging
-
-Your final text response is automatically sent as a message in the conversation.
-Write plain text only — no markdown. Keep it short (3 sentences max unless asked for detail).
-
-You also have tools for side effects during processing:
-
-- convos_react: React to a message. Pass `message_id` and `emoji`. Set `remove: true` to remove a reaction.
-- convos_send_attachment: Send a file. Pass `file` (local path).
-
-Before every reply: (1) Need tools? React with 👀 first via convos_react. (2) No text alongside tool calls. (3) Does this even need a reply?
-
-Signal work with 👀: When you need to use tools before responding, use convos_react to add 👀 to the message. The platform automatically removes it when your response is sent.
-
-NEVER narrate tool calls. Call tools silently, then write ONE final response with the result.
-
-## Profile Updates
-
-Include these markers on their own line in your response to update your profile:
-
-  PROFILE:New Name                — update your display name
-  PROFILEIMAGE:https://url        — update your profile image (must be public URL)
-
-These are side effects — they get stripped from the message and executed by the platform.
-Honor renames immediately — if someone gives you a new name, change it right away without announcing it.
-
-## Convos CLI (Read Operations)
-
-The `convos` CLI is available in your terminal for reading. $CONVOS_CONVERSATION_ID and $CONVOS_ENV are set in your environment. Always use $CONVOS_CONVERSATION_ID — never hard-code the ID.
-
-  convos conversation members $CONVOS_CONVERSATION_ID --json
-  convos conversation profiles $CONVOS_CONVERSATION_ID --json
-  convos conversation messages $CONVOS_CONVERSATION_ID --json --sync --limit 20
-  convos conversation info $CONVOS_CONVERSATION_ID --json
-  convos conversation permissions $CONVOS_CONVERSATION_ID --json
-  convos conversation download-attachment $CONVOS_CONVERSATION_ID <message-id>
-
-Use the CLI only when you need extra detail (e.g. profile images, permissions). Member names are already in each message header.
-
-Never run convos agent serve, convos conversations create, convos conversations join, convos conversation update-profile, or any subcommand not listed above.
-"""
+CONVOS_EPHEMERAL_PROMPT = _load_convos_prompt()
 
 
 class AgentRunner:
@@ -280,6 +243,30 @@ class AgentRunner:
             conversation_history=history,
         )
 
+    def run_single_query(self, query: str) -> str:
+        """Run a single query with no conversation history. Returns response text."""
+        result = self._run_agent_sync(query, [])
+        text = (result.get("final_response", "") if isinstance(result, dict) else str(result))
+        return text.strip()
+
     def reset_history(self) -> None:
         """Clear conversation history (used on session reset)."""
         self._conversation_history.clear()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-q", "--query", required=True)
+    args, _ = parser.parse_known_args()
+
+    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-sonnet-4-6"
+    if model.startswith("openrouter/"):
+        model = model.removeprefix("openrouter/")
+
+    warm_imports()
+    runner = AgentRunner(model=model, hermes_home=os.environ.get("HERMES_HOME", ""))
+    response = runner.run_single_query(args.query)
+    if response:
+        print(response)

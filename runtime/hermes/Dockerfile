@@ -23,12 +23,12 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # FastAPI + uvicorn (runtime server deps)
-COPY runtime-hermes/requirements.txt /app/requirements.txt
+COPY runtime/hermes/requirements.txt /app/requirements.txt
 RUN uv pip install --system --no-cache -r requirements.txt
 
 # Node dependencies (convos CLI only)
-COPY runtime-hermes/package.json runtime-hermes/pnpm-lock.yaml* /app/
-RUN pnpm install --no-frozen-lockfile
+COPY runtime/hermes/package.json runtime/hermes/pnpm-lock.yaml* /app/
+RUN CI=true pnpm install --frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 ENV PATH="/app/node_modules/.bin:${PATH}"
 
@@ -41,18 +41,23 @@ RUN git clone --recurse-submodules --branch v2026.3.12 --depth 1 https://github.
   && uv pip install --system -e "./mini-swe-agent"
 ENV PYTHONPATH="/opt/hermes-agent:${PYTHONPATH}"
 
+# Runtime version (shared root package.json)
+COPY runtime/package.json /app/runtime-version.json
+
 # Application code
-COPY runtime-hermes/src /app/src
-COPY runtime-hermes/workspace /app/workspace
-COPY runtime-hermes/scripts /app/scripts
+COPY runtime/hermes/src /app/src
+COPY runtime/hermes/workspace /app/workspace
+COPY runtime/hermes/scripts /app/scripts
 RUN chmod +x /app/scripts/*.sh
 
 # Hermes home — agent reads SOUL.md, config.yaml, skills/, memories/ from here.
 # SOUL.md is the persona file; AGENTS.md is auto-loaded from cwd by Hermes.
 ENV HERMES_HOME=/app/.hermes
 RUN mkdir -p /app/.hermes/skills /app/.hermes/memories /app/.hermes/sessions
-COPY runtime-hermes/workspace/SOUL.md /app/.hermes/SOUL.md
-COPY runtime-hermes/workspace/AGENTS.md /app/AGENTS.md
+COPY runtime/hermes/workspace/SOUL.md /app/.hermes/SOUL.md
+COPY runtime/hermes/workspace/config.yaml /app/.hermes/config.yaml
+COPY runtime/hermes/workspace/skills /app/.hermes/skills
+COPY runtime/hermes/workspace/AGENTS.md /app/AGENTS.md
 
 ENV PORT=8080
 

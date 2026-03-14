@@ -37,9 +37,9 @@ fi
 
 # ---- .env check ----
 
-if [ ! -f "$RUNTIME_DIR/.env" ]; then
-  echo "WARNING: No .env file found. Copy .env.example and fill in your keys:"
-  echo "  cp .env.example .env"
+if [ ! -f "$RUNTIME_DIR/../.env" ]; then
+  echo "WARNING: No runtime/.env file found. Copy the example and fill in your keys:"
+  echo "  cp runtime/.env.example runtime/.env"
   echo ""
 fi
 
@@ -70,7 +70,7 @@ uv pip install --system --no-cache -r requirements.txt
 
 echo "  Installing Node deps (convos-cli) ..."
 cd "$RUNTIME_DIR"
-pnpm install --no-frozen-lockfile
+CI=true pnpm install --frozen-lockfile
 
 # ---- HERMES_HOME ----
 
@@ -79,6 +79,15 @@ mkdir -p "$LOCAL_HERMES_HOME/skills" "$LOCAL_HERMES_HOME/memories" "$LOCAL_HERME
 if [ ! -f "$LOCAL_HERMES_HOME/SOUL.md" ]; then
   cp "$RUNTIME_DIR/workspace/SOUL.md" "$LOCAL_HERMES_HOME/SOUL.md"
 fi
+if [ ! -f "$LOCAL_HERMES_HOME/config.yaml" ]; then
+  cp "$RUNTIME_DIR/workspace/config.yaml" "$LOCAL_HERMES_HOME/config.yaml"
+fi
+for skill_dir in "$RUNTIME_DIR"/workspace/skills/*; do
+  [ -d "$skill_dir" ] || continue
+  skill_name="$(basename "$skill_dir")"
+  rm -rf "$LOCAL_HERMES_HOME/skills/$skill_name"
+  cp -R "$skill_dir" "$LOCAL_HERMES_HOME/skills/$skill_name"
+done
 
 # ---- Create run script ----
 
@@ -89,15 +98,16 @@ set -e
 RUNTIME_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 HERMES_DIR="$RUNTIME_DIR/.hermes-dev"
 
-# Load .env
-if [ -f "$RUNTIME_DIR/.env" ]; then
+# Load .env from runtime root (shared by all runtimes)
+if [ -f "$RUNTIME_DIR/../.env" ]; then
   set -a
-  source "$RUNTIME_DIR/.env"
+  source "$RUNTIME_DIR/../.env"
   set +a
 fi
 
 export PYTHONPATH="$HERMES_DIR/hermes-agent:$RUNTIME_DIR:${PYTHONPATH:-}"
 export HERMES_HOME="$HERMES_DIR/home"
+export CONVOS_REPO_ROOT="$(cd "$RUNTIME_DIR/../.." && pwd)"
 export NODE_PATH="$RUNTIME_DIR/node_modules"
 export PATH="$RUNTIME_DIR/node_modules/.bin:$PATH"
 export PORT="${PORT:-8080}"

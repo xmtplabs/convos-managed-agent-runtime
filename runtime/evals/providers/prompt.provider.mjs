@@ -25,6 +25,8 @@ export default class PromptProvider {
     try {
       const raw = execFileSync(runtime.bin, runtime.args(prompt, session), {
         encoding: 'utf-8', timeout: 60_000,
+        ...(runtime.env ? { env: runtime.env } : {}),
+        ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
       }).trim();
 
       const output = cleanOutput(raw);

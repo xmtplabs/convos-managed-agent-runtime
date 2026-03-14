@@ -11,10 +11,12 @@ response routing through xmtp_bridge).
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
@@ -26,6 +28,23 @@ from .identity import ensure_workspace, write_instructions
 from .xmtp_bridge import ConvosInstance
 
 logger = logging.getLogger(__name__)
+
+# ---- Runtime version (read once at import) ----
+# Check runtime root package.json (source of truth), then Docker-injected copy, then local hermes.
+try:
+    _candidates = [
+        Path(__file__).resolve().parent.parent.parent / "package.json",  # runtime/package.json (local dev)
+        Path(__file__).resolve().parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        Path(__file__).resolve().parent.parent / "package.json",          # hermes/package.json (fallback)
+    ]
+    RUNTIME_VERSION = None
+    for _pkg in _candidates:
+        if _pkg.exists():
+            RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version")
+            if RUNTIME_VERSION:
+                break
+except Exception:
+    RUNTIME_VERSION = None
 
 # ---- Module-level state ----
 
@@ -104,7 +123,7 @@ async def _dispatch_greeting() -> None:
         response = await adapter.agent.handle_message(
             content=(
                 "[System: You just joined this conversation. Send your welcome message now. "
-                "Be friendly and introduce yourself briefly.]"
+                "Follow the 'Welcome message' section in AGENTS.md.]"
             ),
             sender_name="System",
             sender_id="system",
@@ -317,7 +336,7 @@ async def health():
 
 @app.get("/pool/health")
 async def pool_health():
-    return {"ready": True}
+    return {"ready": True, "version": RUNTIME_VERSION}
 
 
 # ---- /pool/provision ----
@@ -567,7 +586,11 @@ async def convos_explode():
 async def convos_reset(body: SetupRequest | None = None):
     global _adapter
     adapter = get_adapter()
+    identity_id = None
     if adapter:
+        # Capture identity before stopping so we can delete the credential file
+        if adapter.instance:
+            identity_id = adapter.instance.identity_id
         try:
             await adapter.stop()
         except Exception as err:
@@ -575,7 +598,29 @@ async def convos_reset(body: SetupRequest | None = None):
         _adapter = None
 
     os.environ.pop("CONVOS_CONVERSATION_ID", None)
-    return {"ok": True, "message": "Instance reset. Create a new conversation."}
+
+    # Clear the XMTP identity so the next join creates a fresh one
+    # (matches OpenClaw's clearConvosCredentials behavior)
+    convos_dir = Path.home() / ".convos" / "identities"
+    if identity_id:
+        cred_file = convos_dir / f"{identity_id}.json"
+        try:
+            cred_file.unlink(missing_ok=True)
+            logger.info(f"Cleared convos identity: {identity_id}")
+        except Exception as err:
+            logger.warning(f"Failed to clear convos identity {identity_id}: {err}")
+    else:
+        # No identity tracked — clear all identities as fallback
+        if convos_dir.exists():
+            for f in convos_dir.iterdir():
+                if f.suffix == ".json":
+                    try:
+                        f.unlink()
+                    except Exception:
+                        pass
+            logger.info("Cleared all convos identities (no specific identity tracked)")
+
+    return {"ok": True, "message": "Instance reset. Identity cleared."}
 
 
 # ---- /convos/setup ----

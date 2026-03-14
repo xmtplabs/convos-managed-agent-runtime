@@ -40,6 +40,8 @@ function runPrompt(prompt, sessionId, timeoutMs = 30_000) {
   try {
     const raw = execFileSync(runtime.bin, runtime.args(prompt, sessionId), {
       encoding: 'utf-8', timeout: timeoutMs,
+      ...(runtime.env ? { env: runtime.env } : {}),
+      ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
     }).trim();
 
     const output = cleanOutput(raw);

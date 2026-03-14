@@ -62,7 +62,17 @@ export function clearSessionsOnce(agentId = 'main') {
 // runtime-specific lines via the adapter's filterLines().
 export function cleanOutput(raw) {
   const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
-  const lines = raw.split('\n')
+  // Handle \r (carriage return) — CLI spinners overwrite the same line
+  // using \r. Keep only the last segment per line (what a terminal shows).
+  const resolveCarriageReturns = (s) => {
+    return s.split('\n').map((line) => {
+      if (!line.includes('\r')) return line;
+      const segments = line.split('\r').filter(Boolean);
+      return segments.length > 0 ? segments[segments.length - 1] : '';
+    }).join('\n');
+  };
+  const resolved = resolveCarriageReturns(raw);
+  const lines = resolved.split('\n')
     .map(stripAnsi)
     .filter((l) => !l.match(/^\d{2}:\d{2}:\d{2} \[/));
   return runtime.filterLines(lines)
