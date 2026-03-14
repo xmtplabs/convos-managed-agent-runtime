@@ -4,9 +4,13 @@
 // Quiet mode prints a `session_id:` footer that must be stripped.
 
 import { readdirSync, readFileSync, unlinkSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const hermesHome = process.env.HERMES_HOME || '/app/.hermes';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const hermesDir = join(__dirname, '../../hermes');
+const evalHome = join(hermesDir, '.eval-home');
+const hermesHome = process.env.HERMES_HOME || join(evalHome, '.hermes');
 const memoriesDir = join(hermesHome, 'memories');
 const sessionsDir = join(hermesHome, 'sessions');
 
@@ -23,7 +27,12 @@ export default {
   args: (prompt, _session) => ['chat', '-q', prompt, '--quiet'],
   defaultPort: '8080',
   healthPath: '/pool/health',
-  filterLines: (lines) => lines.filter((l) => !l.match(/^session_id:\s/)),
+  filterLines: (lines) => lines.filter((l) => {
+    if (l.match(/^session_id:\s/)) return false;
+    // Braille spinners (U+2800-U+28FF) from CLI progress display
+    if (l.match(/^\s*[\u2800-\u28FF]/)) return false;
+    return true;
+  }),
   needsSessionClear: false,
   convosPath: '../../hermes/node_modules/.bin/convos',
   memory: {
