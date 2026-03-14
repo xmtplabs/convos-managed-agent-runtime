@@ -39,7 +39,7 @@ function readMemoryFile() {
 function runPrompt(prompt, sessionId, timeoutMs = 60_000) {
   const start = Date.now();
   try {
-    const args = [...runtime.args(prompt, sessionId), ...runtime.memory.extraArgs];
+    const args = [...runtime.args(prompt, sessionId), ...(runtime.memory.extraArgs ?? [])];
     const raw = execFileSync(runtime.bin, args, {
       encoding: 'utf-8', timeout: timeoutMs,
       ...(runtime.env ? { env: runtime.env } : {}),

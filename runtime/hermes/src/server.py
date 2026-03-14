@@ -30,8 +30,11 @@ from .xmtp_bridge import ConvosInstance
 logger = logging.getLogger(__name__)
 
 # ---- Runtime version (read once at import) ----
-_pkg = Path(__file__).resolve().parent.parent / "package.json"
-RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version") if _pkg.exists() else None
+try:
+    _pkg = Path(__file__).resolve().parent.parent / "package.json"
+    RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version") if _pkg.exists() else None
+except Exception:
+    RUNTIME_VERSION = None
 
 # ---- Module-level state ----
 

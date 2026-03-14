@@ -25,7 +25,7 @@ function buildEvalEnv() {
 
   if (!existsSync(evalEnvScript)) {
     // Docker / CI — environment is already set by Dockerfile
-    _cachedEnv = { env: process.env, cwd: process.cwd() };
+    _cachedEnv = { env: { ...process.env }, cwd: process.cwd() };
     return _cachedEnv;
   }
 
