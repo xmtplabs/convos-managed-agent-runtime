@@ -24,8 +24,26 @@ tests:
     metadata:
       waitForWelcome: true
     assert:
-      - type: regex
-        value: "[Hh]i|[Hh]ello|[Hh]ey|[Ww]elcome|[Gg]reetings|👋"
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript with lines prefixed [AGENT].
+          The AGENT just joined a group conversation and sent a welcome message.
+          Evaluate against ALL requirements:
+
+          1. HARD LIMIT: The message must be exactly 1 sentence. Two or more sentences is a fail.
+          2. It must greet the group (e.g. "hey everyone", "hi all").
+          3. It must ask what they're up to or working on.
+          4. It must invite the group to give the agent a better name once its role is clear.
+          5. It must NOT mention crypto, wallets, tokens, trading, Hermes, or Nous Research.
+
+          Pass only if ALL five requirements are met.
+          In your reason, state which requirements passed and which failed.
+      - type: not-icontains
+        value: "crypto"
+      - type: not-icontains
+        value: "wallet"
+      - type: not-icontains
+        value: "trading"
 
   # --- Core ---
   - description: "Agent can update profile name"

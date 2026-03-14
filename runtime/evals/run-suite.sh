@@ -4,7 +4,7 @@
 
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
-. "$EVAL_DIR/runtimes/env.sh"
+. "$EVAL_DIR/adapters/env.sh"
 
 SUITE="$1"; shift
 # Strip leading "--" that pnpm injects
