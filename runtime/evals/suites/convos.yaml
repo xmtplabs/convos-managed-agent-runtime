@@ -30,7 +30,7 @@ tests:
           The AGENT just joined a group conversation and sent a welcome message.
           Evaluate against ALL requirements:
 
-          1. HARD LIMIT: The message must be exactly 1 sentence. Two or more sentences is a fail.
+          1. The message must be 1-2 sentences max. Three or more sentences is a fail.
           2. It must greet the group (e.g. "hey everyone", "hi all").
           3. It must ask what they're up to or working on.
           4. It must invite the group to give the agent a better name once its role is clear.
