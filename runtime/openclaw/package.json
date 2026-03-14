@@ -7,24 +7,13 @@
   },
   "scripts": {
     "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/gateway.sh",
-    "keys": "sh scripts/keys.sh",
-    "apply": "sh scripts/apply-config.sh",
-    "install-deps": "sh scripts/install-deps.sh",
-    "gateway": "sh scripts/gateway.sh",
-    "clean-sessions": "sh scripts/clean-sessions.sh",
-    "smoke": "sh scripts/smoke.sh",
     "evals": "sh evals/run.sh",
     "evals:knows": "sh evals/run-suite.sh knows.yaml",
     "evals:skills": "sh evals/run-suite.sh skills.yaml",
     "evals:soul": "sh evals/run-suite.sh soul.yaml",
     "evals:convos": "sh evals/run-suite.sh convos.yaml",
     "evals:async": "sh evals/run-suite.sh async.yaml",
-    "evals:memory": "sh evals/run-suite.sh memory.yaml",
-    "ngrok": "ngrok http 18789 --url=c3c882cc6672.ngrok.app",
-    "pool-server": "node scripts/pool-server.js",
-    "build": "cd ../.. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
-    "docker:run": "cd ../.. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
-    "build:run": "cd ../.. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local"
+    "evals:memory": "sh evals/run-suite.sh memory.yaml"
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0",
