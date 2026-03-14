@@ -13,6 +13,7 @@ const evalHome = join(hermesDir, '.eval-home');
 const hermesHome = process.env.HERMES_HOME || join(evalHome, '.hermes');
 const memoriesDir = join(hermesHome, 'memories');
 const sessionsDir = join(hermesHome, 'sessions');
+const stateDb = join(hermesHome, 'state.db');
 
 function clearDir(dir) {
   if (!existsSync(dir)) return;
@@ -44,9 +45,13 @@ export default {
     reset() {
       clearDir(memoriesDir);
       clearDir(sessionsDir);
+      // SessionDB (state.db) powers session_search — must be cleared
+      // between tests or previous conversations leak into recall.
+      try { unlinkSync(stateDb); } catch {}
     },
     clearSessions() {
       clearDir(sessionsDir);
+      try { unlinkSync(stateDb); } catch {}
     },
     read() {
       if (!existsSync(memoriesDir)) return '';
