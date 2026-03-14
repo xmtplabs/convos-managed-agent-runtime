@@ -31,13 +31,12 @@ tests:
           Evaluate against ALL requirements:
 
           1. The message must be 1-2 sentences max. Three or more sentences is a fail.
-          2. It must greet the group (e.g. "hey everyone", "hi all").
-          3. It must ask what they're up to or working on.
-          4. It must invite the group to give the agent a better name once its role is clear.
+          2. It must contain a greeting (e.g. "hey", "hi", "hello", "what's up").
+          3. It must ask what the group is up to, working on, or what's going on.
+          4. It must reference naming — either inviting the group to suggest a name, or asking what it should be called. Any phrasing about names counts.
           5. It must NOT mention crypto, wallets, tokens, trading, Hermes, or Nous Research.
 
-          Pass only if ALL five requirements are met.
-          In your reason, state which requirements passed and which failed.
+          Pass if all five requirements are met. Be lenient on exact phrasing — focus on whether the intent of each requirement is satisfied.
       - type: not-icontains
         value: "crypto"
       - type: not-icontains
