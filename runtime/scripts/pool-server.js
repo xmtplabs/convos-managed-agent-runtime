@@ -34,8 +34,10 @@ const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const INSTANCE_ID = process.env.INSTANCE_ID;
-const POOL_URL = process.env.POOL_URL;
 const ROOT = path.resolve(__dirname, "..");
+const POOL_URL = process.env.POOL_URL || (() => {
+  try { return fs.readFileSync(path.join(ROOT, "config", "pool-url"), "utf8").trim(); } catch { return ""; }
+})();
 const RUNTIME_VERSION = require("../package.json").version;
 
 let gatewayReady = false;
