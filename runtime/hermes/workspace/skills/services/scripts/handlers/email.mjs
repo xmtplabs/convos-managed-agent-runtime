@@ -45,7 +45,7 @@ async function requireEnv() {
     process.exit(1);
   }
   const info = await infoRes.json();
-  if (info.email) return;
+  if (info?.email) return;
 
   console.log("Email not yet provisioned — requesting inbox...");
   const provRes = await fetch(`${POOL_URL}/api/proxy/email/provision`, {
@@ -236,7 +236,7 @@ async function poll(argv) {
     return;
   }
 
-  console.log(`Inbox ${localEmailAddress() || "(proxy)"}: ${out.messages.length} message(s)\n`);
+  console.log(`Inbox ${useProxy ? "(proxy)" : localEmailAddress()}: ${out.messages.length} message(s)\n`);
   for (const message of out.messages) {
     const dir = message.labels?.includes("received") ? "received" : "sent";
     console.log(`  Subject: ${message.subject || "(none)"}`);
@@ -276,7 +276,7 @@ async function recent(argv) {
     cutoff = readCursor();
     if (cutoff === 0) cutoff = Date.now() - 30 * 60 * 1000;
   } else {
-    cutoff = Date.now() - (minutes || 30) * 60 * 1000;
+    cutoff = Date.now() - (minutes ?? 30) * 60 * 1000;
   }
 
   const messages = localServicesEnabled() && !useProxy

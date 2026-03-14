@@ -46,10 +46,11 @@ done
 # Copy Convos platform prompt to HERMES_HOME (agent_runner.py reads it from there)
 [ -f "$RUNTIME_DIR/workspace/CONVOS_PROMPT.md" ] && cp "$RUNTIME_DIR/workspace/CONVOS_PROMPT.md" "$HERMES_HOME/CONVOS_PROMPT.md"
 
-# Load Convos platform prompt as ephemeral system prompt for CLI evals
-if [ -f "$HERMES_HOME/CONVOS_PROMPT.md" ] && [ -z "${HERMES_EPHEMERAL_SYSTEM_PROMPT:-}" ]; then
-  HERMES_EPHEMERAL_SYSTEM_PROMPT="$(cat "$HERMES_HOME/CONVOS_PROMPT.md")"
-  export HERMES_EPHEMERAL_SYSTEM_PROMPT
+# Load Convos platform prompt as ephemeral system prompt for CLI evals.
+# Base64-encode to avoid breaking the line-by-line env parser in hermes.mjs buildEvalEnv().
+if [ -f "$HERMES_HOME/CONVOS_PROMPT.md" ] && [ -z "${HERMES_EPHEMERAL_SYSTEM_PROMPT_B64:-}" ]; then
+  HERMES_EPHEMERAL_SYSTEM_PROMPT_B64="$(base64 < "$HERMES_HOME/CONVOS_PROMPT.md")"
+  export HERMES_EPHEMERAL_SYSTEM_PROMPT_B64
 fi
 
 export HERMES_EVAL_LOCAL_SERVICES="${HERMES_EVAL_LOCAL_SERVICES:-1}"

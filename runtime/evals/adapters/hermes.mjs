@@ -49,6 +49,11 @@ function buildEvalEnv() {
   if (!env.OPENCLAW_GATEWAY_TOKEN) {
     env.OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || Math.random().toString(36).slice(2);
   }
+  // Decode base64-encoded ephemeral prompt (eval-env.sh encodes to avoid breaking the line-by-line env parser)
+  if (env.HERMES_EPHEMERAL_SYSTEM_PROMPT_B64) {
+    env.HERMES_EPHEMERAL_SYSTEM_PROMPT = Buffer.from(env.HERMES_EPHEMERAL_SYSTEM_PROMPT_B64, 'base64').toString('utf-8');
+    delete env.HERMES_EPHEMERAL_SYSTEM_PROMPT_B64;
+  }
 
   // cwd = $HOME so Hermes finds AGENTS.md via cwd discovery
   // (mirrors Docker where WORKDIR=/app and AGENTS.md is at /app/AGENTS.md)
@@ -93,6 +98,7 @@ export default {
   gateway: {
     _proc: null,
     start(port) {
+      if (this._proc) { this._proc.kill(); this._proc = null; }
       const { env: baseEnv, cwd } = buildEvalEnv();
       const env = { ...baseEnv, PORT: String(port) };
       this._proc = spawn('python3', ['-m', 'src.main'], {
