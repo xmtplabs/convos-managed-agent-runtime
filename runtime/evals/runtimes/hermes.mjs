@@ -31,6 +31,10 @@ export default {
     if (l.match(/^session_id:\s/)) return false;
     // Braille spinners (U+2800-U+28FF) from CLI progress display
     if (l.match(/^\s*[\u2800-\u28FF]/)) return false;
+    // Kaomoji progress spinners — "◜ (°ロ°) formulating... (0.3s)" etc.
+    if (l.match(/\(\d+\.\d+s\)\s*$/)) return false;
+    // Tool call status lines — "┊ 🧠 memory    +user: ..."
+    if (l.match(/^\s*┊/)) return false;
     return true;
   }),
   needsSessionClear: false,
