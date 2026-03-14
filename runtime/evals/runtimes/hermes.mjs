@@ -24,8 +24,8 @@ function clearDir(dir) {
 
 export default {
   name: 'hermes',
-  bin: 'hermes',
-  args: (prompt, _session) => ['chat', '-q', prompt, '--quiet'],
+  bin: join(hermesDir, 'bin', 'hermes'),
+  args: (prompt, _session) => ['-q', prompt],
   defaultPort: '8080',
   healthPath: '/pool/health',
   filterLines: (lines) => lines.filter((l) => {
