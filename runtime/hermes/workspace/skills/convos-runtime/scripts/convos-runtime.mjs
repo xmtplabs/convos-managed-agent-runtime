@@ -1,20 +1,16 @@
 #!/usr/bin/env node
-
-import { readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+/**
+ * Convos runtime skill dispatcher.
+ * Usage: node convos-runtime.mjs <command>
+ *
+ * Commands: version, upgrade
+ */
 
 const POOL_URL = process.env.POOL_URL;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-const command = process.argv[2];
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const candidateRoots = [
-  process.env.CONVOS_REPO_ROOT,
-  resolve(__dirname, "../../../.."),
-  resolve(__dirname, "../../../../.."),
-].filter(Boolean);
+const command = process.argv[2];
 
 if (!command) {
   console.error("Usage: node convos-runtime.mjs <command>");
@@ -22,53 +18,22 @@ if (!command) {
   process.exit(1);
 }
 
-function getLocalVersion() {
-  for (const root of candidateRoots) {
-    const pkgPath = join(root, "runtime", "package.json");
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-      if (pkg.version) return pkg.version;
-    } catch {}
-  }
-
-  return null;
-}
-
-function localVersionPayload() {
-  return {
-    runtimeVersion: getLocalVersion(),
-    runtimeImage: process.env.RUNTIME_IMAGE || "local/dev",
-    latestImage: process.env.RUNTIME_IMAGE || "local/dev",
-    instanceId: INSTANCE_ID || null,
-  };
-}
-
 async function poolSelfRequest(endpoint) {
   if (!POOL_URL || !INSTANCE_ID || !GATEWAY_TOKEN) {
     throw new Error("Missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN");
   }
-
-  const response = await fetch(`${POOL_URL}/api/pool/${endpoint}`, {
+  const res = await fetch(`${POOL_URL}/api/pool/${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ instanceId: INSTANCE_ID, gatewayToken: GATEWAY_TOKEN }),
     signal: AbortSignal.timeout(10_000),
   });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.error || `Pool returned ${response.status}`);
-  }
-
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Pool returned ${res.status}`);
   return data;
 }
 
 async function version() {
-  if (!POOL_URL || !INSTANCE_ID || !GATEWAY_TOKEN) {
-    console.log(JSON.stringify({ ok: true, action: "version", ...localVersionPayload() }, null, 2));
-    return;
-  }
-
   const result = await poolSelfRequest("self-info");
   console.log(JSON.stringify({
     ok: true,
@@ -81,16 +46,6 @@ async function version() {
 }
 
 async function upgrade() {
-  if (!POOL_URL || !INSTANCE_ID || !GATEWAY_TOKEN) {
-    console.log(JSON.stringify({
-      ok: true,
-      action: "upgrade-preview",
-      ...localVersionPayload(),
-      message: "This local runtime is not pool-managed. In production, upgrading redeploys the latest Convos runtime container image.",
-    }, null, 2));
-    return;
-  }
-
   if (!process.argv.includes("--confirm")) {
     const info = await poolSelfRequest("self-info");
     console.log(JSON.stringify({
@@ -103,7 +58,6 @@ async function upgrade() {
     }, null, 2));
     return;
   }
-
   console.log("Requesting Convos runtime upgrade from pool server...");
   const result = await poolSelfRequest("self-upgrade");
   console.log(JSON.stringify({ ok: true, action: "upgrade", image: result.image }, null, 2));
@@ -122,7 +76,7 @@ try {
       console.error("Available: version, upgrade");
       process.exit(1);
   }
-} catch (error) {
-  console.error(`[convos-runtime/${command}] ${error.message}`);
+} catch (err) {
+  console.error(`[convos-runtime/${command}] ${err.message}`);
   process.exit(1);
 }

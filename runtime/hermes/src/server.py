@@ -11,10 +11,12 @@ response routing through xmtp_bridge).
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
@@ -26,6 +28,10 @@ from .identity import ensure_workspace, write_instructions
 from .xmtp_bridge import ConvosInstance
 
 logger = logging.getLogger(__name__)
+
+# ---- Runtime version (read once at import) ----
+_pkg = Path(__file__).resolve().parent.parent / "package.json"
+RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version") if _pkg.exists() else None
 
 # ---- Module-level state ----
 
@@ -317,7 +323,7 @@ async def health():
 
 @app.get("/pool/health")
 async def pool_health():
-    return {"ready": True}
+    return {"ready": True, "version": RUNTIME_VERSION}
 
 
 # ---- /pool/provision ----

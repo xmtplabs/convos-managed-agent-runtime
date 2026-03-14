@@ -5,7 +5,7 @@ description: |
   USE WHEN: User asks about the runtime, their version, what version they're on, or asks to upgrade/update/redeploy.
   Also USE WHEN: User says "upgrade", "update", "what's your runtime", "runtime version", "redeploy", or any variation.
   NEVER use `gateway update`, `npm update`, `pip install`, or any local package manager command. Those update local tooling, not the Convos runtime. The runtime upgrade path is a container redeploy via the pool server.
-  REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID + OPENCLAW_GATEWAY_TOKEN). In local Hermes eval mode without pool access, this skill reports the local packaged runtime version and explains the managed upgrade flow.
+  REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID + OPENCLAW_GATEWAY_TOKEN).
 ---
 
 ## Version
@@ -18,7 +18,7 @@ node "$HERMES_HOME/skills/convos-runtime/scripts/convos-runtime.mjs" version
 
 Use this when the user asks "what version am I on?", "what runtime version?", "what's your runtime?", or before upgrading to show the current version.
 
-If the command says the pool server doesn't support version checks yet, tell the user that directly. Do NOT fall back to `gateway update`, `npm update`, or any local package command.
+If the command fails with "Invalid or missing API key" or similar, tell the user: "The pool server doesn't support version queries yet — it needs to be updated first." Do NOT fall back to `gateway update`, `npm update`, or any other local command.
 
 ## Upgrade
 
