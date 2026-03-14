@@ -242,3 +242,21 @@ class AgentRunner:
     def reset_history(self) -> None:
         """Clear conversation history (used on session reset)."""
         self._conversation_history.clear()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-q", "--query", required=True)
+    args, _ = parser.parse_known_args()
+
+    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-sonnet-4-6"
+    if model.startswith("openrouter/"):
+        model = model.removeprefix("openrouter/")
+
+    warm_imports()
+    runner = AgentRunner(model=model, hermes_home=os.environ.get("HERMES_HOME", ""))
+    response = runner.run_single_query(args.query)
+    if response:
+        print(response)

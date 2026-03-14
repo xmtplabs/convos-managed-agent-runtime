@@ -16,4 +16,4 @@ fi
 
 export PYTHONPATH="$RUNTIME_DIR:$RUNTIME_DIR/.hermes-dev/hermes-agent${PYTHONPATH:+:$PYTHONPATH}"
 
-exec python3 "$RUNTIME_DIR/scripts/eval-agent.py" "$@"
+exec python3 -m src.agent_runner "$@"
