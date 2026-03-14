@@ -4,13 +4,13 @@
   "description": "Convos agent runtime powered by Hermes agent",
   "scripts": {
     "start": "python3 -m src.main",
-    "evals": "EVAL_RUNTIME=hermes sh evals/run.sh",
-    "evals:knows": "EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml",
-    "evals:skills": "EVAL_RUNTIME=hermes sh evals/run-suite.sh skills.yaml",
-    "evals:soul": "EVAL_RUNTIME=hermes sh evals/run-suite.sh soul.yaml",
-    "evals:convos": "EVAL_RUNTIME=hermes sh evals/run-suite.sh convos.yaml",
-    "evals:async": "EVAL_RUNTIME=hermes sh evals/run-suite.sh async.yaml",
-    "evals:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml"
+    "evals:hermes": "EVAL_RUNTIME=hermes sh evals/run.sh",
+    "evals:hermes:knows": "EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml",
+    "evals:hermes:skills": "EVAL_RUNTIME=hermes sh evals/run-suite.sh skills.yaml",
+    "evals:hermes:soul": "EVAL_RUNTIME=hermes sh evals/run-suite.sh soul.yaml",
+    "evals:hermes:convos": "EVAL_RUNTIME=hermes sh evals/run-suite.sh convos.yaml",
+    "evals:hermes:async": "EVAL_RUNTIME=hermes sh evals/run-suite.sh async.yaml",
+    "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml"
   },
   "dependencies": {
     "@xmtp/convos-cli": "^0.5.0"
