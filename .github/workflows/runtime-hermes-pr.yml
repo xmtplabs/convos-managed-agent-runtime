@@ -156,6 +156,8 @@ jobs:
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
+            -e POOL_URL="${{ secrets.POOL_URL }}" \
+            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
             ghcr.io/xmtplabs/convos-runtime-hermes:${{ needs.build.outputs.pending }}
 
       - name: Wait for health
@@ -178,7 +180,7 @@ jobs:
             -e EVAL_RUNTIME=hermes \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
             eval-runtime timeout ${{ matrix.timeout }} \
-              npx promptfoo eval -c /app/evals/suites/${{ matrix.suite }}.yaml --table-cell-max-length 1000
+              pnpm evals:hermes:${{ matrix.suite }}
 
       - name: Dump container logs
         if: always()
