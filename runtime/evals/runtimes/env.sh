@@ -22,6 +22,8 @@ case "$EVAL_RUNTIME" in
     [ -f "$_ENV_HERMES_DIR/.env" ] && set -a && . "$_ENV_HERMES_DIR/.env" 2>/dev/null || true && set +a
     # Also source runtime/.env for eval-specific keys (EVAL_OPENROUTER_API_KEY, etc.)
     [ -f "$_ENV_RUNTIME_DIR/.env" ] && set -a && . "$_ENV_RUNTIME_DIR/.env" 2>/dev/null || true && set +a
+    export PATH="$_ENV_HERMES_DIR/bin:$PATH"
+    export HERMES_EVAL_LOCAL_SERVICES="${HERMES_EVAL_LOCAL_SERVICES:-1}"
     if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
       echo "Error: OPENCLAW_GATEWAY_TOKEN must be set in runtime/hermes/.env" >&2
       exit 1
