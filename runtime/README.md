@@ -1,9 +1,8 @@
 # Runtime
 
-The agent runtime is a pre-built Docker image containing the OpenClaw gateway, extensions (convos channel, web-tools), workspace (skills, identity), and all CLI dependencies. Published to GHCR and deployed by the pool manager on Railway.
+Two agent runtimes as peers — **OpenClaw** (Node.js) and **Hermes** (Python) — each with its own Dockerfile, dependencies, and scripts. Shared infrastructure (evals, `.env`, version, changelog) lives at this root level.
 
-
-**Image:** `ghcr.io/xmtplabs/convos-runtime`
+**Images:** `ghcr.io/xmtplabs/convos-runtime` (OpenClaw) · `ghcr.io/xmtplabs/convos-runtime-hermes` (Hermes)
 
 ## How it works
 
@@ -33,52 +32,44 @@ The `pnpm start` script runs four steps in sequence:
 ## Directory structure
 
 ```
-├── Dockerfile              # node:22-bookworm + chromium + pnpm
-├── package.json            # openclaw + deps
-├── openclaw/
+runtime/
+├── .env                    # shared env vars (all runtimes)
+├── .env.example            # env var template
+├── package.json            # shared version + eval scripts
+├── CHANGELOG.md            # shared changelog
+├── evals/                  # shared eval suite (see evals/README.md)
+├── openclaw/               # OpenClaw runtime
+│   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
+│   ├── package.json        # openclaw deps + runtime scripts
 │   ├── openclaw.json       # config template (${ENV_VAR} placeholders)
 │   ├── extensions/
 │   │   ├── convos/         # XMTP messaging channel
 │   │   └── web-tools/      # browser automation, landing page, forms
-│   └── workspace/
-│       ├── AGENTS.md       # agent instructions
-│       ├── IDENTITY.md     # agent identity
-│       ├── SOUL.md         # personality / welcome message
-│       ├── TOOLS.md        # tool usage guidelines
-│       ├── USER.md         # quick current snapshot
-│       ├── MEMORY.md       # durable long-term memory
-│       ├── HEARTBEAT.md    # heartbeat checklist
-│       ├── BOOTSTRAP.md    # first-run ritual
-│       └── skills/
-│           ├── bankr/      # crypto (transfers, swaps)
-│           ├── convos-cli  # Convos CLI commands
-│           └── services/   # email, SMS, credits, info
-└── scripts/
-    ├── entrypoint.sh       # Railway volume setup
-    ├── keys.sh             # env var provisioning + display
-    ├── apply-config.sh     # sync config to state dir
-    ├── install-deps.sh     # extension deps
-    ├── gateway.sh          # openclaw gateway with restart loop
-    ├── pool-server.js      # pool health/provision endpoints
-    ├── smoke.sh            # smoke tests (proxy when POOL_URL set, direct otherwise)
+│   ├── workspace/
+│   │   ├── AGENTS.md       # agent instructions
+│   │   ├── SOUL.md         # personality
+│   │   └── skills/         # bankr, convos-cli, services
+│   └── scripts/            # keys, gateway, pool-server, etc.
+└── hermes/                 # Hermes runtime
+    ├── Dockerfile          # python:3.11 + node 22 + hermes-agent
+    ├── package.json        # convos-cli dep
+    ├── src/                # FastAPI server + XMTP bridge
+    └── workspace/          # AGENTS.md, SOUL.md, skills
 ```
 
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `pnpm start` | Full init: keys → apply → install-deps → gateway |
-| `pnpm keys` | Generate gateway token; create/reuse OpenRouter key; write .env |
-| `pnpm apply` | Sync workspace/skills/extensions, preserve local workspace edits, and copy config template to state dir |
-| `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
-| `pnpm gateway` | Start the gateway |
-| `pnpm smoke` | Smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
-| `pnpm evals` | Run both eval suites (see [evals/README.md](evals/README.md)) |
-| `pnpm evals:prompt` | Prompt eval only (parallel) |
-| `pnpm evals:convos` | Convos lifecycle eval only (sequential) |
-| `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
-| `pnpm build` | Build Docker image locally |
-| `pnpm build:run` | Build and run with .env from repo root |
+| Script | Where | Description |
+|--------|-------|-------------|
+| `pnpm start` | `runtime/` or `openclaw/` | Full init: keys → apply → install-deps → gateway |
+| `pnpm gateway` | `runtime/` or `openclaw/` | Start the openclaw gateway |
+| `pnpm build` | `runtime/` or `openclaw/` | Build Docker image locally |
+| `pnpm build:run` | `runtime/` or `openclaw/` | Build and run with runtime/.env |
+| `pnpm evals` | `runtime/` | Run all eval suites (see [evals/README.md](evals/README.md)) |
+| `pnpm evals:knows` | `runtime/` | Knowledge eval only |
+| `pnpm evals:hermes` | `runtime/` | All suites against hermes |
+| `pnpm smoke` | `openclaw/` | Smoke tests (email, sms, convos, browser) |
+| `pnpm pool-server` | `openclaw/` | Pool-managed container entrypoint |
 
 ## Environment variables
 
@@ -144,7 +135,7 @@ Images are built by `.github/workflows/runtime-pr.yml` (PRs) and `.github/workfl
 
 | Trigger | Tag | Example |
 |---------|-----|---------|
-| PR touching `runtime/**` | `:pending-<sha>` (build), then `:sha-<sha>` + `:pr-N` after QA | `ghcr.io/xmtplabs/convos-runtime:pending-b53321d` |
+| PR touching `runtime/openclaw/**` | `:pending-<sha>` (build), then `:sha-<sha>` + `:pr-N` after QA | `ghcr.io/xmtplabs/convos-runtime:pending-b53321d` |
 | Merge to branch | `:<branch>` (dev, staging, production, scaling) | `ghcr.io/xmtplabs/convos-runtime:production` |
 | `workflow_dispatch` (manual) | `:<choice>` (dev, staging, production, scaling) | `ghcr.io/xmtplabs/convos-runtime:staging` |
 

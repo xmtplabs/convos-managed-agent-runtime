@@ -8,10 +8,13 @@ See `docs/` for architecture, QA, changelog, and workarounds.
 
 ```
 convos-agents/
-├── runtime/       # Agent runtime image (OpenClaw + config + extensions + skills)
-├── pool/          # Pool manager + provider services (Express API + Postgres)
-├── dashboard/     # Template site — Next.js app at assistants.convos.org
-└── docs/          # Schema, QA, changelog, convos extension docs
+├── runtime/           # Agent runtimes, shared evals, shared .env
+│   ├── openclaw/      #   OpenClaw runtime (gateway + extensions + skills)
+│   ├── hermes/        #   Hermes runtime (Python FastAPI + XMTP bridge)
+│   └── evals/         #   Shared eval suite (Promptfoo, multi-runtime)
+├── pool/              # Pool manager + provider services (Express API + Postgres)
+├── dashboard/         # Template site — Next.js app at assistants.convos.org
+└── docs/              # Schema, QA, changelog, convos extension docs
 ```
 
 ## Architecture
@@ -25,7 +28,7 @@ flowchart LR
 
 ### Runtime (`runtime/`)
 
-The agent runtime image — OpenClaw gateway with the convos channel extension, workspace, and skills. Each agent instance runs as a container on Railway.
+Two agent runtimes — OpenClaw (Node.js/TypeScript) and Hermes (Python/FastAPI) — as peers under `runtime/`. Each has its own Dockerfile, deps, and scripts. Shared infrastructure (evals, `.env`, version, changelog) lives at the runtime root.
 
 See [`runtime/README.md`](runtime/README.md) for scripts, environment variables, Docker setup, and CI.
 
