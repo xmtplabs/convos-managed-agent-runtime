@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 SOURCE_PATH="$0"
 if [ -n "${BASH_SOURCE:-}" ]; then
@@ -10,7 +9,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
 RUNTIME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT="$(cd "$RUNTIME_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$RUNTIME_DIR/../.." && pwd)"
 
 [ -f "$RUNTIME_DIR/.env" ] && set -a && . "$RUNTIME_DIR/.env" 2>/dev/null || true && set +a
 [ -f "$REPO_ROOT/runtime/.env" ] && set -a && . "$REPO_ROOT/runtime/.env" 2>/dev/null || true && set +a
@@ -29,7 +28,8 @@ for skill_dir in "$RUNTIME_DIR"/workspace/skills/*; do
   cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
 done
 
+# Copy AGENTS.md to eval HOME root (hermes loads it from cwd)
+[ -f "$RUNTIME_DIR/workspace/AGENTS.md" ] && cp "$RUNTIME_DIR/workspace/AGENTS.md" "$HOME/AGENTS.md"
+
 export HERMES_EVAL_LOCAL_SERVICES="${HERMES_EVAL_LOCAL_SERVICES:-1}"
-: "${HERMES_EPHEMERAL_SYSTEM_PROMPT:=For long multi-step research, comparison, or web-heavy tasks: reply with one short sentence like \"I am on it and will report back.\" and then stop. Do not call any tools. Do not browse, search, execute code, delegate, or continue after that sentence.}"
-export HERMES_EPHEMERAL_SYSTEM_PROMPT
 export PATH="$RUNTIME_DIR/node_modules/.bin:$PATH"
