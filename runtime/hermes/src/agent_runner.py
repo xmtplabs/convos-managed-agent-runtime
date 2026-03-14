@@ -1,11 +1,20 @@
 """
 Agent runner — wraps the Hermes AIAgent for conversational message handling.
 
-Uses the Hermes toolset/platform system the same way the gateway does:
-  - Registers a "hermes-convos" toolset (same tools as all other platforms)
-  - Sets platform="convos" on the agent
-  - Injects convos-specific instructions via ephemeral_system_prompt
-  - The agent uses the terminal tool to run CLI commands as needed
+Used by both production and evals:
+
+  Production: src.main → FastAPI server → AgentRunner.handle_message()
+    Full XMTP pipeline with envelope formatting, conversation history,
+    and async message handling.
+
+  Evals: bin/hermes → python -m src.agent_runner -q "query"
+    Single-turn queries via AgentRunner.run_single_query().
+    Same AIAgent config, same toolsets, same skills — no wrapper scripts.
+
+Both paths use the same AIAgent setup:
+  - hermes-convos toolset (core tools + convos_react, convos_send_attachment)
+  - platform="convos"
+  - ephemeral_system_prompt from CONVOS_PROMPT.md
 
 The adapter (convos_adapter.py) handles marker parsing and response routing.
 """

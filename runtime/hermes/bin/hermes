@@ -1,4 +1,17 @@
 #!/bin/sh
+# Eval wrapper — the local equivalent of the production Dockerfile.
+#
+# Production (Docker):
+#   Dockerfile sets HERMES_HOME, copies workspace files, sets PYTHONPATH,
+#   then runs `python -m src.main` which starts the FastAPI server.
+#   The server calls AgentRunner.handle_message() for each XMTP message.
+#
+# Evals (this script):
+#   Sources eval-env.sh to set HERMES_HOME, copy workspace files, set PYTHONPATH,
+#   then calls `python -m src.agent_runner` directly — same AgentRunner,
+#   same AIAgent config, same skills. No FastAPI, no XMTP.
+#
+# Both paths use the same production code in src/agent_runner.py.
 
 SOURCE_PATH="$0"
 if [ -n "${BASH_SOURCE:-}" ]; then

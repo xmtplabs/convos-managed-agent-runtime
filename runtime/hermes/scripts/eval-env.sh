@@ -1,4 +1,13 @@
 #!/bin/sh
+# Eval environment setup — the local equivalent of the production Dockerfile.
+#
+# Replicates what the Dockerfile does for production:
+#   - Sets HERMES_HOME and copies workspace files (SOUL.md, config.yaml, skills)
+#   - Copies AGENTS.md and CONVOS_PROMPT.md
+#   - Clears bundled skills so only workspace skills are available (matching Docker COPY)
+#   - Enables local service simulation (HERMES_EVAL_LOCAL_SERVICES=1)
+#
+# Sourced by bin/hermes before calling python -m src.agent_runner.
 
 SOURCE_PATH="$0"
 if [ -n "${BASH_SOURCE:-}" ]; then
