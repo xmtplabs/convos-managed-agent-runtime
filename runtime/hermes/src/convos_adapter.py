@@ -26,6 +26,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from .xmtp_bridge import ConvosInstance, InboundMessage
@@ -38,6 +39,9 @@ logger = logging.getLogger(__name__)
 XMTP_MESSAGE_LIMIT = 4000
 GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
 COMPANION_SETTLE_S = 1.5
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".heic", ".heif", ".avif"}
+ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
+
 
 
 @dataclass
@@ -175,6 +179,16 @@ def is_attachment_message(msg: InboundMessage) -> bool:
     return msg.content_type in ("attachment", "remoteStaticAttachment")
 
 
+def _extract_attachment_filename(content: str) -> str | None:
+    """Extract filename from normalized attachment content like '[remote attachment: photo.png ...]'."""
+    m = ATTACHMENT_FILENAME_RE.search(content)
+    return m.group(1) if m else None
+
+
+def _is_image_filename(filename: str) -> bool:
+    return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
+
+
 def attachment_hold_key(msg: InboundMessage) -> str | None:
     if not msg.conversation_id or not msg.sender_id:
         return None
@@ -182,7 +196,13 @@ def attachment_hold_key(msg: InboundMessage) -> str | None:
 
 
 def merge_attachment_with_message(attachment_msg: InboundMessage, msg: InboundMessage) -> InboundMessage:
-    attachment_context = f"Attachment reference {attachment_msg.message_id}: {attachment_msg.content}"
+    # If the attachment was downloaded to a local file (set by _download_image_attachment),
+    # tell the agent the file path so it can use vision_analyze.
+    local_path = getattr(attachment_msg, "_local_image_path", None)
+    if local_path:
+        attachment_context = f"[Image attached: {local_path}] Use your vision_analyze tool with this file path to see the image."
+    else:
+        attachment_context = f"Attachment reference {attachment_msg.message_id}: {attachment_msg.content}"
     merged_content = f"{attachment_context}\n{msg.content}".strip()
     return InboundMessage(
         conversation_id=msg.conversation_id,
@@ -297,6 +317,7 @@ class ConvosAdapter:
         hold_key = attachment_hold_key(msg)
 
         if is_attachment_message(msg):
+            await self._download_image_attachment(msg)
             await self._hold_attachment(hold_key, msg)
             return
 
@@ -338,11 +359,18 @@ class ConvosAdapter:
         if msg.sender_id and msg.sender_name and msg.sender_id != "system":
             inst.set_member_name(msg.sender_id, msg.sender_name)
 
-        logger.info(f"Inbound [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}: {msg.content[:80]}")
+        # If this is a standalone image attachment (no companion text), rewrite content
+        # to tell the agent where the file is so it can use vision_analyze.
+        local_path = getattr(msg, "_local_image_path", None)
+        content = msg.content
+        if local_path and is_attachment_message(msg):
+            content = f"[Image attached: {local_path}] Use your vision_analyze tool with this file path to see the image."
+
+        logger.info(f"Inbound [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}: {content[:80]}")
 
         try:
             response = await agent.handle_message(
-                content=msg.content,
+                content=content,
                 sender_name=msg.sender_name,
                 sender_id=msg.sender_id,
                 timestamp=msg.timestamp,
@@ -364,7 +392,30 @@ class ConvosAdapter:
             except Exception:
                 pass  # silently ignore if eyes weren't placed
 
-    # ---- Attachment hold/merge ----
+    # ---- Attachment download + hold/merge ----
+
+    async def _download_image_attachment(self, msg: InboundMessage) -> None:
+        """If the attachment is an image, download it and stash the local path on the message."""
+        filename = _extract_attachment_filename(msg.content)
+        if not filename or not _is_image_filename(filename):
+            return
+
+        inst = self._instance
+        if not inst:
+            return
+
+        media_dir = Path(self._config.hermes_home) / "media"
+        media_dir.mkdir(parents=True, exist_ok=True)
+        ext = Path(filename).suffix.lower() or ".jpg"
+        local_path = media_dir / f"convos-img-{msg.message_id[:16]}{ext}"
+
+        try:
+            await inst.download_attachment(msg.message_id, str(local_path))
+            # Stash the path on the message object so merge_attachment_with_message can use it.
+            msg._local_image_path = str(local_path)  # type: ignore[attr-defined]
+            logger.info(f"Downloaded image attachment to {local_path}")
+        except Exception as err:
+            logger.error(f"Failed to download image attachment {msg.message_id}: {err}")
 
     async def _hold_attachment(self, hold_key: str | None, msg: InboundMessage) -> None:
         """Hold an attachment message, waiting for a companion text message to merge with."""
