@@ -24,14 +24,14 @@ const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
 const API_KEY = process.env.TELNYX_API_KEY;
 const PHONE = process.env.TELNYX_PHONE_NUMBER;
 
-/** Ensure SMS is available — provisions on first use in proxy mode. */
-async function requireEnv() {
+/** Ensure SMS is available. Use --no-provision to silently exit when not provisioned. */
+async function requireEnv({ noProvision = false } = {}) {
   if (!useProxy) {
     if (!API_KEY) { console.error("SMS service not configured: missing API key"); process.exit(1); }
     if (!PHONE) { console.error("SMS service not configured: missing phone number"); process.exit(1); }
     return;
   }
-  // Proxy mode — check if phone exists, provision if not
+  // Proxy mode — check if phone exists
   const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
     headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
   });
@@ -39,19 +39,12 @@ async function requireEnv() {
   const info = await infoRes.json();
   if (info.phone) return; // already provisioned
 
-  // Provision on demand
-  console.log("SMS not yet provisioned — requesting phone number...");
-  const provRes = await fetch(`${POOL_URL}/api/proxy/sms/provision`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
-  });
-  if (!provRes.ok) {
-    const err = await provRes.json().catch(() => ({}));
-    console.error(`SMS provisioning failed: ${err.error || provRes.status}`);
-    process.exit(1);
+  // Not provisioned — either skip silently or fail
+  if (noProvision) {
+    process.exit(0);
   }
-  const result = await provRes.json();
-  console.log(`SMS provisioned: ${result.phone}`);
+  console.error("SMS not provisioned. Use the provision endpoint first.");
+  process.exit(1);
 }
 
 function parseArgs(argv) {
@@ -89,8 +82,8 @@ function directHeaders() {
 }
 
 async function send(argv) {
-  await requireEnv();
-  const { map } = parseArgs(argv);
+  const { map, positional } = parseArgs(argv);
+  await requireEnv({ noProvision: !!map["no-provision"] });
   const to = map.to;
   const text = map.text;
 
@@ -136,8 +129,8 @@ async function send(argv) {
 }
 
 async function poll(argv) {
-  await requireEnv();
-  const { map } = parseArgs(argv);
+  const { map, positional } = parseArgs(argv);
+  await requireEnv({ noProvision: !!map["no-provision"] });
   const limit = parseInt(map.limit, 10) || 10;
 
   let res;
@@ -242,8 +235,8 @@ function writeCursor(ts) {
 }
 
 async function recent(argv) {
-  await requireEnv();
-  const { map } = parseArgs(argv);
+  const { map, positional } = parseArgs(argv);
+  await requireEnv({ noProvision: !!map["no-provision"] });
   const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
   const sinceLast = map["since-last"] !== undefined;
   const limit = parseInt(map.limit, 10) || 5;
@@ -319,16 +312,47 @@ async function recent(argv) {
   }
 }
 
+async function provision() {
+  if (!useProxy) {
+    console.log("SMS provisioning is only available in proxy mode (pool-managed instances).");
+    process.exit(1);
+  }
+  // Check if already provisioned
+  const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
+  });
+  if (infoRes.ok) {
+    const info = await infoRes.json();
+    if (info.phone) {
+      console.log(`SMS already provisioned: ${info.phone}`);
+      return;
+    }
+  }
+  // Provision
+  const provRes = await fetch(`${POOL_URL}/api/proxy/sms/provision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
+  });
+  if (!provRes.ok) {
+    const err = await provRes.json().catch(() => ({}));
+    console.error(`SMS provisioning failed: ${err.error || provRes.status}`);
+    process.exit(1);
+  }
+  const result = await provRes.json();
+  console.log(`SMS provisioned: ${result.phone}`);
+}
+
 export default async function sms(argv) {
   const [action, ...rest] = argv;
 
   switch (action) {
+    case "provision": return provision();
     case "send":   return send(rest);
     case "poll":   return poll(rest);
     case "status": return status(rest);
     case "recent": return recent(rest);
     default:
-      console.error("Usage: services.mjs sms <send|poll|status|recent> [options]");
+      console.error("Usage: services.mjs sms <provision|send|poll|status|recent> [options]");
       process.exit(1);
   }
 }

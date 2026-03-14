@@ -52,4 +52,8 @@ echo ""
 echo "=== ${RUNTIME_LABEL}: Async eval (sequential) ==="
 $base_cmd -c "$EVAL_DIR/suites/async.yaml" "$@" || failed=1
 
+echo ""
+echo "=== ${RUNTIME_LABEL}: Memory eval (sequential) ==="
+$base_cmd -c "$EVAL_DIR/suites/memory.yaml" "$@" || failed=1
+
 exit $failed

@@ -1251,7 +1251,7 @@
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var orTool = tools.find(function (t) { return t.tool_id === 'openrouter'; });
       var instanceModel = (orTool && orTool.resource_meta && orTool.resource_meta.model) || '';
-      var hasSections = key || mailTool || telnyxTool;
+      var hasSections = true;
 
       var instanceUrl = (agent && agent.url) || infra.url || '';
       html += '<div class="expand-col expand-col-left">';
@@ -1269,13 +1269,14 @@
           + '</div>' : '')
         + '</div>';
 
-      if (mailTool) {
-        html += '<div class="expand-section" style="border-top:1px solid #EBEBEB">'
-          + '<div class="expand-section-header"><span class="expand-section-title">AgentMail</span>'
-          + '<span class="expand-status-dot ' + (mailTool.status === 'active' ? 'active' : 'inactive') + '"></span></div>'
-          + '<div class="expand-kv"><span class="expand-val mono">' + esc(mailTool.env_value || mailTool.resource_id || '-') + '</span></div>'
-          + '</div>';
-      }
+      html += '<div class="expand-section" style="border-top:1px solid #EBEBEB">'
+        + '<div class="expand-section-header"><span class="expand-section-title">AgentMail</span>'
+        + (mailTool
+          ? '<span class="expand-status-dot ' + (mailTool.status === 'active' ? 'active' : 'inactive') + '"></span></div>'
+            + '<div class="expand-kv"><span class="expand-val mono">' + esc(mailTool.env_value || mailTool.resource_id || '-') + '</span></div>'
+          : '<span class="expand-status-dot inactive"></span></div>'
+            + '<div class="expand-kv"><span class="expand-val" style="color:#9CA3AF">Not provisioned</span></div>')
+        + '</div>';
 
       html += '</div>';
 

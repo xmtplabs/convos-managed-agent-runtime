@@ -4,14 +4,27 @@ description: |
   Your managed communication and account services: email, SMS, and credits.
   USE WHEN: Sending emails, calendar invites, polling inbox, sending/polling SMS, checking credits, topping up credits, asked for your URL/link/page/contact info/services.
   DON'T USE WHEN: Task is just creating a file without sending it (use fs tools).
-  REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID). Email and SMS are provisioned on first use — no upfront setup needed.
+  REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID). Email and SMS must be explicitly provisioned before use.
 ---
 
 ## How provisioning works
 
-Email and SMS are **opt-in** — they are not pre-provisioned when your instance is created. The first time you run an email or SMS command, the service handler automatically requests provisioning from the pool manager. This is a one-time operation per service; subsequent calls use the already-provisioned resource.
+Email and SMS are **opt-in** — they are not pre-provisioned when your instance is created. You must explicitly provision each service before using it.
 
-If a user asks to send an email or SMS and it hasn't been provisioned yet, just run the command — provisioning happens transparently.
+**Before sending any email or SMS, you MUST:**
+1. Run `services.mjs info` to check if the service is already provisioned
+2. If not provisioned, **ask the user** if they want to enable it (e.g. "I don't have email set up yet. Want me to provision an inbox?")
+3. Only after the user confirms, run the provision command
+
+```bash
+# Provision email
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email provision
+
+# Provision SMS
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs sms provision
+```
+
+**Never provision without asking the user first.** If a user asks to send an email/SMS and the service isn't provisioned, ask them before enabling it.
 
 ## Restrictions
 
