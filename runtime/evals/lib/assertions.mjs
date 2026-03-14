@@ -113,6 +113,31 @@ export function agentDelegatedHeavyTask(output, context) {
   };
 }
 
+export function memoryFileUpdated(output, context) {
+  const contents = context.providerResponse?.metadata?.memoryContents || '';
+
+  // Filter out frontmatter, section headers, and italicized placeholder text.
+  // What remains should be substantive content the agent actually wrote.
+  const lines = contents.split('\n').filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;                         // blank
+    if (trimmed === '---') return false;                // frontmatter delimiter
+    if (trimmed.startsWith('#')) return false;           // section header
+    if (/^_.*_$/.test(trimmed)) return false;           // italicized placeholder
+    if (/^title:|^summary:/.test(trimmed)) return false; // frontmatter fields
+    return true;
+  });
+
+  const pass = lines.length > 0;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `MEMORY.md has ${lines.length} substantive line(s) beyond the template`
+      : 'MEMORY.md still matches the empty template — agent did not write to memory',
+  };
+}
+
 export function responseTimeBelowThreshold(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const actual = meta.responseTimeMs;
