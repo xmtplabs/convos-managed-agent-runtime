@@ -19,7 +19,7 @@ RUN npm install -g pnpm@9
 WORKDIR /app
 
 # Install all deps (openclaw now comes from npm via package.json)
-COPY runtime/package.json runtime/pnpm-lock.yaml /app/
+COPY runtime/openclaw/package.json runtime/openclaw/pnpm-lock.yaml /app/
 RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
@@ -27,7 +27,7 @@ ENV NODE_PATH=/app/node_modules
 COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/openclaw/workspace /app/openclaw/workspace
 COPY runtime/openclaw/extensions /app/openclaw/extensions
-COPY runtime/scripts ./scripts
+COPY runtime/openclaw/scripts ./scripts
 COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
