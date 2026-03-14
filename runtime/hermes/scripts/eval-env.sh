@@ -17,7 +17,11 @@ export CONVOS_REPO_ROOT="$REPO_ROOT"
 
 export HOME="$RUNTIME_DIR/.eval-home"
 export HERMES_HOME="$HOME/.hermes"
-mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
+mkdir -p "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
+
+# Clear and rebuild skills dir — only workspace skills, matching production Docker image
+rm -rf "$HERMES_HOME/skills"
+mkdir -p "$HERMES_HOME/skills"
 
 cp "$RUNTIME_DIR/workspace/SOUL.md" "$HERMES_HOME/SOUL.md"
 cp "$RUNTIME_DIR/workspace/config.yaml" "$HERMES_HOME/config.yaml"

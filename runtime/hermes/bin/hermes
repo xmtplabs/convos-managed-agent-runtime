@@ -14,6 +14,6 @@ if [ -z "${HERMES_HOME:-}" ]; then
   . "$RUNTIME_DIR/scripts/eval-env.sh"
 fi
 
-export PYTHONPATH="$RUNTIME_DIR/.hermes-dev/hermes-agent${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$RUNTIME_DIR:$RUNTIME_DIR/.hermes-dev/hermes-agent${PYTHONPATH:+:$PYTHONPATH}"
 
-exec python3 -m hermes_cli.main "$@"
+exec python3 "$RUNTIME_DIR/scripts/eval-agent.py" "$@"
