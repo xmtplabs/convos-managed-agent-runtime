@@ -93,8 +93,8 @@ export default {
   gateway: {
     _proc: null,
     start(port) {
-      const { env, cwd } = buildEvalEnv();
-      env.PORT = String(port);
+      const { env: baseEnv, cwd } = buildEvalEnv();
+      const env = { ...baseEnv, PORT: String(port) };
       this._proc = spawn('python3', ['-m', 'src.main'], {
         cwd,
         env,

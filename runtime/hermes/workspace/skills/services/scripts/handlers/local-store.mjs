@@ -93,13 +93,13 @@ export function recordLocalSms({ to, text }) {
   const state = loadState();
   const message = {
     id: makeId("sms"),
-    cli: to,
+    cli: localPhoneNumber(),
     sent_at: new Date().toISOString(),
     text,
-    direction: "inbound",
-    status: "received",
-    from: to,
-    to: localPhoneNumber(),
+    direction: "outbound",
+    status: "queued",
+    from: localPhoneNumber(),
+    to: to,
   };
   state.sms.messages.unshift(message);
   saveState(state);

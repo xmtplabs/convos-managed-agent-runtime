@@ -40,7 +40,10 @@ async function requireEnv() {
   const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
     headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
   });
-  if (!infoRes.ok) return;
+  if (!infoRes.ok) {
+    console.error(`Email service info check failed: ${infoRes.status}`);
+    process.exit(1);
+  }
   const info = await infoRes.json();
   if (info.email) return;
 

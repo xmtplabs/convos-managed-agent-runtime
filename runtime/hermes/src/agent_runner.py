@@ -83,8 +83,9 @@ def _get_ai_agent_class():
 
 def _load_convos_prompt() -> str:
     """Load the Convos platform prompt from workspace or HERMES_HOME."""
+    hermes_home = os.environ.get("HERMES_HOME", "")
     candidates = [
-        Path(os.environ.get("HERMES_HOME", "")) / "CONVOS_PROMPT.md",
+        *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PROMPT.md"]),
         Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PROMPT.md",
     ]
     for path in candidates:

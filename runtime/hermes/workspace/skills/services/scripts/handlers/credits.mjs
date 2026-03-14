@@ -27,11 +27,11 @@ async function poolRequest(endpoint) {
     body: JSON.stringify({ instanceId: INSTANCE_ID, gatewayToken: GATEWAY_TOKEN }),
     signal: AbortSignal.timeout(10_000),
   });
-  const body = await res.json();
   if (!res.ok) {
+    const body = await res.json().catch(() => null);
     throw new Error(body?.error || `Pool server returned ${res.status}`);
   }
-  return body;
+  return await res.json();
 }
 
 async function check() {
