@@ -32,7 +32,7 @@ jobs:
             libxkbcommon0 libxrandr2 xdg-utils
 
       - name: Enable pnpm + install deps
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: |
           corepack enable
           pnpm install --no-frozen-lockfile
@@ -51,7 +51,7 @@ jobs:
           DOTENV
 
       - name: Start gateway
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: |
           pnpm start &
           for i in $(seq 1 120); do
@@ -65,31 +65,31 @@ jobs:
           exit 1
 
       - name: "Eval: knows (parallel)"
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: timeout 180 pnpm evals:knows
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: skills (parallel)"
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: timeout 300 pnpm evals:skills
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: soul (parallel)"
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: timeout 180 pnpm evals:soul
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: convos (sequential)"
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: timeout 600 pnpm evals:convos
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: async (sequential)"
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: timeout 120 pnpm evals:async
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}

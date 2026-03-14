@@ -106,9 +106,9 @@ All values are injected by the pool manager via Railway env vars at instance cre
 ### Run locally (no Docker)
 
 ```sh
-cd runtime
+cd runtime/openclaw
 pnpm install
-# edit .env with your keys
+# edit runtime/.env with your keys (shared .env at runtime root)
 pnpm start
 ```
 
@@ -117,7 +117,7 @@ Gateway starts at `http://localhost:18789`. State goes to `~/.openclaw`.
 ### Run in Docker
 
 ```sh
-cd runtime
+cd runtime/openclaw
 
 # build + run
 pnpm build:run

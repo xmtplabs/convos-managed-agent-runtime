@@ -46,7 +46,7 @@ jobs:
         run: |
           SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
           TAG="pr-${{ github.event.number }}"
-          VERSION="$(jq -r '.version // "unknown"' runtime/hermes/package.json 2>/dev/null || echo 'unknown')"
+          VERSION="$(jq -r '.version // "unknown"' runtime/package.json 2>/dev/null || echo 'unknown')"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
@@ -235,7 +235,7 @@ jobs:
         id: env
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
-          VERSION="$(jq -r '.version // "unknown"' runtime/hermes/package.json 2>/dev/null || echo 'unknown')"
+          VERSION="$(jq -r '.version // "unknown"' runtime/package.json 2>/dev/null || echo 'unknown')"
           case "$BASE" in
             dev) echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
             *)   echo "tag=" >> "$GITHUB_OUTPUT" ;;

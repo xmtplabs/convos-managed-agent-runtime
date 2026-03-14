@@ -13,7 +13,7 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 ## Running
 
 ```sh
-cd runtime
+cd runtime/openclaw
 pnpm start              # terminal 1: start the runtime
 
 pnpm evals              # run all suites (openclaw, the default)
@@ -45,7 +45,7 @@ pnpm evals:convos -- --filter-pattern "welcome"
 
 ## Env vars
 
-Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime/hermes/.env`):
+Required in `runtime/.env` (shared by all runtimes):
 
 - `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)

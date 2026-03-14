@@ -7,7 +7,7 @@ Three subprojects: **pool/** (Express API + Drizzle/Postgres pool manager), **ru
 - Pool: `cd pool && pnpm dev` / `pnpm build` (tsc) / `pnpm test` / `pnpm db:migrate` / `pnpm db:studio`
 - Single test: `cd pool && pnpm tsx --env-file=.env --test src/path/to/file.test.ts`
 - Dashboard: `cd dashboard && pnpm dev` / `pnpm build` / `pnpm test:parity` (Playwright)
-- Runtime: `cd runtime && pnpm build` (Docker) / `pnpm build:run`
+- Runtime: `cd runtime/openclaw && pnpm build` (Docker) / `pnpm build:run`
 
 ## Code Style (pool/ — TypeScript)
 - ESM (`"type": "module"`), Node ≥22, strict TypeScript. Imports: node builtins with `node:` prefix, named exports, barrel files for db/services.

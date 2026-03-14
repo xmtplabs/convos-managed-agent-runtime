@@ -20,7 +20,6 @@ SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
 RUNTIME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$RUNTIME_DIR/../.." && pwd)"
 
-[ -f "$RUNTIME_DIR/.env" ] && set -a && . "$RUNTIME_DIR/.env" 2>/dev/null || true && set +a
 [ -f "$REPO_ROOT/runtime/.env" ] && set -a && . "$REPO_ROOT/runtime/.env" 2>/dev/null || true && set +a
 export CONVOS_REPO_ROOT="$REPO_ROOT"
 

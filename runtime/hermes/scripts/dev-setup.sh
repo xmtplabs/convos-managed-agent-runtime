@@ -37,9 +37,9 @@ fi
 
 # ---- .env check ----
 
-if [ ! -f "$RUNTIME_DIR/.env" ]; then
-  echo "WARNING: No .env file found. Copy .env.example and fill in your keys:"
-  echo "  cp .env.example .env"
+if [ ! -f "$RUNTIME_DIR/../.env" ]; then
+  echo "WARNING: No runtime/.env file found. Copy the example and fill in your keys:"
+  echo "  cp runtime/.env.example runtime/.env"
   echo ""
 fi
 
@@ -98,10 +98,10 @@ set -e
 RUNTIME_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 HERMES_DIR="$RUNTIME_DIR/.hermes-dev"
 
-# Load .env
-if [ -f "$RUNTIME_DIR/.env" ]; then
+# Load .env from runtime root (shared by all runtimes)
+if [ -f "$RUNTIME_DIR/../.env" ]; then
   set -a
-  source "$RUNTIME_DIR/.env"
+  source "$RUNTIME_DIR/../.env"
   set +a
 fi
 

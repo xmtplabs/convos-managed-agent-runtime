@@ -30,9 +30,19 @@ from .xmtp_bridge import ConvosInstance
 logger = logging.getLogger(__name__)
 
 # ---- Runtime version (read once at import) ----
+# Check runtime root package.json (source of truth), then Docker-injected copy, then local hermes.
 try:
-    _pkg = Path(__file__).resolve().parent.parent / "package.json"
-    RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version") if _pkg.exists() else None
+    _candidates = [
+        Path(__file__).resolve().parent.parent.parent / "package.json",  # runtime/package.json (local dev)
+        Path(__file__).resolve().parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        Path(__file__).resolve().parent.parent / "package.json",          # hermes/package.json (fallback)
+    ]
+    RUNTIME_VERSION = None
+    for _pkg in _candidates:
+        if _pkg.exists():
+            RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version")
+            if RUNTIME_VERSION:
+                break
 except Exception:
     RUNTIME_VERSION = None
 

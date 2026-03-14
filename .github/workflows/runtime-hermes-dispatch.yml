@@ -40,7 +40,7 @@ jobs:
         id: meta
         run: |
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-          VERSION="$(jq -r '.version // "unknown"' runtime/hermes/package.json 2>/dev/null || echo 'unknown')"
+          VERSION="$(jq -r '.version // "unknown"' runtime/package.json 2>/dev/null || echo 'unknown')"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Building v$VERSION (sha-$SHA) from ${{ github.ref_name }}"

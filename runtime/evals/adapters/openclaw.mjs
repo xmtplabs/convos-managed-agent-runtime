@@ -27,7 +27,7 @@ export default {
   healthPath: '/__openclaw__/canvas/',
   filterLines: (lines) => lines,
   needsSessionClear: true,
-  convosPath: '../../../node_modules/.bin/convos', // repo root node_modules (from evals/)
+  convosPath: '../../openclaw/node_modules/.bin/convos',
   memory: {
     extraArgs: ['--local'],
     reset() {
