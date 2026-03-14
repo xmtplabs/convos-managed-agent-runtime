@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 SOURCE_PATH="$0"
 if [ -n "${BASH_SOURCE:-}" ]; then
@@ -16,17 +15,5 @@ if [ -z "${HERMES_HOME:-}" ]; then
 fi
 
 export PYTHONPATH="$RUNTIME_DIR/.hermes-dev/hermes-agent${PYTHONPATH:+:$PYTHONPATH}"
-
-if [ "$1" = "chat" ]; then
-  shift
-
-  case " $* " in
-    *" -q "*|*" --query "*)
-      exec python3 "$RUNTIME_DIR/scripts/eval-chat.py" "$@"
-      ;;
-  esac
-
-  exec python3 -m hermes_cli.main chat "$@"
-fi
 
 exec python3 -m hermes_cli.main "$@"
