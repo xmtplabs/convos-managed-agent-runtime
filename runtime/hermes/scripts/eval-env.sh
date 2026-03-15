@@ -17,6 +17,12 @@ elif [ -n "${ZSH_VERSION:-}" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
+# Fallback: if $0 resolved to the interpreter (e.g. /bin/sh on Linux dash),
+# SCRIPT_DIR won't contain this script. The caller (hermes.mjs) sets cwd to
+# hermesDir, so scripts/ is a known relative path.
+if [ ! -f "$SCRIPT_DIR/eval-env.sh" ]; then
+  SCRIPT_DIR="$(cd "scripts" 2>/dev/null && pwd)"
+fi
 RUNTIME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$RUNTIME_DIR/../.." && pwd)"
 
@@ -49,7 +55,7 @@ done
 # Load Convos platform prompt as ephemeral system prompt for CLI evals.
 # Base64-encode to avoid breaking the line-by-line env parser in hermes.mjs buildEvalEnv().
 if [ -f "$HERMES_HOME/CONVOS_PROMPT.md" ] && [ -z "${HERMES_EPHEMERAL_SYSTEM_PROMPT_B64:-}" ]; then
-  HERMES_EPHEMERAL_SYSTEM_PROMPT_B64="$(base64 < "$HERMES_HOME/CONVOS_PROMPT.md")"
+  HERMES_EPHEMERAL_SYSTEM_PROMPT_B64="$(base64 < "$HERMES_HOME/CONVOS_PROMPT.md" | tr -d '\n')"
   export HERMES_EPHEMERAL_SYSTEM_PROMPT_B64
 fi
 

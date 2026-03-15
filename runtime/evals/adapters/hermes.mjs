@@ -105,7 +105,7 @@ export default {
       this._proc = spawn('python3', [evalServer], {
         cwd,
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['ignore', 'ignore', 'pipe'],
       });
       this._proc.stderr.on('data', (d) => {
         const line = d.toString().trim();
