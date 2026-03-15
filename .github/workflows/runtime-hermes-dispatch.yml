@@ -11,6 +11,8 @@ on:
         type: choice
         options:
           - dev
+          - staging
+          - production
 
 permissions:
   packages: write
