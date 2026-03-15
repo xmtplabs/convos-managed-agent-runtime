@@ -5,7 +5,7 @@ set -e
 
 # ── Version ──────────────────────────────────────────────────────────────
 _version="unknown"
-for _pkg in "$RUNTIME_ROOT/package.json" "$ROOT/package.json"; do
+for _pkg in "$ROOT/../package.json" "$ROOT/runtime-version.json" "$ROOT/package.json"; do
   if command -v jq >/dev/null 2>&1 && [ -f "$_pkg" ]; then
     _version=$(jq -r '.version // "unknown"' "$_pkg")
     [ "$_version" != "unknown" ] && break

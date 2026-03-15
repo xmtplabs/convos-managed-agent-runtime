@@ -7,8 +7,10 @@ HERMES_TAG="v2026.3.12"
 
 brand_section "Sync workspace"
 
-# ── Bootstrap hermes-agent (one-time) ────────────────────────────────────
-if [ ! -d "$HERMES_AGENT_DIR/.git" ]; then
+# ── Bootstrap hermes-agent (local dev only — Docker pre-installs to /opt) ─
+if [ "$HERMES_AGENT_DIR" = "/opt/hermes-agent" ]; then
+  brand_ok "hermes-agent" "$HERMES_TAG (pre-installed)"
+elif [ ! -d "$HERMES_AGENT_DIR/.git" ]; then
   brand_info "hermes-agent" "cloning $HERMES_TAG ..."
   mkdir -p "$(dirname "$HERMES_AGENT_DIR")"
   git clone --recurse-submodules --branch "$HERMES_TAG" --depth 1 \
@@ -28,7 +30,7 @@ else
   brand_ok "hermes-agent" "$HERMES_TAG"
 fi
 
-# ── Node deps (one-time) ────────────────────────────────────────────────
+# ── Node deps (local dev only — Docker pre-installs) ────────────────────
 if [ ! -d "$ROOT/node_modules/.bin" ]; then
   brand_info "node deps" "installing ..."
   cd "$ROOT" && CI=true pnpm install --frozen-lockfile

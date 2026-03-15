@@ -3,7 +3,7 @@
   "private": true,
   "description": "Convos agent runtime powered by Hermes agent",
   "scripts": {
-    "start:hermes": "python3 -m src.main",
+    "start:hermes": "sh scripts/keys.sh && sh scripts/sync.sh && sh scripts/identity.sh && sh scripts/start.sh",
     "evals:hermes": "EVAL_RUNTIME=hermes sh evals/run.sh",
     "evals:hermes:knows": "EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml",
     "evals:hermes:skills": "EVAL_RUNTIME=hermes sh evals/run-suite.sh skills.yaml",
