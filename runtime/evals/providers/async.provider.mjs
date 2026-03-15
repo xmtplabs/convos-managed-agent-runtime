@@ -2,11 +2,16 @@
 // Provider that tests the agent delegates heavy tasks to sub-agents
 // and stays responsive for follow-up queries.
 //
-// Flow:
+// Hermes (runtime.gateway) flow — concurrent:
 //   1. Fire heavy task non-blocking (spawn) — like a second user message arriving
 //   2. Probe gateway health while heavy task is processing
 //   3. Send simple follow-up — should respond on a separate thread
 //   4. Collect heavy task result (may be empty if still processing — that's fine)
+//
+// OpenClaw (CLI) flow — sequential:
+//   1. Send heavy task (blocking) → agent should ack fast + spawn sub-agent
+//   2. Probe gateway health
+//   3. Send simple follow-up in a fresh session
 //
 // The test passes if:
 //   - The heavy task gets a quick acknowledgment (or empty for hermes — 👀 was the ack)
@@ -159,39 +164,58 @@ export default class AsyncProvider {
       return { output: '', error: 'metadata.heavyPrompt is required' };
     }
 
-    // 1. Fire heavy task non-blocking — like a second user message arriving
     const heavySession = `eval-async-heavy-${Date.now()}-${testIndex}`;
     log(`Sending heavy task (session: ${heavySession}): "${heavyPrompt.slice(0, 60)}..."`);
-    const heavyPromise = runPromptAsync(heavyPrompt, heavySession, ackTimeoutMs);
 
-    // 2. Probe gateway health (while heavy task is processing on thread A)
-    let healthOk = false;
-    try {
-      const res = await httpGet(GATEWAY_PORT, runtime.healthPath, 5000);
-      healthOk = res.status === 200;
-      log(`Health probe: ${healthOk ? 'OK' : res.status} (${res.latencyMs}ms)`);
-    } catch (err) {
-      log(`Health probe FAILED: ${err.message}`);
-    }
+    let heavy, healthOk, followUp;
 
-    // 3. Send follow-up in a DIFFERENT session (gets thread B — responds quickly)
-    const followUpSession = `eval-async-followup-${Date.now()}-${testIndex}`;
-    log(`Sending follow-up (session: ${followUpSession}): "${prompt}"`);
-    const followUp = runPrompt(prompt, followUpSession, followUpTimeoutMs);
+    if (runtime.gateway) {
+      // Hermes: fire heavy task non-blocking, probe health, send follow-up concurrently
+      const heavyPromise = runPromptAsync(heavyPrompt, heavySession, ackTimeoutMs);
 
-    if (followUp.error) {
-      log(`Follow-up error (${followUp.durationMs}ms): ${followUp.error}`);
+      healthOk = false;
+      try {
+        const res = await httpGet(GATEWAY_PORT, runtime.healthPath, 5000);
+        healthOk = res.status === 200;
+        log(`Health probe: ${healthOk ? 'OK' : res.status} (${res.latencyMs}ms)`);
+      } catch (err) {
+        log(`Health probe FAILED: ${err.message}`);
+      }
+
+      const followUpSession = `eval-async-followup-${Date.now()}-${testIndex}`;
+      log(`Sending follow-up (session: ${followUpSession}): "${prompt}"`);
+      followUp = runPrompt(prompt, followUpSession, followUpTimeoutMs);
+
+      heavy = await heavyPromise;
     } else {
-      log(`Follow-up replied (${followUp.durationMs}ms): "${followUp.output.slice(0, 80)}"`);
-    }
+      // OpenClaw: sequential — heavy completes before follow-up to avoid
+      // concurrent workspace-state.json writes in the gateway.
+      heavy = runPrompt(heavyPrompt, heavySession, ackTimeoutMs);
 
-    // 4. Collect heavy task result (may still be running — that's fine)
-    const heavy = await heavyPromise;
+      healthOk = false;
+      try {
+        const res = await httpGet(GATEWAY_PORT, runtime.healthPath, 5000);
+        healthOk = res.status === 200;
+        log(`Health probe: ${healthOk ? 'OK' : res.status} (${res.latencyMs}ms)`);
+      } catch (err) {
+        log(`Health probe FAILED: ${err.message}`);
+      }
+
+      const followUpSession = `eval-async-followup-${Date.now()}-${testIndex}`;
+      log(`Sending follow-up (session: ${followUpSession}): "${prompt}"`);
+      followUp = runPrompt(prompt, followUpSession, followUpTimeoutMs);
+    }
 
     if (heavy.error) {
       log(`Heavy task error (${heavy.durationMs}ms): ${heavy.error}`);
     } else {
       log(`Heavy task ack (${heavy.durationMs}ms): "${heavy.output.slice(0, 100)}"`);
+    }
+
+    if (followUp.error) {
+      log(`Follow-up error (${followUp.durationMs}ms): ${followUp.error}`);
+    } else {
+      log(`Follow-up replied (${followUp.durationMs}ms): "${followUp.output.slice(0, 80)}"`);
     }
 
     // Build combined output for assertions
