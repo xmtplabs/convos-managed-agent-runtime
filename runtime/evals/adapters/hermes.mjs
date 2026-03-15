@@ -77,14 +77,8 @@ function clearDir(dir) {
 
 export default {
   name: 'hermes',
-  bin: 'curl',
-  args: (prompt, _session) => [
-    '-sf',
-    '-X', 'POST', `http://127.0.0.1:${evalEnv.PORT || '8080'}/agent/query`,
-    '-H', 'Content-Type: application/json',
-    '-H', `Authorization: Bearer ${evalEnv.OPENCLAW_GATEWAY_TOKEN || ''}`,
-    '-d', JSON.stringify({ query: prompt }),
-  ],
+  bin: 'python3',
+  args: (prompt, _session) => ['-m', 'src.agent_runner', '-q', prompt],
   env: evalEnv,
   cwd: evalCwd,
   defaultPort: '8080',

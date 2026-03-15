@@ -23,8 +23,23 @@ let testIndex = 0;
 
 function log(msg) { _log('eval:async', msg); }
 
-// Start the server if the runtime adapter provides a gateway (hermes).
+// When the runtime has a gateway (hermes), start the eval server and route
+// queries through HTTP — exercising the production handle_message + run_in_executor path.
+// Other runtimes (openclaw) use the adapter's CLI bin/args directly.
+let queryBin = runtime.bin;
+let queryArgs = runtime.args;
+
 if (runtime.gateway) {
+  const token = runtime.env?.OPENCLAW_GATEWAY_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || '';
+  queryBin = 'curl';
+  queryArgs = (prompt, _session) => [
+    '-sf',
+    '-X', 'POST', `http://127.0.0.1:${GATEWAY_PORT}/agent/query`,
+    '-H', 'Content-Type: application/json',
+    '-H', `Authorization: Bearer ${token}`,
+    '-d', JSON.stringify({ query: prompt }),
+  ];
+
   log('Starting server...');
   runtime.gateway.start(GATEWAY_PORT);
   const deadline = Date.now() + 30_000;
@@ -67,7 +82,7 @@ function httpGet(port, path, timeoutMs = 5000) {
 function runPrompt(prompt, sessionId, timeoutMs = 30_000) {
   const start = Date.now();
   try {
-    const raw = execFileSync(runtime.bin, runtime.args(prompt, sessionId), {
+    const raw = execFileSync(queryBin, queryArgs(prompt, sessionId), {
       encoding: 'utf-8', timeout: timeoutMs,
       ...(runtime.env ? { env: runtime.env } : {}),
       ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
@@ -88,7 +103,7 @@ function runPromptAsync(prompt, sessionId, timeoutMs = 30_000) {
     let stdout = '';
     let settled = false;
 
-    const proc = spawn(runtime.bin, runtime.args(prompt, sessionId), {
+    const proc = spawn(queryBin, queryArgs(prompt, sessionId), {
       ...(runtime.env ? { env: runtime.env } : {}),
       ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
       stdio: ['ignore', 'pipe', 'pipe'],
