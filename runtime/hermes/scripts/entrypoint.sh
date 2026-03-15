@@ -11,7 +11,8 @@ if [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ]; then
   mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
   echo "  HERMES_HOME      -> $HERMES_HOME (volume-backed)"
 else
-  echo "  HERMES_HOME      -> ${HERMES_HOME:-/app/.hermes} (ephemeral)"
+  export HERMES_HOME="${HERMES_HOME:-/app/.hermes}"
+  echo "  HERMES_HOME      -> $HERMES_HOME (ephemeral)"
 fi
 
 exec "$@"
