@@ -172,6 +172,76 @@ router.post("/api/proxy/email/send", async (req, res) => {
   }
 });
 
+// GET /api/proxy/email/messages/:messageId — get single message with inline attachments
+router.get("/api/proxy/email/messages/:messageId", async (req, res) => {
+  const t0 = Date.now();
+  const { inboxId } = await getResources(req.instanceId!);
+  if (!inboxId) { res.status(404).json({ error: "No inbox provisioned" }); return; }
+  if (!config.agentmailApiKey) { res.status(503).json({ error: "Email service not configured" }); return; }
+
+  try {
+    const { messageId } = req.params;
+    const upstream = await fetch(`${AGENTMAIL_API}/inboxes/${inboxId}/messages/${messageId}`, {
+      headers: agentmailHeaders(),
+    });
+    if (!upstream.ok) {
+      const data = await upstream.text();
+      res.status(upstream.status).type("json").send(data);
+      return;
+    }
+    const message = await upstream.json();
+
+    // Enrich attachments with signed download URLs (no file download — just metadata)
+    if (message.attachments?.length) {
+      const enriched = await Promise.all(
+        message.attachments.map(async (att: any) => {
+          try {
+            const attRes = await fetch(
+              `${AGENTMAIL_API}/inboxes/${inboxId}/messages/${messageId}/attachments/${att.attachment_id}`,
+              { headers: { Authorization: `Bearer ${config.agentmailApiKey}` } },
+            );
+            if (!attRes.ok) return att;
+            const meta = await attRes.json();
+            return { ...att, download_url: meta.download_url, expires_at: meta.expires_at };
+          } catch {
+            return att;
+          }
+        }),
+      );
+      message.attachments = enriched;
+    }
+
+    console.log(`[proxy/email] message: instance=${req.instanceId} inbox=${inboxId} messageId=${messageId} attachments=${message.attachments?.length || 0}`);
+    metricCount("proxy.email.message", 1, { status: "200" });
+    metricHistogram("proxy.email.duration_ms", Date.now() - t0, { action: "message" });
+    res.json(message);
+  } catch (err: any) {
+    console.error(`[proxy/email] message error: instance=${req.instanceId} err=${err.message}`);
+    metricCount("proxy.email.error", 1, { action: "message" });
+    res.status(502).json({ error: `Email proxy failed: ${err.message}` });
+  }
+});
+
+// PATCH /api/proxy/email/messages/:messageId — update message labels
+router.patch("/api/proxy/email/messages/:messageId", async (req, res) => {
+  const { inboxId } = await getResources(req.instanceId!);
+  if (!inboxId) { res.status(404).json({ error: "No inbox provisioned" }); return; }
+  if (!config.agentmailApiKey) { res.status(503).json({ error: "Email service not configured" }); return; }
+
+  try {
+    const { messageId } = req.params;
+    const upstream = await fetch(`${AGENTMAIL_API}/inboxes/${inboxId}/messages/${messageId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${config.agentmailApiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+    const data = await upstream.json().catch(() => null);
+    res.status(upstream.status).json(data);
+  } catch (err: any) {
+    res.status(502).json({ error: `Email proxy failed: ${err.message}` });
+  }
+});
+
 // GET /api/proxy/email/messages — poll inbox messages
 router.get("/api/proxy/email/messages", async (req, res) => {
   const t0 = Date.now();

@@ -18,23 +18,19 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Agent can send an email"
+  - description: "Agent can send an email with attachment"
     vars:
-      prompt: "Send a short email to fabri@xmtp.com with subject 'QA Eval Test'. Reply: Email sent."
+      prompt: "Send an email to fabri@xmtp.com with subject 'Eval Attachment' and text 'See image'. Attach the file $OPENCLAW_STATE_DIR/workspace/evals/fixtures/test-image.png. Reply: Email sent with attachment."
     assert:
       - type: icontains
         value: "sent"
 
-  - description: "Agent can poll received emails"
+  - description: "Agent can read an email and download its attachment"
     vars:
-      prompt: "Check my latest received email. Reply with: From: <sender>, Subject: <subject>, Body: <preview>."
+      prompt: "Poll my inbox for emails with attachments. Use email read on the most recent one to download the attachment. Reply: Saved: <filename>."
     assert:
       - type: icontains
-        value: "from"
-      - type: icontains
-        value: "subject"
-      - type: icontains
-        value: "body"
+        value: "saved"
 
   - description: "Agent can send an SMS"
     vars:

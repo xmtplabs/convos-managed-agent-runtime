@@ -63,7 +63,7 @@ The `servicesUrl` is your public services page. Always share it as-is — never 
 
 ## Email
 
-Send a plain email:
+Send an email (with optional attachments):
 
 ```bash
 node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email send \
@@ -71,25 +71,22 @@ node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email se
   [--html "<p>...</p>"] [--attach /path/to/file]
 ```
 
-Send a calendar invite (ICS file):
-
-```bash
-node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email send-calendar \
-  --to <email> --ics /path/to/file.ics [--subject "Event name"]
-```
-
-Poll inbox for new emails and threads:
+Poll inbox:
 
 ```bash
 node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email poll \
-  [--limit 20] [--labels unread] [--threads]
+  [--limit 20] [--labels unread] [--threads] [--json]
 ```
 
-Example — check new mail and unreplied threads in one run:
+Read a single email and download its attachments:
 
 ```bash
-node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email poll --limit 20 --labels unread --threads
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email read \
+  --id "<id>"
 ```
+
+- Use the `ID` shown in `poll` output — copy it exactly as displayed
+- Attachments are saved to `$OPENCLAW_STATE_DIR/downloads/` automatically — do NOT use `--save-dir` or `~/Downloads`
 
 ## SMS (US numbers only)
 
