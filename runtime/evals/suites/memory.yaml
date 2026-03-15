@@ -58,7 +58,7 @@ tests:
 
   - description: "Store & recall: dietary constraint"
     vars:
-      prompt: "We're picking a restaurant for the group dinner tonight. Any suggestions?"
+      prompt: "We're ordering food for the group — thinking Thai or Italian. What should I keep in mind?"
     metadata:
       storePrompt: "For future reference, I'm vegetarian and I have a severe nut allergy."
     assert:
