@@ -5,6 +5,7 @@
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 . "$EVAL_DIR/runtimes/env.sh"
+. "$EVAL_DIR/lib/ensure-promptfoo.sh"
 
 RUNTIME_LABEL="${EVAL_RUNTIME}"
 
@@ -22,7 +23,7 @@ trap 'kill -9 0; wait 2>/dev/null; exit 130' INT TERM
 EVAL_OUTPUT="${EVAL_OUTPUT:-}"
 EVAL_JSON_OUTPUT="${EVAL_JSON_OUTPUT:-}"
 
-base_cmd="npx promptfoo eval --table-cell-max-length 1000"
+base_cmd="promptfoo eval --table-cell-max-length 1000"
 
 if [ -n "$EVAL_OUTPUT" ]; then
   base_cmd="$base_cmd --output $EVAL_OUTPUT"

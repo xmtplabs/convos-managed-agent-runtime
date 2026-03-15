@@ -5,8 +5,9 @@
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 . "$EVAL_DIR/runtimes/env.sh"
+. "$EVAL_DIR/lib/ensure-promptfoo.sh"
 
 SUITE="$1"; shift
 # Strip leading "--" that pnpm injects
 [ "$1" = "--" ] && shift
-exec npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@"
+exec promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@"
