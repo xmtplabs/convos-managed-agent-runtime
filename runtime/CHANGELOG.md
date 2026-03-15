@@ -1,5 +1,8 @@
 # Convos runtime changelog
 
+## 0.0.27
+- No feature changes — internal restructuring only
+
 ## 0.0.26
 - Persistent memory: agents build long-term memory over time — facts, preferences, and context from past conversations are recalled automatically
 - Image + text merging: sending a photo with a caption no longer triggers two replies — the agent combines them into one message
