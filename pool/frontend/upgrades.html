@@ -70,7 +70,9 @@
             <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
             <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
             <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
+            <option value="__custom__">other...</option>
           </select>
+          <input type="text" id="upgrade-image-custom" class="upgrade-image-select" placeholder="ghcr.io/xmtplabs/convos-runtime:pr-505" style="display:none">
           <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade outdated</button>
         </div>
       </div>
@@ -299,8 +301,13 @@
       document.getElementById('upgrade-version-list').innerHTML = listHtml;
     }
 
+    document.getElementById('upgrade-image-picker').addEventListener('change', function () {
+      document.getElementById('upgrade-image-custom').style.display = this.value === '__custom__' ? '' : 'none';
+    });
+
     function getSelectedImage() {
       var picker = document.getElementById('upgrade-image-picker');
+      if (picker && picker.value === '__custom__') return document.getElementById('upgrade-image-custom').value;
       return picker ? picker.value : '';
     }
 

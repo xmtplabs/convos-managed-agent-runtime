@@ -129,12 +129,15 @@
         <div class="replenish-field">
           <label>Image</label>
           <select class="replenish-select" id="runtime-image">
+            <option value="">Default (pool config)</option>
             <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
             <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
             <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
             <option value="ghcr.io/xmtplabs/convos-runtime:vibe">:vibe</option>
             <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">:dev:hermes</option>
+            <option value="__custom__">other...</option>
           </select>
+          <input type="text" class="replenish-select" id="runtime-image-custom" placeholder="ghcr.io/xmtplabs/convos-runtime:pr-505" style="display:none">
         </div>
         <div class="replenish-field">
           <label>Parallel</label>
@@ -825,6 +828,10 @@
     }
 
     // --- Replenish (SSE streaming) ---
+    document.getElementById('runtime-image').addEventListener('change', function () {
+      document.getElementById('runtime-image-custom').style.display = this.value === '__custom__' ? '' : 'none';
+    });
+
     document.getElementById('replenish-btn').addEventListener('click', function () {
       var btn = this;
       var n = parseInt(document.getElementById('replenish-count').value) || 1;
@@ -833,7 +840,8 @@
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var image = encodeURIComponent(document.getElementById('runtime-image').value);
+      var imageSelect = document.getElementById('runtime-image').value;
+      var image = encodeURIComponent(imageSelect === '__custom__' ? document.getElementById('runtime-image-custom').value : imageSelect);
       var model = encodeURIComponent(document.getElementById('instance-model').value);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);
       es.onmessage = function (ev) {
