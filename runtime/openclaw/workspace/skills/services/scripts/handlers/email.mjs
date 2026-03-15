@@ -168,6 +168,10 @@ async function sendCalendar(argv) {
   console.log("Sent calendar invite to", to);
 }
 
+function markAsRead(messageId) {
+  return api("PATCH", inboxPath(`messages/${encodeURIComponent(messageId)}`), { add_labels: ["read"], remove_labels: ["unread"] }).catch(() => {});
+}
+
 async function poll(argv) {
   const { map, flags } = parseArgs(argv);
   await requireEnv({ noProvision: flags.includes("no-provision") });
@@ -217,9 +221,7 @@ async function poll(argv) {
   // Mark displayed unread messages as read
   const unread = out.messages.filter((m) => m.labels?.includes("unread") && m.message_id);
   if (unread.length) {
-    await Promise.all(unread.map((m) =>
-      api("PATCH", inboxPath(`messages/${encodeURIComponent(m.message_id)}`), { add_labels: ["read"], remove_labels: ["unread"] }).catch(() => {})
-    ));
+    await Promise.all(unread.map((m) => markAsRead(m.message_id)));
     console.log(`Marked ${unread.length} message(s) as read.`);
   }
 }
@@ -237,8 +239,7 @@ async function read(argv) {
   const encodedId = encodeURIComponent(messageId);
   const message = await api("GET", inboxPath(`messages/${encodedId}`));
 
-  // Mark as read
-  api("PATCH", inboxPath(`messages/${encodedId}`), { add_labels: ["read"], remove_labels: ["unread"] }).catch(() => {});
+  markAsRead(messageId);
 
   console.log(`From: ${message.from}`);
   console.log(`To: ${[].concat(message.to || []).join(", ")}`);

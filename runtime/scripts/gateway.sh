@@ -139,10 +139,12 @@ fi
 
 # --- Background poller (email/SMS) ---
 # Runs outside the LLM — only pokes the gateway when there's something new.
+# Kill any existing poller (pidfile + pattern match for orphans)
 _poller_pidfile="/tmp/.openclaw-poller.pid"
 if [ -f "$_poller_pidfile" ]; then
   kill "$(cat "$_poller_pidfile")" 2>/dev/null || true
 fi
+pkill -f "scripts/poller.sh" 2>/dev/null || true
 sh "$ROOT/scripts/poller.sh" &
 echo $! > "$_poller_pidfile"
 brand_ok "poller" "started (pid $!, every ${POLL_INTERVAL_SECONDS:-60}s)"

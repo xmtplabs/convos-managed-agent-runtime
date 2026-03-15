@@ -238,7 +238,7 @@ async function recent(argv) {
   const { map, positional } = parseArgs(argv);
   await requireEnv({ noProvision: !!map["no-provision"] });
   const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
-  const sinceLast = map["since-last"] !== undefined;
+  const sinceLast = !!map["since-last"];
   const limit = parseInt(map.limit, 10) || 5;
 
   let cutoff;
