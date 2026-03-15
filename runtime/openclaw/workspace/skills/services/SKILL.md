@@ -71,6 +71,13 @@ node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email se
   [--html "<p>...</p>"] [--attach /path/to/file]
 ```
 
+Send a calendar invite (ICS file):
+
+```bash
+node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email send-calendar \
+  --to <email> --ics /path/to/file.ics [--subject "Event name"]
+```
+
 Poll inbox:
 
 ```bash
@@ -124,15 +131,3 @@ Top up your credits:
 ```bash
 node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs credits topup
 ```
-
-## Services Landing Page
-
-Your services landing page is the central place for users to manage everything: view email, phone, card details, credit balance, and top up credits. When users ask about **any** of the following, run `services.mjs info` and share the `servicesUrl`:
-
-- Topping up credits or adding funds
-- Credit card balance or card details
-- Checking service status
-- Managing their account
-- "Where can I see my balance / services / status"
-
-**Never make up URLs or direct users to external docs.** Always share the real `servicesUrl` from the info command.

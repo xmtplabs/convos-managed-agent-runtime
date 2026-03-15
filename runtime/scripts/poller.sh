@@ -86,15 +86,15 @@ sleep 15
 log "started (interval=${POLL_INTERVAL}s, convos=$(get_conversation_id))"
 
 while true; do
+  _batch=""
+
   # Email
   _out=$(node "$SERVICES" email recent --since-last --limit 3 --no-provision 2>/dev/null) || true
   if [ -n "$_out" ] && ! echo "$_out" | grep -q "No new emails"; then
     _msgs=$(format_emails "$_out")
     if [ -n "$_msgs" ]; then
       log "new email detected"
-      echo "$_msgs" | while IFS= read -r _line; do
-        notify "$_line" || log "notify failed (email)"
-      done
+      _batch="$_msgs"
     fi
   fi
 
@@ -104,10 +104,18 @@ while true; do
     _msgs=$(format_sms "$_out")
     if [ -n "$_msgs" ]; then
       log "new SMS detected"
-      echo "$_msgs" | while IFS= read -r _line; do
-        notify "$_line" || log "notify failed (sms)"
-      done
+      if [ -n "$_batch" ]; then
+        _batch="$_batch
+$_msgs"
+      else
+        _batch="$_msgs"
+      fi
     fi
+  fi
+
+  # Send one batched notification
+  if [ -n "$_batch" ]; then
+    notify "$_batch" || log "notify failed"
   fi
 
   sleep "$POLL_INTERVAL"

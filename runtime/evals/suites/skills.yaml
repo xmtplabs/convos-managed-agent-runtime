@@ -20,7 +20,7 @@ defaultTest:
 tests:
   - description: "Agent can send an email with attachment"
     vars:
-      prompt: "Send an email to fabri@xmtp.com with subject 'Eval Attachment' and text 'See image'. Attach the file $OPENCLAW_STATE_DIR/workspace/evals/fixtures/test-image.png. Reply: Email sent with attachment."
+      prompt: "Create a small text file at /tmp/eval-note.txt with the content 'Hello from eval'. Then send an email to fabri@xmtp.com with subject 'Eval Attachment' and text 'See attached note'. Attach /tmp/eval-note.txt. Reply: Email sent with attachment."
     assert:
       - type: icontains
         value: "sent"
