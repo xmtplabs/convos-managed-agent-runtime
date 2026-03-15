@@ -248,7 +248,7 @@ async function read(argv) {
   if (message.text) console.log(`\nBody:\n${message.text}`);
 
   if (message.attachments?.length) {
-    const defaultDir = resolve(process.env.OPENCLAW_STATE_DIR || "/tmp", "downloads");
+    const defaultDir = resolve(process.env.OPENCLAW_STATE_DIR || "/tmp", "media");
     const saveDir = map["save-dir"] || defaultDir;
     mkdirSync(saveDir, { recursive: true });
     console.log(`\nAttachments (${message.attachments.length}):`);

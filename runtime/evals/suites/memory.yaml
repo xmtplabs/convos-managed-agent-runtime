@@ -87,6 +87,19 @@ tests:
           diagnostic. Fail only if the agent ignores the prior context
           entirely or frames therapy in a cold, medical, or invasive way.
 
+  - description: "Store & recall: poller notification context"
+    vars:
+      prompt: "Earlier you told me about an email notification. Who was it from and what was it about? Don't check my inbox — just tell me from memory."
+    metadata:
+      storePrompt: "You just received a notification: new email from Lisa Chen <lisa@acme.co> with subject \"Q3 budget draft attached\" and an attachment [budget-q3.xlsx]. Note this in memory so you can reference it later."
+    assert:
+      - type: llm-rubric
+        value: >
+          The agent must recall details from a prior notification about an email:
+          it was from Lisa Chen, about a Q3 budget draft, with an xlsx attachment.
+          Pass if the agent references at least the sender and subject/topic.
+          Fail if the agent says it has no knowledge of any recent email notification.
+
   # --- Behavioral contract (single-prompt) ---
 
   - description: "Memory self-awareness"

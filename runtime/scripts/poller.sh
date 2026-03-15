@@ -10,6 +10,8 @@ SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
 CONVOS_BIN="$ROOT/node_modules/.bin/convos"
 CONVOS_ENV="${CONVOS_ENV:-dev}"
 CREDS_FILE="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/credentials/convos-identity.json"
+SESSIONS_DIR="$STATE_DIR/agents/main/sessions"
+SESSIONS_INDEX="$SESSIONS_DIR/sessions.json"
 
 log() { printf "[poller] %s %s\n" "$(date +%H:%M:%S)" "$1"; }
 
@@ -21,14 +23,41 @@ get_conversation_id() {
   fi
 }
 
+# Find the session file for the convos group chat
+get_session_file() {
+  _cid=$(get_conversation_id)
+  [ -z "$_cid" ] && return 1
+  _key="agent:main:convos:group:$_cid"
+  if command -v jq >/dev/null 2>&1; then
+    _sid=$(jq -r --arg k "$_key" '.[$k].sessionId // empty' "$SESSIONS_INDEX" 2>/dev/null)
+  else
+    _sid=$(grep -o "\"$_key\":{\"sessionId\":\"[^\"]*\"" "$SESSIONS_INDEX" 2>/dev/null | grep -o 'sessionId":"[^"]*' | cut -d'"' -f2)
+  fi
+  [ -n "$_sid" ] && echo "$SESSIONS_DIR/$_sid.jsonl"
+}
+
+# Inject a message into the agent's convos session (no LLM call)
+inject_context() {
+  _sf=$(get_session_file)
+  [ -z "$_sf" ] || [ ! -f "$_sf" ] && return 1
+  _ts=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+  _id=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  _escaped=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g')
+  printf '{"type":"message","id":"%s","parentId":null,"timestamp":"%s","message":{"role":"user","content":[{"type":"text","text":"[Notification from background poller — no reply needed unless the user asks about it]\\n%s"}],"timestamp":%s}}\n' \
+    "$_id" "$_ts" "$_escaped" "$(date +%s)000" >> "$_sf"
+}
+
 notify() {
   _cid=$(get_conversation_id)
   if [ -z "$_cid" ]; then
     log "no conversation ID in credentials, skipping notify"
     return 1
   fi
+  # Send to group chat (visible to users)
   "$CONVOS_BIN" conversation send-text "$_cid" \
     --text "$1" --env "$CONVOS_ENV" 2>/dev/null
+  # Inject into agent session context (no LLM call)
+  inject_context "$1"
 }
 
 # Parse email recent output into one-liners:

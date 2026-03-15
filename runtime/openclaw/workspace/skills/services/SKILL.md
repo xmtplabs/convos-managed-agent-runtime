@@ -93,7 +93,7 @@ node $OPENCLAW_STATE_DIR/workspace/skills/services/scripts/services.mjs email re
 ```
 
 - Use the `ID` shown in `poll` output — copy it exactly as displayed
-- Attachments are saved to `$OPENCLAW_STATE_DIR/downloads/` automatically — do NOT use `--save-dir` or `~/Downloads`
+- Attachments are saved to `$OPENCLAW_STATE_DIR/media/` automatically — do NOT use `--save-dir` or `~/Downloads`
 
 ## SMS (US numbers only)
 
