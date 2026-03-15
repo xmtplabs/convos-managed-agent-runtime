@@ -62,17 +62,22 @@
         </div>
         <div class="upgrade-hero-legend" id="version-legend"></div>
         <div class="upgrade-hero-actions">
-          <select id="upgrade-image-picker" class="upgrade-image-select">
-            <option value="">Default (pool config)</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
-            <option value="__custom__">other...</option>
-          </select>
-          <input type="text" id="upgrade-image-custom" class="upgrade-image-select" placeholder="ghcr.io/xmtplabs/convos-runtime:pr-505" style="display:none">
+          <div class="image-picker" id="upgrade-image-picker-wrap">
+            <select id="upgrade-image-picker" class="upgrade-image-select">
+              <option value="">Default (pool config)</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
+              <option value="__custom__">other...</option>
+            </select>
+            <div class="image-custom-row" id="upgrade-custom-row">
+              <input type="text" id="upgrade-image-custom" class="image-custom-input" placeholder="ghcr.io/xmtplabs/convos-runtime:pr-505" spellcheck="false">
+              <button type="button" class="image-custom-clear" id="upgrade-custom-clear" title="Back to presets">&times;</button>
+            </div>
+          </div>
           <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade outdated</button>
         </div>
       </div>
@@ -301,13 +306,31 @@
       document.getElementById('upgrade-version-list').innerHTML = listHtml;
     }
 
-    document.getElementById('upgrade-image-picker').addEventListener('change', function () {
-      document.getElementById('upgrade-image-custom').style.display = this.value === '__custom__' ? '' : 'none';
-    });
+    (function () {
+      var select = document.getElementById('upgrade-image-picker');
+      var customRow = document.getElementById('upgrade-custom-row');
+      var customInput = document.getElementById('upgrade-image-custom');
+      var clearBtn = document.getElementById('upgrade-custom-clear');
+
+      select.addEventListener('change', function () {
+        if (this.value === '__custom__') {
+          customRow.classList.add('visible');
+          select.classList.add('hidden');
+          setTimeout(function () { customInput.focus(); }, 180);
+        }
+      });
+
+      clearBtn.addEventListener('click', function () {
+        customInput.value = '';
+        customRow.classList.remove('visible');
+        select.classList.remove('hidden');
+        select.value = '';
+      });
+    })();
 
     function getSelectedImage() {
       var picker = document.getElementById('upgrade-image-picker');
-      if (picker && picker.value === '__custom__') return document.getElementById('upgrade-image-custom').value;
+      if (picker && picker.value === '__custom__') return document.getElementById('upgrade-image-custom').value || '';
       return picker ? picker.value : '';
     }
 
