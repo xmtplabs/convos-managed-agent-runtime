@@ -255,7 +255,7 @@ class ConvosAdapter:
         self._instance: ConvosInstance | None = None
         self._agent: AgentRunner | None = None
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
-        self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[Any]]] = {}
+        self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[None], asyncio.Task[None] | None]] = {}
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -323,8 +323,10 @@ class ConvosAdapter:
 
     async def stop(self) -> None:
         """Stop the ConvosInstance."""
-        for _, task in self._pending_attachments.values():
-            task.cancel()
+        for _, flush_task, download_task in self._pending_attachments.values():
+            flush_task.cancel()
+            if download_task:
+                download_task.cancel()
         self._pending_attachments.clear()
 
         if self._instance:
@@ -340,13 +342,18 @@ class ConvosAdapter:
         hold_key = attachment_hold_key(msg)
 
         if is_attachment_message(msg):
-            await self._download_image_attachment(msg)
-            await self._hold_attachment(hold_key, msg)
+            # Start download in the background — do NOT await before holding.
+            # The hold entry must be visible immediately so a companion text
+            # message that arrives while the download is in progress can merge.
+            download_task = asyncio.create_task(self._download_image_attachment(msg))
+            await self._hold_attachment(hold_key, msg, download_task)
             return
 
         if hold_key:
-            held = self._pop_held_attachment(hold_key)
+            held, download_task = self._pop_held_attachment(hold_key)
             if held:
+                if download_task:
+                    await download_task  # wait for download to finish before merging
                 msg = merge_attachment_with_message(held, msg)
 
         await self._process_message(msg)
@@ -441,13 +448,20 @@ class ConvosAdapter:
         except Exception as err:
             logger.error(f"Failed to download image attachment {msg.message_id}: {err}")
 
-    async def _hold_attachment(self, hold_key: str | None, msg: InboundMessage) -> None:
+    async def _hold_attachment(
+        self,
+        hold_key: str | None,
+        msg: InboundMessage,
+        download_task: asyncio.Task[None] | None = None,
+    ) -> None:
         """Hold an attachment message, waiting for a companion text message to merge with."""
         if not hold_key:
+            if download_task:
+                await download_task
             await self._process_message(msg)
             return
 
-        existing = self._pop_held_attachment(hold_key)
+        existing, _ = self._pop_held_attachment(hold_key)
         if existing:
             asyncio.create_task(self._process_message(existing))
 
@@ -458,20 +472,22 @@ class ConvosAdapter:
                 if not current or current[0].message_id != msg.message_id:
                     return
                 self._pending_attachments.pop(hold_key, None)
+                if download_task:
+                    await download_task  # ensure download is done before processing
                 await self._process_message(msg)
             except asyncio.CancelledError:
                 return
 
-        self._pending_attachments[hold_key] = (msg, asyncio.create_task(flush_attachment()))
+        self._pending_attachments[hold_key] = (msg, asyncio.create_task(flush_attachment()), download_task)
 
-    def _pop_held_attachment(self, hold_key: str) -> InboundMessage | None:
-        """Cancel and return a held attachment for the given key, if any."""
+    def _pop_held_attachment(self, hold_key: str) -> tuple[InboundMessage | None, asyncio.Task[None] | None]:
+        """Cancel flush timer and return (held attachment, download task) for the given key."""
         entry = self._pending_attachments.pop(hold_key, None)
         if not entry:
-            return None
-        attachment_msg, task = entry
-        task.cancel()
-        return attachment_msg
+            return None, None
+        attachment_msg, flush_task, download_task = entry
+        flush_task.cancel()
+        return attachment_msg, download_task
 
     async def _detect_membership_termination_reason(self, msg: InboundMessage) -> str | None:
         inst = self._instance
