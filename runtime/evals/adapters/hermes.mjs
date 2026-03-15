@@ -8,7 +8,7 @@
 //   detects Docker (no eval-env.sh) and returns process.env unchanged.
 
 import { readdirSync, readFileSync, unlinkSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn, execSync } from 'child_process';
 
@@ -77,8 +77,14 @@ function clearDir(dir) {
 
 export default {
   name: 'hermes',
-  bin: 'python3',
-  args: (prompt, _session) => ['-m', 'src.agent_runner', '-q', prompt],
+  bin: 'curl',
+  args: (prompt, _session) => [
+    '-sf',
+    '-X', 'POST', `http://127.0.0.1:${evalEnv.PORT || '8080'}/agent/query`,
+    '-H', 'Content-Type: application/json',
+    '-H', `Authorization: Bearer ${evalEnv.OPENCLAW_GATEWAY_TOKEN || ''}`,
+    '-d', JSON.stringify({ query: prompt }),
+  ],
   env: evalEnv,
   cwd: evalCwd,
   defaultPort: '8080',
@@ -101,7 +107,8 @@ export default {
       if (this._proc) { this._proc.kill(); this._proc = null; }
       const { env: baseEnv, cwd } = buildEvalEnv();
       const env = { ...baseEnv, PORT: String(port) };
-      this._proc = spawn('python3', ['-m', 'src.main'], {
+      const evalServer = resolve(__dirname, 'hermes_eval_server.py');
+      this._proc = spawn('python3', [evalServer], {
         cwd,
         env,
         stdio: ['ignore', 'pipe', 'pipe'],

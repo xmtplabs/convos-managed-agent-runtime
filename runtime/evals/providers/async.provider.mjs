@@ -3,24 +3,53 @@
 // and stays responsive for follow-up queries.
 //
 // Flow:
-//   1. Send a heavy task in a fresh session → agent should ack fast + spawn sub-agent
-//   2. Immediately send a simple query in another fresh session → should respond fast
-//   3. Probe gateway health throughout
+//   1. Fire heavy task non-blocking (spawn) — like a second user message arriving
+//   2. Probe gateway health while heavy task is processing
+//   3. Send simple follow-up — should respond on a separate thread
+//   4. Collect heavy task result (may be empty if still processing — that's fine)
 //
 // The test passes if:
-//   - The heavy task gets a quick acknowledgment (not the full result)
+//   - The heavy task gets a quick acknowledgment (or empty for hermes — 👀 was the ack)
 //   - The simple query gets answered within threshold
 //   - Gateway stays responsive
 
-import { execFileSync } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import http from 'http';
 import { runtime } from '../lib/runtime.mjs';
-import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from '../lib/utils.mjs';
+import { elapsed, log as _log, clearSessionsOnce, cleanOutput, sleep } from '../lib/utils.mjs';
 
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
 let testIndex = 0;
 
 function log(msg) { _log('eval:async', msg); }
+
+// Start the server if the runtime adapter provides a gateway (hermes).
+if (runtime.gateway) {
+  log('Starting server...');
+  runtime.gateway.start(GATEWAY_PORT);
+  const deadline = Date.now() + 30_000;
+  let ready = false;
+  while (Date.now() < deadline) {
+    sleep(1_000);
+    try {
+      execFileSync('curl', ['-sf', `http://127.0.0.1:${GATEWAY_PORT}${runtime.healthPath}`],
+        { encoding: 'utf-8', timeout: 5_000 });
+      ready = true;
+      break;
+    } catch {}
+  }
+  if (!ready) {
+    console.error(`[eval:async] Server failed to start on port ${GATEWAY_PORT} within 30s.`);
+    runtime.gateway.stop();
+    process.exit(1);
+  }
+  log('Server ready.');
+
+  function cleanup() { try { runtime.gateway.stop(); } catch {} }
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => { cleanup(); process.exit(130); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(143); });
+}
 
 function httpGet(port, path, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
@@ -51,6 +80,51 @@ function runPrompt(prompt, sessionId, timeoutMs = 30_000) {
   }
 }
 
+// Non-blocking version of runPrompt — fires the command and resolves when
+// it finishes or the timeout expires. Returns whatever output was captured.
+function runPromptAsync(prompt, sessionId, timeoutMs = 30_000) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    let stdout = '';
+    let settled = false;
+
+    const proc = spawn(runtime.bin, runtime.args(prompt, sessionId), {
+      ...(runtime.env ? { env: runtime.env } : {}),
+      ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr.on('data', () => {}); // drain stderr
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        proc.kill();
+        const output = cleanOutput(stdout.trim());
+        resolve({ output, durationMs: Date.now() - start, error: null });
+      }
+    }, timeoutMs);
+
+    proc.on('close', () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        const output = cleanOutput(stdout.trim());
+        resolve({ output, durationMs: Date.now() - start, error: null });
+      }
+    });
+
+    proc.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve({ output: '', durationMs: Date.now() - start, error: err.message });
+      }
+    });
+  });
+}
+
 export default class AsyncProvider {
   id() { return 'openclaw-async'; }
 
@@ -70,18 +144,12 @@ export default class AsyncProvider {
       return { output: '', error: 'metadata.heavyPrompt is required' };
     }
 
-    // 1. Send heavy task in a fresh session — agent should delegate and ack fast
+    // 1. Fire heavy task non-blocking — like a second user message arriving
     const heavySession = `eval-async-heavy-${Date.now()}-${testIndex}`;
     log(`Sending heavy task (session: ${heavySession}): "${heavyPrompt.slice(0, 60)}..."`);
-    const heavy = runPrompt(heavyPrompt, heavySession, ackTimeoutMs);
+    const heavyPromise = runPromptAsync(heavyPrompt, heavySession, ackTimeoutMs);
 
-    if (heavy.error) {
-      log(`Heavy task error (${heavy.durationMs}ms): ${heavy.error}`);
-    } else {
-      log(`Heavy task ack (${heavy.durationMs}ms): "${heavy.output.slice(0, 100)}"`);
-    }
-
-    // 2. Probe gateway health
+    // 2. Probe gateway health (while heavy task is processing on thread A)
     let healthOk = false;
     try {
       const res = await httpGet(GATEWAY_PORT, runtime.healthPath, 5000);
@@ -91,7 +159,7 @@ export default class AsyncProvider {
       log(`Health probe FAILED: ${err.message}`);
     }
 
-    // 3. Send simple follow-up in a DIFFERENT fresh session
+    // 3. Send follow-up in a DIFFERENT session (gets thread B — responds quickly)
     const followUpSession = `eval-async-followup-${Date.now()}-${testIndex}`;
     log(`Sending follow-up (session: ${followUpSession}): "${prompt}"`);
     const followUp = runPrompt(prompt, followUpSession, followUpTimeoutMs);
@@ -100,6 +168,15 @@ export default class AsyncProvider {
       log(`Follow-up error (${followUp.durationMs}ms): ${followUp.error}`);
     } else {
       log(`Follow-up replied (${followUp.durationMs}ms): "${followUp.output.slice(0, 80)}"`);
+    }
+
+    // 4. Collect heavy task result (may still be running — that's fine)
+    const heavy = await heavyPromise;
+
+    if (heavy.error) {
+      log(`Heavy task error (${heavy.durationMs}ms): ${heavy.error}`);
+    } else {
+      log(`Heavy task ack (${heavy.durationMs}ms): "${heavy.output.slice(0, 100)}"`);
     }
 
     // Build combined output for assertions

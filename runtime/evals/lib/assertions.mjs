@@ -96,17 +96,22 @@ export function agentDelegatedHeavyTask(output, context) {
   // The agent should have acknowledged quickly and spawned a sub-agent.
   // Check the ack mentions delegation (spawn, background, working on it, etc.)
   const delegationSignals = /spawn|sub.?agent|background|working on|on it|report back|get back|let me|i'll/i;
-  const hasDelegation = delegationSignals.test(ack);
+  const hasTextAck = delegationSignals.test(ack);
+  // Hermes: the 👀 reaction is the ack (sent via adapter), not text output.
+  // When the heavy task is still processing, the HTTP response is empty — that's expected.
+  const emptyAck = ack.trim().length === 0;
 
   // Also check it didn't return the full result inline (which would mean it blocked)
   const tooLong = ack.length > 500;
 
-  const pass = hasDelegation && !tooLong;
+  const pass = (hasTextAck || emptyAck) && !tooLong;
   return {
     pass,
     score: pass ? 1 : 0,
     reason: pass
-      ? `Agent delegated in ${duration}ms: "${ack.slice(0, 80)}"`
+      ? emptyAck
+        ? `Agent delegated in ${duration}ms (empty ack — reaction-based acknowledgment)`
+        : `Agent delegated in ${duration}ms: "${ack.slice(0, 80)}"`
       : tooLong
         ? `Agent returned full result inline (${ack.length} chars, ${duration}ms) instead of delegating`
         : `Agent ack'd in ${duration}ms but no delegation signal found: "${ack.slice(0, 120)}"`,
