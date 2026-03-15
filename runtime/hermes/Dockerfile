@@ -56,14 +56,8 @@ COPY runtime/hermes/workspace /app/workspace
 COPY runtime/hermes/scripts /app/scripts
 RUN chmod +x /app/scripts/*.sh
 
-# Hermes home — agent reads SOUL.md, config.yaml, skills/, memories/ from here.
-# SOUL.md is the persona file; AGENTS.md is auto-loaded from cwd by Hermes.
+# HERMES_HOME — sync.sh populates this on boot from /app/workspace
 ENV HERMES_HOME=/app/.hermes
-RUN mkdir -p /app/.hermes/skills /app/.hermes/memories /app/.hermes/sessions
-COPY runtime/hermes/workspace/SOUL.md /app/.hermes/SOUL.md
-COPY runtime/hermes/workspace/config.yaml /app/.hermes/config.yaml
-COPY runtime/hermes/workspace/skills /app/.hermes/skills
-COPY runtime/hermes/workspace/AGENTS.md /app/AGENTS.md
 
 ENV PORT=8080
 
