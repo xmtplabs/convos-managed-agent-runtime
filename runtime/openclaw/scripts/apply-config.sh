@@ -12,6 +12,15 @@ brand_section "Uploading assistant brain"
 
 mkdir -p "$STATE_DIR"
 
+# Sync shared web-tools assets (Docker copies to /app/web-tools; locally we mirror here)
+_SHARED_WT="$ROOT/../shared/web-tools"
+if [ -d "$_SHARED_WT" ]; then
+  mkdir -p "$STATE_DIR/web-tools"
+  cp -r "$_SHARED_WT/"* "$STATE_DIR/web-tools/"
+  brand_ok "web-tools" "$STATE_DIR/web-tools"
+fi
+unset _SHARED_WT
+
 # Identity is now stored in credentials/convos-identity.json, not in the config.
 cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
 

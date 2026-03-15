@@ -137,8 +137,11 @@ function buildServicesUrl(): string {
 }
 
 export default function register(api: OpenClawPluginApi) {
-  // Docker: shared files copied to /app/web-tools/. Local dev: fall back to __dirname.
-  const sharedRoot = fs.existsSync("/app/web-tools") ? "/app/web-tools" : __dirname;
+  // Docker: /app/web-tools/. Local: apply-config.sh copies to STATE_DIR/web-tools/.
+  const stateWebTools = path.join(process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"), "web-tools");
+  const sharedRoot = fs.existsSync("/app/web-tools") ? "/app/web-tools"
+    : fs.existsSync(stateWebTools) ? stateWebTools
+    : __dirname;
   const agentsDir = path.resolve(sharedRoot, "convos");
   const servicesDir = path.resolve(sharedRoot, "services");
 
