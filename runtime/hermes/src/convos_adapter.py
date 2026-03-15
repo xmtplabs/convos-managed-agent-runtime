@@ -461,9 +461,13 @@ class ConvosAdapter:
             await self._process_message(msg)
             return
 
-        existing, _ = self._pop_held_attachment(hold_key)
+        existing, existing_download = self._pop_held_attachment(hold_key)
         if existing:
-            asyncio.create_task(self._process_message(existing))
+            async def _process_evicted(msg: InboundMessage, dl: asyncio.Task[None] | None) -> None:
+                if dl:
+                    await dl  # wait for download so _local_image_path is set
+                await self._process_message(msg)
+            asyncio.create_task(_process_evicted(existing, existing_download))
 
         async def flush_attachment() -> None:
             try:
