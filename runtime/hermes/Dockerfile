@@ -41,6 +41,11 @@ RUN git clone --recurse-submodules --branch v2026.3.12 --depth 1 https://github.
   && uv pip install --system -e "./mini-swe-agent"
 ENV PYTHONPATH="/opt/hermes-agent:${PYTHONPATH}"
 
+# Patch SOUL.md discovery to respect HERMES_HOME (upstream fix: NousResearch/hermes-agent#892)
+# Safe to remove once we bump past v2026.3.12 — sed is a no-op if the old string is gone.
+RUN sed -i 's|global_soul = Path.home() / ".hermes" / "SOUL.md"|global_soul = Path(os.getenv("HERMES_HOME", Path.home() / ".hermes")) / "SOUL.md"|' \
+    /opt/hermes-agent/agent/prompt_builder.py
+
 # Runtime version (shared root package.json)
 COPY runtime/package.json /app/runtime-version.json
 
