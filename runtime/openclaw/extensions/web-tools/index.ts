@@ -137,8 +137,10 @@ function buildServicesUrl(): string {
 }
 
 export default function register(api: OpenClawPluginApi) {
-  const agentsDir = path.resolve(__dirname, "convos");
-  const servicesDir = path.resolve(__dirname, "services");
+  // Docker: shared files copied to /app/web-tools/. Local dev: fall back to __dirname.
+  const sharedRoot = fs.existsSync("/app/web-tools") ? "/app/web-tools" : __dirname;
+  const agentsDir = path.resolve(sharedRoot, "convos");
+  const servicesDir = path.resolve(sharedRoot, "services");
 
   api.registerHttpRoute({
     path: "/web-tools/convos",

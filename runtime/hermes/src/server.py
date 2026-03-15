@@ -326,6 +326,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Convos Hermes Runtime", lifespan=lifespan)
 
+from .web_tools import router as web_tools_router
+app.include_router(web_tools_router)
+
 
 # ---- Health ----
 
