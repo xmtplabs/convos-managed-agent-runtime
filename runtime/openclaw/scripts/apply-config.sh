@@ -14,14 +14,9 @@ mkdir -p "$STATE_DIR"
 
 # Assemble AGENTS.md (shared base + runtime extra) — after sync so it overwrites the synced copy
 _AGENTS_DST="$STATE_DIR/workspace/AGENTS.md"
-if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -f "$SHARED_WORKSPACE_DIR/AGENTS-base.md" ]; then
-  cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_DST"
-  [ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$_AGENTS_DST"
-  brand_ok "AGENTS.md" "assembled (shared + openclaw)"
-elif [ -f "$RUNTIME_DIR/workspace/AGENTS.md" ]; then
-  cp "$RUNTIME_DIR/workspace/AGENTS.md" "$_AGENTS_DST"
-  brand_ok "AGENTS.md" "synced (fallback)"
-fi
+cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_DST"
+[ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$_AGENTS_DST"
+brand_ok "AGENTS.md" "assembled (shared + openclaw)"
 
 # Sync shared web-tools assets (Docker copies to /app/web-tools; locally we mirror here)
 _SHARED_WT="$ROOT/../shared/web-tools"
