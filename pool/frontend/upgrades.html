@@ -330,8 +330,8 @@
 
     function getSelectedImage() {
       var picker = document.getElementById('upgrade-image-picker');
-      if (picker && picker.value === '__custom__') return document.getElementById('upgrade-image-custom').value || '';
-      return picker ? picker.value : '';
+      var val = (picker && picker.value === '__custom__') ? (document.getElementById('upgrade-image-custom').value || '') : (picker ? picker.value : '');
+      return val.replace(/^https?:\/\//, '');
     }
 
     async function upgradeSingle(id, btn) {

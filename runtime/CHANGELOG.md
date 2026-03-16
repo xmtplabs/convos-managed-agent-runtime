@@ -1,7 +1,7 @@
 # Convos runtime changelog
 
-## 0.0.27
-- No feature changes — internal restructuring only
+## 0.1.0 — Multi-harness
+- Multi-harness: runtime supports both OpenClaw and Hermes engines — same workspace, skills, and agent instructions across both
 
 ## 0.0.26
 - Persistent memory: agents build long-term memory over time — facts, preferences, and context from past conversations are recalled automatically
