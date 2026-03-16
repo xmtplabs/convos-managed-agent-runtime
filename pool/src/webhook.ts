@@ -182,7 +182,7 @@ async function runHealthCheckWithRetries(
         console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);
         return;
       }
-      if (hc.version) await db.setRuntimeVersion(instanceId, hc.version);
+      if (hc.version) await db.setRuntimeVersion(instanceId, hc.version, hc.runtime);
       metricCount("webhook.health_check_promoted", 1, { from: statusAtWebhookTime, to: newStatus });
       // Starting instance promoted = completed create lifecycle
       if (statusAtWebhookTime === "starting") {

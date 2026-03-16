@@ -1296,6 +1296,7 @@
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
         + (instanceModel ? '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(instanceModel) + '</span></div>' : '')
+        + (infra.runtime_type ? '<div class="expand-kv"><span class="expand-label">Runtime</span> <span class="expand-val mono">' + esc(infra.runtime_type) + '</span></div>' : '')
         + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
