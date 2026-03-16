@@ -80,6 +80,42 @@ async def require_auth(request: Request) -> None:
 
 # ---- Instance lifecycle ----
 
+_poller_proc: asyncio.subprocess.Process | None = None
+
+
+async def _start_poller(conversation_id: str, env: str) -> None:
+    """Launch the shared poller as a background process."""
+    global _poller_proc
+    scripts_dir = os.environ.get("SHARED_SCRIPTS_DIR", "")
+    script = os.path.join(scripts_dir, "poller.sh") if scripts_dir else None
+    if not script or not os.path.isfile(script):
+        logger.info("Poller: shared poller.sh not found — disabled")
+        return
+
+    cfg = get_config()
+    poller_env = {**os.environ, "CONVOS_CONVERSATION_ID": conversation_id, "CONVOS_ENV": env, "SKILLS_ROOT": str(Path(cfg.hermes_home) / "skills")}
+
+    _poller_proc = await asyncio.create_subprocess_exec(
+        "sh", script,
+        env=poller_env,
+    )
+    logger.info("Poller: started (pid=%d)", _poller_proc.pid)
+
+
+async def _stop_poller() -> None:
+    global _poller_proc
+    if _poller_proc:
+        try:
+            _poller_proc.terminate()
+            await asyncio.wait_for(_poller_proc.wait(), timeout=5)
+        except Exception:
+            try:
+                _poller_proc.kill()
+            except ProcessLookupError:
+                pass
+        _poller_proc = None
+
+
 async def start_wired_instance(
     *,
     conversation_id: str,
@@ -109,6 +145,9 @@ async def start_wired_instance(
 
     # Fire greeting in background
     asyncio.create_task(_dispatch_greeting())
+
+    # Start background email/SMS poller
+    await _start_poller(conversation_id, env)
 
     return ready_info
 
@@ -316,6 +355,7 @@ async def lifespan(app: FastAPI):
             await _cron_task
         except asyncio.CancelledError:
             pass
+    await _stop_poller()
     try:
         adapter = get_adapter()
         if adapter:

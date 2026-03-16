@@ -15,4 +15,13 @@ else
   SHARED_WORKSPACE_DIR=""
 fi
 
+# Shared scripts — Docker copies to /app/shared-scripts; locally relative to ROOT
+if [ -d "$ROOT/../shared/scripts" ]; then
+  SHARED_SCRIPTS_DIR="$ROOT/../shared/scripts"
+elif [ -d "/app/shared-scripts" ]; then
+  SHARED_SCRIPTS_DIR="/app/shared-scripts"
+else
+  SHARED_SCRIPTS_DIR=""
+fi
+
 . "$ROOT/scripts/lib/paths.sh"

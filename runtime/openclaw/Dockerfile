@@ -29,6 +29,7 @@ COPY runtime/openclaw/workspace /app/openclaw/workspace
 COPY runtime/openclaw/extensions /app/openclaw/extensions
 COPY runtime/shared/web-tools /app/web-tools
 COPY runtime/shared/workspace /app/shared-workspace
+COPY runtime/shared/scripts /app/shared-scripts
 COPY runtime/openclaw/scripts ./scripts
 COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
