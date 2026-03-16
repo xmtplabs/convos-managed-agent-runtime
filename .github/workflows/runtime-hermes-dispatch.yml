@@ -1,18 +1,8 @@
-name: "Runtime Hermes: Manual Build"
+name: "Runtime Hermes: Manual Build (disabled)"
 
-run-name: "Runtime Hermes dispatch → :${{ inputs.tag }} (from ${{ github.ref_name }})"
-
+# Disabled — Hermes CI is not active. Re-enable when Hermes runtime is ready for CI.
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Image tag to publish'
-        required: true
-        type: choice
-        options:
-          - dev
-          - staging
-          - production
 
 permissions:
   packages: write

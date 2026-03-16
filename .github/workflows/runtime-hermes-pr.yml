@@ -1,14 +1,8 @@
-name: "Runtime Hermes: PR"
+name: "Runtime Hermes: PR (disabled)"
 
-run-name: >-
-  Runtime Hermes PR #${{ github.event.number }} → ${{ github.event.pull_request.base.ref }}
-  ${{ github.event.action == 'closed' && github.event.pull_request.merged && '(merged)' || '' }}
-
+# Disabled — Hermes CI is not active. Re-enable when Hermes runtime is ready for CI.
 on:
-  pull_request:
-    types: [opened, synchronize, closed]
-    paths:
-      - 'runtime/hermes/**'
+  workflow_dispatch:
 
 concurrency:
   group: runtime-hermes-pr-${{ github.event.pull_request.number }}
