@@ -97,13 +97,13 @@ jobs:
       - name: Wait for health (up to 120s)
         run: |
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/health | grep -q '"ok":true'; then
+            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
               echo "Ready after ${i}s"
               break
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:8080/health | grep -q '"ok":true'; then
+          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
             echo "Failed to start"
             docker logs qa-runtime
             exit 1
@@ -167,7 +167,7 @@ jobs:
         run: |
           SECONDS=0
           while (( SECONDS < 120 )); do
-            if curl -sf http://localhost:8080/health | grep -q '"ok":true'; then
+            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
               echo "Ready after ${SECONDS}s"
               exit 0
             fi
