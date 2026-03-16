@@ -66,6 +66,35 @@ runtime/
     └── scripts/            # entrypoint, apply-config, eval-env, etc.
 ```
 
+## Shared workspace
+
+`runtime/shared/workspace/` contains files used by both runtimes. Each runtime's `apply-config.sh` copies these into the right place at boot.
+
+### How it works
+
+| File | Purpose | Assembly |
+|------|---------|----------|
+| `AGENTS-base.md` | Shared agent instructions (~80% of final AGENTS.md) | Concatenated with runtime's `agents-extra.md` to produce AGENTS.md |
+| `SOUL.md` | Personality / persona (includes OpenClaw YAML frontmatter, ignored by Hermes) | Copied as-is |
+| `skills/` | All skills (services, convos-runtime, convos-cli, bankr) | Copied to runtime's skills directory |
+
+**AGENTS.md assembly:** `cat AGENTS-base.md agents-extra.md > AGENTS.md`. Each runtime keeps an `agents-extra.md` in its own workspace with runtime-specific sections (e.g. Delegation, Memory, Identity for Hermes).
+
+**Where files land at runtime:**
+
+| | OpenClaw | Hermes |
+|--|---------|--------|
+| AGENTS.md | `$STATE_DIR/workspace/AGENTS.md` | `$ROOT/AGENTS.md` (CWD — Hermes auto-loads from CWD) |
+| SOUL.md | `$STATE_DIR/workspace/SOUL.md` | `$HERMES_HOME/SOUL.md` |
+| Skills | `$STATE_DIR/workspace/skills/` | `$HERMES_HOME/skills/` |
+
+### Adding new capabilities
+
+- **New shared skill** — add a directory under `runtime/shared/workspace/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for script paths in SKILL.md.
+- **New shared instruction** — edit `AGENTS-base.md` for behavior that applies to both runtimes.
+- **Runtime-specific instruction** — edit the runtime's `workspace/agents-extra.md`.
+- **New dependency for a skill** — add it to both `hermes/package.json` and `openclaw/package.json`.
+
 ## Scripts
 
 All scripts run from `cd runtime`.
