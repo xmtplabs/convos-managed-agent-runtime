@@ -838,6 +838,7 @@
     // --- Replenish (SSE streaming) ---
     (function () {
       var select = document.getElementById('runtime-image');
+      var defaultIndex = select.selectedIndex;
       var customRow = document.getElementById('image-custom-row');
       var customInput = document.getElementById('runtime-image-custom');
       var clearBtn = document.getElementById('image-custom-clear');
@@ -854,7 +855,7 @@
         customInput.value = '';
         customRow.classList.remove('visible');
         select.classList.remove('hidden');
-        select.value = '';
+        select.selectedIndex = defaultIndex;
       });
     })();
 
