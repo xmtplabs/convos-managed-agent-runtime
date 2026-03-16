@@ -1,0 +1,41 @@
+# runtime/evals/poller.yaml
+# E2E poller eval — self-send email → poller detects → notification → agent answers.
+# OpenClaw only. Sequential — tests share one conversation.
+
+description: "Eval: Poller"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/poller.provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: openrouter:anthropic/claude-sonnet-4
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  - description: "Poller detects email and sends notification"
+    vars:
+      prompt: "(waiting for poller notification)"
+    metadata:
+      waitForNotification: true
+    assert:
+      - type: icontains
+        value: "You got a new email"
+
+  - description: "Agent describes attachment from polled email"
+    vars:
+      prompt: "What's the attachment in that email? Download and read it."
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript with lines prefixed [USER] or [AGENT].
+          The USER asked about an email attachment. The AGENT should mention or
+          describe the content of the attachment, which is a text file containing
+          "Hello from poller eval". Pass if the AGENT references this content
+          in any way (exact quote, paraphrase, or summary). Fail if the AGENT
+          says it cannot find or read the attachment, or gives an unrelated answer.

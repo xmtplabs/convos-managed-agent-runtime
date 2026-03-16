@@ -143,18 +143,18 @@ log "started (interval=${POLL_INTERVAL}s, convos=$(get_conversation_id))"
 while true; do
   _batch=""
 
-  _out=$(node "$SERVICES" email recent --since-last --limit 3 --no-provision 2>/dev/null) || true
-  if [ -n "$_out" ] && ! echo "$_out" | grep -q "No new emails"; then
-    _msgs=$(format_emails "$_out")
+  _email_out=$(node "$SERVICES" email recent --since-last --limit 3 --no-provision 2>&1) || true
+  if [ -n "$_email_out" ] && ! echo "$_email_out" | grep -q "No new emails"; then
+    _msgs=$(format_emails "$_email_out")
     if [ -n "$_msgs" ]; then
       log "new email detected"
       _batch="$_msgs"
     fi
   fi
 
-  _out=$(node "$SERVICES" sms recent --since-last --limit 3 --no-provision 2>/dev/null) || true
-  if [ -n "$_out" ] && ! echo "$_out" | grep -q "No new SMS"; then
-    _msgs=$(format_sms "$_out")
+  _sms_out=$(node "$SERVICES" sms recent --since-last --limit 3 --no-provision 2>&1) || true
+  if [ -n "$_sms_out" ] && ! echo "$_sms_out" | grep -q "No new SMS"; then
+    _msgs=$(format_sms "$_sms_out")
     if [ -n "$_msgs" ]; then
       log "new SMS detected"
       if [ -n "$_batch" ]; then
@@ -169,6 +169,8 @@ $_msgs"
   if [ -n "$_batch" ]; then
     notify "$_batch" || log "notify failed"
   fi
+
+  log "polled — email: $(echo "$_email_out" | head -1 | cut -c1-20) | sms: $(echo "$_sms_out" | head -1 | cut -c1-20)"
 
   sleep "$POLL_INTERVAL"
 done

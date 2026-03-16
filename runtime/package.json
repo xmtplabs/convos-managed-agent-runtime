@@ -26,6 +26,7 @@
     "evals:convos": "sh evals/run-suite.sh convos.yaml",
     "evals:async": "sh evals/run-suite.sh async.yaml",
     "evals:memory": "sh evals/run-suite.sh memory.yaml",
+    "evals:poller": "sh evals/run-suite.sh poller.yaml",
     "evals:hermes": "EVAL_RUNTIME=hermes sh evals/run.sh",
     "evals:hermes:knows": "EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml",
     "evals:hermes:skills": "EVAL_RUNTIME=hermes sh evals/run-suite.sh skills.yaml",
