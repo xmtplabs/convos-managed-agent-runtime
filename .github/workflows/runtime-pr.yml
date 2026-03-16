@@ -12,7 +12,7 @@ on:
       - 'runtime/shared/**'
       - 'runtime/evals/**'
       - 'runtime/package.json'
-      - '!runtime/openclaw/CHANGELOG.md'
+      - '!runtime/CHANGELOG.md'
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
