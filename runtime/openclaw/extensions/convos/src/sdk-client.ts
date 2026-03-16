@@ -16,6 +16,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { ProfileImageRenewal } from "./profile-image-renewal.js";
 import type { CreateConversationResult } from "./types.js";
 
 const execFileAsync = promisify(execFile);
@@ -75,6 +76,12 @@ export interface SentEvent {
 export interface HeartbeatEvent {
   conversationId: string;
   activeStreams: number;
+}
+
+export interface ConversationProfile {
+  inboxId: string;
+  name?: string;
+  isMe?: boolean;
 }
 
 // ---- Binary resolution ----
@@ -157,6 +164,7 @@ export class ConvosInstance {
 
   /** Cached member display names: inboxId → name */
   private memberNames = new Map<string, string>();
+  private profileImageRenewal: ProfileImageRenewal;
 
   /** Resolves when the `ready` event is received after start(). */
   private readyPromiseResolve?: (info: ReadyEvent) => void;
@@ -182,6 +190,9 @@ export class ConvosInstance {
     this.label = params.label;
     this.env = params.env;
     this.options = params.options ?? {};
+    this.profileImageRenewal = new ProfileImageRenewal({
+      conversationId: params.conversationId,
+    });
   }
 
   // ---- CLI helpers ----
@@ -302,7 +313,8 @@ export class ConvosInstance {
       identityId: string;
       inboxId?: string;
       tag?: string;
-      name?: string;
+      conversationName?: string;
+      profileName?: string;
     };
 
     try {
@@ -327,7 +339,7 @@ export class ConvosInstance {
       const instance = new ConvosInstance({
         conversationId: data.conversationId,
         identityId: data.identityId,
-        label: data.name,
+        label: data.conversationName,
         env,
         options,
       });
@@ -414,26 +426,33 @@ export class ConvosInstance {
   // ==== Member Cache ====
 
   /** Fetch conversation profiles via the CLI. */
-  private async listProfiles(): Promise<Array<{ inboxId: string; name?: string; isMe?: boolean }>> {
-    const data = await this.execJson<{ profiles: Array<{ inboxId: string; name?: string; isMe?: boolean }> }>([
+  private async listProfiles(): Promise<ConversationProfile[]> {
+    const data = await this.execJson<{ profiles: ConversationProfile[] }>([
       "conversation", "profiles", this.conversationId,
     ]);
     return data.profiles ?? [];
   }
 
+  /** Rebuild the member name cache from conversation profiles. Throws on CLI errors. */
+  async refreshMemberNamesStrict(): Promise<ConversationProfile[]> {
+    const profiles = await this.listProfiles();
+    this.memberNames.clear();
+    for (const p of profiles) {
+      this.memberNames.set(p.inboxId, p.name || "anonymous");
+    }
+    if (this.options.debug) {
+      console.log(`[convos] Refreshed member names: ${this.memberNames.size} members`);
+    }
+    return profiles;
+  }
+
   /** Rebuild the member name cache from conversation profiles. */
-  async refreshMemberNames(): Promise<void> {
+  async refreshMemberNames(): Promise<ConversationProfile[] | null> {
     try {
-      const profiles = await this.listProfiles();
-      this.memberNames.clear();
-      for (const p of profiles) {
-        this.memberNames.set(p.inboxId, p.name || "anonymous");
-      }
-      if (this.options.debug) {
-        console.log(`[convos] Refreshed member names: ${this.memberNames.size} members`);
-      }
+      return await this.refreshMemberNamesStrict();
     } catch (err) {
       console.error(`[convos] Failed to refresh member names: ${String(err)}`);
+      return null;
     }
   }
 
@@ -454,6 +473,23 @@ export class ConvosInstance {
 
   async sendMessage(text: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
     this.assertRunning();
+
+    // Intercept /update-profile commands so the agent can update its profile
+    // by simply sending a message — no curl or exec required.
+    if (/^\/update-profile\b/.test(text)) {
+      const nameMatch = text.match(/--name\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
+      const imageMatch = text.match(/--image\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
+      const name = nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3];
+      const image = imageMatch?.[1] ?? imageMatch?.[2] ?? imageMatch?.[3];
+      if (name || image) {
+        await this.updateProfile(name, image);
+        return { success: true, messageId: undefined };
+      }
+      return { success: false, messageId: undefined };
+    }
+
+    await this.renewProfileImageOnActivity();
+
     const cmd: Record<string, unknown> = { type: "send", text };
     if (replyTo) cmd.replyTo = replyTo;
     return this.sendAndWait(cmd);
@@ -487,6 +523,27 @@ export class ConvosInstance {
   async rename(name: string): Promise<void> {
     this.assertRunning();
     this.writeCommand({ type: "rename", name });
+  }
+
+  async updateProfile(name?: string, image?: string): Promise<void> {
+    this.assertRunning();
+    const cmd: Record<string, unknown> = { type: "update-profile" };
+    if (name !== undefined) cmd.name = name;
+    if (image !== undefined) cmd.image = image;
+    this.writeCommand(cmd);
+    if (image !== undefined) {
+      this.profileImageRenewal.recordAppliedImage(image);
+    }
+  }
+
+  async renewProfileImageOnActivity(): Promise<boolean> {
+    this.assertRunning();
+    const sourceUrl = this.profileImageRenewal.getSourceToRenew();
+    if (!sourceUrl) {
+      return false;
+    }
+    await this.updateProfile(undefined, sourceUrl);
+    return true;
   }
 
   async lock(): Promise<void> {

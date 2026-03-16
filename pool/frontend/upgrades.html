@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Upgrades — Convos Pool</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!--__POOL_CONFIG__-->
+  <link rel="stylesheet" href="/admin/assets/admin.css">
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="28">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="var(--color-brand)"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="var(--color-brand)"/>
+          </svg>
+        </div>
+        <span class="brand-name">Convos <span class="brand-name-labs">Pool</span></span>
+      </div>
+      <div class="env-switcher" onclick="this.classList.toggle('open')">
+        <button class="env-switcher-btn" id="env-switcher-btn"></button>
+        <div class="env-dropdown" id="env-dropdown"></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <nav class="top-nav">
+        <a href="/admin" class="nav-link">Dashboard</a>
+        <a href="/admin/upgrades" class="nav-link active">Upgrades</a>
+        <a href="/admin/api-docs" class="nav-link">API</a>
+        <a id="railway-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Railway <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
+        <div class="nav-sep"></div>
+        <form method="POST" action="/admin/logout" style="display:contents">
+          <button class="logout-btn" type="submit">Logout</button>
+        </form>
+      </nav>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Unified upgrade hero card -->
+    <div class="upgrade-hero-card">
+      <div class="upgrade-hero-chart">
+        <canvas id="version-pie" width="180" height="180"></canvas>
+      </div>
+      <div class="upgrade-hero-body">
+        <div class="upgrade-hero-top">
+          <div class="upgrade-hero-title">
+            <span class="upgrade-hero-heading">Runtime upgrades</span>
+            <span class="upgrade-hero-meta"><span id="upgrade-total-count"></span> &middot; <a href="https://github.com/xmtplabs/convos-agents/blob/dev/runtime/CHANGELOG.md" target="_blank" rel="noopener" class="upgrade-changelog-link">Changelog</a></span>
+          </div>
+          <div class="upgrade-hero-stats" id="upgrade-target-info"></div>
+        </div>
+        <div class="upgrade-hero-legend" id="version-legend"></div>
+        <div class="upgrade-hero-actions">
+          <select id="upgrade-image-picker" class="upgrade-image-select">
+            <option value="">Default (pool config)</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime:dev">runtime:dev</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime:staging">runtime:staging</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime:production">runtime:production</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">hermes:dev</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:staging">hermes:staging</option>
+            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:production">hermes:production</option>
+          </select>
+          <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade outdated</button>
+        </div>
+      </div>
+    </div>
+    <!-- Upgrade streaming log -->
+    <div class="provision-log" id="upgrade-stream-log" style="margin-top:16px">
+      <div class="provision-log-header" onclick="toggleUpgradeLog()">
+        <span class="provision-log-title">Upgrading <span class="prov-count" id="upgrade-stream-count">0/0</span></span>
+
+        <div class="provision-log-actions">
+          <button class="provision-log-toggle" id="upgrade-stream-toggle">Collapse</button>
+          <button class="provision-log-close" onclick="event.stopPropagation(); closeUpgradeLog()">&times;</button>
+        </div>
+      </div>
+      <div class="upgrade-stream-grid" id="upgrade-stream-body"></div>
+    </div>
+    <!-- Per-version breakdown table -->
+    <div class="upgrade-card" style="margin-top:16px">
+      <div class="upgrade-card-header">
+        <span class="upgrade-card-title">Instances by version</span>
+      </div>
+      <div class="upgrade-version-list" id="upgrade-version-list"></div>
+    </div>
+  </div>
+
+  <!-- Info Modal -->
+  <div class="modal-overlay" id="info-modal">
+    <div class="modal confirm-modal">
+      <div class="confirm-icon" id="info-icon"></div>
+      <h3 id="info-title"></h3>
+      <p id="info-message" style="font-size:12px;color:var(--color-foreground-secondary);margin-bottom:16px"></p>
+      <div class="confirm-actions">
+        <button class="confirm-btn proceed" id="info-dismiss">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal confirm-modal">
+      <div class="confirm-icon" id="confirm-icon"></div>
+      <h3 id="confirm-title"></h3>
+      <p id="confirm-message" style="font-size:12px;color:var(--color-foreground-secondary);margin-bottom:16px"></p>
+      <div class="confirm-actions">
+        <button class="confirm-btn cancel" id="confirm-cancel">Cancel</button>
+        <button class="confirm-btn proceed" id="confirm-proceed">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/admin/assets/admin-common.js"></script>
+  <script>
+    initAdminCommon();
+
+    var PIE_COLORS = ['#34C759', '#FF9500', '#007AFF', '#AF52DE', '#FF2D55', '#5856D6', '#FF3B30', '#30B0C7', '#FFD60A', '#AC8E68'];
+    var upgradeRunning = false;
+
+    function parseSemver(v) {
+      if (!v) return null;
+      var m = v.match(/^v?(\d+)\.(\d+)\.(\d+)/);
+      return m ? [parseInt(m[1]), parseInt(m[2]), parseInt(m[3])] : null;
+    }
+    function cmpSemver(a, b) {
+      for (var i = 0; i < 3; i++) { if (a[i] !== b[i]) return a[i] - b[i]; }
+      return 0;
+    }
+
+    function getVersionBuckets() {
+      var all = claimedCache.concat(idleCache).concat(startingCache).concat(crashedCache);
+      var buckets = {};
+      all.forEach(function (a) {
+        var infra = infraMap[a.id] || {};
+        var ver = infra.runtime_version || null;
+        var label = ver || 'unknown';
+        if (!buckets[label]) {
+          buckets[label] = { version: ver, label: label, instances: [], isLatest: false };
+        }
+        var status = crashedCache.indexOf(a) !== -1 ? 'crashed'
+          : claimedCache.indexOf(a) !== -1 ? 'running'
+          : idleCache.indexOf(a) !== -1 ? 'idle' : 'starting';
+        buckets[label].instances.push({ id: a.id, name: a.agentName || a.name || a.id, status: status });
+      });
+      var highestVer = null;
+      var highestKey = null;
+      Object.keys(buckets).forEach(function (k) {
+        var sv = parseSemver(buckets[k].version);
+        if (sv && (!highestVer || cmpSemver(sv, highestVer) > 0)) {
+          highestVer = sv;
+          highestKey = k;
+        }
+      });
+      if (highestKey) buckets[highestKey].isLatest = true;
+      var sorted = Object.values(buckets).sort(function (a, b) {
+        if (a.isLatest && !b.isLatest) return -1;
+        if (!a.isLatest && b.isLatest) return 1;
+        var sa = parseSemver(a.version), sb = parseSemver(b.version);
+        if (sa && sb) return cmpSemver(sb, sa);
+        if (sa) return -1;
+        if (sb) return 1;
+        return b.instances.length - a.instances.length;
+      });
+      return sorted;
+    }
+
+    function drawPieChart(buckets) {
+      var canvas = document.getElementById('version-pie');
+      var ctx = canvas.getContext('2d');
+      var sz = 180;
+      var cx = sz / 2, cy = sz / 2, outerR = 72, innerR = 44;
+      var dpr = window.devicePixelRatio || 1;
+      canvas.width = sz * dpr;
+      canvas.height = sz * dpr;
+      canvas.style.width = sz + 'px';
+      canvas.style.height = sz + 'px';
+      ctx.scale(dpr, dpr);
+
+      var total = buckets.reduce(function (s, b) { return s + b.instances.length; }, 0);
+      if (total === 0) {
+        ctx.fillStyle = '#EEE';
+        ctx.beginPath(); ctx.arc(cx, cy, outerR, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#999'; ctx.font = '13px Inter, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('No instances', cx, cy + 4);
+        return;
+      }
+
+      var startAngle = -Math.PI / 2;
+      buckets.forEach(function (b, i) {
+        var slice = (b.instances.length / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, outerR, startAngle, startAngle + slice);
+        ctx.closePath();
+        ctx.fillStyle = PIE_COLORS[i % PIE_COLORS.length];
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        startAngle += slice;
+      });
+      ctx.beginPath();
+      ctx.arc(cx, cy, innerR, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.font = '700 22px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(total, cx, cy + 3);
+      ctx.font = '500 10px Inter, sans-serif';
+      ctx.fillStyle = '#999';
+      ctx.fillText('instances', cx, cy + 16);
+    }
+
+    function renderUpgradesPanel() {
+      var buckets = getVersionBuckets();
+      var total = buckets.reduce(function (s, b) { return s + b.instances.length; }, 0);
+
+      drawPieChart(buckets);
+      document.getElementById('upgrade-total-count').textContent = total + ' total';
+
+      var legendHtml = '';
+      buckets.forEach(function (b, i) {
+        legendHtml += '<div class="upgrade-legend-pill">'
+          + '<span class="upgrade-legend-dot" style="background:' + PIE_COLORS[i % PIE_COLORS.length] + '"></span>'
+          + '<span class="upgrade-legend-ver">' + esc(b.label) + '</span>'
+          + '<span class="upgrade-legend-count">' + b.instances.length + '</span>'
+          + '</div>';
+      });
+      document.getElementById('version-legend').innerHTML = legendHtml;
+
+      var latestCount = 0, outdatedCount = 0, unknownCount = 0;
+      var outdatedIds = [];
+      buckets.forEach(function (b) {
+        if (b.label === 'unknown') {
+          unknownCount += b.instances.length;
+        } else if (b.isLatest) {
+          latestCount += b.instances.length;
+        } else {
+          outdatedCount += b.instances.length;
+          b.instances.forEach(function (inst) { outdatedIds.push(inst.id); });
+        }
+      });
+      var targetHtml = '<div class="upgrade-stat"><span class="upgrade-stat-dot current"></span><strong>' + latestCount + '</strong> on latest</div>'
+        + '<div class="upgrade-stat"><span class="upgrade-stat-dot outdated"></span><strong>' + outdatedCount + '</strong> outdated</div>'
+        + (unknownCount > 0 ? '<div class="upgrade-stat"><span class="upgrade-stat-dot unknown"></span><strong>' + unknownCount + '</strong> unknown</div>' : '');
+      document.getElementById('upgrade-target-info').innerHTML = targetHtml;
+
+      var btnOutdated = document.getElementById('btn-upgrade-outdated');
+      btnOutdated.disabled = outdatedCount === 0 || upgradeRunning;
+      btnOutdated.textContent = outdatedCount > 0 ? 'Upgrade ' + outdatedCount + ' outdated' : 'All up to date';
+
+      var listHtml = '';
+      var refreshSvg = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 8a6.5 6.5 0 0 1 11.25-4.5M14.5 8a6.5 6.5 0 0 1-11.25 4.5"/><path d="M14.5 2v4h-4"/><path d="M1.5 14v-4h4"/></svg>';
+      buckets.forEach(function (b, i) {
+        var badge = b.isLatest
+          ? '<span class="upgrade-version-badge latest">latest</span>'
+          : (b.label === 'unknown' ? '' : '<span class="upgrade-version-badge outdated">outdated</span>');
+        var versionIds = b.instances.map(function (inst) { return inst.id; });
+        listHtml += '<div class="upgrade-version-group" data-vgroup="' + i + '">'
+          + '<div class="upgrade-version-header">'
+          + '<span class="upgrade-version-expand" onclick="this.closest(\'.upgrade-version-group\').classList.toggle(\'open\')">'
+          + '<span class="upgrade-legend-dot" style="background:' + PIE_COLORS[i % PIE_COLORS.length] + ';width:10px;height:10px;border-radius:3px;flex-shrink:0"></span>'
+          + '<span class="upgrade-version-tag">' + esc(b.label) + '</span>'
+          + badge
+          + '<span class="upgrade-version-count">' + b.instances.length + '</span>'
+          + '</span>'
+          + '<button class="upgrade-refresh-btn" title="Refresh versions for this group" onclick="event.stopPropagation(); refreshVersionGroup(this, ' + JSON.stringify(versionIds).replace(/"/g, '&quot;') + ')">' + refreshSvg + '</button>'
+          + '</div>'
+          + '<div class="upgrade-version-instances">';
+        b.instances.forEach(function (inst) {
+          var infra = infraMap[inst.id] || {};
+          var rUrl = railwayUrl(infra.provider_service_id, inst.id);
+          var statusClass = inst.status === 'running' ? 'status-running' : inst.status === 'idle' ? 'status-idle' : inst.status === 'crashed' ? 'status-crashed' : 'status-starting';
+          var statusLabel = inst.status === 'running' ? 'Running' : inst.status === 'idle' ? 'Ready' : inst.status === 'crashed' ? 'Crashed' : 'Starting';
+          var canUpgrade = !b.isLatest && b.label !== 'unknown' && !upgradeRunning;
+          var nameHtml = rUrl
+            ? '<a class="upgrade-instance-link" href="' + esc(rUrl) + '" target="_blank" rel="noopener">' + esc(inst.name) + '</a>'
+            : '<span>' + esc(inst.name) + '</span>';
+          listHtml += '<div class="upgrade-version-instance">'
+            + '<span class="upgrade-instance-name">' + nameHtml + '</span>'
+            + '<span class="upgrade-instance-status ' + statusClass + '">' + statusLabel + '</span>'
+            + (canUpgrade ? '<button class="upgrade-instance-btn" onclick="upgradeSingle(\'' + inst.id + '\', this)">Upgrade</button>' : '')
+            + '</div>';
+        });
+        listHtml += '</div></div>';
+      });
+      document.getElementById('upgrade-version-list').innerHTML = listHtml;
+    }
+
+    function getSelectedImage() {
+      var picker = document.getElementById('upgrade-image-picker');
+      return picker ? picker.value : '';
+    }
+
+    async function upgradeSingle(id, btn) {
+      if (btn) { btn.disabled = true; btn.textContent = 'Upgrading...'; }
+      try {
+        var body = {};
+        var img = getSelectedImage();
+        if (img) body.image = img;
+        var res = await fetch('/api/pool/update-runtime/' + id, {
+          method: 'POST',
+          headers: Object.assign({}, authHeaders, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        if (btn) { btn.textContent = 'Done'; btn.style.background = 'var(--color-success)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--color-success)'; }
+        await refreshInstances();
+        setTimeout(function () { renderUpgradesPanel(); }, 500);
+      } catch (err) {
+        if (btn) { btn.textContent = 'Failed'; btn.style.color = 'var(--color-error)'; btn.style.borderColor = 'var(--color-error)'; btn.disabled = false; }
+      }
+    }
+
+    // --- Upgrade streaming log ---
+    var upgradeStreamTotal = 0;
+    var upgradeStreamDone = 0;
+    var upgradeInstanceInfo = {};
+
+    function showUpgradeLog(count) {
+      upgradeStreamTotal = count;
+      upgradeStreamDone = 0;
+      upgradeInstanceInfo = {};
+      var panel = document.getElementById('upgrade-stream-log');
+      var body = document.getElementById('upgrade-stream-body');
+      body.innerHTML = '';
+      panel.classList.add('visible');
+      panel.classList.remove('collapsed');
+      document.getElementById('upgrade-stream-toggle').textContent = 'Collapse';
+      document.getElementById('upgrade-stream-count').textContent = '0/' + count;
+
+      for (var i = 1; i <= count; i++) {
+        var card = document.createElement('div');
+        card.className = 'upgrade-stream-card';
+        card.id = 'upgrade-inst-' + i;
+        card.innerHTML = '<span class="upgrade-stream-name" id="upgrade-inst-header-' + i + '">Instance ' + i + '</span>'
+          + ' <span class="prov-status in-progress" id="upgrade-inst-status-' + i + '">Pending</span>';
+        body.appendChild(card);
+      }
+    }
+
+    function updateUpgradeHeader(instanceNum) {
+      var info = upgradeInstanceInfo[instanceNum];
+      if (!info) return;
+      var header = document.getElementById('upgrade-inst-header-' + instanceNum);
+      if (!header) return;
+      var nameHtml = info.railwayUrl
+        ? '<a class="provision-step-link" href="' + esc(info.railwayUrl) + '" target="_blank" rel="noopener">' + esc(info.name) + '</a>'
+        : esc(info.name);
+      var versionHtml = info.version && info.version !== 'unknown'
+        ? ' <span style="font-size:10px;color:var(--color-foreground-tertiary);font-weight:400">' + esc(info.version) + '</span>'
+        : '';
+      header.innerHTML = nameHtml + versionHtml;
+    }
+
+    function markUpgradeInstance(instanceNum, success, message) {
+      upgradeStreamDone++;
+      document.getElementById('upgrade-stream-count').textContent = upgradeStreamDone + '/' + upgradeStreamTotal;
+      var statusEl = document.getElementById('upgrade-inst-status-' + instanceNum);
+      if (statusEl) {
+        if (success) {
+          statusEl.className = 'prov-status success';
+          statusEl.textContent = 'Done';
+        } else {
+          statusEl.className = 'prov-status failed';
+          statusEl.textContent = message || 'Failed';
+        }
+      }
+    }
+
+    function toggleUpgradeLog() {
+      var panel = document.getElementById('upgrade-stream-log');
+      panel.classList.toggle('collapsed');
+      document.getElementById('upgrade-stream-toggle').textContent = panel.classList.contains('collapsed') ? 'Expand' : 'Collapse';
+    }
+
+    function closeUpgradeLog() {
+      document.getElementById('upgrade-stream-log').classList.remove('visible');
+    }
+
+    async function massUpgrade(ids) {
+      if (upgradeRunning || !ids.length) return;
+      upgradeRunning = true;
+      renderUpgradesPanel();
+      showUpgradeLog(ids.length);
+
+      var image = encodeURIComponent(getSelectedImage());
+      var idStr = encodeURIComponent(ids.join(','));
+      var es = new EventSource('/api/pool/upgrade/stream?ids=' + idStr + '&image=' + image);
+
+      es.onmessage = function (ev) {
+        try {
+          var data = JSON.parse(ev.data);
+
+          if (data.type === 'info') {
+            upgradeInstanceInfo[data.instanceNum] = {
+              name: data.name,
+              version: data.version,
+              railwayUrl: data.railwayUrl
+            };
+            updateUpgradeHeader(data.instanceNum);
+          } else if (data.type === 'step') {
+            if (data.step === 'done') {
+              markUpgradeInstance(data.instanceNum, true);
+            } else if (data.step === 'error') {
+              markUpgradeInstance(data.instanceNum, false, data.message);
+            } else if (data.status === 'active') {
+              var statusEl = document.getElementById('upgrade-inst-status-' + data.instanceNum);
+              if (statusEl) { statusEl.className = 'prov-status in-progress'; statusEl.textContent = 'Upgrading'; }
+            }
+          } else if (data.type === 'complete') {
+            es.close();
+            upgradeRunning = false;
+            refreshInstances().then(function () {
+              setTimeout(function () { renderUpgradesPanel(); }, 500);
+            });
+          }
+        } catch (e) {}
+      };
+
+      es.onerror = function () {
+        es.close();
+        upgradeRunning = false;
+        renderUpgradesPanel();
+      };
+    }
+
+    document.getElementById('btn-upgrade-outdated').addEventListener('click', async function () {
+      var buckets = getVersionBuckets();
+      var ids = [];
+      buckets.forEach(function (b) {
+        if (!b.isLatest && b.label !== 'unknown') {
+          b.instances.forEach(function (inst) { ids.push(inst.id); });
+        }
+      });
+      if (!ids.length) return;
+      var ok = await showConfirm({
+        icon: '\u26A1',
+        title: 'Upgrade ' + ids.length + ' instances',
+        message: 'This will redeploy ' + ids.length + ' outdated instances with the latest runtime image. They will restart sequentially.',
+        confirmLabel: 'Upgrade all',
+      });
+      if (ok) massUpgrade(ids);
+    });
+
+    async function refreshVersionGroup(btn, ids) {
+      if (!ids || !ids.length) return;
+      btn.disabled = true;
+      btn.classList.add('spinning');
+      try {
+        var res = await fetch('/api/pool/refresh-versions', {
+          method: 'POST',
+          headers: Object.assign({}, authHeaders, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ ids: ids }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        await refreshInstances();
+        setTimeout(function () { renderUpgradesPanel(); }, 500);
+      } catch (err) {
+        console.error('[pool] refresh version group failed:', err);
+      }
+      btn.classList.remove('spinning');
+      btn.disabled = false;
+    }
+
+    // --- Init + polling ---
+    console.log('[pool] upgrades init — env:%s', POOL_ENV);
+    refresh().then(function () { renderUpgradesPanel(); });
+    setInterval(function () {
+      refresh().then(function () { renderUpgradesPanel(); });
+    }, 5000);
+    setInterval(function () { refreshInstances(); }, 60000);
+  </script>
+</body>
+</html>

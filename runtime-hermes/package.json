@@ -1,0 +1,9 @@
+{
+  "name": "convos-hermes-runtime",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Convos agent runtime powered by Hermes agent",
+  "dependencies": {
+    "@xmtp/convos-cli": "^0.5.0"
+  }
+}

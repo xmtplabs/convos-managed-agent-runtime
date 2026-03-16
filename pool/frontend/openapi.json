@@ -1,0 +1,468 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Convos Pool API",
+    "version": "1.0.0",
+    "description": "Pool manager API for provisioning, managing, and monitoring Convos agent instances."
+  },
+  "servers": [{ "url": "/" }],
+  "tags": [
+    { "name": "Public", "description": "No auth required" },
+    { "name": "Admin", "description": "Requires POOL_API_KEY (Bearer token or session cookie)" },
+    { "name": "Instance", "description": "Instance self-auth via instanceId + gatewayToken" },
+    { "name": "Proxy", "description": "Instance service proxy (auth via gateway token header)" },
+    { "name": "Internal", "description": "Internal infra routes (admin auth)" },
+    { "name": "Dashboard", "description": "Admin dashboard data routes (admin auth)" },
+    { "name": "Webhooks", "description": "Inbound webhooks" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "POOL_API_KEY as Bearer token"
+      },
+      "GatewayToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-gateway-token",
+        "description": "Per-instance gateway token (set via x-gateway-token header or instanceId + gatewayToken in body)"
+      }
+    },
+    "schemas": {
+      "InstanceAuth": {
+        "type": "object",
+        "required": ["instanceId", "gatewayToken"],
+        "properties": {
+          "instanceId": { "type": "string" },
+          "gatewayToken": { "type": "string" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Health check",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" } } } } } } }
+      }
+    },
+    "/version": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Build version and environment",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "version": { "type": "string" }, "environment": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/counts": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Instance counts by status",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "idle": { "type": "integer" }, "starting": { "type": "integer" }, "claimed": { "type": "integer" }, "crashed": { "type": "integer" } } } } } } }
+      }
+    },
+    "/api/pool/agents": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "List all instances by status",
+        "responses": { "200": { "description": "Instances grouped by status", "content": { "application/json": { "schema": { "type": "object", "properties": { "claimed": { "type": "array" }, "crashed": { "type": "array" }, "idle": { "type": "array" }, "starting": { "type": "array" } } } } } } }
+      }
+    },
+    "/api/pool/info": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Pool info (environment, model, branch)",
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "environment": { "type": "string" }, "branch": { "type": "string" }, "model": { "type": "string" }, "railwayServiceId": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/templates": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "List agent templates",
+        "responses": { "200": { "description": "Array of templates" } }
+      }
+    },
+    "/api/pool/templates/{slug}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Get a single agent template by slug",
+        "parameters": [{ "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Template object" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/prompts/{pageId}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Fetch prompt from Notion page (cached 1h)",
+        "parameters": [{ "name": "pageId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-f0-9]{32}$" } }],
+        "responses": { "200": { "description": "Prompt content", "content": { "application/json": { "schema": { "type": "object", "properties": { "name": { "type": "string" }, "prompt": { "type": "string" } } } } } } }
+      }
+    },
+    "/registry": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "List available tools and provisioning modes",
+        "responses": { "200": { "description": "Tool registry", "content": { "application/json": { "schema": { "type": "object", "properties": { "tools": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "mode": { "type": "string" }, "envKeys": { "type": "array", "items": { "type": "string" } } } } } } } } } } }
+      }
+    },
+    "/api/pool/status": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Pool status (counts + all instances)",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/pool/claim": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Claim an idle instance for a user",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "agentName": { "type": "string" }, "instructions": { "type": "string" }, "joinUrl": { "type": "string" }, "source": { "type": "string" } } } } } },
+        "responses": {
+          "200": { "description": "Claimed instance", "content": { "application/json": { "schema": { "type": "object", "properties": { "inviteUrl": { "type": "string" }, "conversationId": { "type": "string" }, "instanceId": { "type": "string" }, "joined": { "type": "boolean" }, "gatewayToken": { "type": "string" }, "gatewayUrl": { "type": "string" } } } } } },
+          "503": { "description": "No idle instances" }
+        }
+      }
+    },
+    "/api/pool/claim/stream": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Claim with real-time SSE progress",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "agentName", "in": "query", "schema": { "type": "string" } },
+          { "name": "instructions", "in": "query", "schema": { "type": "string" } },
+          { "name": "joinUrl", "in": "query", "schema": { "type": "string" } },
+          { "name": "source", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "SSE stream" } }
+      }
+    },
+    "/api/pool/replenish": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Add new instances to the pool",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "count": { "type": "integer", "default": 1 }, "concurrency": { "type": "integer", "default": 5 } } } } } },
+        "responses": { "200": { "description": "Replenished" } }
+      }
+    },
+    "/api/pool/replenish/stream": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Replenish with real-time SSE progress",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "count", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "concurrency", "in": "query", "schema": { "type": "integer", "default": 5 } },
+          { "name": "image", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "SSE stream" } }
+      }
+    },
+    "/api/pool/drain/stream": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Drain unclaimed instances with SSE progress",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "count", "in": "query", "schema": { "type": "integer", "default": 20 } },
+          { "name": "concurrency", "in": "query", "schema": { "type": "integer", "default": 5 } }
+        ],
+        "responses": { "200": { "description": "SSE stream" } }
+      }
+    },
+    "/api/pool/drain": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Drain unclaimed instances",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "count": { "type": "integer", "default": 1 } } } } } },
+        "responses": { "200": { "description": "Drained" } }
+      }
+    },
+    "/api/pool/check-starting": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Recheck all starting instances",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/pool/instances/{id}": {
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Delete an instance (destroys Railway service)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Deleted" } }
+      }
+    },
+    "/api/pool/recheck/{id}": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Recheck a single instance health",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/pool/update-runtime/{id}": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Update runtime image for an instance",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/api/pool/self-destruct": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Instance requests its own teardown",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "Accepted" } }
+      }
+    },
+    "/api/pool/credits-check": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Check prepaid credit balance (OpenRouter usage)",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "limit": { "type": "number" }, "usage": { "type": "number" }, "remaining": { "type": "number" }, "limitReset": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/credits-topup": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Request credit top-up (bumps OpenRouter limit)",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "previousLimit": { "type": "number" }, "newLimit": { "type": "number" } } } } } } }
+      }
+    },
+    "/api/pool/redeem-coupon": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Redeem a coupon code for credits (+$20)",
+        "requestBody": { "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/InstanceAuth" }, { "type": "object", "required": ["code"], "properties": { "code": { "type": "string" } } }] } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "previousLimit": { "type": "number" }, "newLimit": { "type": "number" } } } } } }, "400": { "description": "Invalid code" }, "409": { "description": "Max coupon limit reached" } }
+      }
+    },
+    "/api/proxy/info": {
+      "get": {
+        "tags": ["Proxy"],
+        "summary": "Get instance's provisioned resources (email, phone)",
+        "security": [{ "GatewayToken": [] }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "instanceId": { "type": "string" }, "email": { "type": "string", "nullable": true }, "phone": { "type": "string", "nullable": true } } } } } } }
+      }
+    },
+    "/api/proxy/email/provision": {
+      "post": {
+        "tags": ["Proxy"],
+        "summary": "Provision an AgentMail inbox (idempotent)",
+        "security": [{ "GatewayToken": [] }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "email": { "type": "string" }, "provisioned": { "type": "boolean" } } } } } } }
+      }
+    },
+    "/api/proxy/sms/provision": {
+      "post": {
+        "tags": ["Proxy"],
+        "summary": "Provision a Telnyx phone number (idempotent)",
+        "security": [{ "GatewayToken": [] }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "phone": { "type": "string" }, "provisioned": { "type": "boolean" } } } } } } }
+      }
+    },
+    "/api/proxy/email/send": {
+      "post": {
+        "tags": ["Proxy"],
+        "summary": "Send an email via instance's inbox",
+        "security": [{ "GatewayToken": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "description": "AgentMail send message body" } } } },
+        "responses": { "200": { "description": "Proxied from AgentMail" } }
+      }
+    },
+    "/api/proxy/email/messages": {
+      "get": {
+        "tags": ["Proxy"],
+        "summary": "Poll inbox messages",
+        "security": [{ "GatewayToken": [] }],
+        "responses": { "200": { "description": "Proxied from AgentMail" } }
+      }
+    },
+    "/api/proxy/email/threads": {
+      "get": {
+        "tags": ["Proxy"],
+        "summary": "Poll inbox threads",
+        "security": [{ "GatewayToken": [] }],
+        "responses": { "200": { "description": "Proxied from AgentMail" } }
+      }
+    },
+    "/api/proxy/sms/send": {
+      "post": {
+        "tags": ["Proxy"],
+        "summary": "Send SMS from instance's phone number",
+        "security": [{ "GatewayToken": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "to": { "type": "string" }, "text": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Proxied from Telnyx" } }
+      }
+    },
+    "/api/proxy/sms/records": {
+      "get": {
+        "tags": ["Proxy"],
+        "summary": "Poll inbound SMS records",
+        "security": [{ "GatewayToken": [] }],
+        "responses": { "200": { "description": "Proxied from Telnyx (filtered to instance's phone)" } }
+      }
+    },
+    "/api/proxy/sms/messages/{id}": {
+      "get": {
+        "tags": ["Proxy"],
+        "summary": "Get SMS message details",
+        "security": [{ "GatewayToken": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied from Telnyx" }, "403": { "description": "Message does not belong to this instance" } }
+      }
+    },
+    "/create-instance": {
+      "post": {
+        "tags": ["Internal"],
+        "summary": "Create a Railway service with tool provisioning",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "required": ["instanceId", "name"], "properties": { "instanceId": { "type": "string" }, "name": { "type": "string" }, "tools": { "type": "array", "items": { "type": "string" } } } } } } },
+        "responses": { "200": { "description": "Created" } }
+      }
+    },
+    "/destroy/{instanceId}": {
+      "delete": {
+        "tags": ["Internal"],
+        "summary": "Destroy all resources for an instance",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "instanceId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Destroyed" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/redeploy/{instanceId}": {
+      "post": {
+        "tags": ["Internal"],
+        "summary": "Redeploy latest deployment for an instance",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "instanceId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Redeployed" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/status/batch": {
+      "post": {
+        "tags": ["Internal"],
+        "summary": "Get deploy status for multiple agent services",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "instanceIds": { "type": "array", "items": { "type": "string" } } } } } } },
+        "responses": { "200": { "description": "Batch status" } }
+      }
+    },
+    "/configure/{instanceId}": {
+      "post": {
+        "tags": ["Internal"],
+        "summary": "Set env vars on an instance's Railway service",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "instanceId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "required": ["variables"], "properties": { "variables": { "type": "object", "additionalProperties": { "type": "string" } }, "redeploy": { "type": "boolean", "default": false } } } } } },
+        "responses": { "200": { "description": "Configured" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/provision/{instanceId}/{toolId}": {
+      "post": {
+        "tags": ["Internal"],
+        "summary": "Provision a single tool for an instance",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "instanceId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "toolId", "in": "path", "required": true, "schema": { "type": "string", "enum": ["openrouter", "agentmail", "telnyx"] } }
+        ],
+        "responses": { "200": { "description": "Provisioned" }, "404": { "description": "Instance not found" }, "409": { "description": "Already provisioned" } }
+      }
+    },
+    "/destroy/{instanceId}/{toolId}/{resourceId}": {
+      "delete": {
+        "tags": ["Internal"],
+        "summary": "Destroy a specific tool resource",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "instanceId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "toolId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "resourceId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Destroyed" } }
+      }
+    },
+    "/dashboard/instances": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "All instances with their provisioned tools",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "Array of instances with tools" } }
+      }
+    },
+    "/dashboard/credits": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "OpenRouter account credits and per-key usage",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "Credits and keys" } }
+      }
+    },
+    "/dashboard/inboxes": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "AgentMail inbox count",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "Inbox list" } }
+      }
+    },
+    "/dashboard/keys/count": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Total OpenRouter provisioned key count",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "count": { "type": "integer" } } } } } } }
+      }
+    },
+    "/dashboard/phones": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Phone number pool counts",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "available": { "type": "integer" }, "assigned": { "type": "integer" }, "total": { "type": "integer" } } } } } } }
+      }
+    },
+    "/dashboard/topup/{keyHash}": {
+      "patch": {
+        "tags": ["Dashboard"],
+        "summary": "Update spending limit on an OpenRouter key",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "keyHash", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "required": ["limit"], "properties": { "limit": { "type": "number" } } } } } },
+        "responses": { "200": { "description": "Updated" } }
+      }
+    },
+    "/dashboard/kill/{instanceId}": {
+      "delete": {
+        "tags": ["Dashboard"],
+        "summary": "Destroy an instance and all its resources",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "instanceId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Destroyed" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/webhooks/railway/{secret}": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Railway deployment webhook",
+        "description": "Receives Railway deployment status changes. Auth via secret in URL path matching POOL_API_KEY.",
+        "parameters": [{ "name": "secret", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Received" } }
+      }
+    }
+  }
+}

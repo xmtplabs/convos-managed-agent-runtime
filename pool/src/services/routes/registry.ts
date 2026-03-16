@@ -14,13 +14,13 @@ const TOOL_REGISTRY: ToolRegistryEntry[] = [
     id: "agentmail",
     name: "AgentMail",
     mode: "per-instance-inbox",
-    envKeys: ["AGENTMAIL_INBOX_ID"],
+    envKeys: [],
   },
   {
     id: "telnyx",
     name: "Telnyx",
     mode: "per-instance-phone",
-    envKeys: ["TELNYX_PHONE_NUMBER", "TELNYX_MESSAGING_PROFILE_ID"],
+    envKeys: [],
   },
 ];
 

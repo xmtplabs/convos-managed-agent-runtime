@@ -1,12 +1,17 @@
 import { nanoid } from "nanoid";
 import * as db from "./db/pool";
+import { authFetch } from "./authFetch";
+import { config } from "./config";
 import { createInstance as infraCreateInstance, destroyInstance as infraDestroyInstance, type ProgressCallback } from "./services/infra";
 import { fetchBatchStatus } from "./services/status";
-import { config } from "./config";
 import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
+
+function isProtected(id: string): boolean {
+  return config.protectedInstances.includes(id);
+}
 
 // Destroy via services. If not in infra DB but we have a Railway serviceId, delete that directly.
 async function safeDestroy(instanceId: string, railwayServiceId?: string, projectId?: string) {
@@ -40,7 +45,7 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
 }
 
 // Create a single new instance via services and insert into DB.
-export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string) {
+export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string, model?: string) {
   const id = nanoid(12);
   const name = `convos-agent-${id}`;
   const createStart = Date.now();
@@ -50,7 +55,7 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
   logger.info("create.start", { instanceId: id, name });
 
   try {
-    const result = await infraCreateInstance(id, name, ["openrouter", "agentmail", "telnyx"], onProgress, runtimeImage);
+    const result = await infraCreateInstance(id, name, ["openrouter"], onProgress, runtimeImage, model);
     console.log(`[pool]   Services created: serviceId=${result.serviceId}, url=${result.url}`);
 
     await db.upsertInstance({
@@ -75,10 +80,10 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 export { provision } from "./provision";
 
 // Health-check a single instance via /pool/health.
-export async function healthCheck(url: string) {
+export async function healthCheck(url: string, gatewayToken?: string | null) {
   try {
-    const res = await fetch(`${url}/pool/health`, {
-      headers: { Authorization: `Bearer ${config.poolApiKey}` },
+    const res = await authFetch(`${url}/pool/health`, {
+      gatewayToken,
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
@@ -94,7 +99,8 @@ export async function checkStarting() {
   const promoted: string[] = [];
   for (const row of rows) {
     if (!row.url) continue;
-    const hc = await healthCheck(row.url);
+    const token = await db.getGatewayToken(row.id);
+    const hc = await healthCheck(row.url, token);
     if (hc?.ready) {
       await db.updateStatus(row.id, { status: "idle" });
       if (hc.version) await db.setRuntimeVersion(row.id, hc.version);
@@ -111,7 +117,8 @@ export async function checkStarting() {
 
 export async function drainPool(count: number) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
-  const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
+  const unclaimed = (await db.getByStatus(["idle", "starting", "dead"]))
+    .filter((i: any) => !isProtected(i.id));
   const toDrain = unclaimed.slice(0, count);
   if (toDrain.length === 0) return [];
 
@@ -170,7 +177,8 @@ export type DrainProgressCallback = (instanceNum: number, instanceId: string, in
 
 export async function drainPoolStream(count: number, concurrency: number, onProgress: DrainProgressCallback) {
   const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
-  const unclaimed = await db.getByStatus(["idle", "starting", "dead"]);
+  const unclaimed = (await db.getByStatus(["idle", "starting", "dead"]))
+    .filter((i: any) => !isProtected(i.id));
   const toDrain = unclaimed.slice(0, count);
   if (toDrain.length === 0) return { drained: 0, failed: 0, instances: [] as string[] };
 
@@ -217,6 +225,7 @@ export async function drainPoolStream(count: number, concurrency: number, onProg
 }
 
 export async function killInstance(id: string) {
+  if (isProtected(id)) throw new Error(`Instance ${id} is protected and cannot be killed`);
   const inst = await db.findById(id);
   if (!inst) return;
 
@@ -241,42 +250,50 @@ export async function recheckInstance(id: string) {
     return { id, status: inst.status, changed: false, reason: "no_url" };
   }
 
-  const hc = await healthCheck(inst.url);
+  const instToken = await db.getGatewayToken(id);
+  const hc = await healthCheck(inst.url, instToken);
   if (!hc?.ready) {
     console.log(`[pool] recheck ${id}: health check failed (status=${inst.status}, url=${inst.url}, hc=${JSON.stringify(hc)})`);
     return { id, status: inst.status, changed: false, reason: "health_failed", agentName: inst.agentName || null };
   }
 
-  // If DB has no agentName, ask the instance directly via /convos/status
-  let isClaimed = !!inst.agentName;
-  if (!isClaimed) {
-    try {
-      const csRes = await fetch(`${inst.url}/convos/status`, {
-        headers: { Authorization: `Bearer ${config.poolApiKey}` },
-        signal: AbortSignal.timeout(5000),
-      });
-      if (csRes.ok) {
-        const cs = await csRes.json() as { conversation?: { id: string } | null };
-        if (cs.conversation?.id) {
-          isClaimed = true;
-          console.log(`[pool] recheck ${id}: no agentName but has active conversation ${cs.conversation.id}`);
-        }
-      }
-    } catch {}
+  // Ask the runtime for its conversation state
+  let runtimeConvoId: string | null = null;
+  let statusKnown = false;
+  try {
+    const csRes = await authFetch(`${inst.url}/convos/status`, {
+      gatewayToken: instToken,
+      signal: AbortSignal.timeout(5000),
+    });
+    if (csRes.ok) {
+      const cs = await csRes.json() as { conversation?: { id: string } | null };
+      runtimeConvoId = cs.conversation?.id ?? null;
+      statusKnown = true;
+    }
+  } catch {}
+
+  if (!statusKnown) {
+    console.log(`[pool] recheck ${id}: /convos/status failed, leaving as ${inst.status}`);
+    return { id, status: inst.status, changed: false, reason: "status_unknown", agentName: inst.agentName || null };
   }
 
-  // Crashed instances stay crashed unless a conversation is actually active.
-  // The container may still be healthy but provisioning failed — promoting
-  // to "idle" would recycle a broken instance back into the pool.
-  if (inst.status === "crashed" && !isClaimed) {
+  if (runtimeConvoId) {
+    // Runtime has a conversation — verify it matches what we provisioned
+    if (inst.conversationId && inst.conversationId === runtimeConvoId) {
+      await db.updateStatus(id, { status: "claimed" });
+      if (hc.version) await db.setRuntimeVersion(id, hc.version);
+      console.log(`[pool] recheck ${id}: ${inst.status} → claimed (conversation ${runtimeConvoId} matches DB, v${hc.version || '?'})`);
+      return { id, status: "claimed", changed: inst.status !== "claimed", agentName: inst.agentName || null };
+    }
+    // Runtime has a conversation but DB doesn't match — stuck provision failure
     if (hc.version) await db.setRuntimeVersion(id, hc.version);
-    console.log(`[pool] recheck ${id}: crashed, healthy but no conversation — staying crashed (v${hc.version || '?'})`);
-    return { id, status: "crashed", changed: false, reason: "crashed_no_conversation", agentName: inst.agentName || null };
+    console.log(`[pool] recheck ${id}: runtime has conversation ${runtimeConvoId} but DB has ${inst.conversationId || "none"} — staying ${inst.status}`);
+    return { id, status: inst.status, changed: false, reason: "conversation_mismatch", agentName: inst.agentName || null };
   }
 
-  const newStatus = isClaimed ? "claimed" : "idle";
-  await db.updateStatus(id, { status: newStatus });
+  // No active conversation — instance is clean, recover to idle
+  await db.recoverToIdle(id, inst.status);
   if (hc.version) await db.setRuntimeVersion(id, hc.version);
-  console.log(`[pool] recheck ${id}: ${inst.status} → ${newStatus} (agentName=${inst.agentName || "none"}, isClaimed=${isClaimed}, v${hc.version || '?'})`);
-  return { id, status: newStatus, changed: newStatus !== inst.status, agentName: inst.agentName || null };
+  console.log(`[pool] recheck ${id}: ${inst.status} → idle (no conversation, v${hc.version || '?'})`);
+  return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
 }
