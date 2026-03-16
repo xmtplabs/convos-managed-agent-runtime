@@ -1,6 +1,4 @@
-# 🎈>Convos Assistants
-
----
+# 🎈Convos Assistants
 
 Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, make crypto payments, and more.
 
