@@ -15,4 +15,6 @@ else
   echo "  HERMES_HOME      -> $HERMES_HOME (ephemeral)"
 fi
 
+export SKILLS_ROOT="$HERMES_HOME/skills"
+
 exec "$@"

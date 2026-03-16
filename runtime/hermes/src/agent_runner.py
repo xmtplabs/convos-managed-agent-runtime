@@ -131,6 +131,7 @@ class AgentRunner:
 
         if self._hermes_home:
             os.environ["HERMES_HOME"] = self._hermes_home
+            os.environ.setdefault("SKILLS_ROOT", str(Path(self._hermes_home) / "skills"))
 
         # Session DB — gives the agent persistent session storage and
         # powers the session_search tool for cross-session recall.
@@ -153,7 +154,7 @@ class AgentRunner:
             enabled_toolsets=["hermes-convos"],
             platform="convos",
             ephemeral_system_prompt=CONVOS_EPHEMERAL_PROMPT,
-            quiet_mode=True,
+            quiet_mode=False,
             session_db=self._session_db,
             honcho_session_key=honcho_key,
         )
