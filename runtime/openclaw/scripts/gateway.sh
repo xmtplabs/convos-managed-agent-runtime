@@ -144,11 +144,30 @@ _poller_pidfile="/tmp/.openclaw-poller.pid"
 if [ -f "$_poller_pidfile" ]; then
   kill "$(cat "$_poller_pidfile")" 2>/dev/null || true
 fi
-pkill -f "scripts/poller.sh" 2>/dev/null || true
-sh "$ROOT/scripts/poller.sh" &
-echo $! > "$_poller_pidfile"
-brand_ok "poller" "started (pid $!, every ${POLL_INTERVAL_SECONDS:-60}s)"
-unset _poller_pidfile
+pkill -f "poller.sh" 2>/dev/null || true
+
+# Locate shared poller
+if [ -f "$ROOT/../shared/scripts/poller.sh" ]; then
+  _shared_poller="$ROOT/../shared/scripts/poller.sh"
+elif [ -f "/app/shared-scripts/poller.sh" ]; then
+  _shared_poller="/app/shared-scripts/poller.sh"
+else
+  _shared_poller=""
+fi
+
+if [ -n "$_shared_poller" ]; then
+  SKILLS_ROOT="${SKILLS_ROOT:-$STATE_DIR/workspace/skills}" \
+  CONVOS_ENV="${CONVOS_ENV:-dev}" \
+  POLLER_CREDS_FILE="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/credentials/convos-identity.json" \
+  POLLER_SESSIONS_DIR="$STATE_DIR/agents/main/sessions" \
+  POLLER_SESSIONS_INDEX="$STATE_DIR/agents/main/sessions/sessions.json" \
+  sh "$_shared_poller" &
+  echo $! > "$_poller_pidfile"
+  brand_ok "poller" "started (pid $!, every ${POLL_INTERVAL_SECONDS:-60}s)"
+else
+  brand_dim "poller" "shared poller.sh not found — disabled"
+fi
+unset _poller_pidfile _shared_poller
 
 brand_done "Assistant is starting up"
 brand_flush
