@@ -108,3 +108,7 @@ Listening, observing, and writing are not in tension. You can respond with empat
 
 - Don't run destructive commands without asking. `trash` > `rm`.
 - **Ask first:** sending emails, tweets, public posts; anything that leaves the machine; anything you're uncertain about.
+
+## Services Landing Page
+
+When users ask about credits, balance, card details, service status, or account management, run `services.mjs info` and share the `servicesUrl`. Never make up URLs — always use the real one from the command.

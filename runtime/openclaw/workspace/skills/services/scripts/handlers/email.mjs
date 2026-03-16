@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Email handler — send, send-calendar, poll via AgentMail REST API.
+ * Email handler — send, send-calendar, poll, read, recent via AgentMail REST API.
  *
  * When POOL_URL and INSTANCE_ID are set, calls are proxied through the pool
  * manager (no API key needed on the instance). Otherwise falls back to direct
@@ -10,8 +10,10 @@
  *   node services.mjs email send --to <email> --subject <subj> --text <body> [--html <html>] [--attach <path>]
  *   node services.mjs email send-calendar --to <email> --ics <path> [--subject <subj>]
  *   node services.mjs email poll [--limit 20] [--labels unread] [--threads]
+ *   node services.mjs email read --id <messageId> [--save-dir <dir>]
+ *   node services.mjs email recent [--since-last] [--limit 5] [--no-provision]
  */
-import { readFileSync, writeFileSync } from "fs";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 // Proxy mode: route through pool manager (no API key on instance)
@@ -168,6 +170,10 @@ async function sendCalendar(argv) {
   console.log("Sent calendar invite to", to);
 }
 
+function markAsRead(messageId) {
+  return api("PATCH", inboxPath(`messages/${encodeURIComponent(messageId)}`), { add_labels: ["read"], remove_labels: ["unread"] }).catch(() => {});
+}
+
 async function poll(argv) {
   const { map, flags } = parseArgs(argv);
   await requireEnv({ noProvision: flags.includes("no-provision") });
@@ -199,13 +205,81 @@ async function poll(argv) {
   console.log(`Inbox ${displayInbox}: ${out.messages.length} message(s)\n`);
   for (const m of out.messages) {
     const dir = m.labels?.includes("received") ? "received" : "sent";
+    console.log(`  ID:      ${m.message_id}`);
     console.log(`  Subject: ${m.subject || "(none)"}`);
     console.log(`  From:    ${m.from}`);
     console.log(`  To:      ${[].concat(m.to || []).join(", ")}`);
     console.log(`  Date:    ${m.timestamp}`);
     console.log(`  Status:  ${dir}`);
+    if (m.attachments?.length) {
+      const names = m.attachments.map((a) => a.filename || a.attachment_id).join(", ");
+      console.log(`  Attachments: ${names}`);
+      console.log(`  (use: email read --id "${m.message_id}" to download)`);
+    }
     if (m.preview) console.log(`  Preview: ${m.preview.slice(0, 120)}`);
     console.log("");
+  }
+
+  // Mark displayed unread messages as read
+  const unread = out.messages.filter((m) => m.labels?.includes("unread") && m.message_id);
+  if (unread.length) {
+    await Promise.all(unread.map((m) => markAsRead(m.message_id)));
+    console.log(`Marked ${unread.length} message(s) as read.`);
+  }
+}
+
+async function read(argv) {
+  const { map, flags } = parseArgs(argv);
+  await requireEnv({ noProvision: flags.includes("no-provision") });
+  const messageId = map.id || map.message;
+
+  if (!messageId) {
+    console.error("Usage: services.mjs email read --id <messageId> [--save-dir <dir>]");
+    process.exit(1);
+  }
+
+  const encodedId = encodeURIComponent(messageId);
+  const message = await api("GET", inboxPath(`messages/${encodedId}`));
+
+  markAsRead(messageId);
+
+  console.log(`From: ${message.from}`);
+  console.log(`To: ${[].concat(message.to || []).join(", ")}`);
+  console.log(`Subject: ${message.subject || "(none)"}`);
+  console.log(`Date: ${message.timestamp}`);
+  if (message.text) console.log(`\nBody:\n${message.text}`);
+
+  if (message.attachments?.length) {
+    const defaultDir = resolve(process.env.OPENCLAW_STATE_DIR || "/tmp", "media");
+    const saveDir = map["save-dir"] || defaultDir;
+    mkdirSync(saveDir, { recursive: true });
+    console.log(`\nAttachments (${message.attachments.length}):`);
+    for (const att of message.attachments) {
+      const filename = att.filename || att.attachment_id;
+      const url = att.download_url || att.content;
+      if (url && url.startsWith("http")) {
+        // Signed CDN URL — download the file
+        try {
+          const dlRes = await fetch(url);
+          if (dlRes.ok) {
+            const outPath = resolve(saveDir, filename);
+            writeFileSync(outPath, Buffer.from(await dlRes.arrayBuffer()));
+            console.log(`  - ${filename} (${att.content_type || "unknown"}) → saved to ${outPath}`);
+          } else {
+            console.log(`  - ${filename} (${att.content_type || "unknown"}) — download failed (${dlRes.status})`);
+          }
+        } catch (e) {
+          console.log(`  - ${filename} (${att.content_type || "unknown"}) — download error: ${e.message}`);
+        }
+      } else if (att.content) {
+        // Base64 inline content (fallback)
+        const outPath = resolve(saveDir, filename);
+        writeFileSync(outPath, Buffer.from(att.content, "base64"));
+        console.log(`  - ${filename} (${att.content_type || "unknown"}) → saved to ${outPath}`);
+      } else {
+        console.log(`  - ${filename} (${att.content_type || "unknown"}) — no download URL available`);
+      }
+    }
   }
 }
 
@@ -228,7 +302,7 @@ async function recent(argv) {
   const { map, flags } = parseArgs(argv);
   await requireEnv({ noProvision: flags.includes("no-provision") });
   const minutes = map.minutes ? parseInt(map.minutes, 10) : null;
-  const sinceLast = map["since-last"] !== undefined;
+  const sinceLast = flags.includes("since-last");
   const limit = parseInt(map.limit, 10) || 5;
 
   let cutoff;
@@ -266,7 +340,12 @@ async function recent(argv) {
     console.log(`From: ${m.from}`);
     console.log(`Subject: ${m.subject || "(none)"}`);
     console.log(`Date: ${m.timestamp}`);
-    console.log(`Body: ${m.preview || "(no preview)"}`);
+    const preview = (m.preview || "").split("\n")[0].slice(0, 120);
+    console.log(`Body: ${preview || "(no preview)"}`);
+    if (m.attachments?.length) {
+      const names = m.attachments.map((a) => a.filename || a.attachment_id).join(", ");
+      console.log(`Attachments: ${names}`);
+    }
     console.log("");
   }
 }
@@ -310,8 +389,9 @@ export default async function email(argv) {
     case "send-calendar": return sendCalendar(rest);
     case "poll":          return poll(rest);
     case "recent":        return recent(rest);
+    case "read":          return read(rest);
     default:
-      console.error("Usage: services.mjs email <provision|send|send-calendar|poll|recent> [options]");
+      console.error("Usage: services.mjs email <provision|send|send-calendar|poll|recent|read> [options]");
       process.exit(1);
   }
 }
