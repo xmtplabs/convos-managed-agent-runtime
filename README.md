@@ -40,10 +40,10 @@ Channel extension that connects OpenClaw agents to Convos conversations. Bundled
 
 Agent capabilities exposed as skills, shared across both runtimes:
 
-- **services** — email, SMS, credits, account services (shared)
-- **convos-runtime** — runtime version, upgrade, redeploy (shared)
-- **convos-cli** — in-conversation messaging protocol (shared)
-- **bankr** — crypto payments (OpenClaw only)
+- **services** — email, SMS, credits, account services
+- **convos-runtime** — runtime version, upgrade, redeploy
+- **convos-cli** — in-conversation messaging protocol
+- **bankr** — crypto trading, payments, DeFi operations
 
 ### Pool (`pool/`)
 
