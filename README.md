@@ -108,4 +108,4 @@ Returns an `inviteUrl` to share (QR code or deep link). Omit `joinUrl` to create
 | [Railway](https://railway.com) | Container compute for each assistant | [`railway.ts`](pool/src/services/providers/railway.ts) |
 | [AgentMail](https://agentmail.to) | Per-assistant email inbox | [`agentmail.ts`](pool/src/services/providers/agentmail.ts) |
 | [Telnyx](https://telnyx.com) | Per-assistant US phone number for SMS | [`telnyx.ts`](pool/src/services/providers/telnyx.ts) |
-| [Bankr](https://bankr.chat) | Per-assistant wallet | [`wallet.ts`](pool/src/services/providers/wallet.ts) |
+| [Bankr](https://bankr.bot) | Per-assistant wallet | [`wallet.ts`](pool/src/services/providers/wallet.ts) |
