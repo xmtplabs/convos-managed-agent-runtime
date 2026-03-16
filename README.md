@@ -10,7 +10,7 @@
 
 Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, make crypto payments, and more.
 
-<p align="center">
+<p align="left">
   <a href="https://assistants.convos.org">Launch an assistant</a> · <a href="https://convos.org/app">Get Convos</a>
 </p>
 
