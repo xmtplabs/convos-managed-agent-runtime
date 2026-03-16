@@ -14,6 +14,8 @@
   </a>
 </p>
 
+---
+
 Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, manage payments, and more.
 
 <p align="left">
