@@ -8,7 +8,7 @@ set -e
 brand_section "Syncing workspace"
 
 # ── HERMES_HOME structure ────────────────────────────────────────────────
-mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
+mkdir -p "$HERMES_HOME/workspace/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
 
 # ── Shared workspace (SOUL.md, shared skills) ───────────────────────────
 _skill_count=0
@@ -20,8 +20,8 @@ if [ -n "$SHARED_WORKSPACE_DIR" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
     for skill_dir in "$SHARED_WORKSPACE_DIR"/skills/*; do
       [ -d "$skill_dir" ] || continue
       skill_name="$(basename "$skill_dir")"
-      rm -rf "$HERMES_HOME/skills/$skill_name"
-      cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
+      rm -rf "$HERMES_HOME/workspace/skills/$skill_name"
+      cp -R "$skill_dir" "$HERMES_HOME/workspace/skills/$skill_name"
       _skill_count=$((_skill_count + 1))
     done
   fi
@@ -35,13 +35,12 @@ brand_ok "config.yaml" "synced"
 for skill_dir in "$WORKSPACE_DIR"/skills/*; do
   [ -d "$skill_dir" ] || continue
   skill_name="$(basename "$skill_dir")"
-  rm -rf "$HERMES_HOME/skills/$skill_name"
-  cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
+  rm -rf "$HERMES_HOME/workspace/skills/$skill_name"
+  cp -R "$skill_dir" "$HERMES_HOME/workspace/skills/$skill_name"
   _skill_count=$((_skill_count + 1))
 done
 
 # ── AGENTS.md (base + extra) ─────────────────────────────────────────────
-mkdir -p "$HERMES_HOME/workspace"
 _AGENTS_OUT="$HERMES_HOME/workspace/AGENTS.md"
 cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_OUT"
 [ -f "$WORKSPACE_DIR/agents-extra.md" ] && cat "$WORKSPACE_DIR/agents-extra.md" >> "$_AGENTS_OUT"

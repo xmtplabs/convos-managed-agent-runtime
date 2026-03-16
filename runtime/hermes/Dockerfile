@@ -59,7 +59,7 @@ RUN chmod +x /app/scripts/*.sh
 
 # HERMES_HOME — sync.sh populates this on boot from /app/workspace
 ENV HERMES_HOME=/app/.hermes
-ENV SKILLS_ROOT=/app/.hermes/skills
+ENV SKILLS_ROOT=/app/.hermes/workspace/skills
 
 ENV PORT=8080
 
