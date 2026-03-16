@@ -8,7 +8,7 @@
 
 [![Runtime: PR](https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml/badge.svg)](https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml)
 
-Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, make crypto payments, and more.
+Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, manage payments, and more.
 
 <p align="left">
   <a href="https://assistants.convos.org">Launch an assistant</a> · <a href="https://convos.org/app">Get Convos</a>
@@ -25,7 +25,7 @@ assistants.convos.org          Pool Manager              Railway
 │  or paste    │        │  + providers     │       │  on Convos  │
 │  an invite   │        └──────────────────┘       └─────────────┘
 └──────────────┘        Railway · OpenRouter         email · SMS
-                        AgentMail · Telnyx           crypto · web
+                        AgentMail · Telnyx           payments · web
 ```
 
 ## Repo layout
@@ -59,7 +59,7 @@ The assistant runtime image. Each instance runs as a container on Railway with a
 | Skill | Capability |
 |-------|-----------|
 | [`services`](runtime/openclaw/workspace/skills/services/) | Email, SMS, credits, and account info |
-| [`bankr`](runtime/openclaw/workspace/skills/bankr/) | Crypto transfers and swaps |
+| [`bankr`](runtime/openclaw/workspace/skills/bankr/) | Payments, transfers, and swaps |
 | [`convos-cli`](runtime/openclaw/workspace/skills/convos-cli/) | Convos client operations |
 | [`convos-runtime`](runtime/openclaw/workspace/skills/convos-runtime/) | Version check and runtime upgrade |
 
@@ -108,4 +108,4 @@ Returns an `inviteUrl` to share (QR code or deep link). Omit `joinUrl` to create
 | [Railway](https://railway.com) | Container compute for each assistant | [`railway.ts`](pool/src/services/providers/railway.ts) |
 | [AgentMail](https://agentmail.to) | Per-assistant email inbox | [`agentmail.ts`](pool/src/services/providers/agentmail.ts) |
 | [Telnyx](https://telnyx.com) | Per-assistant US phone number for SMS | [`telnyx.ts`](pool/src/services/providers/telnyx.ts) |
-| [Bankr](https://bankr.chat) | Per-assistant crypto wallet | [`wallet.ts`](pool/src/services/providers/wallet.ts) |
+| [Bankr](https://bankr.chat) | Per-assistant wallet | [`wallet.ts`](pool/src/services/providers/wallet.ts) |
