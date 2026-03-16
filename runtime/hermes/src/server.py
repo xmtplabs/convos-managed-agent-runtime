@@ -343,6 +343,9 @@ async def lifespan(app: FastAPI):
             logger.error(e)
         raise RuntimeError(f"Config validation failed: {'; '.join(errors)}")
     ensure_workspace(_config.workspace_dir)
+    # Ungate cron tools — Hermes gates them behind a "gateway or CLI" env var,
+    # but we run our own tick loop (see _cron_tick_loop below).
+    os.environ.setdefault("HERMES_GATEWAY_SESSION", "1")
     warm_imports()
     _event_loop = asyncio.get_event_loop()
     _patch_cron_delivery()
