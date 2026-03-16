@@ -1,5 +1,9 @@
 # Convos runtime changelog
 
+## 0.0.27
+- Background email/SMS polling: new messages are detected and delivered to the chat automatically — no more LLM calls burning credits just to check the inbox
+- Email attachments: agents can read full emails and download attachments
+
 ## 0.0.26
 - Persistent memory: agents build long-term memory over time — facts, preferences, and context from past conversations are recalled automatically
 - Image + text merging: sending a photo with a caption no longer triggers two replies — the agent combines them into one message
