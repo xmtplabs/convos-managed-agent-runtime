@@ -1,4 +1,10 @@
-# 🎈Convos Assistants
+```
+    ___  ___  _  _ __   __ ___  ___
+   / __|/ _ \| \| |\ \ / // _ \/ __|
+  | (__| (_) | .` | \ V /| (_) \__ \
+   \___|\___/|_|\_|  \_/  \___/|___/
+     🎈 A S S I S T A N T S
+```
 
 [![Runtime: PR](https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml/badge.svg)](https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml)
 
