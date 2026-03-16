@@ -13,6 +13,7 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { requireInstanceAuth } from "../middleware/instanceAuth";
+import { requireAuth } from "../middleware/auth";
 import { config } from "../config";
 import * as db from "../db/pool";
 import { instanceServices } from "../db/schema";
@@ -123,6 +124,19 @@ router.post("/api/proxy/sms/provision", requireInstanceOrAdminAuth, async (req, 
     metricCount("proxy.sms.provision_error");
     res.status(502).json({ error: `SMS provisioning failed: ${err.message}` });
   }
+});
+
+// ── Service status (admin) ───────────────────────────────────────────────────
+// Read-only check: does this instance have email/SMS provisioned?
+// Used by the app to show UI state without triggering provisioning.
+
+// GET /api/proxy/services/status?instanceId=<id>
+router.get("/api/proxy/services/status", requireAuth, async (req, res) => {
+  const instanceId = req.query.instanceId as string;
+  if (!instanceId) { res.status(400).json({ error: "instanceId query param required" }); return; }
+
+  const { inboxId, phoneNumber } = await getResources(instanceId);
+  res.json({ instanceId, email: inboxId ?? null, phone: phoneNumber ?? null });
 });
 
 // All other proxy routes require instance auth
