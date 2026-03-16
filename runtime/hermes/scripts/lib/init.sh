@@ -30,6 +30,15 @@ elif [ -d "/app/shared-workspace" ]; then
 else
   SHARED_WORKSPACE_DIR=""
 fi
+
+# Shared scripts — in Docker, copied to /app/shared-scripts; locally relative to ROOT
+if [ -d "$ROOT/../shared/scripts" ]; then
+  SHARED_SCRIPTS_DIR="$ROOT/../shared/scripts"
+elif [ -d "/app/shared-scripts" ]; then
+  SHARED_SCRIPTS_DIR="/app/shared-scripts"
+else
+  SHARED_SCRIPTS_DIR=""
+fi
 SKILLS_ROOT="$HERMES_HOME/skills"
 
 # Node/Python paths

@@ -83,23 +83,12 @@ async def require_auth(request: Request) -> None:
 _poller_proc: asyncio.subprocess.Process | None = None
 
 
-def _find_shared_poller() -> str | None:
-    """Locate the shared poller script."""
-    candidates = [
-        Path("/app/shared-scripts/poller.sh"),
-        Path(__file__).resolve().parent.parent.parent / "shared" / "scripts" / "poller.sh",
-    ]
-    for p in candidates:
-        if p.exists():
-            return str(p)
-    return None
-
-
 async def _start_poller(conversation_id: str, env: str) -> None:
     """Launch the shared poller as a background process."""
     global _poller_proc
-    script = _find_shared_poller()
-    if not script:
+    scripts_dir = os.environ.get("SHARED_SCRIPTS_DIR", "")
+    script = os.path.join(scripts_dir, "poller.sh") if scripts_dir else None
+    if not script or not os.path.isfile(script):
         logger.info("Poller: shared poller.sh not found — disabled")
         return
 
