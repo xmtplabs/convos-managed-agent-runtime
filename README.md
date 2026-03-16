@@ -14,7 +14,7 @@
   </a>
 </p>
 
-## Repo structure
+---
 
 Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, manage payments, and more.
 
@@ -72,7 +72,7 @@ The assistant runtime image. Each instance runs as a container on Railway with a
 
 See [`runtime/README.md`](runtime/README.md) for environment variables, Docker setup, and CI.
 
-Unified service that manages pre-warmed instances and all provider interactions (Railway, OpenRouter, AgentMail, Telnyx). Single process, single Postgres database.
+## Pool
 
 Manages pre-warmed assistant instances and all provider integrations. Single Express server, single Postgres database.
 
@@ -101,7 +101,6 @@ See [`dashboard/README.md`](dashboard/README.md) for setup, routes, and deployme
 {
   "agentName": "tokyo-trip-planner",
   "instructions": "You are a helpful trip planner for Tokyo.",
-<<<<<<< HEAD
   "joinUrl": "https://convos.org/v2?i=..."
 }
 ```
