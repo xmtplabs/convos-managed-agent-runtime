@@ -1,84 +1,119 @@
-# Convos agents
+<p align="center">
+<pre align="center">
+    ___  ___  _  _ __   __ ___  ___
+   / __|/ _ \| \| |\ \ / // _ \/ __|
+  | (__| (_) | .` | \ V /| (_) \__ \
+   \___|\___/|_|\_|  \_/  \___/|___/
+     🎈 A S S I S T A N T S
+</pre>
+</p>
 
-OpenClaw gateway + Convos (XMTP) channel plugin. Pre-warmed agent instances are provisioned via a pool; users claim an agent and it's live in seconds.
+<p align="center">
+  <a href="https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml">
+    <img src="https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml/badge.svg" alt="Runtime: PR" />
+  </a>
+</p>
 
-See `docs/` for architecture, QA, changelog, and workarounds.
+---
 
-## Repo structure
+Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, manage payments, and more.
+
+<p align="left">
+  <a href="https://assistants.convos.org">Launch an assistant</a> · <a href="https://convos.org/app">Get Convos</a>
+</p>
+
+
+## How it works
+
+```
+assistants.convos.org          Pool Manager              Railway
+┌──────────────┐        ┌──────────────────┐       ┌─────────────┐
+│  Pick a      │ claim  │  Pre-warmed      │  run  │  OpenClaw   │
+│  template    │───────▶│  instances       │──────▶│  runtime    │
+│  or paste    │        │  + providers     │       │  on Convos  │
+│  an invite   │        └──────────────────┘       └─────────────┘
+└──────────────┘        Railway · OpenRouter         email · SMS
+                        AgentMail · Telnyx           payments · web
+```
+
+## Repo layout
 
 ```
 convos-agents/
-├── runtime/       # Agent runtime image (OpenClaw + config + extensions + skills)
-├── pool/          # Pool manager + provider services (Express API + Postgres)
-├── dashboard/     # Template site — Next.js app at assistants.convos.org
-└── docs/          # Schema, QA, changelog, convos extension docs
+├── runtime/       # Assistant runtime — OpenClaw gateway, extensions, skills
+│   └── scripts/   # Startup, provisioning, health, and cron scripts
+├── pool/          # Pool manager — instance lifecycle + provider APIs
+├── dashboard/     # Playroom — Next.js app at assistants.convos.org
+└── docs/          # Schema, QA, changelog
 ```
 
-## Architecture
+## Runtime
 
-```mermaid
-flowchart LR
-  A["Pool\nmanages idle instances"] -->|claim| B["Provision\nRailway · OpenRouter · AgentMail · Telnyx"] -->|deploy| C["Runtime\nOpenClaw agent live on Convos"]
+The assistant runtime image. Each instance runs as a container on Railway with an [OpenClaw](https://openclaw.io) gateway, the Convos channel extension, and a set of skills.
+
+**Startup sequence** (`runtime/scripts/`):
+
+| Script | What it does |
+|--------|-------------|
+| `keys.sh` | Provisions API keys (OpenRouter, AgentMail) and displays env status |
+| `apply-config.sh` | Syncs workspace, extensions, and config to the state directory |
+| `install-deps.sh` | Installs extension dependencies |
+| `gateway.sh` | Starts the OpenClaw gateway with crash recovery and cron seeding |
+| `poller.sh` | Background email/SMS poller (no LLM) |
+| `pool-server.js` | Health, provision, and status endpoints for pool integration |
+
+**Skills** — what each assistant can do:
+
+| Skill | Capability |
+|-------|-----------|
+| [`services`](runtime/openclaw/workspace/skills/services/) | Email, SMS, credits, and account info |
+| [`bankr`](runtime/openclaw/workspace/skills/bankr/) | Payments, transfers, and swaps |
+| [`convos-cli`](runtime/openclaw/workspace/skills/convos-cli/) | Convos client operations |
+| [`convos-runtime`](runtime/openclaw/workspace/skills/convos-runtime/) | Version check and runtime upgrade |
+
+See [`runtime/README.md`](runtime/README.md) for environment variables, Docker setup, and CI.
+
+## Pool
+
+Manages pre-warmed assistant instances and all provider integrations. Single Express server, single Postgres database.
+
+```
+starting → idle → claiming → claimed
+              ↘ crashed
 ```
 
-## Components
+Instances are created ahead of time. When a user claims one, the pool provisions a Convos conversation on the instance and backfills the pool automatically.
 
-### Runtime (`runtime/`)
+See [`pool/README.md`](pool/README.md) for API, commands, database schema, and environments.
 
-The agent runtime image — OpenClaw gateway with the convos channel extension, workspace, and skills. Each agent instance runs as a container on Railway.
+## Dashboard
 
-See [`runtime/README.md`](runtime/README.md) for scripts, environment variables, Docker setup, and CI.
-
-### Convos Extension (`runtime/openclaw/extensions/convos/`)
-
-Channel extension that connects OpenClaw agents to Convos conversations. Bundled inside the runtime image.
-
-### Skills (`runtime/openclaw/workspace/skills/`)
-
-Agent capabilities exposed as OpenClaw skills:
-
-- **agentmail** — email (calendar invites, transactional email)
-- **bankr** — crypto payments
-- **convos-cli** — Convos client operations
-- **telnyx-cli** — SMS messaging
-
-### Pool (`pool/`)
-
-Unified service that manages pre-warmed instances and all provider interactions (Railway, OpenRouter, AgentMail, Telnyx). Single process, single Postgres database.
-
-See [`pool/README.md`](pool/README.md) for API, commands, configuration, database schema, and environments.
-
-### Dashboard (`dashboard/`)
-
-Next.js app at `assistants.convos.org`. Browse agent catalog, launch or join agents, template detail pages with OG images and QR codes.
+The [Convos Playroom](https://assistants.convos.org) — browse the assistant catalog, launch a new assistant, or invite one into an existing conversation.
 
 See [`dashboard/README.md`](dashboard/README.md) for setup, routes, and deployment.
 
-## Joining a conversation
+## Quick start
 
-Claim an idle instance via the pool API or the dashboard site:
+**Invite an assistant via the dashboard** — visit [assistants.convos.org](https://assistants.convos.org), pick a template, and paste your Convos invite link.
 
-**Via API** — `POST /api/pool/claim` (requires `POOL_API_KEY` in the `x-api-key` header)
+**Invite via API** — `POST /api/pool/claim` with an `x-api-key` header:
 
 ```json
 {
   "agentName": "tokyo-trip-planner",
   "instructions": "You are a helpful trip planner for Tokyo.",
-  "joinUrl": "https://dev.convos.org/v2?i=..."
+  "joinUrl": "https://convos.org/v2?i=..."
 }
 ```
 
-- Omit `joinUrl` to create a new conversation; include it to join an existing one.
-- Returns an `inviteUrl` to share with users (QR code / deep link).
-
-**Via dashboard** — visit `assistants.convos.org`, pick a template, and click Launch.
+Returns an `inviteUrl` to share (QR code or deep link). Omit `joinUrl` to create a new conversation.
 
 ## Providers
 
-| Provider | Role |
-|----------|------|
-| **OpenRouter** | LLM models + search. Per-agent keys with spending caps. |
-| **Railway** | Compute. Each agent runs as a container. |
-| **Agentmail** | Email. Per-agent inbox for calendar invites and transactional email. |
-| **Telnyx** | SMS. Per-agent US number and messaging profile. |
-| **Bankr** | Crypto payments. Per-agent wallet. |
+| Provider | Role | Integration |
+|----------|------|-------------|
+| [OpenRouter](https://openrouter.ai) | LLM inference and web search | [`openrouter.ts`](pool/src/services/providers/openrouter.ts) |
+| [Railway](https://railway.com) | Container compute for each assistant | [`railway.ts`](pool/src/services/providers/railway.ts) |
+| [AgentMail](https://agentmail.to) | Per-assistant email inbox | [`agentmail.ts`](pool/src/services/providers/agentmail.ts) |
+| [Telnyx](https://telnyx.com) | Per-assistant US phone number for SMS | [`telnyx.ts`](pool/src/services/providers/telnyx.ts) |
+| [Bankr](https://bankr.bot) | Per-assistant wallet | [`wallet.ts`](pool/src/services/providers/wallet.ts) |
