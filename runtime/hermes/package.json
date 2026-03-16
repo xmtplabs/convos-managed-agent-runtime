@@ -13,6 +13,7 @@
     "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml"
   },
   "dependencies": {
+    "@bankr/cli": "^0.1.0",
     "@xmtp/convos-cli": "^0.5.0"
   }
 }
