@@ -30,7 +30,7 @@ elif [ -d "/app/shared-workspace" ]; then
 else
   SHARED_WORKSPACE_DIR=""
 fi
-SKILLS_ROOT="$HERMES_HOME/workspace/skills"
+SKILLS_ROOT="$HERMES_HOME/skills"
 
 # Node/Python paths
 export NODE_PATH="${NODE_PATH:-$ROOT/node_modules}"

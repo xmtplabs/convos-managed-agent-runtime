@@ -31,12 +31,12 @@ export CONVOS_REPO_ROOT="$REPO_ROOT"
 
 export HOME="$RUNTIME_DIR/.eval-home"
 export HERMES_HOME="$HOME/.hermes"
-export SKILLS_ROOT="$HERMES_HOME/workspace/skills"
+export SKILLS_ROOT="$HERMES_HOME/skills"
 mkdir -p "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
 
 # Clear and rebuild skills dir — only workspace skills, matching production Docker image
-rm -rf "$HERMES_HOME/workspace/skills"
-mkdir -p "$HERMES_HOME/workspace/skills"
+rm -rf "$HERMES_HOME/skills"
+mkdir -p "$HERMES_HOME/skills"
 
 # Shared workspace files
 if [ -f "$SHARED_WORKSPACE_DIR/SOUL.md" ]; then
@@ -51,8 +51,8 @@ if [ -d "$SHARED_WORKSPACE_DIR/skills" ]; then
   for skill_dir in "$SHARED_WORKSPACE_DIR"/skills/*; do
     [ -d "$skill_dir" ] || continue
     skill_name="$(basename "$skill_dir")"
-    rm -rf "$HERMES_HOME/workspace/skills/$skill_name"
-    cp -R "$skill_dir" "$HERMES_HOME/workspace/skills/$skill_name"
+    rm -rf "$HERMES_HOME/skills/$skill_name"
+    cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
   done
 fi
 # Runtime-specific skills overlay (none today, but future-proof)
@@ -63,11 +63,10 @@ for skill_dir in "$RUNTIME_DIR"/workspace/skills/*; do
   cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
 done
 
-# Assemble AGENTS.md (shared base + runtime extra)
+# Assemble AGENTS.md at $HOME — Hermes auto-loads from CWD (hermes.mjs sets cwd=$HOME)
 if [ -f "$SHARED_WORKSPACE_DIR/AGENTS-base.md" ]; then
-  mkdir -p "$HERMES_HOME/workspace"
-  cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$HERMES_HOME/workspace/AGENTS.md"
-  [ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$HERMES_HOME/workspace/AGENTS.md"
+  cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$HOME/AGENTS.md"
+  [ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$HOME/AGENTS.md"
 fi
 
 # Copy Convos platform prompt to HERMES_HOME (agent_runner.py reads it from there)
