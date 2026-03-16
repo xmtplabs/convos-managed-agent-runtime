@@ -18,6 +18,20 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
+  - description: "Agent knows its email address"
+    vars:
+      prompt: "What is your email address?"
+    assert:
+      - type: regex
+        value: "[\\w.-]+@[\\w.-]+"
+
+  - description: "Agent knows its phone number"
+    vars:
+      prompt: "What is your phone number?"
+    assert:
+      - type: regex
+        value: "\\+?1?[\\s.-]?\\(?\\d{3}\\)?[\\s.-]?\\d{3}[\\s.-]?\\d{4}"
+
   - description: "Agent can send an email with attachment"
     vars:
       prompt: "Create a small text file at /tmp/eval-note.txt with the content 'Hello from eval'. Then send an email to fabri@xmtp.com with subject 'Eval Attachment' and text 'See attached note'. Attach /tmp/eval-note.txt. Reply: Email sent with attachment."
