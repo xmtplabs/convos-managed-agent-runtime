@@ -21,23 +21,16 @@ function serveFile(
   }
 }
 
-/** Read poolApiKey from runtime config so the landing page can auth to convos endpoints. */
-function getPoolApiKey(api: OpenClawPluginApi): string {
-  try {
-    const cfg = api.runtime.config.loadConfig() as Record<string, unknown>;
-    const channels = cfg.channels as Record<string, unknown> | undefined;
-    const convos = channels?.convos as Record<string, unknown> | undefined;
-    return (convos?.poolApiKey as string) || "";
-  } catch {
-    return "";
-  }
+/** Read OPENCLAW_GATEWAY_TOKEN from env so pages can auth to convos endpoints. */
+function getGatewayToken(): string {
+  return process.env.OPENCLAW_GATEWAY_TOKEN || "";
 }
 
-/** Serve an HTML page with the poolApiKey injected as a JS variable. */
-function servePageWithToken(api: OpenClawPluginApi, htmlPath: string, res: ServerResponse) {
+/** Serve an HTML page with the gateway token injected as a JS variable. */
+function servePageWithToken(htmlPath: string, res: ServerResponse) {
   try {
     let html = fs.readFileSync(htmlPath, "utf-8");
-    const token = getPoolApiKey(api);
+    const token = getGatewayToken();
     // Inject token before the closing </head> tag so it's available to scripts
     const injection = `<script>window.__POOL_TOKEN=${JSON.stringify(token)};</script>`;
     html = html.replace("</head>", injection + "\n</head>");
@@ -51,23 +44,57 @@ function servePageWithToken(api: OpenClawPluginApi, htmlPath: string, res: Serve
   }
 }
 
-/** Serve the landing page with the poolApiKey injected as a JS variable. */
-function serveLandingPage(api: OpenClawPluginApi, agentsDir: string, res: ServerResponse) {
-  servePageWithToken(api, path.join(agentsDir, "landing.html"), res);
+/** Serve the landing page with the gateway token injected as a JS variable. */
+function serveLandingPage(agentsDir: string, res: ServerResponse) {
+  servePageWithToken(path.join(agentsDir, "landing.html"), res);
 }
 
-/** Build service identity + credits data from env vars and pool manager. */
+/** Build service identity + credits data from pool proxy (or env fallback). */
 async function getServicesData(): Promise<Record<string, unknown>> {
-  const email = process.env.AGENTMAIL_INBOX_ID || null;
-  const phone = process.env.TELNYX_PHONE_NUMBER || null;
   const servicesUrl = buildServicesUrl();
-
   const instanceId = process.env.INSTANCE_ID || null;
-  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
-
-  // Try to fetch credits from pool manager
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const poolUrl = process.env.POOL_URL;
+
+  let email: string | null = null;
+  let phone: string | null = null;
+
+  // Fetch identity from pool proxy (production) or fall back to env (local dev)
+  if (instanceId && gatewayToken && poolUrl) {
+    try {
+      const infoRes = await fetch(`${poolUrl}/api/proxy/info`, {
+        headers: { Authorization: `Bearer ${instanceId}:${gatewayToken}` },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (infoRes.ok) {
+        const info = await infoRes.json() as { email?: string; phone?: string };
+        email = info.email || null;
+        phone = info.phone || null;
+      }
+    } catch {}
+  }
+  // Direct mode fallback (local dev / QA only — live agents always use proxy)
+  if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
+  if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
+
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
+
+  // Fetch runtime version/image from pool
+  if (instanceId && gatewayToken && poolUrl) {
+    try {
+      const selfInfoRes = await fetch(`${poolUrl}/api/pool/self-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instanceId, gatewayToken }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (selfInfoRes.ok) {
+        const selfInfo = await selfInfoRes.json() as { runtimeVersion?: string; runtimeImage?: string };
+        result.runtimeVersion = selfInfo.runtimeVersion || null;
+        result.runtimeImage = selfInfo.runtimeImage || null;
+      }
+    } catch {}
+  }
 
   if (instanceId && gatewayToken && poolUrl) {
     try {
@@ -113,49 +140,35 @@ export default function register(api: OpenClawPluginApi) {
   const agentsDir = path.resolve(__dirname, "convos");
   const servicesDir = path.resolve(__dirname, "services");
 
-  // Intercept outgoing messages that contain raw provider credit errors
-  // and replace with a friendly services URL. Works across all channels.
-  api.on("message_sending", (event) => {
-    const text = event.content || "";
-    if (
-      text.includes("limit exceeded") ||
-      text.includes("402") ||
-      text.includes("afford") ||
-      text.includes("openrouter.ai/settings")
-    ) {
-      const servicesUrl = buildServicesUrl();
-      return {
-        content: `Hey! I'm out of credits. You can top up here: ${servicesUrl}`,
-      };
-    }
-  });
-
   api.registerHttpRoute({
     path: "/web-tools/convos",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
         res.end();
         return;
       }
-      serveLandingPage(api, agentsDir, res);
+      serveLandingPage(agentsDir, res);
     },
   });
 
   api.registerHttpRoute({
     path: "/web-tools/convos/",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
         res.end();
         return;
       }
-      serveLandingPage(api, agentsDir, res);
+      serveLandingPage(agentsDir, res);
     },
   });
 
   api.registerHttpRoute({
     path: "/web-tools/convos/manifest.json",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -172,6 +185,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/convos/sw.js",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -189,6 +203,7 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/convos/icon.svg",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -203,30 +218,33 @@ export default function register(api: OpenClawPluginApi) {
 
   api.registerHttpRoute({
     path: "/web-tools/services",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
         res.end();
         return;
       }
-      servePageWithToken(api, path.join(servicesDir, "services.html"), res);
+      servePageWithToken(path.join(servicesDir, "services.html"), res);
     },
   });
 
   api.registerHttpRoute({
     path: "/web-tools/services/",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
         res.end();
         return;
       }
-      servePageWithToken(api, path.join(servicesDir, "services.html"), res);
+      servePageWithToken(path.join(servicesDir, "services.html"), res);
     },
   });
 
   api.registerHttpRoute({
     path: "/web-tools/services/api",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
         res.statusCode = 405;
@@ -247,9 +265,24 @@ export default function register(api: OpenClawPluginApi) {
     },
   });
 
+  // Serve extracted CSS for services page
+  api.registerHttpRoute({
+    path: "/web-tools/services/services.css",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      serveFile(res, path.join(servicesDir, "services.css"), "text/css", "max-age=3600");
+    },
+  });
+
   // Credits top-up proxy — forwards request to pool manager
   api.registerHttpRoute({
     path: "/web-tools/services/topup",
+    auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "POST") {
         res.statusCode = 405;
@@ -286,6 +319,58 @@ export default function register(api: OpenClawPluginApi) {
         res.statusCode = 502;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "Failed to reach pool manager" }));
+      }
+    },
+  });
+
+  // Coupon redemption proxy — forwards request to pool manager
+  api.registerHttpRoute({
+    path: "/web-tools/services/redeem-coupon",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "POST") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const instanceId = process.env.INSTANCE_ID;
+      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const poolUrl = process.env.POOL_URL;
+
+      if (!instanceId || !gatewayToken || !poolUrl) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Coupon redemption not available" }));
+        return;
+      }
+
+      try {
+        // Read body from request
+        let body = "";
+        await new Promise<void>((resolve) => {
+          req.on("data", (chunk: Buffer) => {
+            body += chunk.toString();
+          });
+          req.on("end", resolve);
+        });
+        const parsed = JSON.parse(body || "{}");
+
+        const poolRes = await fetch(`${poolUrl}/api/pool/redeem-coupon`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ instanceId, gatewayToken, code: parsed.code }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const result = await poolRes.json().catch(() => ({ error: "Invalid response" }));
+        res.statusCode = poolRes.status;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(result));
+      } catch (err: any) {
+        console.warn(`[web-tools] Coupon redemption error: ${err.message}`);
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ error: "Failed to reach server" }));
       }
     },
   });

@@ -29,13 +29,18 @@ describe("webhook state machine", () => {
     assert.equal(d.action, "noop");
   });
 
-  it("deployed + crashed (unclaimed) → no-op", () => {
+  it("deployed + crashed (unclaimed) → schedules health check", () => {
     const d = decideAction("Deployment.deployed", "crashed", false);
-    assert.equal(d.action, "noop");
+    assert.equal(d.action, "health_check");
   });
 
   it("deployed + crashed (claimed) → schedules health check", () => {
     const d = decideAction("Deployment.deployed", "crashed", true);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("deployed + dead → schedules health check", () => {
+    const d = decideAction("Deployment.deployed", "dead", false);
     assert.equal(d.action, "health_check");
   });
 
@@ -120,6 +125,16 @@ describe("webhook state machine", () => {
 
   it("resumed + sleeping → schedules health check", () => {
     const d = decideAction("Deployment.resumed", "sleeping", false);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("resumed + crashed → schedules health check", () => {
+    const d = decideAction("Deployment.resumed", "crashed", true);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("resumed + dead → schedules health check", () => {
+    const d = decideAction("Deployment.resumed", "dead", false);
     assert.equal(d.action, "health_check");
   });
 

@@ -6,7 +6,11 @@ export function getEnv(name: string, fallback = ""): string {
 export const config = {
   port: parseInt(getEnv("PORT", "3001"), 10),
   poolApiKey: getEnv("POOL_API_KEY"),
-  poolUrl: getEnv("POOL_URL"),
+  // Derive from RAILWAY_PUBLIC_DOMAIN if POOL_URL not explicitly set
+  poolUrl: getEnv("POOL_URL") || (() => {
+    const domain = getEnv("RAILWAY_PUBLIC_DOMAIN");
+    return domain ? `https://${domain}` : "";
+  })(),
 
   // Database — single unified DB
   databaseUrl: getEnv("DATABASE_URL"),
@@ -20,6 +24,8 @@ export const config = {
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
   instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
+  railwayProjectId: getEnv("RAILWAY_PROJECT_ID"),
+  railwayEnvironmentId: getEnv("RAILWAY_ENVIRONMENT_ID"),
   railwayEnvironmentName: getEnv("RAILWAY_ENVIRONMENT_NAME"),
 
   // Template site
@@ -30,10 +36,14 @@ export const config = {
   notionApiKey: getEnv("NOTION_API_KEY"),
 
   // Admin dashboard
-  poolAdminUrls: getEnv("POOL_ADMIN_URLS", "vibe=https://convos-agents-vibe.up.railway.app,dev=https://convos-agents-dev.up.railway.app,scaling=https://convos-agents-scaling.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
+  poolAdminUrls: getEnv("POOL_ADMIN_URLS", "vibe=https://convos-agents-vibe.up.railway.app,dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
 
   // Railway (from services)
   railwayApiToken: getEnv("RAILWAY_API_TOKEN"),
+  railwayApiTokens: getEnv("RAILWAY_API_TOKENS")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean),
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
   railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
     const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
@@ -53,9 +63,14 @@ export const config = {
   telnyxApiKey: getEnv("TELNYX_API_KEY"),
   telnyxMessagingProfileId: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
 
+  // Protected instances — cannot be claimed, killed, or drained
+  protectedInstances: getEnv("PROTECTED_INSTANCES")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
-  bankrApiKey: getEnv("BANKR_API_KEY"),
-  telnyxPhoneNumber: getEnv("TELNYX_PHONE_NUMBER"),
+  convosApiKey: getEnv("CONVOS_API_KEY"),
 };

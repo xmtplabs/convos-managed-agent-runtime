@@ -32,7 +32,7 @@ if (VOLUME_MOUNT) {
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
-const POOL_API_KEY = process.env.POOL_API_KEY;
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const POOL_URL = process.env.POOL_URL;
 const ROOT = path.resolve(__dirname, "..");
@@ -133,10 +133,10 @@ function readBody(req) {
 }
 
 function checkAuth(req, res) {
-  if (!POOL_API_KEY) return true;
+  if (!GATEWAY_TOKEN) return true;
   const header = req.headers.authorization || "";
   const match = header.match(/^Bearer\s+(.+)$/i);
-  if (match?.[1] === POOL_API_KEY) return true;
+  if (match?.[1] === GATEWAY_TOKEN) return true;
   json(res, 401, { error: "Unauthorized" });
   return false;
 }
@@ -146,9 +146,7 @@ function checkAuth(req, res) {
 async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts = 30) {
   const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
   const headers = { "Content-Type": "application/json" };
-  // Convos extension checks poolApiKey (SETUP_PASSWORD), not POOL_API_KEY
-  const setupPassword = process.env.SETUP_PASSWORD;
-  if (setupPassword) headers["Authorization"] = `Bearer ${setupPassword}`;
+  if (GATEWAY_TOKEN) headers["Authorization"] = `Bearer ${GATEWAY_TOKEN}`;
   let lastError;
 
   for (let i = 1; i <= maxAttempts; i++) {
@@ -199,9 +197,8 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
 // --- Pool HTTP server ---
 
 const server = http.createServer(async (req, res) => {
-  // GET /pool/health
+  // GET /pool/health — no auth required (used by Railway health checks and CI)
   if (req.method === "GET" && req.url === "/pool/health") {
-    if (!checkAuth(req, res)) return;
     if (!gatewayReady) {
       json(res, 200, { ready: false });
       return;
@@ -209,7 +206,10 @@ const server = http.createServer(async (req, res) => {
     // Once convos is ready, cache it — no need to re-check
     if (!convosReady) {
       try {
+        const headers = {};
+        if (GATEWAY_TOKEN) headers["Authorization"] = `Bearer ${GATEWAY_TOKEN}`;
         const cRes = await fetch(`http://localhost:${INTERNAL_PORT}/convos/status`, {
+          headers,
           signal: AbortSignal.timeout(3000),
         });
         if (cRes.ok) {
@@ -312,7 +312,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // POST /pool/self-destruct — extension requests instance self-destruction.
-  // Localhost-only: prevents cross-instance attacks via shared POOL_API_KEY.
+  // Localhost-only to prevent external callers from triggering destruction.
   // External callers should use DELETE /api/pool/instances/:id on the pool manager.
   if (req.method === "POST" && req.url === "/pool/self-destruct") {
     const remoteAddr = req.socket.remoteAddress;
@@ -321,8 +321,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
-    if (!INSTANCE_ID || !POOL_URL || !gatewayToken) {
+    if (!INSTANCE_ID || !POOL_URL || !GATEWAY_TOKEN) {
       console.log("[pool-server] Self-destruct skipped: INSTANCE_ID, POOL_URL, or GATEWAY_TOKEN not set");
       json(res, 200, { ok: false, reason: "not a pool-managed instance" });
       return;
@@ -335,7 +334,7 @@ const server = http.createServer(async (req, res) => {
       const pmRes = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instanceId: INSTANCE_ID, gatewayToken }),
+        body: JSON.stringify({ instanceId: INSTANCE_ID, gatewayToken: GATEWAY_TOKEN }),
         signal: AbortSignal.timeout(10_000),
       });
       console.log(`[pool-server] Pool manager responded: ${pmRes.status}`);
@@ -352,8 +351,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Exit after responding — Railway will kill the service once pool manager destroys it
-    setTimeout(() => process.exit(0), 1000);
+    // Exit after responding — Railway will kill the service once pool manager destroys it.
+    // Skip exit during evals so the container stays alive for result collection.
+    if (!process.env.EVAL_MODE) {
+      setTimeout(() => process.exit(0), 1000);
+    }
     return;
   }
 

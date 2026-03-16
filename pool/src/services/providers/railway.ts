@@ -6,8 +6,128 @@ const RAILWAY_API = "https://backboard.railway.com/graphql/v2";
 const GQL_MAX_RETRIES = 3;
 const GQL_BASE_DELAY_MS = 5000;
 
-export async function gql(query: string, variables: Record<string, unknown> = {}): Promise<Record<string, any>> {
-  const token = config.railwayApiToken;
+// ── Token pool for projectCreate rate-limit rotation ─────────────────────────
+
+const COOLDOWN_MS = 30_000;
+const projectCooldowns = new Map<string, number>();
+const volumeCooldowns = new Map<string, number>();
+const badTokens = new Set<string>();
+
+function getTokenPool(): string[] {
+  const pool = config.railwayApiTokens.length > 0
+    ? config.railwayApiTokens
+    : [config.railwayApiToken];
+  return pool.filter((t) => !badTokens.has(t));
+}
+
+function getNextToken(cooldowns: Map<string, number>): { token: string; waitMs: number; index: number } {
+  const pool = getTokenPool();
+  const now = Date.now();
+
+  // Find first token with expired cooldown
+  for (let i = 0; i < pool.length; i++) {
+    const lastUsed = cooldowns.get(pool[i]) || 0;
+    if (now - lastUsed >= COOLDOWN_MS) {
+      return { token: pool[i], waitMs: 0, index: i };
+    }
+  }
+
+  // All cooling — find the one closest to expiry
+  let bestIdx = 0;
+  let bestExpiry = Infinity;
+  for (let i = 0; i < pool.length; i++) {
+    const lastUsed = cooldowns.get(pool[i]) || 0;
+    const expiresAt = lastUsed + COOLDOWN_MS;
+    if (expiresAt < bestExpiry) {
+      bestExpiry = expiresAt;
+      bestIdx = i;
+    }
+  }
+
+  return { token: pool[bestIdx], waitMs: Math.max(0, bestExpiry - now), index: bestIdx };
+}
+
+function markToken(cooldowns: Map<string, number>, token: string): void {
+  cooldowns.set(token, Date.now());
+}
+
+/** Shared retry loop with token rotation for rate-limited Railway mutations. */
+async function withTokenRotation<T>(
+  cooldowns: Map<string, number>,
+  label: string,
+  fn: (token: string) => Promise<T>,
+): Promise<T> {
+  const pool = getTokenPool();
+  if (pool.length === 0) {
+    throw new Error(`${label}: all Railway API tokens failed auth — no healthy tokens remaining`);
+  }
+  const maxAttempts = pool.length * 2;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let { token, waitMs, index } = getNextToken(cooldowns);
+
+    if (waitMs > 0) {
+      console.log(`[railway] All tokens cooling (${label}) — waiting ${(waitMs / 1000).toFixed(1)}s`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      ({ token, waitMs, index } = getNextToken(cooldowns));
+    }
+
+    markToken(cooldowns, token);
+    const poolSize = getTokenPool().length;
+    console.log(`[railway] ${label} — trying token ${index + 1}/${poolSize}`);
+
+    try {
+      return await fn(token);
+    } catch (err) {
+      if (err instanceof RailwayRateLimitError) {
+        console.log(`[railway] Token ${index + 1}/${poolSize} rate-limited (${label}), rotating (${attempt + 1}/${maxAttempts})`);
+        continue;
+      }
+      if (err instanceof RailwayAuthError) {
+        badTokens.add(token);
+        const remaining = getTokenPool().length;
+        console.warn(`[railway] Token ${index + 1}/${poolSize} auth failed — removed from pool (${remaining} healthy remain)`);
+        if (remaining === 0) {
+          throw new Error(`${label}: all Railway API tokens failed auth — no healthy tokens remaining`);
+        }
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw new Error(`${label}: exhausted all token attempts`);
+}
+
+export class RailwayRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RailwayRateLimitError";
+  }
+}
+
+export class RailwayAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RailwayAuthError";
+  }
+}
+
+// Log token pool size on import
+{
+  const source = config.railwayApiTokens.length > 0 ? "RAILWAY_API_TOKENS" : "RAILWAY_API_TOKEN";
+  const pool = getTokenPool();
+  console.log(`[railway] Token pool: ${pool.length} token${pool.length === 1 ? "" : "s"} from ${source}`);
+}
+
+// ── GraphQL client ───────────────────────────────────────────────────────────
+
+export async function gql(
+  query: string,
+  variables: Record<string, unknown> = {},
+  tokenOverride?: string,
+): Promise<Record<string, any>> {
+  const token = tokenOverride || config.railwayApiToken;
   if (!token) throw new Error("RAILWAY_API_TOKEN not set");
 
   for (let attempt = 1; attempt <= GQL_MAX_RETRIES; attempt++) {
@@ -19,6 +139,10 @@ export async function gql(query: string, variables: Record<string, unknown> = {}
       },
       body: JSON.stringify({ query, variables }),
     });
+
+    if (res.status === 401 || res.status === 403) {
+      throw new RailwayAuthError(`Railway API auth failed: ${res.status}`);
+    }
 
     if (res.status === 429 && attempt < GQL_MAX_RETRIES) {
       const delay = GQL_BASE_DELAY_MS * Math.pow(2, attempt - 1);
@@ -35,7 +159,14 @@ export async function gql(query: string, variables: Record<string, unknown> = {}
       throw new Error(`Railway API error: ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     }
     if (json.errors) {
-      throw new Error(`Railway API error: ${JSON.stringify(json.errors)}`);
+      const msg = JSON.stringify(json.errors);
+      if (
+        msg.includes("Only one project can be created per user") ||
+        msg.includes("You are creating volumes too quickly")
+      ) {
+        throw new RailwayRateLimitError(msg);
+      }
+      throw new Error(`Railway API error: ${msg}`);
     }
     return json.data;
   }
@@ -69,13 +200,14 @@ export async function projectCreate(name: string, teamId?: string): Promise<{ pr
   const tid = teamId || config.railwayTeamId;
   if (!tid) throw new Error("RAILWAY_TEAM_ID not set — required for sharded project creation");
 
-  const data = await gql(
-    `mutation($input: ProjectCreateInput!) {
-      projectCreate(input: $input) { id }
-    }`,
-    { input: { name, workspaceId: tid } },
-  );
+  const mutation = `mutation($input: ProjectCreateInput!) {
+    projectCreate(input: $input) { id }
+  }`;
+  const vars = { input: { name, workspaceId: tid } };
 
+  const data = await withTokenRotation(projectCooldowns, `projectCreate "${name}"`, (token) =>
+    gql(mutation, vars, token),
+  );
   const projectId = data.projectCreate.id;
   console.log(`[railway] Created project "${name}" → ${projectId}`);
   return { projectId };
@@ -181,7 +313,7 @@ export async function createService(
   const image = await resolveImageDigest(imageOverride || config.railwayRuntimeImage);
 
   const input = { projectId, environmentId, name };
-  console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}`);
+  console.log(`[railway] createService: ${name}, image=${image}, env=${environmentId}, project=${projectId}`);
 
   const data = await gql(
     `mutation($input: ServiceCreateInput!) {
@@ -204,23 +336,49 @@ export async function createService(
     console.warn(`[railway] Domain creation failed for ${serviceId}: ${err.message}`);
   }
 
-  // Set image + start command — triggers first deploy (volume + domain already attached)
-  try {
-    await updateServiceInstance(serviceId, {
-      startCommand: "node scripts/pool-server",
-      source: { image },
-    }, opts);
-    console.log(`[railway]   Configured: image=${image}`);
-  } catch (err: any) {
-    console.warn(`[railway] Failed to configure service instance for ${serviceId}:`, err);
+  // Commit image, start command, resource limits, AND variables in a single
+  // atomic environmentPatchCommit.  This triggers exactly one deploy that is
+  // guaranteed to see every env var.  Previously, updateServiceInstance
+  // (which triggers a deploy when setting an image source) raced against
+  // the subsequent upsertVariables call, causing ~10% of instances to boot
+  // with missing env vars.
+  const { cpu = 4, memoryGB = 8 } = {};
+  const varEntries: Record<string, { value: string }> = {};
+  for (const [k, v] of Object.entries(variables)) {
+    varEntries[k] = { value: v };
   }
 
-  // Set resource limits
-  await setResourceLimits(serviceId, undefined, opts);
-
-  // Upsert variables with skipDeploys
-  if (Object.keys(variables).length > 0) {
-    await upsertVariables(serviceId, variables, { skipDeploys: true }, opts);
+  try {
+    await gql(
+      `mutation($environmentId: String!, $patch: EnvironmentConfig!, $commitMessage: String) {
+        environmentPatchCommit(environmentId: $environmentId, patch: $patch, commitMessage: $commitMessage)
+      }`,
+      {
+        environmentId,
+        patch: {
+          services: {
+            [serviceId]: {
+              source: { image },
+              deploy: {
+                ...(image.includes("runtime-hermes") ? {} : { startCommand: "node scripts/pool-server" }),
+                limitOverride: {
+                  containers: {
+                    cpu,
+                    memoryBytes: memoryGB * 1024 * 1024 * 1024,
+                  },
+                },
+              },
+              ...(Object.keys(varEntries).length > 0 ? { variables: varEntries } : {}),
+            },
+          },
+        },
+        commitMessage: "Initial service configuration",
+      },
+    );
+    console.log(`[railway]   Deployed: image=${image}, ${Object.keys(variables).length} vars, ${cpu} vCPU, ${memoryGB} GB RAM`);
+  } catch (err: any) {
+    console.error(`[railway] environmentPatchCommit failed for ${serviceId}:`, err);
+    throw err;
   }
 
   return { serviceId, domain };
@@ -280,23 +438,16 @@ export async function updateServiceInstance(
   );
 }
 
+/**
+ * Redeploy a service instance, picking up the latest config (e.g. updated image).
+ */
 export async function redeployService(serviceId: string, opts?: ProjectEnvOpts): Promise<void> {
   const environmentId = resolveEnvironmentId(opts);
-  const data = await gql(
-    `query($id: String!) {
-      service(id: $id) {
-        deployments(first: 1) { edges { node { id } } }
-      }
-    }`,
-    { id: serviceId },
-  );
-  const latestDeploy = data.service?.deployments?.edges?.[0]?.node;
-  if (!latestDeploy) throw new Error("No deployment found to redeploy");
   await gql(
-    `mutation($id: String!) {
-      deploymentRedeploy(id: $id) { id status }
+    `mutation($serviceId: String!, $environmentId: String!) {
+      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
     }`,
-    { id: latestDeploy.id },
+    { serviceId, environmentId },
   );
 }
 
@@ -337,41 +488,64 @@ export async function setResourceLimits(
   }
 }
 
-export async function createVolume(
+/**
+ * Deploy a new image to an existing service via environmentPatchCommit.
+ * This is the same atomic mechanism used by createService, ensuring Railway
+ * treats it as a real config change and pulls the new image.
+ */
+export async function deployImage(
   serviceId: string,
-  mountPath = "/data",
+  image: string,
   opts?: ProjectEnvOpts,
-): Promise<{ id: string; name: string }> {
-  const projectId = resolveProjectId(opts);
+): Promise<void> {
   const environmentId = resolveEnvironmentId(opts);
-
-  const data = await gql(
-    `mutation($input: VolumeCreateInput!) {
-      volumeCreate(input: $input) { id name }
+  const patch = {
+    services: {
+      [serviceId]: {
+        source: { image },
+        variables: {
+          _DEPLOY_TS: { value: Date.now().toString() },
+        },
+      },
+    },
+  };
+  console.log(`[railway] deployImage: envId=${environmentId}, service=${serviceId}, image=${image}`);
+  const result = await gql(
+    `mutation($environmentId: String!, $patch: EnvironmentConfig!, $commitMessage: String) {
+      environmentPatchCommit(environmentId: $environmentId, patch: $patch, commitMessage: $commitMessage)
     }`,
-    { input: { projectId, serviceId, mountPath, environmentId } },
+    {
+      environmentId,
+      patch,
+      commitMessage: `Upgrade runtime image to ${image.slice(0, 80)}`,
+    },
   );
-
-  return data.volumeCreate;
+  console.log(`[railway] deployImage: result=${JSON.stringify(result)}`);
 }
 
-/** Try to create a volume for a service. Returns true on success. */
+/** Try to create a volume for a service with token rotation for rate limits. */
 export async function ensureVolume(
   serviceId: string,
   mountPath = "/data",
   opts?: ProjectEnvOpts,
 ): Promise<boolean> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const vol = await createVolume(serviceId, mountPath, opts);
-      console.log(`[railway] Created volume: ${vol.id}`);
-      return true;
-    } catch (err: any) {
-      console.warn(`[railway] Volume attempt ${attempt}/3 failed for ${serviceId}:`, err.message);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 2000));
-    }
+  const projectId = resolveProjectId(opts);
+  const environmentId = resolveEnvironmentId(opts);
+  const mutation = `mutation($input: VolumeCreateInput!) {
+    volumeCreate(input: $input) { id name }
+  }`;
+  const vars = { input: { projectId, serviceId, mountPath, environmentId } };
+
+  try {
+    const data = await withTokenRotation(volumeCooldowns, `ensureVolume(${serviceId})`, (token) =>
+      gql(mutation, vars, token),
+    );
+    console.log(`[railway] Created volume: ${data.volumeCreate.id}`);
+    return true;
+  } catch (err) {
+    console.error(`[railway] ensureVolume failed for ${serviceId}:`, (err as Error).message);
+    return false;
   }
-  return false;
 }
 
 /** Fetch all project volumes grouped by serviceId. */

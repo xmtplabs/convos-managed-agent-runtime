@@ -1,5 +1,6 @@
 import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk";
 import type { ConvosInstance } from "./sdk-client.js";
+import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosRuntime } from "./runtime.js";
 
 const TAG = "[convos/outbound]";
@@ -30,7 +31,17 @@ export const convosOutbound: ChannelOutboundAdapter = {
     if (to && to !== instance.conversationId) {
       throw new Error(`${TAG} routing mismatch: bound to ${instance.conversationId}, but target is ${to}`);
     }
-    const result = await instance.sendMessage(text);
+
+    const policy = await applyOutboundTextPolicy(text);
+    if (policy.suppress) {
+      console.log(`${TAG} suppressed outbound text to=${to ?? "(bound)"} conv=${instance.conversationId}`);
+      return {
+        channel: "convos",
+        messageId: `convos-suppressed-${Date.now()}`,
+      };
+    }
+
+    const result = await instance.sendMessage(policy.text);
     const mid = result.messageId ?? `convos-${Date.now()}`;
     console.log(`${TAG} sendText delivered mid=${mid}`);
     return {

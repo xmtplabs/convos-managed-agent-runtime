@@ -6,17 +6,19 @@ import * as pool from "./pool";
 import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, adminPage } from "./admin";
-import { eq, and } from "drizzle-orm";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upgradesPage, apiDocsPage } from "./admin";
+import { eq, and, inArray } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
-import { updateServiceInstance, upsertVariables } from "./services/providers/railway";
+import { deployImage, redeployService, fetchServiceStatus } from "./services/providers/railway";
 import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
 
 import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
+import { couponRouter } from "./couponRoute";
+import { serviceProxyRouter } from "./routes/serviceProxy";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -82,6 +84,8 @@ const AGENT_CATALOG = (() => {
 
 const app = express();
 app.disable("x-powered-by");
+// Higher limit for proxy routes (email attachments are base64-encoded in body)
+app.use("/api/proxy", express.json({ limit: "10mb" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -145,6 +149,118 @@ app.delete("/api/pool/instances/:id", requireAuth, async (req, res) => {
   }
 });
 
+// Self-info — instance queries its own runtime version and image.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/self-info", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const infraRows = await pgDb.select({
+      runtimeVersion: instanceInfra.runtimeVersion,
+      runtimeImage: instanceInfra.runtimeImage,
+    }).from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
+    }
+    res.json({
+      ok: true,
+      instanceId,
+      runtimeVersion: infra.runtimeVersion ?? null,
+      runtimeImage: infra.runtimeImage ?? null,
+      latestImage: config.railwayRuntimeImage ?? null,
+    });
+  } catch (err: any) {
+    console.error("[api] Self-info failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Upgrade an instance's runtime image on Railway.
+ *
+ * Resolves the tag to a sha256 digest and deploys via environmentPatchCommit
+ * (the same atomic mechanism used by createService). This ensures Railway
+ * treats it as a real config change and pulls the new image.
+ */
+async function upgradeInstanceRuntime(
+  instanceId: string,
+  infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string },
+  imageOverride?: string,
+): Promise<string> {
+  const rawImage = imageOverride || config.railwayRuntimeImage;
+  if (!rawImage) throw new Error("No runtime image configured");
+
+  const image = await resolveImageDigest(rawImage);
+  const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+
+  const status = await fetchServiceStatus(infra.providerServiceId, infra.providerEnvId);
+  console.log(`[upgrade] ${instanceId}: service=${infra.providerServiceId} env=${infra.providerEnvId} raw=${rawImage} resolved=${image} current=${status?.image ?? "unknown"} status=${status?.deployStatus ?? "unknown"}`);
+  await deployImage(infra.providerServiceId, image, opts);
+  console.log(`[upgrade] ${instanceId}: deploy committed`);
+  await pgDb.update(instanceInfra).set({ runtimeImage: rawImage }).where(eq(instanceInfra.instanceId, instanceId));
+  return rawImage;
+}
+
+// Self-upgrade — instance requests a runtime image update for itself.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/self-upgrade", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
+    }
+    const image = await upgradeInstanceRuntime(instanceId, infra);
+    console.log(`[pool] Self-upgrade requested by instance ${instanceId} → ${image}`);
+    res.json({ ok: true, instanceId, image });
+  } catch (err: any) {
+    console.error("[api] Self-upgrade failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Self-reset — instance requests a redeploy (same image, fresh container).
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/self-reset", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+    const infra = infraRows[0];
+    if (!infra) {
+      res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
+    }
+    const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+    await redeployService(infra.providerServiceId, opts);
+    console.log(`[pool] Self-reset requested by instance ${instanceId}`);
+    res.json({ ok: true, instanceId });
+  } catch (err: any) {
+    console.error("[api] Self-reset failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Self-destruct — instance requests its own destruction.
 // Auth: instance sends its own ID + gateway token (per-instance secret).
 // This prevents instances from destroying each other.
@@ -173,6 +289,10 @@ app.post("/api/pool/self-destruct", async (req, res) => {
 
 // --- Railway webhook (public — auth via secret in URL path) ---
 app.use(webhookRouter);
+app.use(couponRouter);
+
+// --- Service proxy (instance auth via gateway token) ---
+app.use(serviceProxyRouter);
 
 // Credits check — instance queries its own spending balance.
 // Auth: instance sends its own ID + gateway token (same as self-destruct).
@@ -289,26 +409,120 @@ app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
 app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const { image: imageOverride } = req.body || {};
     const infraRows = await pgDb.select().from(instanceInfra).where(eq(instanceInfra.instanceId, id));
     const infra = infraRows[0];
     if (!infra) {
       res.status(404).json({ error: `Instance ${id} not found` }); return;
     }
-    const rawImage = config.railwayRuntimeImage;
-    if (!rawImage) {
-      res.status(400).json({ error: "No runtime image configured" }); return;
-    }
-    const image = await resolveImageDigest(rawImage);
-    const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
-    await updateServiceInstance(infra.providerServiceId, { source: { image } }, opts);
-    // Upsert a variable to trigger a NEW deployment with the updated image.
-    // redeployService replays the old deployment (old image), so we need this instead.
-    await upsertVariables(infra.providerServiceId, { RUNTIME_UPDATED_AT: new Date().toISOString() }, { skipDeploys: false }, opts);
-    await pgDb.update(instanceInfra).set({ runtimeImage: image }).where(eq(instanceInfra.instanceId, id));
+    const image = await upgradeInstanceRuntime(id, infra, imageOverride);
     console.log(`[api] Updated runtime for ${id} → ${image}`);
     res.json({ ok: true, instanceId: id, image });
   } catch (err: any) {
     console.error("[api] Update runtime failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- SSE streaming endpoint for mass runtime upgrade ---
+app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
+  const idList = ((req.query.ids as string) || "").split(",").filter(Boolean);
+  const imageOverride = (req.query.image as string) || "";
+
+  if (!idList.length) { res.status(400).json({ error: "No instance IDs" }); return; }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Look up all instances + infra
+  const allRows = await db.getByStatus(["idle", "claimed", "starting", "crashed"]);
+  const infraRows = await pgDb.select({
+    instanceId: instanceInfra.instanceId,
+    providerServiceId: instanceInfra.providerServiceId,
+    providerProjectId: instanceInfra.providerProjectId,
+    providerEnvId: instanceInfra.providerEnvId,
+    runtimeVersion: instanceInfra.runtimeVersion,
+    runtimeImage: instanceInfra.runtimeImage,
+  }).from(instanceInfra).where(inArray(instanceInfra.instanceId, idList));
+  const infraById: Record<string, typeof infraRows[0]> = {};
+  infraRows.forEach(r => { infraById[r.instanceId] = r; });
+
+  // Send instance info upfront so the frontend can render cards
+  idList.forEach((id, i) => {
+    const agent = allRows.find(a => a.id === id);
+    const infra = infraById[id];
+    const name = agent ? ((agent as any).agentName || (agent as any).name || id) : id;
+    const version = infra?.runtimeVersion || "unknown";
+    let railwayUrl: string | null = null;
+    if (infra?.providerProjectId && infra?.providerServiceId) {
+      railwayUrl = `https://railway.com/project/${infra.providerProjectId}/service/${infra.providerServiceId}`;
+      if (infra.providerEnvId) railwayUrl += `?environmentId=${infra.providerEnvId}`;
+    }
+    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, railwayUrl });
+  });
+
+  let upgraded = 0, failed = 0;
+
+  for (let i = 0; i < idList.length; i++) {
+    const id = idList[i];
+    const instanceNum = i + 1;
+    const infra = infraById[id];
+
+    if (!infra) {
+      send({ type: "step", instanceNum, step: "error", status: "fail", message: "Instance infra not found" });
+      failed++;
+      continue;
+    }
+
+    try {
+      send({ type: "step", instanceNum, step: "deploy", status: "active", message: "Deploying..." });
+      const image = await upgradeInstanceRuntime(id, infra, imageOverride || undefined);
+      send({ type: "step", instanceNum, step: "deploy", status: "ok", message: image });
+      send({ type: "step", instanceNum, step: "done", status: "ok", message: "" });
+      upgraded++;
+    } catch (err: any) {
+      send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
+      failed++;
+    }
+  }
+
+  send({ type: "complete", upgraded, failed, total: idList.length });
+  res.end();
+});
+
+app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
+  try {
+    const { ids } = req.body || {};
+    const rows = await db.getByStatus(["idle", "claimed"]);
+    const targets = Array.isArray(ids) && ids.length > 0
+      ? rows.filter((r) => ids.includes(r.id))
+      : rows;
+    let updated = 0;
+    for (const row of targets) {
+      if (!row.url) continue;
+      try {
+        const token = await db.getGatewayToken(row.id);
+        const hc = await pool.healthCheck(row.url, token);
+        console.log(`[pool] refresh-version ${row.id}: url=${row.url} version=${hc?.version ?? "null"} ready=${hc?.ready ?? "null"}`);
+        if (hc?.version) {
+          await db.setRuntimeVersion(row.id, hc.version);
+          updated++;
+        }
+      } catch (err: any) {
+        console.log(`[pool] refresh-version ${row.id}: url=${row.url} error=${err.message}`);
+      }
+    }
+    console.log(`[pool] Refreshed versions for ${updated}/${targets.length} instances`);
+    res.json({ ok: true, updated, total: targets.length });
+  } catch (err: any) {
+    console.error("[api] Refresh versions failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -326,13 +540,30 @@ const POOL_ADMIN_URLS = config.poolAdminUrls.split(",").filter(Boolean).map((ent
 
 app.get("/admin", (req, res) => {
   if (!isAuthenticated(req)) { res.type("html").send(loginPage(null)); return; }
-  res.type("html").send(adminPage({
+  res.type("html").send(dashboardPage({
     poolEnvironment: config.poolEnvironment,
     deployBranch: config.deployBranch,
     railwayServiceId: config.railwayServiceId,
+    railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
     runtimeImage: config.railwayRuntimeImage,
-    bankrConfigured: !!config.bankrApiKey,
+    instanceModel: config.instanceModel,
     adminUrls: POOL_ADMIN_URLS as any,
+    protectedInstances: config.protectedInstances,
+  }));
+});
+
+app.get("/admin/dashboard", (_req, res) => res.redirect(302, "/admin"));
+
+app.get("/admin/upgrades", (req, res) => {
+  if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
+  res.type("html").send(upgradesPage({
+    poolEnvironment: config.poolEnvironment,
+    railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
+    runtimeImage: config.railwayRuntimeImage,
+    adminUrls: POOL_ADMIN_URLS as any,
+    protectedInstances: config.protectedInstances,
   }));
 });
 
@@ -345,6 +576,16 @@ app.post("/admin/login", (req, res) => {
 app.post("/admin/logout", (req, res) => {
   adminLogout(req, res);
   res.redirect(302, "/admin");
+});
+
+app.get("/admin/api-docs", (req, res) => {
+  if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
+  res.type("html").send(apiDocsPage({
+    poolEnvironment: config.poolEnvironment,
+    railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
+    adminUrls: POOL_ADMIN_URLS as any,
+  }));
 });
 
 // --- Pool management API ---
@@ -440,6 +681,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
 app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 1, 20);
   const image = (req.query.image as string) || "";
+  const model = (req.query.model as string) || "";
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -465,7 +707,7 @@ app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
         const inst = await pool.createInstance((step, status, message) => {
           if (step === "done") return;
           send({ type: "step", instanceNum, step, status, message: message || "" });
-        }, image || undefined);
+        }, image || undefined, model || undefined);
         send({ type: "instance", instanceNum, instance: inst });
         send({ type: "step", instanceNum, instanceId: inst.id, step: "done", status: "ok", message: "" });
         created++;
@@ -635,7 +877,7 @@ app.use(requireAuth, statusRouter);
 app.use(requireAuth, configureRouter);
 app.use(requireAuth, toolsRouter);
 
-// --- Startup: migrate, then tick loop ---
+// --- Startup: migrate, register webhook, start server ---
 import { runMigrations } from "./db/migrate";
 
 // --- Metrics ---

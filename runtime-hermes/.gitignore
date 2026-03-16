@@ -1,0 +1,3 @@
+__pycache__/
+.hermes-dev/
+scripts/dev-run.sh

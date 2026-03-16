@@ -24,12 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -42,10 +43,12 @@ jobs:
         id: meta
         run: |
           SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
+          VERSION="$(jq -r '.version' runtime/package.json)"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "Building sha-$SHA from ${{ github.ref_name }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building v$VERSION (sha-$SHA) from ${{ github.ref_name }}"
 
-      - name: "Build and push :pending-${{ steps.meta.outputs.sha }}"
+      - name: "Build and push v${{ steps.meta.outputs.version }} (:pending-${{ steps.meta.outputs.sha }})"
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -56,78 +59,90 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  qa:
-    name: "QA smoke tests"
+  eval:
+    name: "Eval: ${{ matrix.suite }}"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: knows
+            timeout: 180
+          - suite: skills
+            timeout: 300
+          - suite: soul
+            timeout: 180
+          - suite: convos
+            timeout: 600
+          - suite: async
+            timeout: 120
+          - suite: memory
+            timeout: 300
     steps:
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull image
-        run: docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
-
-      - name: Start container
+      - name: "Start container (:pending-${{ needs.build.outputs.sha }})"
         run: |
-          docker run -d --name qa-runtime \
+          docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
+          docker run -d --name eval-runtime \
             -p 8080:8080 \
             -e PORT=8080 \
             -e OPENCLAW_STATE_DIR=/app \
+            -e EVAL_MODE=1 \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
-            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
             -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
-            -e TELNYX_API_KEY="${{ secrets.TELNYX_API_KEY }}" \
-            -e TELNYX_PHONE_NUMBER="${{ secrets.TELNYX_PHONE_NUMBER }}" \
-            -e TELNYX_MESSAGING_PROFILE_ID="${{ secrets.TELNYX_MESSAGING_PROFILE_ID }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
-            -e PRIVATE_WALLET_KEY="${{ secrets.PRIVATE_WALLET_KEY }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
+            -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
+            -e POOL_URL="${{ secrets.POOL_URL }}" \
+            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
             ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }} \
             node scripts/pool-server.js
 
-      - name: Wait for health (up to 120s)
+      - name: Wait for gateway
         run: |
           for i in $(seq 1 120); do
             if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Ready after ${i}s"
-              break
+              echo "Gateway ready after ${i}s"
+              exit 0
             fi
             sleep 1
           done
-          if ! curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-            echo "Failed to start"
-            docker logs qa-runtime
-            exit 1
-          fi
-          sleep 15
+          echo "Gateway failed to start within 120s"
+          docker logs eval-runtime
+          exit 1
 
-      - name: Run QA smoke tests
-        run: docker exec qa-runtime timeout 120 pnpm qa
+      - name: "Run ${{ matrix.suite }} suite"
+        run: |
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
+            eval-runtime timeout ${{ matrix.timeout }} pnpm evals:${{ matrix.suite }}
 
-      - name: Dump logs
+      - name: Dump container logs
         if: always()
-        run: docker logs qa-runtime
+        run: docker logs eval-runtime
 
   publish:
-    name: "Publish :${{ needs.build.outputs.sha }} → :${{ inputs.tag }}"
-    needs: [build, qa]
+    name: "Publish v${{ needs.build.outputs.version }} → :${{ inputs.tag }}"
+    needs: [build, eval]
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Tag and push"
+      - name: "Tag and push v${{ needs.build.outputs.version }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           SHA="${{ needs.build.outputs.sha }}"
@@ -140,4 +155,4 @@ jobs:
 
           docker tag "$IMAGE:pending-$SHA" "$IMAGE:$TAG"
           docker push "$IMAGE:$TAG"
-          echo "Pushed $IMAGE:$TAG"
+          echo "Pushed v${{ needs.build.outputs.version }} as $IMAGE:$TAG"

@@ -38,9 +38,9 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
     }
 
     let resourceId: string;
-    let envKey: string;
     let envValue: string | null = null;
     const resourceMeta: Record<string, unknown> = {};
+    let pushEnvToRailway: Record<string, string> | null = null;
 
     if (toolId === "openrouter") {
       if (!config.openrouterManagementKey) {
@@ -51,9 +51,10 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
       const limit = (toolConfig?.limit as number) ?? config.openrouterKeyLimit;
       const { key, hash } = await openrouter.createKey(keyName, limit);
       resourceId = hash;
-      envKey = "OPENROUTER_API_KEY";
       envValue = key;
       resourceMeta.limit = limit;
+      // OpenRouter key is still pushed as env var (instances call OpenRouter directly)
+      pushEnvToRailway = { OPENROUTER_API_KEY: key };
     } else if (toolId === "agentmail") {
       if (!config.agentmailApiKey) {
         res.status(400).json({ error: "AGENTMAIL_API_KEY not configured" });
@@ -61,8 +62,8 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
       }
       const inboxId = await agentmail.createInbox(instanceId);
       resourceId = inboxId;
-      envKey = "AGENTMAIL_INBOX_ID";
       envValue = inboxId;
+      // No env push — proxied through pool manager
     } else if (toolId === "telnyx") {
       if (!config.telnyxApiKey) {
         res.status(400).json({ error: "TELNYX_API_KEY not configured" });
@@ -70,28 +71,30 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
       }
       const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
       resourceId = phoneNumber;
-      envKey = "TELNYX_PHONE_NUMBER";
       envValue = phoneNumber;
       resourceMeta.messagingProfileId = messagingProfileId;
+      // No env push — proxied through pool manager
     } else {
       res.status(400).json({ error: `Unknown tool: ${toolId}` });
       return;
     }
 
-    // Push env var to Railway service
-    await railway.upsertVariables(infra.providerServiceId, { [envKey]: envValue! });
+    // Push env var to Railway service (only for tools that need direct access)
+    if (pushEnvToRailway) {
+      await railway.upsertVariables(infra.providerServiceId, pushEnvToRailway);
+    }
 
     // Insert instance_services row
     await db.insert(instanceServices).values({
       instanceId,
       toolId,
       resourceId,
-      envKey,
+      envKey: toolId, // legacy column — no longer used as env var name
       envValue,
       resourceMeta,
     });
 
-    const result: ProvisionResult = { toolId, resourceId, envKey, status: "active" };
+    const result: ProvisionResult = { toolId, resourceId, status: "active" };
     console.log(`[tools] Provisioned ${toolId} for ${instanceId}: ${resourceId}`);
     res.json(result);
   } catch (err: any) {
