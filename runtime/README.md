@@ -42,7 +42,7 @@ runtime/
 │   ├── workspace/
 │   │   ├── AGENTS-base.md  # shared agent instructions (~80% of AGENTS.md)
 │   │   ├── SOUL.md         # personality
-│   │   └── skills/         # services, convos-runtime
+│   │   └── skills/         # services, convos-runtime, convos-cli
 │   └── web-tools/          # browser automation, landing page, forms
 ├── openclaw/               # OpenClaw runtime
 │   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
@@ -53,7 +53,7 @@ runtime/
 │   ├── workspace/
 │   │   ├── agents-extra.md # openclaw-specific agent instructions
 │   │   ├── HEARTBEAT.md    # heartbeat nudge config
-│   │   └── skills/         # bankr, convos-cli (openclaw-only)
+│   │   └── skills/         # bankr (openclaw-only)
 │   └── scripts/            # keys, gateway, pool-server, etc.
 └── hermes/                 # Hermes runtime
     ├── Dockerfile          # python:3.11 + node 22 + hermes-agent

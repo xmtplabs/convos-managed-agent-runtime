@@ -42,8 +42,8 @@ Agent capabilities exposed as skills, shared across both runtimes:
 
 - **services** — email, SMS, credits, account services (shared)
 - **convos-runtime** — runtime version, upgrade, redeploy (shared)
+- **convos-cli** — in-conversation messaging protocol (shared)
 - **bankr** — crypto payments (OpenClaw only)
-- **convos-cli** — Convos client operations (OpenClaw only)
 
 ### Pool (`pool/`)
 
