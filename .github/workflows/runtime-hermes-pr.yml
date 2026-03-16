@@ -9,6 +9,8 @@ on:
     types: [opened, synchronize, closed]
     paths:
       - 'runtime/hermes/**'
+      - 'runtime/shared/**'
+      - 'runtime/package.json'
 
 concurrency:
   group: runtime-hermes-pr-${{ github.event.pull_request.number }}
