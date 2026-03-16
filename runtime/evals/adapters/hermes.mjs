@@ -91,6 +91,22 @@ export default {
     if (l.match(/\(\d+\.\d+s\)\s*$/)) return false;
     // Tool call status lines — "┊ 🧠 memory    +user: ..."
     if (l.match(/^\s*┊/)) return false;
+    // quiet_mode=False banner lines
+    if (l.match(/^🤖 AI Agent initialized/)) return false;
+    if (l.match(/^🔑 Using API key:/)) return false;
+    if (l.match(/^✅ Enabled toolset/)) return false;
+    if (l.match(/^🎯 Enabled toolsets:/)) return false;
+    // Verbose run_conversation output (API call stats, tool calls, cache)
+    if (l.match(/^🔄 Making API call/)) return false;
+    if (l.match(/^\s+📊 Request size:/)) return false;
+    if (l.match(/^\s+🔧 Available tools:/)) return false;
+    if (l.match(/^⏱️\s+API call completed/)) return false;
+    if (l.match(/^\s+💾 Cache:/)) return false;
+    if (l.match(/^🔧 Processing \d+ tool call/)) return false;
+    if (l.match(/^\s+📞 Tool \d+:/)) return false;
+    if (l.match(/^\s+✅ Tool \d+ completed/)) return false;
+    if (l.match(/^🤖 Assistant:/)) return false;
+    if (l.match(/^🎉 Conversation completed/)) return false;
     return true;
   }),
   needsSessionClear: false,
