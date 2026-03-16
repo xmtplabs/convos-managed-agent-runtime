@@ -56,7 +56,12 @@ inject_context() {
   [ -z "$_sf" ] || [ ! -f "$_sf" ] && return 0
   _ts=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
   _id=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
-  _escaped=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g')
+  _escaped=$(printf '%s' "$1" | awk '
+    BEGIN { ORS="" }
+    { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/\t/, "\\t")
+      if (NR>1) printf "\\n"
+      print }
+  ')
   printf '{"type":"message","id":"%s","parentId":null,"timestamp":"%s","message":{"role":"user","content":[{"type":"text","text":"[Notification from background poller — no reply needed unless the user asks about it]\\n%s"}],"timestamp":%s}}\n' \
     "$_id" "$_ts" "$_escaped" "$(date +%s)000" >> "$_sf"
 }
