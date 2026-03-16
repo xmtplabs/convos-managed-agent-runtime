@@ -135,44 +135,20 @@ fi
 
 
 # --- Seed cron jobs ---
-_cron_dir="$STATE_DIR/cron"
-_cron_store="$_cron_dir/jobs.json"
-mkdir -p "$_cron_dir"
-if [ ! -f "$_cron_store" ] || ! grep -q "seed-morning-checkin" "$_cron_store" 2>/dev/null; then
-  # Merge seed job into existing store (or create new one)
-  if command -v jq >/dev/null 2>&1 && [ -f "$_cron_store" ]; then
-    _now_ms=$(date +%s)000
-    _seed_job='{"id":"seed-morning-checkin","name":"Morning check-in","enabled":true,"createdAtMs":'"$_now_ms"',"updatedAtMs":'"$_now_ms"',"schedule":{"kind":"cron","expr":"0 8 * * *","tz":"America/New_York"},"sessionTarget":"main","wakeMode":"now","payload":{"kind":"systemEvent","message":"Morning check-in: check for open threads, pending action items, or upcoming plans. If you find something concrete, send one sentence referencing it to the group. If there'\''s nothing real to reference, stay silent. Never send a message just to start a conversation, ask if anyone needs help, or say good morning without a reason."},"state":{}}'
-    unset _now_ms
-    jq --argjson job "$_seed_job" '.jobs += [$job]' "$_cron_store" > "$_cron_store.tmp" && mv "$_cron_store.tmp" "$_cron_store"
-    unset _seed_job
-  else
-    cat > "$_cron_store" << 'CRONEOF'
-{
-  "version": 1,
-  "jobs": [
-    {
-      "id": "seed-morning-checkin",
-      "name": "Morning check-in",
-      "enabled": true,
-      "createdAtMs": 0,
-      "updatedAtMs": 0,
-      "schedule": { "kind": "cron", "expr": "0 8 * * *", "tz": "America/New_York" },
-      "sessionTarget": "main",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "systemEvent",
-        "message": "Morning check-in: check for open threads, pending action items, or upcoming plans. If you find something concrete, send one sentence referencing it to the group. If there's nothing real to reference, stay silent. Never send a message just to start a conversation, ask if anyone needs help, or say good morning without a reason."
-      },
-      "state": {}
-    }
-  ]
-}
-CRONEOF
-  fi
-  brand_ok "cron" "Seeded morning check-in"
+. "$ROOT/scripts/crons.sh"
+
+# --- Background poller (email/SMS) ---
+# Runs outside the LLM — only pokes the gateway when there's something new.
+# Kill any existing poller (pidfile + pattern match for orphans)
+_poller_pidfile="/tmp/.openclaw-poller.pid"
+if [ -f "$_poller_pidfile" ]; then
+  kill "$(cat "$_poller_pidfile")" 2>/dev/null || true
 fi
-unset _cron_dir _cron_store
+pkill -f "scripts/poller.sh" 2>/dev/null || true
+sh "$ROOT/scripts/poller.sh" &
+echo $! > "$_poller_pidfile"
+brand_ok "poller" "started (pid $!, every ${POLL_INTERVAL_SECONDS:-60}s)"
+unset _poller_pidfile
 
 brand_done "Assistant is starting up"
 brand_flush
