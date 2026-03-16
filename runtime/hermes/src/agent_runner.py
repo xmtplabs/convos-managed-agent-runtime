@@ -250,6 +250,18 @@ class AgentRunner:
         text = (result.get("final_response", "") if isinstance(result, dict) else str(result))
         return text.strip()
 
+    async def inject_notification(self, text: str) -> None:
+        """Inject a poller notification into conversation history without triggering the LLM.
+
+        The agent will see this context on its next turn, enabling follow-up
+        questions about emails/SMS without re-polling.
+        """
+        async with self._history_lock:
+            self._conversation_history.append({
+                "role": "user",
+                "content": f"[Notification from background poller — no reply needed unless the user asks about it]\n{text}",
+            })
+
     def reset_history(self) -> None:
         """Clear conversation history (used on session reset)."""
         self._conversation_history.clear()

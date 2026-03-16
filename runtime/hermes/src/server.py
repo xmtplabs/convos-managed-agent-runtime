@@ -211,6 +211,142 @@ class LockRequest(BaseModel):
     unlock: bool = False
 
 
+# ---- Background poller (email/SMS) ----
+
+_poller_task: asyncio.Task | None = None
+
+# Interval between polls (seconds). Matches OpenClaw's default.
+POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))
+
+# Path to the shared services.mjs script.
+# Docker: /app/shared-workspace/skills/services/scripts/services.mjs
+# Local:  runtime/shared/workspace/skills/services/scripts/services.mjs
+_SERVICES_SCRIPT: str | None = None
+
+
+def _find_services_script() -> str | None:
+    """Locate services.mjs — check Docker path first, then relative to source."""
+    candidates = [
+        Path("/app/shared-workspace/skills/services/scripts/services.mjs"),
+        Path(__file__).resolve().parent.parent.parent / "shared" / "workspace" / "skills" / "services" / "scripts" / "services.mjs",
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+    return None
+
+
+def _parse_email_notifications(output: str) -> list[str]:
+    """Parse `email recent` stdout into one-liner notifications."""
+    msgs = []
+    sender = body = attachments = ""
+    for line in (output + "\n\n").splitlines():
+        if line.startswith("From:"):
+            sender = line[5:].strip()
+        elif line.startswith("Body:"):
+            body = line[5:].strip()[:80]
+        elif line.startswith("Attachments:"):
+            attachments = line[12:].strip()
+        elif not line.strip() and sender:
+            msg = f'You got a new email. "{body or "(no preview)"}" from {sender}'
+            if attachments:
+                msg += f" [{attachments}]"
+            msgs.append(msg)
+            sender = body = attachments = ""
+    return msgs
+
+
+def _parse_sms_notifications(output: str) -> list[str]:
+    """Parse `sms recent` stdout into one-liner notifications."""
+    msgs = []
+    sender = text = ""
+    for line in (output + "\n\n").splitlines():
+        if line.startswith("From:"):
+            sender = line[5:].strip()
+        elif line.startswith("Text:"):
+            text = line[5:].strip()[:80]
+        elif not line.strip() and sender:
+            msgs.append(f'You got a new text. "{text or "(empty)"}" from {sender}')
+            sender = text = ""
+    return msgs
+
+
+async def _run_services_cmd(*args: str) -> str:
+    """Run a services.mjs subcommand and return stdout, or empty string on failure."""
+    script = _SERVICES_SCRIPT
+    if not script:
+        return ""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "node", script, *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+        return stdout.decode() if proc.returncode == 0 else ""
+    except Exception as err:
+        logger.debug("services.mjs %s failed: %s", args[0] if args else "?", err)
+        return ""
+
+
+async def _poller_loop() -> None:
+    """Background email/SMS poller — no LLM calls.
+
+    Polls every POLL_INTERVAL seconds. When new messages are found,
+    sends a notification to the group chat and injects context into
+    the agent's conversation history.
+    """
+    global _SERVICES_SCRIPT
+    _SERVICES_SCRIPT = _find_services_script()
+    if not _SERVICES_SCRIPT:
+        logger.info("Poller: services.mjs not found — poller disabled")
+        return
+
+    # Wait for the adapter to be ready before polling
+    logger.info("Poller: waiting 15s for startup...")
+    await asyncio.sleep(15)
+    logger.info("Poller: started (interval=%ds)", POLL_INTERVAL)
+
+    while True:
+        try:
+            adapter = get_adapter()
+            if not adapter or not adapter.instance:
+                await asyncio.sleep(POLL_INTERVAL)
+                continue
+
+            batch: list[str] = []
+
+            # Email
+            out = await _run_services_cmd("email", "recent", "--since-last", "--limit", "3", "--no-provision")
+            if out and "No new emails" not in out:
+                batch.extend(_parse_email_notifications(out))
+
+            # SMS
+            out = await _run_services_cmd("sms", "recent", "--since-last", "--limit", "3", "--no-provision")
+            if out and "No new SMS" not in out:
+                batch.extend(_parse_sms_notifications(out))
+
+            if batch:
+                text = "\n".join(batch)
+                logger.info("Poller: %d notification(s)", len(batch))
+                try:
+                    await adapter.send_message(text)
+                except Exception as err:
+                    logger.error("Poller: send_message failed: %s", err)
+                if adapter.agent:
+                    try:
+                        await adapter.agent.inject_notification(text)
+                    except Exception as err:
+                        logger.error("Poller: inject_notification failed: %s", err)
+
+        except asyncio.CancelledError:
+            return
+        except Exception as err:
+            logger.error("Poller: tick error: %s", err)
+
+        await asyncio.sleep(POLL_INTERVAL)
+
+
 # ---- Cron delivery ----
 
 _cron_task: asyncio.Task | None = None
@@ -296,7 +432,7 @@ async def _cron_tick_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _config, _cron_task, _event_loop
+    global _config, _cron_task, _poller_task, _event_loop
     _config = RuntimeConfig.from_env()
     errors = _config.validate()
     if errors:
@@ -308,14 +444,16 @@ async def lifespan(app: FastAPI):
     _event_loop = asyncio.get_event_loop()
     _patch_cron_delivery()
     _cron_task = asyncio.create_task(_cron_tick_loop())
+    _poller_task = asyncio.create_task(_poller_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
     yield
-    if _cron_task:
-        _cron_task.cancel()
-        try:
-            await _cron_task
-        except asyncio.CancelledError:
-            pass
+    for task in (_cron_task, _poller_task):
+        if task:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
     try:
         adapter = get_adapter()
         if adapter:
