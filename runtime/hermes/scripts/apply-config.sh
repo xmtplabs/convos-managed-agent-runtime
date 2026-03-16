@@ -42,14 +42,9 @@ done
 
 # ── AGENTS.md (base + extra) ─────────────────────────────────────────────
 _AGENTS_OUT="$ROOT/AGENTS.md"
-if [ -n "$SHARED_WORKSPACE_DIR" ] && [ -f "$SHARED_WORKSPACE_DIR/AGENTS-base.md" ]; then
-  cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_OUT"
-  [ -f "$WORKSPACE_DIR/agents-extra.md" ] && cat "$WORKSPACE_DIR/agents-extra.md" >> "$_AGENTS_OUT"
-  brand_ok "AGENTS.md" "assembled (shared + hermes)"
-elif [ -f "$WORKSPACE_DIR/AGENTS.md" ]; then
-  cp "$WORKSPACE_DIR/AGENTS.md" "$_AGENTS_OUT"
-  brand_ok "AGENTS.md" "synced (fallback)"
-fi
+cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_OUT"
+[ -f "$WORKSPACE_DIR/agents-extra.md" ] && cat "$WORKSPACE_DIR/agents-extra.md" >> "$_AGENTS_OUT"
+brand_ok "AGENTS.md" "assembled (shared + hermes)"
 
 # ── Convos platform prompt (hermes-only) ─────────────────────────────────
 [ -f "$WORKSPACE_DIR/CONVOS_PROMPT.md" ] && cp "$WORKSPACE_DIR/CONVOS_PROMPT.md" "$HERMES_HOME/CONVOS_PROMPT.md"
