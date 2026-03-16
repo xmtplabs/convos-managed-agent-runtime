@@ -25,7 +25,7 @@ Two agent runtimes as peers — **OpenClaw** (Node.js) and **Hermes** (Python) �
 The `pnpm start` script runs four steps in sequence:
 
 1. **keys.sh** — Displays all env var status. Generates `OPENCLAW_GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
-2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
+2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Merges shared workspace (`runtime/shared/workspace/`) with runtime-specific workspace, then assembles `AGENTS.md` from `AGENTS-base.md` + `agents-extra.md`. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
 3. **install-deps.sh** — Runs `pnpm install` in each extension directory (convos, web-tools). Links shared deps.
 4. **gateway.sh** — Starts `openclaw gateway run` with a restart loop (max 5 rapid crashes in 30s window).
 
@@ -38,23 +38,32 @@ runtime/
 ├── package.json            # shared version + eval scripts
 ├── CHANGELOG.md            # shared changelog
 ├── evals/                  # shared eval suite (see evals/README.md)
+├── shared/                 # shared across both runtimes
+│   ├── workspace/
+│   │   ├── AGENTS-base.md  # shared agent instructions (~80% of AGENTS.md)
+│   │   ├── SOUL.md         # personality
+│   │   └── skills/         # services, convos-runtime
+│   └── web-tools/          # browser automation, landing page, forms
 ├── openclaw/               # OpenClaw runtime
 │   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
 │   ├── package.json        # openclaw deps + runtime scripts
 │   ├── openclaw.json       # config template (${ENV_VAR} placeholders)
 │   ├── extensions/
-│   │   ├── convos/         # XMTP messaging channel
-│   │   └── web-tools/      # browser automation, landing page, forms
+│   │   └── convos/         # XMTP messaging channel
 │   ├── workspace/
-│   │   ├── AGENTS.md       # agent instructions
-│   │   ├── SOUL.md         # personality
-│   │   └── skills/         # bankr, convos-cli, services
+│   │   ├── agents-extra.md # openclaw-specific agent instructions
+│   │   ├── HEARTBEAT.md    # heartbeat nudge config
+│   │   └── skills/         # bankr, convos-cli (openclaw-only)
 │   └── scripts/            # keys, gateway, pool-server, etc.
 └── hermes/                 # Hermes runtime
     ├── Dockerfile          # python:3.11 + node 22 + hermes-agent
     ├── package.json        # convos-cli dep
     ├── src/                # FastAPI server + XMTP bridge
-    └── workspace/          # AGENTS.md, SOUL.md, skills
+    ├── workspace/
+    │   ├── agents-extra.md # hermes-specific agent instructions
+    │   ├── config.yaml     # hermes toolset config
+    │   └── CONVOS_PROMPT.md # platform prompt (hermes-only)
+    └── scripts/            # entrypoint, apply-config, eval-env, etc.
 ```
 
 ## Scripts

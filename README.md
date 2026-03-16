@@ -36,14 +36,14 @@ See [`runtime/README.md`](runtime/README.md) for scripts, environment variables,
 
 Channel extension that connects OpenClaw agents to Convos conversations. Bundled inside the runtime image.
 
-### Skills (`runtime/openclaw/workspace/skills/`)
+### Skills (`runtime/shared/workspace/skills/` + runtime-specific)
 
-Agent capabilities exposed as OpenClaw skills:
+Agent capabilities exposed as skills, shared across both runtimes:
 
-- **agentmail** — email (calendar invites, transactional email)
-- **bankr** — crypto payments
-- **convos-cli** — Convos client operations
-- **telnyx-cli** — SMS messaging
+- **services** — email, SMS, credits, account services (shared)
+- **convos-runtime** — runtime version, upgrade, redeploy (shared)
+- **bankr** — crypto payments (OpenClaw only)
+- **convos-cli** — Convos client operations (OpenClaw only)
 
 ### Pool (`pool/`)
 
