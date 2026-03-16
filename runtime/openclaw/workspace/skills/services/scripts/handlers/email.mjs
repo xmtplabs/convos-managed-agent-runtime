@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Email handler — send, send-calendar, poll via AgentMail REST API.
+ * Email handler — send, send-calendar, poll, read, recent via AgentMail REST API.
  *
  * When POOL_URL and INSTANCE_ID are set, calls are proxied through the pool
  * manager (no API key needed on the instance). Otherwise falls back to direct
@@ -10,6 +10,8 @@
  *   node services.mjs email send --to <email> --subject <subj> --text <body> [--html <html>] [--attach <path>]
  *   node services.mjs email send-calendar --to <email> --ics <path> [--subject <subj>]
  *   node services.mjs email poll [--limit 20] [--labels unread] [--threads]
+ *   node services.mjs email read --id <messageId> [--save-dir <dir>]
+ *   node services.mjs email recent [--since-last] [--limit 5] [--no-provision]
  */
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
