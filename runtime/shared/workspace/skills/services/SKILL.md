@@ -63,7 +63,7 @@ The `servicesUrl` is your public services page. Always share it as-is — never 
 
 ## Email
 
-Send a plain email:
+Send an email (with optional attachments):
 
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" email send \
@@ -78,18 +78,22 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" email send-calendar \
   --to <email> --ics /path/to/file.ics [--subject "Event name"]
 ```
 
-Poll inbox for new emails and threads:
+Poll inbox:
 
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" email poll \
-  [--limit 20] [--labels unread] [--threads]
+  [--limit 20] [--labels unread] [--threads] [--json]
 ```
 
-Example — check new mail and unreplied threads in one run:
+Read a single email and download its attachments:
 
 ```bash
-node "$SKILLS_ROOT/services/scripts/services.mjs" email poll --limit 20 --labels unread --threads
+node "$SKILLS_ROOT/services/scripts/services.mjs" email read \
+  --id "<id>"
 ```
+
+- Use the `ID` shown in `poll` output — copy it exactly as displayed
+- Attachments are saved automatically — do NOT use `--save-dir` or `~/Downloads`
 
 ## SMS (US numbers only)
 
@@ -127,15 +131,3 @@ Top up your credits:
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" credits topup
 ```
-
-## Services Landing Page
-
-Your services landing page is the central place for users to manage everything: view email, phone, card details, credit balance, and top up credits. When users ask about **any** of the following, run `services.mjs info` and share the `servicesUrl`:
-
-- Topping up credits or adding funds
-- Credit card balance or card details
-- Checking service status
-- Managing their account
-- "Where can I see my balance / services / status"
-
-**Never make up URLs or direct users to external docs.** Always share the real `servicesUrl` from the info command.

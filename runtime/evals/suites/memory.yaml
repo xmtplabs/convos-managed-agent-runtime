@@ -58,7 +58,7 @@ tests:
 
   - description: "Store & recall: dietary constraint"
     vars:
-      prompt: "We're ordering food for the group — thinking Thai or Italian. What should I keep in mind?"
+      prompt: "We're picking a restaurant for the group dinner tonight in NYC. Suggest a couple of options."
     metadata:
       storePrompt: "For future reference, I'm vegetarian and I have a severe nut allergy."
     assert:
@@ -86,6 +86,19 @@ tests:
           as the tone is natural and encouraging, not clinical or
           diagnostic. Fail only if the agent ignores the prior context
           entirely or frames therapy in a cold, medical, or invasive way.
+
+  - description: "Store & recall: poller notification context"
+    vars:
+      prompt: "Earlier you told me about an email notification. Who was it from and what was it about? Don't check my inbox — just tell me from memory."
+    metadata:
+      storePrompt: "You just received a notification: new email from Lisa Chen <lisa@acme.co> with subject \"Q3 budget draft attached\" and an attachment [budget-q3.xlsx]. Note this in memory so you can reference it later."
+    assert:
+      - type: llm-rubric
+        value: >
+          The agent must recall details from a prior notification about an email:
+          it was from Lisa Chen, about a Q3 budget draft, with an xlsx attachment.
+          Pass if the agent references at least the sender and subject/topic.
+          Fail if the agent says it has no knowledge of any recent email notification.
 
   # --- Behavioral contract (single-prompt) ---
 
