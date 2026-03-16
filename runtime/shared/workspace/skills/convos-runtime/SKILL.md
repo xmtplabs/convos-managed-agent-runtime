@@ -13,7 +13,7 @@ description: |
 Check the current Convos runtime version and Docker image tag.
 
 ```bash
-node "$HERMES_HOME/skills/convos-runtime/scripts/convos-runtime.mjs" version
+node "$SKILLS_ROOT/convos-runtime/scripts/convos-runtime.mjs" version
 ```
 
 Use this when the user asks "what version am I on?", "what runtime version?", "what's your runtime?", or before upgrading to show the current version.
@@ -29,13 +29,23 @@ This is not a local package update. Do not run `gateway update`, `npm update`, `
 Step 1 — Preview first:
 
 ```bash
-node "$HERMES_HOME/skills/convos-runtime/scripts/convos-runtime.mjs" upgrade
+node "$SKILLS_ROOT/convos-runtime/scripts/convos-runtime.mjs" upgrade
 ```
+
+This shows the current and latest image without upgrading.
+
+Step 1b — Changelog (show what changed):
+
+```bash
+curl -s https://raw.githubusercontent.com/xmtplabs/convos-agents/dev/runtime/CHANGELOG.md
+```
+
+Fetch the changelog and summarize what's new since the user's current version. Show the user what they'll get before asking to confirm.
 
 Step 2 — Confirm only after the user says yes:
 
 ```bash
-node "$HERMES_HOME/skills/convos-runtime/scripts/convos-runtime.mjs" upgrade --confirm
+node "$SKILLS_ROOT/convos-runtime/scripts/convos-runtime.mjs" upgrade --confirm
 ```
 
 Tell the user they'll be offline for about 30 to 60 seconds during the upgrade. Never run `--confirm` without asking first.

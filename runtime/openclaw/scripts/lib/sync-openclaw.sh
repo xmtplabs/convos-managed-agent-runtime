@@ -18,7 +18,7 @@ copy_tree_snapshot() {
 }
 
 sync_workspace_dir() {
-  src_dir="$RUNTIME_DIR/workspace"
+  src_dir="${1:-$RUNTIME_DIR/workspace}"
   dst_dir="$STATE_DIR/workspace"
   base_dir="$STATE_DIR/.workspace-base"
 
@@ -60,12 +60,27 @@ sync_workspace_dir() {
   copy_tree_snapshot "$src_dir" "$base_dir"
 }
 
+# Stage merged workspace source: shared files + runtime overlay → single sync call.
+# Using a single sync preserves the workspace-base snapshot invariant.
+_MERGED_SRC=""
+if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
+  _MERGED_SRC=$(mktemp -d)
+  cp -R "$SHARED_WORKSPACE_DIR/." "$_MERGED_SRC/"
+  [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
+  . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+  brand_ok "shared-workspace" "merged with runtime"
+fi
+
 for subdir in workspace extensions; do
-  [ -d "$RUNTIME_DIR/$subdir" ] || continue
+  [ -d "$RUNTIME_DIR/$subdir" ] || { [ "$subdir" = "workspace" ] && [ -n "$_MERGED_SRC" ]; } || continue
   mkdir -p "$STATE_DIR/$subdir"
 
   if [ "$subdir" = "workspace" ]; then
-    sync_workspace_dir
+    if [ -n "$_MERGED_SRC" ]; then
+      sync_workspace_dir "$_MERGED_SRC"
+    else
+      sync_workspace_dir
+    fi
   elif command -v rsync >/dev/null 2>&1; then
     rsync -a --delete --exclude=node_modules "$RUNTIME_DIR/$subdir/" "$STATE_DIR/$subdir/"
   else
@@ -75,3 +90,5 @@ for subdir in workspace extensions; do
   . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
   brand_ok "$subdir" "$STATE_DIR/$subdir"
 done
+
+[ -n "${_MERGED_SRC:-}" ] && rm -rf "$_MERGED_SRC" && unset _MERGED_SRC

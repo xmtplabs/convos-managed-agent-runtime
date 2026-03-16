@@ -22,8 +22,9 @@ run() { "$@" 2>&1 | tee "$QA_TMP" || true; }
 # quiet run -- captures to $QA_TMP without printing
 qrun() { "$@" > "$QA_TMP" 2>&1 || true; }
 
-SERVICES="$STATE_DIR/workspace/skills/services/scripts/services.mjs"
-CONVOS_RUNTIME="$STATE_DIR/workspace/skills/convos-runtime/scripts/convos-runtime.mjs"
+SKILLS_ROOT="${SKILLS_ROOT:-$STATE_DIR/workspace/skills}"
+SERVICES="$SKILLS_ROOT/services/scripts/services.mjs"
+CONVOS_RUNTIME="$SKILLS_ROOT/convos-runtime/scripts/convos-runtime.mjs"
 
 # --- Environment check ---
 echo ""

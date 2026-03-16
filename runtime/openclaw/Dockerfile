@@ -28,12 +28,14 @@ COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/openclaw/workspace /app/openclaw/workspace
 COPY runtime/openclaw/extensions /app/openclaw/extensions
 COPY runtime/shared/web-tools /app/web-tools
+COPY runtime/shared/workspace /app/shared-workspace
 COPY runtime/openclaw/scripts ./scripts
 COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
 ENV OPENCLAW_STATE_DIR=/app
+ENV SKILLS_ROOT=/app/workspace/skills
 
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080

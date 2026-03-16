@@ -5,4 +5,14 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 _ENV_FILE="$ROOT/.env"
 [ ! -f "$_ENV_FILE" ] && [ -f "$ROOT/../.env" ] && _ENV_FILE="$ROOT/../.env"
 [ -f "$_ENV_FILE" ] && set -a && . "$_ENV_FILE" 2>/dev/null || true && set +a
+
+# Shared workspace — Docker copies to /app/shared-workspace; locally relative to ROOT
+if [ -d "$ROOT/../shared/workspace" ]; then
+  SHARED_WORKSPACE_DIR="$ROOT/../shared/workspace"
+elif [ -d "/app/shared-workspace" ]; then
+  SHARED_WORKSPACE_DIR="/app/shared-workspace"
+else
+  SHARED_WORKSPACE_DIR=""
+fi
+
 . "$ROOT/scripts/lib/paths.sh"

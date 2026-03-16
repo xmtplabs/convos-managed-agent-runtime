@@ -22,6 +22,16 @@ fi
 # Workspace source of truth
 WORKSPACE_DIR="$ROOT/workspace"
 
+# Shared workspace — in Docker, copied to /app/shared-workspace; locally relative to ROOT
+if [ -d "$ROOT/../shared/workspace" ]; then
+  SHARED_WORKSPACE_DIR="$ROOT/../shared/workspace"
+elif [ -d "/app/shared-workspace" ]; then
+  SHARED_WORKSPACE_DIR="/app/shared-workspace"
+else
+  SHARED_WORKSPACE_DIR=""
+fi
+SKILLS_ROOT="$HERMES_HOME/skills"
+
 # Node/Python paths
 export NODE_PATH="${NODE_PATH:-$ROOT/node_modules}"
 export PATH="$ROOT/node_modules/.bin:$PATH"

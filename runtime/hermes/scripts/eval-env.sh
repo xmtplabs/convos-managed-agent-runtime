@@ -5,7 +5,6 @@
 #   - Sets HERMES_HOME and copies workspace files (SOUL.md, config.yaml, skills)
 #   - Copies AGENTS.md and CONVOS_PROMPT.md
 #   - Clears bundled skills so only workspace skills are available (matching Docker COPY)
-#   - Enables local service simulation (HERMES_EVAL_LOCAL_SERVICES=1)
 #
 # Sourced by bin/hermes before calling python -m src.agent_runner.
 
@@ -24,6 +23,7 @@ if [ ! -f "$SCRIPT_DIR/eval-env.sh" ]; then
   SCRIPT_DIR="$(cd "scripts" 2>/dev/null && pwd)"
 fi
 RUNTIME_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SHARED_WORKSPACE_DIR="$RUNTIME_DIR/../shared/workspace"
 REPO_ROOT="$(cd "$RUNTIME_DIR/../.." && pwd)"
 
 [ -f "$REPO_ROOT/runtime/.env" ] && set -a && . "$REPO_ROOT/runtime/.env" 2>/dev/null || true && set +a
@@ -31,14 +31,31 @@ export CONVOS_REPO_ROOT="$REPO_ROOT"
 
 export HOME="$RUNTIME_DIR/.eval-home"
 export HERMES_HOME="$HOME/.hermes"
+export SKILLS_ROOT="$HERMES_HOME/skills"
 mkdir -p "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
 
 # Clear and rebuild skills dir — only workspace skills, matching production Docker image
 rm -rf "$HERMES_HOME/skills"
 mkdir -p "$HERMES_HOME/skills"
 
-cp "$RUNTIME_DIR/workspace/SOUL.md" "$HERMES_HOME/SOUL.md"
+# Shared workspace files
+if [ -f "$SHARED_WORKSPACE_DIR/SOUL.md" ]; then
+  cp "$SHARED_WORKSPACE_DIR/SOUL.md" "$HERMES_HOME/SOUL.md"
+elif [ -f "$RUNTIME_DIR/workspace/SOUL.md" ]; then
+  cp "$RUNTIME_DIR/workspace/SOUL.md" "$HERMES_HOME/SOUL.md"
+fi
 cp "$RUNTIME_DIR/workspace/config.yaml" "$HERMES_HOME/config.yaml"
+
+# Shared skills first
+if [ -d "$SHARED_WORKSPACE_DIR/skills" ]; then
+  for skill_dir in "$SHARED_WORKSPACE_DIR"/skills/*; do
+    [ -d "$skill_dir" ] || continue
+    skill_name="$(basename "$skill_dir")"
+    rm -rf "$HERMES_HOME/skills/$skill_name"
+    cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
+  done
+fi
+# Runtime-specific skills overlay (none today, but future-proof)
 for skill_dir in "$RUNTIME_DIR"/workspace/skills/*; do
   [ -d "$skill_dir" ] || continue
   skill_name="$(basename "$skill_dir")"
@@ -46,8 +63,13 @@ for skill_dir in "$RUNTIME_DIR"/workspace/skills/*; do
   cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
 done
 
-# Copy AGENTS.md to eval HOME root (hermes loads it from cwd)
-[ -f "$RUNTIME_DIR/workspace/AGENTS.md" ] && cp "$RUNTIME_DIR/workspace/AGENTS.md" "$HOME/AGENTS.md"
+# Assemble AGENTS.md (shared base + runtime extra)
+if [ -f "$SHARED_WORKSPACE_DIR/AGENTS-base.md" ]; then
+  cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$HOME/AGENTS.md"
+  [ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$HOME/AGENTS.md"
+elif [ -f "$RUNTIME_DIR/workspace/AGENTS.md" ]; then
+  cp "$RUNTIME_DIR/workspace/AGENTS.md" "$HOME/AGENTS.md"
+fi
 
 # Copy Convos platform prompt to HERMES_HOME (agent_runner.py reads it from there)
 [ -f "$RUNTIME_DIR/workspace/CONVOS_PROMPT.md" ] && cp "$RUNTIME_DIR/workspace/CONVOS_PROMPT.md" "$HERMES_HOME/CONVOS_PROMPT.md"
@@ -59,5 +81,4 @@ if [ -f "$HERMES_HOME/CONVOS_PROMPT.md" ] && [ -z "${HERMES_EPHEMERAL_SYSTEM_PRO
   export HERMES_EPHEMERAL_SYSTEM_PROMPT_B64
 fi
 
-export HERMES_EVAL_LOCAL_SERVICES="${HERMES_EVAL_LOCAL_SERVICES:-1}"
 export PATH="$RUNTIME_DIR/node_modules/.bin:$PATH"
