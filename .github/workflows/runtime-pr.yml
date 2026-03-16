@@ -9,7 +9,9 @@ on:
     types: [opened, synchronize, closed]
     paths:
       - 'runtime/openclaw/**'
-      - '!runtime/openclaw/CHANGELOG.md'
+      - 'runtime/shared/**'
+      - 'runtime/package.json'
+      - '!runtime/CHANGELOG.md'
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
