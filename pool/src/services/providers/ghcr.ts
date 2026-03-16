@@ -5,6 +5,8 @@
  * Only applies to ghcr.io images — all others pass through unchanged.
  */
 export async function resolveImageDigest(imageRef: string): Promise<string> {
+  // Strip accidental protocol prefix (users sometimes paste full URLs)
+  imageRef = imageRef.replace(/^https?:\/\//, "");
   // Only handle ghcr.io images
   const match = imageRef.match(/^ghcr\.io\/([^:@]+?)(?::([^@]+))?$/);
   if (!match) return imageRef;

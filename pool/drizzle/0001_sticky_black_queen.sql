@@ -1,0 +1,1 @@
+ALTER TABLE "instance_infra" ADD COLUMN "runtime_type" text;

@@ -13,9 +13,9 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 ## Running
 
 ```sh
-cd runtime
-pnpm start              # terminal 1: start the runtime
+cd runtime/openclaw && pnpm start   # terminal 1: start the openclaw runtime
 
+cd runtime                          # terminal 2: run evals
 pnpm evals              # run all suites (openclaw, the default)
 pnpm evals:knows        # knowledge only
 pnpm evals:skills       # services only
@@ -45,7 +45,7 @@ pnpm evals:convos -- --filter-pattern "welcome"
 
 ## Env vars
 
-Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
+Required in `runtime/.env` (shared by all runtimes):
 
 - `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
@@ -55,11 +55,11 @@ Required in the runtime's `.env` (e.g. `runtime/.env` or `runtime-hermes/.env`):
 
 ## Multi-runtime architecture
 
-The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`runtimes/<name>.mjs`) that defines how to invoke the CLI, which health endpoint to probe, and how to filter output. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
+The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`adapters/<name>.mjs`) that defines how to invoke the CLI, which health endpoint to probe, and how to filter output. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
 
 To add a new runtime:
 
-1. Create `evals/runtimes/<name>.mjs` — see `hermes.mjs` for a real example:
+1. Create `evals/adapters/<name>.mjs` — see `hermes.mjs` for a real example:
 
 ```js
 export default {
@@ -70,13 +70,13 @@ export default {
   healthPath: '/health',                                     // gateway health endpoint
   filterLines: (lines) => lines,                             // strip runtime-specific output noise
   needsSessionClear: false,                                  // true if file-based sessions need clearing
-  convosPath: '../../runtime-<name>/node_modules/.bin/convos', // path to convos-cli relative to evals/
+  convosPath: '../../<name>/node_modules/.bin/convos',          // path to convos-cli relative to evals/lib/
 };
 ```
 
-2. Add a case in `evals/runtimes/env.sh` to source the runtime's `.env` and validate required vars.
+2. Add a case in `evals/adapters/env.sh` to source the runtime's `.env` and validate required vars.
 
-3. Add npm scripts in `package.json` (all 6):
+3. Add npm scripts in `runtime/package.json` (all 6):
 
 ```json
 "evals:<name>": "EVAL_RUNTIME=<name> sh evals/run.sh",
@@ -91,28 +91,34 @@ export default {
 
 ```
 evals/
-├── knows.yaml             # knowledge suite config
-├── skills.yaml            # services suite config
-├── soul.yaml              # personality & values suite config
-├── convos.yaml            # XMTP lifecycle suite config
-├── async.yaml             # non-blocking suite config
-├── prompt.provider.mjs    # provider: stateless prompt (parallel)
-├── convos.provider.mjs    # provider: XMTP conversation lifecycle
-├── async.provider.mjs     # provider: background + foreground concurrency test
-├── assertions.mjs         # JS assertions (profile, self-destruct, response time)
-├── runtime.mjs            # loads the active runtime adapter
-├── utils.mjs              # shared helpers (cleanOutput, session clearing, etc.)
-├── runtimes/
+├── run.sh                 # entry point (runs all suites, any runtime)
+├── run-suite.sh           # single-suite entry point (any runtime)
+├── suites/
+│   ├── knows.yaml         # knowledge suite config
+│   ├── skills.yaml        # services suite config
+│   ├── soul.yaml          # personality & values suite config
+│   ├── convos.yaml        # XMTP lifecycle suite config
+│   ├── async.yaml         # non-blocking suite config
+│   └── memory.yaml        # persistent memory suite config
+├── providers/
+│   ├── prompt.provider.mjs    # stateless prompt (parallel)
+│   ├── convos.provider.mjs    # XMTP conversation lifecycle
+│   ├── async.provider.mjs     # background + foreground concurrency test
+│   └── memory.provider.mjs    # memory persistence across sessions
+├── lib/
+│   ├── assertions.mjs     # JS assertions (profile, self-destruct, response time)
+│   ├── runtime.mjs        # loads the active runtime adapter
+│   ├── summarize.mjs      # CI summary generation
+│   └── utils.mjs          # shared helpers (cleanOutput, session clearing, etc.)
+├── adapters/
 │   ├── openclaw.mjs       # runtime adapter: openclaw
 │   ├── hermes.mjs         # runtime adapter: hermes
 │   └── env.sh             # shared env setup (sources .env per runtime)
-├── run.sh                 # entry point (runs all suites, any runtime)
-├── run-suite.sh           # single-suite entry point (any runtime)
-├── summarize.mjs          # CI summary generation
-└── test-image.png         # fixture for image recognition test
+└── fixtures/
+    └── test-image.png     # fixture for image recognition test
 ```
 
-Naming convention: `{suite}.yaml` + `{suite}.provider.mjs` (if custom provider needed).
+Naming convention: `suites/{name}.yaml` + `providers/{name}.provider.mjs` (if custom provider needed).
 
 ## Adding a test
 
@@ -172,8 +178,8 @@ For case-insensitive matching, use `icontains` or character classes:
 
 ## CI
 
-All 5 suites run as parallel matrix jobs in PR and dispatch workflows:
+All 6 suites run as parallel matrix jobs in PR and dispatch workflows:
 
-- **PR builds** — `runtime-pr.yml` matrix: knows, skills, soul, convos, async
+- **PR builds** — `runtime-pr.yml` matrix: knows, skills, soul, convos, async, memory
 - **Dispatch builds** — `runtime-dispatch.yml` same matrix
 - **One-off** — Actions > "Runtime: Eval" > Run workflow (sequential)

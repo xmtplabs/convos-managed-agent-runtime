@@ -32,7 +32,7 @@ jobs:
             libxkbcommon0 libxrandr2 xdg-utils
 
       - name: Enable pnpm + install deps
-        working-directory: runtime
+        working-directory: runtime/openclaw
         run: |
           corepack enable
           pnpm install --no-frozen-lockfile

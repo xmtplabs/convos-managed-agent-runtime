@@ -52,7 +52,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: runtime/Dockerfile
+          file: runtime/openclaw/Dockerfile
           push: true
           platforms: linux/amd64
           tags: ghcr.io/xmtplabs/convos-runtime:pending-${{ steps.meta.outputs.sha }}

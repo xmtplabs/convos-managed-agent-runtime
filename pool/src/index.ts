@@ -510,9 +510,9 @@ app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
       try {
         const token = await db.getGatewayToken(row.id);
         const hc = await pool.healthCheck(row.url, token);
-        console.log(`[pool] refresh-version ${row.id}: url=${row.url} version=${hc?.version ?? "null"} ready=${hc?.ready ?? "null"}`);
+        console.log(`[pool] refresh-version ${row.id}: url=${row.url} version=${hc?.version ?? "null"} runtime=${hc?.runtime ?? "null"} ready=${hc?.ready ?? "null"}`);
         if (hc?.version) {
-          await db.setRuntimeVersion(row.id, hc.version);
+          await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
           updated++;
         }
       } catch (err: any) {

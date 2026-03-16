@@ -1,7 +1,10 @@
 # Convos Agents — Agent Guide
 
 ## Structure
-Three subprojects: **pool/** (Express API + Drizzle/Postgres pool manager), **runtime/** (Docker agent image with OpenClaw + XMTP), **dashboard/** (Next.js + Tailwind at assistants.convos.org). Use `pnpm` everywhere — never npm/yarn. Never update dependencies.
+**pool/** (Express API + Drizzle/Postgres pool manager), **runtime/** (two agent runtimes + shared workspace + evals), **dashboard/** (Next.js + Tailwind at assistants.convos.org). Use `pnpm` everywhere — never npm/yarn. Never update dependencies.
+
+## Runtime: Shared Workspace
+Skills, SOUL.md, and AGENTS-base.md live in `runtime/shared/workspace/`. Both runtimes (OpenClaw and Hermes) copy from there at boot. Default to shared — only put files in a runtime's own workspace if they genuinely don't apply to the other. AGENTS.md is assembled from `AGENTS-base.md` + runtime's `agents-extra.md` — never check in a standalone AGENTS.md. Use `$SKILLS_ROOT` in SKILL.md paths. Add deps to both `hermes/package.json` and `openclaw/package.json` when a shared skill needs a Node CLI.
 
 ## Commands
 - Pool: `cd pool && pnpm dev` / `pnpm build` (tsc) / `pnpm test` / `pnpm db:migrate` / `pnpm db:studio`

@@ -1,4 +1,5 @@
-# Convos runtime changelog
+## 0.1.0 — Multi-harness
+- Multi-harness: runtime supports both OpenClaw and Hermes engines — same workspace, skills, and agent instructions across both
 
 ## 0.0.27
 - Background email/SMS polling: new messages are detected and delivered to the chat automatically — no more LLM calls burning credits just to check the inbox

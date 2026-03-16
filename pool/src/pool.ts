@@ -87,7 +87,7 @@ export async function healthCheck(url: string, gatewayToken?: string | null) {
       signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
-    return await res.json() as { ready: boolean; version?: string };
+    return await res.json() as { ready: boolean; version?: string; runtime?: string };
   } catch {
     return null;
   }
@@ -103,7 +103,7 @@ export async function checkStarting() {
     const hc = await healthCheck(row.url, token);
     if (hc?.ready) {
       await db.updateStatus(row.id, { status: "idle" });
-      if (hc.version) await db.setRuntimeVersion(row.id, hc.version);
+      if (hc.version) await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
       promoted.push(row.id);
       const durationMs = Date.now() - new Date(row.createdAt).getTime();
       metricCount("instance.create.complete");
@@ -281,19 +281,19 @@ export async function recheckInstance(id: string) {
     // Runtime has a conversation — verify it matches what we provisioned
     if (inst.conversationId && inst.conversationId === runtimeConvoId) {
       await db.updateStatus(id, { status: "claimed" });
-      if (hc.version) await db.setRuntimeVersion(id, hc.version);
+      if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
       console.log(`[pool] recheck ${id}: ${inst.status} → claimed (conversation ${runtimeConvoId} matches DB, v${hc.version || '?'})`);
       return { id, status: "claimed", changed: inst.status !== "claimed", agentName: inst.agentName || null };
     }
     // Runtime has a conversation but DB doesn't match — stuck provision failure
-    if (hc.version) await db.setRuntimeVersion(id, hc.version);
+    if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
     console.log(`[pool] recheck ${id}: runtime has conversation ${runtimeConvoId} but DB has ${inst.conversationId || "none"} — staying ${inst.status}`);
     return { id, status: inst.status, changed: false, reason: "conversation_mismatch", agentName: inst.agentName || null };
   }
 
   // No active conversation — instance is clean, recover to idle
   await db.recoverToIdle(id, inst.status);
-  if (hc.version) await db.setRuntimeVersion(id, hc.version);
+  if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
   console.log(`[pool] recheck ${id}: ${inst.status} → idle (no conversation, v${hc.version || '?'})`);
   return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
 }

@@ -1,9 +1,8 @@
 # Runtime
 
-The agent runtime is a pre-built Docker image containing the OpenClaw gateway, extensions (convos channel, web-tools), workspace (skills, identity), and all CLI dependencies. Published to GHCR and deployed by the pool manager on Railway.
+Two agent runtimes as peers — **OpenClaw** (Node.js) and **Hermes** (Python) — each with its own Dockerfile, dependencies, and scripts. Shared infrastructure (evals, `.env`, version, changelog) lives at this root level.
 
-
-**Image:** `ghcr.io/xmtplabs/convos-runtime`
+**Images:** `ghcr.io/xmtplabs/convos-runtime` (OpenClaw) · `ghcr.io/xmtplabs/convos-runtime-hermes` (Hermes)
 
 ## How it works
 
@@ -26,61 +25,95 @@ The agent runtime is a pre-built Docker image containing the OpenClaw gateway, e
 The `pnpm start` script runs four steps in sequence:
 
 1. **keys.sh** — Displays all env var status. Generates `OPENCLAW_GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
-2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
+2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Merges shared workspace (`runtime/shared/workspace/`) with runtime-specific workspace, then assembles `AGENTS.md` from `AGENTS-base.md` + `agents-extra.md`. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
 3. **install-deps.sh** — Runs `pnpm install` in each extension directory (convos, web-tools). Links shared deps.
 4. **gateway.sh** — Seeds cron jobs (`crons.sh`), starts the background poller (`poller.sh`), and runs `openclaw gateway run` with a restart loop (max 5 rapid crashes in 30s window).
 
 ## Directory structure
 
 ```
-├── Dockerfile              # node:22-bookworm + chromium + pnpm
-├── package.json            # openclaw + deps
-├── openclaw/
+runtime/
+├── .env                    # shared env vars (all runtimes)
+├── .env.example            # env var template
+├── package.json            # shared version + eval scripts
+├── CHANGELOG.md            # shared changelog
+├── evals/                  # shared eval suite (see evals/README.md)
+├── shared/                 # shared across both runtimes
+│   ├── workspace/
+│   │   ├── AGENTS-base.md  # shared agent instructions (~80% of AGENTS.md)
+│   │   ├── SOUL.md         # personality
+│   │   └── skills/         # services, convos-runtime, convos-cli, bankr
+│   └── web-tools/          # browser automation, landing page, forms
+├── openclaw/               # OpenClaw runtime
+│   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
+│   ├── package.json        # openclaw deps + runtime scripts
 │   ├── openclaw.json       # config template (${ENV_VAR} placeholders)
 │   ├── extensions/
-│   │   ├── convos/         # XMTP messaging channel
-│   │   └── web-tools/      # browser automation, landing page, forms
-│   └── workspace/
-│       ├── AGENTS.md       # agent instructions
-│       ├── IDENTITY.md     # agent identity
-│       ├── SOUL.md         # personality / welcome message
-│       ├── TOOLS.md        # tool usage guidelines
-│       ├── USER.md         # quick current snapshot
-│       ├── MEMORY.md       # durable long-term memory
-│       ├── HEARTBEAT.md    # heartbeat checklist
-│       ├── BOOTSTRAP.md    # first-run ritual
-│       └── skills/
-│           ├── bankr/      # crypto (transfers, swaps)
-│           ├── convos-cli  # Convos CLI commands
-│           └── services/   # email, SMS, credits, info
-└── scripts/
-    ├── entrypoint.sh       # Railway volume setup
-    ├── keys.sh             # env var provisioning + display
-    ├── apply-config.sh     # sync config to state dir
-    ├── install-deps.sh     # extension deps
-    ├── gateway.sh          # openclaw gateway with restart loop
-    ├── crons.sh            # seed cron jobs (morning check-in)
-    ├── poller.sh           # background email/SMS poller (no LLM)
-    ├── pool-server.js      # pool health/provision endpoints
-    ├── smoke.sh            # smoke tests (proxy when POOL_URL set, direct otherwise)
+│   │   └── convos/         # XMTP messaging channel
+│   ├── workspace/
+│   │   ├── agents-extra.md # openclaw-specific agent instructions
+│   │   ├── HEARTBEAT.md    # heartbeat nudge config
+│   │   └── (no skills — all moved to shared)
+│   └── scripts/            # keys, gateway, poller, crons, pool-server, etc.
+└── hermes/                 # Hermes runtime
+    ├── Dockerfile          # python:3.11 + node 22 + hermes-agent
+    ├── package.json        # convos-cli dep
+    ├── src/                # FastAPI server + XMTP bridge
+    ├── workspace/
+    │   ├── agents-extra.md # hermes-specific agent instructions
+    │   ├── config.yaml     # hermes toolset config
+    │   └── CONVOS_PROMPT.md # platform prompt (hermes-only)
+    └── scripts/            # entrypoint, apply-config, eval-env, etc.
 ```
+
+## Shared workspace
+
+`runtime/shared/workspace/` contains files used by both runtimes. Each runtime's `apply-config.sh` copies these into the right place at boot.
+
+### How it works
+
+| File | Purpose | Assembly |
+|------|---------|----------|
+| `AGENTS-base.md` | Shared agent instructions (~80% of final AGENTS.md) | Concatenated with runtime's `agents-extra.md` to produce AGENTS.md |
+| `SOUL.md` | Personality / persona (includes OpenClaw YAML frontmatter, ignored by Hermes) | Copied as-is |
+| `skills/` | All skills (services, convos-runtime, convos-cli, bankr) | Copied to runtime's skills directory |
+
+**AGENTS.md assembly:** `cat AGENTS-base.md agents-extra.md > AGENTS.md`. Each runtime keeps an `agents-extra.md` in its own workspace with runtime-specific sections (e.g. Delegation, Memory, Identity for Hermes).
+
+**Where files land at runtime:**
+
+| | OpenClaw | Hermes |
+|--|---------|--------|
+| AGENTS.md | `$STATE_DIR/workspace/AGENTS.md` | `$ROOT/AGENTS.md` (CWD — Hermes auto-loads from CWD) |
+| SOUL.md | `$STATE_DIR/workspace/SOUL.md` | `$HERMES_HOME/SOUL.md` |
+| Skills | `$STATE_DIR/workspace/skills/` | `$HERMES_HOME/skills/` |
+
+### Adding new capabilities
+
+- **New shared skill** — add a directory under `runtime/shared/workspace/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for script paths in SKILL.md.
+- **New shared instruction** — edit `AGENTS-base.md` for behavior that applies to both runtimes.
+- **Runtime-specific instruction** — edit the runtime's `workspace/agents-extra.md`.
+- **New dependency for a skill** — add it to both `hermes/package.json` and `openclaw/package.json`.
 
 ## Scripts
 
+All scripts run from `cd runtime`.
+
 | Script | Description |
 |--------|-------------|
-| `pnpm start` | Full init: keys → apply → install-deps → gateway |
-| `pnpm keys` | Generate gateway token; create/reuse OpenRouter key; write .env |
-| `pnpm apply` | Sync workspace/skills/extensions, preserve local workspace edits, and copy config template to state dir |
-| `pnpm install-deps` | Install extension and skill deps in OPENCLAW_STATE_DIR |
-| `pnpm gateway` | Start the gateway |
-| `pnpm smoke` | Smoke tests (email, sms, convos, browser) — uses proxy when POOL_URL is set |
-| `pnpm evals` | Run both eval suites (see [evals/README.md](evals/README.md)) |
-| `pnpm evals:prompt` | Prompt eval only (parallel) |
-| `pnpm evals:convos` | Convos lifecycle eval only (sequential) |
-| `pnpm pool-server` | Pool-managed container entrypoint (spawns gateway, serves /pool/* API) |
-| `pnpm build` | Build Docker image locally |
-| `pnpm build:run` | Build and run with .env from repo root |
+| `pnpm start` | OpenClaw: full init (keys → apply → install-deps → gateway) |
+| `pnpm gateway` | OpenClaw: start the gateway only |
+| `pnpm smoke` | OpenClaw: smoke tests (email, sms, convos, browser) |
+| `pnpm pool-server` | OpenClaw: pool-managed container entrypoint |
+| `pnpm build` | OpenClaw: build Docker image locally |
+| `pnpm build:run` | OpenClaw: build and run with .env |
+| `pnpm start:hermes` | Hermes: start local dev server |
+| `pnpm setup:hermes` | Hermes: first-time local dev setup (clone + deps) |
+| `pnpm build:hermes` | Hermes: build Docker image locally |
+| `pnpm build:run:hermes` | Hermes: build and run with .env |
+| `pnpm evals` | Run all eval suites (see [evals/README.md](evals/README.md)) |
+| `pnpm evals:knows` | Knowledge eval only |
+| `pnpm evals:hermes` | All suites against hermes |
 
 ## Environment variables
 
@@ -108,9 +141,9 @@ All values are injected by the pool manager via Railway env vars at instance cre
 ### Run locally (no Docker)
 
 ```sh
-cd runtime
+cd runtime/openclaw
 pnpm install
-# edit .env with your keys
+# edit runtime/.env with your keys (shared .env at runtime root)
 pnpm start
 ```
 
@@ -119,7 +152,7 @@ Gateway starts at `http://localhost:18789`. State goes to `~/.openclaw`.
 ### Run in Docker
 
 ```sh
-cd runtime
+cd runtime/openclaw
 
 # build + run
 pnpm build:run
@@ -146,7 +179,7 @@ Images are built by `.github/workflows/runtime-pr.yml` (PRs) and `.github/workfl
 
 | Trigger | Tag | Example |
 |---------|-----|---------|
-| PR touching `runtime/**` | `:pending-<sha>` (build), then `:sha-<sha>` + `:pr-N` after QA | `ghcr.io/xmtplabs/convos-runtime:pending-b53321d` |
+| PR touching `runtime/openclaw/**` | `:pending-<sha>` (build), then `:sha-<sha>` + `:pr-N` after QA | `ghcr.io/xmtplabs/convos-runtime:pending-b53321d` |
 | Merge to branch | `:<branch>` (dev, staging, production, scaling) | `ghcr.io/xmtplabs/convos-runtime:production` |
 | `workflow_dispatch` (manual) | `:<choice>` (dev, staging, production, scaling) | `ghcr.io/xmtplabs/convos-runtime:staging` |
 
@@ -158,7 +191,7 @@ When deployed by the pool manager, the runtime exposes endpoints via `pool-serve
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /pool/health` | Returns `{"ready": true}` when gateway is up |
+| `GET /pool/health` | Returns `{"ready": true, "version": "...", "runtime": "openclaw"|"hermes"}` when gateway is up |
 | `POST /pool/provision` | Sets agent name, instructions, creates conversation |
 | `GET /pool/status` | Current instance status |
 | `POST /pool/self-destruct` | Instance requests own destruction via pool manager (localhost-only) |

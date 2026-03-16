@@ -128,13 +128,20 @@
         </div>
         <div class="replenish-field">
           <label>Image</label>
-          <select class="replenish-select" id="runtime-image">
-            <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:vibe">:vibe</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">:dev:hermes</option>
-          </select>
+          <div class="image-picker" id="image-picker">
+            <select class="replenish-select" id="runtime-image">
+              <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime:vibe">:vibe</option>
+              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">:dev:hermes</option>
+              <option value="__custom__">other...</option>
+            </select>
+            <div class="image-custom-row" id="image-custom-row">
+              <input type="text" class="image-custom-input" id="runtime-image-custom" placeholder="ghcr.io/xmtplabs/convos-runtime:pr-505" spellcheck="false">
+              <button type="button" class="image-custom-clear" id="image-custom-clear" title="Back to presets">&times;</button>
+            </div>
+          </div>
         </div>
         <div class="replenish-field">
           <label>Parallel</label>
@@ -241,6 +248,7 @@
             <col class="col-name">
             <col class="col-status">
             <col class="col-instance">
+            <col class="col-runtime">
             <col class="col-version">
             <col class="col-usage">
             <col class="col-uptime">
@@ -251,6 +259,7 @@
               <th>Name</th>
               <th>Status</th>
               <th>Instance</th>
+              <th>Runtime</th>
               <th>Version</th>
               <th class="sortable" data-sort="usage" onclick="toggleSort('usage')">Usage <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="uptime" onclick="toggleSort('uptime')">Uptime <span class="sort-arrow"></span></th>
@@ -258,7 +267,7 @@
             </tr>
           </thead>
           <tbody id="agents-body">
-            <tr><td class="empty-row" colspan="7">Loading...</td></tr>
+            <tr><td class="empty-row" colspan="8">Loading...</td></tr>
           </tbody>
         </table>
     </div>
@@ -385,11 +394,11 @@
       }
 
       if (!all.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="7">No instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="8">No instances</td></tr>';
         return;
       }
       if (!filtered.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="7">No matching instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="8">No matching instances</td></tr>';
         return;
       }
 
@@ -438,11 +447,13 @@
         var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
         var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
         var infra = infraMap[a.id] || {};
+        var runtimeCell = '<td class="runtime-cell">' + esc(infra.runtime_type || '-') + '</td>';
         var versionCell = '<td class="version-cell">' + esc(infra.runtime_version || '-') + '</td>';
         html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
           + '<td>' + rowBadge + '</td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
+          + runtimeCell
           + versionCell
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
@@ -825,6 +836,29 @@
     }
 
     // --- Replenish (SSE streaming) ---
+    (function () {
+      var select = document.getElementById('runtime-image');
+      var defaultIndex = select.selectedIndex;
+      var customRow = document.getElementById('image-custom-row');
+      var customInput = document.getElementById('runtime-image-custom');
+      var clearBtn = document.getElementById('image-custom-clear');
+
+      select.addEventListener('change', function () {
+        if (this.value === '__custom__') {
+          customRow.classList.add('visible');
+          select.classList.add('hidden');
+          setTimeout(function () { customInput.focus(); }, 180);
+        }
+      });
+
+      clearBtn.addEventListener('click', function () {
+        customInput.value = '';
+        customRow.classList.remove('visible');
+        select.classList.remove('hidden');
+        select.selectedIndex = defaultIndex;
+      });
+    })();
+
     document.getElementById('replenish-btn').addEventListener('click', function () {
       var btn = this;
       var n = parseInt(document.getElementById('replenish-count').value) || 1;
@@ -833,7 +867,9 @@
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var image = encodeURIComponent(document.getElementById('runtime-image').value);
+      var imageSelect = document.getElementById('runtime-image').value;
+      var rawImage = imageSelect === '__custom__' ? (document.getElementById('runtime-image-custom').value || '') : imageSelect;
+      var image = encodeURIComponent(rawImage.replace(/^https?:\/\//, ''));
       var model = encodeURIComponent(document.getElementById('instance-model').value);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);
       es.onmessage = function (ev) {
@@ -1246,7 +1282,7 @@
       var infra = infraMap[instanceId] || {};
       var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
 
-      var html = '<td colspan="7"><div class="expand-inner">';
+      var html = '<td colspan="8"><div class="expand-inner">';
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var orTool = tools.find(function (t) { return t.tool_id === 'openrouter'; });
@@ -1261,6 +1297,7 @@
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
         + (instanceModel ? '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(instanceModel) + '</span></div>' : '')
+        + (infra.runtime_type ? '<div class="expand-kv"><span class="expand-label">Runtime</span> <span class="expand-val mono">' + esc(infra.runtime_type) + '</span></div>' : '')
         + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
