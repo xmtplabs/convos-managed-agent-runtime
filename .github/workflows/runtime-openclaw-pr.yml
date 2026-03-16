@@ -9,6 +9,9 @@ on:
     types: [opened, synchronize, closed]
     paths:
       - 'runtime/openclaw/**'
+      - 'runtime/shared/**'
+      - 'runtime/evals/**'
+      - 'runtime/package.json'
       - '!runtime/openclaw/CHANGELOG.md'
 
 concurrency:
