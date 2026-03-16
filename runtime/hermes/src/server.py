@@ -109,7 +109,10 @@ async def _stop_poller() -> None:
             _poller_proc.terminate()
             await asyncio.wait_for(_poller_proc.wait(), timeout=5)
         except Exception:
-            _poller_proc.kill()
+            try:
+                _poller_proc.kill()
+            except ProcessLookupError:
+                pass
         _poller_proc = None
 
 
