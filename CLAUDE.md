@@ -45,6 +45,15 @@ Always merge locally first:
 2. `git merge origin/dev` — resolve any conflicts
 3. Push the merge branch and PR from `merge/dev-to-staging` → `staging`
 
+# Runtime: Shared Workspace
+
+Skills, SOUL.md, and AGENTS-base.md live in `runtime/shared/workspace/`. Both runtimes copy from there at boot.
+
+- **Default to shared.** New skills go in `runtime/shared/workspace/skills/`. New agent instructions go in `AGENTS-base.md`. Only put something in a runtime's own workspace if it genuinely doesn't apply to the other.
+- **AGENTS.md is assembled**, not edited directly. `AGENTS-base.md` + runtime's `agents-extra.md` → `AGENTS.md`. Never check in a standalone AGENTS.md for either runtime.
+- **Use `$SKILLS_ROOT`** in SKILL.md paths, not `$OPENCLAW_STATE_DIR` or `$HERMES_HOME`.
+- **Add deps to both** `hermes/package.json` and `openclaw/package.json` when a shared skill needs a Node CLI.
+
 # Railway Migration Steps (Manual)
 
 When deploying pool manager changes to a new Railway environment:
