@@ -1,10 +1,18 @@
 name: "Runtime: Manual Build"
 
-run-name: "Runtime dispatch → :${{ inputs.tag }} (from ${{ github.ref_name }})"
+run-name: "Runtime dispatch → :${{ inputs.tag }} (${{ inputs.runtime }}, from ${{ github.ref_name }})"
 
 on:
   workflow_dispatch:
     inputs:
+      runtime:
+        description: 'Which runtime to build'
+        required: true
+        type: choice
+        options:
+          - both
+          - openclaw
+          - hermes
       tag:
         description: 'Image tag to publish (e.g. dev, staging, production)'
         required: true
@@ -19,12 +27,32 @@ permissions:
   packages: write
 
 jobs:
-  build:
-    name: "Build runtime image"
+  prepare:
+    name: Prepare
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.meta.outputs.sha }}
       version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Compute SHA and version
+        id: meta
+        run: |
+          SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
+          VERSION="$(jq -r '.version' runtime/package.json)"
+          echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building v$VERSION (sha-$SHA) from ${{ github.ref_name }}"
+
+  # ── OpenClaw pipeline ──────────────────────────────────────────────
+
+  build-openclaw:
+    name: "Build OpenClaw"
+    needs: prepare
+    if: inputs.runtime == 'openclaw' || inputs.runtime == 'both'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -39,29 +67,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Compute SHA
-        id: meta
-        run: |
-          SHA="$(echo "$GITHUB_SHA" | cut -c1-7)"
-          VERSION="$(jq -r '.version' runtime/package.json)"
-          echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Building v$VERSION (sha-$SHA) from ${{ github.ref_name }}"
-
-      - name: "Build and push v${{ steps.meta.outputs.version }} (:pending-${{ steps.meta.outputs.sha }})"
+      - name: "Build and push v${{ needs.prepare.outputs.version }} (:pending-${{ needs.prepare.outputs.sha }})"
         uses: docker/build-push-action@v6
         with:
           context: .
           file: runtime/openclaw/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/xmtplabs/convos-runtime:pending-${{ steps.meta.outputs.sha }}
+          tags: ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.prepare.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  eval:
-    name: "Eval: ${{ matrix.suite }}"
-    needs: build
+  eval-openclaw:
+    name: "Eval OpenClaw: ${{ matrix.suite }}"
+    needs: [prepare, build-openclaw]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -88,9 +107,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Start container (:pending-${{ needs.build.outputs.sha }})"
+      - name: "Start container (:pending-${{ needs.prepare.outputs.sha }})"
         run: |
-          docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }}
+          docker pull ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.prepare.outputs.sha }}
           docker run -d --name eval-runtime \
             -p 8080:8080 \
             -e PORT=8080 \
@@ -104,19 +123,19 @@ jobs:
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             -e POOL_URL="${{ secrets.POOL_URL }}" \
             -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.build.outputs.sha }} \
+            ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.prepare.outputs.sha }} \
             node scripts/pool-server.js
 
-      - name: Wait for gateway
+      - name: Wait for health
         run: |
           for i in $(seq 1 120); do
             if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Gateway ready after ${i}s"
+              echo "Ready after ${i}s"
               exit 0
             fi
             sleep 1
           done
-          echo "Gateway failed to start within 120s"
+          echo "Failed to start within 120s"
           docker logs eval-runtime
           exit 1
 
@@ -130,9 +149,9 @@ jobs:
         if: always()
         run: docker logs eval-runtime
 
-  publish:
-    name: "Publish v${{ needs.build.outputs.version }} → :${{ inputs.tag }}"
-    needs: [build, eval]
+  publish-openclaw:
+    name: "Publish OpenClaw v${{ needs.prepare.outputs.version }} → :${{ inputs.tag }}"
+    needs: [prepare, eval-openclaw]
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
@@ -142,10 +161,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Tag and push v${{ needs.build.outputs.version }}"
+      - name: "Tag and push v${{ needs.prepare.outputs.version }}"
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
-          SHA="${{ needs.build.outputs.sha }}"
+          SHA="${{ needs.prepare.outputs.sha }}"
           TAG="${{ inputs.tag }}"
 
           docker pull "$IMAGE:pending-$SHA"
@@ -155,4 +174,107 @@ jobs:
 
           docker tag "$IMAGE:pending-$SHA" "$IMAGE:$TAG"
           docker push "$IMAGE:$TAG"
-          echo "Pushed v${{ needs.build.outputs.version }} as $IMAGE:$TAG"
+          echo "Pushed v${{ needs.prepare.outputs.version }} as $IMAGE:$TAG"
+
+  # ── Hermes pipeline ────────────────────────────────────────────────
+
+  build-hermes:
+    name: "Build Hermes"
+    needs: prepare
+    if: inputs.runtime == 'hermes' || inputs.runtime == 'both'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Build and push v${{ needs.prepare.outputs.version }} (:pending-${{ needs.prepare.outputs.sha }})"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: runtime/hermes/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/xmtplabs/convos-runtime-hermes:pending-${{ needs.prepare.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  smoke-hermes:
+    name: "Smoke test Hermes"
+    needs: [prepare, build-hermes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start container
+        run: |
+          docker pull ghcr.io/xmtplabs/convos-runtime-hermes:pending-${{ needs.prepare.outputs.sha }}
+          docker run -d --name qa-runtime \
+            -p 8080:8080 \
+            -e PORT=8080 \
+            -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
+            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
+            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
+            -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
+            -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
+            -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
+            ghcr.io/xmtplabs/convos-runtime-hermes:pending-${{ needs.prepare.outputs.sha }}
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
+              echo "Ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Failed to start within 120s"
+          docker logs qa-runtime
+          exit 1
+
+      - name: Dump logs
+        if: always()
+        run: docker logs qa-runtime
+
+  publish-hermes:
+    name: "Publish Hermes v${{ needs.prepare.outputs.version }} → :${{ inputs.tag }}"
+    needs: [prepare, smoke-hermes]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Tag and push v${{ needs.prepare.outputs.version }}"
+        run: |
+          IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
+          SHA="${{ needs.prepare.outputs.sha }}"
+          TAG="${{ inputs.tag }}"
+
+          docker pull "$IMAGE:pending-$SHA"
+          docker tag "$IMAGE:pending-$SHA" "$IMAGE:$SHA"
+          docker push "$IMAGE:$SHA"
+          echo "Pushed $IMAGE:$SHA"
+
+          docker tag "$IMAGE:pending-$SHA" "$IMAGE:$TAG"
+          docker push "$IMAGE:$TAG"
+          echo "Pushed v${{ needs.prepare.outputs.version }} as $IMAGE:$TAG"
