@@ -4,6 +4,7 @@ Custom Hermes tools for Convos — registered in the agent's tool loop.
 convos_react executes mid-processing so the agent can add eyes (thinking
 indicator) before doing tool work, and react to messages at any time.
 convos_send_attachment sends files during processing.
+services_info returns the agent's provisioned email, phone, and services URL.
 
 The agent's final text response is dispatched by the adapter — there is no
 convos_send tool. This avoids the empty-response retry problem since Hermes
@@ -17,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from typing import Any, Callable
 
 from tools.registry import registry
@@ -127,6 +129,44 @@ def _handle_send_attachment(args: dict, **kwargs) -> str:
         return json.dumps({"error": str(err)})
 
 
+# ---- services_info ----
+
+SERVICES_INFO_SCHEMA = {
+    "name": "services_info",
+    "description": (
+        "Returns your provisioned services: email address, phone number, "
+        "and services page URL. Call this when someone asks for your email, "
+        "phone, services link, or account info."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {},
+    },
+}
+
+
+def _handle_services_info(args: dict, **kwargs) -> str:
+    email = os.environ.get("AGENTMAIL_INBOX_ID")
+    phone = os.environ.get("TELNYX_PHONE_NUMBER")
+
+    domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+    ngrok = os.environ.get("NGROK_URL", "")
+    port = os.environ.get("PORT", "8080")
+    if domain:
+        base = f"https://{domain}"
+    elif ngrok:
+        base = ngrok.rstrip("/")
+    else:
+        base = f"http://127.0.0.1:{port}"
+    services_url = f"{base}/web-tools/services"
+
+    return json.dumps({
+        "email": email,
+        "phone": phone,
+        "servicesUrl": services_url,
+    })
+
+
 # ---- Registration ----
 
 def register_convos_tools() -> None:
@@ -145,4 +185,10 @@ def register_convos_tools() -> None:
         handler=_handle_send_attachment,
         check_fn=lambda: _send_attachment is not None,
     )
-    logger.info("Registered convos tools (convos_react, convos_send_attachment)")
+    registry.register(
+        name="services_info",
+        toolset="hermes-convos",
+        schema=SERVICES_INFO_SCHEMA,
+        handler=_handle_services_info,
+    )
+    logger.info("Registered convos tools (convos_react, convos_send_attachment, services_info)")
