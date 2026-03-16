@@ -13,7 +13,8 @@
     "evals:soul": "sh evals/run-suite.sh soul.yaml",
     "evals:convos": "sh evals/run-suite.sh convos.yaml",
     "evals:async": "sh evals/run-suite.sh async.yaml",
-    "evals:memory": "sh evals/run-suite.sh memory.yaml"
+    "evals:memory": "sh evals/run-suite.sh memory.yaml",
+    "evals:poller": "sh evals/run-suite.sh poller.yaml"
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0",
