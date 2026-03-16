@@ -98,6 +98,8 @@ jobs:
             timeout: 120
           - suite: memory
             timeout: 300
+          - suite: poller
+            timeout: 300
     steps:
       - name: Log in to GHCR
         uses: docker/login-action@v4
