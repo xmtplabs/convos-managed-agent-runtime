@@ -1,12 +1,18 @@
-```
+<p align="center">
+<pre align="center">
     ___  ___  _  _ __   __ ___  ___
    / __|/ _ \| \| |\ \ / // _ \/ __|
   | (__| (_) | .` | \ V /| (_) \__ \
    \___|\___/|_|\_|  \_/  \___/|___/
      🎈 A S S I S T A N T S
-```
+</pre>
+</p>
 
-[![Runtime: PR](https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml/badge.svg)](https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml)
+<p align="center">
+  <a href="https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml">
+    <img src="https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml/badge.svg" alt="Runtime: PR" />
+  </a>
+</p>
 
 Each assistant is a pre-warmed container that joins a Convos conversation in seconds. It can browse the web, send email and SMS, manage payments, and more.
 
