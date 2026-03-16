@@ -153,7 +153,7 @@ When deployed by the pool manager, the runtime exposes endpoints via `pool-serve
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /pool/health` | Returns `{"ready": true}` when gateway is up |
+| `GET /pool/health` | Returns `{"ready": true, "version": "...", "runtime": "openclaw"|"hermes"}` when gateway is up |
 | `POST /pool/provision` | Sets agent name, instructions, creates conversation |
 | `GET /pool/status` | Current instance status |
 | `POST /pool/self-destruct` | Instance requests own destruction via pool manager (localhost-only) |

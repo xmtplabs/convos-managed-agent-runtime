@@ -339,7 +339,7 @@ async def health():
 
 @app.get("/pool/health")
 async def pool_health():
-    return {"ready": True, "version": RUNTIME_VERSION}
+    return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
 
 
 # ---- /pool/provision ----

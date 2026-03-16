@@ -8,6 +8,13 @@
       "when": 1772551864450,
       "tag": "0000_reflective_richard_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773622036677,
+      "tag": "0001_sticky_black_queen",
+      "breakpoints": true
     }
   ]
 }

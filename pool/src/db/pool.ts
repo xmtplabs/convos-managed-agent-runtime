@@ -215,11 +215,13 @@ export async function getGatewayToken(instanceId: string): Promise<string | null
   return rows[0]?.gatewayToken ?? null;
 }
 
-export async function setRuntimeVersion(instanceId: string, version: string) {
-  await db.update(instanceInfra).set({
+export async function setRuntimeVersion(instanceId: string, version: string, runtimeType?: string) {
+  const updates: Record<string, unknown> = {
     runtimeVersion: version,
     updatedAt: sql`NOW()`,
-  }).where(eq(instanceInfra.instanceId, instanceId));
+  };
+  if (runtimeType) updates.runtimeType = runtimeType;
+  await db.update(instanceInfra).set(updates).where(eq(instanceInfra.instanceId, instanceId));
 }
 
 export async function deleteById(id: string) {

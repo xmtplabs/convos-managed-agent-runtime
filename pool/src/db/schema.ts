@@ -31,6 +31,7 @@ export const instanceInfra = pgTable("instance_infra", {
   runtimeImage: text("runtime_image"),
   gatewayToken: text("gateway_token"),
   runtimeVersion: text("runtime_version"),
+  runtimeType: text("runtime_type"),
   volumeId: text("volume_id"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),

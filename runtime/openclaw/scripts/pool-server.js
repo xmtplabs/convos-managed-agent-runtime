@@ -218,7 +218,7 @@ const server = http.createServer(async (req, res) => {
         }
       } catch {}
     }
-    json(res, 200, { ready: convosReady, version: RUNTIME_VERSION });
+    json(res, 200, { ready: convosReady, version: RUNTIME_VERSION, runtime: "openclaw" });
     return;
   }
 
