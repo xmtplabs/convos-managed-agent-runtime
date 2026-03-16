@@ -43,8 +43,7 @@ convos-agents/
 ├── runtime/       # Assistant runtime — OpenClaw gateway, extensions, skills
 │   └── scripts/   # Startup, provisioning, health, and cron scripts
 ├── pool/          # Pool manager — instance lifecycle + provider APIs
-├── dashboard/     # Playroom — Next.js app at assistants.convos.org
-└── docs/          # Schema, QA, changelog
+└── dashboard/     # Playroom — Next.js app at assistants.convos.org
 ```
 
 ## Runtime
