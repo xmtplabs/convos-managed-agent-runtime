@@ -65,10 +65,9 @@ done
 
 # Assemble AGENTS.md (shared base + runtime extra)
 if [ -f "$SHARED_WORKSPACE_DIR/AGENTS-base.md" ]; then
-  cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$HOME/AGENTS.md"
-  [ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$HOME/AGENTS.md"
-elif [ -f "$RUNTIME_DIR/workspace/AGENTS.md" ]; then
-  cp "$RUNTIME_DIR/workspace/AGENTS.md" "$HOME/AGENTS.md"
+  mkdir -p "$HERMES_HOME/workspace"
+  cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$HERMES_HOME/workspace/AGENTS.md"
+  [ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$HERMES_HOME/workspace/AGENTS.md"
 fi
 
 # Copy Convos platform prompt to HERMES_HOME (agent_runner.py reads it from there)

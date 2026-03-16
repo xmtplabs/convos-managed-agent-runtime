@@ -41,7 +41,8 @@ for skill_dir in "$WORKSPACE_DIR"/skills/*; do
 done
 
 # ── AGENTS.md (base + extra) ─────────────────────────────────────────────
-_AGENTS_OUT="$HERMES_HOME/AGENTS.md"
+mkdir -p "$HERMES_HOME/workspace"
+_AGENTS_OUT="$HERMES_HOME/workspace/AGENTS.md"
 cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_OUT"
 [ -f "$WORKSPACE_DIR/agents-extra.md" ] && cat "$WORKSPACE_DIR/agents-extra.md" >> "$_AGENTS_OUT"
 brand_ok "AGENTS.md" "assembled (shared + hermes)"
