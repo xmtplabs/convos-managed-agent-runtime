@@ -154,7 +154,7 @@ class AgentRunner:
             enabled_toolsets=["hermes-convos"],
             platform="convos",
             ephemeral_system_prompt=CONVOS_EPHEMERAL_PROMPT,
-            quiet_mode=False,
+            quiet_mode=os.path.isfile("/.dockerenv"),
             session_db=self._session_db,
             honcho_session_key=honcho_key,
         )
