@@ -18,6 +18,7 @@ import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
 import { couponRouter } from "./couponRoute";
+import { stripeRouter } from "./stripeRoute";
 import { serviceProxyRouter } from "./routes/serviceProxy";
 
 // Services routes (now local, no HTTP)
@@ -86,7 +87,11 @@ const app = express();
 app.disable("x-powered-by");
 // Higher limit for proxy routes (email attachments are base64-encoded in body)
 app.use("/api/proxy", express.json({ limit: "10mb" }));
-app.use(express.json());
+// Skip JSON parsing for Stripe webhooks — they need the raw body for signature verification
+app.use((req, res, next) => {
+  if (req.path === "/webhooks/stripe") return next();
+  express.json()(req, res, next);
+});
 app.use(express.urlencoded({ extended: false }));
 
 // --- CORS for template site ---
@@ -290,6 +295,7 @@ app.post("/api/pool/self-destruct", async (req, res) => {
 // --- Railway webhook (public — auth via secret in URL path) ---
 app.use(webhookRouter);
 app.use(couponRouter);
+app.use(stripeRouter);
 
 // --- Service proxy (instance auth via gateway token) ---
 app.use(serviceProxyRouter);

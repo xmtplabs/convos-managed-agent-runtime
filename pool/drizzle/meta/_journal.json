@@ -15,6 +15,13 @@
       "when": 1773622036677,
       "tag": "0001_sticky_black_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773984000000,
+      "tag": "0002_add_payments_table",
+      "breakpoints": true
     }
   ]
 }
