@@ -30,7 +30,7 @@ function buildEvalEnv() {
   }
 
   // Local — source eval-env.sh to replicate the Dockerfile setup
-  const script = `. "${evalEnvScript}" && env`;
+  const script = `. "${evalEnvScript}" && /usr/bin/env`;
   const envOut = execSync(script, {
     encoding: 'utf-8',
     shell: '/bin/sh',
@@ -45,7 +45,9 @@ function buildEvalEnv() {
   // PYTHONPATH must include hermes-agent and the runtime dir
   env.PYTHONPATH = `${join(hermesDir, '.hermes-dev', 'hermes-agent')}:${hermesDir}${env.PYTHONPATH ? ':' + env.PYTHONPATH : ''}`;
   env.NODE_PATH = join(hermesDir, 'node_modules');
-  env.PATH = `${join(hermesDir, 'node_modules', '.bin')}:${env.PATH || ''}`;
+  // Ensure venv python is on PATH for local dev
+  const venvBin = join(hermesDir, '.hermes-dev', 'venv', 'bin');
+  env.PATH = `${venvBin}:${join(hermesDir, 'node_modules', '.bin')}:${env.PATH || ''}`;
   if (!env.OPENCLAW_GATEWAY_TOKEN) {
     env.OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || Math.random().toString(36).slice(2);
   }

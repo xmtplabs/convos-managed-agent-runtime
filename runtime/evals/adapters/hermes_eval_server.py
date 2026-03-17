@@ -6,6 +6,7 @@ lives in evals/adapters/, not in hermes/src/.
 Exposes:
   GET  /pool/health   — health check (matches production)
   POST /agent/query   — runs a query through AgentRunner.handle_message()
+  POST /agent/reset-history — clear conversation history so next query starts fresh
 """
 
 import asyncio
@@ -31,9 +32,26 @@ async def require_auth(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
+_runner: AgentRunner | None = None
+
+
+def get_runner() -> AgentRunner:
+    global _runner
+    if _runner is None:
+        model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-sonnet-4-6"
+        if model.startswith("openrouter/"):
+            model = model.removeprefix("openrouter/")
+        _runner = AgentRunner(
+            model=model,
+            hermes_home=os.environ.get("HERMES_HOME", ""),
+        )
+    return _runner
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     warm_imports()
+    get_runner()  # warm up the runner once at startup
     yield
 
 
@@ -47,28 +65,31 @@ async def health():
 
 class QueryRequest(BaseModel):
     query: str
+    session: str = "eval-session"
 
 
 @app.post("/agent/query")
 async def agent_query(request: Request, body: QueryRequest):
     await require_auth(request)
-    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-sonnet-4-6"
-    if model.startswith("openrouter/"):
-        model = model.removeprefix("openrouter/")
-
-    runner = AgentRunner(
-        model=model,
-        hermes_home=os.environ.get("HERMES_HOME", ""),
-    )
+    runner = get_runner()
     response = await runner.handle_message(
         content=body.query,
-        sender_name="eval",
+        sender_name="user",
         sender_id="eval-user",
         timestamp=time.time(),
-        conversation_id="eval-session",
+        conversation_id=body.session,
         message_id=f"eval-{int(time.time())}",
     )
     return PlainTextResponse(response or "")
+
+
+@app.post("/agent/reset-history")
+async def agent_reset_history(request: Request):
+    """Clear conversation history so next query starts fresh."""
+    await require_auth(request)
+    runner = get_runner()
+    runner.reset_history()
+    return {"ok": True}
 
 
 if __name__ == "__main__":
