@@ -5,7 +5,7 @@
  * long-lived child process using an ndjson stdin/stdout protocol.
  *
  * Stdout events: ready, message, member_joined, sent, heartbeat, error
- * Stdin commands: send, react, attach, remote-attach, rename, lock, unlock, explode, stop
+ * Stdin commands: send, react, read-receipt, attach, remote-attach, rename, lock, unlock, explode, stop
  */
 
 import { execFile, spawn, type ChildProcess } from "node:child_process";
@@ -293,7 +293,7 @@ export class ConvosInstance {
   static async join(
     env: "production" | "dev",
     invite: string,
-    params?: { profileName?: string; timeout?: number },
+    params?: { profileName?: string; profileImage?: string; metadata?: Record<string, string>; timeout?: number },
     options?: ConvosInstanceOptions,
   ): Promise<{
     instance: ConvosInstance | null;
@@ -303,6 +303,12 @@ export class ConvosInstance {
   }> {
     const args = ["conversations", "join", invite];
     if (params?.profileName) args.push("--profile-name", params.profileName);
+    if (params?.profileImage) args.push("--profile-image", params.profileImage);
+    if (params?.metadata) {
+      for (const [key, value] of Object.entries(params.metadata)) {
+        args.push("--metadata", `${key}=${value}`);
+      }
+    }
     args.push("--timeout", String(params?.timeout ?? 60));
 
     const tmp = new ConvosInstance({ conversationId: "", identityId: "", env, options });
@@ -518,6 +524,11 @@ export class ConvosInstance {
     this.writeCommand({ type: "react", messageId, emoji, action });
     // React doesn't need confirmation tracking — fire and forget
     return { success: true, action: action === "add" ? "added" : "removed" };
+  }
+
+  async sendReadReceipt(): Promise<void> {
+    this.assertRunning();
+    this.writeCommand({ type: "read-receipt" });
   }
 
   async rename(name: string): Promise<void> {

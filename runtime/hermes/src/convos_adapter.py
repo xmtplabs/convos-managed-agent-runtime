@@ -304,6 +304,7 @@ class ConvosAdapter:
         set_bridge(
             react=self._instance.react,
             send_attachment=self._instance.send_attachment,
+            send_read_receipt=self._instance.send_read_receipt,
         )
 
         self._profile_image_renewal = ProfileImageRenewalStore(
