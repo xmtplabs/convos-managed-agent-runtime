@@ -87,10 +87,13 @@ function httpGet(port, path, timeoutMs = 5000) {
 function runPrompt(prompt, sessionId, timeoutMs = 30_000) {
   const start = Date.now();
   try {
+    // When using gateway (curl), don't pass runtime.env — curl doesn't need
+    // the Python/venv environment and the custom PATH may not include /usr/bin.
+    const useRuntimeEnv = queryBin !== 'curl';
     const raw = execFileSync(queryBin, queryArgs(prompt, sessionId), {
       encoding: 'utf-8', timeout: timeoutMs,
-      ...(runtime.env ? { env: runtime.env } : {}),
-      ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
+      ...(useRuntimeEnv && runtime.env ? { env: runtime.env } : {}),
+      ...(useRuntimeEnv && runtime.cwd ? { cwd: runtime.cwd } : {}),
     }).trim();
 
     const output = cleanOutput(raw);
@@ -108,9 +111,10 @@ function runPromptAsync(prompt, sessionId, timeoutMs = 30_000) {
     let stdout = '';
     let settled = false;
 
+    const useRuntimeEnv = queryBin !== 'curl';
     const proc = spawn(queryBin, queryArgs(prompt, sessionId), {
-      ...(runtime.env ? { env: runtime.env } : {}),
-      ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
+      ...(useRuntimeEnv && runtime.env ? { env: runtime.env } : {}),
+      ...(useRuntimeEnv && runtime.cwd ? { cwd: runtime.cwd } : {}),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
