@@ -64,7 +64,10 @@ export async function getCounts(): Promise<Record<InstanceStatus, number>> {
     count: sql<number>`count(*)::int`,
   }).from(instances).groupBy(instances.status);
 
-  const counts = { starting: 0, idle: 0, claimed: 0, crashed: 0, claiming: 0, dead: 0, sleeping: 0 } as Record<InstanceStatus, number>;
+  const counts = {
+    starting: 0, idle: 0, claimed: 0, pending_acceptance: 0, tainted: 0,
+    crashed: 0, claiming: 0, dead: 0, sleeping: 0,
+  } as Record<InstanceStatus, number>;
   for (const row of rows) {
     counts[row.status] = row.count;
   }
@@ -81,7 +84,7 @@ export async function claimIdle(inviteUrl?: string | null): Promise<InstanceRow 
       const dup = await tx.execute(sql`
         SELECT 1 FROM instances
         WHERE invite_url = ${inviteUrl}
-          AND status IN ('claiming', 'claimed')
+          AND status IN ('claiming', 'claimed', 'pending_acceptance')
         LIMIT 1
       `);
       if (dup.rows.length > 0) return null;
@@ -132,6 +135,49 @@ export async function releaseClaim(instanceId: string) {
   await db.update(instances).set({ status: "idle" }).where(and(eq(instances.id, instanceId), eq(instances.status, "claiming")));
 }
 
+export async function markClaimPendingAcceptance(
+  instanceId: string,
+  { agentName, inviteUrl, instructions }: { agentName: string; inviteUrl?: string | null; instructions?: string | null },
+): Promise<boolean> {
+  const result = await db.update(instances).set({
+    status: "pending_acceptance", agentName,
+    inviteUrl: inviteUrl || null, instructions: instructions || null,
+    claimedAt: sql`NOW()`,
+  }).where(and(eq(instances.id, instanceId), eq(instances.status, "claiming")));
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function completePendingAcceptance(instanceId: string, conversationId: string): Promise<boolean> {
+  const result = await db.update(instances).set({
+    status: "claimed", conversationId,
+    claimedAt: sql`COALESCE(${instances.claimedAt}, NOW())`,
+  }).where(and(eq(instances.id, instanceId), eq(instances.status, "pending_acceptance")));
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function failPendingAcceptance(instanceId: string, status: InstanceStatus = "tainted"): Promise<boolean> {
+  const result = await db.update(instances).set({ status })
+    .where(and(eq(instances.id, instanceId), eq(instances.status, "pending_acceptance")));
+  return (result.rowCount ?? 0) > 0;
+}
+
+const IDLE_RECOVERY_FIELDS = {
+  status: "idle" as InstanceStatus, agentName: null, conversationId: null,
+  inviteUrl: null, instructions: null, claimedAt: null,
+};
+
+export async function recoverClaimToIdle(instanceId: string): Promise<boolean> {
+  const result = await db.update(instances).set(IDLE_RECOVERY_FIELDS)
+    .where(and(eq(instances.id, instanceId), eq(instances.status, "claiming")));
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function failClaim(instanceId: string, status: InstanceStatus = "crashed"): Promise<boolean> {
+  const result = await db.update(instances).set({ status })
+    .where(and(eq(instances.id, instanceId), eq(instances.status, "claiming")));
+  return (result.rowCount ?? 0) > 0;
+}
+
 export async function updateStatus(instanceId: string, { status, url }: { status?: string | null; url?: string | null }) {
   await db.update(instances).set({
     status: sql`COALESCE(${status || null}, ${instances.status})`,
@@ -151,14 +197,7 @@ export async function recoverToIdle(
   if (expectedStatus) {
     conditions.push(sql`${instances.status} = ${expectedStatus}`);
   }
-  const result = await db.update(instances).set({
-    status: "idle" as InstanceStatus,
-    agentName: null,
-    conversationId: null,
-    inviteUrl: null,
-    instructions: null,
-    claimedAt: null,
-  }).where(and(...conditions));
+  const result = await db.update(instances).set(IDLE_RECOVERY_FIELDS).where(and(...conditions));
   return (result.rowCount ?? 0) > 0;
 }
 
@@ -247,7 +286,7 @@ export async function getServiceResources(instanceId: string): Promise<{ inboxId
 /** Check if an instance is already claiming/claimed for a given invite URL. */
 export async function hasActiveInviteUrl(inviteUrl: string): Promise<boolean> {
   const rows = await db.select({ id: instances.id }).from(instances).where(
-    and(eq(instances.inviteUrl, inviteUrl), inArray(instances.status, ["claiming", "claimed"])),
+    and(eq(instances.inviteUrl, inviteUrl), inArray(instances.status, ["claiming", "claimed", "pending_acceptance"])),
   ).limit(1);
   return rows.length > 0;
 }

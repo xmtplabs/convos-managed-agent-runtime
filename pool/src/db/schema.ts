@@ -1,7 +1,16 @@
 import { pgTable, text, timestamp, index, serial, jsonb, unique, integer } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
-export type InstanceStatus = "starting" | "idle" | "claimed" | "crashed" | "claiming" | "dead" | "sleeping";
+export type InstanceStatus =
+  | "starting"
+  | "idle"
+  | "claimed"
+  | "pending_acceptance"
+  | "tainted"
+  | "crashed"
+  | "claiming"
+  | "dead"
+  | "sleeping";
 
 // ── instances ──────────────────────────────────────────────────────────────────
 export const instances = pgTable("instances", {

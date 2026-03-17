@@ -8,6 +8,7 @@ import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
+import { parseRuntimeStatus } from "./runtimeStatus";
 
 function isProtected(id: string): boolean {
   return config.protectedInstances.includes(id);
@@ -116,7 +117,7 @@ export async function checkStarting() {
 }
 
 export async function drainPool(count: number) {
-  const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
+  const CLAIMED_STATUSES = new Set(["claimed", "pending_acceptance", "tainted", "crashed", "claiming"]);
   const unclaimed = (await db.getByStatus(["idle", "starting", "dead"]))
     .filter((i: any) => !isProtected(i.id));
   const toDrain = unclaimed.slice(0, count);
@@ -176,7 +177,7 @@ export async function drainPool(count: number) {
 export type DrainProgressCallback = (instanceNum: number, instanceId: string, instanceName: string, step: string, status: string, message?: string) => void;
 
 export async function drainPoolStream(count: number, concurrency: number, onProgress: DrainProgressCallback) {
-  const CLAIMED_STATUSES = new Set(["claimed", "crashed", "claiming"]);
+  const CLAIMED_STATUSES = new Set(["claimed", "pending_acceptance", "tainted", "crashed", "claiming"]);
   const unclaimed = (await db.getByStatus(["idle", "starting", "dead"]))
     .filter((i: any) => !isProtected(i.id));
   const toDrain = unclaimed.slice(0, count);
@@ -257,8 +258,11 @@ export async function recheckInstance(id: string) {
     return { id, status: inst.status, changed: false, reason: "health_failed", agentName: inst.agentName || null };
   }
 
-  // Ask the runtime for its conversation state
+  // Ask the runtime for its full status
   let runtimeConvoId: string | null = null;
+  let runtimeClean: boolean | null = null;
+  let runtimeProvisionState: string | null = null;
+  let runtimeDirtyReasons: string[] = [];
   let statusKnown = false;
   try {
     const csRes = await authFetch(`${inst.url}/convos/status`, {
@@ -266,8 +270,11 @@ export async function recheckInstance(id: string) {
       signal: AbortSignal.timeout(5000),
     });
     if (csRes.ok) {
-      const cs = await csRes.json() as { conversation?: { id: string } | null };
-      runtimeConvoId = cs.conversation?.id ?? null;
+      const cs = parseRuntimeStatus(await csRes.json());
+      runtimeConvoId = cs.conversationId;
+      runtimeClean = cs.clean;
+      runtimeProvisionState = cs.provisionState;
+      runtimeDirtyReasons = cs.dirtyReasons;
       statusKnown = true;
     }
   } catch {}
@@ -278,22 +285,60 @@ export async function recheckInstance(id: string) {
   }
 
   if (runtimeConvoId) {
-    // Runtime has a conversation — verify it matches what we provisioned
+    // pending_acceptance with conversation → promote to claimed
+    if (inst.status === "pending_acceptance") {
+      const updated = await db.completePendingAcceptance(id, runtimeConvoId);
+      if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
+      if (!updated) {
+        console.log(`[pool] recheck ${id}: pending_acceptance promotion skipped (status changed)`);
+        return { id, status: inst.status, changed: false, reason: "promotion_skipped", agentName: inst.agentName || null };
+      }
+      console.log(`[pool] recheck ${id}: pending_acceptance → claimed (conversation ${runtimeConvoId}, v${hc.version || "?"})`);
+      return { id, status: "claimed", changed: true, agentName: inst.agentName || null };
+    }
+    // Conversation matches DB → claimed
     if (inst.conversationId && inst.conversationId === runtimeConvoId) {
       await db.updateStatus(id, { status: "claimed" });
       if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
-      console.log(`[pool] recheck ${id}: ${inst.status} → claimed (conversation ${runtimeConvoId} matches DB, v${hc.version || '?'})`);
+      console.log(`[pool] recheck ${id}: ${inst.status} → claimed (conversation ${runtimeConvoId} matches DB, v${hc.version || "?"})`);
       return { id, status: "claimed", changed: inst.status !== "claimed", agentName: inst.agentName || null };
     }
-    // Runtime has a conversation but DB doesn't match — stuck provision failure
+    // Conversation mismatch → tainted
+    await db.conditionalUpdateStatus(id, "tainted", inst.status);
     if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
-    console.log(`[pool] recheck ${id}: runtime has conversation ${runtimeConvoId} but DB has ${inst.conversationId || "none"} — staying ${inst.status}`);
-    return { id, status: inst.status, changed: false, reason: "conversation_mismatch", agentName: inst.agentName || null };
+    console.log(`[pool] recheck ${id}: runtime has conversation ${runtimeConvoId} but DB has ${inst.conversationId || "none"} — marking tainted`);
+    return { id, status: "tainted", changed: inst.status !== "tainted", reason: "conversation_mismatch", agentName: inst.agentName || null };
   }
 
-  // No active conversation — instance is clean, recover to idle
-  await db.recoverToIdle(id, inst.status);
+  // pending_acceptance still in flight on runtime
+  if (runtimeProvisionState === "pending_acceptance" && inst.status === "pending_acceptance") {
+    if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
+    console.log(`[pool] recheck ${id}: pending acceptance still active`);
+    return { id, status: inst.status, changed: false, reason: "pending_acceptance", agentName: inst.agentName || null };
+  }
+
+  // Runtime is clean → recover to idle
+  if (runtimeClean === true) {
+    await db.recoverToIdle(id, inst.status);
+    if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
+    console.log(`[pool] recheck ${id}: ${inst.status} → idle (runtime clean, v${hc.version || "?"})`);
+    return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
+  }
+
+  // pending_acceptance but runtime reports failed → tainted
+  if (inst.status === "pending_acceptance" && runtimeProvisionState === "failed") {
+    const updated = await db.failPendingAcceptance(id);
+    if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
+    if (!updated) {
+      console.log(`[pool] recheck ${id}: pending_acceptance taint skipped (status changed)`);
+      return { id, status: inst.status, changed: false, reason: "taint_skipped", agentName: inst.agentName || null };
+    }
+    console.log(`[pool] recheck ${id}: pending_acceptance → tainted (runtime failed)`);
+    return { id, status: "tainted", changed: true, reason: "pending_failed", agentName: inst.agentName || null };
+  }
+
+  // Runtime not clean, no conversation — leave as-is
   if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
-  console.log(`[pool] recheck ${id}: ${inst.status} → idle (no conversation, v${hc.version || '?'})`);
-  return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
+  console.log(`[pool] recheck ${id}: runtime not clean (clean=${runtimeClean} provision=${runtimeProvisionState} dirty=${runtimeDirtyReasons.join(",") || "unknown"}) — staying ${inst.status}`);
+  return { id, status: inst.status, changed: false, reason: "runtime_not_clean", agentName: inst.agentName || null };
 }
