@@ -478,9 +478,11 @@
           runtimeTags = '<span style="color:#CCC">-</span>';
         }
 
+        var linkoutSvg = '<svg class="linkout-icon" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
         html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell"><div class="name-wrap">' + nameContent + '</div></td>'
-          + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : '<span class="instance-link">' + esc(a.id) + '</span>') + '</td>'
+          + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + ' ' + linkoutSvg + '</a>' : '<span class="instance-link">' + esc(a.id) + '</span>') + '</td>'
           + '<td><div class="runtime-tags">' + runtimeTags + '</div></td>'
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
@@ -499,11 +501,11 @@
         var protectedBtn = isProtectedInstance ? '<button class="action-btn" data-protected-info="1" title="Protected instance">' + infoSvg + '</button>' : '';
         var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'crashed', 'Crashed', recheckBtn + killBtn + protectedBtn);
         } else if (isClaimed) {
-          renderRow(a, 'running', 'Running', qrBtn + runtimeBtn + recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'running', 'Running', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isIdle) {
-          renderRow(a, 'idle', 'Ready', runtimeBtn + recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'idle', 'Ready', qrBtn + runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else {
           renderRow(a, 'starting', 'Starting', recheckBtn + killBtn + protectedBtn);
         }
