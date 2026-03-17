@@ -69,7 +69,6 @@ Replies and reactions both reference another message by ID. Replies include the 
 | Reply to a message | message tool | `action=send` + `replyTo` |
 | React to a message | message tool | `action=react` |
 | Send a file | message tool | `action=sendAttachment` |
-| Send a read receipt | message tool | `action=readReceipt` |
 | Update your display name | message tool | `action=send` with `/update-profile --name "..."` |
 | Read message history | exec tool | `convos conversation messages $CONVOS_CONVERSATION_ID` |
 | List members / profiles | exec tool | `convos conversation members` / `profiles $CONVOS_CONVERSATION_ID` |
@@ -101,14 +100,6 @@ action=react  messageId="<message-id>"  emoji="👍"
 ```
 
 To remove: add `remove=true`.
-
-### Read Receipt
-
-```
-action=readReceipt
-```
-
-Conversation-level signal that you have seen the latest messages. Silent, no push notification. Use after processing a batch of messages.
 
 ### Attachment
 

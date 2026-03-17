@@ -10,7 +10,7 @@ export const convosMessageActions: ChannelMessageActionAdapter = {
     if (ids.length === 0) {
       return [];
     }
-    return ["send", "react", "readReceipt", "sendAttachment"];
+    return ["send", "react", "sendAttachment"];
   },
 
   supportsButtons: () => false,
@@ -36,11 +36,6 @@ export const convosMessageActions: ChannelMessageActionAdapter = {
       const file = readStringParam(params, "file", { required: true });
       const result = await inst.sendAttachment(file);
       return jsonResult({ ok: true, messageId: result.messageId ?? `convos-${Date.now()}` });
-    }
-
-    if (action === "readReceipt") {
-      await inst.sendReadReceipt();
-      return jsonResult({ ok: true });
     }
 
     if (action === "react") {

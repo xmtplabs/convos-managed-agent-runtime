@@ -93,13 +93,6 @@ tests:
       - type: not-icontains
         value: "lane enqueue"
 
-  - description: "Agent can send a read receipt"
-    vars:
-      prompt: "Send a read receipt for this conversation."
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:readReceiptSent"
-
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"
     vars:

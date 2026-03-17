@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 _react: Callable[..., Any] | None = None
 _send_attachment: Callable[..., Any] | None = None
-_send_read_receipt: Callable[..., Any] | None = None
 _main_loop: asyncio.AbstractEventLoop | None = None
 
 
@@ -33,13 +32,11 @@ def set_bridge(
     *,
     react: Callable[..., Any],
     send_attachment: Callable[..., Any] | None = None,
-    send_read_receipt: Callable[..., Any] | None = None,
 ) -> None:
     """Wire bridge callbacks. Called by ConvosAdapter.start() on the main thread."""
-    global _react, _send_attachment, _send_read_receipt, _main_loop
+    global _react, _send_attachment, _main_loop
     _react = react
     _send_attachment = send_attachment
-    _send_read_receipt = send_read_receipt
     _main_loop = asyncio.get_event_loop()
 
 
@@ -130,33 +127,6 @@ def _handle_send_attachment(args: dict, **kwargs) -> str:
         return json.dumps({"error": str(err)})
 
 
-# ---- convos_send_read_receipt ----
-
-READ_RECEIPT_SCHEMA = {
-    "name": "convos_send_read_receipt",
-    "description": (
-        "Send a read receipt for the current conversation. "
-        "Silent, no push notification. Use after processing a batch of messages."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {},
-        "required": [],
-    },
-}
-
-
-def _handle_send_read_receipt(args: dict, **kwargs) -> str:
-    if not _send_read_receipt:
-        return json.dumps({"error": "Bridge not connected"})
-    try:
-        _run_async(_send_read_receipt())
-        return json.dumps({"success": True})
-    except Exception as err:
-        logger.error(f"convos_send_read_receipt failed: {err}")
-        return json.dumps({"error": str(err)})
-
-
 # ---- Registration ----
 
 def register_convos_tools() -> None:
@@ -175,11 +145,4 @@ def register_convos_tools() -> None:
         handler=_handle_send_attachment,
         check_fn=lambda: _send_attachment is not None,
     )
-    registry.register(
-        name="convos_send_read_receipt",
-        toolset="hermes-convos",
-        schema=READ_RECEIPT_SCHEMA,
-        handler=_handle_send_read_receipt,
-        check_fn=lambda: _send_read_receipt is not None,
-    )
-    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_send_read_receipt)")
+    logger.info("Registered convos tools (convos_react, convos_send_attachment)")
