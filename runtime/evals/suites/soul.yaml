@@ -114,14 +114,14 @@ tests:
           Fail if it launches into a long response or offers unsolicited help.
 
   # --- Intentional silence ---
-  - description: "Agent chooses SILENT for pure acknowledgment"
+  - description: "Agent chooses silence for pure acknowledgment"
     vars:
       prompt: >
         [Context: You just told the group the meeting is at 3pm. The user replies:]
         Got it, thanks!
     assert:
-      - type: icontains
-        value: "SILENT"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentChoseSilence"
 
   # --- Won't act without consent ---
   - description: "Agent confirms before taking action on bookings"
