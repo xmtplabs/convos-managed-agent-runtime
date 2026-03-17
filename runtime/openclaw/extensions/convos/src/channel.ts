@@ -474,9 +474,7 @@ async function handleInboundMessage(
     }
 
     // Fire-and-forget read receipt for non-catchup messages
-    try {
-      inst.sendReadReceipt();
-    } catch { /* silent */ }
+    inst.sendReadReceipt().catch(() => {});
   }
 
   const cfg = runtime.config.loadConfig();
