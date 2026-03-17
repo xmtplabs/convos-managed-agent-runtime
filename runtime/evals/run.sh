@@ -56,4 +56,8 @@ echo ""
 echo "=== ${RUNTIME_LABEL}: Memory eval (sequential) ==="
 $base_cmd -c "$EVAL_DIR/suites/memory.yaml" "$@" || failed=1
 
+echo ""
+echo "=== ${RUNTIME_LABEL}: Poller eval (sequential) ==="
+$base_cmd -c "$EVAL_DIR/suites/poller.yaml" "$@" || failed=1
+
 exit $failed

@@ -158,6 +158,12 @@ if [ -n "$SHARED_SCRIPTS_DIR" ] && [ -f "$SHARED_SCRIPTS_DIR/poller.sh" ]; then
 else
   brand_dim "poller" "shared poller.sh not found — disabled"
 fi
+_cleanup_poller() {
+  _pf="/tmp/.openclaw-poller.pid"
+  [ -f "$_pf" ] && kill "$(cat "$_pf")" 2>/dev/null || true
+  rm -f "$_pf"
+}
+trap '_cleanup_poller' EXIT INT TERM
 unset _poller_pidfile
 
 brand_done "Assistant is starting up"
