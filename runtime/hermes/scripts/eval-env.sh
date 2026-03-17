@@ -79,4 +79,11 @@ if [ -f "$HERMES_HOME/CONVOS_PROMPT.md" ] && [ -z "${HERMES_EPHEMERAL_SYSTEM_PRO
   export HERMES_EPHEMERAL_SYSTEM_PROMPT_B64
 fi
 
-export PATH="$RUNTIME_DIR/node_modules/.bin:$PATH"
+# Activate venv for local dev (python3 + all pip packages)
+VENV_DIR="$RUNTIME_DIR/.hermes-dev/venv"
+if [ -d "$VENV_DIR/bin" ]; then
+  export PATH="$VENV_DIR/bin:$RUNTIME_DIR/node_modules/.bin:$PATH"
+  export VIRTUAL_ENV="$VENV_DIR"
+else
+  export PATH="$RUNTIME_DIR/node_modules/.bin:$PATH"
+fi

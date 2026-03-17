@@ -5,6 +5,10 @@ set -e
 
 brand_section "Starting server"
 
+# Activate venv for local dev (Docker runs system-wide)
+VENV_DIR="$ROOT/.hermes-dev/venv"
+[ -d "$VENV_DIR" ] && . "$VENV_DIR/bin/activate"
+
 export PORT="${PORT:-8080}"
 export SHARED_SCRIPTS_DIR="${SHARED_SCRIPTS_DIR:-}"
 brand_ok "PORT" "$PORT"

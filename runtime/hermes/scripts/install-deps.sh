@@ -7,6 +7,20 @@ HERMES_TAG="v2026.3.12"
 
 brand_section "Installing dependencies"
 
+# ── Virtual env (local dev only — Docker installs system-wide) ───────────
+VENV_DIR="$ROOT/.hermes-dev/venv"
+if [ "$HERMES_AGENT_DIR" != "/opt/hermes-agent" ]; then
+  if [ ! -d "$VENV_DIR" ]; then
+    brand_info "venv" "creating virtual environment ..."
+    uv venv "$VENV_DIR"
+  fi
+  . "$VENV_DIR/bin/activate"
+  UV_PIP="uv pip"
+  brand_ok "venv" "$VENV_DIR"
+else
+  UV_PIP="uv pip --system"
+fi
+
 # ── Hermes agent (local dev only — Docker pre-installs to /opt) ──────────
 brand_subsection "hermes-agent"
 if [ "$HERMES_AGENT_DIR" = "/opt/hermes-agent" ]; then
@@ -19,18 +33,29 @@ elif [ ! -d "$HERMES_AGENT_DIR/.git" ]; then
 
   brand_info "hermes-agent" "installing Python deps ..."
   cd "$HERMES_AGENT_DIR"
-  uv pip install --system -e ".[all]"
-  uv pip install --system -e "./mini-swe-agent"
+  $UV_PIP install -e ".[all]"
+  $UV_PIP install -e "./mini-swe-agent"
   cd "$ROOT"
+  touch "$VENV_DIR/.hermes-installed" 2>/dev/null || true
 
   brand_ok "hermes-agent" "$HERMES_TAG (freshly installed)"
+elif [ -d "$VENV_DIR" ] && [ ! -f "$VENV_DIR/.hermes-installed" ]; then
+  # Venv exists but hermes-agent deps not yet installed (e.g. venv recreated)
+  brand_info "hermes-agent" "installing Python deps into venv ..."
+  cd "$HERMES_AGENT_DIR"
+  $UV_PIP install -e ".[all]"
+  $UV_PIP install -e "./mini-swe-agent"
+  cd "$ROOT"
+  touch "$VENV_DIR/.hermes-installed"
+
+  brand_ok "hermes-agent" "$HERMES_TAG (deps reinstalled)"
 else
   brand_ok "hermes-agent" "$HERMES_TAG"
 fi
 
 # Runtime Python deps — always reconcile (fast no-op if unchanged)
 brand_info "runtime" "syncing Python deps ..."
-uv pip install --system --no-cache -r "$ROOT/requirements.txt"
+$UV_PIP install --no-cache -r "$ROOT/requirements.txt"
 
 # ── Node deps (local dev only — Docker pre-installs) ────────────────────
 brand_subsection "node"
