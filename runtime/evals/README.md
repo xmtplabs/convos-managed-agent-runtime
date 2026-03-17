@@ -13,34 +13,29 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 ## Running
 
 ```sh
-cd runtime/openclaw && pnpm start   # terminal 1: start the openclaw runtime
+cd runtime                          # all evals run from here
 
-cd runtime                          # terminal 2: run evals
-pnpm evals              # run all suites (openclaw, the default)
-pnpm evals:knows        # knowledge only
-pnpm evals:skills       # services only
-pnpm evals:soul         # personality only
-pnpm evals:convos       # XMTP lifecycle only
-pnpm evals:async        # non-blocking only
-```
+pnpm eval                           # all suites (openclaw, the default)
+pnpm eval knows                     # knowledge only
+pnpm eval skills                    # services only
+pnpm eval soul                      # personality only
+pnpm eval convos                    # XMTP lifecycle only
+pnpm eval async                     # non-blocking only
+pnpm eval memory                    # memory persistence only
 
-Any runtime is supported via `EVAL_RUNTIME`:
-
-```sh
-pnpm evals:hermes              # all suites against hermes
-pnpm evals:hermes:knows        # knowledge only
-pnpm evals:hermes:skills       # services only
-pnpm evals:hermes:soul         # personality only
-pnpm evals:hermes:convos       # XMTP lifecycle only
-pnpm evals:hermes:async        # non-blocking only
+pnpm eval hermes                    # all suites against hermes
+pnpm eval hermes knows              # knowledge only
+pnpm eval hermes skills             # services only
+pnpm eval hermes soul               # personality only
+pnpm eval hermes memory             # memory persistence only
 ```
 
 Filter to a single test:
 
 ```sh
-pnpm evals:skills -- --filter-pattern "browse"
-pnpm evals:hermes:skills -- --filter-pattern "browse"
-pnpm evals:convos -- --filter-pattern "welcome"
+pnpm eval skills --filter-pattern "browse"
+pnpm eval hermes skills --filter-pattern "browse"
+pnpm eval convos --filter-pattern "welcome"
 ```
 
 ## Env vars
@@ -78,14 +73,7 @@ export default {
 
 3. Add npm scripts in `runtime/package.json` (all 6):
 
-```json
-"evals:<name>": "EVAL_RUNTIME=<name> sh evals/run.sh",
-"evals:<name>:knows": "EVAL_RUNTIME=<name> sh evals/run-suite.sh knows.yaml",
-"evals:<name>:skills": "EVAL_RUNTIME=<name> sh evals/run-suite.sh skills.yaml",
-"evals:<name>:soul": "EVAL_RUNTIME=<name> sh evals/run-suite.sh soul.yaml",
-"evals:<name>:convos": "EVAL_RUNTIME=<name> sh evals/run-suite.sh convos.yaml",
-"evals:<name>:async": "EVAL_RUNTIME=<name> sh evals/run-suite.sh async.yaml",
-```
+Then run: `pnpm eval <name> skills` etc. The `eval.sh` dispatcher auto-detects runtime names.
 
 ## Files
 

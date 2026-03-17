@@ -66,30 +66,30 @@ jobs:
 
       - name: "Eval: knows (parallel)"
         working-directory: runtime
-        run: timeout 180 pnpm evals:knows
+        run: timeout 180 pnpm eval knows
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: skills (parallel)"
         working-directory: runtime
-        run: timeout 300 pnpm evals:skills
+        run: timeout 300 pnpm eval skills
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: soul (parallel)"
         working-directory: runtime
-        run: timeout 180 pnpm evals:soul
+        run: timeout 180 pnpm eval soul
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: convos (sequential)"
         working-directory: runtime
-        run: timeout 600 pnpm evals:convos
+        run: timeout 600 pnpm eval convos
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
 
       - name: "Eval: async (sequential)"
         working-directory: runtime
-        run: timeout 120 pnpm evals:async
+        run: timeout 120 pnpm eval async
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}

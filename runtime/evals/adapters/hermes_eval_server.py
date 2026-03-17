@@ -73,7 +73,7 @@ async def agent_query(request: Request, body: QueryRequest):
     runner = get_runner()
     response = await runner.handle_message(
         content=body.query,
-        sender_name="eval",
+        sender_name="user",
         sender_id="eval-user",
         timestamp=time.time(),
         conversation_id=body.session,
