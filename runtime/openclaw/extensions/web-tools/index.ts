@@ -77,7 +77,9 @@ async function getServicesData(): Promise<Record<string, unknown>> {
   if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
   if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
 
-  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
+  // Show shortened pool URL so the user can tell if they're hitting localhost or Railway
+  const poolHost = poolUrl ? new URL(poolUrl).host : null;
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId, poolHost };
 
   // Fetch runtime version/image from pool
   if (instanceId && gatewayToken && poolUrl) {
