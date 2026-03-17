@@ -104,7 +104,7 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" email read \
   --id "<id>"
 ```
 
-- Use the `ID` shown in `poll` output — copy it exactly as displayed
+- Use the `ID` shown in `poll` output or poller notifications — copy it exactly as displayed
 - Attachments are saved automatically — do NOT use `--save-dir` or `~/Downloads`
 
 ## SMS (US numbers only)
