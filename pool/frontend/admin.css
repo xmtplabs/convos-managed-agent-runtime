@@ -195,7 +195,7 @@ tr:last-child td { border-bottom: none; }
 tr.crashed td { background: var(--color-error-bg); }
 /* Name cell: dot + name/status label */
 .agent-name-cell { font-weight: 600; letter-spacing: -0.2px; }
-.name-wrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.name-wrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-running { background: #34C759; }
