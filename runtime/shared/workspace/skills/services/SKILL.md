@@ -30,7 +30,7 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" sms provision
 
 Before provisioning SMS, you **MUST** present the following disclosure to the user and obtain their explicit consent. Do NOT paraphrase — use this exact text:
 
-> By tapping 'Add assistant,' you agree to receive SMS messages sent by the Convos AI assistant on your behalf. Message frequency varies. Standard Message and Data Rates may apply. Reply STOP to opt out. Reply HELP for help. Consent is not a condition of purchase. Your mobile information will not be sold or shared with third parties for promotional or marketing purposes.
+> By adding an assistant, you agree to receive SMS from your Convos AI assistant. Msg frequency varies. Msg & data rates may apply. Reply STOP to your assistant's number to opt out. Your mobile info will not be sold or shared with third parties.
 
 The user must acknowledge the disclosure before you run `sms provision`. If they decline, do not provision SMS.
 
