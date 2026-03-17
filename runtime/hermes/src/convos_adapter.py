@@ -25,9 +25,12 @@ import asyncio
 import logging
 import os
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+import httpx
 
 from .xmtp_bridge import ConvosInstance, InboundMessage
 from .agent_runner import AgentRunner
@@ -45,6 +48,27 @@ CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
 PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
 _last_prune_at = 0.0
 
+
+async def _notify_pool_self_destruct() -> None:
+    """Tell the pool manager to destroy this instance."""
+    instance_id = os.environ.get("INSTANCE_ID")
+    pool_url = os.environ.get("POOL_URL")
+    gateway_token = os.environ.get("GATEWAY_TOKEN")
+
+    if not instance_id or not pool_url or not gateway_token:
+        logger.info("Self-destruct skipped: not a pool-managed instance")
+        return
+
+    url = f"{pool_url}/api/pool/self-destruct"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(url, json={
+                "instanceId": instance_id,
+                "gatewayToken": gateway_token,
+            })
+            logger.info("Pool manager self-destruct response: %d", resp.status_code)
+    except Exception as err:
+        logger.error("Self-destruct call failed: %s", err)
 
 
 @dataclass
@@ -374,6 +398,9 @@ class ConvosAdapter:
             if termination_reason:
                 logger.info(f"Membership ended, self-destructing ({termination_reason})")
                 await self.stop()
+                await _notify_pool_self_destruct()
+                if not os.environ.get("EVAL_MODE"):
+                    sys.exit(0)
                 return
 
         if not msg.catchup:
