@@ -77,8 +77,8 @@ export function readReceiptExists(output, context) {
     const all = Array.isArray(msgs) ? msgs : [];
     const receipts = all.filter((m) => {
       const ct = m.contentType;
-      if (typeof ct === 'string') return ct === 'read-receipt';
-      if (ct && typeof ct === 'object') return ct.typeId === 'read-receipt';
+      if (typeof ct === 'string') return ct === 'readReceipt' || ct === 'read-receipt';
+      if (ct && typeof ct === 'object') return ct.typeId === 'readReceipt' || ct.typeId === 'read-receipt';
       return false;
     });
     const pass = receipts.length > 0;
