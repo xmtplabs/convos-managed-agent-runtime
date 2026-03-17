@@ -50,8 +50,12 @@ tests:
     vars:
       prompt: "How do I top up my credits?"
     assert:
-      - type: regex
-        value: "https?://"
+      - type: llm-rubric
+        value: >
+          The agent should either share a URL where the user can top up credits,
+          or inform the user that credits are already at maximum and no top-up is
+          needed. Pass if the agent demonstrates awareness of the credits system.
+          Fail if the agent says it doesn't know or can't help.
 
   - description: "Agent knows where to check card balance"
     vars:

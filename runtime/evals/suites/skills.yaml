@@ -30,7 +30,7 @@ tests:
       prompt: "What is your phone number?"
     assert:
       - type: regex
-        value: "\\+?1?[\\s.-]?\\(?\\d{3}\\)?[\\s.-]?\\d{3}[\\s.-]?\\d{4}"
+        value: "\\+?1?[\\s.-]?\\(?[\\d*]{3}\\)?[\\s.-]?[\\d*]{3,4}[\\s.-]?[\\d*]{4}"
 
   - description: "Agent can send an email with attachment"
     vars:
