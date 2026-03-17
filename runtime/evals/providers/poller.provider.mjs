@@ -207,23 +207,29 @@ function agentCount(msgs) {
 }
 
 function waitForAgent(baseline) {
-  const deadline = Date.now() + 60_000;
+  const deadline = Date.now() + 120_000;
   let msgs = [];
   try { msgs = fetchMessages(); } catch {}
   let count = agentCount(msgs);
   let lastChange = Date.now();
+  log(`waitForAgent: baseline=${baseline} initial count=${count} total=${msgs.length}`);
 
   while (Date.now() < deadline) {
     sleep(3_000);
     try { msgs = fetchMessages(); } catch { continue; }
     const n = agentCount(msgs);
+    if (n !== count) {
+      log(`waitForAgent: agent count ${count} → ${n} (total=${msgs.length})`);
+    }
     if (n > count) {
       count = n;
       lastChange = Date.now();
     } else if (count > baseline && Date.now() - lastChange >= 5_000) {
+      log(`waitForAgent: stable at count=${count} — done`);
       return msgs;
     }
   }
+  log(`waitForAgent: timed out — final count=${count} baseline=${baseline}`);
   return msgs;
 }
 
@@ -271,9 +277,19 @@ export default class PollerProvider {
 
     if (!sharedConversationId) setup();
 
-    // Test 1: Wait for poller notification to appear in transcript
+    // Test 1: Wait for poller notification to appear in transcript, then wait
+    // for the agent to finish processing it before returning — so test 2 doesn't
+    // fire while the agent is still busy with the notification.
     if (meta.waitForNotification) {
-      const { text } = waitForContent(/You got a new email/i, 120_000);
+      const { msgs: notifMsgs } = waitForContent(/You got a new email/i, 120_000);
+      const notifBaseline = agentCount(notifMsgs);
+      log(`Notification matched — agent count=${notifBaseline} total=${notifMsgs.length}`);
+      log(`Waiting for agent to finish processing notification...`);
+      waitForAgent(notifBaseline - 1);
+      const finalMsgs = fetchMessages();
+      log(`After wait — agent count=${agentCount(finalMsgs)} total=${finalMsgs.length}`);
+      log(`Transcript:\n${transcript(finalMsgs)}`);
+      const text = transcript(finalMsgs);
       log(`Notification test done (${elapsed(t)})`);
       return { output: text, metadata: { conversationId: sharedConversationId } };
     }
@@ -282,12 +298,16 @@ export default class PollerProvider {
     const existing = fetchMessages();
     const baseline = agentCount(existing);
     const msgsBefore = existing.length;
+    log(`Pre-send state — agent count=${baseline} total=${msgsBefore}`);
+    log(`Transcript so far:\n${transcript(existing)}`);
 
     log(`Sending: "${prompt}"`);
     convos(['conversation', 'send-text', sharedConversationId, prompt, '--env', ENV], { timeout: 30_000 });
+    log(`Message sent — waiting for agent reply (baseline=${baseline})...`);
 
     const msgs = waitForAgent(baseline);
     const output = transcript(msgs, msgsBefore);
+    log(`Output transcript:\n${output || '(empty)'}`);
 
     const last = msgs.filter((m) => m.senderInboxId !== userInboxId).pop();
     const preview = last ? (last.content || last.text || '').slice(0, 120) : '(no response)';

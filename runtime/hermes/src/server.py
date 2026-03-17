@@ -855,3 +855,38 @@ async def convos_setup_cancel():
     global _setup_join_state
     _setup_join_state = {"joined": False, "joinerInboxId": None}
     return {"cancelled": was_active}
+
+
+# ---- /agent/query and /agent/reset-history (eval surface) ----
+# These mirror the minimal eval server so evals can attach to a live instance
+# and route queries through the real production path.
+
+class AgentQueryRequest(BaseModel):
+    query: str
+    session: str = "eval-session"
+
+
+@app.post("/agent/query", dependencies=[Depends(require_auth)])
+async def agent_query(body: AgentQueryRequest):
+    adapter = get_adapter()
+    if not adapter or not adapter.agent:
+        raise HTTPException(status_code=503, detail="Agent not initialised")
+
+    response = await adapter.agent.handle_message(
+        content=body.query,
+        sender_name="user",
+        sender_id="eval-user",
+        timestamp=time.time(),
+        conversation_id=body.session,
+        message_id=f"eval-{int(time.time())}",
+    )
+    from starlette.responses import PlainTextResponse
+    return PlainTextResponse(response or "")
+
+
+@app.post("/agent/reset-history", dependencies=[Depends(require_auth)])
+async def agent_reset_history():
+    adapter = get_adapter()
+    if adapter and adapter.agent:
+        adapter.agent.reset_history()
+    return {"ok": True}
