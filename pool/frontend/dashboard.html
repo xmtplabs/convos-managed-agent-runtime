@@ -250,10 +250,8 @@
       <table>
           <colgroup>
             <col class="col-name">
-            <col class="col-status">
             <col class="col-instance">
             <col class="col-runtime">
-            <col class="col-version">
             <col class="col-usage">
             <col class="col-uptime">
             <col class="col-actions">
@@ -261,17 +259,15 @@
           <thead>
             <tr>
               <th>Name</th>
-              <th>Status</th>
               <th>Instance</th>
               <th>Runtime</th>
-              <th>Version</th>
               <th class="sortable" data-sort="usage" onclick="toggleSort('usage')">Usage <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="uptime" onclick="toggleSort('uptime')">Uptime <span class="sort-arrow"></span></th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="agents-body">
-            <tr><td class="empty-row" colspan="8">Loading...</td></tr>
+            <tr><td class="empty-row" colspan="6">Loading...</td></tr>
           </tbody>
         </table>
     </div>
@@ -405,11 +401,11 @@
       }
 
       if (!all.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="8">No instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
         return;
       }
       if (!filtered.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="8">No matching instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="6">No matching instances</td></tr>';
         return;
       }
 
@@ -455,17 +451,37 @@
           usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
         }
         var rowClass = status + (isKilling ? ' destroying' : '') + (isProtected ? ' protected' : '');
-        var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
         var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
         var infra = infraMap[a.id] || {};
-        var runtimeCell = '<td class="runtime-cell">' + esc(infra.runtime_type || '-') + '</td>';
-        var versionCell = '<td class="version-cell">' + esc(infra.runtime_version || '-') + '</td>';
+
+        // Name cell: dot + agent name for running/crashed, dot + status label for idle/starting
+        var nameContent;
+        if (isKilling) {
+          nameContent = '<span class="status-dot dot-' + status + '"></span>'
+            + '<span class="status-name status-name-destroying">Destroying</span>';
+        } else if (status === 'running' || status === 'crashed') {
+          nameContent = '<span class="status-dot dot-' + status + '"></span>'
+            + '<span class="name-text">' + esc(a.agentName || a.name || a.id) + '</span>';
+        } else {
+          nameContent = '<span class="status-dot dot-' + status + '"></span>'
+            + '<span class="status-name status-name-' + status + '">' + badge + '</span>';
+        }
+
+        // Runtime cell: inline tags for type + version
+        var rtType = infra.runtime_type || '';
+        var rtVer = infra.runtime_version || '';
+        var runtimeTags = '';
+        if (rtType || rtVer) {
+          if (rtType) runtimeTags += '<span class="runtime-tag">' + esc(rtType) + '</span>';
+          if (rtVer) runtimeTags += '<span class="runtime-tag">' + esc(rtVer) + '</span>';
+        } else {
+          runtimeTags = '<span style="color:#CCC">-</span>';
+        }
+
         html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
-          + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
-          + '<td>' + rowBadge + '</td>'
+          + '<td class="agent-name-cell"><div class="name-wrap">' + nameContent + '</div></td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
-          + runtimeCell
-          + versionCell
+          + '<td><div class="runtime-tags">' + runtimeTags + '</div></td>'
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
           + '<td><div class="action-btns">' + rowActions + '</div></td></tr>';
@@ -1301,7 +1317,7 @@
       var infra = infraMap[instanceId] || {};
       var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
 
-      var html = '<td colspan="8"><div class="expand-inner">';
+      var html = '<td colspan="6"><div class="expand-inner">';
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var orTool = tools.find(function (t) { return t.tool_id === 'openrouter'; });
