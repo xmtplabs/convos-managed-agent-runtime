@@ -542,7 +542,7 @@
       var qrBtn = e.target.closest('[data-qr]');
       if (qrBtn) {
         var qrId = qrBtn.getAttribute('data-qr');
-        var a = claimedCache.concat(crashedCache).find(function (x) { return x.id === qrId; });
+        var a = claimedCache.concat(crashedCache).concat(idleCache).find(function (x) { return x.id === qrId; });
         if (a) showQr(a.agentName || a.id, a.inviteUrl || '');
         return;
       }
