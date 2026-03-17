@@ -23,7 +23,7 @@ import http from 'http';
 import { runtime } from '../lib/runtime.mjs';
 import { elapsed, log as _log, clearSessionsOnce, cleanOutput, sleep } from '../lib/utils.mjs';
 
-const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
+const GATEWAY_PORT = process.env.EVAL_GATEWAY_PORT || '9090';
 let testIndex = 0;
 
 function log(msg) { _log('eval:async', msg); }
