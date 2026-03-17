@@ -20,6 +20,13 @@ const INSTANCE_ID = process.env.INSTANCE_ID;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
 
+// 10DLC compliance: keywords handled by the system — filter from poll results
+const SMS_KEYWORDS = new Set([
+  "STOP", "CANCEL", "END", "QUIT", "UNSUBSCRIBE",
+  "START", "YES",
+  "HELP", "INFO",
+]);
+
 // Direct mode: Telnyx API (local dev — requires TELNYX_* env vars)
 const API_KEY = process.env.TELNYX_API_KEY;
 const PHONE = process.env.TELNYX_PHONE_NUMBER;
@@ -174,6 +181,9 @@ async function poll(argv) {
       text = msgRes.ok ? (await msgRes.json()).data?.text : null;
     }
 
+    // Skip compliance keywords — handled automatically by the system
+    if (text && SMS_KEYWORDS.has(text.trim().toUpperCase())) continue;
+
     console.log(`  From: ${r.cli}`);
     console.log(`  Date: ${r.sent_at}`);
     console.log(`  Text: ${text ?? "(unavailable)"}`);
@@ -304,6 +314,9 @@ async function recent(argv) {
       const msgRes = await fetch(`https://api.telnyx.com/v2/messages/${r.id}`, { headers: directHeaders() });
       text = msgRes.ok ? (await msgRes.json()).data?.text : null;
     }
+
+    // Skip compliance keywords — handled automatically by the system
+    if (text && SMS_KEYWORDS.has(text.trim().toUpperCase())) continue;
 
     console.log(`From: ${r.cli}`);
     console.log(`Date: ${r.sent_at}`);
