@@ -26,6 +26,18 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" sms provision
 
 **Never provision without asking the user first.** If a user asks to send an email/SMS and the service isn't provisioned, ask them before enabling it.
 
+### SMS disclosure (required before provisioning)
+
+Before provisioning SMS, you **MUST** present the following disclosure to the user and obtain their explicit consent. Do NOT paraphrase — use this exact text:
+
+> By adding an assistant, you agree to receive SMS from your Convos AI assistant. Msg frequency varies. Msg & data rates may apply. Reply STOP to your assistant's number to opt out. Your mobile info will not be sold or shared with third parties. Full terms: https://learn.convos.org/sms
+
+The user must acknowledge the disclosure before you run `sms provision`. If they decline, do not provision SMS.
+
+### SMS keyword handling
+
+Inbound STOP, CANCEL, END, QUIT, UNSUBSCRIBE, START, YES, HELP, and INFO messages are handled automatically by the system. You will never see these in poll results. Do **not** attempt to respond to them yourself.
+
 ## Restrictions
 
 You MUST only use the `services.mjs` script below. You are FORBIDDEN from:
