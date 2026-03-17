@@ -93,7 +93,7 @@ format_emails() {
         if [ -n "$_from" ]; then
           _msg="You got a new email. \"${_body:-(no preview)}\" from $_from"
           [ -n "$_att" ] && _msg="$_msg [$_att]"
-          [ -n "$_id" ] && _msg="$_msg (ID: $_id)"
+          [ -n "$_id" ] && _msg="$_msg (use: email read --id \"$_id\")"
           printf '%s\n' "$_msg"
           _id="" _from="" _body="" _att=""
         fi
