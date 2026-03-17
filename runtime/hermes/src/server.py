@@ -287,6 +287,7 @@ class JoinRequest(BaseModel):
     inviteUrl: str
     profileName: str = "Convos Agent"
     profileImage: str | None = None
+    metadata: dict[str, str] | None = None
     accountId: str | None = None
     instructions: str | None = None
     env: str | None = None
@@ -449,6 +450,8 @@ class ProvisionRequest(BaseModel):
     agentName: str
     instructions: str = ""
     joinUrl: str | None = None
+    profileImage: str | None = None
+    metadata: dict[str, str] | None = None
 
 
 @app.post("/pool/provision", dependencies=[Depends(require_auth)])
@@ -471,6 +474,8 @@ async def pool_provision(body: ProvisionRequest):
                 env,
                 body.joinUrl,
                 profile_name=body.agentName,
+                profile_image=body.profileImage,
+                metadata=body.metadata,
                 timeout=60,
                 debug=True,
             )
@@ -598,6 +603,8 @@ async def convos_join(body: JoinRequest):
             env,
             body.inviteUrl,
             profile_name=body.profileName,
+            profile_image=body.profileImage,
+            metadata=body.metadata,
             timeout=60,
             debug=True,
         )

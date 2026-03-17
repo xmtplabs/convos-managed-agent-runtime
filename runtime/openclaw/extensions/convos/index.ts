@@ -556,8 +556,14 @@ const plugin = {
           const account = resolveConvosAccount({ cfg: cfg as CoreConfig, accountId });
           const env = body.env === "dev" || body.env === "production" ? body.env : account.env;
 
+          const metadata = typeof body.metadata === "object" && body.metadata !== null && !Array.isArray(body.metadata)
+            ? body.metadata as Record<string, string>
+            : undefined;
+
           const { instance, status, conversationId } = await ConvosInstance.join(env, inviteUrl, {
             profileName,
+            profileImage,
+            metadata,
             timeout: 60,
           });
 

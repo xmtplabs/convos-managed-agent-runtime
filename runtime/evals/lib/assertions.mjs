@@ -62,6 +62,8 @@ export function profileImageSet(output, context) {
   });
 }
 
+
+
 export function agentSelfDestructed(output) {
   const pass = output === 'SELF_DESTRUCT_CONFIRMED';
   return {

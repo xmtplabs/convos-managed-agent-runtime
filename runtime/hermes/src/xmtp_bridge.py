@@ -5,7 +5,7 @@ ConvosInstance — Python port of the TypeScript ConvosInstance.
 long-lived child process using an ndjson stdin/stdout protocol.
 
 Stdout events: ready, message, member_joined, sent, heartbeat, error
-Stdin commands: send, react, attach, rename, lock, unlock, explode, stop
+Stdin commands: send, react, read-receipt, attach, rename, lock, unlock, explode, stop
 """
 
 from __future__ import annotations
@@ -225,6 +225,8 @@ class ConvosInstance:
         invite_url: str,
         *,
         profile_name: str = "Convos Agent",
+        profile_image: str | None = None,
+        metadata: dict[str, str] | None = None,
         timeout: int = 60,
         debug: bool = False,
         **kwargs: Any,
@@ -233,6 +235,11 @@ class ConvosInstance:
         args = ["conversations", "join", invite_url]
         if profile_name:
             args.extend(["--profile-name", profile_name])
+        if profile_image:
+            args.extend(["--profile-image", profile_image])
+        if metadata:
+            for key, value in metadata.items():
+                args.extend(["--metadata", f"{key}={value}"])
         args.extend(["--timeout", str(timeout)])
 
         tmp = cls(conversation_id="", identity_id="", env=env, debug=debug)
@@ -382,6 +389,10 @@ class ConvosInstance:
         self._assert_running()
         self._write_command({"type": "react", "messageId": message_id, "emoji": emoji, "action": action})
         return {"success": True, "action": "added" if action == "add" else "removed"}
+
+    async def send_read_receipt(self) -> None:
+        self._assert_running()
+        self._write_command({"type": "read-receipt"})
 
     async def rename(self, name: str) -> None:
         self._assert_running()

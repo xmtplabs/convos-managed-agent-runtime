@@ -14,6 +14,6 @@
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0",
-    "@xmtp/convos-cli": "^0.5.0"
+    "@xmtp/convos-cli": "^0.6.0"
   }
 }
