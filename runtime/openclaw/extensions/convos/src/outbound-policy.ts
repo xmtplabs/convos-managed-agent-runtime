@@ -6,9 +6,17 @@ type OutboundTextPolicyResult = {
 };
 
 const HEARTBEAT_ACK = "HEARTBEAT_OK";
+const SILENT_TOKEN = "SILENT";
 
 export async function applyOutboundTextPolicy(text: string): Promise<OutboundTextPolicyResult> {
-  if (text.trim() === HEARTBEAT_ACK) {
+  const trimmed = text.trim();
+
+  if (trimmed === HEARTBEAT_ACK) {
+    return { suppress: true, text: "" };
+  }
+
+  // Agent explicitly chose not to reply
+  if (trimmed === SILENT_TOKEN) {
     return { suppress: true, text: "" };
   }
 

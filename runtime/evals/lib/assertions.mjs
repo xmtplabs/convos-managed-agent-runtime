@@ -97,6 +97,19 @@ export function followUpResponded(output, context) {
   return { pass: true, score: 1, reason: 'Follow-up query returned a response' };
 }
 
+export function agentChoseSilence(output) {
+  const trimmed = (output || '').trim();
+  // Hermes returns "SILENT", OpenClaw returns "completed" or empty when the agent stays quiet
+  const pass = !trimmed || trimmed === 'SILENT' || trimmed === 'No reply from agent.' || trimmed === 'completed';
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Agent chose silence (output: ${trimmed ? `"${trimmed}"` : 'empty'})`
+      : `Expected silence or SILENT, got: "${trimmed.slice(0, 120)}"`,
+  };
+}
+
 export function agentDelegatedHeavyTask(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const ack = meta.heavyAck || '';

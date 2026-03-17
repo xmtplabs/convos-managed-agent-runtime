@@ -88,6 +88,7 @@ class ParsedResponse:
     media: list[str] = field(default_factory=list)
     profile_name: str | None = None
     profile_image: str | None = None
+    silent: bool = False  # agent explicitly chose not to reply
 
 
 def parse_response(raw: str) -> ParsedResponse:
@@ -98,6 +99,11 @@ def parse_response(raw: str) -> ParsedResponse:
 
     for line in lines:
         stripped = line.strip()
+
+        # SILENT — agent explicitly chose not to reply
+        if stripped == "SILENT":
+            result.silent = True
+            continue
 
         # REACT:messageId:emoji or REACT:messageId:emoji:remove
         m = re.match(r'^REACT:([^:\s]+):([^:\s]+)(?::(remove))?$', stripped)
@@ -590,6 +596,11 @@ class ConvosAdapter:
                 await inst.send_attachment(media_path)
             except Exception as err:
                 logger.error(f"Send attachment failed: {err}")
+
+        # Agent explicitly chose silence — side effects above still fire, but no text
+        if parsed.silent:
+            logger.info("Agent chose SILENT — suppressing text reply")
+            return
 
         # Send text message (either as reply or new message)
         text = strip_markdown(parsed.text)
