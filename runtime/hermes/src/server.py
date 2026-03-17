@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from .agent_runner import warm_imports
 from .config import RuntimeConfig
 from .convos_adapter import ConvosAdapter
+from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
 from .xmtp_bridge import ConvosInstance
 
@@ -123,6 +124,7 @@ async def start_wired_instance(
     env: str,
     name: str | None = None,
     debug: bool = False,
+    resuming: bool = False,
 ):
     """Create and start a ConvosAdapter with full message pipeline.
 
@@ -132,6 +134,18 @@ async def start_wired_instance(
     cfg = get_config()
 
     ensure_workspace(cfg.workspace_dir)
+
+    # Persist credentials before starting so a mid-startup crash still allows resume
+    save_credentials(cfg.hermes_home, {
+        "identityId": identity_id,
+        "conversationId": conversation_id,
+        "env": env,
+    })
+
+    # Clear previous session state when provisioning a NEW conversation
+    # (matches OpenClaw's startWiredInstance behavior). On resume we keep it.
+    if not resuming:
+        _clear_session_state(cfg.hermes_home)
 
     adapter = ConvosAdapter(cfg)
     ready_info = await adapter.start(
@@ -143,13 +157,27 @@ async def start_wired_instance(
     )
     _adapter = adapter
 
-    # Fire greeting in background
-    asyncio.create_task(_dispatch_greeting())
+    # Fire greeting in background (skip if resuming — caller handles workspace refresh)
+    if not resuming:
+        asyncio.create_task(_dispatch_greeting())
 
     # Start background email/SMS poller
     await _start_poller(conversation_id, env)
 
     return ready_info
+
+
+def _clear_session_state(hermes_home: str) -> None:
+    """Clear session state so the agent starts fresh for a new conversation."""
+    sessions_dir = Path(hermes_home) / "sessions"
+    if sessions_dir.exists():
+        import shutil
+        try:
+            shutil.rmtree(sessions_dir)
+            sessions_dir.mkdir(parents=True, exist_ok=True)
+            logger.info("Cleared session state for new conversation")
+        except Exception as err:
+            logger.error("Failed to clear session state: %s", err)
 
 
 async def _dispatch_greeting() -> None:
@@ -175,6 +203,32 @@ async def _dispatch_greeting() -> None:
             await adapter._dispatch_response(response)
     except Exception as err:
         logger.error(f"Greeting dispatch failed: {err}")
+
+
+async def _try_resume_from_credentials(cfg: RuntimeConfig) -> None:
+    """Check for saved credentials and auto-resume the conversation."""
+    creds = load_credentials(cfg.hermes_home)
+    if not creds:
+        return
+
+    logger.info(
+        "Found saved credentials — resuming conversation %s",
+        creds["conversationId"][:12],
+    )
+
+    try:
+        await start_wired_instance(
+            conversation_id=creds["conversationId"],
+            identity_id=creds["identityId"],
+            env=creds["env"],
+            debug=True,
+            resuming=True,
+        )
+        # No workspace refresh needed — AgentRunner re-reads SOUL.md/AGENTS.md at init
+        logger.info("Resumed conversation successfully")
+    except Exception as err:
+        logger.error("Failed to resume from saved credentials: %s", err)
+        # Don't clear credentials on transient failure — next restart can retry
 
 
 # ---- Setup flow ----
@@ -351,6 +405,10 @@ async def lifespan(app: FastAPI):
     _patch_cron_delivery()
     _cron_task = asyncio.create_task(_cron_tick_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
+
+    # Auto-resume from saved credentials (if any)
+    await _try_resume_from_credentials(_config)
+
     yield
     if _cron_task:
         _cron_task.cancel()
@@ -623,6 +681,7 @@ async def convos_explode():
         raise HTTPException(status_code=500, detail=str(err))
     finally:
         _adapter = None
+        clear_credentials(get_config().hermes_home)
     return {"ok": True, "exploded": True}
 
 
@@ -644,6 +703,9 @@ async def convos_reset(body: SetupRequest | None = None):
         _adapter = None
 
     os.environ.pop("CONVOS_CONVERSATION_ID", None)
+
+    # Clear saved credentials so we don't auto-resume a stale conversation
+    clear_credentials(get_config().hermes_home)
 
     # Clear the XMTP identity so the next join creates a fresh one
     # (matches OpenClaw's clearConvosCredentials behavior)
