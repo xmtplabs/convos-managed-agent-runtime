@@ -436,7 +436,8 @@
       function renderRow(a, status, badge, actions) {
         var isKilling = !!killingSet[a.id];
         var isProtected = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
-        var rUrl = railwayUrl(a.serviceId, a.id);
+        var infra = infraMap[a.id] || {};
+        var rUrl = railwayUrl(a.serviceId || infra.provider_service_id, a.id);
         var key = svcKeyMap['convos-agent-' + a.id];
         var usageCell = '';
         if (key) {
@@ -452,7 +453,6 @@
         }
         var rowClass = status + (isKilling ? ' destroying' : '') + (isProtected ? ' protected' : '');
         var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
-        var infra = infraMap[a.id] || {};
 
         // Name cell: dot + agent name for running/crashed, dot + status label for idle/starting
         var nameContent;
@@ -480,7 +480,7 @@
 
         html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell"><div class="name-wrap">' + nameContent + '</div></td>'
-          + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : '<span class="instance-id-plain">' + esc(a.id) + '</span>') + '</td>'
+          + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : '<span class="instance-link">' + esc(a.id) + '</span>') + '</td>'
           + '<td><div class="runtime-tags">' + runtimeTags + '</div></td>'
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
