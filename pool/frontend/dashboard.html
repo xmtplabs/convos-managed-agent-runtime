@@ -129,14 +129,18 @@
         <div class="replenish-field">
           <label>Image</label>
           <div class="image-picker" id="image-picker">
-            <select class="replenish-select" id="runtime-image">
-              <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
-              <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
-              <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
-              <option value="ghcr.io/xmtplabs/convos-runtime:vibe">:vibe</option>
-              <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">:dev:hermes</option>
-              <option value="__custom__">other...</option>
-            </select>
+            <div class="image-picker-selects">
+              <select class="replenish-select" id="runtime-harness">
+                <option value="convos-runtime">OpenClaw</option>
+                <option value="convos-runtime-hermes">Hermes</option>
+                <option value="__custom__">other...</option>
+              </select>
+              <select class="replenish-select" id="runtime-env">
+                <option value="production">production</option>
+                <option value="staging">staging</option>
+                <option value="dev">dev</option>
+              </select>
+            </div>
             <div class="image-custom-row" id="image-custom-row">
               <input type="text" class="image-custom-input" id="runtime-image-custom" placeholder="ghcr.io/xmtplabs/convos-runtime:pr-505" spellcheck="false">
               <button type="button" class="image-custom-clear" id="image-custom-clear" title="Back to presets">&times;</button>
@@ -316,12 +320,19 @@
 
     document.getElementById('launch-url').placeholder = (C.poolEnvironment === 'production') ? 'popup.convos.org/...' : 'dev.convos.org/...';
 
-    // Pre-select the current runtime image in the picker
+    // Pre-select the current runtime image in the harness/env pickers
     (function () {
-      var sel = document.getElementById('runtime-image');
       var cur = C.runtimeImage || '';
-      for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === cur) { sel.selectedIndex = i; break; }
+      var match = cur.match(/ghcr\.io\/xmtplabs\/(convos-runtime(?:-hermes)?):(\w+)/);
+      if (match) {
+        var harnessSel = document.getElementById('runtime-harness');
+        var envSel = document.getElementById('runtime-env');
+        for (var i = 0; i < harnessSel.options.length; i++) {
+          if (harnessSel.options[i].value === match[1]) { harnessSel.selectedIndex = i; break; }
+        }
+        for (var i = 0; i < envSel.options.length; i++) {
+          if (envSel.options[i].value === match[2]) { envSel.selectedIndex = i; break; }
+        }
       }
     })();
 
@@ -682,7 +693,7 @@
     function showProvisionLog(count) {
       provisionTotal = count;
       provisionDone = 0;
-      provisionImageTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
+      provisionImageTag = document.getElementById('runtime-env').value || 'production';
       var panel = document.getElementById('provision-log');
       var body = document.getElementById('provision-log-body');
       body.innerHTML = '';
@@ -837,16 +848,18 @@
 
     // --- Replenish (SSE streaming) ---
     (function () {
-      var select = document.getElementById('runtime-image');
-      var defaultIndex = select.selectedIndex;
+      var harnessSel = document.getElementById('runtime-harness');
+      var envSel = document.getElementById('runtime-env');
+      var defaultHarnessIndex = harnessSel.selectedIndex;
       var customRow = document.getElementById('image-custom-row');
       var customInput = document.getElementById('runtime-image-custom');
       var clearBtn = document.getElementById('image-custom-clear');
 
-      select.addEventListener('change', function () {
+      harnessSel.addEventListener('change', function () {
         if (this.value === '__custom__') {
           customRow.classList.add('visible');
-          select.classList.add('hidden');
+          envSel.classList.add('hidden');
+          harnessSel.classList.add('hidden');
           setTimeout(function () { customInput.focus(); }, 180);
         }
       });
@@ -854,8 +867,9 @@
       clearBtn.addEventListener('click', function () {
         customInput.value = '';
         customRow.classList.remove('visible');
-        select.classList.remove('hidden');
-        select.selectedIndex = defaultIndex;
+        envSel.classList.remove('hidden');
+        harnessSel.classList.remove('hidden');
+        harnessSel.selectedIndex = defaultHarnessIndex;
       });
     })();
 
@@ -867,8 +881,10 @@
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var imageSelect = document.getElementById('runtime-image').value;
-      var rawImage = imageSelect === '__custom__' ? (document.getElementById('runtime-image-custom').value || '') : imageSelect;
+      var harness = document.getElementById('runtime-harness').value;
+      var rawImage = harness === '__custom__'
+        ? (document.getElementById('runtime-image-custom').value || '')
+        : 'ghcr.io/xmtplabs/' + harness + ':' + document.getElementById('runtime-env').value;
       var image = encodeURIComponent(rawImage.replace(/^https?:\/\//, ''));
       var model = encodeURIComponent(document.getElementById('instance-model').value);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);
