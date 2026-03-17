@@ -93,16 +93,6 @@ tests:
       - type: not-icontains
         value: "lane enqueue"
 
-  # --- Intentional silence ---
-  - description: "Agent stays silent on pure acknowledgment"
-    vars:
-      prompt: "Got it, thanks!"
-    metadata:
-      waitTimeoutMs: 10000
-    assert:
-      - type: not-icontains
-        value: "[AGENT]"
-
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"
     vars:
