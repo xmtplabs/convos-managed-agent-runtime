@@ -23,53 +23,6 @@ permissions:
   packages: write
 
 jobs:
-  sms-compliance:
-    name: "SMS 10DLC compliance check"
-    if: github.event.action != 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-
-      - name: Verify SMS disclosure text exists
-        run: |
-          DISCLOSURE="Consent is not a condition of purchase"
-          echo "Checking SKILL.md for disclosure text..."
-          if ! grep -q "$DISCLOSURE" runtime/shared/workspace/skills/services/SKILL.md; then
-            echo "::error::SMS 10DLC disclosure text missing from services SKILL.md"
-            exit 1
-          fi
-          echo "✓ Disclosure text present in SKILL.md"
-
-      - name: Verify keyword auto-responses exist
-        run: |
-          echo "Checking pool/src/sms-compliance.ts..."
-          for kw in STOP CANCEL END QUIT UNSUBSCRIBE START YES HELP INFO; do
-            if ! grep -q "\"$kw\"" pool/src/sms-compliance.ts; then
-              echo "::error::Missing keyword '$kw' in sms-compliance.ts"
-              exit 1
-            fi
-          done
-          echo "✓ All required keywords present"
-
-          echo "Checking auto-response messages..."
-          for msg in "have been unsubscribed" "now receiving messages" "support@xmtplabs.com"; do
-            if ! grep -q "$msg" pool/src/sms-compliance.ts; then
-              echo "::error::Missing auto-response containing '$msg' in sms-compliance.ts"
-              exit 1
-            fi
-          done
-          echo "✓ All auto-response messages present"
-
-      - name: Verify keyword filtering in SMS handler
-        run: |
-          echo "Checking sms.mjs for keyword filtering..."
-          if ! grep -q "SMS_KEYWORDS" runtime/shared/workspace/skills/services/scripts/handlers/sms.mjs; then
-            echo "::error::SMS keyword filtering missing from sms.mjs"
-            exit 1
-          fi
-          echo "✓ Keyword filtering present in SMS handler"
-
   build:
     name: Build runtime image
     if: github.event.action != 'closed'

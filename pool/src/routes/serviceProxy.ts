@@ -315,55 +315,6 @@ function telnyxHeaders() {
   };
 }
 
-// ── SMS compliance: keyword auto-responses (10DLC campaign CZL2FYB) ─────────
-import { matchKeyword, AUTO_RESPONSES } from "../sms-compliance";
-
-/**
- * POST /api/proxy/sms/webhook — Telnyx inbound message webhook.
- * Handles STOP/HELP/START keywords with auto-responses.
- * Non-keyword messages are ignored (agents poll via MDR).
- */
-router.post("/api/proxy/sms/webhook", async (req, res) => {
-  // Telnyx sends webhook events in { data: { event_type, payload } } format
-  const event = req.body?.data;
-  if (!event || event.event_type !== "message.received") {
-    res.sendStatus(200);
-    return;
-  }
-
-  const payload = event.payload;
-  const text = payload?.text || "";
-  const from = payload?.from?.phone_number;
-  const to = payload?.to?.[0]?.phone_number;
-
-  const keyword = matchKeyword(text);
-  if (!keyword || !from || !to) {
-    res.sendStatus(200);
-    return;
-  }
-
-  // Send auto-response
-  try {
-    await fetch(`${TELNYX_API}/messages`, {
-      method: "POST",
-      headers: telnyxHeaders(),
-      body: JSON.stringify({
-        from: to,
-        to: from,
-        text: AUTO_RESPONSES[keyword],
-        messaging_profile_id: config.telnyxMessagingProfileId,
-      }),
-    });
-    console.log(`[proxy/sms] keyword=${keyword} from=${from} to=${to} — auto-response sent`);
-    metricCount("proxy.sms.keyword", 1, { keyword });
-  } catch (err: any) {
-    console.error(`[proxy/sms] keyword auto-response failed: ${err.message}`);
-    metricCount("proxy.sms.keyword_error", 1, { keyword });
-  }
-
-  res.sendStatus(200);
-});
-
 // POST /api/proxy/sms/send — send SMS (injects instance's phone as `from`)
 router.post("/api/proxy/sms/send", async (req, res) => {
   const t0 = Date.now();

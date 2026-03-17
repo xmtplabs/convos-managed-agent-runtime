@@ -117,16 +117,12 @@ async function getOrCreateMessagingProfile(): Promise<string> {
   const existing = listBody?.data?.[0]?.id;
   if (existing) return existing;
 
-  // Webhook URL for inbound keyword handling (STOP/HELP/START auto-responses)
-  const webhookUrl = config.poolUrl ? `${config.poolUrl}/api/proxy/sms/webhook` : undefined;
-
   // Create a new profile
   const createRes = await fetch(`${TELNYX_API}/messaging_profiles`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
       name: "convos-sms",
-      ...(webhookUrl && { webhook_url: webhookUrl }),
     }),
   });
   const createBody = await createRes.json() as any;
@@ -135,7 +131,7 @@ async function getOrCreateMessagingProfile(): Promise<string> {
     console.error("[telnyx] Create messaging profile failed:", createRes.status, createBody);
     throw new Error(`Telnyx messaging profile creation failed: ${createRes.status}`);
   }
-  console.log(`[telnyx] Created messaging profile ${profileId}${webhookUrl ? ` (webhook: ${webhookUrl})` : ""}`);
+  console.log(`[telnyx] Created messaging profile ${profileId}`);
   return profileId;
 }
 
