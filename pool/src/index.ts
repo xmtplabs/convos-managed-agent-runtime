@@ -19,6 +19,7 @@ import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
 import { couponRouter } from "./couponRoute";
 import { stripeRouter } from "./stripeRoute";
+import * as stripe from "./services/providers/stripe";
 import { serviceProxyRouter } from "./routes/serviceProxy";
 
 // Services routes (now local, no HTTP)
@@ -393,6 +394,10 @@ app.post("/api/pool/credits-topup", async (req, res) => {
     // Update resourceMeta.limit in DB
     const updatedMeta = { ...(svc.resourceMeta as any || {}), limit: newLimit };
     await pgDb.update(instanceServices).set({ resourceMeta: updatedMeta }).where(eq(instanceServices.id, svc.id));
+
+    // Lazily ensure a Stripe customer exists (fire-and-forget)
+    stripe.ensureCustomer({ instanceId })
+      .catch((err) => console.warn(`[stripe] Failed to ensure customer for ${instanceId}:`, err.message));
 
     console.log(`[pool] Credits top-up for instance ${instanceId}: $${currentLimit} → $${newLimit}`);
     res.json({ ok: true, previousLimit: currentLimit, newLimit });

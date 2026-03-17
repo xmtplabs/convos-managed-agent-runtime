@@ -68,6 +68,14 @@
             </div>
           </div>
 
+          <!-- Pool -->
+          <div class="service-item" id="svc-pool" style="display:none">
+            <div class="service-body">
+              <div class="service-label">pool</div>
+              <div class="service-value" id="pool-value"></div>
+            </div>
+          </div>
+
           <!-- Processing power -->
           <div class="service-item" id="svc-credits">
             <div class="service-body">
@@ -139,6 +147,8 @@
       var copyPhone      = document.getElementById("copy-phone");
       var svcRuntime     = document.getElementById("svc-runtime");
       var runtimeValue   = document.getElementById("runtime-value");
+      var svcPool        = document.getElementById("svc-pool");
+      var poolValue      = document.getElementById("pool-value");
       var creditsValue   = document.getElementById("credits-value");
       var creditsBar     = document.getElementById("credits-bar");
       var creditsBarFill = document.getElementById("credits-bar-fill");
@@ -334,6 +344,12 @@
             svcRuntime.style.display = "flex";
             runtimeValue.textContent = "v" + d.runtimeVersion;
             runtimeValue.className = "service-value";
+          }
+
+          if (d.poolHost) {
+            svcPool.style.display = "flex";
+            poolValue.textContent = d.poolHost;
+            poolValue.className = "service-value";
           }
 
           renderCredits(d.credits);

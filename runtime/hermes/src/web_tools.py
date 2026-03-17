@@ -102,6 +102,14 @@ async def services_api():
         base = f"http://127.0.0.1:{port}"
     result["servicesUrl"] = f"{base}/web-tools/services"
 
+    # Show shortened pool URL so the user can tell if they're hitting localhost or Railway
+    if pool_url:
+        try:
+            from urllib.parse import urlparse
+            result["poolHost"] = urlparse(pool_url).netloc
+        except Exception:
+            pass
+
     if instance_id and gateway_token and pool_url:
         async with httpx.AsyncClient(timeout=5) as client:
             # Identity

@@ -41,6 +41,48 @@ export async function getCustomerBalance(customerId: string): Promise<number> {
   return customer.balance;
 }
 
+/**
+ * Ensure a Stripe customer exists for this instance.
+ * Idempotent: checks instance_services first, creates only if missing.
+ * Returns the Stripe customer ID, or null if Stripe is not configured.
+ */
+export async function ensureCustomer(opts: {
+  instanceId: string;
+  agentName?: string;
+  instanceUrl?: string;
+}): Promise<string | null> {
+  if (!getClient()) return null;
+
+  // Lazy imports to avoid circular deps
+  const { db: drizzle } = await import("../../db/connection");
+  const { instanceServices } = await import("../../db/schema");
+  const { eq, and } = await import("drizzle-orm");
+
+  // Check if already provisioned
+  const existing = await drizzle.select({ resourceId: instanceServices.resourceId })
+    .from(instanceServices)
+    .where(and(
+      eq(instanceServices.instanceId, opts.instanceId),
+      eq(instanceServices.toolId, "stripe"),
+    ));
+  if (existing[0]) return existing[0].resourceId;
+
+  // Create customer
+  const customer = await createCustomer(opts);
+
+  // Store in instance_services
+  await drizzle.insert(instanceServices).values({
+    instanceId: opts.instanceId,
+    toolId: "stripe",
+    resourceId: customer.id,
+    envKey: "stripe",
+    envValue: customer.id,
+  });
+
+  console.log(`[stripe] Created customer ${customer.id} for instance ${opts.instanceId}`);
+  return customer.id;
+}
+
 /** Verify and construct a Stripe webhook event from raw body + signature. */
 export function constructWebhookEvent(
   rawBody: Buffer,
