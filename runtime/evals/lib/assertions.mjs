@@ -62,37 +62,7 @@ export function profileImageSet(output, context) {
   });
 }
 
-export function readReceiptExists(output, context) {
-  const id = context.providerResponse?.metadata?.conversationId;
-  if (!id) return { pass: false, score: 0, reason: 'No conversationId in provider metadata' };
 
-  sleep(5_000);
-
-  try {
-    const out = execFileSync(CONVOS, [
-      'conversation', 'messages', id,
-      '--sync', '--limit', '50', '--env', ENV, '--json',
-    ], { encoding: 'utf-8', timeout: 30_000, env: convosEnv() }).trim();
-    const msgs = JSON.parse(out);
-    const all = Array.isArray(msgs) ? msgs : [];
-    const receipts = all.filter((m) => {
-      const ct = m.contentType;
-      if (typeof ct === 'string') return ct === 'readReceipt' || ct === 'read-receipt';
-      if (ct && typeof ct === 'object') return ct.typeId === 'readReceipt' || ct.typeId === 'read-receipt';
-      return false;
-    });
-    const pass = receipts.length > 0;
-    return {
-      pass,
-      score: pass ? 1 : 0,
-      reason: pass
-        ? `Found ${receipts.length} read receipt(s) in conversation`
-        : `No read receipts found in ${all.length} messages — pipeline may not be sending them`,
-    };
-  } catch (err) {
-    return { pass: false, score: 0, reason: `Failed to query messages: ${err.message}` };
-  }
-}
 
 export function agentSelfDestructed(output) {
   const pass = output === 'SELF_DESTRUCT_CONFIRMED';

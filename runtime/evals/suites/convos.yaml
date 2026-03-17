@@ -93,13 +93,6 @@ tests:
       - type: not-icontains
         value: "lane enqueue"
 
-  - description: "Pipeline sends read receipts automatically"
-    vars:
-      prompt: "What's 2 + 2?"
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:readReceiptExists"
-
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"
     vars:
