@@ -4,7 +4,7 @@
   "description": "Convos agent runtime powered by Hermes agent",
   "scripts": {
     "start:hermes": "sh scripts/keys.sh && sh scripts/install-deps.sh && sh scripts/apply-config.sh && sh scripts/identity.sh && sh scripts/start.sh",
-    "eval": "EVAL_RUNTIME=hermes sh ../evals/eval.sh"
+    "eval": "EVAL_RUNTIME=hermes sh $([ -f evals/eval.sh ] && echo evals/eval.sh || echo ../evals/eval.sh)"
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0",
