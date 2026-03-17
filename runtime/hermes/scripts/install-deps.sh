@@ -3,7 +3,7 @@
 set -e
 . "$(dirname "$0")/lib/init.sh"
 
-HERMES_TAG="v2026.3.12"
+HERMES_TAG="v2026.3.17"
 
 brand_section "Installing dependencies"
 
