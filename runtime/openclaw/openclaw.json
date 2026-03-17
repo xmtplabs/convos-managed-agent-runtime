@@ -41,6 +41,7 @@
   "agents": {
     "defaults": {
       "workspace": "~/.openclaw/workspace",
+      "skipBootstrap": true,
       "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
       "userTimezone": "America/New_York",
