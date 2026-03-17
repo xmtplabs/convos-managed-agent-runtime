@@ -58,6 +58,12 @@ _setup_join_state = {"joined": False, "joinerInboxId": None}
 _setup_result: dict | None = None
 _setup_cleanup_task: asyncio.Task | None = None
 
+# Pool health readiness — tracks whether lifespan startup is complete.
+# OpenClaw has two gates (gatewayReady + convosReady); Hermes collapses them
+# into one because it has no subprocess — lifespan completing is equivalent.
+_server_ready: bool = False
+_health_cached: bool = False
+
 
 def get_config() -> RuntimeConfig:
     assert _config is not None
@@ -390,7 +396,7 @@ async def _cron_tick_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _config, _cron_task, _event_loop
+    global _config, _cron_task, _event_loop, _server_ready
     _config = RuntimeConfig.from_env()
     errors = _config.validate()
     if errors:
@@ -410,6 +416,7 @@ async def lifespan(app: FastAPI):
     # Auto-resume from saved credentials (if any)
     await _try_resume_from_credentials(_config)
 
+    _server_ready = True
     yield
     if _cron_task:
         _cron_task.cancel()
@@ -441,6 +448,16 @@ async def health():
 
 @app.get("/pool/health")
 async def pool_health():
+    global _health_cached
+    if _health_cached:
+        return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
+
+    if not _server_ready:
+        return {"ready": False, "version": RUNTIME_VERSION, "runtime": "hermes"}
+
+    # Server is ready — either no adapter yet (awaiting provision)
+    # or adapter exists with an active instance. Cache permanently.
+    _health_cached = True
     return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
 
 
