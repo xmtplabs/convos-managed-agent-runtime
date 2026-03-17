@@ -210,12 +210,31 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  smoke-hermes:
-    name: "Smoke test Hermes"
+  eval-hermes:
+    name: "Eval Hermes: ${{ matrix.suite }}"
     needs: [prepare, build-hermes]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: knows
+            timeout: 180
+          - suite: skills
+            timeout: 300
+          - suite: soul
+            timeout: 180
+          - suite: convos
+            timeout: 600
+          - suite: async
+            timeout: 120
+          - suite: memory
+            timeout: 300
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
       - name: Log in to GHCR
         uses: docker/login-action@v4
         with:
@@ -223,40 +242,51 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Start container
+      - name: "Start container (:pending-${{ needs.prepare.outputs.sha }})"
         run: |
           docker pull ghcr.io/xmtplabs/convos-runtime-hermes:pending-${{ needs.prepare.outputs.sha }}
-          docker run -d --name qa-runtime \
+          docker run -d --name eval-runtime \
             -p 8080:8080 \
+            -v ${{ github.workspace }}/runtime/evals:/app/evals \
             -e PORT=8080 \
+            -e EVAL_MODE=1 \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
+            -e POOL_URL="${{ secrets.POOL_URL }}" \
+            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
             ghcr.io/xmtplabs/convos-runtime-hermes:pending-${{ needs.prepare.outputs.sha }}
 
       - name: Wait for health
         run: |
-          for i in $(seq 1 120); do
+          SECONDS=0
+          while (( SECONDS < 120 )); do
             if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Ready after ${i}s"
+              echo "Ready after ${SECONDS}s"
               exit 0
             fi
-            sleep 1
+            sleep 0.25
           done
           echo "Failed to start within 120s"
-          docker logs qa-runtime
+          docker logs eval-runtime
           exit 1
 
-      - name: Dump logs
+      - name: "Run ${{ matrix.suite }} suite"
+        run: |
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
+            eval-runtime timeout ${{ matrix.timeout }} \
+              pnpm evals:hermes:${{ matrix.suite }}
+
+      - name: Dump container logs
         if: always()
-        run: docker logs qa-runtime
+        run: docker logs eval-runtime
 
   publish-hermes:
     name: "Publish Hermes v${{ needs.prepare.outputs.version }} → :${{ inputs.tag }}"
-    needs: [prepare, smoke-hermes]
+    needs: [prepare, eval-hermes]
     runs-on: ubuntu-latest
     steps:
       - name: Log in to GHCR
