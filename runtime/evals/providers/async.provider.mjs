@@ -218,17 +218,20 @@ export default class AsyncProvider {
       log(`Follow-up replied (${followUp.durationMs}ms): "${followUp.output.slice(0, 80)}"`);
     }
 
-    // Build combined output for assertions
-    // The primary output is the follow-up response (what the regex matches against)
-    const output = followUp.output || followUp.error || '';
+    // Build combined output for assertions.
+    // NEVER fall back to the error string — it contains URLs/ports that can
+    // accidentally match time-like regexes (e.g. "127.0.0.1:8080" → "1:80").
+    const output = followUp.output || '';
 
     return {
       output,
+      error: followUp.error && !followUp.output ? followUp.error : undefined,
       metadata: {
         heavyAck: heavy.output,
         heavyDurationMs: heavy.durationMs,
         heavyError: heavy.error,
         followUpDurationMs: followUp.durationMs,
+        followUpError: followUp.error,
         followUpTimeout: followUpTimeoutMs,
         healthOk,
         delegated: !heavy.error && heavy.durationMs < ackTimeoutMs,

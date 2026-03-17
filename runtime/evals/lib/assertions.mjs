@@ -83,6 +83,18 @@ export function gatewayHealthDuringLoad(output, context) {
   };
 }
 
+export function followUpResponded(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const error = meta.followUpError;
+  if (error) {
+    return { pass: false, score: 0, reason: `Follow-up query failed: ${error}` };
+  }
+  if (!output || !output.trim()) {
+    return { pass: false, score: 0, reason: 'Follow-up query returned empty response' };
+  }
+  return { pass: true, score: 1, reason: 'Follow-up query returned a response' };
+}
+
 export function agentDelegatedHeavyTask(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const ack = meta.heavyAck || '';

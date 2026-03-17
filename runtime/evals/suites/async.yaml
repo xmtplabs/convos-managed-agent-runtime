@@ -29,9 +29,12 @@ tests:
       ackTimeout: 30
       followUpTimeout: 15
     assert:
-      # Follow-up response contains a valid time
+      # Follow-up actually got a response (not a curl/server error)
+      - type: javascript
+        value: "file://../lib/assertions.mjs:followUpResponded"
+      # Follow-up response contains a valid time (HH:MM or H:MM, 12h or 24h)
       - type: regex
-        value: "\\d{1,2}[:.:]\\d{2}"
+        value: "\\b\\d{1,2}:\\d{2}\\s*([APap][Mm])?\\b"
       # Gateway stayed responsive
       - type: javascript
         value: "file://../lib/assertions.mjs:gatewayHealthDuringLoad"
