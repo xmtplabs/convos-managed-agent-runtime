@@ -124,6 +124,7 @@ jobs:
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             -e POOL_URL="${{ secrets.POOL_URL }}" \
             -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
+            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
             ghcr.io/xmtplabs/convos-runtime:pending-${{ needs.prepare.outputs.sha }} \
             node scripts/pool-server.js
 
