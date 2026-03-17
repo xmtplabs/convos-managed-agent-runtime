@@ -205,32 +205,6 @@ async def _dispatch_greeting() -> None:
         logger.error(f"Greeting dispatch failed: {err}")
 
 
-async def _dispatch_workspace_refresh() -> None:
-    """Silent workspace refresh after restart — agent re-reads config but doesn't reply."""
-    adapter = get_adapter()
-    if not adapter or not adapter.agent or not adapter.instance:
-        return
-
-    try:
-        await adapter.agent.handle_message(
-            content=(
-                "[System: Gateway restart detected. This is an internal refresh only. "
-                "Re-read AGENTS.md, SOUL.md, MEMORY.md, and current memory files now. "
-                "Do not send a reply or call tools unless strictly required to refresh "
-                "your workspace context.]"
-            ),
-            sender_name="System",
-            sender_id="system",
-            timestamp=time.time(),
-            conversation_id=adapter.instance.conversation_id,
-            message_id=f"system-refresh-{int(time.time())}",
-            group_members=adapter.instance.get_group_members(),
-        )
-        # Intentionally discard response — this is a silent refresh
-    except Exception as err:
-        logger.error(f"Workspace refresh dispatch failed: {err}")
-
-
 async def _try_resume_from_credentials(cfg: RuntimeConfig) -> None:
     """Check for saved credentials and auto-resume the conversation."""
     creds = load_credentials(cfg.hermes_home)
@@ -250,8 +224,7 @@ async def _try_resume_from_credentials(cfg: RuntimeConfig) -> None:
             debug=True,
             resuming=True,
         )
-        # Dispatch workspace refresh in background (agent re-reads config silently)
-        asyncio.create_task(_dispatch_workspace_refresh())
+        # No workspace refresh needed — AgentRunner re-reads SOUL.md/AGENTS.md at init
         logger.info("Resumed conversation successfully")
     except Exception as err:
         logger.error("Failed to resume from saved credentials: %s", err)
