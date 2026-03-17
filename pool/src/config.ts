@@ -69,6 +69,11 @@ export const config = {
     .map((s) => s.trim())
     .filter(Boolean),
 
+  // Stripe (sandbox)
+  stripeSecretKey: getEnv("STRIPE_SECRET_KEY"),
+  stripePublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY"),
+  stripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET"),
+
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
