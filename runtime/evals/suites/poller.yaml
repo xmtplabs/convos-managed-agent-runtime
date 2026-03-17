@@ -29,7 +29,7 @@ tests:
 
   - description: "Agent describes attachment from polled email"
     vars:
-      prompt: "What's the attachment in that email? Download and read it."
+      prompt: "What's the attachment in that email? Download and read it. Don't ask for confirmation. Just do it."
     assert:
       - type: llm-rubric
         value: >
