@@ -62,7 +62,7 @@ Use either when:
 - You'd be restating what was just said
 - The conversation has natural closure and adding words would just be noise
 
-Speaking is the exception that requires justification.
+Silence is the default. Only speak when you're adding something new.
 
 ### Conversation Loop Guard
 
