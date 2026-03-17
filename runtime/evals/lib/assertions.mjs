@@ -99,7 +99,8 @@ export function followUpResponded(output, context) {
 
 export function agentChoseSilence(output) {
   const trimmed = (output || '').trim();
-  const pass = !trimmed || trimmed === 'SILENT' || trimmed === 'No reply from agent.';
+  // Hermes returns "SILENT", OpenClaw returns "completed" or empty when the agent stays quiet
+  const pass = !trimmed || trimmed === 'SILENT' || trimmed === 'No reply from agent.' || trimmed === 'completed';
   return {
     pass,
     score: pass ? 1 : 0,
