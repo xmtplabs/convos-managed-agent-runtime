@@ -155,8 +155,8 @@ function agentCount(msgs) {
 }
 
 // Wait for at least one new agent message after `baseline`, then settle.
-function waitForAgent(baseline) {
-  const deadline = Date.now() + 60_000;
+function waitForAgent(baseline, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
   let msgs = [];
   try { msgs = fetchMessages(); } catch {}
   let count = agentCount(msgs);
@@ -231,7 +231,8 @@ export default class OpenClawProvider {
       log('Waiting for agent welcome message...');
     }
 
-    const msgs = waitForAgent(baseline);
+    const timeoutMs = meta.waitTimeoutMs || 60_000;
+    const msgs = waitForAgent(baseline, timeoutMs);
     const newAgentMsgs = agentCount(msgs) - baseline;
 
     // Fail fast on welcome — if agent never responded, everything else will fail
