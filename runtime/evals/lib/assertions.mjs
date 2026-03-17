@@ -71,18 +71,23 @@ export function readReceiptExists(output, context) {
   try {
     const out = execFileSync(CONVOS, [
       'conversation', 'messages', id,
-      '--sync', '--content-type', 'read-receipt',
-      '--limit', '10', '--env', ENV, '--json',
+      '--sync', '--limit', '50', '--env', ENV, '--json',
     ], { encoding: 'utf-8', timeout: 30_000, env: convosEnv() }).trim();
     const msgs = JSON.parse(out);
-    const receipts = Array.isArray(msgs) ? msgs : [];
+    const all = Array.isArray(msgs) ? msgs : [];
+    const receipts = all.filter((m) => {
+      const ct = m.contentType;
+      if (typeof ct === 'string') return ct === 'read-receipt';
+      if (ct && typeof ct === 'object') return ct.typeId === 'read-receipt';
+      return false;
+    });
     const pass = receipts.length > 0;
     return {
       pass,
       score: pass ? 1 : 0,
       reason: pass
         ? `Found ${receipts.length} read receipt(s) in conversation`
-        : 'No read receipts found — pipeline may not be sending them',
+        : `No read receipts found in ${all.length} messages — pipeline may not be sending them`,
     };
   } catch (err) {
     return { pass: false, score: 0, reason: `Failed to query messages: ${err.message}` };
