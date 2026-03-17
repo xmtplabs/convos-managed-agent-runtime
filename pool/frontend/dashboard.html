@@ -693,7 +693,10 @@
     function showProvisionLog(count) {
       provisionTotal = count;
       provisionDone = 0;
-      provisionImageTag = document.getElementById('runtime-env').value || 'production';
+      var harness = document.getElementById('runtime-harness');
+      var harnessLabel = harness.value === '__custom__' ? 'custom' : harness.options[harness.selectedIndex].text;
+      var envVal = document.getElementById('runtime-env').value || 'production';
+      provisionImageTag = envVal + ' (' + harnessLabel + ')';
       var panel = document.getElementById('provision-log');
       var body = document.getElementById('provision-log-body');
       body.innerHTML = '';
