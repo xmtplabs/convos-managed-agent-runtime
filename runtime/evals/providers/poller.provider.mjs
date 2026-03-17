@@ -4,7 +4,7 @@
 // OpenClaw only.
 
 import { execSync, execFileSync, spawn } from 'child_process';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync, existsSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -34,10 +34,14 @@ const CONVOS_ENV = { ...process.env, HOME: EVAL_HOME };
 process.env.EVAL_CONVOS_HOME = EVAL_HOME;
 log(`Using identity store: ${EVAL_HOME}/.convos`);
 
-// Resolve paths
+// Resolve paths — Docker copies shared dirs to /app/shared-workspace and /app/shared-scripts
 const FIXTURE_PATH = resolve(__dirname, '../fixtures/eval-poller-note.txt');
-const SKILLS_ROOT = resolve(__dirname, '../../shared/workspace/skills');
-const POLLER_SCRIPT = resolve(__dirname, '../../shared/scripts/poller.sh');
+const SKILLS_ROOT = existsSync('/app/shared-workspace/skills')
+  ? '/app/shared-workspace/skills'
+  : resolve(__dirname, '../../shared/workspace/skills');
+const POLLER_SCRIPT = existsSync('/app/shared-scripts/poller.sh')
+  ? '/app/shared-scripts/poller.sh'
+  : resolve(__dirname, '../../shared/scripts/poller.sh');
 const SERVICES_MJS = resolve(SKILLS_ROOT, 'services/scripts/services.mjs');
 
 let pollerProc = null;
