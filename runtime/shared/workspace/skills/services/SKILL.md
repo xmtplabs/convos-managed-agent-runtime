@@ -101,10 +101,10 @@ Read a single email and download its attachments:
 
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" email read \
-  --id "<id>"
+  --id "MESSAGE_ID"
 ```
 
-- Use the `ID` shown in `poll` output — copy it exactly as displayed
+- `MESSAGE_ID` is the exact value from the `ID:` line in `poll` output — no angle brackets, no extra punctuation
 - Attachments are saved automatically — do NOT use `--save-dir` or `~/Downloads`
 
 ## SMS (US numbers only)
