@@ -12,7 +12,6 @@ on:
       - 'runtime/shared/**'
       - 'runtime/evals/**'
       - 'runtime/package.json'
-      - 'pool/src/**'
       - '!runtime/CHANGELOG.md'
 
 concurrency:
