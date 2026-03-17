@@ -23,13 +23,14 @@ elif [ ! -d "$HERMES_AGENT_DIR/.git" ]; then
   uv pip install --system -e "./mini-swe-agent"
   cd "$ROOT"
 
-  brand_info "runtime" "installing Python deps ..."
-  uv pip install --system --no-cache -r "$ROOT/requirements.txt"
-
   brand_ok "hermes-agent" "$HERMES_TAG (freshly installed)"
 else
   brand_ok "hermes-agent" "$HERMES_TAG"
 fi
+
+# Runtime Python deps — always reconcile (fast no-op if unchanged)
+brand_info "runtime" "syncing Python deps ..."
+uv pip install --system --no-cache -r "$ROOT/requirements.txt"
 
 # ── Node deps (local dev only — Docker pre-installs) ────────────────────
 brand_subsection "node"
