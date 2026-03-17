@@ -236,7 +236,7 @@ class AgentRunner:
                     "content": response,
                 })
 
-        if not response or not response.strip():
+        if is_silent or not response or not response.strip():
             return None
 
         return response
