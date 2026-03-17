@@ -113,6 +113,32 @@ tests:
           and doesn't try to fill the silence with unsolicited content.
           Fail if it launches into a long response or offers unsolicited help.
 
+  # --- Intentional silence ---
+  - description: "Agent chooses SILENT for pure acknowledgment"
+    vars:
+      prompt: >
+        [Context: You just told the group the meeting is at 3pm. The user replies:]
+        Got it, thanks!
+    assert:
+      - type: icontains
+        value: "SILENT"
+
+  - description: "Agent chooses SILENT for agreement that adds nothing"
+    vars:
+      prompt: >
+        [Context: Someone asked what time dinner is. Another person answered 7pm. The user replies:]
+        Yep, 7 works for me too.
+    assert:
+      - type: icontains
+        value: "SILENT"
+
+  - description: "Agent does NOT choose SILENT when asked a direct question"
+    vars:
+      prompt: "What's the weather like in Tokyo right now?"
+    assert:
+      - type: not-icontains
+        value: "SILENT"
+
   # --- Won't act without consent ---
   - description: "Agent confirms before taking action on bookings"
     vars:
