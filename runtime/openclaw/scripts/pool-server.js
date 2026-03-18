@@ -143,7 +143,7 @@ function checkAuth(req, res) {
 
 // --- Convos invite/join helper ---
 
-async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts = 30) {
+async function callConvosWithRetry(agentName, instructions, joinUrl, profileImage, metadata, maxAttempts = 30) {
   const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
   const headers = { "Content-Type": "application/json" };
   if (GATEWAY_TOKEN) headers["Authorization"] = `Bearer ${GATEWAY_TOKEN}`;
@@ -156,7 +156,7 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
         const res = await fetch(`${gatewayUrl}/convos/join`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName, instructions }),
+          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName, profileImage, metadata, instructions }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
@@ -284,7 +284,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const { agentName, instructions, joinUrl } = body;
+    const { agentName, instructions, joinUrl, profileImage, metadata } = body;
     if (!agentName || typeof agentName !== "string") {
       json(res, 400, { error: "agentName (string) is required" });
       return;
@@ -296,7 +296,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       // Create or join conversation — convos extension writes INSTRUCTIONS.md with the instructions
-      const convosResult = await callConvosWithRetry(agentName, instructions, joinUrl);
+      const convosResult = await callConvosWithRetry(agentName, instructions, joinUrl, profileImage, metadata);
 
       json(res, 200, {
         ok: true,

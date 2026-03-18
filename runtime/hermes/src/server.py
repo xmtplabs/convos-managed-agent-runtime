@@ -485,6 +485,9 @@ async def pool_provision(body: ProvisionRequest):
     if body.instructions:
         write_instructions(cfg.hermes_home, body.instructions)
 
+    instance_id = os.environ.get("INSTANCE_ID")
+    meta = {**(body.metadata or {}), **({"instanceId": instance_id} if instance_id else {})} or None
+
     try:
         if body.joinUrl:
             inst, status, conversation_id = await ConvosInstance.join_conversation(
@@ -492,7 +495,7 @@ async def pool_provision(body: ProvisionRequest):
                 body.joinUrl,
                 profile_name=body.agentName,
                 profile_image=body.profileImage,
-                metadata=body.metadata,
+                metadata=meta,
                 timeout=60,
                 debug=True,
             )
@@ -615,13 +618,16 @@ async def convos_join(body: JoinRequest):
     if body.instructions:
         write_instructions(cfg.hermes_home, body.instructions)
 
+    instance_id = os.environ.get("INSTANCE_ID")
+    join_meta = {**(body.metadata or {}), **({"instanceId": instance_id} if instance_id else {})} or None
+
     try:
         inst, status, conversation_id = await ConvosInstance.join_conversation(
             env,
             body.inviteUrl,
             profile_name=body.profileName,
             profile_image=body.profileImage,
-            metadata=body.metadata,
+            metadata=join_meta,
             timeout=60,
             debug=True,
         )

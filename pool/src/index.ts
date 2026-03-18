@@ -607,7 +607,7 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 });
 
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
-  const { agentName, instructions, joinUrl, source } = req.body || {};
+  const { agentName, instructions, joinUrl, profileImage, metadata, source } = req.body || {};
   if (instructions && typeof instructions !== "string") {
     res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
@@ -616,6 +616,12 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   }
   if (joinUrl && typeof joinUrl !== "string") {
     res.status(400).json({ error: "joinUrl must be a string if provided" }); return;
+  }
+  if (profileImage && typeof profileImage !== "string") {
+    res.status(400).json({ error: "profileImage must be a string if provided" }); return;
+  }
+  if (metadata && (typeof metadata !== "object" || Array.isArray(metadata))) {
+    res.status(400).json({ error: "metadata must be an object if provided" }); return;
   }
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -629,6 +635,8 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       agentName: agentName || "Assistant",
       instructions: instructions || "You are a helpful AI assistant.",
       joinUrl: joinUrl || undefined,
+      profileImage: (typeof profileImage === "string" && profileImage) || undefined,
+      metadata: metadata || undefined,
       source: (typeof source === "string" && source) || "api",
     });
     if (!result) {
@@ -646,7 +654,13 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   const agentName = (req.query.agentName as string) || "Assistant";
   const instructions = (req.query.instructions as string) || "You are a helpful AI assistant.";
   const joinUrl = (req.query.joinUrl as string) || undefined;
+  const profileImage = (req.query.profileImage as string) || undefined;
   const source = (req.query.source as string) || "api";
+
+  let metadata: Record<string, string> | undefined;
+  if (req.query.metadata) {
+    try { metadata = JSON.parse(req.query.metadata as string); } catch { /* ignore */ }
+  }
 
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -670,6 +684,8 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
       agentName,
       instructions,
       joinUrl,
+      profileImage,
+      metadata,
       source,
       onProgress(step, status, message) {
         send({ type: "step", step, status, message: message || "" });
