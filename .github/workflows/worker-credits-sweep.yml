@@ -2,7 +2,7 @@ name: "Worker: Credits Sweep"
 
 on:
   push:
-    branches: [dev, staging, main]
+    branches: [staging]
     paths:
       - 'workers/credits-sweep/**'
   pull_request:
