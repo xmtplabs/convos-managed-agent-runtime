@@ -13,6 +13,7 @@
  */
 
 import { readFileSync, writeFileSync } from "fs";
+import { execFileSync } from "child_process";
 
 // Proxy mode: route through pool manager
 const POOL_URL = process.env.POOL_URL;
@@ -353,6 +354,19 @@ async function provision() {
   }
   const result = await provRes.json();
   console.log(`SMS provisioned: ${result.phone}`);
+
+  // Update profile metadata so the conversation shows the phone number
+  const convoId = process.env.CONVOS_CONVERSATION_ID;
+  const convoEnv = process.env.CONVOS_ENV || process.env.XMTP_ENV;
+  if (convoId && result.phone) {
+    try {
+      execFileSync("convos", [
+        "conversation", "update-profile", convoId,
+        "--metadata", `phone=${result.phone}`,
+        ...(convoEnv ? ["--env", convoEnv] : []),
+      ], { timeout: 15_000, stdio: "ignore" });
+    } catch { /* best-effort */ }
+  }
 }
 
 export default async function sms(argv) {
