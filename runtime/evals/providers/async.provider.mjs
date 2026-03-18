@@ -2,9 +2,9 @@
 // Provider that tests the agent delegates heavy tasks to sub-agents
 // and stays responsive for follow-up queries.
 //
-// Hermes (runtime.gateway) flow — concurrent:
+// Hermes (queryUrl) flow — concurrent:
 //   1. Fire heavy task non-blocking (spawn) — like a second user message arriving
-//   2. Probe gateway health while heavy task is processing
+//   2. Probe server health while heavy task is processing
 //   3. Send simple follow-up — should respond on a separate thread
 //   4. Collect heavy task result (may be empty if still processing — that's fine)
 //
@@ -21,54 +21,27 @@
 import { execFileSync, spawn } from 'child_process';
 import http from 'http';
 import { runtime } from '../lib/runtime.mjs';
-import { elapsed, log as _log, clearSessionsOnce, cleanOutput, sleep } from '../lib/utils.mjs';
+import { elapsed, log as _log, clearSessionsOnce, cleanOutput } from '../lib/utils.mjs';
 
-const GATEWAY_PORT = process.env.EVAL_GATEWAY_PORT || (runtime.gateway ? '9090' : runtime.defaultPort);
+const queryUrl = runtime.queryUrl || null;
+const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const HEALTH_PORT = process.env.PORT || runtime.defaultPort || '8080';
 let testIndex = 0;
 
 function log(msg) { _log('eval:async', msg); }
 
-// When the runtime has a gateway (hermes), start the eval server and route
-// queries through HTTP — exercising the production handle_message + run_in_executor path.
-// Other runtimes (openclaw) use the adapter's CLI bin/args directly.
 let queryBin = runtime.bin;
 let queryArgs = runtime.args;
 
-if (runtime.gateway) {
-  const token = runtime.env?.OPENCLAW_GATEWAY_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || '';
+if (queryUrl) {
   queryBin = 'curl';
   queryArgs = (prompt, _session) => [
     '-sf',
-    '-X', 'POST', `http://127.0.0.1:${GATEWAY_PORT}/agent/query`,
+    '-X', 'POST', `${queryUrl}/agent/query`,
     '-H', 'Content-Type: application/json',
-    '-H', `Authorization: Bearer ${token}`,
+    '-H', `Authorization: Bearer ${gatewayToken}`,
     '-d', JSON.stringify({ query: prompt }),
   ];
-
-  log('Starting server...');
-  runtime.gateway.start(GATEWAY_PORT);
-  const deadline = Date.now() + 30_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    sleep(1_000);
-    try {
-      execFileSync('curl', ['-sf', `http://127.0.0.1:${GATEWAY_PORT}${runtime.healthPath}`],
-        { encoding: 'utf-8', timeout: 5_000 });
-      ready = true;
-      break;
-    } catch {}
-  }
-  if (!ready) {
-    console.error(`[eval:async] Server failed to start on port ${GATEWAY_PORT} within 30s.`);
-    runtime.gateway.stop();
-    process.exit(1);
-  }
-  log('Server ready.');
-
-  function cleanup() { try { runtime.gateway.stop(); } catch {} }
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { cleanup(); process.exit(130); });
-  process.on('SIGTERM', () => { cleanup(); process.exit(143); });
 }
 
 function httpGet(port, path, timeoutMs = 5000) {
@@ -87,8 +60,6 @@ function httpGet(port, path, timeoutMs = 5000) {
 function runPrompt(prompt, sessionId, timeoutMs = 30_000) {
   const start = Date.now();
   try {
-    // When using gateway (curl), don't pass runtime.env — curl doesn't need
-    // the Python/venv environment and the custom PATH may not include /usr/bin.
     const useRuntimeEnv = queryBin !== 'curl';
     const raw = execFileSync(queryBin, queryArgs(prompt, sessionId), {
       encoding: 'utf-8', timeout: timeoutMs,
@@ -173,13 +144,13 @@ export default class AsyncProvider {
 
     let heavy, healthOk, followUp;
 
-    if (runtime.gateway) {
+    if (queryUrl) {
       // Hermes: fire heavy task non-blocking, probe health, send follow-up concurrently
       const heavyPromise = runPromptAsync(heavyPrompt, heavySession, ackTimeoutMs);
 
       healthOk = false;
       try {
-        const res = await httpGet(GATEWAY_PORT, runtime.healthPath, 5000);
+        const res = await httpGet(HEALTH_PORT, runtime.healthPath, 5000);
         healthOk = res.status === 200;
         log(`Health probe: ${healthOk ? 'OK' : res.status} (${res.latencyMs}ms)`);
       } catch (err) {
@@ -198,7 +169,7 @@ export default class AsyncProvider {
 
       healthOk = false;
       try {
-        const res = await httpGet(GATEWAY_PORT, runtime.healthPath, 5000);
+        const res = await httpGet(HEALTH_PORT, runtime.healthPath, 5000);
         healthOk = res.status === 200;
         log(`Health probe: ${healthOk ? 'OK' : res.status} (${res.latencyMs}ms)`);
       } catch (err) {

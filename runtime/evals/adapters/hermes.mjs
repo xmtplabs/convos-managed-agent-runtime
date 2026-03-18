@@ -8,9 +8,9 @@
 //   detects Docker (no eval-env.sh) and returns process.env unchanged.
 
 import { readdirSync, readFileSync, unlinkSync, existsSync } from 'fs';
-import { join, dirname, resolve } from 'path';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { spawn, execSync } from 'child_process';
+import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const hermesDir = join(__dirname, '../../hermes');
@@ -97,49 +97,8 @@ export default {
   }),
   needsSessionClear: false,
   convosPath: '../../hermes/node_modules/.bin/convos',
-  gateway: {
-    _proc: null,
-    _owned: false,
-    start(port) {
-      // If a Hermes instance is already running on this port, attach to it
-      // instead of spawning a new one. Set EVAL_ATTACH=1 or just have the
-      // server already up — evals will talk to it and you see real logs.
-      try {
-        execSync(`curl -sf http://localhost:${port}/pool/health`, { timeout: 2_000, stdio: 'ignore' });
-        process.stderr.write(`[hermes] Attaching to existing server on port ${port}\n`);
-        this._owned = false;
-        return;
-      } catch {}
-
-      if (this._proc) { this._proc.kill(); this._proc = null; }
-      const { env: baseEnv, cwd } = buildEvalEnv();
-      const env = { ...baseEnv, PORT: String(port) };
-      const evalServer = resolve(__dirname, 'hermes_eval_server.py');
-      this._proc = spawn('python3', [evalServer], {
-        cwd,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      this._proc.stdout.on('data', (d) => {
-        const line = d.toString().trim();
-        if (line) process.stderr.write(`[hermes] ${line}\n`);
-      });
-      this._proc.stderr.on('data', (d) => {
-        const line = d.toString().trim();
-        if (line) process.stderr.write(`[hermes] ${line}\n`);
-      });
-      // Expose the token so providers can authenticate
-      process.env.OPENCLAW_GATEWAY_TOKEN = env.OPENCLAW_GATEWAY_TOKEN;
-      this._owned = true;
-    },
-    stop() {
-      if (this._owned && this._proc) {
-        this._proc.kill();
-        this._proc = null;
-        this._owned = false;
-      }
-    },
-  },
+  // Evals talk to the production server via HTTP. Same port in CI and local dev.
+  queryUrl: `http://127.0.0.1:${process.env.PORT || '8080'}`,
   memory: {
     extraArgs: [],
     reset() {

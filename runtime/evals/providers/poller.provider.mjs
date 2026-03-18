@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
 let GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-if (!GATEWAY_TOKEN && !runtime.gateway) {
+if (!GATEWAY_TOKEN) {
   console.error('[eval:poller] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.');
   process.exit(1);
 }
@@ -48,7 +48,6 @@ let pollerProc = null;
 
 function cleanup() {
   if (pollerProc) { try { pollerProc.kill('SIGKILL'); } catch {} pollerProc = null; }
-  if (runtime.gateway) { try { runtime.gateway.stop(); } catch {} }
   try { rmSync(EVAL_HOME, { recursive: true, force: true }); } catch {}
 }
 process.on('exit', cleanup);
@@ -71,25 +70,9 @@ function convos(args, opts = {}) {
   return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
 }
 
-// Start the gateway if the runtime adapter provides one, otherwise expect it running.
-if (runtime.gateway) {
-  log('Starting server...');
-  runtime.gateway.start(GATEWAY_PORT);
-  const deadline = Date.now() + 30_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    sleep(1_000);
-    if (checkGateway()) { ready = true; break; }
-  }
-  if (!ready) {
-    console.error('[eval:poller] Server failed to start on port ' + GATEWAY_PORT + ' within 30s.');
-    runtime.gateway.stop();
-    process.exit(1);
-  }
-  GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-  log('Server ready.');
-} else if (!checkGateway()) {
-  console.error(`[eval:poller] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first (pnpm gateway).`);
+// Expect the server to be running already (pnpm start:hermes or pnpm gateway).
+if (!checkGateway()) {
+  console.error(`[eval:poller] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first.`);
   process.exit(1);
 }
 

@@ -3,6 +3,9 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_LIB="$(cd "$(dirname "$0")/lib" 2>/dev/null && pwd)" || SCRIPT_LIB="$ROOT/scripts/lib"
 
+# Docker detection — single source of truth
+is_docker() { [ -d "/opt/hermes-agent" ]; }
+
 # .env — in Docker there's none; local dev keeps it at runtime root
 _ENV_FILE="$ROOT/../.env"
 [ -f "$_ENV_FILE" ] && set -a && . "$_ENV_FILE" 2>/dev/null || true && set +a
@@ -13,7 +16,7 @@ if [ -z "$HERMES_HOME" ]; then
 fi
 
 # Hermes agent — Docker: /opt/hermes-agent, local dev: .hermes-dev/hermes-agent
-if [ -d "/opt/hermes-agent" ]; then
+if is_docker; then
   HERMES_AGENT_DIR="/opt/hermes-agent"
 else
   HERMES_AGENT_DIR="$ROOT/.hermes-dev/hermes-agent"
@@ -44,7 +47,7 @@ SKILLS_ROOT="$HERMES_HOME/skills"
 # Node/Python paths
 export NODE_PATH="${NODE_PATH:-$ROOT/node_modules}"
 # Local dev venv (macOS PEP 668) — only activate outside Docker
-if [ ! -d "/opt/hermes-agent" ]; then
+if ! is_docker; then
   _VENV_BIN="$ROOT/.hermes-dev/venv/bin"
   [ -d "$_VENV_BIN" ] && export PATH="$_VENV_BIN:$PATH"
 fi

@@ -8,7 +8,7 @@ HERMES_TAG="v2026.3.17"
 brand_section "Installing dependencies"
 
 # ── Pip target — Docker uses system Python; macOS needs a venv (PEP 668) ─
-if [ "$HERMES_AGENT_DIR" = "/opt/hermes-agent" ]; then
+if is_docker; then
   PIP_TARGET="--system"
 else
   VENV_DIR="$ROOT/.hermes-dev/venv"
@@ -26,7 +26,7 @@ fi
 
 # ── Hermes agent (local dev only — Docker pre-installs to /opt) ──────────
 brand_subsection "hermes-agent"
-if [ "$HERMES_AGENT_DIR" = "/opt/hermes-agent" ]; then
+if is_docker; then
   brand_ok "hermes-agent" "$HERMES_TAG (pre-installed)"
 elif [ ! -d "$HERMES_AGENT_DIR/.git" ]; then
   brand_info "hermes-agent" "cloning $HERMES_TAG ..."

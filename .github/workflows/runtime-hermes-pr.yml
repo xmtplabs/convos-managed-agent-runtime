@@ -109,6 +109,19 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke test /agent/query
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:8080/agent/query \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
+            -d '{"query": "Reply with just the word OK", "session": "smoke-test"}')
+          echo "Response: $RESPONSE"
+          if [ -z "$RESPONSE" ]; then
+            echo "Empty response from /agent/query"
+            docker logs qa-runtime
+            exit 1
+          fi
+
       - name: Dump logs
         if: always()
         run: docker logs qa-runtime
