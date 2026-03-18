@@ -260,8 +260,16 @@ class AgentRunner:
         return text.strip()
 
     def reset_history(self) -> None:
-        """Clear conversation history (used on session reset)."""
+        """Clear conversation history and invalidate the cached system prompt.
+
+        The system prompt contains a frozen memory snapshot captured at first
+        turn.  Between eval phases (store → recall) the memory files on disk
+        change, so we must force a rebuild so the next turn picks up the new
+        snapshot.
+        """
         self._conversation_history.clear()
+        if self._agent is not None:
+            self._agent._invalidate_system_prompt()
 
 
 if __name__ == "__main__":

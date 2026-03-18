@@ -43,6 +43,11 @@ SKILLS_ROOT="$HERMES_HOME/skills"
 
 # Node/Python paths
 export NODE_PATH="${NODE_PATH:-$ROOT/node_modules}"
+# Local dev venv (macOS PEP 668) — only activate outside Docker
+if [ ! -d "/opt/hermes-agent" ]; then
+  _VENV_BIN="$ROOT/.hermes-dev/venv/bin"
+  [ -d "$_VENV_BIN" ] && export PATH="$_VENV_BIN:$PATH"
+fi
 export PATH="$ROOT/node_modules/.bin:$PATH"
 if [ -d "$HERMES_AGENT_DIR" ]; then
   # Only prepend if not already there (Docker sets PYTHONPATH in Dockerfile)

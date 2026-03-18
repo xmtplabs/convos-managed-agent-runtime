@@ -855,3 +855,57 @@ async def convos_setup_cancel():
     global _setup_join_state
     _setup_join_state = {"joined": False, "joinerInboxId": None}
     return {"cancelled": was_active}
+
+
+# ---- /agent/query and /agent/reset-history (eval surface) ----
+# These mirror the minimal eval server so evals can attach to a live instance
+# and route queries through the real production path.
+# Falls back to a standalone AgentRunner when no conversation is provisioned
+# (e.g. CI eval jobs that start the container without provisioning).
+
+from .agent_runner import AgentRunner as _AgentRunner
+
+_standalone_agent: _AgentRunner | None = None
+
+
+def _get_eval_agent() -> _AgentRunner:
+    """Return the adapter's agent if provisioned, otherwise a standalone runner."""
+    adapter = get_adapter()
+    if adapter and adapter.agent:
+        return adapter.agent
+
+    global _standalone_agent
+    if _standalone_agent is None:
+        cfg = get_config()
+        _standalone_agent = _AgentRunner(
+            model=cfg.model,
+            hermes_home=cfg.hermes_home,
+        )
+    return _standalone_agent
+
+
+class AgentQueryRequest(BaseModel):
+    query: str
+    session: str = "eval-session"
+
+
+@app.post("/agent/query", dependencies=[Depends(require_auth)])
+async def agent_query(body: AgentQueryRequest):
+    agent = _get_eval_agent()
+    response = await agent.handle_message(
+        content=body.query,
+        sender_name="user",
+        sender_id="eval-user",
+        timestamp=time.time(),
+        conversation_id=body.session,
+        message_id=f"eval-{int(time.time())}",
+    )
+    from starlette.responses import PlainTextResponse
+    return PlainTextResponse(response or "")
+
+
+@app.post("/agent/reset-history", dependencies=[Depends(require_auth)])
+async def agent_reset_history():
+    agent = _get_eval_agent()
+    agent.reset_history()
+    return {"ok": True}

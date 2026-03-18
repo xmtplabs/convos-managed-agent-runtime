@@ -26,6 +26,10 @@ case "$EVAL_RUNTIME" in
       echo "Error: OPENCLAW_GATEWAY_TOKEN must be set in runtime/.env" >&2
       exit 1
     fi
+    # Route all evals to the standard Hermes port so they attach to a running
+    # agent instead of spawning a hidden eval server on a different port.
+    export EVAL_GATEWAY_PORT="${EVAL_GATEWAY_PORT:-8080}"
+    export EVAL_MEMORY_GATEWAY_PORT="${EVAL_MEMORY_GATEWAY_PORT:-8080}"
     ;;
   *)
     # Unknown runtime — try sourcing runtime-<name>/.env, fall back to runtime/.env

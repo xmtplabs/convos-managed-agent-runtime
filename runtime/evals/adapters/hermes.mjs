@@ -30,7 +30,7 @@ function buildEvalEnv() {
   }
 
   // Local — source eval-env.sh to replicate the Dockerfile setup
-  const script = `. "${evalEnvScript}" && env`;
+  const script = `. "${evalEnvScript}" && /usr/bin/env`;
   const envOut = execSync(script, {
     encoding: 'utf-8',
     shell: '/bin/sh',
@@ -45,7 +45,9 @@ function buildEvalEnv() {
   // PYTHONPATH must include hermes-agent and the runtime dir
   env.PYTHONPATH = `${join(hermesDir, '.hermes-dev', 'hermes-agent')}:${hermesDir}${env.PYTHONPATH ? ':' + env.PYTHONPATH : ''}`;
   env.NODE_PATH = join(hermesDir, 'node_modules');
-  env.PATH = `${join(hermesDir, 'node_modules', '.bin')}:${env.PATH || ''}`;
+  // Ensure venv python is on PATH for local dev
+  const venvBin = join(hermesDir, '.hermes-dev', 'venv', 'bin');
+  env.PATH = `${venvBin}:${join(hermesDir, 'node_modules', '.bin')}:${env.PATH || ''}`;
   if (!env.OPENCLAW_GATEWAY_TOKEN) {
     env.OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || Math.random().toString(36).slice(2);
   }
@@ -97,7 +99,18 @@ export default {
   convosPath: '../../hermes/node_modules/.bin/convos',
   gateway: {
     _proc: null,
+    _owned: false,
     start(port) {
+      // If a Hermes instance is already running on this port, attach to it
+      // instead of spawning a new one. Set EVAL_ATTACH=1 or just have the
+      // server already up — evals will talk to it and you see real logs.
+      try {
+        execSync(`curl -sf http://localhost:${port}/pool/health`, { timeout: 2_000, stdio: 'ignore' });
+        process.stderr.write(`[hermes] Attaching to existing server on port ${port}\n`);
+        this._owned = false;
+        return;
+      } catch {}
+
       if (this._proc) { this._proc.kill(); this._proc = null; }
       const { env: baseEnv, cwd } = buildEvalEnv();
       const env = { ...baseEnv, PORT: String(port) };
@@ -105,19 +118,25 @@ export default {
       this._proc = spawn('python3', [evalServer], {
         cwd,
         env,
-        stdio: ['ignore', 'ignore', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      this._proc.stdout.on('data', (d) => {
+        const line = d.toString().trim();
+        if (line) process.stderr.write(`[hermes] ${line}\n`);
       });
       this._proc.stderr.on('data', (d) => {
         const line = d.toString().trim();
         if (line) process.stderr.write(`[hermes] ${line}\n`);
       });
-      // Expose the token so the convos provider can authenticate
+      // Expose the token so providers can authenticate
       process.env.OPENCLAW_GATEWAY_TOKEN = env.OPENCLAW_GATEWAY_TOKEN;
+      this._owned = true;
     },
     stop() {
-      if (this._proc) {
+      if (this._owned && this._proc) {
         this._proc.kill();
         this._proc = null;
+        this._owned = false;
       }
     },
   },
