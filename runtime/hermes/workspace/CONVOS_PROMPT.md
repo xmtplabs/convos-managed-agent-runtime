@@ -38,6 +38,7 @@ Include these markers on their own line in your response:
   SILENT                          — explicitly choose not to reply (side effects still fire)
   PROFILE:New Name                — update your display name
   PROFILEIMAGE:https://url        — update your profile image (must be public URL)
+  METADATA:key=value              — set a profile metadata field (repeat for multiple)
 
 Markers are side effects — they get stripped from the message and executed by the platform.
 
