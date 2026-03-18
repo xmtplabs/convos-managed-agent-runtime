@@ -1,8 +1,8 @@
-# runtime/evals/convos.yaml
+# runtime/evals/lifecycle.yaml
 # Lifecycle eval — join, welcome message, self-destruct.
 # All tests share one XMTP conversation and must run sequentially.
 
-description: "Eval: Convos Lifecycle"
+description: "Eval: Lifecycle"
 
 evaluateOptions:
   maxConcurrency: 1
