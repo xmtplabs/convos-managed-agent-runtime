@@ -19,22 +19,29 @@ Pre-warmed AI assistant containers on XMTP/Convos — Express pool manager, Open
 
 <important if="you need to run commands to build, test, or manage the database">
 
-All commands use `pnpm`. Run pool commands from `pool/`, runtime commands from `runtime/openclaw/` or `runtime/hermes/`.
+All commands use `pnpm`.
+
+**Pool** (run from `pool/`):
 
 | Command | What it does |
 |---|---|
-| `pnpm build` | Build pool (tsc) |
-| `pnpm dev` | Start pool dev server |
-| `pnpm test` | Run pool tests |
+| `pnpm build` | Build (tsc) |
+| `pnpm dev` | Start dev server |
+| `pnpm test` | Run tests |
 | `pnpm db:migrate` | Run Drizzle migrations |
 | `pnpm db:generate` | Generate Drizzle client |
 | `pnpm db:push` | Push schema to database |
 | `pnpm db:studio` | Open Drizzle Studio |
+| `pnpm stripe:listen` | Forward Stripe webhooks locally |
+
+**Runtime** (run from `runtime/`):
+
+| Command | What it does |
+|---|---|
 | `pnpm start` | Start OpenClaw runtime |
 | `pnpm start:hermes` | Start Hermes runtime |
 | `pnpm evals` | Run all OpenClaw evals |
 | `pnpm evals:hermes` | Run all Hermes evals |
-| `pnpm stripe:listen` | Forward Stripe webhooks locally |
 
 </important>
 
