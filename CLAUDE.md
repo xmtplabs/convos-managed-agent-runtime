@@ -8,6 +8,7 @@ Pre-warmed AI assistant containers on XMTP/Convos — Express pool manager, Open
 - `runtime/openclaw/` — OpenClaw harness (Node.js, primary runtime)
 - `runtime/hermes/` — Hermes harness (Python FastAPI, experimental)
 - `runtime/shared/workspace/` — Shared skills, SOUL.md, AGENTS-base.md (both runtimes copy at boot)
+- `workers/credits-sweep/` — Cloudflare Worker: cron-based OpenRouter credit spend tracking → PostHog
 - `dashboard/` — Playroom: Next.js app at assistants.convos.org
 
 ## Approach

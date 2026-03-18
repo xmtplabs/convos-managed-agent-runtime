@@ -45,6 +45,8 @@ convos-agents/
 │   ├── hermes/        #   Hermes harness (Python FastAPI + XMTP bridge)
 │   └── evals/         #   Shared eval suite (Promptfoo, multi-harness)
 ├── pool/              # Pool manager + provider services (Express API + Postgres)
+├── workers/           # Cloudflare Workers
+│   └── credits-sweep/ #   Per-instance OpenRouter credit tracking → PostHog
 └── dashboard/         # Playroom — Next.js app at assistants.convos.org
 ```
 
