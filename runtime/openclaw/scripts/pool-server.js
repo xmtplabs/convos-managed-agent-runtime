@@ -36,7 +36,16 @@ const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const POOL_URL = process.env.POOL_URL;
 const ROOT = path.resolve(__dirname, "..");
-const RUNTIME_VERSION = require("../package.json").version;
+const RUNTIME_VERSION = (() => {
+  const candidates = [
+    path.resolve(__dirname, "../../package.json"),          // runtime/package.json (local dev)
+    path.resolve(__dirname, "../runtime-version.json"),     // /app/runtime-version.json (Docker)
+  ];
+  for (const p of candidates) {
+    try { const v = require(p).version; if (v) return v; } catch {}
+  }
+  return "unknown";
+})();
 
 let gatewayReady = false;
 let convosReady = false;

@@ -37,7 +37,6 @@ try:
     _candidates = [
         Path(__file__).resolve().parent.parent.parent / "package.json",  # runtime/package.json (local dev)
         Path(__file__).resolve().parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
-        Path(__file__).resolve().parent.parent / "package.json",          # hermes/package.json (fallback)
     ]
     RUNTIME_VERSION = None
     for _pkg in _candidates:
