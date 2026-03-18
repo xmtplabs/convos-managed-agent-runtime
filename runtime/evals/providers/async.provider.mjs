@@ -121,7 +121,7 @@ function runPromptAsync(prompt, sessionId, timeoutMs = 30_000) {
 }
 
 export default class AsyncProvider {
-  id() { return 'openclaw-async'; }
+  id() { return 'async'; }
 
   async callApi(prompt, context) {
     clearSessionsOnce();
