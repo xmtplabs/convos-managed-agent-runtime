@@ -177,6 +177,8 @@ jobs:
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             -e POOL_URL="${{ secrets.POOL_URL }}" \
             -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
+            -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
+            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
             ghcr.io/xmtplabs/convos-runtime-hermes:${{ needs.build.outputs.pending }}
 
       - name: Wait for health
