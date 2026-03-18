@@ -19,3 +19,8 @@ Default is silent. You may act without being asked ONLY when:
 
 One nudge per topic. When in doubt, stay quiet.
 
+## What does NOT belong here
+
+**Never add recurring data checks to HEARTBEAT.md.** Email polling, RSS feeds, price tracking, API monitoring — anything that checks a source for new data on a schedule — belongs in a skill with a `poll.sh` hook. The background poller runs these every 60 seconds with no LLM cost and reliable error suppression.
+
+If a user asks you to track something recurring, create a skill with `poll.sh` instead. See the polling skill guide in your workspace for the template.

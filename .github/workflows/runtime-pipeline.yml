@@ -109,10 +109,11 @@ jobs:
           - { suite: soul,   timeout: 180 }
           - { suite: convos, timeout: 600 }
           - { suite: async,  timeout: 120 }
-          - { suite: memory,     timeout: 300 }
-          - { suite: heartbeat,  timeout: 300 }
-          - { suite: guardrails, timeout: 300 }
-          - { suite: poller,     timeout: 300 }
+          - { suite: memory,       timeout: 300 }
+          - { suite: heartbeat,    timeout: 300 }
+          - { suite: guardrails,   timeout: 300 }
+          - { suite: poller,       timeout: 300 }
+          - { suite: poller-hooks, timeout: 300 }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
