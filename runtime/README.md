@@ -214,7 +214,7 @@ Both runtimes emit an `instance_stats` event to PostHog every 60s (direct POST t
 | `skills_invoked` | int | Skill loads since last flush (delta, not yet instrumented) |
 | `group_member_count` | int | Current group member count (gauge) |
 | `seconds_since_last_message_in` | int | Staleness signal (-1 if no messages yet) |
-| `is_active` | bool | Always `true` (only active instances emit) |
+| `is_active` | bool | Always `true` — idle/unclaimed instances don't emit stats, so every event implies activity. Included for future use if idle emission is added. |
 | `schema_version` | int | Currently `1` |
 
 Person properties set via `$set`: `agent_name`, `runtime`.
