@@ -100,6 +100,17 @@ See [`dashboard/README.md`](dashboard/README.md) for setup, routes, and deployme
 
 Returns an `inviteUrl` to share (QR code or deep link). Omit `joinUrl` to create a new conversation.
 
+## Telemetry
+
+Privacy-preserving usage analytics via [PostHog](https://posthog.com). Counts only — no message content, no PII.
+
+| Pipeline | Source | Event | Frequency | Transport |
+|----------|--------|-------|-----------|-----------|
+| Usage stats | Each runtime | `instance_stats` | Every 60s | Runtime → PostHog directly |
+| Credit spend | Cloudflare Worker | `instance_credits` | Every 15min | Worker → PostHog |
+
+Runtimes require `POSTHOG_API_KEY` and `POSTHOG_HOST` env vars (forwarded by the pool manager). The credits sweep Worker runs independently — see [`workers/credits-sweep/`](workers/credits-sweep/).
+
 ## Providers
 
 | Provider | Role | Integration |
