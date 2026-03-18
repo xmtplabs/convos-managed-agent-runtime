@@ -67,7 +67,11 @@ if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
   cp -R "$SHARED_WORKSPACE_DIR/." "$_MERGED_SRC/"
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
-  . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+  if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
+    . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
+  else
+    . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+  fi
   brand_ok "shared-workspace" "merged with runtime"
 fi
 
@@ -87,7 +91,11 @@ for subdir in workspace extensions; do
     rm -rf "${STATE_DIR:?}/$subdir"/*
     cp -r "$RUNTIME_DIR/$subdir/"* "$STATE_DIR/$subdir/" 2>/dev/null || true
   fi
-  . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+  if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
+    . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
+  else
+    . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+  fi
   brand_ok "$subdir" "$STATE_DIR/$subdir"
 done
 

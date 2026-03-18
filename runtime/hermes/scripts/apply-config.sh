@@ -41,10 +41,8 @@ for skill_dir in "$WORKSPACE_DIR"/skills/*; do
 done
 
 # ── AGENTS.md (base + extra) — Hermes auto-loads from CWD ────────────────
-_AGENTS_OUT="$ROOT/AGENTS.md"
-cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_OUT"
-[ -f "$WORKSPACE_DIR/agents-extra.md" ] && cat "$WORKSPACE_DIR/agents-extra.md" >> "$_AGENTS_OUT"
-brand_ok "AGENTS.md" "assembled (shared + hermes)"
+. "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
+assemble_agents "$SHARED_WORKSPACE_DIR" "$WORKSPACE_DIR/agents-extra.md" "$ROOT/AGENTS.md" "hermes"
 
 # ── Convos platform prompt (hermes-only) ─────────────────────────────────
 [ -f "$WORKSPACE_DIR/CONVOS_PROMPT.md" ] && cp "$WORKSPACE_DIR/CONVOS_PROMPT.md" "$HERMES_HOME/CONVOS_PROMPT.md"
