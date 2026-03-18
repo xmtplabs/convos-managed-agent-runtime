@@ -96,23 +96,17 @@ jobs:
           compression-level: 0
 
   eval:
-    name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
+    name: "${{ inputs.runtime }}: ${{ matrix.group }}"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { suite: knows,  timeout: 180 }
-          - { suite: skills, timeout: 300 }
-          - { suite: soul,   timeout: 180 }
-          - { suite: lifecycle, timeout: 300 }
-          - { suite: convos,           timeout: 300 }
-          - { suite: async,  timeout: 120 }
-          - { suite: memory, timeout: 300 }
-          - { suite: poller, timeout: 300 }
-          - { suite: poller-hooks, timeout: 300 }
+          - { group: fast,  suites: "knows soul async",                  timeout: 480 }
+          - { group: core,  suites: "skills memory poller-hooks",        timeout: 900 }
+          - { group: heavy, suites: "lifecycle convos poller",           timeout: 900 }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
@@ -120,7 +114,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: "${{ inputs.runtime }}-image", path: /tmp }
       - name: Load image
-        run: zstd -d /tmp/runtime-image.tar.zst -o /tmp/runtime-image.tar && docker load < /tmp/runtime-image.tar
+        run: zstd -d --stdout /tmp/runtime-image.tar.zst | docker load
 
       - name: Start container
         run: |
@@ -152,13 +146,17 @@ jobs:
           done
           echo "Failed to start"; docker logs eval-runtime; exit 1
 
-      - name: "Run ${{ matrix.suite }}"
+      - name: "Run evals (${{ matrix.group }})"
         run: |
-          docker exec \
-            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
-            -e EVALS_MODEL=${{ secrets.EVALS_MODEL }} \
-            eval-runtime timeout ${{ matrix.timeout }} \
-              pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
+          for suite in ${{ matrix.suites }}; do
+            echo "::group::$suite"
+            docker exec \
+              -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
+              -e EVALS_MODEL=${{ secrets.EVALS_MODEL }} \
+              eval-runtime \
+                pnpm evals ${{ inputs.runtime }} $suite
+            echo "::endgroup::"
+          done
 
       - name: Dump logs
         if: always()
