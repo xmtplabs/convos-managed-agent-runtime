@@ -95,6 +95,7 @@ function buildRuntimeStatus() {
 }
 
 async function factoryReset() {
+  console.log("[convos] Factory reset started");
   // Stop active instance
   const inst = getConvosInstance();
   if (inst) {
@@ -123,7 +124,9 @@ async function factoryReset() {
     try { fs.rmSync(target, { recursive: true, force: true }); } catch {}
   }
 
-  return { ok: true, reset: true, status: buildRuntimeStatus() };
+  const status = buildRuntimeStatus();
+  console.log(`[convos] Factory reset complete (clean=${status.clean})`);
+  return { ok: true, reset: true, status };
 }
 
 /** Write custom instructions into workspace IDENTITY.md so the agent sees them on every message. */

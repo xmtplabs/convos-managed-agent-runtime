@@ -361,6 +361,7 @@ async def _factory_reset() -> dict:
     global _adapter, _pending_join_task
     cfg = get_config()
     hermes_home = cfg.hermes_home
+    logger.info("Factory reset started (hermes_home=%s)", hermes_home)
 
     # 1. Cancel pending join
     if _pending_join_task and not _pending_join_task.done():
@@ -413,7 +414,9 @@ async def _factory_reset() -> dict:
     # 10. Clear env
     os.environ.pop("CONVOS_CONVERSATION_ID", None)
 
-    return {"ok": True, "reset": True, "status": _build_runtime_status()}
+    status = _build_runtime_status()
+    logger.info("Factory reset complete (clean=%s)", status.get("clean"))
+    return {"ok": True, "reset": True, "status": status}
 
 
 async def _notify_pool_pending_join(event: str, *, conversation_id: str | None = None, error: str | None = None) -> None:
