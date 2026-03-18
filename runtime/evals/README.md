@@ -10,6 +10,8 @@
 | **convos** | `convos.yaml` | Sequential (1x) | XMTP lifecycle — welcome, profile, image, members, self-destruct |
 | **async** | `async.yaml` | Sequential (1x) | Non-blocking — agent stays responsive during complex tasks |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
+| **heartbeat** | `heartbeat.yaml` | Sequential (1x) | Heartbeat proactivity — nudges vs silence |
+| **guardrails** | `guardrails.yaml` | Sequential (1x) | Loop guard, error resilience, memory ethics |
 | **poller** | `poller.yaml` | Sequential (1x) | Email poller pipeline |
 
 ## Running
@@ -64,6 +66,8 @@ evals/
 │   ├── convos.yaml
 │   ├── async.yaml
 │   ├── memory.yaml
+│   ├── heartbeat.yaml
+│   ├── guardrails.yaml
 │   └── poller.yaml
 ├── providers/
 │   ├── prompt.provider.mjs

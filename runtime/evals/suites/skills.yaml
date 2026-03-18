@@ -75,3 +75,32 @@ tests:
     assert:
       - type: regex
         value: "\\$[\\d,]+"
+
+  - description: "Agent can check credit balance"
+    vars:
+      prompt: "Check my credit balance and tell me how many credits I have."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the agent says it can't check credits, doesn't know
+          how, or ignores the request entirely.
+          PASS if the agent reports a credit balance (any number),
+          mentions a services URL, or provides credit-related information
+          from the services skill.
+      - type: regex
+        value: "credit|balance|\\d+"
+
+  - description: "Agent can report received SMS details"
+    vars:
+      prompt: "Check my latest received SMS messages. Tell me who sent the most recent one and what it said. Reply: From: <number>, Text: <message>, Received: <time>."
+    assert:
+      - type: icontains
+        value: "from"
+      - type: regex
+        value: "\\+?\\d+"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent says it can't check SMS or returns no
+          information about any received message.
+          PASS if the agent provides details about at least one
+          received SMS — sender number, message content, or timestamp.
