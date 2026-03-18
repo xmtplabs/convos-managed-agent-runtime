@@ -64,6 +64,23 @@ export function profileImageSet(output, context) {
 
 
 
+export function profileMetadataEquals(output, context) {
+  const key = context.test?.metadata?.expectedMetadataKey;
+  const value = context.test?.metadata?.expectedMetadataValue;
+  if (!key) return { pass: false, score: 0, reason: 'Missing metadata.expectedMetadataKey' };
+
+  return withProfiles(context, (profiles) => {
+    const match = profiles.some((p) => p.metadata?.[key] === value);
+    return {
+      pass: match,
+      score: match ? 1 : 0,
+      reason: match
+        ? `Profile metadata ${key}="${value}"`
+        : `Expected ${key}="${value}", got: ${profiles.map((p) => JSON.stringify(p.metadata || {})).join(', ')}`,
+    };
+  });
+}
+
 export function profileHasInstanceId(output, context) {
   return withProfiles(context, (profiles) => {
     const match = profiles.some((p) => p.metadata?.instanceId);

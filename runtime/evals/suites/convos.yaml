@@ -63,6 +63,16 @@ tests:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileImageSet"
 
+  - description: "Agent can update profile metadata"
+    vars:
+      prompt: "Update your profile metadata to set credits=100. Confirm when done."
+    metadata:
+      expectedMetadataKey: "credits"
+      expectedMetadataValue: "100"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileMetadataEquals"
+
   - description: "Agent can recognize image content"
     vars:
       prompt: "What do you see in that image? Describe it briefly."
