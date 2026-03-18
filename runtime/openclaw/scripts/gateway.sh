@@ -8,7 +8,7 @@ cd "$ROOT"
 if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
   . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
 else
-  . "$ROOT/scripts/lib/brand.sh"
+  . "$ROOT/../shared/scripts/lib/brand.sh"
 fi
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"

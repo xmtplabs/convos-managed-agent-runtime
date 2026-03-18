@@ -70,7 +70,7 @@ if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
   if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
     . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
   else
-    . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+    . "$ROOT/../shared/scripts/lib/brand.sh" 2>/dev/null || true
   fi
   brand_ok "shared-workspace" "merged with runtime"
 fi
@@ -94,7 +94,7 @@ for subdir in workspace extensions; do
   if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
     . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
   else
-    . "$ROOT/scripts/lib/brand.sh" 2>/dev/null || true
+    . "$ROOT/../shared/scripts/lib/brand.sh" 2>/dev/null || true
   fi
   brand_ok "$subdir" "$STATE_DIR/$subdir"
 done

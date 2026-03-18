@@ -10,7 +10,7 @@ export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
   . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
 else
-  . "$ROOT/scripts/lib/brand.sh"
+  . "$ROOT/../shared/scripts/lib/brand.sh"
 fi
 
 brand_section "Installing dependencies"

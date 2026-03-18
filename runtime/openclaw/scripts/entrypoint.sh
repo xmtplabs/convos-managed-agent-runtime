@@ -11,7 +11,7 @@ _ent_shared=""
 if [ -n "$_ent_shared" ] && [ -f "$_ent_shared/lib/brand.sh" ]; then
   . "$_ent_shared/lib/brand.sh"
 else
-  . "$(dirname "$0")/lib/brand.sh"
+  . "$(dirname "$0")/../../shared/scripts/lib/brand.sh"
 fi
 _version="unknown"
 if command -v jq >/dev/null 2>&1 && [ -f "$(dirname "$0")/../package.json" ]; then
