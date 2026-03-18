@@ -70,6 +70,7 @@ Replies and reactions both reference another message by ID. Replies include the 
 | React to a message | message tool | `action=react` |
 | Send a file | message tool | `action=sendAttachment` |
 | Update your display name | message tool | `action=send` with `/update-profile --name "..."` |
+| Update profile metadata | message tool | `action=send` with `/update-profile --metadata key=value` |
 | Read message history | exec tool | `convos conversation messages $CONVOS_CONVERSATION_ID` |
 | List members / profiles | exec tool | `convos conversation members` / `profiles $CONVOS_CONVERSATION_ID` |
 | View group info | exec tool | `convos conversation info` / `permissions $CONVOS_CONVERSATION_ID` |
@@ -154,9 +155,11 @@ Use the message tool with `action=send` — the command is intercepted before re
 ```
 action=send  message="/update-profile --name \"New Name\""
 action=send  message="/update-profile --name \"New Name\" --image \"https://example.com/avatar.jpg\""
+action=send  message="/update-profile --metadata credits=100"
+action=send  message="/update-profile --metadata credits=100 --metadata verified=true"
 ```
 
-The `--image` flag requires a publicly accessible URL (`https://...`). Local file paths won't work. Your profile is per-conversation — it only affects this group.
+The `--image` flag requires a publicly accessible URL (`https://...`). Local file paths won't work. The `--metadata` flag sets key=value pairs on your profile (repeat for multiple fields). Your profile is per-conversation — it only affects this group.
 
 ## Rules
 
