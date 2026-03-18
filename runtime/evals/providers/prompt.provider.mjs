@@ -16,7 +16,7 @@ const queryUrl = runtime.queryUrl || null;
 const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
 
 export default class PromptProvider {
-  id() { return 'openclaw-prompt'; }
+  id() { return 'prompt'; }
 
   async callApi(prompt, context) {
     clearSessionsOnce();
