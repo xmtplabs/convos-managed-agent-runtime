@@ -81,13 +81,15 @@ jobs:
           context: .
           file: ${{ inputs.dockerfile }}
           push: true
-          load: ${{ inputs.buildx_driver == 'docker' && 'false' || 'true' }}
           platforms: linux/amd64
           tags: "${{ inputs.image }}:${{ inputs.pending_tag }}"
           cache-from: ${{ inputs.cache_from }}
           cache-to: ${{ inputs.cache_to }}
+      # Save image as artifact so eval jobs skip the slow GHCR pull (~4 min → ~30s)
       - name: Save image for eval jobs
-        run: docker save ${{ inputs.image }}:${{ inputs.pending_tag }} | zstd -T0 -1 > /tmp/runtime-image.tar.zst
+        run: |
+          docker pull ${{ inputs.image }}:${{ inputs.pending_tag }}
+          docker save ${{ inputs.image }}:${{ inputs.pending_tag }} | zstd -T0 -1 > /tmp/runtime-image.tar.zst
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.runtime }}-image
