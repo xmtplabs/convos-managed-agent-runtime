@@ -860,6 +860,29 @@ async def convos_setup_cancel():
 # ---- /agent/query and /agent/reset-history (eval surface) ----
 # These mirror the minimal eval server so evals can attach to a live instance
 # and route queries through the real production path.
+# Falls back to a standalone AgentRunner when no conversation is provisioned
+# (e.g. CI eval jobs that start the container without provisioning).
+
+from .agent_runner import AgentRunner as _AgentRunner
+
+_standalone_agent: _AgentRunner | None = None
+
+
+def _get_eval_agent() -> _AgentRunner:
+    """Return the adapter's agent if provisioned, otherwise a standalone runner."""
+    adapter = get_adapter()
+    if adapter and adapter.agent:
+        return adapter.agent
+
+    global _standalone_agent
+    if _standalone_agent is None:
+        cfg = get_config()
+        _standalone_agent = _AgentRunner(
+            model=cfg.model,
+            hermes_home=cfg.hermes_home,
+        )
+    return _standalone_agent
+
 
 class AgentQueryRequest(BaseModel):
     query: str
@@ -868,11 +891,8 @@ class AgentQueryRequest(BaseModel):
 
 @app.post("/agent/query", dependencies=[Depends(require_auth)])
 async def agent_query(body: AgentQueryRequest):
-    adapter = get_adapter()
-    if not adapter or not adapter.agent:
-        raise HTTPException(status_code=503, detail="Agent not initialised")
-
-    response = await adapter.agent.handle_message(
+    agent = _get_eval_agent()
+    response = await agent.handle_message(
         content=body.query,
         sender_name="user",
         sender_id="eval-user",
@@ -886,7 +906,6 @@ async def agent_query(body: AgentQueryRequest):
 
 @app.post("/agent/reset-history", dependencies=[Depends(require_auth)])
 async def agent_reset_history():
-    adapter = get_adapter()
-    if adapter and adapter.agent:
-        adapter.agent.reset_history()
+    agent = _get_eval_agent()
+    agent.reset_history()
     return {"ok": True}

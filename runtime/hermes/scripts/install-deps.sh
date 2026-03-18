@@ -7,6 +7,23 @@ HERMES_TAG="v2026.3.17"
 
 brand_section "Installing dependencies"
 
+# ── Pip target — Docker uses system Python; macOS needs a venv (PEP 668) ─
+if [ "$HERMES_AGENT_DIR" = "/opt/hermes-agent" ]; then
+  PIP_TARGET="--system"
+else
+  VENV_DIR="$ROOT/.hermes-dev/venv"
+  VENV_PYTHON="$VENV_DIR/bin/python"
+  PIP_TARGET="--python $VENV_PYTHON"
+  brand_subsection "venv"
+  if [ ! -f "$VENV_PYTHON" ]; then
+    brand_info "venv" "creating at $VENV_DIR ..."
+    uv venv "$VENV_DIR"
+    brand_ok "venv" "created"
+  else
+    brand_ok "venv" "$VENV_DIR"
+  fi
+fi
+
 # ── Hermes agent (local dev only — Docker pre-installs to /opt) ──────────
 brand_subsection "hermes-agent"
 if [ "$HERMES_AGENT_DIR" = "/opt/hermes-agent" ]; then
@@ -19,8 +36,8 @@ elif [ ! -d "$HERMES_AGENT_DIR/.git" ]; then
 
   brand_info "hermes-agent" "installing Python deps ..."
   cd "$HERMES_AGENT_DIR"
-  uv pip install --system -e ".[all]"
-  uv pip install --system -e "./mini-swe-agent"
+  uv pip install $PIP_TARGET -e ".[all]"
+  uv pip install $PIP_TARGET -e "./mini-swe-agent"
   cd "$ROOT"
 
   brand_ok "hermes-agent" "$HERMES_TAG (freshly installed)"
@@ -30,7 +47,7 @@ fi
 
 # Runtime Python deps — always reconcile (fast no-op if unchanged)
 brand_info "runtime" "syncing Python deps ..."
-uv pip install --system --no-cache -r "$ROOT/requirements.txt"
+uv pip install $PIP_TARGET --no-cache -r "$ROOT/requirements.txt"
 
 # ── Node deps (local dev only — Docker pre-installs) ────────────────────
 brand_subsection "node"
