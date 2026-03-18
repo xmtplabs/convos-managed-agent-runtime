@@ -1,13 +1,9 @@
-type RuntimeStatusConversation = { id?: string | null } | null;
-type RuntimeStatusMain = { conversationId?: string | null } | null;
-type RuntimeStatusProvision = { state?: string | null } | null;
-
 export type RuntimeStatusResponse = {
   ready?: boolean;
-  conversation?: RuntimeStatusConversation;
-  main?: RuntimeStatusMain;
+  conversation?: { id?: string | null } | null;
+  streaming?: boolean;
   clean?: boolean;
-  provision?: RuntimeStatusProvision;
+  provisionState?: string | null;
   dirtyReasons?: unknown;
 };
 
@@ -19,17 +15,10 @@ export type ParsedRuntimeStatus = {
 };
 
 export function parseRuntimeStatus(status: RuntimeStatusResponse): ParsedRuntimeStatus {
-  const conversationId =
-    typeof status.main?.conversationId === "string"
-      ? status.main.conversationId
-      : typeof status.conversation?.id === "string"
-        ? status.conversation.id
-        : null;
-
   return {
-    conversationId,
+    conversationId: typeof status.conversation?.id === "string" ? status.conversation.id : null,
     clean: typeof status.clean === "boolean" ? status.clean : null,
-    provisionState: typeof status.provision?.state === "string" ? status.provision.state : null,
+    provisionState: typeof status.provisionState === "string" ? status.provisionState : null,
     dirtyReasons: Array.isArray(status.dirtyReasons)
       ? status.dirtyReasons.filter((reason): reason is string => typeof reason === "string")
       : [],

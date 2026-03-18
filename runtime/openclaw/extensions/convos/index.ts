@@ -68,49 +68,32 @@ function clearCustomInstructions(): boolean {
 function buildRuntimeStatus() {
   const inst = getConvosInstance();
   const conversationId = inst?.conversationId ?? null;
-  const streaming = inst?.isStreaming() ?? false;
 
-  const creds = loadConvosCredentials();
-  const persisted = {
-    credentialsPresent: creds !== null,
-    configBindingPresent: false, // checked below
-    customInstructionsPresent: hasCustomInstructions(),
-    cliIdentityPresent: pathHasState(path.join(convosHomeDir(), "identities")),
-    cliDbPresent: pathHasState(path.join(convosHomeDir(), "db")),
-    sessionStatePresent: false,
-    mediaCachePresent: false,
-    conversationEnvPresent: typeof process.env.CONVOS_CONVERSATION_ID === "string" && process.env.CONVOS_CONVERSATION_ID.trim().length > 0,
-  };
-
-  // Check config binding
+  const dirtyReasons: string[] = [];
+  if (conversationId) dirtyReasons.push("active_conversation");
+  if (loadConvosCredentials()) dirtyReasons.push("saved_credentials");
+  if (hasCustomInstructions()) dirtyReasons.push("custom_instructions");
+  if (pathHasState(path.join(convosHomeDir(), "identities"))) dirtyReasons.push("cli_identity");
+  if (pathHasState(path.join(convosHomeDir(), "db"))) dirtyReasons.push("cli_db");
+  if (process.env.CONVOS_CONVERSATION_ID?.trim()) dirtyReasons.push("conversation_env");
   try {
     const runtime = getConvosRuntime();
     const cfg = runtime.config.loadConfig() as Record<string, unknown>;
     const channels = (cfg.channels ?? {}) as Record<string, unknown>;
     const convos = (channels.convos ?? {}) as Record<string, unknown>;
-    persisted.configBindingPresent =
-      (typeof convos.identityId === "string" && convos.identityId.trim().length > 0)
-      || (typeof convos.ownerConversationId === "string" && convos.ownerConversationId.trim().length > 0);
+    if ((typeof convos.identityId === "string" && convos.identityId.trim())
+      || (typeof convos.ownerConversationId === "string" && convos.ownerConversationId.trim())) {
+      dirtyReasons.push("config_binding");
+    }
   } catch {}
-
-  const dirtyReasons: string[] = [];
-  if (conversationId) dirtyReasons.push("active_conversation");
-  if (persisted.credentialsPresent) dirtyReasons.push("saved_credentials");
-  if (persisted.configBindingPresent) dirtyReasons.push("config_binding");
-  if (persisted.customInstructionsPresent) dirtyReasons.push("custom_instructions");
-  if (persisted.cliIdentityPresent) dirtyReasons.push("cli_identity");
-  if (persisted.cliDbPresent) dirtyReasons.push("cli_db");
-  if (persisted.conversationEnvPresent) dirtyReasons.push("conversation_env");
 
   return {
     ready: true,
     conversation: conversationId ? { id: conversationId } : null,
-    main: { active: Boolean(conversationId), conversationId, streaming },
-    provision: { state: conversationId ? "active" : "idle", startedAt: null, inviteUrl: null, watching: false, lastError: null },
-    persisted,
-    transient: { pendingCompanionStatePresent: false },
-    dirtyReasons,
+    streaming: inst?.isStreaming() ?? false,
     clean: dirtyReasons.length === 0,
+    provisionState: conversationId ? "active" : "idle",
+    dirtyReasons,
   };
 }
 

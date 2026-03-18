@@ -3,30 +3,37 @@ import assert from "node:assert/strict";
 import { parseRuntimeStatus } from "./runtimeStatus";
 
 describe("parseRuntimeStatus", () => {
-  it("prefers the new main.conversationId field", () => {
+  it("reads the flat schema", () => {
     assert.deepEqual(
       parseRuntimeStatus({
-        main: { conversationId: "convo-main" },
-        conversation: { id: "convo-legacy" },
+        conversation: { id: "convo-1" },
+        streaming: false,
         clean: false,
-        provision: { state: "active" },
+        provisionState: "active",
         dirtyReasons: ["active_conversation"],
       }),
-      { conversationId: "convo-main", clean: false, provisionState: "active", dirtyReasons: ["active_conversation"] },
+      { conversationId: "convo-1", clean: false, provisionState: "active", dirtyReasons: ["active_conversation"] },
     );
   });
 
-  it("falls back to the legacy conversation field", () => {
+  it("handles null conversation", () => {
     assert.deepEqual(
-      parseRuntimeStatus({ conversation: { id: "convo-legacy" } }),
-      { conversationId: "convo-legacy", clean: null, provisionState: null, dirtyReasons: [] },
+      parseRuntimeStatus({ conversation: null, clean: true, provisionState: "idle", dirtyReasons: [] }),
+      { conversationId: null, clean: true, provisionState: "idle", dirtyReasons: [] },
     );
   });
 
-  it("treats missing clean as unknown", () => {
+  it("treats missing fields as unknown/null", () => {
     assert.deepEqual(
-      parseRuntimeStatus({ ready: true, conversation: null, dirtyReasons: [1, "custom_instructions", null] }),
-      { conversationId: null, clean: null, provisionState: null, dirtyReasons: ["custom_instructions"] },
+      parseRuntimeStatus({ ready: true }),
+      { conversationId: null, clean: null, provisionState: null, dirtyReasons: [] },
+    );
+  });
+
+  it("filters non-string dirty reasons", () => {
+    assert.deepEqual(
+      parseRuntimeStatus({ dirtyReasons: [1, "custom_instructions", null, "cli_identity"] }),
+      { conversationId: null, clean: null, provisionState: null, dirtyReasons: ["custom_instructions", "cli_identity"] },
     );
   });
 });

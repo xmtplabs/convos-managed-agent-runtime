@@ -324,52 +324,33 @@ def _build_runtime_status() -> dict:
     provision = _get_provision_status()
     hermes_home = cfg.hermes_home
 
-    creds = load_credentials(hermes_home)
-    persisted = {
-        "credentialsPresent": creds is not None,
-        "configBindingPresent": False,  # Hermes has no config binding
-        "customInstructionsPresent": _has_custom_instructions(hermes_home),
-        "cliIdentityPresent": _path_has_state(Path.home() / ".convos" / "identities"),
-        "cliDbPresent": _path_has_state(Path.home() / ".convos" / "db"),
-        "sessionStatePresent": _path_has_state(Path(hermes_home) / "sessions"),
-        "mediaCachePresent": _path_has_state(Path(hermes_home) / "media"),
-        "conversationEnvPresent": bool(os.environ.get("CONVOS_CONVERSATION_ID", "").strip()),
-    }
-    transient = {
-        "pendingCompanionStatePresent": bool(adapter and adapter._pending_attachments) if adapter else False,
-    }
-
     dirty_reasons: list[str] = []
     if conversation_id:
         dirty_reasons.append("active_conversation")
-    if persisted["credentialsPresent"]:
+    if load_credentials(hermes_home):
         dirty_reasons.append("saved_credentials")
-    if persisted["customInstructionsPresent"]:
+    if _has_custom_instructions(hermes_home):
         dirty_reasons.append("custom_instructions")
-    if persisted["cliIdentityPresent"]:
+    if _path_has_state(Path.home() / ".convos" / "identities"):
         dirty_reasons.append("cli_identity")
-    if persisted["cliDbPresent"]:
+    if _path_has_state(Path.home() / ".convos" / "db"):
         dirty_reasons.append("cli_db")
-    if persisted["sessionStatePresent"]:
+    if _path_has_state(Path(hermes_home) / "sessions"):
         dirty_reasons.append("session_state")
-    if persisted["mediaCachePresent"]:
+    if _path_has_state(Path(hermes_home) / "media"):
         dirty_reasons.append("media_cache")
-    if persisted["conversationEnvPresent"]:
+    if os.environ.get("CONVOS_CONVERSATION_ID", "").strip():
         dirty_reasons.append("conversation_env")
-    if transient["pendingCompanionStatePresent"]:
-        dirty_reasons.append("pending_companion_state")
     if provision["state"] != "idle":
         dirty_reasons.append(f"provision_{provision['state']}")
 
     return {
         "ready": True,
         "conversation": {"id": conversation_id} if conversation_id else None,
-        "main": {"active": bool(conversation_id), "conversationId": conversation_id, "streaming": streaming},
-        "provision": provision,
-        "persisted": persisted,
-        "transient": transient,
-        "dirtyReasons": dirty_reasons,
+        "streaming": streaming,
         "clean": len(dirty_reasons) == 0,
+        "provisionState": provision["state"],
+        "dirtyReasons": dirty_reasons,
     }
 
 
