@@ -249,7 +249,7 @@ function transcript(msgs, afterIndex = 0) {
 }
 
 export default class PollerProvider {
-  id() { return 'openclaw-poller'; }
+  id() { return 'poller'; }
 
   async callApi(prompt, context) {
     testIndex++;

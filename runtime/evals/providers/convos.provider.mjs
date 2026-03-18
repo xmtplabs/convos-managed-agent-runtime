@@ -169,8 +169,8 @@ function transcript(msgs, afterIndex = 0) {
     }).join('\n');
 }
 
-export default class OpenClawProvider {
-  id() { return 'openclaw-agent'; }
+export default class ConvosProvider {
+  id() { return 'convos'; }
 
   async callApi(prompt, context) {
     testIndex++;
