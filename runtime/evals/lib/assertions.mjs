@@ -99,8 +99,10 @@ export function followUpResponded(output, context) {
 
 export function agentChoseSilence(output) {
   const trimmed = (output || '').trim();
-  // Hermes returns "SILENT", OpenClaw returns "completed" or empty when the agent stays quiet
-  const pass = !trimmed || trimmed === 'SILENT' || trimmed === 'No reply from agent.' || trimmed === 'completed';
+  // Hermes returns "SILENT", OpenClaw returns "completed" or empty when the agent stays quiet.
+  // "HEARTBEAT_OK" is the heartbeat silence token — suppressed by outbound policy in production,
+  // but leaks in CLI mode (memory provider) since there's no convos channel in the path.
+  const pass = !trimmed || trimmed === 'SILENT' || trimmed === 'No reply from agent.' || trimmed === 'completed' || trimmed === 'HEARTBEAT_OK';
   return {
     pass,
     score: pass ? 1 : 0,
