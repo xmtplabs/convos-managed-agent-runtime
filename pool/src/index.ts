@@ -122,10 +122,12 @@ app.get("/api/pool/counts", async (_req, res) => {
 
 app.get("/api/pool/agents", async (_req, res) => {
   const claimed = await db.getByStatus("claimed");
+  const pendingAcceptance = await db.getByStatus("pending_acceptance");
+  const tainted = await db.getByStatus("tainted");
   const crashed = await db.getByStatus("crashed");
   const idle = await db.getByStatus("idle");
   const starting = await db.getByStatus("starting");
-  res.json({ claimed, crashed, idle, starting });
+  res.json({ claimed, pendingAcceptance, tainted, crashed, idle, starting });
 });
 
 app.get("/api/pool/info", (_req, res) => {
@@ -263,6 +265,43 @@ app.post("/api/pool/self-reset", async (req, res) => {
     res.json({ ok: true, instanceId });
   } catch (err: any) {
     console.error("[api] Self-reset failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Pending acceptance callbacks — runtime notifies pool when a pending join resolves.
+app.post("/api/pool/pending-acceptance/complete", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken, conversationId } = req.body || {};
+    if (!instanceId || !gatewayToken || !conversationId) {
+      res.status(400).json({ error: "instanceId, gatewayToken, and conversationId are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const updated = await db.completePendingAcceptance(instanceId, conversationId);
+    res.json({ ok: updated, instanceId, conversationId });
+  } catch (err: any) {
+    console.error("[api] pending-acceptance complete failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/pool/pending-acceptance/fail", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const updated = await db.failPendingAcceptance(instanceId);
+    res.json({ ok: updated, instanceId });
+  } catch (err: any) {
+    console.error("[api] pending-acceptance fail failed:", err);
     res.status(500).json({ error: err.message });
   }
 });

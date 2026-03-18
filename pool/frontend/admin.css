@@ -199,12 +199,16 @@ tr.crashed td { background: var(--color-error-bg); }
 .name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-running { background: #34C759; }
+.dot-pending { background: #8B5CF6; }
+.dot-tainted { background: #F59E0B; }
 .dot-crashed { background: var(--color-error); }
 .dot-idle { background: #007AFF; }
 .dot-starting { background: #F59E0B; }
 .status-name { font-weight: 500; font-size: 12px; letter-spacing: 0.1px; }
 .status-name-idle { color: #1D4ED8; }
 .status-name-starting { color: #92400E; }
+.status-name-pending { color: #6D28D9; }
+.status-name-tainted { color: #92400E; }
 .status-name-destroying { color: #991B1B; }
 tr.idle td { color: var(--color-foreground-secondary); }
 tr.starting td { color: var(--color-foreground-secondary); }

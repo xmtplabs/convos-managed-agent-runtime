@@ -241,8 +241,10 @@
           <div class="filter-pills" id="filter-pills">
             <button class="filter-pill active" data-filter="">All <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="running">Running <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="pending">Pending <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="idle">Ready <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="starting">Starting <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="tainted">Tainted <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="crashed">Crashed <span class="pill-count">-</span></button>
           </div>
         </div>
@@ -368,8 +370,8 @@
     });
 
     function updatePillCounts() {
-      var total = claimedCache.length + crashedCache.length + idleCache.length + startingCache.length;
-      var counts = { '': total, running: claimedCache.length, idle: idleCache.length, starting: startingCache.length, crashed: crashedCache.length };
+      var total = claimedCache.length + pendingCache.length + taintedCache.length + crashedCache.length + idleCache.length + startingCache.length;
+      var counts = { '': total, running: claimedCache.length, pending: pendingCache.length, idle: idleCache.length, starting: startingCache.length, tainted: taintedCache.length, crashed: crashedCache.length };
       document.querySelectorAll('.filter-pill').forEach(function (pill) {
         var f = pill.getAttribute('data-filter');
         var span = pill.querySelector('.pill-count');
@@ -380,15 +382,19 @@
     function renderAgents() {
       var body = document.getElementById('agents-body');
       var count = document.getElementById('table-count');
-      var all = crashedCache.concat(claimedCache).concat(idleCache).concat(startingCache);
+      var all = crashedCache.concat(taintedCache).concat(pendingCache).concat(claimedCache).concat(idleCache).concat(startingCache);
       updatePillCounts();
       count.textContent = '';
 
       var showCrashed = !statusFilter || statusFilter === 'crashed';
+      var showTainted = !statusFilter || statusFilter === 'tainted';
+      var showPending = !statusFilter || statusFilter === 'pending';
       var showClaimed = !statusFilter || statusFilter === 'running';
       var showIdle = !statusFilter || statusFilter === 'idle';
       var showStarting = !statusFilter || statusFilter === 'starting';
       var filtered = (showCrashed ? crashedCache : [])
+        .concat(showTainted ? taintedCache : [])
+        .concat(showPending ? pendingCache : [])
         .concat(showClaimed ? claimedCache : [])
         .concat(showIdle ? idleCache : [])
         .concat(showStarting ? startingCache : []);
@@ -490,6 +496,8 @@
 
       filtered.forEach(function (a) {
         var isCrashed = crashedCache.indexOf(a) !== -1;
+        var isTainted = taintedCache.indexOf(a) !== -1;
+        var isPending = pendingCache.indexOf(a) !== -1;
         var isClaimed = claimedCache.indexOf(a) !== -1;
         var isIdle = idleCache.indexOf(a) !== -1;
         var recheckBtn = '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">' + recheckSvg + '</button>';
@@ -500,6 +508,10 @@
         var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
           renderRow(a, 'crashed', 'Crashed', recheckBtn + killBtn + protectedBtn);
+        } else if (isTainted) {
+          renderRow(a, 'tainted', 'Tainted', recheckBtn + killBtn + protectedBtn);
+        } else if (isPending) {
+          renderRow(a, 'pending', 'Pending', recheckBtn + killBtn + protectedBtn);
         } else if (isClaimed) {
           renderRow(a, 'running', 'Running', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isIdle) {
@@ -615,6 +627,8 @@
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Kill failed');
         claimedCache = claimedCache.filter(function (a) { return a.id !== id; });
+        pendingCache = pendingCache.filter(function (a) { return a.id !== id; });
+        taintedCache = taintedCache.filter(function (a) { return a.id !== id; });
         idleCache = idleCache.filter(function (a) { return a.id !== id; });
         startingCache = startingCache.filter(function (a) { return a.id !== id; });
         crashedCache = crashedCache.filter(function (a) { return a.id !== id; });
@@ -815,7 +829,7 @@
         try {
           var res = await fetch('/api/pool/agents');
           var data = await res.json();
-          var allInstances = [].concat(data.idle || [], data.claimed || [], data.crashed || [], data.starting || []);
+          var allInstances = [].concat(data.idle || [], data.claimed || [], data.pendingAcceptance || [], data.tainted || [], data.crashed || [], data.starting || []);
 
           var remaining = 0;
           pending.forEach(function (num) {
@@ -830,12 +844,20 @@
             } else if (inst.status === 'crashed' || inst.status === 'dead') {
               markProvisionDeploy(num, 'fail', 'Deploy crashed');
               delete provisionInstanceIds[num];
+            } else if (inst.status === 'tainted') {
+              markProvisionDeploy(num, 'fail', 'Tainted');
+              delete provisionInstanceIds[num];
+            } else if (inst.status === 'pending_acceptance') {
+              markProvisionDeploy(num, 'ok', 'Pending acceptance', inst.url);
+              delete provisionInstanceIds[num];
             } else {
               remaining++;
             }
           });
 
           claimedCache = (data.claimed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          pendingCache = (data.pendingAcceptance || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          taintedCache = (data.tainted || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
           crashedCache = (data.crashed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
           idleCache = (data.idle || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
           startingCache = (data.starting || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
@@ -1308,7 +1330,7 @@
       var tools = svcToolsMap[instanceId] || [];
       var key = svcKeyMap['convos-agent-' + instanceId];
       var infra = infraMap[instanceId] || {};
-      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
+      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).concat(pendingCache).concat(taintedCache).find(function (a) { return a.id === instanceId; });
 
       var html = '<td colspan="6"><div class="expand-inner">';
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });

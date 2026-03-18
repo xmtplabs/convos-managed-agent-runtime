@@ -1,0 +1,307 @@
+{
+  "title": "Convos Pool Manager",
+  "description": "Pool health, instance lifecycle, claim performance, and provider reliability.",
+  "widgets": [
+    {
+      "id": 5001,
+      "definition": {
+        "title": "Create Funnel (start → complete / fail)",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["sum", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "start", "data_source": "metrics", "query": "sum:convos.pool.instance.create.start{$env}.as_count()" },
+              { "name": "complete", "data_source": "metrics", "query": "sum:convos.pool.instance.create.complete{$env}.as_count()" },
+              { "name": "fail", "data_source": "metrics", "query": "sum:convos.pool.instance.create.fail{$env}.as_count()" }
+            ],
+            "formulas": [
+              { "alias": "Started", "formula": "start" },
+              { "alias": "Completed", "formula": "complete" },
+              { "alias": "Failed", "formula": "fail" }
+            ],
+            "style": { "palette": "semantic", "line_type": "solid", "line_width": "normal" },
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 0, "width": 4, "height": 3 }
+    },
+    {
+      "id": 5002,
+      "definition": {
+        "title": "Claim Funnel (start → complete / fail)",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["sum", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "start", "data_source": "metrics", "query": "sum:convos.pool.instance.claim.start{$env}.as_count()" },
+              { "name": "complete", "data_source": "metrics", "query": "sum:convos.pool.instance.claim.complete{$env}.as_count()" },
+              { "name": "fail", "data_source": "metrics", "query": "sum:convos.pool.instance.claim.fail{$env}.as_count()" }
+            ],
+            "formulas": [
+              { "alias": "Started", "formula": "start" },
+              { "alias": "Completed", "formula": "complete" },
+              { "alias": "Failed", "formula": "fail" }
+            ],
+            "style": { "palette": "semantic", "line_type": "solid", "line_width": "normal" },
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": { "x": 4, "y": 0, "width": 4, "height": 3 }
+    },
+    {
+      "id": 5003,
+      "definition": {
+        "title": "Claim Failures by Reason",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["sum", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "query1", "data_source": "metrics", "query": "sum:convos.pool.instance.claim.fail{$env} by {reason}.as_count()" }
+            ],
+            "formulas": [{ "alias": "Failures", "formula": "query1" }],
+            "style": { "palette": "warm", "line_type": "solid", "line_width": "normal" },
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": { "x": 8, "y": 0, "width": 4, "height": 3 }
+    },
+    {
+      "id": 2001,
+      "definition": {
+        "title": "Claim Duration (ms) — avg & p95",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["avg", "max", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "avg", "data_source": "metrics", "query": "avg:convos.pool.instance.claim.duration_ms.avg{$env}" },
+              { "name": "p95", "data_source": "metrics", "query": "avg:convos.pool.instance.claim.duration_ms.95percentile{$env}" }
+            ],
+            "formulas": [
+              { "alias": "Avg", "formula": "avg" },
+              { "alias": "p95", "formula": "p95" }
+            ],
+            "style": { "palette": "cool", "line_type": "solid", "line_width": "normal" },
+            "display_type": "line"
+          }
+        ],
+        "markers": [{ "value": "y = 15000", "display_type": "error dashed" }]
+      },
+      "layout": { "x": 0, "y": 3, "width": 4, "height": 3 }
+    },
+    {
+      "id": 2002,
+      "definition": {
+        "title": "Instance Create Duration (ms) — avg & p95",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["avg", "max", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "avg", "data_source": "metrics", "query": "avg:convos.pool.instance.create.duration_ms.avg{$env}" },
+              { "name": "p95", "data_source": "metrics", "query": "avg:convos.pool.instance.create.duration_ms.95percentile{$env}" }
+            ],
+            "formulas": [
+              { "alias": "Avg", "formula": "avg" },
+              { "alias": "p95", "formula": "p95" }
+            ],
+            "style": { "palette": "warm", "line_type": "solid", "line_width": "normal" },
+            "display_type": "line"
+          }
+        ],
+        "markers": [{ "value": "y = 120000", "display_type": "error dashed" }]
+      },
+      "layout": { "x": 4, "y": 3, "width": 4, "height": 3 }
+    },
+    {
+      "id": 2003,
+      "definition": {
+        "title": "Webhook Events",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["sum", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "received", "data_source": "metrics", "query": "sum:convos.pool.webhook.received{$env} by {event}.as_count()" },
+              { "name": "state", "data_source": "metrics", "query": "sum:convos.pool.webhook.state_change{$env} by {from,to}.as_count()" },
+              { "name": "promoted", "data_source": "metrics", "query": "sum:convos.pool.webhook.health_check_promoted{$env}.as_count()" }
+            ],
+            "formulas": [
+              { "alias": "Received", "formula": "received" },
+              { "alias": "State Change", "formula": "state" },
+              { "alias": "HC Promoted", "formula": "promoted" }
+            ],
+            "style": { "palette": "dog_classic", "line_type": "solid", "line_width": "normal" },
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": { "x": 8, "y": 3, "width": 4, "height": 3 }
+    },
+    {
+      "id": 3001,
+      "definition": {
+        "title": "Provider Latency (ms)",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["avg", "max", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "orr", "data_source": "metrics", "query": "avg:convos.pool.provider.openrouter.duration_ms.avg{$env}" },
+              { "name": "am", "data_source": "metrics", "query": "avg:convos.pool.provider.agentmail.duration_ms.avg{$env}" },
+              { "name": "tx", "data_source": "metrics", "query": "avg:convos.pool.provider.telnyx.duration_ms.avg{$env}" },
+              { "name": "rp", "data_source": "metrics", "query": "avg:convos.pool.provider.railway.project.duration_ms.avg{$env}" },
+              { "name": "rs", "data_source": "metrics", "query": "avg:convos.pool.provider.railway.service.duration_ms.avg{$env}" },
+              { "name": "rd", "data_source": "metrics", "query": "avg:convos.pool.provider.railway.domain.duration_ms.avg{$env}" }
+            ],
+            "formulas": [
+              { "alias": "OpenRouter", "formula": "orr" },
+              { "alias": "AgentMail", "formula": "am" },
+              { "alias": "Telnyx", "formula": "tx" },
+              { "alias": "Railway Project", "formula": "rp" },
+              { "alias": "Railway Service", "formula": "rs" },
+              { "alias": "Railway Domain", "formula": "rd" }
+            ],
+            "style": { "palette": "dog_classic", "line_type": "solid", "line_width": "normal" },
+            "display_type": "line"
+          }
+        ],
+        "markers": [{ "value": "y = 10000", "display_type": "warning dashed" }]
+      },
+      "layout": { "x": 0, "y": 6, "width": 6, "height": 3 }
+    },
+    {
+      "id": 3002,
+      "definition": {
+        "title": "Services Provisioned",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["sum", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "orr", "data_source": "metrics", "query": "sum:convos.pool.provider.openrouter.provisioned{$env}.as_count()" },
+              { "name": "am", "data_source": "metrics", "query": "sum:convos.pool.provider.agentmail.provisioned{$env}.as_count()" },
+              { "name": "tx", "data_source": "metrics", "query": "sum:convos.pool.provider.telnyx.provisioned{$env}.as_count()" },
+              { "name": "rw", "data_source": "metrics", "query": "sum:convos.pool.provider.railway.project.provisioned{$env}.as_count()" }
+            ],
+            "formulas": [
+              { "alias": "OpenRouter Keys", "formula": "orr" },
+              { "alias": "AgentMail Inboxes", "formula": "am" },
+              { "alias": "Telnyx Phones", "formula": "tx" },
+              { "alias": "Railway Projects", "formula": "rw" }
+            ],
+            "style": { "palette": "dog_classic", "line_type": "solid", "line_width": "normal" },
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": { "x": 6, "y": 6, "width": 6, "height": 3 }
+    },
+    {
+      "id": 4002,
+      "definition": {
+        "title": "Provider Rollbacks",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["sum", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "query1", "data_source": "metrics", "query": "sum:convos.pool.provider.rollback{$env} by {failed_step}.as_count()" }
+            ],
+            "formulas": [{ "alias": "Rollbacks", "formula": "query1" }],
+            "style": { "palette": "warm", "line_type": "solid", "line_width": "normal" },
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 9, "width": 4, "height": 2 }
+    },
+    {
+      "id": 5004,
+      "definition": {
+        "title": "Create Failures by Phase",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "horizontal",
+        "legend_columns": ["sum", "value"],
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              { "name": "query1", "data_source": "metrics", "query": "sum:convos.pool.instance.create.fail{$env} by {phase}.as_count()" }
+            ],
+            "formulas": [{ "alias": "Failures", "formula": "query1" }],
+            "style": { "palette": "warm", "line_type": "solid", "line_width": "normal" },
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": { "x": 4, "y": 9, "width": 4, "height": 2 }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "env",
+      "prefix": "env",
+      "available_values": ["scaling", "dev", "staging", "production"],
+      "default": "*"
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "pause_auto_refresh": false,
+  "reflow_type": "fixed"
+}

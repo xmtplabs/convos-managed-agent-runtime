@@ -111,6 +111,7 @@ jobs:
           - { suite: async,  timeout: 120 }
           - { suite: memory, timeout: 300 }
           - { suite: poller, timeout: 300 }
+          - { suite: poller-hooks, timeout: 300 }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
