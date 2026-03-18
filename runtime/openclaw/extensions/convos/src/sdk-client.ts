@@ -536,11 +536,12 @@ export class ConvosInstance {
     this.writeCommand({ type: "rename", name });
   }
 
-  async updateProfile(name?: string, image?: string): Promise<void> {
+  async updateProfile(name?: string, image?: string, metadata?: Record<string, string>): Promise<void> {
     this.assertRunning();
     const cmd: Record<string, unknown> = { type: "update-profile" };
     if (name !== undefined) cmd.name = name;
     if (image !== undefined) cmd.image = image;
+    if (metadata !== undefined) cmd.metadata = metadata;
     this.writeCommand(cmd);
     if (image !== undefined) {
       this.profileImageRenewal.recordAppliedImage(image);
