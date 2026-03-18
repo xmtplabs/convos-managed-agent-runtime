@@ -4,6 +4,7 @@
 
 ### Assistant chat UX improvements
 
-- Bump hermes-agent to v2026.3.17 — parallel tool execution, better memory prioritization, improved context compaction
-- SILENT marker support — agent can intentionally skip replying without triggering empty-response retries
-- Pool dashboard table row tidy-up
+- Faster multi-tool responses — the assistant can now run tools in parallel, reducing wait times on complex turns
+- Smarter memory — the assistant better remembers your preferences and corrections across sessions
+- Longer conversations stay coherent — improved context management keeps more relevant detail as chats grow
+- The assistant can now observe without replying when appropriate, instead of sending unnecessary responses
