@@ -698,7 +698,12 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
 
   let metadata: Record<string, string> | undefined;
   if (req.query.metadata) {
-    try { metadata = JSON.parse(req.query.metadata as string); } catch { /* ignore */ }
+    try {
+      const parsed = JSON.parse(req.query.metadata as string);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        metadata = parsed;
+      }
+    } catch { /* ignore */ }
   }
 
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {

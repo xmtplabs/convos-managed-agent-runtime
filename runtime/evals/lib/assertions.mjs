@@ -68,6 +68,7 @@ export function profileMetadataEquals(output, context) {
   const key = context.test?.metadata?.expectedMetadataKey;
   const value = context.test?.metadata?.expectedMetadataValue;
   if (!key) return { pass: false, score: 0, reason: 'Missing metadata.expectedMetadataKey' };
+  if (value === undefined) return { pass: false, score: 0, reason: 'Missing metadata.expectedMetadataValue' };
 
   return withProfiles(context, (profiles) => {
     const match = profiles.some((p) => p.metadata?.[key] === value);

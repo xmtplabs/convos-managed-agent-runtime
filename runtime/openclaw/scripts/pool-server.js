@@ -176,7 +176,7 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, profileImag
         const res = await fetch(`${gatewayUrl}/convos/conversation`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ name: agentName, profileName: agentName, instructions }),
+          body: JSON.stringify({ name: agentName, profileName: agentName, profileImage, metadata, instructions }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
