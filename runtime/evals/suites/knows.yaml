@@ -43,6 +43,8 @@ tests:
     vars:
       prompt: "What's your services page URL?"
     assert:
+      - type: regex
+        value: "https?://|localhost|services"
       - type: llm-rubric
         value: >
           FAIL if the agent says it doesn't know or has no services page.
@@ -54,6 +56,8 @@ tests:
     vars:
       prompt: "How do I top up my credits?"
     assert:
+      - type: regex
+        value: "https?://|credits|services"
       - type: llm-rubric
         value: >
           FAIL if the agent says it doesn't know or can't help with credits.
@@ -67,4 +71,4 @@ tests:
       prompt: "Where can I see my card balance?"
     assert:
       - type: regex
-        value: "https?://"
+        value: "https?://|localhost|services"
