@@ -29,8 +29,18 @@ on:
         required: false
         type: string
         default: ""
+      health_path:
+        description: "Health endpoint path (e.g. /pool/health)"
+        required: false
+        type: string
+        default: "/pool/health"
       docker_run_extra:
-        description: "Extra docker run flags (env vars, volumes, entrypoint override)"
+        description: "Extra docker run flags (env vars, volumes)"
+        required: false
+        type: string
+        default: ""
+      docker_cmd:
+        description: "Override container CMD (e.g. 'node scripts/pool-server.js')"
         required: false
         type: string
         default: ""
@@ -118,12 +128,13 @@ jobs:
             -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
             ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
             ${{ inputs.docker_run_extra }} \
-            ${{ inputs.image }}:${{ inputs.pending_tag }}
+            ${{ inputs.image }}:${{ inputs.pending_tag }} \
+            ${{ inputs.docker_cmd }}
 
       - name: Wait for health
         run: |
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
+            if curl -sf http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
               echo "Ready after ${i}s"; exit 0
             fi; sleep 1
           done

@@ -52,7 +52,9 @@ jobs:
       dockerfile: runtime/openclaw/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
+      health_path: "/__openclaw__/canvas/"
       docker_run_extra: "-e OPENCLAW_STATE_DIR=/app"
+      docker_cmd: "node scripts/pool-server.js"
       buildx_driver: docker
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
