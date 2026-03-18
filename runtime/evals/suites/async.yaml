@@ -16,7 +16,7 @@ providers:
 defaultTest:
   options:
     provider:
-      id: openrouter:anthropic/claude-sonnet-4
+      id: "openrouter:{{ env.EVALS_MODEL | default('anthropic/claude-sonnet-4') }}"
       config:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 

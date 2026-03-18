@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 class RuntimeConfig:
     # LLM
     openrouter_api_key: str = ""
-    model: str = "anthropic/claude-sonnet-4-6"
+    model: str = "anthropic/claude-opus-4-6"
 
     # XMTP
     xmtp_env: str = "dev"
@@ -40,7 +40,7 @@ class RuntimeConfig:
 
         model = os.environ.get("OPENCLAW_PRIMARY_MODEL", "")
         if not model:
-            model = os.environ.get("HERMES_MODEL", "anthropic/claude-sonnet-4-6")
+            model = os.environ.get("HERMES_MODEL", "anthropic/claude-opus-4-6")
         # OpenClaw uses "openrouter/" prefix as provider namespace; Hermes
         # calls OpenRouter directly and expects bare model IDs.
         if model.startswith("openrouter/"):
