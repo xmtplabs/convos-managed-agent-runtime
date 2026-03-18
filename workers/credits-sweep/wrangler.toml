@@ -2,36 +2,16 @@ name = "credits-sweep"
 main = "src/index.ts"
 compatibility_date = "2025-03-17"
 
-# --- Per-environment config ---
-# Deploy with: wrangler deploy --env dev|staging|production
-# Secrets per env: wrangler secret put POSTHOG_API_KEY --env dev
-#
-# Setup for each environment:
-#   1. wrangler kv namespace create STATS_CREDITS --env <env>
+# Setup:
+#   1. wrangler kv namespace create STATS_CREDITS
 #   2. Fill in the KV ID below
-#   3. wrangler secret put POSTHOG_API_KEY --env <env>
-#   4. wrangler secret put OPENROUTER_MANAGEMENT_KEY --env <env>
+#   3. wrangler secret put POSTHOG_API_KEY
+#   4. wrangler secret put OPENROUTER_MANAGEMENT_KEY
+#   5. wrangler deploy
 
-[env.dev]
-name = "credits-sweep-dev"
-[env.dev.triggers]
+[triggers]
 crons = ["*/15 * * * *"]
-[[env.dev.kv_namespaces]]
+
+[[kv_namespaces]]
 binding = "STATS_CREDITS"
 id = "debdada8c2254ca8ae7a467f7ba9ed62"
-
-[env.staging]
-name = "credits-sweep-staging"
-[env.staging.triggers]
-crons = ["*/15 * * * *"]
-[[env.staging.kv_namespaces]]
-binding = "STATS_CREDITS"
-id = "PLACEHOLDER_STAGING_KV_ID"
-
-[env.production]
-name = "credits-sweep-production"
-[env.production.triggers]
-crons = ["*/15 * * * *"]
-[[env.production.kv_namespaces]]
-binding = "STATS_CREDITS"
-id = "PLACEHOLDER_PRODUCTION_KV_ID"
