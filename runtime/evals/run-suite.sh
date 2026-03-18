@@ -15,7 +15,7 @@ SUITE="$1"; shift
 MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
 
 TMPOUT=$(mktemp)
-npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@" > "$TMPOUT" 2>&1
+promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@" > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 
 cat "$TMPOUT"
