@@ -24,6 +24,10 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" email provision
 node "$SKILLS_ROOT/services/scripts/services.mjs" sms provision
 ```
 
+**After provisioning, you MUST update your profile metadata** with the provisioned value so other participants can see it:
+- Email: `/update-profile --metadata email=<provisioned-address>`
+- SMS: `/update-profile --metadata phone=<provisioned-number>`
+
 **Never provision without asking the user first.** If a user asks to send an email/SMS and the service isn't provisioned, ask them before enabling it.
 
 ### SMS disclosure (required before provisioning)
