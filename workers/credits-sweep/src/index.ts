@@ -1,42 +1,15 @@
-import postgres from "postgres";
+const KEY_NAME_PREFIX = "convos-agent-";
 
 export interface Env {
   STATS_CREDITS: KVNamespace;
-  POOL_DB: Hyperdrive;
   POSTHOG_API_KEY: string;
   OPENROUTER_MANAGEMENT_KEY: string;
   POSTHOG_HOST?: string;
 }
 
-function getSQL(env: Env) {
-  return postgres(env.POOL_DB.connectionString, { ssl: "require", max: 1 });
-}
-
 async function creditsSweep(env: Env): Promise<void> {
   console.log("[cron] Credits sweep starting");
 
-  // Step 1: Build keyHash -> instanceId map from pool DB
-  let keyToInstance: Map<string, string>;
-  try {
-    const sql = getSQL(env);
-    const rows = await sql`
-      SELECT instance_id, resource_id AS key_hash
-      FROM instance_services
-      WHERE tool_id = 'openrouter' AND status = 'active'
-    `;
-    await sql.end();
-    keyToInstance = new Map(rows.map((r) => [r.key_hash, r.instance_id]));
-  } catch (err) {
-    console.error("[cron] Failed to load key-to-instance map:", err);
-    return;
-  }
-
-  if (keyToInstance.size === 0) {
-    console.log("[cron] No active OpenRouter keys found");
-    return;
-  }
-
-  // Step 2: Paginate through OpenRouter keys
   const mgmtKey = env.OPENROUTER_MANAGEMENT_KEY;
   if (!mgmtKey) {
     console.error("[cron] OPENROUTER_MANAGEMENT_KEY not set");
@@ -50,6 +23,8 @@ async function creditsSweep(env: Env): Promise<void> {
     timestamp: string;
   }> = [];
 
+  // Paginate through OpenRouter keys — instance ID is embedded in key name
+  // (pool manager creates keys as "convos-agent-<instanceId>")
   let offset = 0;
   while (true) {
     let keys: any[];
@@ -71,10 +46,12 @@ async function creditsSweep(env: Env): Promise<void> {
     if (keys.length === 0) break;
 
     for (const key of keys) {
-      const hash = key.hash;
-      const instanceId = keyToInstance.get(hash);
+      const name: string = key.name ?? "";
+      if (!name.startsWith(KEY_NAME_PREFIX)) continue;
+      const instanceId = name.slice(KEY_NAME_PREFIX.length);
       if (!instanceId) continue;
 
+      const hash = key.hash;
       const usage = key.usage ?? 0;
       const limit = key.limit ?? 0;
 
@@ -107,7 +84,7 @@ async function creditsSweep(env: Env): Promise<void> {
     await new Promise((r) => setTimeout(r, 100));
   }
 
-  // Step 3: Batch send to PostHog
+  // Batch send to PostHog
   if (events.length > 0) {
     const host = env.POSTHOG_HOST || "https://us.i.posthog.com";
     try {

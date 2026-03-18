@@ -8,11 +8,9 @@ compatibility_date = "2025-03-17"
 #
 # Setup for each environment:
 #   1. wrangler kv namespace create STATS_CREDITS --env <env>
-#   2. Create read-only Postgres role on that env's DB
-#   3. wrangler hyperdrive create pool-db-<env> --connection-string="..."
-#   4. Fill in the IDs below
-#   5. wrangler secret put POSTHOG_API_KEY --env <env>
-#   6. wrangler secret put OPENROUTER_MANAGEMENT_KEY --env <env>
+#   2. Fill in the KV ID below
+#   3. wrangler secret put POSTHOG_API_KEY --env <env>
+#   4. wrangler secret put OPENROUTER_MANAGEMENT_KEY --env <env>
 
 [env.dev]
 name = "credits-sweep-dev"
@@ -20,10 +18,7 @@ name = "credits-sweep-dev"
 crons = ["*/15 * * * *"]
 [[env.dev.kv_namespaces]]
 binding = "STATS_CREDITS"
-id = "PLACEHOLDER_DEV_KV_ID"
-[[env.dev.hyperdrive]]
-binding = "POOL_DB"
-id = "PLACEHOLDER_DEV_HYPERDRIVE_ID"
+id = "debdada8c2254ca8ae7a467f7ba9ed62"
 
 [env.staging]
 name = "credits-sweep-staging"
@@ -32,9 +27,6 @@ crons = ["*/15 * * * *"]
 [[env.staging.kv_namespaces]]
 binding = "STATS_CREDITS"
 id = "PLACEHOLDER_STAGING_KV_ID"
-[[env.staging.hyperdrive]]
-binding = "POOL_DB"
-id = "PLACEHOLDER_STAGING_HYPERDRIVE_ID"
 
 [env.production]
 name = "credits-sweep-production"
@@ -43,6 +35,3 @@ crons = ["*/15 * * * *"]
 [[env.production.kv_namespaces]]
 binding = "STATS_CREDITS"
 id = "PLACEHOLDER_PRODUCTION_KV_ID"
-[[env.production.hyperdrive]]
-binding = "POOL_DB"
-id = "PLACEHOLDER_PRODUCTION_HYPERDRIVE_ID"
