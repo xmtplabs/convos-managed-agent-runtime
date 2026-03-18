@@ -157,13 +157,18 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
           method: "POST",
           headers,
           body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName, instructions }),
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(65_000),
         });
         if (!res.ok) {
           const text = await res.text();
           throw new Error(`/convos/join returned ${res.status}: ${text}`);
         }
         const data = await res.json();
+        // pending_acceptance: join is waiting for approval — return immediately
+        if (data.status === "pending_acceptance") {
+          console.log(`[pool-server] Join pending acceptance on attempt ${i}`);
+          return { conversationId: null, inviteUrl: joinUrl, joined: false, status: "pending_acceptance" };
+        }
         console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
         return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
       } else {
@@ -213,8 +218,7 @@ const server = http.createServer(async (req, res) => {
           signal: AbortSignal.timeout(3000),
         });
         if (cRes.ok) {
-          const cData = await cRes.json();
-          if (cData.ready) convosReady = true;
+          convosReady = true;
         }
       } catch {}
     }
@@ -303,6 +307,7 @@ const server = http.createServer(async (req, res) => {
         inviteUrl: convosResult.inviteUrl || null,
         conversationId: convosResult.conversationId || null,
         joined: convosResult.joined || false,
+        status: convosResult.status || (convosResult.joined ? "joined" : "created"),
       });
     } catch (err) {
       console.error("[pool-server] Provision failed:", err);
