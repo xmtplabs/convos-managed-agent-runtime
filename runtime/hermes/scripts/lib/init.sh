@@ -25,21 +25,13 @@ fi
 # Workspace source of truth
 WORKSPACE_DIR="$ROOT/workspace"
 
-# Shared workspace — in Docker, copied to /app/shared-workspace; locally relative to ROOT
-if [ -d "$ROOT/../shared/workspace" ]; then
-  SHARED_WORKSPACE_DIR="$ROOT/../shared/workspace"
-elif [ -d "/app/shared-workspace" ]; then
-  SHARED_WORKSPACE_DIR="/app/shared-workspace"
+# Resolve shared dirs
+_resolve="$ROOT/../shared/scripts/lib/resolve-shared.sh"
+[ ! -f "$_resolve" ] && _resolve="/app/shared-scripts/lib/resolve-shared.sh"
+if [ -f "$_resolve" ]; then
+  . "$_resolve"
 else
   SHARED_WORKSPACE_DIR=""
-fi
-
-# Shared scripts — in Docker, copied to /app/shared-scripts; locally relative to ROOT
-if [ -d "$ROOT/../shared/scripts" ]; then
-  SHARED_SCRIPTS_DIR="$ROOT/../shared/scripts"
-elif [ -d "/app/shared-scripts" ]; then
-  SHARED_SCRIPTS_DIR="/app/shared-scripts"
-else
   SHARED_SCRIPTS_DIR=""
 fi
 SKILLS_ROOT="$HERMES_HOME/skills"
@@ -60,5 +52,9 @@ if [ -d "$HERMES_AGENT_DIR" ]; then
   esac
 fi
 
-# Brand helpers
-. "$SCRIPT_LIB/brand.sh"
+# Brand helpers — prefer shared copy, fall back to local
+if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
+  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
+else
+  . "$SCRIPT_LIB/brand.sh"
+fi

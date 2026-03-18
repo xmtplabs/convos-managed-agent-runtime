@@ -4,7 +4,12 @@ set -e
 
 . "$(dirname "$0")/lib/init.sh"
 . "$ROOT/scripts/lib/env-load.sh"
-. "$ROOT/scripts/lib/brand.sh"
+# Brand helpers — prefer shared copy, fall back to local
+if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
+  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
+else
+  . "$ROOT/scripts/lib/brand.sh"
+fi
 
 brand_section "Uploading assistant brain"
 
@@ -13,10 +18,8 @@ brand_section "Uploading assistant brain"
 mkdir -p "$STATE_DIR"
 
 # Assemble AGENTS.md (shared base + runtime extra) — after sync so it overwrites the synced copy
-_AGENTS_DST="$STATE_DIR/workspace/AGENTS.md"
-cp "$SHARED_WORKSPACE_DIR/AGENTS-base.md" "$_AGENTS_DST"
-[ -f "$RUNTIME_DIR/workspace/agents-extra.md" ] && cat "$RUNTIME_DIR/workspace/agents-extra.md" >> "$_AGENTS_DST"
-brand_ok "AGENTS.md" "assembled (shared + openclaw)"
+. "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
+assemble_agents "$SHARED_WORKSPACE_DIR" "$RUNTIME_DIR/workspace/agents-extra.md" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
 
 # Sync shared web-tools assets (Docker copies to /app/web-tools; locally we mirror here)
 _SHARED_WT="$ROOT/../shared/web-tools"
