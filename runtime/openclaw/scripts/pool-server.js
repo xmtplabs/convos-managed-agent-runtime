@@ -46,6 +46,7 @@ const RUNTIME_VERSION = (() => {
   }
   return "unknown";
 })();
+process.env.RUNTIME_VERSION = RUNTIME_VERSION;
 
 let gatewayReady = false;
 let convosReady = false;

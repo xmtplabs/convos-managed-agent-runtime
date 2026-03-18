@@ -28,15 +28,6 @@ import { stats } from "./stats.js";
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
-const RUNTIME_VERSION = (() => {
-  for (const p of [
-    path.resolve(__dirname, "../../../../package.json"),       // runtime/package.json (local dev)
-    path.resolve(__dirname, "../../../runtime-version.json"),  // /app/runtime-version.json (Docker)
-  ]) {
-    try { return JSON.parse(fs.readFileSync(p, "utf-8")).version || ""; } catch {}
-  }
-  return "";
-})();
 const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
 const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
 const EXPLOSION_IMMEDIATE_SKEW_MS = 3_000;
@@ -1118,7 +1109,7 @@ export async function startWiredInstance(params: {
   const instanceId = process.env.INSTANCE_ID || "";
   if (posthogApiKey && instanceId) {
     const environment = process.env.POOL_ENVIRONMENT || "";
-    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: RUNTIME_VERSION });
+    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "" });
   }
 
   // Fire-and-forget: dispatch LLM-generated welcome message.
