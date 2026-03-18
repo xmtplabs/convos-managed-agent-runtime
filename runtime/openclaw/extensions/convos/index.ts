@@ -347,14 +347,19 @@ const plugin = {
           const account = resolveConvosAccount({ cfg: cfg as CoreConfig, accountId });
           const env = body.env === "dev" || body.env === "production" ? body.env : account.env;
 
-          const metadata = typeof body.metadata === "object" && body.metadata !== null && !Array.isArray(body.metadata)
+          const callerMeta = typeof body.metadata === "object" && body.metadata !== null && !Array.isArray(body.metadata)
             ? body.metadata as Record<string, string>
             : undefined;
+          const instanceId = process.env.INSTANCE_ID;
+          const metadata: Record<string, string> = {
+            ...callerMeta,
+            ...(instanceId ? { instanceId } : {}),
+          };
 
           const { instance, status, conversationId } = await ConvosInstance.join(env, inviteUrl, {
             profileName,
             profileImage,
-            metadata,
+            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
             timeout: 60,
           });
 

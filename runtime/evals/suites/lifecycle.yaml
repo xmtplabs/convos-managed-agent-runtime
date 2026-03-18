@@ -44,6 +44,8 @@ tests:
         value: "wallet"
       - type: not-icontains
         value: "trading"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileHasInstanceId"
 
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"

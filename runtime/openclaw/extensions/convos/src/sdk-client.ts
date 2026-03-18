@@ -487,8 +487,17 @@ export class ConvosInstance {
       const imageMatch = text.match(/--image\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
       const name = nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3];
       const image = imageMatch?.[1] ?? imageMatch?.[2] ?? imageMatch?.[3];
-      if (name || image) {
-        await this.updateProfile(name, image);
+      const metadataMatches = [...text.matchAll(/--metadata\s+(\S+)/g)];
+      let metadata: Record<string, string> | undefined;
+      if (metadataMatches.length > 0) {
+        metadata = {};
+        for (const m of metadataMatches) {
+          const [k, ...rest] = m[1].split("=");
+          if (k && rest.length > 0) metadata[k] = rest.join("=");
+        }
+      }
+      if (name || image || metadata) {
+        await this.updateProfile(name, image, metadata);
         return { success: true, messageId: undefined };
       }
       return { success: false, messageId: undefined };
@@ -536,11 +545,12 @@ export class ConvosInstance {
     this.writeCommand({ type: "rename", name });
   }
 
-  async updateProfile(name?: string, image?: string): Promise<void> {
+  async updateProfile(name?: string, image?: string, metadata?: Record<string, string>): Promise<void> {
     this.assertRunning();
     const cmd: Record<string, unknown> = { type: "update-profile" };
     if (name !== undefined) cmd.name = name;
     if (image !== undefined) cmd.image = image;
+    if (metadata !== undefined) cmd.metadata = metadata;
     this.writeCommand(cmd);
     if (image !== undefined) {
       this.profileImageRenewal.recordAppliedImage(image);

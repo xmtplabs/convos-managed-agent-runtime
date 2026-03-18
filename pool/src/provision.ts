@@ -10,6 +10,8 @@ interface ProvisionOpts {
   agentName: string;
   instructions: string;
   joinUrl?: string;
+  profileImage?: string;
+  metadata?: Record<string, string>;
   source?: string;
   onProgress?: ProvisionProgressCallback;
 }
@@ -37,7 +39,7 @@ async function resetAndVerifyRuntime(instanceUrl: string | null, gatewayToken: s
 }
 
 export async function provision(opts: ProvisionOpts) {
-  const { agentName, instructions, joinUrl, source, onProgress } = opts;
+  const { agentName, instructions, joinUrl, profileImage, metadata, source, onProgress } = opts;
   const claimStart = Date.now();
   const report = (step: string, status: string, message?: string) => {
     if (onProgress) onProgress(step, status, message);
@@ -86,7 +88,7 @@ export async function provision(opts: ProvisionOpts) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(75_000),
-      body: JSON.stringify({ agentName, instructions: instructions || "", joinUrl }),
+      body: JSON.stringify({ agentName, instructions: instructions || "", joinUrl, profileImage, metadata }),
     });
     if (!provisionRes.ok) {
       const text = await provisionRes.text();

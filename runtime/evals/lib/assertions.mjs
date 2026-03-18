@@ -64,6 +64,49 @@ export function profileImageSet(output, context) {
 
 
 
+export function profileMetadataEquals(output, context) {
+  const key = context.test?.metadata?.expectedMetadataKey;
+  const value = context.test?.metadata?.expectedMetadataValue;
+  if (!key) return { pass: false, score: 0, reason: 'Missing metadata.expectedMetadataKey' };
+  if (value === undefined) return { pass: false, score: 0, reason: 'Missing metadata.expectedMetadataValue' };
+
+  return withProfiles(context, (profiles) => {
+    const match = profiles.some((p) => {
+      const raw = p.metadata?.[key];
+      // Handle both plain values and typed objects ({ type, value })
+      const actual = raw && typeof raw === 'object' && 'value' in raw ? String(raw.value) : raw;
+      return actual === value;
+    });
+    return {
+      pass: match,
+      score: match ? 1 : 0,
+      reason: match
+        ? `Profile metadata ${key}="${value}"`
+        : `Expected ${key}="${value}", got: ${profiles.map((p) => JSON.stringify(p.metadata || {})).join(', ')}`,
+    };
+  });
+}
+
+export function profileHasInstanceId(output, context) {
+  return withProfiles(context, (profiles) => {
+    const match = profiles.some((p) => {
+      const raw = p.metadata?.instanceId;
+      // Handle both plain string and typed object ({ type, value })
+      return raw && (typeof raw === 'string' || (typeof raw === 'object' && 'value' in raw));
+    });
+    const found = profiles.find((p) => p.metadata?.instanceId);
+    const val = found?.metadata?.instanceId;
+    const display = val && typeof val === 'object' && 'value' in val ? val.value : val;
+    return {
+      pass: match,
+      score: match ? 1 : 0,
+      reason: match
+        ? `Profile metadata has instanceId: ${display}`
+        : `No profile has instanceId in metadata: ${profiles.map((p) => JSON.stringify(p.metadata || {})).join(', ')}`,
+    };
+  });
+}
+
 export function agentSelfDestructed(output) {
   const pass = output === 'SELF_DESTRUCT_CONFIRMED';
   return {
