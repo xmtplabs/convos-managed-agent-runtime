@@ -891,6 +891,25 @@ async def convos_rename(body: RenameRequest):
         raise HTTPException(status_code=500, detail=str(err))
 
 
+# ---- /convos/update-metadata ----
+
+class UpdateMetadataRequest(BaseModel):
+    metadata: dict[str, str]
+
+
+@app.post("/convos/update-metadata", dependencies=[Depends(require_auth)])
+async def convos_update_metadata(body: UpdateMetadataRequest):
+    adapter = get_adapter()
+    if not adapter or not adapter.instance:
+        raise HTTPException(status_code=400, detail="No active conversation")
+
+    try:
+        await adapter.instance.update_profile(metadata=body.metadata)
+        return {"ok": True}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
 # ---- /convos/lock ----
 
 @app.post("/convos/lock", dependencies=[Depends(require_auth)])
