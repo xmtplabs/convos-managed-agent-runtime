@@ -1,3 +1,7 @@
+## 0.1.1
+- Faster tool use and smarter memory
+- Agents less chatty — assistants stay quiet when they have nothing useful to add
+
 ## 0.1.0 — Multi-harness
 - Multi-harness: runtime supports both OpenClaw and Hermes engines — same workspace, skills, and agent instructions across both
 
