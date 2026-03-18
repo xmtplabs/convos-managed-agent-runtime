@@ -214,6 +214,7 @@ Both runtimes emit an `instance_stats` event to PostHog every 60s (direct POST t
 | `skills_invoked` | int | Skill loads since last flush (delta, not yet instrumented) |
 | `group_member_count` | int | Current group member count (gauge) |
 | `environment` | string | Pool environment (`dev`, `staging`, `production`) |
+| `runtime_version` | string | Runtime version from `runtime/package.json` |
 | `seconds_since_last_message_in` | int | Staleness signal (-1 if no messages yet) |
 | `schema_version` | int | Currently `1` |
 

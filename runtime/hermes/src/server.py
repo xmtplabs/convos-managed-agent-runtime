@@ -171,6 +171,7 @@ async def start_wired_instance(
             agent_name=name or "",
             runtime="hermes",
             environment=os.environ.get("POOL_ENVIRONMENT", ""),
+            version=RUNTIME_VERSION or "",
         )
 
     # Fire greeting in background (skip if resuming — caller handles workspace refresh)
