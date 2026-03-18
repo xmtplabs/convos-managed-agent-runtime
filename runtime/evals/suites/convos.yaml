@@ -43,6 +43,8 @@ tests:
         value: "wallet"
       - type: not-icontains
         value: "trading"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileHasInstanceId"
 
   # --- Core ---
   - description: "Agent can update profile name"

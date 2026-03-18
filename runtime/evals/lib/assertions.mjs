@@ -64,6 +64,19 @@ export function profileImageSet(output, context) {
 
 
 
+export function profileHasInstanceId(output, context) {
+  return withProfiles(context, (profiles) => {
+    const match = profiles.some((p) => p.metadata?.instanceId);
+    return {
+      pass: match,
+      score: match ? 1 : 0,
+      reason: match
+        ? `Profile metadata has instanceId: ${profiles.find((p) => p.metadata?.instanceId).metadata.instanceId}`
+        : `No profile has instanceId in metadata: ${profiles.map((p) => JSON.stringify(p.metadata || {})).join(', ')}`,
+    };
+  });
+}
+
 export function agentSelfDestructed(output) {
   const pass = output === 'SELF_DESTRUCT_CONFIRMED';
   return {
