@@ -2,16 +2,21 @@ name = "credits-sweep"
 main = "src/index.ts"
 compatibility_date = "2025-03-17"
 
-# Setup:
+# Setup (deploy):
 #   1. wrangler kv namespace create STATS_CREDITS
 #   2. Fill in the KV ID below
 #   3. wrangler secret put POSTHOG_API_KEY
 #   4. wrangler secret put OPENROUTER_MANAGEMENT_KEY
 #   5. wrangler deploy
+#
+# Local testing:
+#   1. Create .dev.vars with POSTHOG_API_KEY and OPENROUTER_MANAGEMENT_KEY
+#   2. wrangler dev --test-scheduled
+#   3. curl "http://localhost:8787/__scheduled?cron=*/15+*+*+*+*"
 
 [triggers]
 crons = ["*/15 * * * *"]
 
 [[kv_namespaces]]
 binding = "STATS_CREDITS"
-id = "PLACEHOLDER_KV_ID"
+id = "debdada8c2254ca8ae7a467f7ba9ed62"
