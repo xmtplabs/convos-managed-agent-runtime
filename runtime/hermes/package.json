@@ -10,7 +10,8 @@
     "evals:hermes:soul": "EVAL_RUNTIME=hermes sh evals/run-suite.sh soul.yaml",
     "evals:hermes:convos": "EVAL_RUNTIME=hermes sh evals/run-suite.sh convos.yaml",
     "evals:hermes:async": "EVAL_RUNTIME=hermes sh evals/run-suite.sh async.yaml",
-    "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml"
+    "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml",
+    "evals:hermes:poller": "EVAL_RUNTIME=hermes sh evals/run-suite.sh poller.yaml"
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0",
