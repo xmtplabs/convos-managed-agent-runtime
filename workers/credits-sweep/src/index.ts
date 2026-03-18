@@ -70,6 +70,7 @@ async function creditsSweep(env: Env): Promise<void> {
       const { instanceId, environment } = parsed;
 
       const hash = key.hash;
+      if (!hash) continue;
       const usage = key.usage ?? 0;
       const limit = key.limit ?? 0;
 

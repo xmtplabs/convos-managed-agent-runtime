@@ -576,7 +576,6 @@ class ConvosAdapter:
         inst = self._instance
         if not inst:
             return
-        stats.increment("messages_out")
 
         parsed = parse_response(raw_response)
 
@@ -624,6 +623,7 @@ class ConvosAdapter:
             for chunk in chunks:
                 try:
                     await inst.send_message(chunk, reply_to=parsed.reply_to)
+                    stats.increment("messages_out")
                 except Exception as err:
                     logger.error(f"Send message failed: {err}")
 

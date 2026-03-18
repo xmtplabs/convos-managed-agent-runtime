@@ -125,8 +125,8 @@ class StatsAccumulator:
         self._runtime = runtime
         self._environment = environment
         self._version = version
-        self._started = True
         self._task = asyncio.create_task(self._tick_loop())
+        self._started = True
         logger.info("Stats started (instance=%s, interval=%ds)", instance_id, FLUSH_INTERVAL_S)
 
     async def shutdown(self) -> None:
