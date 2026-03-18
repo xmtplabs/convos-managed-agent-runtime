@@ -10,6 +10,7 @@ on:
     paths:
       - 'runtime/hermes/**'
       - 'runtime/shared/**'
+      - 'runtime/evals/**'
       - 'runtime/package.json'
       - '!runtime/CHANGELOG.md'
 
