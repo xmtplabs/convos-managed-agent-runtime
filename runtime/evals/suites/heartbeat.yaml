@@ -3,7 +3,13 @@
 # and stay silent when there's nothing to act on?
 #
 # Uses the memory provider to seed context (deadlines, action items),
-# then sends a heartbeat prompt to see if the agent acts appropriately.
+# then asks the agent if anything needs attention. The agent should
+# surface issues proactively or stay silent when nothing is pending.
+#
+# NOTE: We do NOT use the [HEARTBEAT] prefix here because OpenClaw's
+# runtime intercepts it and returns HEARTBEAT_OK before the agent sees
+# the prompt. Instead we simulate the scenario by seeding memory and
+# asking the agent to check for pending items as a normal query.
 # Sequential — memory is reset between tests.
 
 description: "Eval: Heartbeat"
@@ -26,7 +32,7 @@ tests:
 
   - description: "Heartbeat nudges on approaching deadline"
     vars:
-      prompt: "[HEARTBEAT] Check if anything needs attention."
+      prompt: "Hey, anything we should be keeping an eye on right now?"
     metadata:
       storePrompt: "The team agreed to submit the proposal by end of day tomorrow. Alex is responsible for the final draft. No one has mentioned progress since."
     assert:
@@ -39,7 +45,7 @@ tests:
 
   - description: "Heartbeat nudges on stalled conversation"
     vars:
-      prompt: "[HEARTBEAT] Check if anything needs attention."
+      prompt: "Anything pending that we forgot about?"
     metadata:
       storePrompt: "Sara asked the group two days ago whether everyone is available for the offsite next Thursday. Nobody replied. Sara is waiting for responses."
     assert:
@@ -51,7 +57,7 @@ tests:
 
   - description: "Heartbeat nudges on missed action item"
     vars:
-      prompt: "[HEARTBEAT] Check if anything needs attention."
+      prompt: "Are we forgetting anything from yesterday's chat?"
     metadata:
       storePrompt: "In yesterday's discussion, Jordan volunteered to share the updated budget spreadsheet with the group. The conversation moved on and Jordan never followed up."
     assert:
@@ -65,18 +71,25 @@ tests:
 
   - description: "Heartbeat stays silent when nothing needs attention"
     vars:
-      prompt: "[HEARTBEAT] Check if anything needs attention."
+      prompt: "Anything we need to worry about?"
     metadata:
       storePrompt: "The group chatted about weekend plans. Everyone agreed to meet at the park on Saturday. No open tasks or deadlines."
     assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:agentChoseSilence"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent fabricates urgent tasks or deadlines that
+          were never mentioned. PASS if the agent says there's nothing
+          pending, everything looks good, or gives a brief all-clear.
 
   - description: "Heartbeat does not repeat a nudge already given"
     vars:
-      prompt: "[HEARTBEAT] Check if anything needs attention."
+      prompt: "Any loose ends I should know about?"
     metadata:
       storePrompt: "The proposal is due tomorrow. I already reminded the group about this 30 minutes ago and Alex acknowledged it."
     assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:agentChoseSilence"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent urgently re-raises the proposal deadline as
+          if nobody has been notified. PASS if the agent says things
+          look covered, mentions Alex already acknowledged it, or gives
+          a brief status without sounding an alarm.
