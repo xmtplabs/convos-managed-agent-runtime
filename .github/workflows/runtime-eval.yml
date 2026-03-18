@@ -48,6 +48,7 @@ jobs:
           XMTP_ENV=${{ secrets.XMTP_ENV }}
           CONVOS_API_KEY=${{ secrets.CONVOS_API_KEY }}
           EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          EVALS_MODEL=${{ secrets.EVALS_MODEL }}
           DOTENV
 
       - name: Start gateway
@@ -69,27 +70,32 @@ jobs:
         run: timeout 180 pnpm evals openclawknows
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          EVALS_MODEL: ${{ secrets.EVALS_MODEL }}
 
       - name: "Eval: skills (parallel)"
         working-directory: runtime
         run: timeout 300 pnpm evals openclawskills
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          EVALS_MODEL: ${{ secrets.EVALS_MODEL }}
 
       - name: "Eval: soul (parallel)"
         working-directory: runtime
         run: timeout 180 pnpm evals openclawsoul
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          EVALS_MODEL: ${{ secrets.EVALS_MODEL }}
 
       - name: "Eval: convos (sequential)"
         working-directory: runtime
         run: timeout 600 pnpm evals openclawconvos
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          EVALS_MODEL: ${{ secrets.EVALS_MODEL }}
 
       - name: "Eval: async (sequential)"
         working-directory: runtime
         run: timeout 120 pnpm evals openclawasync
         env:
           EVAL_OPENROUTER_API_KEY: ${{ secrets.EVAL_OPENROUTER_API_KEY }}
+          EVALS_MODEL: ${{ secrets.EVALS_MODEL }}
