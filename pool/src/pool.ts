@@ -292,12 +292,8 @@ export async function recheckInstance(id: string) {
   }
 
   // No active conversation — instance is clean, recover to idle
-  const idleUpdated = await db.recoverToIdle(id, inst.status);
+  await db.recoverToIdle(id, inst.status);
   if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
-  if (!idleUpdated) {
-    console.log(`[pool] recheck ${id}: idle recovery skipped (status changed)`);
-    return { id, status: inst.status, changed: false, reason: "recovery_skipped", agentName: inst.agentName || null };
-  }
-  console.log(`[pool] recheck ${id}: ${inst.status} → idle (runtime clean, v${hc.version || '?'})`);
+  console.log(`[pool] recheck ${id}: ${inst.status} → idle (no conversation, v${hc.version || '?'})`);
   return { id, status: "idle", changed: inst.status !== "idle", agentName: null };
 }
