@@ -14,4 +14,4 @@ crons = ["*/15 * * * *"]
 
 [[kv_namespaces]]
 binding = "STATS_CREDITS"
-id = "debdada8c2254ca8ae7a467f7ba9ed62"
+id = "PLACEHOLDER_KV_ID"
