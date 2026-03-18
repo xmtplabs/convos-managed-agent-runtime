@@ -10,7 +10,7 @@ compatibility_date = "2025-03-17"
 #   5. wrangler deploy
 #
 # Local testing:
-#   1. Create .dev.vars with POSTHOG_API_KEY and OPENROUTER_MANAGEMENT_KEY
+#   1. cp .dev.vars.example .dev.vars && fill in real values
 #   2. wrangler dev --test-scheduled
 #   3. curl "http://localhost:8787/__scheduled?cron=*/15+*+*+*+*"
 
