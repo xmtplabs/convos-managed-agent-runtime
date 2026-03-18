@@ -26,23 +26,22 @@ fi
 
 # ── Hermes agent (local dev only — Docker pre-installs to /opt) ──────────
 brand_subsection "hermes-agent"
+INSTALLED_TAG=$(cd "$HERMES_AGENT_DIR" 2>/dev/null && git describe --tags --exact-match 2>/dev/null || true)
 if is_docker; then
   brand_ok "hermes-agent" "$HERMES_TAG (pre-installed)"
-elif [ ! -d "$HERMES_AGENT_DIR/.git" ]; then
-  brand_info "hermes-agent" "cloning $HERMES_TAG ..."
+elif [ "$INSTALLED_TAG" = "$HERMES_TAG" ]; then
+  brand_ok "hermes-agent" "$HERMES_TAG"
+else
+  [ -n "$INSTALLED_TAG" ] && brand_info "hermes-agent" "$INSTALLED_TAG → $HERMES_TAG"
+  rm -rf "$HERMES_AGENT_DIR"
   mkdir -p "$(dirname "$HERMES_AGENT_DIR")"
   git clone --recurse-submodules --branch "$HERMES_TAG" --depth 1 \
     https://github.com/NousResearch/hermes-agent.git "$HERMES_AGENT_DIR"
-
-  brand_info "hermes-agent" "installing Python deps ..."
   cd "$HERMES_AGENT_DIR"
-  uv pip install $PIP_TARGET -e ".[all]"
-  uv pip install $PIP_TARGET -e "./mini-swe-agent"
+  uv pip install $PIP_TARGET ".[all]"
+  uv pip install $PIP_TARGET "./mini-swe-agent"
   cd "$ROOT"
-
-  brand_ok "hermes-agent" "$HERMES_TAG (freshly installed)"
-else
-  brand_ok "hermes-agent" "$HERMES_TAG"
+  brand_ok "hermes-agent" "$HERMES_TAG (installed)"
 fi
 
 # Runtime Python deps — always reconcile (fast no-op if unchanged)
