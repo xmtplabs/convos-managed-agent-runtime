@@ -1,8 +1,8 @@
 # runtime/evals/convos.yaml
-# Lifecycle eval — join, welcome message, self-destruct.
-# All tests share one XMTP conversation and must run sequentially.
+# Capabilities eval — profile updates, vision, group awareness, heartbeat.
+# Tests share one XMTP conversation and run sequentially.
 
-description: "Eval: Convos Lifecycle"
+description: "Eval: Convos"
 
 evaluateOptions:
   maxConcurrency: 1
@@ -18,39 +18,50 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  # --- Init ---
-  - description: "Agent sends welcome message after joining"
+  - description: "Agent can update profile name"
     vars:
-      prompt: "(waiting for welcome message)"
+      prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
     metadata:
-      waitForWelcome: true
+      expectedName: "QA Bot Alpha"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileNameEquals"
+
+  - description: "Agent can update profile photo"
+    vars:
+      prompt: "Update your profile photo to https://avatars.githubusercontent.com/u/82580170. Confirm when done."
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileImageSet"
+
+  - description: "Agent can recognize image content"
+    vars:
+      prompt: "What do you see in that image? Describe it briefly."
+    metadata:
+      attachment: "../fixtures/test-image.png"
+    assert:
+      - type: regex
+        value: "[Dd]ice"
+
+  - description: "Agent can see group members"
+    vars:
+      prompt: "Who is in this conversation? List the participants."
     assert:
       - type: llm-rubric
         value: >
-          The output is a chat transcript with lines prefixed [AGENT].
-          The AGENT just joined a group conversation and sent a welcome message.
-          Evaluate against ALL requirements:
+          The output is a chat transcript with lines prefixed [USER] or [AGENT].
+          The USER asked who is in the conversation.
+          Pass if the AGENT's response mentions or lists any participants, members,
+          identities, addresses, or people in the group.
+          Fail only if the AGENT refused, said it doesn't know, or gave no answer.
 
-          1. The message must be 1-2 sentences max. Three or more sentences is a fail.
-          2. It must contain a greeting (e.g. "hey", "hi", "hello", "what's up").
-          3. It must ask what the group is up to, working on, or what's going on.
-          4. It must reference naming — either inviting the group to suggest a name, or asking what it should be called. Any phrasing about names counts.
-          5. It must NOT mention crypto, wallets, tokens, trading, Hermes, or Nous Research.
-
-          Pass if all five requirements are met. Be lenient on exact phrasing — focus on whether the intent of each requirement is satisfied.
-      - type: not-icontains
-        value: "crypto"
-      - type: not-icontains
-        value: "wallet"
-      - type: not-icontains
-        value: "trading"
-
-  # --- Teardown (must be last) ---
-  - description: "Agent self-destructs when removed from group"
+  - description: "Heartbeat does not leak system tokens into conversation"
     vars:
-      prompt: "(self-destruct trigger)"
-    metadata:
-      selfDestruct: true
+      prompt: "Run your heartbeat check. Report only if there's something worth notifying."
     assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:agentSelfDestructed"
+      - type: not-icontains
+        value: "HEARTBEAT_OK"
+      - type: not-icontains
+        value: "[diagnostic]"
+      - type: not-icontains
+        value: "lane enqueue"

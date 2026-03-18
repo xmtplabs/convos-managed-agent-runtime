@@ -107,8 +107,8 @@ jobs:
           - { suite: knows,  timeout: 180 }
           - { suite: skills, timeout: 300 }
           - { suite: soul,   timeout: 180 }
-          - { suite: convos,     timeout: 300 }
-          - { suite: convos-cli, timeout: 300 }
+          - { suite: convos-lifecycle, timeout: 300 }
+          - { suite: convos,           timeout: 300 }
           - { suite: async,  timeout: 120 }
           - { suite: memory, timeout: 300 }
           - { suite: poller, timeout: 300 }
