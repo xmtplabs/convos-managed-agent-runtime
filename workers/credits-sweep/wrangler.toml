@@ -1,0 +1,19 @@
+name = "credits-sweep"
+main = "src/index.ts"
+compatibility_date = "2025-03-17"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[kv_namespaces]]
+binding = "STATS_CREDITS"
+id = "PLACEHOLDER_CREDITS_KV_ID"
+
+[[hyperdrive]]
+binding = "POOL_DB"
+id = "PLACEHOLDER_HYPERDRIVE_ID"
+
+[vars]
+# Secrets set via `wrangler secret put`
+# POSTHOG_API_KEY = ...
+# OPENROUTER_MANAGEMENT_KEY = ...

@@ -24,6 +24,7 @@ import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound
 import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
+import { stats } from "./stats.js";
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
@@ -460,6 +461,15 @@ async function handleInboundMessage(
       `[${account.accountId}] Message from unexpected conversation: ${msg.conversationId}`,
     );
     return;
+  }
+
+  // Telemetry: count inbound messages (skip catchup, group_updated, reactions)
+  if (inst && !msg.catchup && msg.contentType !== "group_updated" && msg.contentType !== "reaction") {
+    stats.increment("messages_in");
+    const members = inst.getGroupMembers();
+    if (members) {
+      stats.set("group_member_count", members.split(", ").length);
+    }
   }
 
   if (
@@ -1094,6 +1104,13 @@ export async function startWiredInstance(params: {
   setConvosInstance(inst);
   await inst.start();
 
+  const posthogApiKey = process.env.POSTHOG_API_KEY || "";
+  const posthogHost = process.env.POSTHOG_HOST || "https://us.i.posthog.com";
+  const instanceId = process.env.INSTANCE_ID || "";
+  if (posthogApiKey && instanceId) {
+    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "" });
+  }
+
   // Fire-and-forget: dispatch LLM-generated welcome message.
   // Does not block startWiredInstance from returning to the pool manager.
   dispatchGreeting(account, runtime).catch((err) => {
@@ -1103,6 +1120,7 @@ export async function startWiredInstance(params: {
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
   clearConversationExpirationCheck(accountId, log, false);
+  await stats.shutdown();
   const inst = getConvosInstance();
   if (inst) {
     try {

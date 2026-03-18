@@ -10,6 +10,7 @@ import { getConvosInstance, setConvosInstance } from "./src/outbound.js";
 import { getConvosRuntime, setConvosRuntime } from "./src/runtime.js";
 import { ConvosInstance } from "./src/sdk-client.js";
 import { clearConvosCredentials, loadConvosCredentials, saveConvosCredentials } from "./src/credentials.js";
+import { stats } from "./src/stats.js";
 
 const CUSTOM_INSTRUCTIONS_MARKER = "## Custom Instructions";
 
@@ -96,6 +97,7 @@ function buildRuntimeStatus() {
 
 async function factoryReset() {
   console.log("[convos] Factory reset started");
+  await stats.shutdown();
   // Stop active instance
   const inst = getConvosInstance();
   if (inst) {

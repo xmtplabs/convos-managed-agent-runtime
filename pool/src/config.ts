@@ -78,4 +78,8 @@ export const config = {
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   convosApiKey: getEnv("CONVOS_API_KEY"),
+
+  // Telemetry
+  posthogApiKey: getEnv("POSTHOG_API_KEY"),
+  posthogHost: getEnv("POSTHOG_HOST", "https://us.i.posthog.com"),
 };

@@ -36,6 +36,7 @@ from .xmtp_bridge import ConvosInstance, InboundMessage
 from .agent_runner import AgentRunner
 from .config import RuntimeConfig
 from .profile_image_renewal import ProfileImageRenewalStore
+from .stats import stats
 
 logger = logging.getLogger(__name__)
 
@@ -436,6 +437,13 @@ class ConvosAdapter:
         if local_path and is_attachment_message(msg):
             content = f"[Image attached: {local_path}] Use your vision_analyze tool with this file path to see the image."
 
+        if not msg.catchup:
+            stats.increment("messages_in")
+            if self._instance:
+                members = self._instance.get_group_members()
+                if members:
+                    stats.set("group_member_count", len(members.split(", ")))
+
         logger.info(f"Inbound [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}: {content[:80]}")
 
         try:
@@ -568,6 +576,7 @@ class ConvosAdapter:
         inst = self._instance
         if not inst:
             return
+        stats.increment("messages_out")
 
         parsed = parse_response(raw_response)
 
