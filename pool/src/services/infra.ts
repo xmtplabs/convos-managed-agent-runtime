@@ -79,7 +79,7 @@ export async function createInstance(
   let projectId: string;
   try {
     const projStart = Date.now();
-    const proj = await railway.projectCreate(`convos-agent-${instanceId}`);
+    const proj = await railway.projectCreate(`assistant-${config.poolEnvironment}-${instanceId}`);
     projectId = proj.projectId;
     metricHistogram("provider.railway.project.duration_ms", Date.now() - projStart);
     metricCount("provider.railway.project.provisioned");

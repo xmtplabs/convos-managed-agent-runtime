@@ -50,7 +50,7 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
 // Create a single new instance via services and insert into DB.
 export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string, model?: string) {
   const id = nanoid(12);
-  const name = `convos-agent-${id}`;
+  const name = `assistant-${config.poolEnvironment}-${id}`;
   const createStart = Date.now();
 
   console.log(`[pool] Creating instance ${name}...`);

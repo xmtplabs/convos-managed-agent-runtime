@@ -5,8 +5,8 @@ export async function createInbox(instanceId: string): Promise<string> {
   const apiKey = config.agentmailApiKey;
   if (!apiKey) throw new Error("AGENTMAIL_API_KEY not set");
 
-  const username = `convos-agent-${instanceId}`;
-  const clientId = `convos-agent-${instanceId}`;
+  const username = `assistant-${config.poolEnvironment}-${instanceId}`;
+  const clientId = `assistant-${config.poolEnvironment}-${instanceId}`;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch("https://api.agentmail.to/v0/inboxes", {

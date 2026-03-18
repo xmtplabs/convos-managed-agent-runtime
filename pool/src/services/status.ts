@@ -1,5 +1,6 @@
 import { db } from "../db/connection";
 import { instanceInfra } from "../db/schema";
+import { config } from "../config";
 import type { BatchStatusResponse } from "../types";
 
 /**
@@ -17,7 +18,7 @@ export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchSta
   const results: BatchStatusResponse["services"] = infraRows.map((row) => ({
     instanceId: row.instanceId,
     serviceId: row.providerServiceId,
-    name: `convos-agent-${row.instanceId}`,
+    name: `assistant-${config.poolEnvironment}-${row.instanceId}`,
     deployStatus: row.deployStatus || null,
     domain: row.url ? row.url.replace("https://", "") : null,
     image: row.runtimeImage || null,

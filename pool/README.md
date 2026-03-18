@@ -119,7 +119,7 @@ Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | TEXT PK | Instance ID (12-char nanoid) |
-| `name` | TEXT | Service name (`convos-agent-{id}`) |
+| `name` | TEXT | Service name (`assistant-{env}-{id}`) |
 | `url` | TEXT | Public HTTPS URL |
 | `status` | TEXT | `starting`, `idle`, `claiming`, `claimed`, `crashed`, `dead`, `sleeping` |
 | `agent_name` | TEXT | Name given at claim time |
