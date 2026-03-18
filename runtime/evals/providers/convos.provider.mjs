@@ -262,7 +262,7 @@ function handleSelfDestruct() {
         `http://localhost:${GATEWAY_PORT}/convos/status`,
       ], { encoding: 'utf-8', timeout: 5_000 });
       const s = JSON.parse(out);
-      if (s.conversation === null && s.streaming === false) {
+      if (s.conversationId === null || s.conversationId === undefined) {
         return { output: 'SELF_DESTRUCT_CONFIRMED', metadata: { conversationId: sharedConversationId } };
       }
     } catch {

@@ -204,9 +204,8 @@ export async function provision(opts: ProvisionOpts) {
           logger.error("claim.rollback_failed", {
             instanceId: instance.id, agentName, source,
             runtimeConversationId: runtimeStatus.conversationId,
-            dirtyReasons: runtimeStatus.dirtyReasons,
             clean: runtimeStatus.clean,
-            provisionState: runtimeStatus.provisionState,
+            pending: runtimeStatus.pending,
           });
           report("cleanup", "fail", "Runtime remained dirty after reset");
         }

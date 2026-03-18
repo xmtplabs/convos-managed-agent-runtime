@@ -3,37 +3,31 @@ import assert from "node:assert/strict";
 import { parseRuntimeStatus } from "./runtimeStatus";
 
 describe("parseRuntimeStatus", () => {
-  it("reads the flat schema", () => {
+  it("active conversation", () => {
     assert.deepEqual(
-      parseRuntimeStatus({
-        conversation: { id: "convo-1" },
-        streaming: false,
-        clean: false,
-        provisionState: "active",
-        dirtyReasons: ["active_conversation"],
-      }),
-      { conversationId: "convo-1", clean: false, provisionState: "active", dirtyReasons: ["active_conversation"] },
+      parseRuntimeStatus({ conversationId: "convo-1", pending: false, clean: false }),
+      { conversationId: "convo-1", pending: false, clean: false },
     );
   });
 
-  it("handles null conversation", () => {
+  it("clean idle", () => {
     assert.deepEqual(
-      parseRuntimeStatus({ conversation: null, clean: true, provisionState: "idle", dirtyReasons: [] }),
-      { conversationId: null, clean: true, provisionState: "idle", dirtyReasons: [] },
+      parseRuntimeStatus({ conversationId: null, pending: false, clean: true }),
+      { conversationId: null, pending: false, clean: true },
     );
   });
 
-  it("treats missing fields as unknown/null", () => {
+  it("pending acceptance", () => {
     assert.deepEqual(
-      parseRuntimeStatus({ ready: true }),
-      { conversationId: null, clean: null, provisionState: null, dirtyReasons: [] },
+      parseRuntimeStatus({ pending: true, clean: false }),
+      { conversationId: null, pending: true, clean: false },
     );
   });
 
-  it("filters non-string dirty reasons", () => {
+  it("missing fields default safely", () => {
     assert.deepEqual(
-      parseRuntimeStatus({ dirtyReasons: [1, "custom_instructions", null, "cli_identity"] }),
-      { conversationId: null, clean: null, provisionState: null, dirtyReasons: ["custom_instructions", "cli_identity"] },
+      parseRuntimeStatus({}),
+      { conversationId: null, pending: false, clean: null },
     );
   });
 });

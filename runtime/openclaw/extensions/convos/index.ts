@@ -65,17 +65,13 @@ function clearCustomInstructions(): boolean {
   return true;
 }
 
-function buildRuntimeStatus() {
-  const inst = getConvosInstance();
-  const conversationId = inst?.conversationId ?? null;
-
-  const dirtyReasons: string[] = [];
-  if (conversationId) dirtyReasons.push("active_conversation");
-  if (loadConvosCredentials()) dirtyReasons.push("saved_credentials");
-  if (hasCustomInstructions()) dirtyReasons.push("custom_instructions");
-  if (pathHasState(path.join(convosHomeDir(), "identities"))) dirtyReasons.push("cli_identity");
-  if (pathHasState(path.join(convosHomeDir(), "db"))) dirtyReasons.push("cli_db");
-  if (process.env.CONVOS_CONVERSATION_ID?.trim()) dirtyReasons.push("conversation_env");
+function isClean(): boolean {
+  if (getConvosInstance()) return false;
+  if (loadConvosCredentials()) return false;
+  if (hasCustomInstructions()) return false;
+  if (pathHasState(path.join(convosHomeDir(), "identities"))) return false;
+  if (pathHasState(path.join(convosHomeDir(), "db"))) return false;
+  if (process.env.CONVOS_CONVERSATION_ID?.trim()) return false;
   try {
     const runtime = getConvosRuntime();
     const cfg = runtime.config.loadConfig() as Record<string, unknown>;
@@ -83,17 +79,18 @@ function buildRuntimeStatus() {
     const convos = (channels.convos ?? {}) as Record<string, unknown>;
     if ((typeof convos.identityId === "string" && convos.identityId.trim())
       || (typeof convos.ownerConversationId === "string" && convos.ownerConversationId.trim())) {
-      dirtyReasons.push("config_binding");
+      return false;
     }
   } catch {}
+  return true;
+}
 
+function buildRuntimeStatus() {
+  const inst = getConvosInstance();
   return {
-    ready: true,
-    conversation: conversationId ? { id: conversationId } : null,
-    streaming: inst?.isStreaming() ?? false,
-    clean: dirtyReasons.length === 0,
-    provisionState: conversationId ? "active" : "idle",
-    dirtyReasons,
+    conversationId: inst?.conversationId ?? null,
+    pending: false,
+    clean: isClean(),
   };
 }
 

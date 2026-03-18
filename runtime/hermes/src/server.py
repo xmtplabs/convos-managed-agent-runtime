@@ -316,41 +316,39 @@ def _clear_custom_instructions(hermes_home: str) -> bool:
     return True
 
 
-def _build_runtime_status() -> dict:
+def _is_clean() -> bool:
     cfg = get_config()
+    hermes_home = cfg.hermes_home
+    if get_adapter() and get_adapter().instance:
+        return False
+    if load_credentials(hermes_home):
+        return False
+    if _has_custom_instructions(hermes_home):
+        return False
+    if _path_has_state(Path.home() / ".convos" / "identities"):
+        return False
+    if _path_has_state(Path.home() / ".convos" / "db"):
+        return False
+    if _path_has_state(Path(hermes_home) / "sessions"):
+        return False
+    if _path_has_state(Path(hermes_home) / "media"):
+        return False
+    if os.environ.get("CONVOS_CONVERSATION_ID", "").strip():
+        return False
+    provision = _get_provision_status()
+    if provision["state"] != "idle":
+        return False
+    return True
+
+
+def _build_runtime_status() -> dict:
     adapter = get_adapter()
     conversation_id = adapter.instance.conversation_id if adapter and adapter.instance else None
-    streaming = adapter.instance.is_streaming() if adapter and adapter.instance else False
     provision = _get_provision_status()
-    hermes_home = cfg.hermes_home
-
-    dirty_reasons: list[str] = []
-    if conversation_id:
-        dirty_reasons.append("active_conversation")
-    if load_credentials(hermes_home):
-        dirty_reasons.append("saved_credentials")
-    if _has_custom_instructions(hermes_home):
-        dirty_reasons.append("custom_instructions")
-    if _path_has_state(Path.home() / ".convos" / "identities"):
-        dirty_reasons.append("cli_identity")
-    if _path_has_state(Path.home() / ".convos" / "db"):
-        dirty_reasons.append("cli_db")
-    if _path_has_state(Path(hermes_home) / "sessions"):
-        dirty_reasons.append("session_state")
-    if _path_has_state(Path(hermes_home) / "media"):
-        dirty_reasons.append("media_cache")
-    if os.environ.get("CONVOS_CONVERSATION_ID", "").strip():
-        dirty_reasons.append("conversation_env")
-    if provision["state"] != "idle":
-        dirty_reasons.append(f"provision_{provision['state']}")
-
     return {
-        "ready": True,
-        "conversation": {"id": conversation_id} if conversation_id else None,
-        "streaming": streaming,
-        "clean": len(dirty_reasons) == 0,
-        "provisionState": provision["state"],
-        "dirtyReasons": dirty_reasons,
+        "conversationId": conversation_id,
+        "pending": provision["state"] == "pending_acceptance",
+        "clean": _is_clean(),
     }
 
 
