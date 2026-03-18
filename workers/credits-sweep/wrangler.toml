@@ -14,6 +14,7 @@ compatibility_date = "2025-03-17"
 #   2. wrangler dev --test-scheduled
 #   3. curl "http://localhost:8787/__scheduled?cron=*/15+*+*+*+*"
 
+[observability]
 [observability.logs]
 enabled = false
 invocation_logs = true
