@@ -94,6 +94,20 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
       resourceMeta,
     });
 
+    // Update profile metadata on the runtime with the provisioned value
+    if ((toolId === "agentmail" || toolId === "telnyx") && infra.url && infra.gatewayToken) {
+      const metaKey = toolId === "agentmail" ? "email" : "phone";
+      fetch(`${infra.url}/convos/update-metadata`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${infra.gatewayToken}`,
+        },
+        body: JSON.stringify({ metadata: { [metaKey]: resourceId } }),
+        signal: AbortSignal.timeout(10_000),
+      }).catch((err) => console.warn(`[tools] metadata update for ${toolId} failed: ${err.message}`));
+    }
+
     const result: ProvisionResult = { toolId, resourceId, status: "active" };
     console.log(`[tools] Provisioned ${toolId} for ${instanceId}: ${resourceId}`);
     res.json(result);

@@ -536,6 +536,39 @@ const plugin = {
       },
     });
 
+    // Update profile metadata on the running conversation.
+    api.registerHttpRoute({
+      path: "/convos/update-metadata",
+      auth: "plugin",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        if (!checkPoolAuth(req)) {
+          jsonResponse(res, 401, { error: "Unauthorized" });
+          return;
+        }
+        try {
+          const inst = getConvosInstance();
+          if (!inst) {
+            jsonResponse(res, 400, { error: "No active conversation" });
+            return;
+          }
+          const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+          const metadata = body?.metadata;
+          if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+            jsonResponse(res, 400, { error: "metadata (object) is required" });
+            return;
+          }
+          await inst.updateProfile(undefined, undefined, metadata as Record<string, string>);
+          jsonResponse(res, 200, { ok: true });
+        } catch (err) {
+          jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+      },
+    });
+
     // Health/status: full runtime status for pool manager decision-making.
     api.registerHttpRoute({
       path: "/convos/status",
