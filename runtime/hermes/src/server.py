@@ -308,10 +308,14 @@ def _clear_custom_instructions(hermes_home: str) -> bool:
         return False
     import re
     base = re.sub(r"\n---\s*\n*$", "", content[:idx]).rstrip()
-    if base:
-        soul_path.write_text(f"{base}\n")
-    else:
-        soul_path.unlink(missing_ok=True)
+    try:
+        if base:
+            soul_path.write_text(f"{base}\n")
+        else:
+            soul_path.unlink(missing_ok=True)
+    except (PermissionError, OSError) as err:
+        logger.warning("Failed to clear custom instructions: %s", err)
+        return False
     logger.info("Cleared custom instructions from SOUL.md")
     return True
 
@@ -450,6 +454,8 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                 env, invite_url, profile_name="Convos Agent", timeout=30, debug=True,
             )
             if status == "joined" and conversation_id and inst:
+                if generation != _provision_generation:
+                    return  # superseded before we could wire up
                 await start_wired_instance(
                     conversation_id=conversation_id,
                     identity_id=inst.identity_id,
@@ -618,6 +624,12 @@ async def lifespan(app: FastAPI):
         try:
             await _cron_task
         except asyncio.CancelledError:
+            pass
+    if _pending_join_task and not _pending_join_task.done():
+        _pending_join_task.cancel()
+        try:
+            await _pending_join_task
+        except (asyncio.CancelledError, Exception):
             pass
     await _stop_poller()
     adapter = get_adapter()

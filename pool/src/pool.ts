@@ -293,8 +293,12 @@ export async function recheckInstance(id: string) {
       return { id, status: "claimed", changed: inst.status !== "claimed", agentName: inst.agentName || null };
     }
     // Conversation mismatch → tainted
-    await db.conditionalUpdateStatus(id, "tainted", inst.status);
+    const taintUpdated = await db.conditionalUpdateStatus(id, "tainted", inst.status);
     if (hc.version) await db.setRuntimeVersion(id, hc.version, hc.runtime);
+    if (!taintUpdated) {
+      console.log(`[pool] recheck ${id}: conversation mismatch taint skipped (status changed)`);
+      return { id, status: inst.status, changed: false, reason: "taint_skipped", agentName: inst.agentName || null };
+    }
     console.log(`[pool] recheck ${id}: runtime has conversation ${rs.conversationId} but DB has ${inst.conversationId || "none"} — marking tainted`);
     return { id, status: "tainted", changed: inst.status !== "tainted", reason: "conversation_mismatch", agentName: inst.agentName || null };
   }

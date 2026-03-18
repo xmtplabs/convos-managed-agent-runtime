@@ -844,6 +844,12 @@
             } else if (inst.status === 'crashed' || inst.status === 'dead') {
               markProvisionDeploy(num, 'fail', 'Deploy crashed');
               delete provisionInstanceIds[num];
+            } else if (inst.status === 'tainted') {
+              markProvisionDeploy(num, 'fail', 'Tainted');
+              delete provisionInstanceIds[num];
+            } else if (inst.status === 'pending_acceptance') {
+              markProvisionDeploy(num, 'ok', 'Pending acceptance', inst.url);
+              delete provisionInstanceIds[num];
             } else {
               remaining++;
             }
@@ -1324,7 +1330,7 @@
       var tools = svcToolsMap[instanceId] || [];
       var key = svcKeyMap['convos-agent-' + instanceId];
       var infra = infraMap[instanceId] || {};
-      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
+      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).concat(pendingCache).concat(taintedCache).find(function (a) { return a.id === instanceId; });
 
       var html = '<td colspan="6"><div class="expand-inner">';
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
