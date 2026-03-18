@@ -64,6 +64,11 @@ on:
         required: false
         type: string
         default: "type=gha,mode=max"
+      eval_suites:
+        description: "JSON array of {suite,timeout} objects to override the eval matrix (empty = all)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build:
@@ -105,14 +110,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { suite: knows,  timeout: 180 }
-          - { suite: skills, timeout: 300 }
-          - { suite: soul,   timeout: 180 }
-          - { suite: convos, timeout: 600 }
-          - { suite: async,  timeout: 120 }
-          - { suite: memory, timeout: 300 }
-          - { suite: poller, timeout: 300 }
+        include: ${{ fromJSON(inputs.eval_suites || '[{"suite":"knows","timeout":180},{"suite":"skills","timeout":300},{"suite":"soul","timeout":180},{"suite":"convos","timeout":600},{"suite":"async","timeout":120},{"suite":"memory","timeout":300},{"suite":"poller","timeout":300}]') }}
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5

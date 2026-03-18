@@ -10,6 +10,12 @@ on:
     paths:
       - 'runtime/**'
       - '!runtime/CHANGELOG.md'
+  workflow_dispatch:
+    inputs:
+      eval_suites:
+        description: 'JSON matrix override, e.g. [{"suite":"skills","timeout":300}]'
+        required: false
+        default: ''
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
@@ -33,12 +39,15 @@ jobs:
       - uses: actions/checkout@v5
       - id: meta
         run: |
-          SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
+          RAW_SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          SHA="$(echo "$RAW_SHA" | cut -c1-7)"
           VERSION="$(jq -r '.version // "unknown"' runtime/package.json 2>/dev/null || echo 'unknown')"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
-          echo "publish_tags=sha-$SHA pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
+          PR_NUM="${{ github.event.number }}"
+          TAGS="sha-$SHA${PR_NUM:+ pr-$PR_NUM}"
+          echo "publish_tags=$TAGS" >> "$GITHUB_OUTPUT"
 
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
@@ -58,6 +67,7 @@ jobs:
       buildx_driver: docker
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
+      eval_suites: ${{ inputs.eval_suites || (contains(github.event.pull_request.labels.*.name, 'smoke-eval') && '[{"suite":"knows","timeout":180}]' || '') }}
 
   hermes:
     name: Hermes
@@ -71,6 +81,7 @@ jobs:
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
       needs_checkout: true
+      eval_suites: ${{ inputs.eval_suites || (contains(github.event.pull_request.labels.*.name, 'smoke-eval') && '[{"suite":"knows","timeout":180}]' || '') }}
 
   # ── Promote on merge ─────────────────────────────────────────────────
   promote:
