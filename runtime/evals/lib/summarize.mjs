@@ -237,7 +237,7 @@ async function generateLlmSummary(summary) {
     return '';
   }
 
-  const model = process.env.EVALS_MODEL || 'anthropic/claude-opus-4-6';
+  const model = process.env.EVALS_MODEL || 'openai/gpt-5.4-mini';
   const payload = {
     model,
     temperature: 0,
