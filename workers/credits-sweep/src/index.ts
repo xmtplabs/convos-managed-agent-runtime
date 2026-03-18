@@ -1,4 +1,23 @@
-const KEY_NAME_PREFIX = "convos-agent-";
+// Key name formats:
+//   New: "assistant-<environment>-<instanceId>"
+//   Legacy: "convos-agent-<instanceId>"
+const NEW_PREFIX = "assistant-";
+const LEGACY_PREFIX = "convos-agent-";
+
+function parseKeyName(name: string): { instanceId: string; environment: string } | null {
+  if (name.startsWith(NEW_PREFIX)) {
+    // assistant-<env>-<instanceId> — env is the first segment after prefix
+    const rest = name.slice(NEW_PREFIX.length);
+    const dashIdx = rest.indexOf("-");
+    if (dashIdx === -1) return null;
+    return { environment: rest.slice(0, dashIdx), instanceId: rest.slice(dashIdx + 1) };
+  }
+  if (name.startsWith(LEGACY_PREFIX)) {
+    const instanceId = name.slice(LEGACY_PREFIX.length);
+    return instanceId ? { instanceId, environment: "" } : null;
+  }
+  return null;
+}
 
 export interface Env {
   STATS_CREDITS: KVNamespace;
@@ -23,8 +42,8 @@ async function creditsSweep(env: Env): Promise<void> {
     timestamp: string;
   }> = [];
 
-  // Paginate through OpenRouter keys — instance ID is embedded in key name
-  // (pool manager creates keys as "convos-agent-<instanceId>")
+  // Paginate through OpenRouter keys — instance ID and environment are
+  // embedded in key name ("assistant-<env>-<id>" or legacy "convos-agent-<id>")
   let offset = 0;
   while (true) {
     let keys: any[];
@@ -46,10 +65,9 @@ async function creditsSweep(env: Env): Promise<void> {
     if (keys.length === 0) break;
 
     for (const key of keys) {
-      const name: string = key.name ?? "";
-      if (!name.startsWith(KEY_NAME_PREFIX)) continue;
-      const instanceId = name.slice(KEY_NAME_PREFIX.length);
-      if (!instanceId) continue;
+      const parsed = parseKeyName(key.name ?? "");
+      if (!parsed) continue;
+      const { instanceId, environment } = parsed;
 
       const hash = key.hash;
       const usage = key.usage ?? 0;
@@ -69,6 +87,7 @@ async function creditsSweep(env: Env): Promise<void> {
         distinct_id: `instance:${instanceId}`,
         properties: {
           instance_id: instanceId,
+          environment,
           credits_usage_total: usage,
           credits_limit: limit,
           credits_remaining: Math.max(0, limit - usage),

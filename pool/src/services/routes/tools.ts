@@ -47,7 +47,7 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
         res.status(400).json({ error: "OPENROUTER_MANAGEMENT_KEY not configured" });
         return;
       }
-      const keyName = `convos-agent-${instanceId}`;
+      const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
       const limit = (toolConfig?.limit as number) ?? config.openrouterKeyLimit;
       const { key, hash } = await openrouter.createKey(keyName, limit);
       resourceId = hash;

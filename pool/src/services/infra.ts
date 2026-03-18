@@ -43,7 +43,7 @@ export async function createInstance(
     if (tools.includes("openrouter") && config.openrouterManagementKey) {
       onProgress?.("openrouter", "active");
       const t0 = Date.now();
-      const keyName = `convos-agent-${instanceId}`;
+      const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
       const { key, hash } = await openrouter.createKey(keyName);
       metricHistogram("provider.openrouter.duration_ms", Date.now() - t0, { step: "create_key" });
       metricCount("provider.openrouter.provisioned");

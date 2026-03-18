@@ -2,7 +2,7 @@
 
 Cloudflare Worker that tracks per-instance OpenRouter credit spend and sends it to PostHog.
 
-Runs on a 15-minute cron. Paginates OpenRouter's `listKeys()` API, extracts instance IDs from key names (`convos-agent-<instanceId>`), computes spend deltas using Cloudflare KV, and batch-sends `instance_credits` events to PostHog.
+Runs on a 15-minute cron. Paginates OpenRouter's `listKeys()` API, extracts instance IDs and environment from key names (`assistant-<env>-<instanceId>`, with legacy `convos-agent-<instanceId>` fallback), computes spend deltas using Cloudflare KV, and batch-sends `instance_credits` events to PostHog.
 
 ## Event schema
 
@@ -11,6 +11,7 @@ Runs on a 15-minute cron. Paginates OpenRouter's `listKeys()` API, extracts inst
 | Property | Type | Description |
 |---|---|---|
 | `instance_id` | string | Pool instance ID |
+| `environment` | string | Pool environment (`dev`, `staging`, `production`) — empty for legacy keys |
 | `credits_usage_total` | number | Cumulative spend from OpenRouter (snapshot) |
 | `credits_limit` | number | Spending cap on the key |
 | `credits_remaining` | number | `limit - usage` |
