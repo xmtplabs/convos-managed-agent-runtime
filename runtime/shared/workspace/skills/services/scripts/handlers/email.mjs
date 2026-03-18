@@ -14,7 +14,6 @@
  *   node services.mjs email recent [--since-last] [--limit 5] [--no-provision]
  */
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
-import { execFileSync } from "child_process";
 import { resolve } from "path";
 
 // Proxy mode: route through pool manager (no API key on instance)
@@ -379,19 +378,6 @@ async function provision() {
   }
   const result = await provRes.json();
   console.log(`Email provisioned: ${result.email}`);
-
-  // Update profile metadata so the conversation shows the email
-  const convoId = process.env.CONVOS_CONVERSATION_ID;
-  const convoEnv = process.env.CONVOS_ENV || process.env.XMTP_ENV;
-  if (convoId && result.email) {
-    try {
-      execFileSync("convos", [
-        "conversation", "update-profile", convoId,
-        "--metadata", `email=${result.email}`,
-        ...(convoEnv ? ["--env", convoEnv] : []),
-      ], { timeout: 15_000, stdio: "ignore" });
-    } catch { /* best-effort */ }
-  }
 }
 
 export default async function email(argv) {
