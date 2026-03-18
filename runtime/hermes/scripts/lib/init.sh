@@ -56,5 +56,5 @@ fi
 if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
   . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
 else
-  . "$SCRIPT_LIB/brand.sh"
+  . "$ROOT/../shared/scripts/lib/brand.sh"
 fi
