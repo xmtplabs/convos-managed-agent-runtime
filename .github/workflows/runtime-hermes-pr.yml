@@ -148,6 +148,8 @@ jobs:
             timeout: 120
           - suite: memory
             timeout: 300
+          - suite: poller
+            timeout: 300
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
