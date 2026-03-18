@@ -14,10 +14,11 @@ SUITE="$1"; shift
 
 MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
 
-# Run promptfoo, capture output while still printing it live
 TMPOUT=$(mktemp)
-npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@" 2>&1 | tee "$TMPOUT"
-EXIT_CODE=${PIPESTATUS[0]}
+npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+
+cat "$TMPOUT"
 
 if [ "$EXIT_CODE" -eq 0 ]; then
   rm -f "$TMPOUT"
@@ -25,16 +26,16 @@ if [ "$EXIT_CODE" -eq 0 ]; then
 fi
 
 # Parse "Results: ✓ N passed, ✗ M failed, K errors (X%)"
-FAILED=$(grep -oE '✗ [0-9]+ failed' "$TMPOUT" | grep -oE '[0-9]+' || echo "999")
-ERRORS=$(grep -oE '[0-9]+ error' "$TMPOUT" | grep -oE '[0-9]+' | head -1 || echo "999")
+FAILED=$(grep -oE '[0-9]+ failed' "$TMPOUT" | grep -oE '[0-9]+' || echo "999")
+ERRORS=$(grep -oE '[0-9]+ error' "$TMPOUT" | head -1 | grep -oE '[0-9]+' || echo "999")
 rm -f "$TMPOUT"
 
-if [ "$ERRORS" -gt 0 ] 2>/dev/null; then
+if [ "${ERRORS:-0}" -gt 0 ] 2>/dev/null; then
   echo "Suite had $ERRORS error(s) — failing."
   exit 1
 fi
 
-if [ "$FAILED" -le "$MAX_FAILURES" ] 2>/dev/null; then
+if [ "${FAILED:-999}" -le "$MAX_FAILURES" ] 2>/dev/null; then
   echo "Suite had $FAILED failure(s) within threshold ($MAX_FAILURES) — passing."
   exit 0
 fi
