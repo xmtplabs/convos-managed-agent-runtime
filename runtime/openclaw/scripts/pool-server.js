@@ -218,8 +218,7 @@ const server = http.createServer(async (req, res) => {
           signal: AbortSignal.timeout(3000),
         });
         if (cRes.ok) {
-          const cData = await cRes.json();
-          if (cData.ready) convosReady = true;
+          convosReady = true;
         }
       } catch {}
     }
