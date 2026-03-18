@@ -170,6 +170,7 @@ async def start_wired_instance(
             instance_id=cfg.instance_id,
             agent_name=name or "",
             runtime="hermes",
+            environment=os.environ.get("POOL_ENVIRONMENT", ""),
         )
 
     # Fire greeting in background (skip if resuming — caller handles workspace refresh)

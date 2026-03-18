@@ -22,6 +22,7 @@ class StatsAccumulator {
   private instanceId = "";
   private agentName = "";
   private runtime = "openclaw";
+  private environment = "";
   private timer: ReturnType<typeof setInterval> | null = null;
   private started = false;
 
@@ -58,7 +59,7 @@ class StatsAccumulator {
           tools_invoked: this.counters.tools_invoked ?? 0,
           skills_invoked: this.counters.skills_invoked ?? 0,
           group_member_count: this.gauges.group_member_count ?? 0,
-          is_active: true,
+          environment: this.environment,
           seconds_since_last_message_in: secondsSince,
           $set: {
             agent_name: this.agentName,
@@ -100,6 +101,7 @@ class StatsAccumulator {
     instanceId: string;
     agentName?: string;
     runtime?: string;
+    environment?: string;
   }): void {
     if (this.started) return;
     this.posthogApiKey = opts.posthogApiKey;
@@ -107,6 +109,7 @@ class StatsAccumulator {
     this.instanceId = opts.instanceId;
     this.agentName = opts.agentName || "";
     if (opts.runtime) this.runtime = opts.runtime;
+    this.environment = opts.environment || "";
     this.started = true;
 
     this.timer = setInterval(() => {

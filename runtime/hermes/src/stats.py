@@ -36,6 +36,7 @@ class StatsAccumulator:
         self._instance_id: str = ""
         self._agent_name: str = ""
         self._runtime: str = "hermes"
+        self._environment: str = ""
         self._task: asyncio.Task | None = None
         self._started: bool = False
 
@@ -68,7 +69,7 @@ class StatsAccumulator:
                     "tools_invoked": self._counters.get("tools_invoked", 0),
                     "skills_invoked": self._counters.get("skills_invoked", 0),
                     "group_member_count": int(self._gauges.get("group_member_count", 0)),
-                    "is_active": True,
+                    "environment": self._environment,
                     "seconds_since_last_message_in": seconds_since,
                     "$set": {
                         "agent_name": self._agent_name,
@@ -110,6 +111,7 @@ class StatsAccumulator:
         instance_id: str,
         agent_name: str = "",
         runtime: str = "hermes",
+        environment: str = "",
     ) -> None:
         if self._started:
             return
@@ -118,6 +120,7 @@ class StatsAccumulator:
         self._instance_id = instance_id
         self._agent_name = agent_name
         self._runtime = runtime
+        self._environment = environment
         self._started = True
         self._task = asyncio.create_task(self._tick_loop())
         logger.info("Stats started (instance=%s, interval=%ds)", instance_id, FLUSH_INTERVAL_S)

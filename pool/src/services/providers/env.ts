@@ -9,5 +9,6 @@ export function buildInstanceEnv(): Record<string, string> {
     POOL_URL: config.poolUrl,
     POSTHOG_API_KEY: config.posthogApiKey,
     POSTHOG_HOST: config.posthogHost,
+    POOL_ENVIRONMENT: config.poolEnvironment,
   };
 }
