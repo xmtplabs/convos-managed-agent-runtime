@@ -1,0 +1,47 @@
+name: "Worker: Credits Sweep"
+
+on:
+  push:
+    branches: [dev, staging, main]
+    paths:
+      - 'workers/credits-sweep/**'
+  pull_request:
+    paths:
+      - 'workers/credits-sweep/**'
+
+defaults:
+  run:
+    working-directory: workers/credits-sweep
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: workers/credits-sweep/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: npx tsc --noEmit
+
+  deploy:
+    name: Deploy
+    needs: typecheck
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: workers/credits-sweep/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
