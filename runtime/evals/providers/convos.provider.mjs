@@ -70,8 +70,12 @@ function setup() {
     '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
     '-d', '{}',
   ], { encoding: 'utf-8', timeout: 30_000 });
-  log('Waiting for gateway to reinitialise (10s)...');
-  sleep(10_000);
+  log('Waiting for gateway to reinitialise...');
+  const resetDeadline = Date.now() + 15_000;
+  while (Date.now() < resetDeadline) {
+    sleep(500);
+    if (checkGateway()) break;
+  }
 
   log('Creating conversation...');
   const createOut = convos([
@@ -93,7 +97,7 @@ function setup() {
   ], { env: CONVOS_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
 
   try {
-    sleep(3_000);
+    sleep(1_000);
     execFileSync('curl', [
       '-s', '-X', 'POST',
       `http://localhost:${GATEWAY_PORT}/convos/join`,
@@ -105,7 +109,7 @@ function setup() {
     try { watcher.kill(); } catch {}
   }
 
-  sleep(5_000);
+  sleep(2_000);
   log(`Setup complete (${elapsed(t)})\n`);
 }
 
@@ -143,13 +147,13 @@ function waitForAgent(baseline) {
   let lastChange = Date.now();
 
   while (Date.now() < deadline) {
-    sleep(3_000);
+    sleep(1_500);
     try { msgs = fetchMessages(); } catch { continue; }
     const n = agentCount(msgs);
     if (n > count) {
       count = n;
       lastChange = Date.now();
-    } else if (count > baseline && Date.now() - lastChange >= 5_000) {
+    } else if (count > baseline && Date.now() - lastChange >= 3_000) {
       return msgs;
     }
   }
