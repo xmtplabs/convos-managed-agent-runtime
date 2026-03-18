@@ -35,7 +35,7 @@ feature-branch → dev → staging → main
 - Never PR directly to `main` or `staging` unless explicitly asked
 - **Never add test plans to PRs.** No `## Test plan` section — keep PR descriptions to Summary and Why only.
 
-## Promoting between branches (dev → staging → main)
+# Branch strategy
 
 Never use `gh pr create --head dev --base staging` directly — it skips conflict resolution and leaves merge conflicts in the PR.
 
@@ -63,3 +63,8 @@ When deploying pool manager changes to a new Railway environment:
 3. Remove all `INSTANCE_*` env vars — instance keys now use their original names (`OPENCLAW_PRIMARY_MODEL`, `AGENTMAIL_API_KEY`, etc.)
 4. Runtime image is tagged by branch (e.g. `:dev`, `:production`). Set `RAILWAY_RUNTIME_IMAGE` to override.
 5. Replenish manually via the admin dashboard "+ Add" button
+
+# Evals
+
+- Optimize rubriks for FAIL if... if not ... then pass.
+- Suggest running evals with a running agent in another terminal to see the log trace.
