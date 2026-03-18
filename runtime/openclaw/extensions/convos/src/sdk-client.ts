@@ -496,7 +496,7 @@ export class ConvosInstance {
           if (k && rest.length > 0) metadata[k] = rest.join("=");
         }
       }
-      if (name || image || metadata) {
+      if (name || image || (metadata && Object.keys(metadata).length > 0)) {
         await this.updateProfile(name, image, metadata);
         return { success: true, messageId: undefined };
       }

@@ -555,7 +555,7 @@ const plugin = {
             jsonResponse(res, 400, { error: "No active conversation" });
             return;
           }
-          const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+          const body = await readJsonBody(req);
           const metadata = body?.metadata;
           if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
             jsonResponse(res, 400, { error: "metadata (object) is required" });
