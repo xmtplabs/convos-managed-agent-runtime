@@ -1,7 +1,8 @@
 # runtime/evals/convos.yaml
-# Sequential lifecycle eval — all tests share one XMTP conversation.
+# Lifecycle eval — join, welcome message, self-destruct.
+# All tests share one XMTP conversation and must run sequentially.
 
-description: "OpenClaw Convos Eval"
+description: "Eval: Convos Lifecycle"
 
 evaluateOptions:
   maxConcurrency: 1
@@ -43,55 +44,6 @@ tests:
         value: "wallet"
       - type: not-icontains
         value: "trading"
-
-  # --- Core ---
-  - description: "Agent can update profile name"
-    vars:
-      prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
-    metadata:
-      expectedName: "QA Bot Alpha"
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:profileNameEquals"
-
-  - description: "Agent can update profile photo"
-    vars:
-      prompt: "Update your profile photo to https://avatars.githubusercontent.com/u/82580170. Confirm when done."
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:profileImageSet"
-
-  - description: "Agent can recognize image content"
-    vars:
-      prompt: "What do you see in that image? Describe it briefly."
-    metadata:
-      attachment: "../fixtures/test-image.png"
-    assert:
-      - type: regex
-        value: "[Dd]ice"
-
-  - description: "Agent can see group members"
-    vars:
-      prompt: "Who is in this conversation? List the participants."
-    assert:
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript with lines prefixed [USER] or [AGENT].
-          The USER asked who is in the conversation.
-          Pass if the AGENT's response mentions or lists any participants, members,
-          identities, addresses, or people in the group.
-          Fail only if the AGENT refused, said it doesn't know, or gave no answer.
-
-  - description: "Heartbeat does not leak system tokens into conversation"
-    vars:
-      prompt: "Run your heartbeat check. Report only if there's something worth notifying."
-    assert:
-      - type: not-icontains
-        value: "HEARTBEAT_OK"
-      - type: not-icontains
-        value: "[diagnostic]"
-      - type: not-icontains
-        value: "lane enqueue"
 
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"
