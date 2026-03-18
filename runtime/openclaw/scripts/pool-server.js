@@ -165,7 +165,7 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
         }
         const data = await res.json();
         // pending_acceptance: join is waiting for approval — return immediately
-        if (data.status === "pending_acceptance" || data.status === "waiting_for_acceptance") {
+        if (data.status === "pending_acceptance") {
           console.log(`[pool-server] Join pending acceptance on attempt ${i}`);
           return { conversationId: null, inviteUrl: joinUrl, joined: false, status: "pending_acceptance" };
         }
