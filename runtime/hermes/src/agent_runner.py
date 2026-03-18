@@ -107,7 +107,7 @@ class AgentRunner:
     def __init__(
         self,
         *,
-        model: str = "anthropic/claude-sonnet-4-6",
+        model: str = "anthropic/claude-opus-4-6",
         openrouter_api_key: str = "",
         max_iterations: int = 90,
         hermes_home: str = "",
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     parser.add_argument("-q", "--query", required=True)
     args, _ = parser.parse_known_args()
 
-    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-sonnet-4-6"
+    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-opus-4-6"
     if model.startswith("openrouter/"):
         model = model.removeprefix("openrouter/")
 
