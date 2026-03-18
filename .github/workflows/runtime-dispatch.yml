@@ -72,5 +72,4 @@ jobs:
       dockerfile: runtime/hermes/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: "${{ needs.prepare.outputs.sha }} ${{ inputs.tag }}"
-      docker_run_extra: "-v /github/workspace/runtime/evals:/app/evals"
       needs_checkout: true

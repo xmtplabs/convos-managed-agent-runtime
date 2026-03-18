@@ -116,6 +116,7 @@ jobs:
             -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
             -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
+            ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
             ${{ inputs.docker_run_extra }} \
             ${{ inputs.image }}:${{ inputs.pending_tag }}
 
