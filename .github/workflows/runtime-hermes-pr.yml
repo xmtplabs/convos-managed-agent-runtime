@@ -10,6 +10,7 @@ on:
     paths:
       - 'runtime/hermes/**'
       - 'runtime/shared/**'
+      - 'runtime/evals/**'
       - 'runtime/package.json'
       - '!runtime/CHANGELOG.md'
 
@@ -109,6 +110,19 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke test /agent/query
+        run: |
+          RESPONSE=$(curl -sf -X POST http://localhost:8080/agent/query \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
+            -d '{"query": "Reply with just the word OK", "session": "smoke-test"}')
+          echo "Response: $RESPONSE"
+          if [ -z "$RESPONSE" ]; then
+            echo "Empty response from /agent/query"
+            docker logs qa-runtime
+            exit 1
+          fi
+
       - name: Dump logs
         if: always()
         run: docker logs qa-runtime
@@ -134,6 +148,8 @@ jobs:
           - suite: async
             timeout: 120
           - suite: memory
+            timeout: 300
+          - suite: poller
             timeout: 300
     steps:
       - name: Checkout source
@@ -161,6 +177,8 @@ jobs:
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             -e POOL_URL="${{ secrets.POOL_URL }}" \
             -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
+            -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
+            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
             ghcr.io/xmtplabs/convos-runtime-hermes:${{ needs.build.outputs.pending }}
 
       - name: Wait for health
@@ -182,7 +200,7 @@ jobs:
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
             eval-runtime timeout ${{ matrix.timeout }} \
-              pnpm evals:hermes:${{ matrix.suite }}
+              pnpm evals hermes ${{ matrix.suite }}
 
       - name: Dump container logs
         if: always()

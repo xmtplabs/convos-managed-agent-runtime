@@ -4,13 +4,7 @@
   "description": "Convos agent runtime powered by Hermes agent",
   "scripts": {
     "start:hermes": "sh scripts/keys.sh && sh scripts/install-deps.sh && sh scripts/apply-config.sh && sh scripts/identity.sh && sh scripts/start.sh",
-    "evals:hermes": "EVAL_RUNTIME=hermes sh evals/run.sh",
-    "evals:hermes:knows": "EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml",
-    "evals:hermes:skills": "EVAL_RUNTIME=hermes sh evals/run-suite.sh skills.yaml",
-    "evals:hermes:soul": "EVAL_RUNTIME=hermes sh evals/run-suite.sh soul.yaml",
-    "evals:hermes:convos": "EVAL_RUNTIME=hermes sh evals/run-suite.sh convos.yaml",
-    "evals:hermes:async": "EVAL_RUNTIME=hermes sh evals/run-suite.sh async.yaml",
-    "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml"
+    "evals": "sh evals/eval.sh"
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0",

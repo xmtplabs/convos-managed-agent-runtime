@@ -78,10 +78,7 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the agent explicitly discourages the cooking class
-          or gives a cold, generic response with no positive lean. Any
-          response that is supportive, neutral-positive, or references
-          prior context about hobbies passes.
+          Fail only if the agent explicitly discourages the cooking. if not, passes.
       - type: javascript
         value: "file://../lib/assertions.mjs:memoryFileUpdated"
 

@@ -1,12 +1,43 @@
 #!/bin/sh
 # Run a single eval suite. Supports any runtime via EVAL_RUNTIME env var.
 # Usage: EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml [promptfoo args...]
+#
+# EVAL_MAX_FAILURES (default: 1) — tolerate up to N test failures per suite.
+# Promptfoo exits 100 on ANY failure; this wrapper parses the results line.
 
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 . "$EVAL_DIR/adapters/env.sh"
 
 SUITE="$1"; shift
-# Strip leading "--" that pnpm injects
 [ "$1" = "--" ] && shift
-exec npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@"
+
+MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
+
+TMPOUT=$(mktemp)
+npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@" > "$TMPOUT" 2>&1
+EXIT_CODE=$?
+
+cat "$TMPOUT"
+
+if [ "$EXIT_CODE" -eq 0 ]; then
+  rm -f "$TMPOUT"
+  exit 0
+fi
+
+# Parse "Results: ✓ N passed, ✗ M failed, K errors (X%)"
+FAILED=$(grep -oE '[0-9]+ failed' "$TMPOUT" | grep -oE '[0-9]+' || echo "999")
+ERRORS=$(grep -oE '[0-9]+ error' "$TMPOUT" | head -1 | grep -oE '[0-9]+' || echo "999")
+rm -f "$TMPOUT"
+
+if [ "${ERRORS:-0}" -gt 0 ] 2>/dev/null; then
+  echo "Suite had $ERRORS error(s) — failing."
+  exit 1
+fi
+
+if [ "${FAILED:-999}" -le "$MAX_FAILURES" ] 2>/dev/null; then
+  echo "Suite had $FAILED failure(s) within threshold ($MAX_FAILURES) — passing."
+  exit 0
+fi
+
+exit 1

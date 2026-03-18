@@ -111,9 +111,8 @@ All scripts run from `cd runtime`.
 | `pnpm setup:hermes` | Hermes: first-time local dev setup (clone + deps) |
 | `pnpm build:hermes` | Hermes: build Docker image locally |
 | `pnpm build:run:hermes` | Hermes: build and run with .env |
-| `pnpm evals` | Run all eval suites (see [evals/README.md](evals/README.md)) |
-| `pnpm evals:knows` | Knowledge eval only |
-| `pnpm evals:hermes` | All suites against hermes |
+| `pnpm evals openclaw [suite]` | Run evals against openclaw (see [evals/README.md](evals/README.md)) |
+| `pnpm evals hermes [suite]` | Run evals against hermes |
 
 ## Environment variables
 

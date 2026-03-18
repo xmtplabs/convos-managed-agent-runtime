@@ -9,8 +9,8 @@
 // Memory is reset via the runtime adapter before each test so results don't
 // bleed between tests.
 //
-// When the runtime has a gateway (hermes), starts a persistent eval server
-// and routes queries via HTTP — the agent stays warm with cached context.
+// Hermes: curls the production server's /agent/query endpoint.
+// OpenClaw: one-shot CLI calls via the adapter's bin/args.
 //
 // ── Why extraArgs? ─────────────────────────────────────────────────────
 //
@@ -20,44 +20,14 @@
 
 import { execFileSync } from 'child_process';
 import { runtime } from '../lib/runtime.mjs';
-import { elapsed, log as _log, cleanOutput, sleep } from '../lib/utils.mjs';
+import { elapsed, log as _log, cleanOutput } from '../lib/utils.mjs';
 
 let testIndex = 0;
 
 function log(msg) { _log('eval:memory', msg); }
 
-const GATEWAY_PORT = process.env.EVAL_MEMORY_GATEWAY_PORT || '9092';
-let useGateway = false;
-let gatewayToken = '';
-
-if (runtime.gateway) {
-  log('Starting persistent eval server for memory tests...');
-  runtime.gateway.start(GATEWAY_PORT);
-  const deadline = Date.now() + 30_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    sleep(1_000);
-    try {
-      execFileSync('curl', ['-sf', `http://127.0.0.1:${GATEWAY_PORT}${runtime.healthPath}`],
-        { encoding: 'utf-8', timeout: 5_000 });
-      ready = true;
-      break;
-    } catch {}
-  }
-  if (ready) {
-    useGateway = true;
-    gatewayToken = runtime.env?.OPENCLAW_GATEWAY_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN || '';
-    log(`Eval server ready on port ${GATEWAY_PORT}.`);
-  } else {
-    log('Eval server failed to start — falling back to CLI.');
-    runtime.gateway.stop();
-  }
-
-  function cleanup() { try { runtime.gateway.stop(); } catch {} }
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { cleanup(); process.exit(130); });
-  process.on('SIGTERM', () => { cleanup(); process.exit(143); });
-}
+const queryUrl = runtime.queryUrl || null;
+const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
 
 function resetMemory() {
   runtime.memory.reset();
@@ -66,12 +36,12 @@ function resetMemory() {
 
 function clearSessions() {
   runtime.memory.clearSessions();
-  // Also reset the server-side conversation history if using gateway
-  if (useGateway) {
+  // Also reset the server-side conversation history
+  if (queryUrl) {
     try {
       execFileSync('curl', [
         '-sf', '-X', 'POST',
-        `http://127.0.0.1:${GATEWAY_PORT}/agent/reset-history`,
+        `${queryUrl}/agent/reset-history`,
         '-H', 'Content-Type: application/json',
         '-H', `Authorization: Bearer ${gatewayToken}`,
       ], { encoding: 'utf-8', timeout: 5_000 });
@@ -87,10 +57,10 @@ function runPrompt(prompt, sessionId, timeoutMs = 60_000) {
   const start = Date.now();
   try {
     let raw;
-    if (useGateway) {
+    if (queryUrl) {
       raw = execFileSync('curl', [
         '-sf',
-        '-X', 'POST', `http://127.0.0.1:${GATEWAY_PORT}/agent/query`,
+        '-X', 'POST', `${queryUrl}/agent/query`,
         '-H', 'Content-Type: application/json',
         '-H', `Authorization: Bearer ${gatewayToken}`,
         '-d', JSON.stringify({ query: prompt, session: sessionId }),

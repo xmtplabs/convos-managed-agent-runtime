@@ -1,71 +1,24 @@
 // Runtime adapter for Hermes.
+// Baseline adapter is openclaw.mjs — this file documents only what differs.
 //
-// Both local and CI use the same code path: python3 -m src.agent_runner.
-//
-// Local: buildEvalEnv() sources eval-env.sh to set HERMES_HOME, PYTHONPATH,
-//   copy workspace files, and set cwd to $HOME (where AGENTS.md lives).
-// Docker (CI): The Dockerfile already sets all of this. buildEvalEnv()
-//   detects Docker (no eval-env.sh) and returns process.env unchanged.
+// ┌─────────────────────┬──────────────────────────┬──────────────────────────┐
+// │ Concern             │ OpenClaw (baseline)       │ Hermes (this file)       │
+// ├─────────────────────┼──────────────────────────┼──────────────────────────┤
+// │ Query path          │ CLI (bin/args per test)   │ HTTP (queryUrl → :8080)  │
+// │ Why                 │ Node.js — fast cold start │ Python — warm server     │
+// │ Memory storage      │ MEMORY.md (single file)   │ memories/ dir (.md each) │
+// │ Memory reset        │ Copy template files        │ Clear dir + state.db     │
+// │ Session reset       │ Delete session files       │ Clear dir + POST /reset  │
+// │ bin/args/env/cwd    │ Yes (CLI invocation)       │ Not used (HTTP only)     │
+// └─────────────────────┴──────────────────────────┴──────────────────────────┘
 
 import { readdirSync, readFileSync, unlinkSync, existsSync } from 'fs';
-import { join, dirname, resolve } from 'path';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { spawn, execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const hermesDir = join(__dirname, '../../hermes');
-const evalHome = join(hermesDir, '.eval-home');
-const evalEnvScript = join(hermesDir, 'scripts', 'eval-env.sh');
-
-// Build the eval environment by sourcing eval-env.sh.
-// In Docker, eval-env.sh doesn't exist — the Dockerfile already set everything up.
-let _cachedEnv = null;
-function buildEvalEnv() {
-  if (_cachedEnv) return _cachedEnv;
-
-  if (!existsSync(evalEnvScript)) {
-    // Docker / CI — environment is already set by Dockerfile
-    _cachedEnv = { env: { ...process.env }, cwd: process.cwd() };
-    return _cachedEnv;
-  }
-
-  // Local — source eval-env.sh to replicate the Dockerfile setup
-  const script = `. "${evalEnvScript}" && /usr/bin/env`;
-  const envOut = execSync(script, {
-    encoding: 'utf-8',
-    shell: '/bin/sh',
-    cwd: hermesDir,
-    env: { ...process.env, HOME: evalHome },
-  });
-  const env = {};
-  for (const line of envOut.split('\n')) {
-    const idx = line.indexOf('=');
-    if (idx > 0) env[line.slice(0, idx)] = line.slice(idx + 1);
-  }
-  // PYTHONPATH must include hermes-agent and the runtime dir
-  env.PYTHONPATH = `${join(hermesDir, '.hermes-dev', 'hermes-agent')}:${hermesDir}${env.PYTHONPATH ? ':' + env.PYTHONPATH : ''}`;
-  env.NODE_PATH = join(hermesDir, 'node_modules');
-  // Ensure venv python is on PATH for local dev
-  const venvBin = join(hermesDir, '.hermes-dev', 'venv', 'bin');
-  env.PATH = `${venvBin}:${join(hermesDir, 'node_modules', '.bin')}:${env.PATH || ''}`;
-  if (!env.OPENCLAW_GATEWAY_TOKEN) {
-    env.OPENCLAW_GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || Math.random().toString(36).slice(2);
-  }
-  // Decode base64-encoded ephemeral prompt (eval-env.sh encodes to avoid breaking the line-by-line env parser)
-  if (env.HERMES_EPHEMERAL_SYSTEM_PROMPT_B64) {
-    env.HERMES_EPHEMERAL_SYSTEM_PROMPT = Buffer.from(env.HERMES_EPHEMERAL_SYSTEM_PROMPT_B64, 'base64').toString('utf-8');
-    delete env.HERMES_EPHEMERAL_SYSTEM_PROMPT_B64;
-  }
-
-  // cwd = $HOME so Hermes finds AGENTS.md via cwd discovery
-  // (mirrors Docker where WORKDIR=/app and AGENTS.md is at /app/AGENTS.md)
-  const cwd = env.HOME || evalHome;
-  _cachedEnv = { env, cwd };
-  return _cachedEnv;
-}
-
-const { env: evalEnv, cwd: evalCwd } = buildEvalEnv();
-const hermesHome = evalEnv.HERMES_HOME || join(evalHome, '.hermes');
+const hermesHome = process.env.HERMES_HOME || join(hermesDir, '.hermes-dev', 'home');
 const memoriesDir = join(hermesHome, 'memories');
 const sessionsDir = join(hermesHome, 'sessions');
 const stateDb = join(hermesHome, 'state.db');
@@ -79,67 +32,20 @@ function clearDir(dir) {
 
 export default {
   name: 'hermes',
-  bin: 'python3',
-  args: (prompt, _session) => ['-m', 'src.agent_runner', '-q', prompt],
-  env: evalEnv,
-  cwd: evalCwd,
   defaultPort: '8080',
   healthPath: '/pool/health',
   filterLines: (lines) => lines.filter((l) => {
     if (l.match(/^session_id:\s/)) return false;
-    // Braille spinners (U+2800-U+28FF) from CLI progress display
     if (l.match(/^\s*[\u2800-\u28FF]/)) return false;
-    // Kaomoji progress spinners — "◜ (°ロ°) formulating... (0.3s)" etc.
     if (l.match(/\(\d+\.\d+s\)\s*$/)) return false;
-    // Tool call status lines — "┊ 🧠 memory    +user: ..."
     if (l.match(/^\s*┊/)) return false;
     return true;
   }),
   needsSessionClear: false,
   convosPath: '../../hermes/node_modules/.bin/convos',
-  gateway: {
-    _proc: null,
-    _owned: false,
-    start(port) {
-      // If a Hermes instance is already running on this port, attach to it
-      // instead of spawning a new one. Set EVAL_ATTACH=1 or just have the
-      // server already up — evals will talk to it and you see real logs.
-      try {
-        execSync(`curl -sf http://localhost:${port}/pool/health`, { timeout: 2_000, stdio: 'ignore' });
-        process.stderr.write(`[hermes] Attaching to existing server on port ${port}\n`);
-        this._owned = false;
-        return;
-      } catch {}
-
-      if (this._proc) { this._proc.kill(); this._proc = null; }
-      const { env: baseEnv, cwd } = buildEvalEnv();
-      const env = { ...baseEnv, PORT: String(port) };
-      const evalServer = resolve(__dirname, 'hermes_eval_server.py');
-      this._proc = spawn('python3', [evalServer], {
-        cwd,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      this._proc.stdout.on('data', (d) => {
-        const line = d.toString().trim();
-        if (line) process.stderr.write(`[hermes] ${line}\n`);
-      });
-      this._proc.stderr.on('data', (d) => {
-        const line = d.toString().trim();
-        if (line) process.stderr.write(`[hermes] ${line}\n`);
-      });
-      // Expose the token so providers can authenticate
-      process.env.OPENCLAW_GATEWAY_TOKEN = env.OPENCLAW_GATEWAY_TOKEN;
-      this._owned = true;
-    },
-    stop() {
-      if (this._owned && this._proc) {
-        this._proc.kill();
-        this._proc = null;
-        this._owned = false;
-      }
-    },
-  },
+  // Providers use queryUrl to curl the production server's /agent/query endpoint.
+  // No eval server, no process management — same path in CI and local dev.
+  queryUrl: `http://127.0.0.1:${process.env.PORT || '8080'}`,
   memory: {
     extraArgs: [],
     reset() {
