@@ -237,7 +237,7 @@ async function generateLlmSummary(summary) {
     return '';
   }
 
-  const model = process.env.EVALS_MODEL || process.env.EVAL_SUMMARY_MODEL || 'anthropic/claude-sonnet-4';
+  const model = process.env.EVALS_MODEL || process.env.EVAL_SUMMARY_MODEL || 'anthropic/claude-opus-4-6';
   const payload = {
     model,
     temperature: 0,
