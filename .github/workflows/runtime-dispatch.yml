@@ -145,7 +145,7 @@ jobs:
         run: |
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
-            eval-runtime timeout ${{ matrix.timeout }} pnpm evals:${{ matrix.suite }}
+            eval-runtime timeout ${{ matrix.timeout }} pnpm evals openclaw ${{ matrix.suite }}
 
       - name: Dump container logs
         if: always()
@@ -278,7 +278,7 @@ jobs:
           docker exec \
             -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
             eval-runtime timeout ${{ matrix.timeout }} \
-              pnpm evals:hermes:${{ matrix.suite }}
+              pnpm evals hermes ${{ matrix.suite }}
 
       - name: Dump container logs
         if: always()

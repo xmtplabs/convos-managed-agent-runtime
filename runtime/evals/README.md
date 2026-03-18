@@ -1,6 +1,6 @@
 # Eval Suite
 
-Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
@@ -9,38 +9,25 @@ Five [Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
 | **soul** | `soul.yaml` | Parallel (5x) | Personality & values — brevity, privacy, empathy, identity |
 | **convos** | `convos.yaml` | Sequential (1x) | XMTP lifecycle — welcome, profile, image, members, self-destruct |
 | **async** | `async.yaml` | Sequential (1x) | Non-blocking — agent stays responsive during complex tasks |
+| **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
+| **poller** | `poller.yaml` | Sequential (1x) | Email poller pipeline |
 
 ## Running
 
 ```sh
-cd runtime/openclaw && pnpm start   # terminal 1: start the openclaw runtime
+# Terminal 1: start the runtime
+pnpm start              # openclaw
+pnpm start:hermes       # hermes
 
-cd runtime                          # terminal 2: run evals
-pnpm evals              # run all suites (openclaw, the default)
-pnpm evals:knows        # knowledge only
-pnpm evals:skills       # services only
-pnpm evals:soul         # personality only
-pnpm evals:convos       # XMTP lifecycle only
-pnpm evals:async        # non-blocking only
-```
+# Terminal 2: run evals (from runtime/)
+pnpm evals openclaw             # all suites
+pnpm evals openclaw knows       # single suite
+pnpm evals hermes memory        # hermes + memory suite
+pnpm evals hermes               # hermes + all suites
 
-Any runtime is supported via `EVAL_RUNTIME`:
-
-```sh
-pnpm evals:hermes              # all suites against hermes
-pnpm evals:hermes:knows        # knowledge only
-pnpm evals:hermes:skills       # services only
-pnpm evals:hermes:soul         # personality only
-pnpm evals:hermes:convos       # XMTP lifecycle only
-pnpm evals:hermes:async        # non-blocking only
-```
-
-Filter to a single test:
-
-```sh
-pnpm evals:skills -- --filter-pattern "browse"
-pnpm evals:hermes:skills -- --filter-pattern "browse"
-pnpm evals:convos -- --filter-pattern "welcome"
+# Filter to a single test
+pnpm evals openclaw skills -- --filter-pattern "browse"
+pnpm evals hermes convos -- --filter-pattern "welcome"
 ```
 
 ## Env vars
@@ -55,70 +42,44 @@ Required in `runtime/.env` (shared by all runtimes):
 
 ## Multi-runtime architecture
 
-The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`adapters/<name>.mjs`) that defines how to invoke the CLI, which health endpoint to probe, and how to filter output. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
+The eval suite supports multiple runtimes via an adapter pattern. Each runtime provides a thin adapter (`adapters/<name>.mjs`) that defines how to invoke the agent. Providers import the adapter via `runtime.mjs` and are completely runtime-agnostic.
 
 To add a new runtime:
 
-1. Create `evals/adapters/<name>.mjs` — see `hermes.mjs` for a real example:
-
-```js
-export default {
-  name: '<name>',
-  bin: '<cli-binary>',                                       // e.g. 'hermes', 'openclaw'
-  args: (prompt, session) => ['<subcommand>', prompt, ...],  // CLI args to send a prompt
-  defaultPort: '8080',                                       // fallback when PORT env is unset
-  healthPath: '/health',                                     // gateway health endpoint
-  filterLines: (lines) => lines,                             // strip runtime-specific output noise
-  needsSessionClear: false,                                  // true if file-based sessions need clearing
-  convosPath: '../../<name>/node_modules/.bin/convos',          // path to convos-cli relative to evals/lib/
-};
-```
+1. Create `evals/adapters/<name>.mjs` — see `hermes.mjs` for the comparison table vs openclaw (baseline).
 
 2. Add a case in `evals/adapters/env.sh` to source the runtime's `.env` and validate required vars.
-
-3. Add npm scripts in `runtime/package.json` (all 6):
-
-```json
-"evals:<name>": "EVAL_RUNTIME=<name> sh evals/run.sh",
-"evals:<name>:knows": "EVAL_RUNTIME=<name> sh evals/run-suite.sh knows.yaml",
-"evals:<name>:skills": "EVAL_RUNTIME=<name> sh evals/run-suite.sh skills.yaml",
-"evals:<name>:soul": "EVAL_RUNTIME=<name> sh evals/run-suite.sh soul.yaml",
-"evals:<name>:convos": "EVAL_RUNTIME=<name> sh evals/run-suite.sh convos.yaml",
-"evals:<name>:async": "EVAL_RUNTIME=<name> sh evals/run-suite.sh async.yaml",
-```
 
 ## Files
 
 ```
 evals/
-├── run.sh                 # entry point (runs all suites, any runtime)
-├── run-suite.sh           # single-suite entry point (any runtime)
+├── eval.sh                # unified entry point: pnpm evals <runtime> [suite]
+├── run.sh                 # runs all suites (called by eval.sh)
+├── run-suite.sh           # runs one suite (called by eval.sh)
 ├── suites/
-│   ├── knows.yaml         # knowledge suite config
-│   ├── skills.yaml        # services suite config
-│   ├── soul.yaml          # personality & values suite config
-│   ├── convos.yaml        # XMTP lifecycle suite config
-│   ├── async.yaml         # non-blocking suite config
-│   └── memory.yaml        # persistent memory suite config
+│   ├── knows.yaml
+│   ├── skills.yaml
+│   ├── soul.yaml
+│   ├── convos.yaml
+│   ├── async.yaml
+│   ├── memory.yaml
+│   └── poller.yaml
 ├── providers/
-│   ├── prompt.provider.mjs    # stateless prompt (parallel)
-│   ├── convos.provider.mjs    # XMTP conversation lifecycle
-│   ├── async.provider.mjs     # background + foreground concurrency test
-│   └── memory.provider.mjs    # memory persistence across sessions
+│   ├── prompt.provider.mjs
+│   ├── convos.provider.mjs
+│   ├── async.provider.mjs
+│   ├── memory.provider.mjs
+│   └── poller.provider.mjs
 ├── lib/
-│   ├── assertions.mjs     # JS assertions (profile, self-destruct, response time)
+│   ├── assertions.mjs
 │   ├── runtime.mjs        # loads the active runtime adapter
-│   ├── summarize.mjs      # CI summary generation
-│   └── utils.mjs          # shared helpers (cleanOutput, session clearing, etc.)
-├── adapters/
-│   ├── openclaw.mjs       # runtime adapter: openclaw
-│   ├── hermes.mjs         # runtime adapter: hermes
-│   └── env.sh             # shared env setup (sources .env per runtime)
-└── fixtures/
-    └── test-image.png     # fixture for image recognition test
+│   └── utils.mjs
+└── adapters/
+    ├── openclaw.mjs        # baseline adapter
+    ├── hermes.mjs          # hermes adapter (see comparison table inside)
+    └── env.sh              # shared env setup per runtime
 ```
-
-Naming convention: `suites/{name}.yaml` + `providers/{name}.provider.mjs` (if custom provider needed).
 
 ## Adding a test
 
@@ -133,53 +94,10 @@ Add to the `tests` array in the relevant suite yaml:
       value: "done"
 ```
 
-For side-effect checks, add a function in `assertions.mjs`:
-
-```yaml
-  assert:
-    - type: javascript
-      value: "file://assertions.mjs:myCheck"
-```
-
-For personality/behavior checks, use `llm-rubric`:
-
-```yaml
-  assert:
-    - type: llm-rubric
-      value: >
-        The agent should respond with empathy.
-        Pass if caring. Fail if robotic.
-```
-
-## Assertion gotchas
-
-Promptfoo v0.120 does `new RegExp(value)` directly — **no flag support**. This means:
-
-- `(?i)` inline flags don't work
-- `/pattern/i` literal syntax doesn't work
-
-For case-insensitive matching, use `icontains` or character classes:
-
-```yaml
-# Good — icontains (preferred for simple substring checks)
-- type: icontains
-  value: "hello"
-
-# Good — character class for case-insensitive regex
-- type: regex
-  value: "[Hh]ello|[Ww]orld"
-
-# Bad — these silently fail
-- type: regex
-  value: "(?i)hello"
-- type: regex
-  value: "/hello/i"
-```
-
 ## CI
 
-All 6 suites run as parallel matrix jobs in PR and dispatch workflows:
+All suites run as parallel matrix jobs in PR and dispatch workflows:
 
-- **PR builds** — `runtime-pr.yml` matrix: knows, skills, soul, convos, async, memory
-- **Dispatch builds** — `runtime-dispatch.yml` same matrix
-- **One-off** — Actions > "Runtime: Eval" > Run workflow (sequential)
+- **PR builds** — `runtime-pr.yml`, `runtime-hermes-pr.yml`
+- **Dispatch builds** — `runtime-dispatch.yml`
+- **One-off** — Actions > "Runtime: Eval" > Run workflow
