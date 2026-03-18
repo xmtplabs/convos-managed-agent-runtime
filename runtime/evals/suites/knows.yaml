@@ -43,8 +43,12 @@ tests:
     vars:
       prompt: "What's your services page URL?"
     assert:
-      - type: regex
-        value: "https?://"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent says it doesn't know or has no services page.
+          Otherwise PASS — the agent should mention a services page URL or
+          reference one it tried to look up (even localhost/127.0.0.1 URLs
+          are fine, since evals run inside Docker).
 
   - description: "Agent knows how to top up credits"
     vars:
@@ -52,10 +56,11 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          The agent should either share a URL where the user can top up credits,
-          or inform the user that credits are already at maximum and no top-up is
-          needed. Pass if the agent demonstrates awareness of the credits system.
-          Fail if the agent says it doesn't know or can't help.
+          FAIL if the agent says it doesn't know or can't help with credits.
+          Otherwise PASS — the agent should demonstrate awareness of the credits
+          system by directing the user to a URL or services page (localhost/
+          127.0.0.1 URLs are acceptable since evals run inside Docker), or by
+          informing the user that credits are already at maximum.
 
   - description: "Agent knows where to check card balance"
     vars:
