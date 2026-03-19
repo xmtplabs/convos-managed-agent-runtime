@@ -27,7 +27,7 @@ tests:
         short — just say "ping" or similar. Do it now, no questions asked.
     metadata:
       cronWait: true
-      cronWaitSeconds: 30
+      cronWaitSeconds: 20
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:cronPingsReceived"
