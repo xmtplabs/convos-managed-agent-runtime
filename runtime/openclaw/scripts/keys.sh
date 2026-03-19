@@ -30,7 +30,8 @@ brand_section "Provisioning assistant keys"
 if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/keys-common.sh" ]; then
   . "$SHARED_SCRIPTS_DIR/lib/keys-common.sh"
 else
-  echo "⚠ SHARED_SCRIPTS_DIR not set — skipping keys-common"
+  echo "⚠ SHARED_SCRIPTS_DIR not set — aborting keys.sh" >&2
+  exit 1
 fi
 
 keys_validate_openrouter
