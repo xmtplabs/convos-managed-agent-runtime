@@ -97,7 +97,7 @@ jobs:
 
   eval:
     name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
-    if: ${{ !matrix.only || matrix.only == inputs.runtime }}
+    if: matrix.only == '' || matrix.only == inputs.runtime
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
