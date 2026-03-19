@@ -80,7 +80,8 @@ async function creditsSweep(env: Env): Promise<void> {
       const lastUsage = lastUsageStr ? parseFloat(lastUsageStr) : 0;
       const delta = Math.max(0, usage - lastUsage);
 
-      // Store current usage for next sweep
+      // Only write KV and emit event when usage changed
+      if (delta === 0 && lastUsageStr !== null) continue;
       await env.STATS_CREDITS.put(kvKey, String(usage));
 
       events.push({
