@@ -27,7 +27,12 @@ brand_banner "$_version"
 brand_section "Provisioning assistant keys"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 
-. "$SHARED_SCRIPTS_DIR/lib/keys-common.sh"
+if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/keys-common.sh" ]; then
+  . "$SHARED_SCRIPTS_DIR/lib/keys-common.sh"
+else
+  echo "⚠ SHARED_SCRIPTS_DIR not set — aborting keys.sh" >&2
+  exit 1
+fi
 
 keys_validate_openrouter
 keys_show_pool

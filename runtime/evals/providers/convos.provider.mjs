@@ -76,6 +76,10 @@ function setup() {
     sleep(500);
     if (checkGateway()) break;
   }
+  if (!checkGateway()) {
+    console.error('[eval] Gateway failed to reinitialise after reset.');
+    process.exit(1);
+  }
 
   log('Creating conversation...');
   const createOut = convos([

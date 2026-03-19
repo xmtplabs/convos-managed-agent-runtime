@@ -610,18 +610,19 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Send attachment failed: {err}")
 
-        # Agent explicitly chose silence — side effects above still fire, but no text
-        if parsed.silent:
-            logger.info("Agent chose SILENT — suppressing text reply")
-            return
-
-        # Send text message (either as reply or new message)
+        # Renew profile image on any outbound activity (before SILENT check
+        # so media-only sends still trigger renewal)
         text = strip_markdown(parsed.text)
         if parsed.media or text:
             try:
                 await self._renew_profile_image_on_activity()
             except Exception as err:
                 logger.error(f"Profile image renewal on outbound activity failed: {err}")
+
+        # Agent explicitly chose silence — side effects above still fire, but no text
+        if parsed.silent:
+            logger.info("Agent chose SILENT — suppressing text reply")
+            return
 
         if text:
             chunks = chunk_text(text)

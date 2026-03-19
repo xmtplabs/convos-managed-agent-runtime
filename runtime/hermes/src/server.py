@@ -336,6 +336,10 @@ def _is_clean() -> bool:
         return False
     if _path_has_state(Path(hermes_home) / "media"):
         return False
+    if _path_has_state(Path(hermes_home) / "state.db"):
+        return False
+    if _path_has_state(Path(hermes_home) / "profile-image"):
+        return False
     if os.environ.get("CONVOS_CONVERSATION_ID", "").strip():
         return False
     provision = _get_provision_status()

@@ -258,6 +258,7 @@ const plugin = {
           const { instance, result } = await ConvosInstance.create(env, {
             name,
             profileName,
+            profileImage,
             description,
             imageUrl,
             permissions,
