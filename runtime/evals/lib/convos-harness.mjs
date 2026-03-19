@@ -270,9 +270,12 @@ export function createHarness(tag, opts = {}) {
     const msgsBefore = existing.length;
 
     if (meta.attachment) {
+      // Attachment paths in suite YAML are relative to providers/ (e.g. "../fixtures/foo.png").
+      // Resolve from the providers dir so paths work identically to the original providers.
+      const providersDir = resolve(dirname(fileURLToPath(import.meta.url)), '../providers');
       const attachPath = meta.attachment.startsWith('/')
         ? meta.attachment
-        : resolve(dirname(fileURLToPath(import.meta.url)), '..', meta.attachment);
+        : resolve(providersDir, meta.attachment);
       log(`Sending attachment: ${meta.attachment}`);
       convos(['conversation', 'send-attachment', sharedConversationId, attachPath, '--env', ENV], { timeout: 30_000 });
       sleep(1_000);
