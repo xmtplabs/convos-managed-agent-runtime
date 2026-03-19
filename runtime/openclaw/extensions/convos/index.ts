@@ -644,6 +644,7 @@ const plugin = {
             jsonResponse(res, 400, { error: "attestation, attestation_ts, and attestation_kid are required" });
             return;
           }
+          inst.setAttestation(attestation, attestation_ts, attestation_kid);
           await inst.updateProfile(undefined, undefined, {
             attestation,
             attestation_ts,

@@ -19,6 +19,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
@@ -475,7 +476,6 @@ async def _fetch_attestation(inbox_id: str) -> dict[str, str] | None:
         logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN")
         return None
     try:
-        import httpx
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{pool_url}/api/pool/attest",
@@ -532,6 +532,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                     env=env,
                     debug=True,
                 )
+                await _apply_attestation()
                 _clear_provision_state(generation)
                 await _notify_pool_pending_join("claimed", conversation_id=conversation_id)
                 logger.info("Pending join accepted: conversation %s", conversation_id[:12])
@@ -996,6 +997,7 @@ async def convos_reattest(body: ReattestRequest):
     adapter = get_adapter()
     if not adapter or not adapter.instance:
         raise HTTPException(status_code=400, detail="No active conversation")
+    adapter.instance.set_attestation(body.attestation, body.attestation_ts, body.attestation_kid)
     await adapter.instance.update_profile(metadata={
         "attestation": body.attestation,
         "attestation_ts": body.attestation_ts,
