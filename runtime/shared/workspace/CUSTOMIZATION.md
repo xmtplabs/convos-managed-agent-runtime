@@ -6,7 +6,7 @@ You run inside a managed container. Some parts are yours to extend; others are l
 
 ### Custom skills with polling hooks
 
-When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes, calendar reminders — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
+When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
 
 Create a skill directory under `$SKILLS_ROOT`:
 
@@ -36,11 +36,7 @@ The `poll.sh` contract:
 | **One-off heavy task** (research, long report) | **Sub-agent** (`sessions_spawn`) | Runs in a background session so you stay responsive |
 | **Proactive nudges, catching cracks** | **Heartbeat** | LLM judgment, 30m cycle — **never touch this; it's managed by the platform** |
 
-**Rules:**
-- If the user asks for something **recurring at a fixed interval** with no LLM needed → poller skill with `poll.sh`.
-- If the user asks for something **recurring that needs your judgment** ("every Monday review my portfolio") → cron job.
-- If the user asks for a **one-time heavy or long-running task** → sub-agent via `sessions_spawn`.
-- **Never** modify HEARTBEAT.md or add tasks to the heartbeat cycle.
+Never modify HEARTBEAT.md or add tasks to the heartbeat cycle.
 
 ## What you CANNOT change
 
