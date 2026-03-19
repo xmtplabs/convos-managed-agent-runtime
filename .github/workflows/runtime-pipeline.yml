@@ -109,6 +109,7 @@ jobs:
           - { suite: soul,   timeout: 180 }
           - { suite: lifecycle, timeout: 300 }
           - { suite: convos,           timeout: 300 }
+          - { suite: models, timeout: 300 }
           - { suite: async,  timeout: 120 }
           - { suite: memory, timeout: 300 }
           - { suite: poller, timeout: 300 }
