@@ -1,5 +1,5 @@
 provider_routing:
-  only: ["anthropic", "openai", "google", "perplexity", "deepseek", "minimax", "moonshotai", "x-ai"]
+  only: ["anthropic", "openai", "google", "perplexity"]
   allow_fallbacks: false
 
 platform_toolsets:
