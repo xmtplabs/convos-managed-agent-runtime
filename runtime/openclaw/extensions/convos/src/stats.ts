@@ -136,11 +136,12 @@ class StatsAccumulator {
   }
 
   async shutdown(): Promise<void> {
+    // Snapshot before clearing timer — interval callback may have cleared counters
+    const batch = this.flush();
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
     }
-    const batch = this.flush();
     await this.send(batch);
     this.started = false;
     console.log("[stats] shut down (final flush sent)");

@@ -136,6 +136,8 @@ class StatsAccumulator:
         logger.info("Stats started (instance=%s, interval=%ds)", instance_id, FLUSH_INTERVAL_S)
 
     async def shutdown(self) -> None:
+        # Snapshot before canceling — tick loop may have cleared counters mid-send
+        batch = self.flush()
         if self._task:
             self._task.cancel()
             try:
@@ -143,7 +145,6 @@ class StatsAccumulator:
             except asyncio.CancelledError:
                 pass
             self._task = None
-        batch = self.flush()
         await self._send(batch)
         self._started = False
         logger.info("Stats shut down (final flush sent)")
