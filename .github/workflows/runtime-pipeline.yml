@@ -201,16 +201,17 @@ jobs:
           merge-multiple: true
 
       - name: Build eval report
+        shell: bash
         run: |
-          {
-            echo "## ${{ inputs.runtime }} eval results"
-            echo ""
-            echo "| Suite | Passed | Failed | Result |"
-            echo "|-------|--------|--------|--------|"
-          } >> "$GITHUB_STEP_SUMMARY"
+          DETAILS_FILE=$(mktemp)
+          S="$GITHUB_STEP_SUMMARY"
+
+          echo "## ${{ inputs.runtime }} eval results" >> "$S"
+          echo "" >> "$S"
+          printf "| Suite | Passed | Failed | Result |\n" >> "$S"
+          printf "|-------|--------|--------|--------|\n" >> "$S"
 
           TOTAL_FAILURES=0
-          FAILURE_DETAILS=""
 
           for f in /tmp/eval-results/*.json; do
             [ -f "$f" ] || continue
@@ -220,11 +221,15 @@ jobs:
             failed=$(jq '[.results[] | select(.success == false)] | length' "$f" 2>/dev/null || echo 0)
 
             if [ "$failed" -gt 0 ]; then
-              echo "| $suite | $passed | $failed | :x: **FAIL** |" >> "$GITHUB_STEP_SUMMARY"
+              printf "| %s | %s | %s | :x: **FAIL** |\n" "$suite" "$passed" "$failed" >> "$S"
               TOTAL_FAILURES=$((TOTAL_FAILURES + failed))
 
-              # Collect individual test failure details
-              details=$(jq -r '
+              echo "### ${suite}" >> "$DETAILS_FILE"
+              echo "" >> "$DETAILS_FILE"
+              printf "| Test | Reason |\n" >> "$DETAILS_FILE"
+              printf "|------|--------|\n" >> "$DETAILS_FILE"
+
+              jq -r '
                 [.results[] | select(.success == false)] |
                 to_entries[] |
                 "| \(.value.testCase.description // .value.vars.prompt // "test #\(.key + 1)") | \(
@@ -233,38 +238,31 @@ jobs:
                     if length > 0 then .[0]
                     else (.value.gradingResult.reason // "—")
                     end
-                  ) |
-                  gsub("\n"; " ") |
+                  ) | gsub("\n"; " ") |
                   if length > 120 then .[:120] + "…" else . end
                 ) |"
-              ' "$f" 2>/dev/null || true)
+              ' "$f" >> "$DETAILS_FILE" 2>/dev/null || true
 
-              if [ -n "$details" ]; then
-                FAILURE_DETAILS="${FAILURE_DETAILS}
-### ${suite}
-
-| Test | Reason |
-|------|--------|
-${details}
-"
-              fi
+              echo "" >> "$DETAILS_FILE"
             else
-              echo "| $suite | $passed | 0 | :white_check_mark: pass |" >> "$GITHUB_STEP_SUMMARY"
+              printf "| %s | %s | 0 | :white_check_mark: pass |\n" "$suite" "$passed" >> "$S"
             fi
           done
 
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$S"
 
           if [ "$TOTAL_FAILURES" -gt 0 ]; then
-            echo "**$TOTAL_FAILURES test(s) failed across all suites.**" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "<details><summary>Failure details</summary>" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "$FAILURE_DETAILS" >> "$GITHUB_STEP_SUMMARY"
-            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            echo "**${TOTAL_FAILURES} test(s) failed across all suites.**" >> "$S"
+            echo "" >> "$S"
+            echo "<details><summary>Failure details</summary>" >> "$S"
+            echo "" >> "$S"
+            cat "$DETAILS_FILE" >> "$S"
+            echo "</details>" >> "$S"
           else
-            echo "All tests passed." >> "$GITHUB_STEP_SUMMARY"
+            echo "All tests passed." >> "$S"
           fi
+
+          rm -f "$DETAILS_FILE"
 
   publish:
     name: "Publish ${{ inputs.runtime }}"
