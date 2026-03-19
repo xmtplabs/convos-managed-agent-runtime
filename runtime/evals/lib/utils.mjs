@@ -1,6 +1,7 @@
 // runtime/evals/utils.mjs
 // Shared utilities for eval providers and assertions.
 
+import { execFileSync, spawn as spawnProc } from 'child_process';
 import { existsSync, readdirSync, unlinkSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
@@ -55,6 +56,112 @@ export function clearSessionsOnce(agentId = 'main') {
     log('eval', `No sessions dir at ${sessionsDir} (ok for Docker)`);
   }
   _sessionsCleared = true;
+}
+
+// ---------------------------------------------------------------------------
+// queryAgent — unified CLI-vs-HTTP query used by prompt, memory, and async
+// providers. Returns { output, durationMs, error }.
+//
+// OpenClaw: one-shot CLI call via adapter's bin/args.
+// Hermes:   curls the /agent/query HTTP endpoint.
+//
+// opts.extraArgs — appended to CLI args (e.g. memory's --local flag).
+// opts.timeout   — per-call timeout in ms (default 60s).
+// ---------------------------------------------------------------------------
+
+const _queryUrl = runtime.queryUrl || null;
+const _gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+
+export function queryAgent(prompt, sessionId, opts = {}) {
+  const timeoutMs = opts.timeout || 60_000;
+  const start = Date.now();
+  try {
+    let raw;
+    if (_queryUrl) {
+      raw = execFileSync('curl', [
+        '-sf',
+        '-X', 'POST', `${_queryUrl}/agent/query`,
+        '-H', 'Content-Type: application/json',
+        '-H', `Authorization: Bearer ${_gatewayToken}`,
+        '-d', JSON.stringify({ query: prompt, session: sessionId }),
+      ], { encoding: 'utf-8', timeout: timeoutMs }).trim();
+    } else {
+      const args = [
+        ...runtime.args(prompt, sessionId),
+        ...(opts.extraArgs || []),
+      ];
+      raw = execFileSync(runtime.bin, args, {
+        encoding: 'utf-8', timeout: timeoutMs,
+        ...(runtime.env ? { env: runtime.env } : {}),
+        ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
+      }).trim();
+    }
+    const output = cleanOutput(raw);
+    return { output, durationMs: Date.now() - start, error: null };
+  } catch (err) {
+    return { output: '', durationMs: Date.now() - start, error: err.message };
+  }
+}
+
+// Non-blocking version of queryAgent — fires the command and resolves when
+// it finishes or the timeout expires. Used by the async provider.
+export function queryAgentAsync(prompt, sessionId, opts = {}) {
+  const timeoutMs = opts.timeout || 30_000;
+
+  return new Promise((resolve) => {
+    const start = Date.now();
+    let stdout = '';
+    let settled = false;
+
+    let bin, args;
+    if (_queryUrl) {
+      bin = 'curl';
+      args = [
+        '-sf',
+        '-X', 'POST', `${_queryUrl}/agent/query`,
+        '-H', 'Content-Type: application/json',
+        '-H', `Authorization: Bearer ${_gatewayToken}`,
+        '-d', JSON.stringify({ query: prompt }),
+      ];
+    } else {
+      bin = runtime.bin;
+      args = [...runtime.args(prompt, sessionId), ...(opts.extraArgs || [])];
+    }
+
+    const useRuntimeEnv = bin !== 'curl';
+    const proc = spawnProc(bin, args, {
+      ...(useRuntimeEnv && runtime.env ? { env: runtime.env } : {}),
+      ...(useRuntimeEnv && runtime.cwd ? { cwd: runtime.cwd } : {}),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    proc.stdout.on('data', (d) => { stdout += d.toString(); });
+    proc.stderr.on('data', () => {});
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        proc.kill();
+        resolve({ output: cleanOutput(stdout.trim()), durationMs: Date.now() - start, error: null });
+      }
+    }, timeoutMs);
+
+    proc.on('close', () => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve({ output: cleanOutput(stdout.trim()), durationMs: Date.now() - start, error: null });
+      }
+    });
+
+    proc.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve({ output: '', durationMs: Date.now() - start, error: err.message });
+      }
+    });
+  });
 }
 
 // Strip runtime-specific noise from CLI output.
