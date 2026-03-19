@@ -66,6 +66,17 @@ tests:
           127.0.0.1 URLs are acceptable since evals run inside Docker), or by
           informing the user that credits are already at maximum.
 
+  - description: "Agent knows SMS outbound delivery is unreliable"
+    vars:
+      prompt: "Can I count on my SMS messages being delivered to people?"
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the agent says SMS delivery is fully reliable or makes no
+          mention of potential delivery issues.
+          Otherwise PASS — the agent should mention that outbound SMS may not
+          reach its destination or that carrier approval is still pending.
+
   - description: "Agent knows where to check card balance"
     vars:
       prompt: "Where can I see my card balance?"
