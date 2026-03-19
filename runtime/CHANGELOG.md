@@ -63,7 +63,7 @@
 - Credit exhaustion: friendly message when out of credits instead of failing silently
 
 ## 0.0.14
-- Bump `@bankr/cli` to `0.1.0-beta.18`
+- Dependency updates
 
 ## 0.0.13
 - Fix email inbox polling

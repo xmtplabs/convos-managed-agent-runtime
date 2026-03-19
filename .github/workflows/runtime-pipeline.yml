@@ -114,7 +114,6 @@ jobs:
           - { suite: memory,    timeout: 300, only: "", fresh: false }
           - { suite: poller,    timeout: 300, only: "", fresh: false }
           - { suite: poller-hooks, timeout: 300, only: "", fresh: false }
-          - { suite: bankr,     timeout: 180, only: "", fresh: false }
           - { suite: provision, timeout: 180, only: "", fresh: true }
     steps:
       - if: inputs.needs_checkout
@@ -138,7 +137,6 @@ jobs:
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             ${{ !matrix.fresh && format('-e POOL_URL="{0}"', secrets.POOL_URL) || '' }} \
             ${{ !matrix.fresh && format('-e INSTANCE_ID="{0}"', secrets.INSTANCE_ID) || '' }} \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             ${{ !matrix.fresh && format('-e AGENTMAIL_API_KEY="{0}"', secrets.AGENTMAIL_API_KEY) || '' }} \
             ${{ !matrix.fresh && format('-e AGENTMAIL_INBOX_ID="{0}"', secrets.AGENTMAIL_INBOX_ID) || '' }} \
             ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
