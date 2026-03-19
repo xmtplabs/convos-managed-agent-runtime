@@ -114,7 +114,7 @@ jobs:
           - { suite: memory, timeout: 300, only: "" }
           - { suite: poller, timeout: 300, only: "" }
           - { suite: poller-hooks, timeout: 300, only: "" }
-
+          - { suite: silence, timeout: 120, only: "" }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
