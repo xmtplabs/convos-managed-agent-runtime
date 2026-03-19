@@ -75,8 +75,7 @@ class StatsAccumulator {
   }
 
   private hasActivity(): boolean {
-    return Object.values(this.counters).some((v) => v > 0)
-        || Object.values(this.gauges).some((v) => v > 0);
+    return Object.values(this.counters).some((v) => v > 0);
   }
 
   flush(): Record<string, unknown> {
