@@ -28,6 +28,7 @@ from .convos_adapter import ConvosAdapter
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
 from .xmtp_bridge import ConvosInstance
+from .stats import stats
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,17 @@ async def start_wired_instance(
         debug=debug,
     )
     _adapter = adapter
+
+    if cfg.posthog_api_key and cfg.instance_id:
+        stats.start(
+            posthog_api_key=cfg.posthog_api_key,
+            posthog_host=cfg.posthog_host,
+            instance_id=cfg.instance_id,
+            agent_name=name or "",
+            runtime="hermes",
+            environment=os.environ.get("POOL_ENVIRONMENT", ""),
+            version=RUNTIME_VERSION or "",
+        )
 
     # Fire greeting in background (skip if resuming — caller handles workspace refresh)
     if not resuming:
@@ -638,6 +650,7 @@ async def lifespan(app: FastAPI):
         except (asyncio.CancelledError, Exception):
             pass
     await _stop_poller()
+    await stats.shutdown()
     adapter = get_adapter()
     if adapter:
         try:

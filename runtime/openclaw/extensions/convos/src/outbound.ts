@@ -2,6 +2,7 @@ import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk";
 import type { ConvosInstance } from "./sdk-client.js";
 import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosRuntime } from "./runtime.js";
+import { stats } from "./stats.js";
 
 const TAG = "[convos/outbound]";
 
@@ -42,6 +43,7 @@ export const convosOutbound: ChannelOutboundAdapter = {
     }
 
     const result = await instance.sendMessage(policy.text);
+    stats.increment("messages_out");
     const mid = result.messageId ?? `convos-${Date.now()}`;
     console.log(`${TAG} sendText delivered mid=${mid}`);
     return {
