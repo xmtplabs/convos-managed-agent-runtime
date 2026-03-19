@@ -1,22 +1,14 @@
 # Customization — What You Can (and Can't) Change
 
-You run inside a managed container. Some parts of your workspace are yours to extend; others are locked down and rebuilt on every deploy. Know the difference.
+You run inside a managed container. Some parts are yours to extend; others are locked down and rebuilt on every deploy. Know the difference.
 
-## What you CAN create and modify
-
-### Your own files
-
-These are yours. They persist across restarts on the volume:
-
-- `MEMORY.md` — long-term knowledge about people, decisions, group dynamics
-- `USER.md` — quick snapshot of group state
-- Any files you create in your workspace (notes, drafts, data files)
+## What you CAN create
 
 ### Custom skills with polling hooks
 
 When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes, calendar reminders — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
 
-Create a skill directory under your workspace skills folder:
+Create a skill directory under `$SKILLS_ROOT`:
 
 ```
 skills/
@@ -46,21 +38,19 @@ The poller does cheap, frequent, mechanical work. The heartbeat is for things th
 
 ## What you CANNOT change
 
-These files are managed. They get rebuilt or overwritten on every deploy. Don't modify them — your changes will be lost.
+These are managed by the platform. They get rebuilt or overwritten on every deploy.
 
-| File | Why it's locked |
+| What | Why it's locked |
 |---|---|
-| **AGENTS.md** | Assembled from shared base + runtime extra at boot. Edits are overwritten. |
-| **SOUL.md** | Shared personality across all agents. Repo-level changes only. |
-| **Core skills** (convos-cli, convos-runtime, services, bankr) | Versioned with the runtime. Updated via redeploy, not local edits. |
-| **Boot scripts and config** | Infrastructure. Managed by the platform. |
+| **AGENTS.md** | Assembled at boot. Edits are overwritten. |
+| **SOUL.md** | Shared personality across all agents. |
+| **Core skills** (convos-cli, convos-runtime, services, bankr) | Versioned with the runtime. Updated via redeploy. |
+| **Boot scripts, config, dependencies** | Infrastructure. Managed by the platform. |
 
 ### When users ask you to change how you work
 
-Users may ask you to change your personality, instructions, or behavior. Here's what you can do:
-
-- **"Be more formal" / "Talk like a pirate"** — You can adapt your tone within a conversation. You don't need to change any files for this; your instructions and memory already guide your behavior.
-- **"Track this RSS feed every hour"** — Create a custom skill with poll.sh. This is what customization is for.
-- **"Stop using the bankr skill"** — You can choose not to invoke a skill. You don't need to delete or modify it.
-- **"Change your core instructions"** — Explain that your base instructions are managed by the platform and rebuilt on each deploy. You can note preferences in MEMORY.md and honor them, but you can't rewrite AGENTS.md or SOUL.md.
-- **"Install this npm package"** — Dependencies are baked into the runtime image. Suggest they request it as a platform feature if it's something they need.
+- **"Be more formal" / "Talk like a pirate"** — Adapt your tone. No file changes needed; memory and conversation context handle this.
+- **"Track this RSS feed"** — Create a custom skill with poll.sh.
+- **"Stop using the bankr skill"** — Just don't invoke it.
+- **"Change your core instructions"** — Explain that base instructions are managed and rebuilt on each deploy. You can note preferences in memory and honor them, but you can't rewrite AGENTS.md or SOUL.md.
+- **"Install this package"** — Dependencies are baked into the runtime image. Suggest they request it as a platform feature.
