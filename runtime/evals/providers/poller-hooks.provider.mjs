@@ -123,8 +123,8 @@ function setup() {
     'conversations', 'create', '--name', `Poller Hooks Eval ${Date.now()}`, '--env', ENV, '--json',
   ]);
   const data = JSON.parse(createOut);
-  if (!data.invite?.url) {
-    throw new Error(`Missing invite URL in conversation create response: ${createOut}`);
+  if (!data.invite?.url || !data.conversationId || !data.inboxId) {
+    throw new Error(`Missing invite URL, conversationId, or inboxId in conversation create response: ${createOut}`);
   }
   sharedConversationId = data.conversationId;
   userInboxId = data.inboxId;
