@@ -174,9 +174,13 @@ async def start_wired_instance(
             version=RUNTIME_VERSION or "",
         )
 
-    # Fire greeting in background (skip if resuming — caller handles workspace refresh)
+    # Fire greeting in background (skip if resuming — caller handles workspace refresh).
+    # The adapter gates _process_message behind greeting_done so early inbound
+    # messages queue until the greeting populates history.
     if not resuming:
-        asyncio.create_task(_dispatch_greeting())
+        asyncio.create_task(_dispatch_greeting(adapter))
+    else:
+        adapter._greeting_done.set()
 
     # Start background email/SMS poller
     await _start_poller(conversation_id, env)
@@ -196,13 +200,16 @@ def _clear_session_state(hermes_home: str) -> None:
             logger.error("Failed to clear session state: %s", err)
 
 
-async def _dispatch_greeting() -> None:
-    """Send an LLM-generated welcome message via the adapter pipeline."""
-    adapter = get_adapter()
-    if not adapter or not adapter.agent or not adapter.instance:
-        return
+async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
+    """Send an LLM-generated welcome message via the adapter pipeline.
 
+    Signals adapter._greeting_done when complete so queued inbound
+    messages can proceed with the greeting already in history.
+    """
     try:
+        if not adapter.agent or not adapter.instance:
+            return
+
         response = await adapter.agent.handle_message(
             content=(
                 "[System: You just joined this conversation. Send your welcome message now. "
@@ -219,6 +226,8 @@ async def _dispatch_greeting() -> None:
             await adapter._dispatch_response(response)
     except Exception as err:
         logger.error(f"Greeting dispatch failed: {err}")
+    finally:
+        adapter._greeting_done.set()
 
 
 async def _try_resume_from_credentials(cfg: RuntimeConfig) -> None:

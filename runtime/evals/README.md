@@ -10,6 +10,7 @@
 | **convos** | `convos.yaml` | Sequential (1x) | XMTP lifecycle — welcome, profile, image, members, self-destruct |
 | **async** | `async.yaml` | Sequential (1x) | Non-blocking — agent stays responsive during complex tasks |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
+| **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch OpenRouter models |
 | **poller** | `poller.yaml` | Sequential (1x) | Email poller pipeline |
 
 ## Running
@@ -64,6 +65,7 @@ evals/
 │   ├── convos.yaml
 │   ├── async.yaml
 │   ├── memory.yaml
+│   ├── models.yaml
 │   └── poller.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
