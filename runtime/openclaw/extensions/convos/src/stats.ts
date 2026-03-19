@@ -64,6 +64,7 @@ class StatsAccumulator {
           seconds_since_last_message_in: secondsSince,
           $set: {
             runtime: this.runtime,
+            environment: this.environment,
           },
         },
       }],

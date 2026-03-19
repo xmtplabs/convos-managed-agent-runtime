@@ -74,6 +74,7 @@ class StatsAccumulator:
                     "seconds_since_last_message_in": seconds_since,
                     "$set": {
                         "runtime": self._runtime,
+                        "environment": self._environment,
                     },
                 },
             }],
