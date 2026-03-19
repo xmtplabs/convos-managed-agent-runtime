@@ -30,6 +30,18 @@ export default class ConvosProvider {
       return result;
     }
 
+    if (meta.silence) {
+      const existing = h.fetchMessages();
+      const baseline = h.agentCount(existing);
+      const msgsBefore = existing.length;
+      log(`Sending: "${prompt}"`);
+      h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
+      const { silent, msgs } = h.waitForSilence(baseline);
+      const output = silent ? 'SILENCE_OK' : h.transcript(msgs, msgsBefore);
+      log(`${silent ? 'OK (silent)' : 'FAIL (agent spoke)'} ${desc} (${elapsed(t)})`);
+      return { output, metadata: { conversationId: h.conversationId } };
+    }
+
     if (meta.waitForWelcome) {
       log('Waiting for agent welcome message...');
       const msgs = h.waitForAgent(0);

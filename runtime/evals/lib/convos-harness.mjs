@@ -262,6 +262,19 @@ export function createHarness(tag, opts = {}) {
       .join('\n');
   }
 
+  // Wait a short window and confirm the agent stays quiet (no new messages).
+  function waitForSilence(baseline, windowMs = 15_000) {
+    const deadline = Date.now() + windowMs;
+    while (Date.now() < deadline) {
+      sleep(1_500);
+      try {
+        const msgs = fetchMessages();
+        if (agentCount(msgs) > baseline) return { silent: false, msgs };
+      } catch { continue; }
+    }
+    return { silent: true, msgs: fetchMessages() };
+  }
+
   // --- Send + wait helper ------------------------------------------------
 
   function sendAndWait(prompt, meta = {}) {
@@ -311,6 +324,7 @@ export function createHarness(tag, opts = {}) {
     agentCount,
     waitForAgent,
     waitForContent,
+    waitForSilence,
     transcript,
     sendAndWait,
     checkGateway,
