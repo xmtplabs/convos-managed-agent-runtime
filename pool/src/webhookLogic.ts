@@ -24,7 +24,12 @@ export function decideAction(
 
   switch (eventType) {
     case "Deployment.deployed": {
-      if (currentStatus === "starting" || currentStatus === "sleeping") {
+      if (
+        currentStatus === "starting"
+        || currentStatus === "sleeping"
+        || currentStatus === "pending_acceptance"
+        || currentStatus === "tainted"
+      ) {
         return { action: "health_check" };
       }
       if (currentStatus === "crashed" || currentStatus === "dead") {
@@ -36,19 +41,27 @@ export function decideAction(
     case "Deployment.crashed":
     case "Deployment.failed":
     case "Deployment.oom_killed": {
-      // Already in a terminal state — no-op (idempotent)
       if (currentStatus === "dead" || currentStatus === "crashed") {
         return { action: "noop" };
       }
-      return { action: "set_status", newStatus: isClaimed ? "crashed" : "dead" };
+      // pending_acceptance has reserved state (agent name, invite) — treat like claimed
+      const hasReservedState = isClaimed || currentStatus === "pending_acceptance";
+      return { action: "set_status", newStatus: hasReservedState ? "crashed" : "dead" };
     }
 
     case "Deployment.slept": {
+      if (currentStatus === "pending_acceptance") return { action: "noop" };
       return { action: "set_status", newStatus: "sleeping" };
     }
 
     case "Deployment.resumed": {
-      if (currentStatus === "sleeping" || currentStatus === "crashed" || currentStatus === "dead") {
+      if (
+        currentStatus === "sleeping"
+        || currentStatus === "crashed"
+        || currentStatus === "dead"
+        || currentStatus === "pending_acceptance"
+        || currentStatus === "tainted"
+      ) {
         return { action: "health_check" };
       }
       return { action: "noop" };

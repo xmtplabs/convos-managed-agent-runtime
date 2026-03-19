@@ -16,11 +16,29 @@ import { requireInstanceAuth } from "../middleware/instanceAuth";
 import { requireAuth } from "../middleware/auth";
 import { config } from "../config";
 import * as db from "../db/pool";
-import { instanceServices } from "../db/schema";
+import { instanceServices, instanceInfra } from "../db/schema";
 import { db as drizzle } from "../db/connection";
+import { eq } from "drizzle-orm";
 import * as agentmail from "../services/providers/agentmail";
 import * as telnyx from "../services/providers/telnyx";
 import { metricCount, metricHistogram } from "../metrics";
+
+/** Fire-and-forget profile metadata update on the runtime. */
+function updateRuntimeMetadata(instanceId: string, metadata: Record<string, string>) {
+  drizzle.select({ url: instanceInfra.url, gatewayToken: instanceInfra.gatewayToken })
+    .from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId))
+    .then((rows) => {
+      const infra = rows[0];
+      if (!infra?.url || !infra?.gatewayToken) return;
+      fetch(`${infra.url}/convos/update-metadata`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${infra.gatewayToken}` },
+        body: JSON.stringify({ metadata }),
+        signal: AbortSignal.timeout(10_000),
+      }).catch((err) => console.warn(`[proxy] metadata update failed: ${err.message}`));
+    })
+    .catch(() => {});
+}
 
 const router = Router();
 
@@ -89,6 +107,7 @@ router.post("/api/proxy/email/provision", requireInstanceOrAdminAuth, async (req
     resourceCache.delete(instanceId);
     metricCount("proxy.email.provision");
     console.log(`[proxy/email] provisioned inbox ${inboxId} for instance=${instanceId}`);
+    updateRuntimeMetadata(instanceId, { email: inboxId });
     res.json({ email: inboxId, provisioned: true });
   } catch (err: any) {
     console.error(`[proxy/email] provision error: instance=${instanceId} err=${err.message}`);
@@ -118,6 +137,7 @@ router.post("/api/proxy/sms/provision", requireInstanceOrAdminAuth, async (req, 
     resourceCache.delete(instanceId);
     metricCount("proxy.sms.provision");
     console.log(`[proxy/sms] provisioned phone ${phoneNumber} for instance=${instanceId}`);
+    updateRuntimeMetadata(instanceId, { phone: phoneNumber });
     res.json({ phone: phoneNumber, provisioned: true });
   } catch (err: any) {
     console.error(`[proxy/sms] provision error: instance=${instanceId} err=${err.message}`);

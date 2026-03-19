@@ -122,10 +122,12 @@ app.get("/api/pool/counts", async (_req, res) => {
 
 app.get("/api/pool/agents", async (_req, res) => {
   const claimed = await db.getByStatus("claimed");
+  const pendingAcceptance = await db.getByStatus("pending_acceptance");
+  const tainted = await db.getByStatus("tainted");
   const crashed = await db.getByStatus("crashed");
   const idle = await db.getByStatus("idle");
   const starting = await db.getByStatus("starting");
-  res.json({ claimed, crashed, idle, starting });
+  res.json({ claimed, pendingAcceptance, tainted, crashed, idle, starting });
 });
 
 app.get("/api/pool/info", (_req, res) => {
@@ -263,6 +265,43 @@ app.post("/api/pool/self-reset", async (req, res) => {
     res.json({ ok: true, instanceId });
   } catch (err: any) {
     console.error("[api] Self-reset failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Pending acceptance callbacks — runtime notifies pool when a pending join resolves.
+app.post("/api/pool/pending-acceptance/complete", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken, conversationId } = req.body || {};
+    if (!instanceId || !gatewayToken || !conversationId) {
+      res.status(400).json({ error: "instanceId, gatewayToken, and conversationId are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const updated = await db.completePendingAcceptance(instanceId, conversationId);
+    res.json({ ok: updated, instanceId, conversationId });
+  } catch (err: any) {
+    console.error("[api] pending-acceptance complete failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/pool/pending-acceptance/fail", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const updated = await db.failPendingAcceptance(instanceId);
+    res.json({ ok: updated, instanceId });
+  } catch (err: any) {
+    console.error("[api] pending-acceptance fail failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -607,7 +646,7 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 });
 
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
-  const { agentName, instructions, joinUrl, source } = req.body || {};
+  const { agentName, instructions, joinUrl, profileImage, metadata, source } = req.body || {};
   if (instructions && typeof instructions !== "string") {
     res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
@@ -616,6 +655,12 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   }
   if (joinUrl && typeof joinUrl !== "string") {
     res.status(400).json({ error: "joinUrl must be a string if provided" }); return;
+  }
+  if (profileImage && typeof profileImage !== "string") {
+    res.status(400).json({ error: "profileImage must be a string if provided" }); return;
+  }
+  if (metadata && (typeof metadata !== "object" || Array.isArray(metadata))) {
+    res.status(400).json({ error: "metadata must be an object if provided" }); return;
   }
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -629,6 +674,8 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       agentName: agentName || "Assistant",
       instructions: instructions || "You are a helpful AI assistant.",
       joinUrl: joinUrl || undefined,
+      profileImage: (typeof profileImage === "string" && profileImage) || undefined,
+      metadata: metadata || undefined,
       source: (typeof source === "string" && source) || "api",
     });
     if (!result) {
@@ -646,7 +693,18 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   const agentName = (req.query.agentName as string) || "Assistant";
   const instructions = (req.query.instructions as string) || "You are a helpful AI assistant.";
   const joinUrl = (req.query.joinUrl as string) || undefined;
+  const profileImage = (req.query.profileImage as string) || undefined;
   const source = (req.query.source as string) || "api";
+
+  let metadata: Record<string, string> | undefined;
+  if (req.query.metadata) {
+    try {
+      const parsed = JSON.parse(req.query.metadata as string);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        metadata = parsed;
+      }
+    } catch { /* ignore */ }
+  }
 
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -670,6 +728,8 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
       agentName,
       instructions,
       joinUrl,
+      profileImage,
+      metadata,
       source,
       onProgress(step, status, message) {
         send({ type: "step", step, status, message: message || "" });

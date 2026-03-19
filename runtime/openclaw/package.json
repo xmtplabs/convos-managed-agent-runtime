@@ -7,18 +7,11 @@
   },
   "scripts": {
     "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/gateway.sh",
-    "evals": "sh evals/run.sh",
-    "evals:knows": "sh evals/run-suite.sh knows.yaml",
-    "evals:skills": "sh evals/run-suite.sh skills.yaml",
-    "evals:soul": "sh evals/run-suite.sh soul.yaml",
-    "evals:convos": "sh evals/run-suite.sh convos.yaml",
-    "evals:async": "sh evals/run-suite.sh async.yaml",
-    "evals:memory": "sh evals/run-suite.sh memory.yaml",
-    "evals:poller": "sh evals/run-suite.sh poller.yaml"
+    "evals": "sh evals/eval.sh"
   },
   "dependencies": {
     "@bankr/cli": "^0.1.0",
-    "@xmtp/convos-cli": "^0.6.0",
+    "@xmtp/convos-cli": "^0.6.2",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "openclaw": "2026.3.11",

@@ -392,8 +392,8 @@
               return;
             }
             var d = _.data;
-            if (d.conversation && d.conversation.id) {
-              showConnected(d.conversation.id, d.streaming);
+            if (d.conversationId) {
+              showConnected(d.conversationId, false);
             } else {
               setStatus(null, "no conversation bound");
               showTwoModes();

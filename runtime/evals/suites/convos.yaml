@@ -1,7 +1,8 @@
 # runtime/evals/convos.yaml
-# Sequential lifecycle eval — all tests share one XMTP conversation.
+# Capabilities eval — profile updates, vision, group awareness, heartbeat.
+# Tests share one XMTP conversation and run sequentially.
 
-description: "OpenClaw Convos Eval"
+description: "Eval: Convos"
 
 evaluateOptions:
   maxConcurrency: 1
@@ -12,39 +13,11 @@ providers:
 defaultTest:
   options:
     provider:
-      id: openrouter:anthropic/claude-sonnet-4
+      id: "openrouter:{{ env.EVALS_MODEL | default('openai/gpt-5.4-mini') }}"
       config:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  # --- Init ---
-  - description: "Agent sends welcome message after joining"
-    vars:
-      prompt: "(waiting for welcome message)"
-    metadata:
-      waitForWelcome: true
-    assert:
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript with lines prefixed [AGENT].
-          The AGENT just joined a group conversation and sent a welcome message.
-          Evaluate against ALL requirements:
-
-          1. The message must be 1-2 sentences max. Three or more sentences is a fail.
-          2. It must contain a greeting (e.g. "hey", "hi", "hello", "what's up").
-          3. It must ask what the group is up to, working on, or what's going on.
-          4. It must reference naming — either inviting the group to suggest a name, or asking what it should be called. Any phrasing about names counts.
-          5. It must NOT mention crypto, wallets, tokens, trading, Hermes, or Nous Research.
-
-          Pass if all five requirements are met. Be lenient on exact phrasing — focus on whether the intent of each requirement is satisfied.
-      - type: not-icontains
-        value: "crypto"
-      - type: not-icontains
-        value: "wallet"
-      - type: not-icontains
-        value: "trading"
-
-  # --- Core ---
   - description: "Agent can update profile name"
     vars:
       prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
@@ -60,6 +33,16 @@ tests:
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileImageSet"
+
+  - description: "Agent can update profile metadata"
+    vars:
+      prompt: "Update your profile metadata to set credits=100. Confirm when done."
+    metadata:
+      expectedMetadataKey: "credits"
+      expectedMetadataValue: "100"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileMetadataEquals"
 
   - description: "Agent can recognize image content"
     vars:
@@ -92,13 +75,3 @@ tests:
         value: "[diagnostic]"
       - type: not-icontains
         value: "lane enqueue"
-
-  # --- Teardown (must be last) ---
-  - description: "Agent self-destructs when removed from group"
-    vars:
-      prompt: "(self-destruct trigger)"
-    metadata:
-      selfDestruct: true
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:agentSelfDestructed"

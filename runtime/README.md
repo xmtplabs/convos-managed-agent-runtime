@@ -111,9 +111,8 @@ All scripts run from `cd runtime`.
 | `pnpm setup:hermes` | Hermes: first-time local dev setup (clone + deps) |
 | `pnpm build:hermes` | Hermes: build Docker image locally |
 | `pnpm build:run:hermes` | Hermes: build and run with .env |
-| `pnpm evals` | Run all eval suites (see [evals/README.md](evals/README.md)) |
-| `pnpm evals:knows` | Knowledge eval only |
-| `pnpm evals:hermes` | All suites against hermes |
+| `pnpm evals openclaw [suite]` | Run evals against openclaw (see [evals/README.md](evals/README.md)) |
+| `pnpm evals hermes [suite]` | Run evals against hermes |
 
 ## Environment variables
 
@@ -121,7 +120,8 @@ All values are injected by the pool manager via Railway env vars at instance cre
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENCLAW_PRIMARY_MODEL` | yes | Default LLM model (e.g. `openrouter/anthropic/claude-sonnet-4-6`) |
+| `OPENCLAW_PRIMARY_MODEL` | yes | Default LLM model (e.g. `openrouter/anthropic/claude-opus-4-6`) |
+| `EVALS_MODEL` | no | Grader/judge model for evals |
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key for LLM calls |
 | `XMTP_ENV` | yes | XMTP network (`dev` or `production`) |
 | `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |

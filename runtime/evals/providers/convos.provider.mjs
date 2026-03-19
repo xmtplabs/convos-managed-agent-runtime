@@ -12,9 +12,8 @@ import { runtime } from '../lib/runtime.mjs';
 
 const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
-// Token may be set later by runtime.gateway.start() — use a getter.
 let GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-if (!GATEWAY_TOKEN && !runtime.gateway) {
+if (!GATEWAY_TOKEN) {
   console.error('[eval] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.');
   process.exit(1);
 }
@@ -28,7 +27,6 @@ process.env.EVAL_CONVOS_HOME = EVAL_HOME;
 log(`Using identity store: ${EVAL_HOME}/.convos`);
 
 function cleanup() {
-  if (runtime.gateway) { try { runtime.gateway.stop(); } catch {} }
   try { rmSync(EVAL_HOME, { recursive: true, force: true }); } catch {}
 }
 process.on('exit', cleanup);
@@ -45,27 +43,9 @@ function checkGateway() {
   }
 }
 
-// Start the gateway if the runtime adapter provides one, otherwise expect it running.
-if (runtime.gateway) {
-  log('Starting hermes server...');
-  runtime.gateway.start(GATEWAY_PORT);
-  // Wait for health check
-  const deadline = Date.now() + 30_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    sleep(1_000);
-    if (checkGateway()) { ready = true; break; }
-  }
-  if (!ready) {
-    console.error(`[eval] Server failed to start on port ${GATEWAY_PORT} within 30s.`);
-    runtime.gateway.stop();
-    process.exit(1);
-  }
-  // Re-read token — gateway.start() sets it in process.env
-  GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
-  log('Server ready.');
-} else if (!checkGateway()) {
-  console.error(`[eval] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first (pnpm gateway).`);
+// Expect the server to be running already (pnpm start:hermes or pnpm gateway).
+if (!checkGateway()) {
+  console.error(`[eval] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first.`);
   process.exit(1);
 }
 
@@ -90,8 +70,12 @@ function setup() {
     '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
     '-d', '{}',
   ], { encoding: 'utf-8', timeout: 30_000 });
-  log('Waiting for gateway to reinitialise (10s)...');
-  sleep(10_000);
+  log('Waiting for gateway to reinitialise...');
+  const resetDeadline = Date.now() + 15_000;
+  while (Date.now() < resetDeadline) {
+    sleep(500);
+    if (checkGateway()) break;
+  }
 
   log('Creating conversation...');
   const createOut = convos([
@@ -113,7 +97,7 @@ function setup() {
   ], { env: CONVOS_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
 
   try {
-    sleep(3_000);
+    sleep(1_000);
     execFileSync('curl', [
       '-s', '-X', 'POST',
       `http://localhost:${GATEWAY_PORT}/convos/join`,
@@ -125,7 +109,7 @@ function setup() {
     try { watcher.kill(); } catch {}
   }
 
-  sleep(5_000);
+  sleep(2_000);
   log(`Setup complete (${elapsed(t)})\n`);
 }
 
@@ -163,13 +147,13 @@ function waitForAgent(baseline) {
   let lastChange = Date.now();
 
   while (Date.now() < deadline) {
-    sleep(3_000);
+    sleep(1_500);
     try { msgs = fetchMessages(); } catch { continue; }
     const n = agentCount(msgs);
     if (n > count) {
       count = n;
       lastChange = Date.now();
-    } else if (count > baseline && Date.now() - lastChange >= 5_000) {
+    } else if (count > baseline && Date.now() - lastChange >= 3_000) {
       return msgs;
     }
   }
@@ -189,8 +173,8 @@ function transcript(msgs, afterIndex = 0) {
     }).join('\n');
 }
 
-export default class OpenClawProvider {
-  id() { return 'openclaw-agent'; }
+export default class ConvosProvider {
+  id() { return 'convos'; }
 
   async callApi(prompt, context) {
     testIndex++;
@@ -282,7 +266,7 @@ function handleSelfDestruct() {
         `http://localhost:${GATEWAY_PORT}/convos/status`,
       ], { encoding: 'utf-8', timeout: 5_000 });
       const s = JSON.parse(out);
-      if (s.conversation === null && s.streaming === false) {
+      if (s.conversationId === null || s.conversationId === undefined) {
         return { output: 'SELF_DESTRUCT_CONFIRMED', metadata: { conversationId: sharedConversationId } };
       }
     } catch {

@@ -49,6 +49,39 @@ describe("webhook state machine", () => {
     assert.equal(d.action, "health_check");
   });
 
+  // ── pending_acceptance / tainted ────────────────────────────────────────
+
+  it("deployed + pending_acceptance → schedules health check", () => {
+    const d = decideAction("Deployment.deployed", "pending_acceptance", true);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("deployed + tainted → schedules health check", () => {
+    const d = decideAction("Deployment.deployed", "tainted", true);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("crashed + pending_acceptance → crashed (has reserved state)", () => {
+    const d = decideAction("Deployment.crashed", "pending_acceptance", false);
+    assert.equal(d.action, "set_status");
+    assert.equal(d.newStatus, "crashed");
+  });
+
+  it("slept + pending_acceptance → no-op (preserve pending join)", () => {
+    const d = decideAction("Deployment.slept", "pending_acceptance", false);
+    assert.equal(d.action, "noop");
+  });
+
+  it("resumed + pending_acceptance → schedules health check", () => {
+    const d = decideAction("Deployment.resumed", "pending_acceptance", true);
+    assert.equal(d.action, "health_check");
+  });
+
+  it("resumed + tainted → schedules health check", () => {
+    const d = decideAction("Deployment.resumed", "tainted", true);
+    assert.equal(d.action, "health_check");
+  });
+
   // ── Destructive events ──────────────────────────────────────────────────
 
   it("crashed + unclaimed → dead", () => {

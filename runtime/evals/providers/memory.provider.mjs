@@ -9,6 +9,9 @@
 // Memory is reset via the runtime adapter before each test so results don't
 // bleed between tests.
 //
+// Hermes: curls the production server's /agent/query endpoint.
+// OpenClaw: one-shot CLI calls via the adapter's bin/args.
+//
 // ── Why extraArgs? ─────────────────────────────────────────────────────
 //
 // OpenClaw uses --local to force embedded mode so each CLI invocation reads
@@ -23,6 +26,9 @@ let testIndex = 0;
 
 function log(msg) { _log('eval:memory', msg); }
 
+const queryUrl = runtime.queryUrl || null;
+const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+
 function resetMemory() {
   runtime.memory.reset();
   log('Reset memory state');
@@ -30,6 +36,17 @@ function resetMemory() {
 
 function clearSessions() {
   runtime.memory.clearSessions();
+  // Also reset the server-side conversation history
+  if (queryUrl) {
+    try {
+      execFileSync('curl', [
+        '-sf', '-X', 'POST',
+        `${queryUrl}/agent/reset-history`,
+        '-H', 'Content-Type: application/json',
+        '-H', `Authorization: Bearer ${gatewayToken}`,
+      ], { encoding: 'utf-8', timeout: 5_000 });
+    } catch {}
+  }
 }
 
 function readMemoryFile() {
@@ -39,12 +56,23 @@ function readMemoryFile() {
 function runPrompt(prompt, sessionId, timeoutMs = 60_000) {
   const start = Date.now();
   try {
-    const args = [...runtime.args(prompt, sessionId), ...(runtime.memory.extraArgs ?? [])];
-    const raw = execFileSync(runtime.bin, args, {
-      encoding: 'utf-8', timeout: timeoutMs,
-      ...(runtime.env ? { env: runtime.env } : {}),
-      ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
-    }).trim();
+    let raw;
+    if (queryUrl) {
+      raw = execFileSync('curl', [
+        '-sf',
+        '-X', 'POST', `${queryUrl}/agent/query`,
+        '-H', 'Content-Type: application/json',
+        '-H', `Authorization: Bearer ${gatewayToken}`,
+        '-d', JSON.stringify({ query: prompt, session: sessionId }),
+      ], { encoding: 'utf-8', timeout: timeoutMs }).trim();
+    } else {
+      const args = [...runtime.args(prompt, sessionId), ...(runtime.memory.extraArgs ?? [])];
+      raw = execFileSync(runtime.bin, args, {
+        encoding: 'utf-8', timeout: timeoutMs,
+        ...(runtime.env ? { env: runtime.env } : {}),
+        ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
+      }).trim();
+    }
 
     const output = cleanOutput(raw);
     return { output, durationMs: Date.now() - start, error: null };
