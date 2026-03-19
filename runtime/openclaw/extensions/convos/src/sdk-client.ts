@@ -248,6 +248,7 @@ export class ConvosInstance {
     params?: {
       name?: string;
       profileName?: string;
+      profileImage?: string;
       description?: string;
       imageUrl?: string;
       permissions?: "all-members" | "admin-only";
@@ -257,6 +258,7 @@ export class ConvosInstance {
     const args = ["conversations", "create"];
     if (params?.name) args.push("--name", params.name);
     if (params?.profileName) args.push("--profile-name", params.profileName);
+    if (params?.profileImage) args.push("--profile-image", params.profileImage);
     if (params?.description) args.push("--description", params.description);
     if (params?.imageUrl) args.push("--image-url", params.imageUrl);
     if (params?.permissions) args.push("--permissions", params.permissions);
