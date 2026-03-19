@@ -532,8 +532,8 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                     env=env,
                     debug=True,
                 )
-                await _apply_attestation()
                 _clear_provision_state(generation)
+                await _apply_attestation()
                 await _notify_pool_pending_join("claimed", conversation_id=conversation_id)
                 logger.info("Pending join accepted: conversation %s", conversation_id[:12])
                 return
