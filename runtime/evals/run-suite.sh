@@ -1,6 +1,6 @@
 #!/bin/sh
 # Run a single eval suite. Supports any runtime via EVAL_RUNTIME env var.
-# Usage: EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml [promptfoo args...]
+# Usage: EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml [promptfoo args ...]
 #
 # EVAL_MAX_FAILURES (default: 1) — tolerate up to N test failures per suite.
 # Promptfoo exits 100 on ANY failure; this wrapper parses the results line.
@@ -15,7 +15,16 @@ SUITE="$1"; shift
 MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
 
 TMPOUT=$(mktemp)
-npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@" > "$TMPOUT" 2>&1
+SUITE_NAME="$(basename "$SUITE" .yaml)"
+
+# JSON output for CI report (opt-in via EVAL_RESULTS_DIR)
+JSON_FLAG=""
+if [ -n "${EVAL_RESULTS_DIR:-}" ]; then
+  mkdir -p "$EVAL_RESULTS_DIR"
+  JSON_FLAG="--output $EVAL_RESULTS_DIR/${SUITE_NAME}.json"
+fi
+
+npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 $JSON_FLAG "$@" > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 
 cat "$TMPOUT"
