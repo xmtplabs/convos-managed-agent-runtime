@@ -222,6 +222,21 @@ Person properties set via `$set`: `agent_name`, `runtime`.
 
 Counters are deltas (reset after each flush). If a flush fails, the deltas are lost — the next flush starts from zero, creating a gap, not a double-count.
 
+### Error logging
+
+Both runtimes also emit `instance_error` events to PostHog, batched in the same 60 s flush (no extra HTTP calls). Errors are captured automatically — `console.error` in OpenClaw, `ERROR`+ log records in Hermes.
+
+| Property | Type | Description |
+|---|---|---|
+| `instance_id` | string | Pool instance ID |
+| `runtime` | string | `openclaw` or `hermes` |
+| `environment` | string | Pool environment |
+| `runtime_version` | string | Runtime version |
+| `error_message` | string | Error text (truncated to 1024 chars) |
+| `schema_version` | int | Currently `1` |
+
+Capped at 50 errors per flush interval. Errors beyond that are silently dropped until the next flush.
+
 ## Gateway restart loop
 
 `gateway.sh` runs `openclaw gateway run` in a loop:

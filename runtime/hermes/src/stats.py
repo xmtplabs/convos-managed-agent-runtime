@@ -1,5 +1,7 @@
 """
-Stats accumulator — collects usage counters and posts directly to PostHog.
+Stats accumulator — collects usage counters **and error logs**, posts directly
+to PostHog.  Errors are batched alongside stats on the same 60 s flush interval
+so they cost zero extra HTTP calls.
 
 Usage:
     from .stats import stats
@@ -9,6 +11,10 @@ Usage:
                 instance_id="abc", agent_name="MyAgent", runtime="hermes")
     # ... on shutdown:
     await stats.shutdown()
+
+Error capture:
+    stats.capture_error("message send failed")
+    # — or — after start(), all ERROR+ log records are auto-captured.
 """
 
 from __future__ import annotations
@@ -16,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from dataclasses import dataclass, field
 
 import httpx
 
@@ -24,12 +31,34 @@ logger = logging.getLogger(__name__)
 SCHEMA_VERSION = 1
 FLUSH_INTERVAL_S = 60
 FLUSH_TIMEOUT_S = 5
+MAX_ERRORS_PER_FLUSH = 50
+
+
+@dataclass
+class _ErrorEntry:
+    message: str
+    timestamp: str
+
+
+class _StatsErrorHandler(logging.Handler):
+    """Logging handler that feeds ERROR+ records into the stats error buffer."""
+
+    def __init__(self, accumulator: StatsAccumulator) -> None:  # type: ignore[name-defined]  # forward ref
+        super().__init__(level=logging.ERROR)
+        self._acc = accumulator
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            self._acc.capture_error(self.format(record))
+        except Exception:
+            pass  # never break logging
 
 
 class StatsAccumulator:
     def __init__(self) -> None:
         self._counters: dict[str, int] = {}
         self._gauges: dict[str, float] = {}
+        self._errors: list[_ErrorEntry] = []
         self._last_message_in_at: float = 0.0
         self._posthog_api_key: str = ""
         self._posthog_host: str = ""
@@ -40,6 +69,7 @@ class StatsAccumulator:
         self._version: str = ""
         self._task: asyncio.Task | None = None
         self._started: bool = False
+        self._log_handler: _StatsErrorHandler | None = None
 
     def increment(self, metric: str, value: int = 1) -> None:
         self._counters[metric] = self._counters.get(metric, 0) + value
@@ -49,46 +79,68 @@ class StatsAccumulator:
     def set(self, metric: str, value: float) -> None:
         self._gauges[metric] = value
 
+    def capture_error(self, message: str) -> None:
+        if len(self._errors) >= MAX_ERRORS_PER_FLUSH:
+            return
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+        self._errors.append(_ErrorEntry(message=message[:1024], timestamp=ts))
+
     def _build_posthog_batch(self) -> dict:
         now = time.time()
         seconds_since = (
             int(now - self._last_message_in_at) if self._last_message_in_at > 0 else -1
         )
         ts = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
-        return {
-            "api_key": self._posthog_api_key,
-            "batch": [{
-                "event": "instance_stats",
-                "distinct_id": f"instance:{self._instance_id}",
-                "timestamp": ts,
+        distinct_id = f"instance:{self._instance_id}"
+
+        batch: list[dict] = [{
+            "event": "instance_stats",
+            "distinct_id": distinct_id,
+            "timestamp": ts,
+            "properties": {
+                "schema_version": SCHEMA_VERSION,
+                "instance_id": self._instance_id,
+                "runtime": self._runtime,
+                "messages_in": self._counters.get("messages_in", 0),
+                "messages_out": self._counters.get("messages_out", 0),
+                "tools_invoked": self._counters.get("tools_invoked", 0),
+                "skills_invoked": self._counters.get("skills_invoked", 0),
+                "group_member_count": int(self._gauges.get("group_member_count", 0)),
+                "environment": self._environment,
+                "runtime_version": self._version,
+                "seconds_since_last_message_in": seconds_since,
+                "$set": {
+                    "agent_name": self._agent_name,
+                    "runtime": self._runtime,
+                    "environment": self._environment,
+                },
+            },
+        }]
+
+        for err in self._errors:
+            batch.append({
+                "event": "instance_error",
+                "distinct_id": distinct_id,
+                "timestamp": err.timestamp,
                 "properties": {
                     "schema_version": SCHEMA_VERSION,
                     "instance_id": self._instance_id,
                     "runtime": self._runtime,
-                    "messages_in": self._counters.get("messages_in", 0),
-                    "messages_out": self._counters.get("messages_out", 0),
-                    "tools_invoked": self._counters.get("tools_invoked", 0),
-                    "skills_invoked": self._counters.get("skills_invoked", 0),
-                    "group_member_count": int(self._gauges.get("group_member_count", 0)),
                     "environment": self._environment,
                     "runtime_version": self._version,
-                    "seconds_since_last_message_in": seconds_since,
-                    "$set": {
-                        "agent_name": self._agent_name,
-                        "runtime": self._runtime,
-                        "environment": self._environment,
-                    },
+                    "error_message": err.message,
                 },
-            }],
-            "sent_at": ts,
-        }
+            })
+
+        return {"api_key": self._posthog_api_key, "batch": batch, "sent_at": ts}
 
     def has_activity(self) -> bool:
-        return any(v > 0 for v in self._counters.values())
+        return any(v > 0 for v in self._counters.values()) or len(self._errors) > 0
 
     def flush(self) -> dict:
         batch = self._build_posthog_batch()
         self._counters = {}
+        self._errors = []
         return batch
 
     async def _send(self, batch: dict) -> None:
@@ -111,6 +163,15 @@ class StatsAccumulator:
             batch = self.flush()
             await self._send(batch)
 
+    def _install_log_handler(self) -> None:
+        self._log_handler = _StatsErrorHandler(self)
+        logging.getLogger().addHandler(self._log_handler)
+
+    def _uninstall_log_handler(self) -> None:
+        if self._log_handler:
+            logging.getLogger().removeHandler(self._log_handler)
+            self._log_handler = None
+
     def start(
         self,
         *,
@@ -131,6 +192,7 @@ class StatsAccumulator:
         self._runtime = runtime
         self._environment = environment
         self._version = version
+        self._install_log_handler()
         self._task = asyncio.create_task(self._tick_loop())
         self._started = True
         logger.info("Stats started (instance=%s, interval=%ds)", instance_id, FLUSH_INTERVAL_S)
@@ -145,6 +207,7 @@ class StatsAccumulator:
             except asyncio.CancelledError:
                 pass
             self._task = None
+        self._uninstall_log_handler()
         await self._send(batch)
         self._started = False
         logger.info("Stats shut down (final flush sent)")

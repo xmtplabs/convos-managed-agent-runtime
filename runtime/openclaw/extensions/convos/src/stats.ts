@@ -1,5 +1,7 @@
 /**
- * Stats accumulator — collects usage counters and posts directly to PostHog.
+ * Stats accumulator — collects usage counters and error logs, posts directly
+ * to PostHog.  Errors are batched alongside stats on the same 60 s flush
+ * interval so they cost zero extra HTTP calls.
  *
  * Usage:
  *   import { stats } from "./stats.js";
@@ -7,15 +9,26 @@
  *   stats.set("group_member_count", 4);
  *   stats.start({ posthogApiKey, posthogHost, instanceId, agentName });
  *   await stats.shutdown();
+ *
+ * Error capture:
+ *   stats.captureError("message send failed");
+ *   // — or — after start(), console.error is auto-intercepted.
  */
 
 const SCHEMA_VERSION = 1;
 const FLUSH_INTERVAL_MS = 60_000;
 const FLUSH_TIMEOUT_MS = 5_000;
+const MAX_ERRORS_PER_FLUSH = 50;
+
+interface ErrorEntry {
+  message: string;
+  timestamp: string;
+}
 
 class StatsAccumulator {
   private counters: Record<string, number> = {};
   private gauges: Record<string, number> = {};
+  private errors: ErrorEntry[] = [];
   private lastMessageInAt = 0;
   private posthogApiKey = "";
   private posthogHost = "";
@@ -26,6 +39,7 @@ class StatsAccumulator {
   private version = "";
   private timer: ReturnType<typeof setInterval> | null = null;
   private started = false;
+  private originalConsoleError: typeof console.error | null = null;
 
   increment(metric: string, value = 1): void {
     this.counters[metric] = (this.counters[metric] ?? 0) + value;
@@ -38,6 +52,11 @@ class StatsAccumulator {
     this.gauges[metric] = value;
   }
 
+  captureError(message: string): void {
+    if (this.errors.length >= MAX_ERRORS_PER_FLUSH) return;
+    this.errors.push({ message: message.slice(0, 1024), timestamp: new Date().toISOString() });
+  }
+
   private buildPostHogBatch(): Record<string, unknown> {
     const now = Date.now();
     const secondsSince =
@@ -45,42 +64,62 @@ class StatsAccumulator {
         ? Math.round((now - this.lastMessageInAt) / 1000)
         : -1;
     const ts = new Date().toISOString();
-    return {
-      api_key: this.posthogApiKey,
-      batch: [{
-        event: "instance_stats",
-        distinct_id: `instance:${this.instanceId}`,
-        timestamp: ts,
+    const distinctId = `instance:${this.instanceId}`;
+
+    const batch: Record<string, unknown>[] = [{
+      event: "instance_stats",
+      distinct_id: distinctId,
+      timestamp: ts,
+      properties: {
+        schema_version: SCHEMA_VERSION,
+        instance_id: this.instanceId,
+        runtime: this.runtime,
+        messages_in: this.counters.messages_in ?? 0,
+        messages_out: this.counters.messages_out ?? 0,
+        tools_invoked: this.counters.tools_invoked ?? 0,
+        skills_invoked: this.counters.skills_invoked ?? 0,
+        group_member_count: this.gauges.group_member_count ?? 0,
+        environment: this.environment,
+        runtime_version: this.version,
+        seconds_since_last_message_in: secondsSince,
+        $set: {
+          agent_name: this.agentName,
+          runtime: this.runtime,
+          environment: this.environment,
+        },
+      },
+    }];
+
+    for (const err of this.errors) {
+      batch.push({
+        event: "instance_error",
+        distinct_id: distinctId,
+        timestamp: err.timestamp,
         properties: {
           schema_version: SCHEMA_VERSION,
           instance_id: this.instanceId,
           runtime: this.runtime,
-          messages_in: this.counters.messages_in ?? 0,
-          messages_out: this.counters.messages_out ?? 0,
-          tools_invoked: this.counters.tools_invoked ?? 0,
-          skills_invoked: this.counters.skills_invoked ?? 0,
-          group_member_count: this.gauges.group_member_count ?? 0,
           environment: this.environment,
           runtime_version: this.version,
-          seconds_since_last_message_in: secondsSince,
-          $set: {
-            agent_name: this.agentName,
-            runtime: this.runtime,
-            environment: this.environment,
-          },
+          error_message: err.message,
         },
-      }],
-      sent_at: ts,
-    };
+      });
+    }
+
+    return { api_key: this.posthogApiKey, batch, sent_at: ts };
   }
 
   private hasActivity(): boolean {
-    return Object.values(this.counters).some((v) => v > 0);
+    return (
+      Object.values(this.counters).some((v) => v > 0) ||
+      this.errors.length > 0
+    );
   }
 
   flush(): Record<string, unknown> {
     const batch = this.buildPostHogBatch();
     this.counters = {};
+    this.errors = [];
     return batch;
   }
 
@@ -99,6 +138,29 @@ class StatsAccumulator {
       }
     } catch {
       // Silent — will retry next tick
+    }
+  }
+
+  private installConsoleErrorHook(): void {
+    this.originalConsoleError = console.error;
+    const self = this;
+    console.error = function (...args: unknown[]) {
+      self.originalConsoleError!.apply(console, args);
+      try {
+        const msg = args.map((a) =>
+          typeof a === "string" ? a : a instanceof Error ? a.message : String(a),
+        ).join(" ");
+        self.captureError(msg);
+      } catch {
+        // Never break the original console.error path
+      }
+    };
+  }
+
+  private uninstallConsoleErrorHook(): void {
+    if (this.originalConsoleError) {
+      console.error = this.originalConsoleError;
+      this.originalConsoleError = null;
     }
   }
 
@@ -121,6 +183,8 @@ class StatsAccumulator {
     this.version = opts.version || "";
     this.started = true;
 
+    this.installConsoleErrorHook();
+
     this.timer = setInterval(() => {
       if (!this.hasActivity()) return;
       const batch = this.flush();
@@ -142,6 +206,7 @@ class StatsAccumulator {
       clearInterval(this.timer);
       this.timer = null;
     }
+    this.uninstallConsoleErrorHook();
     await this.send(batch);
     this.started = false;
     console.log("[stats] shut down (final flush sent)");
