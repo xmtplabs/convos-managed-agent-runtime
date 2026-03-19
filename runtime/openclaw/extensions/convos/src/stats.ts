@@ -20,6 +20,7 @@ class StatsAccumulator {
   private posthogApiKey = "";
   private posthogHost = "";
   private instanceId = "";
+  private agentName = "";
   private runtime = "openclaw";
   private environment = "";
   private version = "";
@@ -63,6 +64,7 @@ class StatsAccumulator {
           runtime_version: this.version,
           seconds_since_last_message_in: secondsSince,
           $set: {
+            agent_name: this.agentName,
             runtime: this.runtime,
             environment: this.environment,
           },
@@ -100,6 +102,7 @@ class StatsAccumulator {
     posthogApiKey: string;
     posthogHost?: string;
     instanceId: string;
+    agentName?: string;
     runtime?: string;
     environment?: string;
     version?: string;
@@ -108,6 +111,7 @@ class StatsAccumulator {
     this.posthogApiKey = opts.posthogApiKey;
     this.posthogHost = (opts.posthogHost || "https://us.i.posthog.com").replace(/\/+$/, "");
     this.instanceId = opts.instanceId;
+    this.agentName = opts.agentName || "";
     if (opts.runtime) this.runtime = opts.runtime;
     this.environment = opts.environment || "";
     this.version = opts.version || "";
