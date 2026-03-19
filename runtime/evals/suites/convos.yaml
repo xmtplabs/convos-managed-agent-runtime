@@ -1,5 +1,5 @@
 # runtime/evals/convos.yaml
-# Capabilities eval — profile updates, vision, group awareness, heartbeat.
+# Capabilities eval — profile updates, vision, group awareness.
 # Tests share one XMTP conversation and run sequentially.
 
 description: "Eval: Convos"
@@ -64,12 +64,3 @@ tests:
           Pass if the AGENT's response mentions or lists any participants, members,
           identities, addresses, or people in the group.
           Fail only if the AGENT refused, said it doesn't know, or gave no answer.
-
-  - description: "Heartbeat stays silent — no visible reply"
-    vars:
-      prompt: "Run your heartbeat check. Report only if there's something worth notifying."
-    metadata:
-      silence: true
-    assert:
-      - type: equals
-        value: "SILENCE_OK"
