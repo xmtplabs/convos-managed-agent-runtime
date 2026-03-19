@@ -15,7 +15,16 @@ SUITE="$1"; shift
 MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
 
 TMPOUT=$(mktemp)
-npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 "$@" > "$TMPOUT" 2>&1
+SUITE_NAME="$(basename "$SUITE" .yaml)"
+
+# JSON output for CI report (opt-in via EVAL_RESULTS_DIR)
+JSON_FLAG=""
+if [ -n "${EVAL_RESULTS_DIR:-}" ]; then
+  mkdir -p "$EVAL_RESULTS_DIR"
+  JSON_FLAG="--output $EVAL_RESULTS_DIR/${SUITE_NAME}.json"
+fi
+
+npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 $JSON_FLAG "$@" > "$TMPOUT" 2>&1
 EXIT_CODE=$?
 
 cat "$TMPOUT"

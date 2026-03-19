@@ -161,6 +161,7 @@ jobs:
           docker exec \
             -e "EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}" \
             -e "EVALS_MODEL=${{ secrets.EVALS_MODEL }}" \
+            -e "EVAL_RESULTS_DIR=/tmp/eval-results" \
             eval-runtime timeout ${{ matrix.timeout }} \
               pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
 
@@ -173,18 +174,11 @@ jobs:
         if: always()
         run: docker logs eval-runtime
 
-      - name: Save eval result
+      - name: Copy eval results from container
         if: always()
         run: |
           mkdir -p /tmp/eval-results
-          if [ "${{ steps.skip-eval.outcome }}" = "success" ]; then
-            RESULT="skip"
-          elif [ "${{ steps.run-eval.outcome }}" = "success" ]; then
-            RESULT="pass"
-          else
-            RESULT="fail"
-          fi
-          echo "${{ matrix.suite }},$RESULT" > /tmp/eval-results/${{ inputs.runtime }}-${{ matrix.suite }}.csv
+          docker cp eval-runtime:/tmp/eval-results/. /tmp/eval-results/ 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -206,32 +200,70 @@ jobs:
           path: /tmp/eval-results
           merge-multiple: true
 
-      - name: Build summary table
+      - name: Build eval report
         run: |
           {
             echo "## ${{ inputs.runtime }} eval results"
             echo ""
-            echo "| Suite | Result |"
-            echo "|-------|--------|"
+            echo "| Suite | Passed | Failed | Result |"
+            echo "|-------|--------|--------|--------|"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          FAIL_COUNT=0
-          for f in /tmp/eval-results/*.csv; do
+          TOTAL_FAILURES=0
+          FAILURE_DETAILS=""
+
+          for f in /tmp/eval-results/*.json; do
             [ -f "$f" ] || continue
-            while IFS=, read -r suite status; do
-              case "$status" in
-                pass) echo "| $suite | :white_check_mark: pass |" ;;
-                skip) echo "| $suite | :fast_forward: skip |" ;;
-                *)    echo "| $suite | :x: **FAIL** |"; FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
-              esac
-            done < "$f"
-          done >> "$GITHUB_STEP_SUMMARY"
+            suite="$(basename "$f" .json)"
+
+            passed=$(jq '[.results[] | select(.success == true)] | length' "$f" 2>/dev/null || echo 0)
+            failed=$(jq '[.results[] | select(.success == false)] | length' "$f" 2>/dev/null || echo 0)
+
+            if [ "$failed" -gt 0 ]; then
+              echo "| $suite | $passed | $failed | :x: **FAIL** |" >> "$GITHUB_STEP_SUMMARY"
+              TOTAL_FAILURES=$((TOTAL_FAILURES + failed))
+
+              # Collect individual test failure details
+              details=$(jq -r '
+                [.results[] | select(.success == false)] |
+                to_entries[] |
+                "| \(.value.testCase.description // .value.vars.prompt // "test #\(.key + 1)") | \(
+                  (
+                    [.value.gradingResult.componentResults[]? | select(.pass == false) | .reason] |
+                    if length > 0 then .[0]
+                    else (.value.gradingResult.reason // "—")
+                    end
+                  ) |
+                  gsub("\n"; " ") |
+                  if length > 120 then .[:120] + "…" else . end
+                ) |"
+              ' "$f" 2>/dev/null || true)
+
+              if [ -n "$details" ]; then
+                FAILURE_DETAILS="${FAILURE_DETAILS}
+### ${suite}
+
+| Test | Reason |
+|------|--------|
+${details}
+"
+              fi
+            else
+              echo "| $suite | $passed | 0 | :white_check_mark: pass |" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
 
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$FAIL_COUNT" -gt 0 ]; then
-            echo "**$FAIL_COUNT suite(s) failed.**" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$TOTAL_FAILURES" -gt 0 ]; then
+            echo "**$TOTAL_FAILURES test(s) failed across all suites.**" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>Failure details</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "$FAILURE_DETAILS" >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "All suites passed." >> "$GITHUB_STEP_SUMMARY"
+            echo "All tests passed." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   publish:
