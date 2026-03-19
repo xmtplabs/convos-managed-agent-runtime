@@ -33,8 +33,10 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
           );
         }
 
-        // Best-effort delete the OpenRouter key by name
-        const keyHash = await openrouter.findKeyHash(`convos-agent-${instanceId}`);
+        // Best-effort delete the OpenRouter key by name (try new format, fall back to legacy)
+        const keyHash =
+          await openrouter.findKeyHash(`assistant-${config.poolEnvironment}-${instanceId}`) ||
+          await openrouter.findKeyHash(`convos-agent-${instanceId}`);
         if (keyHash) await openrouter.deleteKey(keyHash).catch(() => {});
       } else {
         console.warn(`[pool] Instance ${instanceId} not in infra DB and no serviceId, skipping`);
@@ -48,7 +50,7 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
 // Create a single new instance via services and insert into DB.
 export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string, model?: string) {
   const id = nanoid(12);
-  const name = `convos-agent-${id}`;
+  const name = `assistant-${config.poolEnvironment}-${id}`;
   const createStart = Date.now();
 
   console.log(`[pool] Creating instance ${name}...`);

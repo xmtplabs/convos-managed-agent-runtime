@@ -24,6 +24,10 @@ class RuntimeConfig:
     pool_url: str = ""
     instance_id: str = ""
 
+    # Telemetry
+    posthog_api_key: str = ""
+    posthog_host: str = "https://us.i.posthog.com"
+
     # Hermes
     hermes_home: str = ""
     workspace_dir: str = ""
@@ -57,6 +61,8 @@ class RuntimeConfig:
             gateway_token=gateway_token,
             pool_url=os.environ.get("POOL_URL", ""),
             instance_id=os.environ.get("INSTANCE_ID", ""),
+            posthog_api_key=os.environ.get("POSTHOG_API_KEY", ""),
+            posthog_host=os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com"),
             hermes_home=hermes_home,
             workspace_dir=workspace_dir,
         )

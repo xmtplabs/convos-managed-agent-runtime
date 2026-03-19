@@ -128,6 +128,8 @@ All values are injected by the pool manager via Railway env vars at instance cre
 | `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
 | `POOL_URL` | no | Pool manager URL — service calls (email, SMS) are proxied through this |
 | `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |
+| `POSTHOG_API_KEY` | no | PostHog project token — enables usage telemetry (forwarded by pool manager) |
+| `POSTHOG_HOST` | no | PostHog ingest URL (default: `https://us.i.posthog.com`) |
 
 ### Docker / Railway only
 
@@ -197,6 +199,28 @@ When deployed by the pool manager, the runtime exposes endpoints via `pool-serve
 | `POST /pool/self-destruct` | Instance requests own destruction via pool manager (localhost-only) |
 
 The pool manager creates a Railway service with the GHCR image, injects env vars, waits for `/pool/health`, then provisions via `/pool/provision` at claim time.
+
+## Telemetry
+
+Both runtimes emit an `instance_stats` event to PostHog every 60s (direct POST to `/batch/`, no proxy). Only instances with an active conversation emit. Requires `POSTHOG_API_KEY` to be set.
+
+| Property | Type | Description |
+|---|---|---|
+| `instance_id` | string | Pool instance ID |
+| `runtime` | string | `openclaw` or `hermes` |
+| `messages_in` | int | Inbound messages since last flush (delta) |
+| `messages_out` | int | Outbound messages since last flush (delta) |
+| `tools_invoked` | int | Tool calls since last flush (delta, not yet instrumented) |
+| `skills_invoked` | int | Skill loads since last flush (delta, not yet instrumented) |
+| `group_member_count` | int | Current group member count (gauge) |
+| `environment` | string | Pool environment (`dev`, `staging`, `production`) |
+| `runtime_version` | string | Runtime version from `runtime/package.json` |
+| `seconds_since_last_message_in` | int | Staleness signal (-1 if no messages yet) |
+| `schema_version` | int | Currently `1` |
+
+Person properties set via `$set`: `agent_name`, `runtime`.
+
+Counters are deltas (reset after each flush). If a flush fails, the deltas are lost — the next flush starts from zero, creating a gap, not a double-count.
 
 ## Gateway restart loop
 

@@ -420,8 +420,13 @@
       var killSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
       var infoSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
 
+      function lookupKey(id) {
+        return svcKeyMap['assistant-' + POOL_ENV + '-' + id]
+            || svcKeyMap['convos-agent-' + id];
+      }
+
       function getUsageValue(a) {
-        var key = svcKeyMap['convos-agent-' + a.id];
+        var key = lookupKey(a.id);
         if (!key) return -1;
         return key.usage || 0;
       }
@@ -443,7 +448,7 @@
         var isProtected = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
         var infra = infraMap[a.id] || {};
         var rUrl = railwayUrl(a.serviceId || infra.provider_service_id, a.id);
-        var key = svcKeyMap['convos-agent-' + a.id];
+        var key = lookupKey(a.id);
         var usageCell = '';
         if (key) {
           var usage = key.usage || 0;
@@ -1328,7 +1333,7 @@
       document.querySelectorAll('tr.expanded').forEach(function (r) { r.classList.remove('expanded'); });
 
       var tools = svcToolsMap[instanceId] || [];
-      var key = svcKeyMap['convos-agent-' + instanceId];
+      var key = lookupKey(instanceId);
       var infra = infraMap[instanceId] || {};
       var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).concat(pendingCache).concat(taintedCache).find(function (a) { return a.id === instanceId; });
 
@@ -1351,8 +1356,8 @@
         + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
-            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">convos-agent-' + esc(instanceId) + '</a>'
-            : '<span class="expand-val mono">convos-agent-' + esc(instanceId) + '</span>')
+            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">assistant-' + esc(POOL_ENV) + '-' + esc(instanceId) + '</a>'
+            : '<span class="expand-val mono">assistant-' + esc(POOL_ENV) + '-' + esc(instanceId) + '</span>')
           + '</div>' : '')
         + '</div>';
 

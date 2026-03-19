@@ -7,5 +7,8 @@ export function buildInstanceEnv(): Record<string, string> {
     XMTP_ENV: config.xmtpEnv,
     CONVOS_API_KEY: config.convosApiKey,
     POOL_URL: config.poolUrl,
+    POSTHOG_API_KEY: config.posthogApiKey,
+    POSTHOG_HOST: config.posthogHost,
+    POOL_ENVIRONMENT: config.poolEnvironment,
   };
 }
