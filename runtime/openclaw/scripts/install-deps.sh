@@ -29,7 +29,7 @@ done
 brand_subsection "toolchain"
 convos_ver=$(convos --version 2>/dev/null || echo "not found")
 openclaw_ver=$(openclaw --version 2>/dev/null || echo "not found")
-bankr_ver=$(bankr --version 2>/dev/null || echo "not found")
+
 node_ver=$(node --version 2>/dev/null || echo "not found")
 pnpm_ver=$(pnpm --version 2>/dev/null || echo "not found")
 ethers_ver=$(node -e "console.log(require('ethers/package.json').version)" 2>/dev/null || echo "not found")
@@ -37,7 +37,7 @@ pg_ver=$(node -e "console.log(require('pg/package.json').version)" 2>/dev/null |
 dotenv_ver=$(node -e "console.log(require('dotenv/package.json').version)" 2>/dev/null || echo "not found")
 brand_ok "openclaw" "$openclaw_ver"
 brand_ok "convos" "$convos_ver"
-brand_ok "bankr" "$bankr_ver"
+
 brand_ok "ethers" "$ethers_ver"
 brand_ok "pg" "$pg_ver"
 brand_ok "dotenv" "$dotenv_ver"

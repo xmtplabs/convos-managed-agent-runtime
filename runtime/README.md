@@ -17,7 +17,7 @@ Two agent runtimes as peers — **OpenClaw** (Node.js) and **Hermes** (Python) �
 │  openclaw gateway run                           │
 │    ├── convos channel (XMTP)                    │
 │    ├── web-tools (browser, forms)               │
-│    ├── skills (services, bankr)      │
+│    ├── skills (services)             │
 │    └── webchat control UI                       │
 └─────────────────────────────────────────────────┘
 ```
@@ -42,7 +42,7 @@ runtime/
 │   ├── workspace/
 │   │   ├── AGENTS-base.md  # shared agent instructions (~80% of AGENTS.md)
 │   │   ├── SOUL.md         # personality
-│   │   └── skills/         # services, convos-runtime, convos-cli, bankr
+│   │   └── skills/         # services, convos-runtime, convos-cli
 │   └── web-tools/          # browser automation, landing page, forms
 ├── openclaw/               # OpenClaw runtime
 │   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
@@ -76,7 +76,7 @@ runtime/
 |------|---------|----------|
 | `AGENTS-base.md` | Shared agent instructions (~80% of final AGENTS.md) | Concatenated with runtime's `agents-extra.md` to produce AGENTS.md |
 | `SOUL.md` | Personality / persona (includes OpenClaw YAML frontmatter, ignored by Hermes) | Copied as-is |
-| `skills/` | All skills (services, convos-runtime, convos-cli, bankr) | Copied to runtime's skills directory |
+| `skills/` | All skills (services, convos-runtime, convos-cli) | Copied to runtime's skills directory |
 
 **AGENTS.md assembly:** `cat AGENTS-base.md agents-extra.md > AGENTS.md`. Each runtime keeps an `agents-extra.md` in its own workspace with runtime-specific sections (e.g. Delegation, Memory, Identity for Hermes).
 

@@ -74,9 +74,7 @@
       "services": {
         "enabled": true
       },
-      "bankr": {
-        "enabled": true
-      },
+
       "settings": {
         "enabled": true
       }

@@ -142,6 +142,19 @@ function agentCount(msgs) {
   return msgs.filter(isAgentReply).length;
 }
 
+// Wait a short window and confirm the agent stays quiet (no new messages).
+function waitForSilence(baseline, windowMs = 15_000) {
+  const deadline = Date.now() + windowMs;
+  while (Date.now() < deadline) {
+    sleep(1_500);
+    try {
+      const msgs = fetchMessages();
+      if (agentCount(msgs) > baseline) return { silent: false, msgs };
+    } catch { continue; }
+  }
+  return { silent: true, msgs: fetchMessages() };
+}
+
 // Wait for at least one new agent message after `baseline`, then settle.
 function waitForAgent(baseline) {
   const deadline = Date.now() + 60_000;
@@ -217,6 +230,14 @@ export default class ConvosProvider {
       convos(['conversation', 'send-text', sharedConversationId, prompt, '--env', ENV], { timeout: 30_000 });
     } else {
       log('Waiting for agent welcome message...');
+    }
+
+    // Silence test: verify agent does NOT reply within a short window.
+    if (meta.silence) {
+      const { silent, msgs } = waitForSilence(baseline);
+      const output = silent ? 'SILENCE_OK' : transcript(msgs, msgsBefore);
+      log(`${silent ? 'OK (silent)' : 'FAIL (agent spoke)'} ${desc} (${elapsed(t)})`);
+      return { output, metadata: { conversationId: sharedConversationId } };
     }
 
     const msgs = waitForAgent(baseline);
