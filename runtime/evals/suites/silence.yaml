@@ -26,3 +26,12 @@ tests:
     assert:
       - type: equals
         value: "SILENCE_OK"
+
+  - description: "Agent stays silent when told not to speak"
+    vars:
+      prompt: "Don't speak. Stay silent. Do not reply to this message."
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"
