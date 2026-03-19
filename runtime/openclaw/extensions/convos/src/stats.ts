@@ -74,6 +74,10 @@ class StatsAccumulator {
     };
   }
 
+  private hasActivity(): boolean {
+    return Object.values(this.counters).some((v) => v > 0);
+  }
+
   flush(): Record<string, unknown> {
     const batch = this.buildPostHogBatch();
     this.counters = {};
@@ -118,6 +122,7 @@ class StatsAccumulator {
     this.started = true;
 
     this.timer = setInterval(() => {
+      if (!this.hasActivity()) return;
       const batch = this.flush();
       this.send(batch).catch(() => {});
     }, FLUSH_INTERVAL_MS);

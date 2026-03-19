@@ -83,6 +83,9 @@ class StatsAccumulator:
             "sent_at": ts,
         }
 
+    def has_activity(self) -> bool:
+        return any(v > 0 for v in self._counters.values())
+
     def flush(self) -> dict:
         batch = self._build_posthog_batch()
         self._counters = {}
@@ -103,6 +106,8 @@ class StatsAccumulator:
     async def _tick_loop(self) -> None:
         while True:
             await asyncio.sleep(FLUSH_INTERVAL_S)
+            if not self.has_activity():
+                continue
             batch = self.flush()
             await self._send(batch)
 
