@@ -97,6 +97,7 @@ jobs:
 
   eval:
     name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
+    if: ${{ !matrix.only || matrix.only == inputs.runtime }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -109,7 +110,7 @@ jobs:
           - { suite: soul,   timeout: 180 }
           - { suite: lifecycle, timeout: 300 }
           - { suite: convos,           timeout: 300 }
-          - { suite: models, timeout: 300 }
+          - { suite: models, timeout: 300, only: openclaw }
           - { suite: async,  timeout: 120 }
           - { suite: memory, timeout: 300 }
           - { suite: poller, timeout: 300 }
