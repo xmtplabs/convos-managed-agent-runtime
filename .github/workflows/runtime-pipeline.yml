@@ -97,7 +97,6 @@ jobs:
 
   eval:
     name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
-    if: matrix.only == '' || matrix.only == inputs.runtime
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -155,12 +154,17 @@ jobs:
           echo "Failed to start"; docker logs eval-runtime; exit 1
 
       - name: "Run ${{ matrix.suite }}"
+        if: matrix.only == '' || matrix.only == inputs.runtime
         run: |
           docker exec \
             -e "EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}" \
             -e "EVALS_MODEL=${{ secrets.EVALS_MODEL }}" \
             eval-runtime timeout ${{ matrix.timeout }} \
               pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
+
+      - name: "Skip ${{ matrix.suite }} (not for ${{ inputs.runtime }})"
+        if: matrix.only != '' && matrix.only != inputs.runtime
+        run: echo "Skipped — ${{ matrix.suite }} only runs on ${{ matrix.only }}"
 
       - name: Dump logs
         if: always()
