@@ -280,6 +280,9 @@ export class ConvosInstance {
       options,
     });
     instance.inboxId = data.inboxId;
+    if (params?.profileImage) {
+      instance.profileImageRenewal.recordAppliedImage(params.profileImage);
+    }
 
     return {
       instance,
