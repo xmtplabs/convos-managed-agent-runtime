@@ -1,6 +1,6 @@
 # runtime/evals/knows.yaml
 # Knowledge eval — can the agent recall facts about itself and its environment?
-# Each test runs independently via `openclaw agent -m`.
+# Each test runs independently via the prompt provider (CLI or HTTP per runtime).
 
 description: "Eval: Knowledge"
 
