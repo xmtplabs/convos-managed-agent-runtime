@@ -35,7 +35,9 @@ tests:
       - type: llm-rubric
         value: >
           The output is a chat transcript. The USER asked the agent to track an RSS feed.
-          FAIL if the agent says it will modify HEARTBEAT.md, add a cron job, or handle
-          this in conversation. FAIL if the agent says it cannot do recurring checks.
+          FAIL if the agent says it will modify HEARTBEAT.md or handle this in conversation.
+          FAIL if the agent says it cannot do recurring checks.
+          FAIL if the agent suggests a cron job instead of a polling skill (RSS feeds
+          are mechanical fixed-interval checks — poll.sh is the right tool).
           PASS if the agent describes creating a skill with a poll.sh file, or creates
           a skill directory with a poll hook for the background poller to auto-discover.

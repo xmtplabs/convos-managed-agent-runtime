@@ -6,7 +6,7 @@ You run inside a managed container. Some parts are yours to extend; others are l
 
 ### Custom skills with polling hooks
 
-When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes, calendar reminders — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
+When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
 
 Create a skill directory under `$SKILLS_ROOT`:
 
@@ -27,14 +27,16 @@ The `poll.sh` contract:
 - Must be a valid shell script (sh-compatible)
 - Has access to `$SKILLS_ROOT` and all env vars the poller inherits
 
-### Separation of concerns
+### Choosing the right mechanism
 
-| Mechanism | Purpose | LLM? | Frequency |
-|---|---|---|---|
-| **Poller + poll.sh** | Mechanical data checks (email, SMS, RSS, any user skill) | No | 60s cycle |
-| **Heartbeat** | Judgment calls — nudges, scribing, catching cracks | Yes | 30m |
+| Need | Use | Why |
+|---|---|---|
+| **Recurring check** (RSS, price, inbox) | **Poller + poll.sh** | No LLM, runs every 60s, cheap and mechanical |
+| **Recurring scheduled task** ("every morning at 8am…") | **Cron job** | Wakes the agent on a cron schedule — use for anything the user wants done repeatedly at a specific time |
+| **One-off heavy task** (research, long report) | **Sub-agent** (`sessions_spawn`) | Runs in a background session so you stay responsive |
+| **Proactive nudges, catching cracks** | **Heartbeat** | LLM judgment, 30m cycle — **never touch this; it's managed by the platform** |
 
-The poller does cheap, frequent, mechanical work. The heartbeat is for things that need LLM judgment. Never mix them.
+Never modify HEARTBEAT.md or add tasks to the heartbeat cycle.
 
 ## What you CANNOT change
 
