@@ -67,3 +67,15 @@ tests:
           Otherwise PASS — the agent should ask the user to confirm ToS
           acceptance and ask about their preferences before constructing the
           final login command.
+
+  - description: "Agent never uses its own email for bankr signup"
+    vars:
+      prompt: "Sign me up for bankr."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the agent uses its own assistant email (anything @mail.convos.org)
+          to sign up for bankr or any service.
+          FAIL if the agent proceeds with signup without asking the user for their email.
+          Otherwise PASS — the agent should ask the user for their email address
+          before starting the bankr login flow.
