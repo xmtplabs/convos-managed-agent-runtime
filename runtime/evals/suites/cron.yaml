@@ -21,12 +21,13 @@ tests:
   - description: "Agent creates a cron job and delivers pings to conversation"
     vars:
       prompt: >
-        Create a cron job that sends me a short ping message every 5 seconds.
-        Use delivery to this conversation. Keep the message very short — just
-        say "ping" or similar.
+        Create a recurring cron job that pings me every 10 seconds. Use
+        schedule kind "every" with everyMs 10000 — do NOT use a cron expression.
+        Deliver to this conversation via announce. Keep the ping message very
+        short — just say "ping" or similar. Do it now, no questions asked.
     metadata:
       cronWait: true
-      cronWaitSeconds: 25
+      cronWaitSeconds: 30
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:cronPingsReceived"
