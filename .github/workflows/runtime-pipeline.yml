@@ -155,6 +155,7 @@ jobs:
           echo "Failed to start"; docker logs eval-runtime; exit 1
 
       - name: "Run ${{ matrix.suite }}"
+        id: run-eval
         if: matrix.only == '' || matrix.only == inputs.runtime
         run: |
           docker exec \
@@ -164,12 +165,74 @@ jobs:
               pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
 
       - name: "Skip ${{ matrix.suite }} (not for ${{ inputs.runtime }})"
+        id: skip-eval
         if: matrix.only != '' && matrix.only != inputs.runtime
         run: echo "Skipped — ${{ matrix.suite }} only runs on ${{ matrix.only }}"
 
       - name: Dump logs
         if: always()
         run: docker logs eval-runtime
+
+      - name: Save eval result
+        if: always()
+        run: |
+          mkdir -p /tmp/eval-results
+          if [ "${{ steps.skip-eval.outcome }}" = "success" ]; then
+            RESULT="skip"
+          elif [ "${{ steps.run-eval.outcome }}" = "success" ]; then
+            RESULT="pass"
+          else
+            RESULT="fail"
+          fi
+          echo "${{ matrix.suite }},$RESULT" > /tmp/eval-results/${{ inputs.runtime }}-${{ matrix.suite }}.csv
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-result-${{ inputs.runtime }}-${{ matrix.suite }}
+          path: /tmp/eval-results/
+          retention-days: 1
+          compression-level: 0
+
+  report:
+    name: "Report ${{ inputs.runtime }}"
+    needs: eval
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eval-result-${{ inputs.runtime }}-*
+          path: /tmp/eval-results
+          merge-multiple: true
+
+      - name: Build summary table
+        run: |
+          {
+            echo "## ${{ inputs.runtime }} eval results"
+            echo ""
+            echo "| Suite | Result |"
+            echo "|-------|--------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          FAIL_COUNT=0
+          for f in /tmp/eval-results/*.csv; do
+            [ -f "$f" ] || continue
+            while IFS=, read -r suite status; do
+              case "$status" in
+                pass) echo "| $suite | :white_check_mark: pass |" ;;
+                skip) echo "| $suite | :fast_forward: skip |" ;;
+                *)    echo "| $suite | :x: **FAIL** |"; FAIL_COUNT=$((FAIL_COUNT + 1)) ;;
+              esac
+            done < "$f"
+          done >> "$GITHUB_STEP_SUMMARY"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FAIL_COUNT" -gt 0 ]; then
+            echo "**$FAIL_COUNT suite(s) failed.**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "All suites passed." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   publish:
     name: "Publish ${{ inputs.runtime }}"
