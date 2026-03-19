@@ -217,8 +217,8 @@ jobs:
             [ -f "$f" ] || continue
             suite="$(basename "$f" .json)"
 
-            passed=$(jq '[.results[] | select(.success == true)] | length' "$f" 2>/dev/null || echo 0)
-            failed=$(jq '[.results[] | select(.success == false)] | length' "$f" 2>/dev/null || echo 0)
+            passed=$(jq '[.results.results[] | select(.success == true)] | length' "$f" 2>/dev/null || echo 0)
+            failed=$(jq '[.results.results[] | select(.success == false)] | length' "$f" 2>/dev/null || echo 0)
 
             if [ "$failed" -gt 0 ]; then
               printf "| %s | %s | %s | :x: **FAIL** |\n" "$suite" "$passed" "$failed" >> "$S"
@@ -230,7 +230,7 @@ jobs:
               printf "|------|--------|\n" >> "$DETAILS_FILE"
 
               jq -r '
-                [.results[] | select(.success == false)] |
+                [.results.results[] | select(.success == false)] |
                 to_entries[] |
                 "| \(.value.testCase.description // .value.vars.prompt // "test #\(.key + 1)") | \(
                   (
