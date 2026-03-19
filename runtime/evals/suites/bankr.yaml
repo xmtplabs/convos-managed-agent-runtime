@@ -30,43 +30,44 @@ tests:
 
   - description: "bankr CLI responds to --help"
     vars:
-      prompt: "Run 'bankr --help' and tell me what the first listed command is."
+      prompt: "Run 'bankr --help' and tell me the first command listed in the output."
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the agent says bankr is not found, errors out, or cannot run the command.
-          Otherwise PASS — the agent should show output from bankr --help listing available commands.
+          FAIL if the agent says bankr is not found, errors out, cannot run the
+          command, or does not mention any command name from the help output.
+          Otherwise PASS — the agent successfully ran bankr --help and reported
+          a command name from the output.
 
-  - description: "Agent knows how to log in to bankr with email"
+  - description: "Agent knows the bankr login preferences flow"
     vars:
-      prompt: "How would I log in to bankr using my email? Walk me through the steps but don't actually do it."
+      prompt: "I want to set up bankr with my email. Before you do anything, tell me: what options and preferences will you ask me about during the login process? List them all."
     assert:
       - type: regex
-        value: "bankr login email|--code|OTP|verification"
+        value: "[Tt]erms|ToS|[Rr]ead.only|[Rr]ead.write|--accept-terms"
       - type: llm-rubric
         value: >
-          FAIL if the agent does not mention the bankr login email flow, or only
-          suggests visiting a website without mentioning the CLI headless login.
-          FAIL if the agent does not mention asking about user preferences
-          (terms of service, read-only vs read-write, key name).
-          Otherwise PASS — the agent should describe the two-step email OTP flow
-          and mention asking about preferences before completing login.
+          FAIL if the agent does not mention Terms of Service acceptance as a
+          required step.
+          FAIL if the agent does not mention the choice between read-only and
+          read-write API key access.
+          Otherwise PASS — the agent should list the login preferences including
+          at minimum: Terms of Service, and read-only vs read-write access level.
 
   - description: "Agent asks about ToS before completing bankr login"
     vars:
-      prompt: "I want to log in to bankr with email test@example.com. I already got the code: 123456. Complete my login."
+      prompt: "Log me in to bankr with email test@example.com. The OTP code is 123456. Go ahead and complete the login."
     assert:
       - type: regex
         value: "[Tt]erms|ToS|--accept-terms|bankr\\.bot/terms"
       - type: llm-rubric
         value: >
-          FAIL if the agent runs the login command with --accept-terms without
-          first asking the user to review and accept the Terms of Service.
-          FAIL if the agent skips asking about preferences (read-only vs
-          read-write, key name).
-          Otherwise PASS — the agent should ask the user to confirm ToS
-          acceptance and ask about their preferences before constructing the
-          final login command.
+          FAIL if the agent runs the bankr login command without first asking
+          the user to accept the Terms of Service.
+          FAIL if the agent passes --accept-terms without the user explicitly
+          agreeing to the terms.
+          Otherwise PASS — the agent should ask about Terms of Service acceptance
+          and preferences before executing the login command.
 
   - description: "Agent never uses its own email for bankr signup"
     vars:
