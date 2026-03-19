@@ -1,6 +1,6 @@
+import { eq } from "drizzle-orm";
 import { db } from "../db/connection";
-import { instanceInfra } from "../db/schema";
-import { config } from "../config";
+import { instances, instanceInfra } from "../db/schema";
 import type { BatchStatusResponse } from "../types";
 
 /**
@@ -8,17 +8,28 @@ import type { BatchStatusResponse } from "../types";
  * Status is kept up-to-date by Railway webhooks — no live API calls needed.
  */
 export async function fetchBatchStatus(instanceIds?: string[]): Promise<BatchStatusResponse> {
-  let infraRows = await db.select().from(instanceInfra);
+  let rows = await db
+    .select({
+      instanceId: instanceInfra.instanceId,
+      providerServiceId: instanceInfra.providerServiceId,
+      providerEnvId: instanceInfra.providerEnvId,
+      url: instanceInfra.url,
+      deployStatus: instanceInfra.deployStatus,
+      runtimeImage: instanceInfra.runtimeImage,
+      name: instances.name,
+    })
+    .from(instanceInfra)
+    .leftJoin(instances, eq(instanceInfra.instanceId, instances.id));
 
   if (instanceIds && instanceIds.length > 0) {
     const idSet = new Set(instanceIds);
-    infraRows = infraRows.filter((r) => idSet.has(r.instanceId));
+    rows = rows.filter((r) => idSet.has(r.instanceId));
   }
 
-  const results: BatchStatusResponse["services"] = infraRows.map((row) => ({
+  const results: BatchStatusResponse["services"] = rows.map((row) => ({
     instanceId: row.instanceId,
     serviceId: row.providerServiceId,
-    name: `assistant-${config.poolEnvironment}-${row.instanceId}`,
+    name: row.name || row.instanceId,
     deployStatus: row.deployStatus || null,
     domain: row.url ? row.url.replace("https://", "") : null,
     image: row.runtimeImage || null,

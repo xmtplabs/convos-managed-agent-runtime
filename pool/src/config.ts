@@ -20,7 +20,7 @@ export const config = {
 
   // Pool environment context
   poolEnvironment:
-    getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "undefined"),
+    getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "local"),
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
   instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
