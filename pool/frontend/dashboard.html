@@ -379,6 +379,11 @@
       });
     }
 
+    function lookupKey(id) {
+      return svcKeyMap['assistant-' + POOL_ENV + '-' + id]
+          || svcKeyMap['convos-agent-' + id];
+    }
+
     function renderAgents() {
       var body = document.getElementById('agents-body');
       var count = document.getElementById('table-count');

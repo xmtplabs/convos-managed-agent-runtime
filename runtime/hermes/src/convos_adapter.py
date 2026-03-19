@@ -294,6 +294,7 @@ class ConvosAdapter:
         self._agent: AgentRunner | None = None
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
         self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[None], asyncio.Task[None] | None]] = {}
+        self._greeting_done = asyncio.Event()  # gates message processing until greeting completes
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -432,6 +433,11 @@ class ConvosAdapter:
 
         if msg.content_type == "group_updated":
             return
+
+        # Wait for greeting to finish before processing real messages.
+        # Messages that arrive during the greeting's LLM call queue here
+        # so they see the greeting in history instead of empty context.
+        await self._greeting_done.wait()
 
         # Update member name cache
         if msg.sender_id and msg.sender_name and msg.sender_id != "system":
