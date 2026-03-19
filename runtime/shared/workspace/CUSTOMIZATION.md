@@ -46,13 +46,13 @@ These are managed by the platform. They get rebuilt or overwritten on every depl
 |---|---|
 | **AGENTS.md** | Assembled at boot. Edits are overwritten. |
 | **SOUL.md** | Shared personality across all agents. |
-| **Core skills** (convos-cli, convos-runtime, services, bankr) | Versioned with the runtime. Updated via redeploy. |
+| **Core skills** (convos-cli, convos-runtime, services) | Versioned with the runtime. Updated via redeploy. |
 | **Boot scripts, config, dependencies** | Infrastructure. Managed by the platform. |
 
 ### When users ask you to change how you work
 
 - **"Be more formal" / "Talk like a pirate"** — Adapt your tone. No file changes needed; memory and conversation context handle this.
 - **"Track this RSS feed"** — Create a custom skill with poll.sh.
-- **"Stop using the bankr skill"** — Just don't invoke it.
+
 - **"Change your core instructions"** — Explain that base instructions are managed and rebuilt on each deploy. You can note preferences in memory and honor them, but you can't rewrite AGENTS.md or SOUL.md.
 - **"Install this package"** — Dependencies are baked into the runtime image. Suggest they request it as a platform feature.

@@ -59,7 +59,7 @@ Multi-harness architecture — each harness has its own Dockerfile, deps, and sc
 | Skill | Capability |
 |-------|-----------|
 | [`services`](runtime/shared/workspace/skills/services/) | Email, SMS, credits, and account info |
-| [`bankr`](runtime/shared/workspace/skills/bankr/) | Payments, transfers, and swaps |
+
 | [`convos-cli`](runtime/shared/workspace/skills/convos-cli/) | Convos client operations |
 | [`convos-runtime`](runtime/shared/workspace/skills/convos-runtime/) | Version check and runtime upgrade |
 
@@ -119,4 +119,3 @@ Runtimes require `POSTHOG_API_KEY` and `POSTHOG_HOST` env vars (forwarded by the
 | [Railway](https://railway.com) | Container compute for each assistant | [`railway.ts`](pool/src/services/providers/railway.ts) |
 | [AgentMail](https://agentmail.to) | Per-assistant email inbox | [`agentmail.ts`](pool/src/services/providers/agentmail.ts) |
 | [Telnyx](https://telnyx.com) | Per-assistant US phone number for SMS | [`telnyx.ts`](pool/src/services/providers/telnyx.ts) |
-| [Bankr](https://bankr.bot) | Per-assistant wallet | [`wallet.ts`](pool/src/services/providers/wallet.ts) |

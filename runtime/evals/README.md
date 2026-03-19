@@ -39,7 +39,7 @@ Required in `runtime/.env` (shared by all runtimes):
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`
-- `BANKR_API_KEY`
+
 
 ## Multi-runtime architecture
 
