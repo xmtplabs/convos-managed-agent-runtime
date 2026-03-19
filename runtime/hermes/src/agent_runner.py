@@ -107,7 +107,7 @@ class AgentRunner:
     def __init__(
         self,
         *,
-        model: str = "anthropic/claude-sonnet-4-6",
+        model: str = "anthropic/claude-opus-4-6",
         openrouter_api_key: str = "",
         max_iterations: int = 90,
         hermes_home: str = "",
@@ -219,19 +219,24 @@ class AgentRunner:
             logger.error(f"Agent error: {err}")
             return "I encountered an error processing your message. Please try again."
 
+        response = result.get("final_response", "")
+
+        # Normalize SILENT: the agent chose not to reply. Strip the marker
+        # so it never appears in conversation history as assistant text.
+        is_silent = bool(response and "SILENT" in response.strip().splitlines())
+
         # Append to shared history after the call completes.
         # Hermes handles context window management internally via
         # ContextCompressor and session splitting.
         async with self._history_lock:
             self._conversation_history.append({"role": "user", "content": envelope})
-            if result.get("final_response"):
+            if response and not is_silent:
                 self._conversation_history.append({
                     "role": "assistant",
-                    "content": result["final_response"],
+                    "content": response,
                 })
 
-        response = result.get("final_response", "")
-        if not response or not response.strip():
+        if is_silent or not response or not response.strip():
             return None
 
         return response
@@ -255,8 +260,16 @@ class AgentRunner:
         return text.strip()
 
     def reset_history(self) -> None:
-        """Clear conversation history (used on session reset)."""
+        """Clear conversation history and invalidate the cached system prompt.
+
+        The system prompt contains a frozen memory snapshot captured at first
+        turn.  Between eval phases (store → recall) the memory files on disk
+        change, so we must force a rebuild so the next turn picks up the new
+        snapshot.
+        """
         self._conversation_history.clear()
+        if self._agent is not None:
+            self._agent._invalidate_system_prompt()
 
 
 if __name__ == "__main__":
@@ -266,7 +279,7 @@ if __name__ == "__main__":
     parser.add_argument("-q", "--query", required=True)
     args, _ = parser.parse_known_args()
 
-    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-sonnet-4-6"
+    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-opus-4-6"
     if model.startswith("openrouter/"):
         model = model.removeprefix("openrouter/")
 

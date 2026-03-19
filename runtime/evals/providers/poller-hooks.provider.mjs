@@ -1,10 +1,11 @@
-// runtime/evals/poller.provider.mjs
-// E2E eval for the email poller pipeline:
-//   self-send email with attachment → poller detects it → notification in XMTP → agent answers about attachment.
+// runtime/evals/poller-hooks.provider.mjs
+// E2E eval for poller hook auto-discovery:
+//   plants a fake skill with poll.sh → poller picks it up → notification in XMTP.
+// Also tests that the agent knows to create polling skills (not modify HEARTBEAT.md).
 // OpenClaw only.
 
 import { execSync, execFileSync, spawn } from 'child_process';
-import { mkdtempSync, rmSync, existsSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { tmpdir } from 'os';
 import { fileURLToPath } from 'url';
@@ -17,32 +18,27 @@ const ENV = process.env.XMTP_ENV || 'dev';
 const GATEWAY_PORT = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
 let GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 if (!GATEWAY_TOKEN) {
-  console.error('[eval:poller] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.');
-  process.exit(1);
-}
-
-const AGENTMAIL_INBOX_ID = process.env.AGENTMAIL_INBOX_ID;
-if (!AGENTMAIL_INBOX_ID) {
-  console.error('[eval:poller] AGENTMAIL_INBOX_ID is required. Set it in runtime/.env.');
+  console.error('[eval:poller-hooks] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.');
   process.exit(1);
 }
 
 const CONVOS = resolveConvos();
 
-const EVAL_HOME = mkdtempSync(join(tmpdir(), 'eval-poller-'));
+const EVAL_HOME = mkdtempSync(join(tmpdir(), 'eval-poller-hooks-'));
 const CONVOS_ENV = { ...process.env, HOME: EVAL_HOME };
 process.env.EVAL_CONVOS_HOME = EVAL_HOME;
 log(`Using identity store: ${EVAL_HOME}/.convos`);
 
-// Resolve paths — Docker copies shared dirs to /app/shared-workspace and /app/shared-scripts
-const FIXTURE_PATH = resolve(__dirname, '../fixtures/eval-poller-note.txt');
-const SKILLS_ROOT = existsSync('/app/shared-workspace/skills')
+// Resolve skills root — use a temp copy so we can plant a test skill without
+// touching the real workspace.
+const REAL_SKILLS_ROOT = existsSync('/app/shared-workspace/skills')
   ? '/app/shared-workspace/skills'
   : resolve(__dirname, '../../shared/workspace/skills');
+const SKILLS_ROOT = join(EVAL_HOME, 'skills');
+
 const POLLER_SCRIPT = existsSync('/app/shared-scripts/poller.sh')
   ? '/app/shared-scripts/poller.sh'
   : resolve(__dirname, '../../shared/scripts/poller.sh');
-const SERVICES_MJS = resolve(SKILLS_ROOT, 'services/scripts/services.mjs');
 
 let pollerProc = null;
 
@@ -64,15 +60,14 @@ function checkGateway() {
   }
 }
 
-function log(msg) { _log('eval:poller', msg); }
+function log(msg) { _log('eval:poller-hooks', msg); }
 
 function convos(args, opts = {}) {
   return execFileSync(CONVOS, args, { encoding: 'utf-8', timeout: 30_000, env: CONVOS_ENV, ...opts }).trim();
 }
 
-// Expect the server to be running already (pnpm start:hermes or pnpm gateway).
 if (!checkGateway()) {
-  console.error(`[eval:poller] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first.`);
+  console.error(`[eval:poller-hooks] Gateway not reachable at localhost:${GATEWAY_PORT}. Start it first.`);
   process.exit(1);
 }
 
@@ -82,6 +77,35 @@ let testIndex = 0;
 
 function setup() {
   const t = Date.now();
+
+  // Copy real skills into temp dir so we can add a test skill
+  log('Copying skills to temp dir...');
+  execSync(`cp -R "${REAL_SKILLS_ROOT}" "${SKILLS_ROOT}"`, { encoding: 'utf-8' });
+
+  // Plant the test skill with a poll.sh that emits a notification
+  log('Planting test skill with poll.sh...');
+  const testSkillDir = join(SKILLS_ROOT, 'eval-rss-tracker');
+  mkdirSync(testSkillDir, { recursive: true });
+  writeFileSync(join(testSkillDir, 'SKILL.md'), [
+    '---',
+    'name: eval-rss-tracker',
+    'description: |',
+    '  Test skill for poller hooks eval. Emits a fake RSS notification.',
+    '---',
+    '',
+    '# Eval RSS Tracker',
+    '',
+    'Test skill — poll.sh prints a fake notification each cycle.',
+  ].join('\n'));
+  // poll.sh prints once (uses a flag file to avoid repeating every cycle)
+  writeFileSync(join(testSkillDir, 'poll.sh'), [
+    '#!/bin/sh',
+    'FLAG="/tmp/.eval-rss-tracker-fired"',
+    'if [ ! -f "$FLAG" ]; then',
+    '  echo "New post on Eval Feed: \\"Testing poller hooks\\" by eval-bot"',
+    '  touch "$FLAG"',
+    'fi',
+  ].join('\n'));
 
   log('Resetting agent identity...');
   execFileSync('curl', [
@@ -96,7 +120,7 @@ function setup() {
 
   log('Creating conversation...');
   const createOut = convos([
-    'conversations', 'create', '--name', `Poller Eval ${Date.now()}`, '--env', ENV, '--json',
+    'conversations', 'create', '--name', `Poller Hooks Eval ${Date.now()}`, '--env', ENV, '--json',
   ]);
   const data = JSON.parse(createOut);
   if (!data.invite?.url) {
@@ -120,7 +144,7 @@ function setup() {
       `http://localhost:${GATEWAY_PORT}/convos/join`,
       '-H', 'Content-Type: application/json',
       '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
-      '-d', JSON.stringify({ inviteUrl: data.invite.url, profileName: 'Poller Eval Agent' }),
+      '-d', JSON.stringify({ inviteUrl: data.invite.url, profileName: 'Poller Hooks Eval Agent' }),
     ], { encoding: 'utf-8', timeout: 90_000 });
   } finally {
     try { watcher.kill(); } catch {}
@@ -128,8 +152,11 @@ function setup() {
 
   sleep(5_000);
 
-  // Start the poller process
-  log('Starting poller...');
+  // Clean up the flag file from any previous run
+  try { rmSync('/tmp/.eval-rss-tracker-fired', { force: true }); } catch {}
+
+  // Start the poller with our temp skills root
+  log('Starting poller with test skills...');
   pollerProc = spawn('sh', [POLLER_SCRIPT], {
     env: {
       ...process.env,
@@ -147,21 +174,6 @@ function setup() {
   // Wait for poller 15s startup delay + buffer
   log('Waiting 18s for poller startup...');
   sleep(18_000);
-
-  // Send the test email with attachment
-  log(`Sending test email to ${AGENTMAIL_INBOX_ID} with attachment...`);
-  try {
-    execFileSync('node', [
-      SERVICES_MJS, 'email', 'send',
-      '--to', AGENTMAIL_INBOX_ID,
-      '--subject', 'Poller eval test',
-      '--text', 'Hello from poller eval. This is a test email with an attachment.',
-      '--attach', FIXTURE_PATH,
-    ], { encoding: 'utf-8', timeout: 30_000, env: process.env });
-    log('Test email sent.');
-  } catch (err) {
-    log(`WARNING: email send failed: ${err.message}`);
-  }
 
   log(`Setup complete (${elapsed(t)})\n`);
 }
@@ -216,7 +228,6 @@ function waitForAgent(baseline) {
   return msgs;
 }
 
-// Wait for a specific content pattern in the transcript (polls every 5s, up to timeoutMs).
 function waitForContent(pattern, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -248,8 +259,8 @@ function transcript(msgs, afterIndex = 0) {
     }).join('\n');
 }
 
-export default class PollerProvider {
-  id() { return 'poller'; }
+export default class PollerHooksProvider {
+  id() { return 'poller-hooks'; }
 
   async callApi(prompt, context) {
     testIndex++;
@@ -260,20 +271,12 @@ export default class PollerProvider {
 
     if (!sharedConversationId) setup();
 
-    // Test 1: Wait for poller notification to appear in transcript, then wait
-    // for the agent to finish processing it before returning — so test 2 doesn't
-    // fire while the agent is still busy with the notification.
+    // Test 1: Wait for the custom poll.sh notification to appear
     if (meta.waitForNotification) {
-      const { msgs: notifMsgs } = waitForContent(/You got a new email/i, 120_000);
-      const notifBaseline = agentCount(notifMsgs);
-      log(`Notification matched — agent count=${notifBaseline} total=${notifMsgs.length}`);
-      log(`Waiting for agent to finish processing notification...`);
-      waitForAgent(notifBaseline - 1);
-      const finalMsgs = fetchMessages();
-      log(`After wait — agent count=${agentCount(finalMsgs)} total=${finalMsgs.length}`);
-      log(`Transcript:\n${transcript(finalMsgs)}`);
-      const text = transcript(finalMsgs);
-      log(`Notification test done (${elapsed(t)})`);
+      const { msgs: notifMsgs } = waitForContent(/New post on Eval Feed/i, 120_000);
+      const text = transcript(notifMsgs);
+      log(`Transcript:\n${text}`);
+      log(`Hook discovery test done (${elapsed(t)})`);
       return { output: text, metadata: { conversationId: sharedConversationId } };
     }
 
@@ -282,7 +285,6 @@ export default class PollerProvider {
     const baseline = agentCount(existing);
     const msgsBefore = existing.length;
     log(`Pre-send state — agent count=${baseline} total=${msgsBefore}`);
-    log(`Transcript so far:\n${transcript(existing)}`);
 
     log(`Sending: "${prompt}"`);
     convos(['conversation', 'send-text', sharedConversationId, prompt, '--env', ENV], { timeout: 30_000 });

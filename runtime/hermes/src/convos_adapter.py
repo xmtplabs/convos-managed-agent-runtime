@@ -88,6 +88,8 @@ class ParsedResponse:
     media: list[str] = field(default_factory=list)
     profile_name: str | None = None
     profile_image: str | None = None
+    profile_metadata: dict[str, str] = field(default_factory=dict)
+    silent: bool = False  # agent explicitly chose not to reply
 
 
 def parse_response(raw: str) -> ParsedResponse:
@@ -98,6 +100,11 @@ def parse_response(raw: str) -> ParsedResponse:
 
     for line in lines:
         stripped = line.strip()
+
+        # SILENT — agent explicitly chose not to reply
+        if stripped == "SILENT":
+            result.silent = True
+            continue
 
         # REACT:messageId:emoji or REACT:messageId:emoji:remove
         m = re.match(r'^REACT:([^:\s]+):([^:\s]+)(?::(remove))?$', stripped)
@@ -126,6 +133,12 @@ def parse_response(raw: str) -> ParsedResponse:
         m = re.match(r'^PROFILEIMAGE:(https?://\S+)$', stripped)
         if m:
             result.profile_image = m.group(1).strip()
+            continue
+
+        # METADATA:key=value
+        m = re.match(r'^METADATA:(\w+)=(.+)$', stripped)
+        if m:
+            result.profile_metadata[m.group(1)] = m.group(2).strip()
             continue
 
         # MEDIA:/path — can be inline, extract and keep rest of line
@@ -584,12 +597,23 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Profile image update failed: {err}")
 
+        if parsed.profile_metadata:
+            try:
+                await self._update_profile(metadata=parsed.profile_metadata)
+            except Exception as err:
+                logger.error(f"Profile metadata update failed: {err}")
+
         # Send media attachments
         for media_path in parsed.media:
             try:
                 await inst.send_attachment(media_path)
             except Exception as err:
                 logger.error(f"Send attachment failed: {err}")
+
+        # Agent explicitly chose silence — side effects above still fire, but no text
+        if parsed.silent:
+            logger.info("Agent chose SILENT — suppressing text reply")
+            return
 
         # Send text message (either as reply or new message)
         text = strip_markdown(parsed.text)
@@ -630,6 +654,7 @@ class ConvosAdapter:
         self,
         name: str | None = None,
         image: str | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> None:
         """Update conversation profile via stdin (v0.4.1+ update-profile command)."""
         inst = self._instance
@@ -637,7 +662,7 @@ class ConvosAdapter:
             return
 
         try:
-            await inst.update_profile(name=name, image=image)
+            await inst.update_profile(name=name, image=image, metadata=metadata)
             if image is not None and self._profile_image_renewal is not None:
                 self._profile_image_renewal.record_applied_image(image)
             logger.info(f"Profile updated: name={name}, image={image}")

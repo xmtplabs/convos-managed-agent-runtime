@@ -4,7 +4,12 @@ set -e
 . "$(dirname "$0")/lib/init.sh"
 cd "$ROOT"
 . "$ROOT/scripts/lib/env-load.sh"
-. "$ROOT/scripts/lib/brand.sh"
+# Brand helpers — prefer shared copy, fall back to local
+if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
+  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
+else
+  . "$ROOT/../shared/scripts/lib/brand.sh"
+fi
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"

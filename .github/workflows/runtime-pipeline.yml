@@ -1,0 +1,184 @@
+# Reusable pipeline: build → eval → publish for one runtime.
+# Called by runtime-pr.yml and runtime-dispatch.yml.
+#
+# To add a new runtime, add a call to this workflow with the runtime's config.
+
+name: "Runtime Pipeline"
+
+on:
+  workflow_call:
+    inputs:
+      runtime:
+        description: "Runtime name (openclaw, hermes)"
+        required: true
+        type: string
+      image:
+        description: "GHCR image name (e.g. ghcr.io/xmtplabs/convos-runtime)"
+        required: true
+        type: string
+      dockerfile:
+        description: "Path to Dockerfile"
+        required: true
+        type: string
+      pending_tag:
+        description: "Pending image tag (e.g. pending-abc1234)"
+        required: true
+        type: string
+      publish_tags:
+        description: "Space-separated tags to publish on success (e.g. 'sha-abc1234 pr-42')"
+        required: false
+        type: string
+        default: ""
+      health_path:
+        description: "Health endpoint path (e.g. /pool/health)"
+        required: false
+        type: string
+        default: "/pool/health"
+      docker_run_extra:
+        description: "Extra docker run flags (env vars, volumes)"
+        required: false
+        type: string
+        default: ""
+      docker_cmd:
+        description: "Override container CMD (e.g. 'node scripts/pool-server.js')"
+        required: false
+        type: string
+        default: ""
+      needs_checkout:
+        description: "Whether eval jobs need a checkout (for volume mounts)"
+        required: false
+        type: boolean
+        default: false
+      buildx_driver:
+        description: "Buildx driver override (set to 'docker' for openclaw)"
+        required: false
+        type: string
+        default: ""
+      cache_from:
+        description: "Docker build cache-from"
+        required: false
+        type: string
+        default: "type=gha"
+      cache_to:
+        description: "Docker build cache-to"
+        required: false
+        type: string
+        default: "type=gha,mode=max"
+
+jobs:
+  build:
+    name: "Build ${{ inputs.runtime }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/login-action@v4
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: ${{ inputs.buildx_driver || '' }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          push: true
+          load: ${{ inputs.buildx_driver == 'docker' && 'false' || 'true' }}
+          platforms: linux/amd64
+          tags: "${{ inputs.image }}:${{ inputs.pending_tag }}"
+          cache-from: ${{ inputs.cache_from }}
+          cache-to: ${{ inputs.cache_to }}
+      - name: Save image for eval jobs
+        run: docker save ${{ inputs.image }}:${{ inputs.pending_tag }} | zstd -T0 -1 > /tmp/runtime-image.tar.zst
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.runtime }}-image
+          path: /tmp/runtime-image.tar.zst
+          retention-days: 1
+          compression-level: 0
+
+  eval:
+    name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { suite: knows,  timeout: 180 }
+          - { suite: skills, timeout: 300 }
+          - { suite: soul,   timeout: 180 }
+          - { suite: lifecycle, timeout: 300 }
+          - { suite: convos,           timeout: 300 }
+          - { suite: async,  timeout: 120 }
+          - { suite: memory, timeout: 300 }
+          - { suite: poller, timeout: 300 }
+          - { suite: poller-hooks, timeout: 300 }
+    steps:
+      - if: inputs.needs_checkout
+        uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with: { name: "${{ inputs.runtime }}-image", path: /tmp }
+      - name: Load image
+        run: zstd -d /tmp/runtime-image.tar.zst -o /tmp/runtime-image.tar && docker load < /tmp/runtime-image.tar
+
+      - name: Start container
+        run: |
+          docker run -d --name eval-runtime \
+            -p 8080:8080 \
+            -e PORT=8080 \
+            -e EVAL_MODE=1 \
+            -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
+            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
+            -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
+            -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
+            -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
+            -e POOL_URL="${{ secrets.POOL_URL }}" \
+            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
+            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
+            -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
+            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
+            ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
+            ${{ inputs.docker_run_extra }} \
+            ${{ inputs.image }}:${{ inputs.pending_tag }} \
+            ${{ inputs.docker_cmd }}
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
+              echo "Ready after ${i}s"; exit 0
+            fi; sleep 1
+          done
+          echo "Failed to start"; docker logs eval-runtime; exit 1
+
+      - name: "Run ${{ matrix.suite }}"
+        run: |
+          docker exec \
+            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
+            -e EVALS_MODEL=${{ secrets.EVALS_MODEL }} \
+            eval-runtime timeout ${{ matrix.timeout }} \
+              pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
+
+      - name: Dump logs
+        if: always()
+        run: docker logs eval-runtime
+
+  publish:
+    name: "Publish ${{ inputs.runtime }}"
+    needs: eval
+    if: always() && needs.eval.result == 'success' && inputs.publish_tags != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/login-action@v4
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Tag and push
+        run: |
+          IMAGE="${{ inputs.image }}"
+          PENDING="${{ inputs.pending_tag }}"
+          docker pull "$IMAGE:$PENDING"
+          for TAG in ${{ inputs.publish_tags }}; do
+            docker tag "$IMAGE:$PENDING" "$IMAGE:$TAG"
+            docker push "$IMAGE:$TAG"
+            echo "Pushed $IMAGE:$TAG"
+          done

@@ -1,11 +1,11 @@
 #!/bin/sh
-# Shared background poller — checks for new emails/SMS and sends notifications
-# directly to the convos group chat. No LLM calls.
+# Shared background poller — auto-discovers and runs poll.sh hooks from skills.
+# No LLM calls. Stdout from each hook becomes a group notification.
 #
 # Used by both OpenClaw and Hermes runtimes.
 #
 # Required env vars:
-#   SKILLS_ROOT          — path to skills directory (contains services/scripts/services.mjs)
+#   SKILLS_ROOT          — path to skills directory
 #   CONVOS_ENV           — xmtp environment (dev or production)
 #
 # Conversation ID resolution (checked in order):
@@ -18,7 +18,6 @@
 #   POLLER_SESSIONS_INDEX — OpenClaw sessions.json path (skipped if unset)
 
 POLL_INTERVAL="${POLL_INTERVAL_SECONDS:-60}"
-SERVICES="$SKILLS_ROOT/services/scripts/services.mjs"
 
 log() { printf "[poller] %s %s\n" "$(date +%H:%M:%S)" "$1"; }
 
@@ -79,49 +78,7 @@ notify() {
   inject_context "$1"
 }
 
-# ---- Formatting ----
-
-format_emails() {
-  _from="" _body="" _att=""
-  printf '%s\n\n' "$1" | while IFS= read -r line; do
-    case "$line" in
-      From:*)        _from=$(echo "$line" | sed 's/^From: *//') ;;
-      Body:*)        _body=$(echo "$line" | sed 's/^Body: *//' | cut -c1-80) ;;
-      Attachments:*) _att=$(echo "$line" | sed 's/^Attachments: *//') ;;
-      "")
-        if [ -n "$_from" ]; then
-          _msg="You got a new email. \"${_body:-(no preview)}\" from $_from"
-          [ -n "$_att" ] && _msg="$_msg [$_att]"
-          printf '%s\n' "$_msg"
-          _from="" _body="" _att=""
-        fi
-        ;;
-    esac
-  done
-}
-
-format_sms() {
-  _from="" _text=""
-  printf '%s\n\n' "$1" | while IFS= read -r line; do
-    case "$line" in
-      From:*) _from=$(echo "$line" | sed 's/^From: *//') ;;
-      Text:*) _text=$(echo "$line" | sed 's/^Text: *//' | cut -c1-80) ;;
-      "")
-        if [ -n "$_from" ]; then
-          printf 'You got a new text. "%s" from %s\n' "${_text:-(empty)}" "$_from"
-          _from="" _text=""
-        fi
-        ;;
-    esac
-  done
-}
-
 # ---- Preflight ----
-
-if [ ! -f "$SERVICES" ]; then
-  log "services.mjs not found at $SERVICES — poller disabled"
-  exit 0
-fi
 
 if ! command -v convos >/dev/null 2>&1; then
   log "convos CLI not in PATH — poller disabled"
@@ -143,34 +100,25 @@ log "started (interval=${POLL_INTERVAL}s, convos=$(get_conversation_id))"
 while true; do
   _batch=""
 
-  _email_out=$(node "$SERVICES" email recent --since-last --limit 3 --no-provision 2>&1) || true
-  if [ -n "$_email_out" ] && ! echo "$_email_out" | grep -q "No new emails"; then
-    _msgs=$(format_emails "$_email_out")
-    if [ -n "$_msgs" ]; then
-      log "new email detected"
-      _batch="$_msgs"
-    fi
-  fi
-
-  _sms_out=$(node "$SERVICES" sms recent --since-last --limit 3 --no-provision 2>&1) || true
-  if [ -n "$_sms_out" ] && ! echo "$_sms_out" | grep -q "No new SMS"; then
-    _msgs=$(format_sms "$_sms_out")
-    if [ -n "$_msgs" ]; then
-      log "new SMS detected"
+  # Auto-discover and run poll.sh from every skill directory
+  for _hook in "$SKILLS_ROOT"/*/poll.sh; do
+    [ ! -f "$_hook" ] && continue
+    _skill_name=$(basename "$(dirname "$_hook")")
+    _hook_out=$(sh "$_hook" 2>/dev/null) || true
+    if [ -n "$_hook_out" ]; then
+      log "[$_skill_name] new activity"
       if [ -n "$_batch" ]; then
         _batch="$_batch
-$_msgs"
+$_hook_out"
       else
-        _batch="$_msgs"
+        _batch="$_hook_out"
       fi
     fi
-  fi
+  done
 
   if [ -n "$_batch" ]; then
     notify "$_batch" || log "notify failed"
   fi
-
-  log "polled — email: $(echo "$_email_out" | head -1 | cut -c1-20) | sms: $(echo "$_sms_out" | head -1 | cut -c1-20)"
 
   sleep "$POLL_INTERVAL"
 done

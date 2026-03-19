@@ -36,7 +36,16 @@ const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const POOL_URL = process.env.POOL_URL;
 const ROOT = path.resolve(__dirname, "..");
-const RUNTIME_VERSION = require("../package.json").version;
+const RUNTIME_VERSION = (() => {
+  const candidates = [
+    path.resolve(__dirname, "../../package.json"),          // runtime/package.json (local dev)
+    path.resolve(__dirname, "../runtime-version.json"),     // /app/runtime-version.json (Docker)
+  ];
+  for (const p of candidates) {
+    try { const v = require(p).version; if (v) return v; } catch {}
+  }
+  return "unknown";
+})();
 
 let gatewayReady = false;
 let convosReady = false;
@@ -143,7 +152,7 @@ function checkAuth(req, res) {
 
 // --- Convos invite/join helper ---
 
-async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts = 30) {
+async function callConvosWithRetry(agentName, instructions, joinUrl, profileImage, metadata, maxAttempts = 30) {
   const gatewayUrl = `http://localhost:${INTERNAL_PORT}`;
   const headers = { "Content-Type": "application/json" };
   if (GATEWAY_TOKEN) headers["Authorization"] = `Bearer ${GATEWAY_TOKEN}`;
@@ -156,14 +165,19 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
         const res = await fetch(`${gatewayUrl}/convos/join`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName, instructions }),
-          signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({ inviteUrl: joinUrl, profileName: agentName, profileImage, metadata, instructions }),
+          signal: AbortSignal.timeout(65_000),
         });
         if (!res.ok) {
           const text = await res.text();
           throw new Error(`/convos/join returned ${res.status}: ${text}`);
         }
         const data = await res.json();
+        // pending_acceptance: join is waiting for approval — return immediately
+        if (data.status === "pending_acceptance") {
+          console.log(`[pool-server] Join pending acceptance on attempt ${i}`);
+          return { conversationId: null, inviteUrl: joinUrl, joined: false, status: "pending_acceptance" };
+        }
         console.log(`[pool-server] Joined conversation on attempt ${i}: ${data.conversationId}`);
         return { conversationId: data.conversationId, inviteUrl: joinUrl, joined: true };
       } else {
@@ -171,7 +185,7 @@ async function callConvosWithRetry(agentName, instructions, joinUrl, maxAttempts
         const res = await fetch(`${gatewayUrl}/convos/conversation`, {
           method: "POST",
           headers,
-          body: JSON.stringify({ name: agentName, profileName: agentName, instructions }),
+          body: JSON.stringify({ name: agentName, profileName: agentName, profileImage, metadata, instructions }),
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
@@ -213,8 +227,7 @@ const server = http.createServer(async (req, res) => {
           signal: AbortSignal.timeout(3000),
         });
         if (cRes.ok) {
-          const cData = await cRes.json();
-          if (cData.ready) convosReady = true;
+          convosReady = true;
         }
       } catch {}
     }
@@ -284,7 +297,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const { agentName, instructions, joinUrl } = body;
+    const { agentName, instructions, joinUrl, profileImage, metadata } = body;
     if (!agentName || typeof agentName !== "string") {
       json(res, 400, { error: "agentName (string) is required" });
       return;
@@ -296,13 +309,14 @@ const server = http.createServer(async (req, res) => {
 
     try {
       // Create or join conversation — convos extension writes INSTRUCTIONS.md with the instructions
-      const convosResult = await callConvosWithRetry(agentName, instructions, joinUrl);
+      const convosResult = await callConvosWithRetry(agentName, instructions, joinUrl, profileImage, metadata);
 
       json(res, 200, {
         ok: true,
         inviteUrl: convosResult.inviteUrl || null,
         conversationId: convosResult.conversationId || null,
         joined: convosResult.joined || false,
+        status: convosResult.status || (convosResult.joined ? "joined" : "created"),
       });
     } catch (err) {
       console.error("[pool-server] Provision failed:", err);

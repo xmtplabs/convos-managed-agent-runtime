@@ -406,7 +406,13 @@ class ConvosInstance:
         self._assert_running()
         self._write_command({"type": "unlock"})
 
-    async def update_profile(self, *, name: str | None = None, image: str | None = None) -> None:
+    async def update_profile(
+        self,
+        *,
+        name: str | None = None,
+        image: str | None = None,
+        metadata: dict[str, str] | None = None,
+    ) -> None:
         """Update profile via stdin (v0.4.1+). Uses the running agent serve process."""
         self._assert_running()
         cmd: dict[str, Any] = {"type": "update-profile"}
@@ -414,6 +420,8 @@ class ConvosInstance:
             cmd["name"] = name
         if image is not None:
             cmd["image"] = image
+        if metadata is not None:
+            cmd["metadata"] = metadata
         self._write_command(cmd)
 
     async def explode(self) -> None:

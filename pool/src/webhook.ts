@@ -6,6 +6,7 @@ import { metricCount, metricHistogram } from "./metrics";
 import { logger } from "./logger";
 import { gql } from "./services/providers/railway";
 import { decideAction } from "./webhookLogic";
+import { parseRuntimeStatus, type ParsedRuntimeStatus } from "./runtimeStatus";
 
 export { decideAction } from "./webhookLogic";
 export type { WebhookAction, WebhookDecision } from "./webhookLogic";
@@ -141,42 +142,47 @@ async function runHealthCheckWithRetries(
     const instToken = await db.getGatewayToken(instanceId);
     const hc = await healthCheck(url, instToken);
     if (hc?.ready) {
-      // Ask the runtime whether it has an active conversation
-      let runtimeConvoId: string | null = null;
-      let statusKnown = false;
+      // Ask the runtime for its status
+      let rs: ParsedRuntimeStatus | null = null;
       try {
         const csRes = await authFetch(`${url}/convos/status`, {
           gatewayToken: instToken,
           signal: AbortSignal.timeout(5000),
         });
-        if (csRes.ok) {
-          const cs = await csRes.json() as { conversation?: { id: string } | null };
-          runtimeConvoId = cs.conversation?.id ?? null;
-          statusKnown = true;
-        }
+        if (csRes.ok) rs = parseRuntimeStatus(await csRes.json());
       } catch {}
 
-      if (!statusKnown) {
+      if (!rs) {
         console.warn(`[webhook] ${instanceId}: /convos/status failed, leaving as ${statusAtWebhookTime}`);
         return;
       }
 
       let updated: boolean;
       let newStatus: string;
-      if (runtimeConvoId) {
-        // Verify the conversation matches what we provisioned
+      if (rs.conversationId) {
         const inst = await db.findById(instanceId);
-        if (inst?.conversationId && inst.conversationId === runtimeConvoId) {
+        if (inst?.status === "pending_acceptance") {
+          newStatus = "claimed";
+          updated = await db.completePendingAcceptance(instanceId, rs.conversationId);
+        } else if (inst?.conversationId && inst.conversationId === rs.conversationId) {
           newStatus = "claimed";
           updated = await db.conditionalUpdateStatus(instanceId, "claimed", statusAtWebhookTime);
         } else {
-          // Stuck provision failure or mismatch — don't promote
-          console.log(`[webhook] ${instanceId}: runtime has conversation ${runtimeConvoId} but DB has ${inst?.conversationId || "none"} — leaving as ${statusAtWebhookTime}`);
-          return;
+          newStatus = "tainted";
+          updated = await db.conditionalUpdateStatus(instanceId, "tainted", statusAtWebhookTime);
         }
-      } else {
+      } else if (rs.pending && statusAtWebhookTime === "pending_acceptance") {
+        console.log(`[webhook] ${instanceId}: pending acceptance still active`);
+        return;
+      } else if (rs.clean === true) {
         newStatus = "idle";
         updated = await db.recoverToIdle(instanceId, statusAtWebhookTime);
+      } else if (!rs.pending && statusAtWebhookTime === "pending_acceptance") {
+        newStatus = "tainted";
+        updated = await db.failPendingAcceptance(instanceId);
+      } else {
+        console.log(`[webhook] ${instanceId}: runtime not clean (clean=${rs.clean} pending=${rs.pending}) — leaving as ${statusAtWebhookTime}`);
+        return;
       }
       if (!updated) {
         console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);

@@ -1,6 +1,6 @@
 {
   "name": "convos-assistants",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "start": "cd openclaw && sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/gateway.sh",
@@ -19,20 +19,7 @@
     "build:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local .",
     "docker:run:hermes": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
     "build:run:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local . && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
-    "evals": "sh evals/run.sh",
-    "evals:knows": "sh evals/run-suite.sh knows.yaml",
-    "evals:skills": "sh evals/run-suite.sh skills.yaml",
-    "evals:soul": "sh evals/run-suite.sh soul.yaml",
-    "evals:convos": "sh evals/run-suite.sh convos.yaml",
-    "evals:async": "sh evals/run-suite.sh async.yaml",
-    "evals:memory": "sh evals/run-suite.sh memory.yaml",
-    "evals:poller": "sh evals/run-suite.sh poller.yaml",
-    "evals:hermes": "EVAL_RUNTIME=hermes sh evals/run.sh",
-    "evals:hermes:knows": "EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml",
-    "evals:hermes:skills": "EVAL_RUNTIME=hermes sh evals/run-suite.sh skills.yaml",
-    "evals:hermes:soul": "EVAL_RUNTIME=hermes sh evals/run-suite.sh soul.yaml",
-    "evals:hermes:convos": "EVAL_RUNTIME=hermes sh evals/run-suite.sh convos.yaml",
-    "evals:hermes:async": "EVAL_RUNTIME=hermes sh evals/run-suite.sh async.yaml",
-    "evals:hermes:memory": "EVAL_RUNTIME=hermes sh evals/run-suite.sh memory.yaml"
+    "evals": "sh evals/eval.sh"
   }
 }
+
