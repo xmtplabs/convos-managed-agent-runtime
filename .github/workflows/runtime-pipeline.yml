@@ -114,7 +114,7 @@ jobs:
           - { suite: memory, timeout: 300, only: "" }
           - { suite: poller, timeout: 300, only: "" }
           - { suite: poller-hooks, timeout: 300, only: "" }
-          - { suite: bankr,  timeout: 180, only: "" }
+
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
@@ -137,7 +137,6 @@ jobs:
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             -e POOL_URL="${{ secrets.POOL_URL }}" \
             -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
             -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
             -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
             ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \

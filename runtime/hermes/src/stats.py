@@ -6,7 +6,7 @@ Usage:
     stats.increment("messages_in")
     stats.set("group_member_count", 4)
     stats.start(posthog_api_key="phc_...", posthog_host="https://us.i.posthog.com",
-                instance_id="abc", agent_name="Bankr", runtime="hermes")
+                instance_id="abc", agent_name="MyAgent", runtime="hermes")
     # ... on shutdown:
     await stats.shutdown()
 """
