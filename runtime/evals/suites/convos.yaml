@@ -65,13 +65,11 @@ tests:
           identities, addresses, or people in the group.
           Fail only if the AGENT refused, said it doesn't know, or gave no answer.
 
-  - description: "Heartbeat does not leak system tokens into conversation"
+  - description: "Heartbeat stays silent — no visible reply"
     vars:
       prompt: "Run your heartbeat check. Report only if there's something worth notifying."
+    metadata:
+      silence: true
     assert:
-      - type: not-icontains
-        value: "HEARTBEAT_OK"
-      - type: not-icontains
-        value: "[diagnostic]"
-      - type: not-icontains
-        value: "lane enqueue"
+      - type: equals
+        value: "SILENCE_OK"
