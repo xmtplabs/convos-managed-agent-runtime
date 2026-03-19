@@ -214,6 +214,26 @@ export function memoryFileUpdated(output, context) {
   };
 }
 
+export function cronPingsReceived(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pings = meta.cronPings;
+
+  if (pings == null) {
+    return { pass: false, score: 0, reason: 'No cronPings in provider metadata — cronWait handler may not have run' };
+  }
+
+  // With a 5-second interval and a 25-second wait, we expect at least 2 pings
+  // (accounting for job creation delay and scheduling jitter).
+  const pass = pings >= 2;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Received ${pings} cron pings during wait window`
+      : `Expected at least 2 cron pings, got ${pings}. Cron delivery to Convos may be broken.`,
+  };
+}
+
 export function responseTimeBelowThreshold(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const actual = meta.responseTimeMs;

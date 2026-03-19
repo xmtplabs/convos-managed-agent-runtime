@@ -116,6 +116,7 @@ jobs:
           - { suite: poller-hooks, timeout: 300, only: "", fresh: false }
           - { suite: silence,   timeout: 120, only: "", fresh: false }
           - { suite: provision, timeout: 180, only: "", fresh: true }
+          - { suite: cron,      timeout: 120, only: "", fresh: false }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5

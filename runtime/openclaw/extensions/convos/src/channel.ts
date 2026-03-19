@@ -61,14 +61,18 @@ const meta = {
 function normalizeConvosMessagingTarget(raw: string): string | undefined {
   let normalized = raw.trim();
   if (!normalized) {
-    return undefined;
+    // No explicit target — fall back to the bound conversation so cron jobs
+    // (and other callers) that omit delivery.to still route correctly.
+    const inst = getConvosInstance();
+    return inst?.conversationId;
   }
   const lowered = normalized.toLowerCase();
   if (lowered.startsWith("convos:")) {
     normalized = normalized.slice("convos:".length).trim();
   }
   if (!normalized) {
-    return undefined;
+    const inst = getConvosInstance();
+    return inst?.conversationId;
   }
   // Single-conversation process: if the target isn't already a conversation ID,
   // resolve it to the bound conversation so the framework's looksLikeId check

@@ -240,6 +240,33 @@ export default class ConvosProvider {
       return { output, metadata: { conversationId: sharedConversationId } };
     }
 
+    // Cron wait: wait for a setup reply, then collect messages over a window.
+    // Returns the total agent message count received during the wait window
+    // (excluding the initial setup reply) so assertions can verify delivery.
+    if (meta.cronWait) {
+      // First wait for the agent's confirmation reply
+      const setupMsgs = waitForAgent(baseline);
+      const setupCount = agentCount(setupMsgs);
+      const setupReply = transcript(setupMsgs, msgsBefore);
+      log(`Cron setup reply (${setupCount - baseline} msgs): ${setupReply.slice(0, 120)}`);
+
+      // Now wait for cron-delivered messages
+      const waitMs = (meta.cronWaitSeconds || 20) * 1000;
+      log(`Waiting ${meta.cronWaitSeconds || 20}s for cron pings...`);
+      const waitDeadline = Date.now() + waitMs;
+      while (Date.now() < waitDeadline) {
+        sleep(2_000);
+      }
+      const finalMsgs = fetchMessages();
+      const cronPings = agentCount(finalMsgs) - setupCount;
+      const output = transcript(finalMsgs, msgsBefore);
+      log(`Cron delivered ${cronPings} messages in ${(meta.cronWaitSeconds || 20)}s`);
+      return {
+        output,
+        metadata: { conversationId: sharedConversationId, cronPings, setupReply },
+      };
+    }
+
     const msgs = waitForAgent(baseline);
     const newAgentMsgs = agentCount(msgs) - baseline;
 
