@@ -25,6 +25,7 @@ import asyncio
 import logging
 import os
 import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -123,12 +124,20 @@ class AgentRunner:
         self._agent: Any = None
         self._session_db: Any = None
         self._history_lock = asyncio.Lock()  # protects history append only, not agent calls
+        self._agent_init_lock = threading.Lock()  # protects lazy AIAgent creation
 
     def _ensure_agent(self) -> Any:
-        """Lazily initialize the Hermes AIAgent."""
+        """Lazily initialize the Hermes AIAgent (thread-safe)."""
         if self._agent is not None:
             return self._agent
 
+        with self._agent_init_lock:
+            if self._agent is not None:
+                return self._agent
+            return self._create_agent()
+
+    def _create_agent(self) -> Any:
+        """Create the AIAgent instance. Caller must hold _agent_init_lock."""
         if self._openrouter_api_key:
             os.environ.setdefault("OPENROUTER_API_KEY", self._openrouter_api_key)
 
