@@ -155,6 +155,18 @@ export class ConvosInstance {
   /** XMTP inbox ID — set from the `ready` event. */
   inboxId: string | null = null;
 
+  /** Attestation data — stored for subprocess restarts via env vars. */
+  private attestationEnv: Record<string, string> = {};
+
+  /** Store attestation values. Passed as env vars on subprocess (re)start. */
+  setAttestation(attestation: string, ts: string, kid: string): void {
+    this.attestationEnv = {
+      CONVOS_ATTESTATION: attestation,
+      CONVOS_ATTESTATION_TS: ts,
+      CONVOS_ATTESTATION_KID: kid,
+    };
+  }
+
   private env: "production" | "dev";
   private child: ChildProcess | null = null;
   private running = false;
@@ -621,7 +633,7 @@ export class ConvosInstance {
         bin === "convos" ? args : [bin, ...args],
         {
           stdio: ["pipe", "pipe", "pipe"],
-          env: { ...process.env, CONVOS_ENV: this.env },
+          env: { ...process.env, CONVOS_ENV: this.env, ...this.attestationEnv },
         },
       );
 
