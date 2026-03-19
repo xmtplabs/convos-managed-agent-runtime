@@ -1,0 +1,273 @@
+/* ── Design tokens ──────────────────────────────────────────── */
+:root {
+  --color-brand: #FC4F37;
+  --color-fg: #000;
+  --color-fg-secondary: #666;
+  --color-fg-tertiary: #B2B2B2;
+  --color-surface: #fff;
+  --color-surface-muted: #F5F5F5;
+  --color-edge: #EBEBEB;
+  --color-error: #DC2626;
+  --color-success: #16A34A;
+}
+
+/* ── Reset & Layout ─────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  background: var(--color-surface-muted);
+  color: var(--color-fg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* ── Card ───────────────────────────────────────────────────── */
+.card {
+  background: var(--color-surface);
+  border-radius: 12px;
+  border: 1px solid var(--color-edge);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  padding: 1.5rem;
+  max-width: 320px;
+  width: 100%;
+}
+@media (max-width: 440px) {
+  .card { max-width: 100%; }
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fg-secondary);
+}
+.brand-balloon { width: 16px; height: 20px; flex-shrink: 0; }
+
+/* ── Status bar ─────────────────────────────────────────────── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--color-fg-tertiary);
+  margin-bottom: 0.75rem;
+  justify-content: center;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+.status-dot--connected { background: var(--color-success); }
+.status-dot--streaming { background: var(--color-success); animation: pulse 1.5s infinite; }
+.status-dot--error { background: var(--color-error); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── QR code ────────────────────────────────────────────────── */
+.qr-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  max-width: 260px;
+  margin: 0 auto;
+}
+a.qr-wrap { color: inherit; text-decoration: none; }
+.qr-wrap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.qr-wrap .icon-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 9%;
+  height: 9%;
+  background: var(--color-surface);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr-wrap .icon-center svg { width: 100%; height: 100%; }
+
+/* ── Placeholder / screens ──────────────────────────────────── */
+#qr-placeholder {
+  aspect-ratio: 1;
+  background: var(--color-surface);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-fg-secondary);
+  padding: 1rem;
+}
+#qr-placeholder.loading {
+  justify-content: center;
+  align-items: center;
+}
+.screen { display: flex; flex-direction: column; align-items: stretch; }
+.screen-modes { gap: 0.75rem; }
+.screen-join { gap: 0.5rem; }
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.mode-join-btn,
+.mode-create button,
+#join-btn {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--color-edge);
+  color: var(--color-fg);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.mode-join-btn:hover,
+.mode-create button:hover,
+#join-btn:hover,
+#join-open-link:hover { border-color: var(--color-fg-tertiary); }
+
+#join-open-link {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  width: 100%;
+  background: none;
+  border: 1px solid var(--color-edge);
+  color: var(--color-fg);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+/* ── Input ──────────────────────────────────────────────────── */
+#invite-input {
+  width: 100%;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-edge);
+  border-radius: 8px;
+  color: var(--color-fg);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+#invite-input:focus { border-color: var(--color-brand); }
+
+/* ── Divider ────────────────────────────────────────────────── */
+.divider {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-fg-tertiary);
+}
+.mode-create { margin: 0; }
+
+/* ── Connected screen ───────────────────────────────────────── */
+.screen-connected {
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.connected-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.25rem auto 0;
+}
+.connected-icon svg { width: 24px; height: 24px; }
+.connected-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-fg);
+}
+.connected-sublabel {
+  font-size: 0.75rem;
+  color: var(--color-success);
+  font-weight: 500;
+}
+.convo-id {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.65rem;
+  color: var(--color-fg-tertiary);
+  word-break: break-all;
+}
+.reset-btn {
+  margin-top: 0.25rem;
+  background: none;
+  border: 1px solid var(--color-edge);
+  color: var(--color-fg-tertiary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.reset-btn:hover { border-color: var(--color-error); color: var(--color-error); }
+
+/* ── Test message row ───────────────────────────────────────── */
+.test-msg-row { display: flex; gap: 0.4rem; width: 100%; }
+.test-msg-row input { flex: 1; }
+#send-test-btn { white-space: nowrap; }
+
+/* ── Messages ───────────────────────────────────────────────── */
+.error { color: var(--color-error); font-size: 0.75rem; margin-top: 0.5rem; text-align: center; word-break: break-word; }
+.success { color: var(--color-success); font-size: 0.75rem; margin-top: 0.5rem; text-align: center; }
+.gateway-tip { font-size: 0.7rem; color: var(--color-fg-tertiary); margin-top: 0.5rem; text-align: center; }
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.footer {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--color-fg-tertiary);
+}
+.footer a {
+  color: var(--color-fg);
+  text-decoration: none;
+}
+.footer a:hover { text-decoration: underline; }
+@media (max-width: 440px) {
+  .footer { display: none; }
+}
