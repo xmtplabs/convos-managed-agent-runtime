@@ -9,9 +9,6 @@
 // Memory is reset via the runtime adapter before each test so results don't
 // bleed between tests.
 //
-// Hermes: curls the production server's /agent/query endpoint.
-// OpenClaw: one-shot CLI calls via the adapter's bin/args.
-//
 // ── Why extraArgs? ─────────────────────────────────────────────────────
 //
 // OpenClaw uses --local to force embedded mode so each CLI invocation reads
@@ -20,7 +17,7 @@
 
 import { execFileSync } from 'child_process';
 import { runtime } from '../lib/runtime.mjs';
-import { elapsed, log as _log, cleanOutput } from '../lib/utils.mjs';
+import { elapsed, log as _log, queryAgent } from '../lib/utils.mjs';
 
 let testIndex = 0;
 
@@ -28,6 +25,7 @@ function log(msg) { _log('eval:memory', msg); }
 
 const queryUrl = runtime.queryUrl || null;
 const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const extraArgs = runtime.memory.extraArgs ?? [];
 
 function resetMemory() {
   runtime.memory.reset();
@@ -36,7 +34,6 @@ function resetMemory() {
 
 function clearSessions() {
   runtime.memory.clearSessions();
-  // Also reset the server-side conversation history
   if (queryUrl) {
     try {
       execFileSync('curl', [
@@ -53,32 +50,8 @@ function readMemoryFile() {
   return runtime.memory.read();
 }
 
-function runPrompt(prompt, sessionId, timeoutMs = 60_000) {
-  const start = Date.now();
-  try {
-    let raw;
-    if (queryUrl) {
-      raw = execFileSync('curl', [
-        '-sf',
-        '-X', 'POST', `${queryUrl}/agent/query`,
-        '-H', 'Content-Type: application/json',
-        '-H', `Authorization: Bearer ${gatewayToken}`,
-        '-d', JSON.stringify({ query: prompt, session: sessionId }),
-      ], { encoding: 'utf-8', timeout: timeoutMs }).trim();
-    } else {
-      const args = [...runtime.args(prompt, sessionId), ...(runtime.memory.extraArgs ?? [])];
-      raw = execFileSync(runtime.bin, args, {
-        encoding: 'utf-8', timeout: timeoutMs,
-        ...(runtime.env ? { env: runtime.env } : {}),
-        ...(runtime.cwd ? { cwd: runtime.cwd } : {}),
-      }).trim();
-    }
-
-    const output = cleanOutput(raw);
-    return { output, durationMs: Date.now() - start, error: null };
-  } catch (err) {
-    return { output: '', durationMs: Date.now() - start, error: err.message };
-  }
+function query(prompt, sessionId, timeoutMs = 60_000) {
+  return queryAgent(prompt, sessionId, { timeout: timeoutMs, extraArgs });
 }
 
 export default class MemoryProvider {
@@ -91,17 +64,14 @@ export default class MemoryProvider {
     const t = Date.now();
     log(`--- ${testIndex}. ${desc} ---`);
 
-    // Reset memory + sessions before each test.
     resetMemory();
 
     if (meta.storePrompt) {
-      // Store+recall mode: two sessions
       const storeSession = `eval-memory-store-${Date.now()}-${testIndex}`;
       const recallSession = `eval-memory-recall-${Date.now()}-${testIndex}`;
 
-      // 1. Store phase
       log(`Store (session: ${storeSession}): "${meta.storePrompt.slice(0, 80)}"`);
-      const store = runPrompt(meta.storePrompt, storeSession, 60_000);
+      const store = query(meta.storePrompt, storeSession);
 
       if (store.error) {
         log(`Store error (${elapsed(t)}): ${store.error}`);
@@ -109,7 +79,6 @@ export default class MemoryProvider {
         log(`Store reply (${elapsed(t)}): "${store.output.slice(0, 100)}"`);
       }
 
-      // 1b. Diagnostic: check if store phase wrote to memory
       const postStore = readMemoryFile();
       const postStoreLines = postStore.split('\n').filter(l => {
         const t = l.trim();
@@ -117,12 +86,10 @@ export default class MemoryProvider {
       });
       log(`Post-store memory: ${postStoreLines.length} substantive line(s)${postStoreLines.length > 0 ? ` — first: "${postStoreLines[0].trim().slice(0, 80)}"` : ' (empty — agent did NOT write)'}`);
 
-      // 2. Clear sessions so recall has ZERO conversation history.
       clearSessions();
 
-      // 3. Recall phase — fresh session, only memory persists
       log(`Recall (session: ${recallSession}): "${prompt.slice(0, 80)}"`);
-      const recall = runPrompt(prompt, recallSession, 60_000);
+      const recall = query(prompt, recallSession);
 
       if (recall.error) {
         log(`Recall error (${elapsed(t)}): ${recall.error}`);
@@ -130,7 +97,6 @@ export default class MemoryProvider {
         log(`Recall reply (${elapsed(t)}): "${recall.output.slice(0, 100)}"`);
       }
 
-      // 4. Read memory contents for assertion use
       const memoryContents = readMemoryFile();
 
       return {
@@ -142,11 +108,10 @@ export default class MemoryProvider {
       };
     }
 
-    // Single-prompt mode
     const session = `eval-memory-${Date.now()}-${testIndex}`;
     log(`Sending: "${prompt.slice(0, 80)}${prompt.length > 80 ? '...' : ''}"`);
 
-    const result = runPrompt(prompt, session, 60_000);
+    const result = query(prompt, session);
 
     if (result.error) {
       log(`Error (${elapsed(t)}): ${result.error}`);

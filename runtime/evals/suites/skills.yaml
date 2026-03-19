@@ -1,6 +1,6 @@
 # runtime/evals/skills.yaml
 # Skills eval — can the agent invoke external tools and services?
-# Each test runs independently via `openclaw agent -m`.
+# Each test runs independently via the prompt provider (CLI or HTTP per runtime).
 
 description: "Eval: Skills"
 
