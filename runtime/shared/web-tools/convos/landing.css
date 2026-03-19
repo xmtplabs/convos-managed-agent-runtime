@@ -198,26 +198,20 @@ a.qr-wrap { color: inherit; text-decoration: none; }
   justify-content: center;
   text-align: center;
 }
-.connected-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--color-success);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0.25rem auto 0;
+.connected-balloon {
+  width: 56px;
+  margin: 0 auto;
+  animation: balloon-float 3s ease-in-out infinite;
 }
-.connected-icon svg { width: 24px; height: 24px; }
+.connected-balloon svg { width: 100%; height: auto; display: block; }
+@keyframes balloon-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
 .connected-label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-fg);
-}
-.connected-sublabel {
-  font-size: 0.75rem;
-  color: var(--color-success);
-  font-weight: 500;
 }
 .convo-id {
   font-family: 'SF Mono', ui-monospace, monospace;
