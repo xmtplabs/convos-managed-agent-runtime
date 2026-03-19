@@ -141,16 +141,19 @@ export function followUpResponded(output, context) {
   return { pass: true, score: 1, reason: 'Follow-up query returned a response' };
 }
 
+// Silence indicators per runtime — empty output or any of these exact strings
+// means the agent intentionally chose not to reply.
+const SILENCE_TOKENS = new Set(['', 'SILENT', 'No reply from agent.', 'completed']);
+
 export function agentChoseSilence(output) {
   const trimmed = (output || '').trim();
-  // Hermes returns "SILENT", OpenClaw returns "completed" or empty when the agent stays quiet
-  const pass = !trimmed || trimmed === 'SILENT' || trimmed === 'No reply from agent.' || trimmed === 'completed';
+  const pass = SILENCE_TOKENS.has(trimmed);
   return {
     pass,
     score: pass ? 1 : 0,
     reason: pass
       ? `Agent chose silence (output: ${trimmed ? `"${trimmed}"` : 'empty'})`
-      : `Expected silence or SILENT, got: "${trimmed.slice(0, 120)}"`,
+      : `Expected silence, got: "${trimmed.slice(0, 120)}"`,
   };
 }
 

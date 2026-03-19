@@ -104,19 +104,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { suite: knows,     timeout: 180, only: "", fresh: false }
-          - { suite: skills,    timeout: 300, only: "", fresh: false }
-          - { suite: soul,      timeout: 180, only: "", fresh: false }
-          - { suite: lifecycle, timeout: 300, only: "", fresh: false }
-          - { suite: convos,    timeout: 300, only: "", fresh: false }
-          - { suite: models,    timeout: 300, only: openclaw, fresh: false }
-          - { suite: async,     timeout: 120, only: "", fresh: false }
-          - { suite: memory,    timeout: 300, only: "", fresh: false }
-          - { suite: poller,    timeout: 300, only: "", fresh: false }
-          - { suite: poller-hooks, timeout: 300, only: "", fresh: false }
-          - { suite: silence,   timeout: 120, only: "", fresh: false }
-          - { suite: provision, timeout: 180, only: "", fresh: true }
-          - { suite: cron,      timeout: 180, only: openclaw, fresh: false }
+          - { suite: knows,        timeout: 300, only: "", fresh: false }
+          - { suite: skills,       timeout: 300, only: "", fresh: false }
+          - { suite: soul,         timeout: 300, only: "", fresh: false }
+          - { suite: lifecycle,    timeout: 300, only: "", fresh: false }
+          - { suite: convos,       timeout: 300, only: "", fresh: false }
+          - { suite: models,       timeout: 300, only: openclaw, fresh: false }
+          - { suite: async-delegation,   timeout: 300, only: "", fresh: false }
+          - { suite: async-cron,         timeout: 180, only: openclaw, fresh: false }
+          - { suite: async-poller,       timeout: 300, only: "", fresh: false }
+          - { suite: async-poller-hooks, timeout: 300, only: "", fresh: false }
+          - { suite: memory,             timeout: 300, only: "", fresh: false }
+          - { suite: silence,            timeout: 300, only: "", fresh: false }
+          - { suite: provision,          timeout: 300, only: "", fresh: true }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
