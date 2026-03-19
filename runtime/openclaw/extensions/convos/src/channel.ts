@@ -1109,7 +1109,7 @@ export async function startWiredInstance(params: {
   const instanceId = process.env.INSTANCE_ID || "";
   if (posthogApiKey && instanceId) {
     const environment = process.env.POOL_ENVIRONMENT || "";
-    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "" });
+    stats.start({ posthogApiKey, posthogHost, instanceId, environment, version: process.env.RUNTIME_VERSION || "" });
   }
 
   // Fire-and-forget: dispatch LLM-generated welcome message.

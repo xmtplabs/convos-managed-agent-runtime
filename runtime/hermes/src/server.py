@@ -168,7 +168,6 @@ async def start_wired_instance(
             posthog_api_key=cfg.posthog_api_key,
             posthog_host=cfg.posthog_host,
             instance_id=cfg.instance_id,
-            agent_name=name or "",
             runtime="hermes",
             environment=os.environ.get("POOL_ENVIRONMENT", ""),
             version=RUNTIME_VERSION or "",

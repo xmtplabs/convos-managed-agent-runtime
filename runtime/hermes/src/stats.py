@@ -34,7 +34,6 @@ class StatsAccumulator:
         self._posthog_api_key: str = ""
         self._posthog_host: str = ""
         self._instance_id: str = ""
-        self._agent_name: str = ""
         self._runtime: str = "hermes"
         self._environment: str = ""
         self._version: str = ""
@@ -74,7 +73,6 @@ class StatsAccumulator:
                     "runtime_version": self._version,
                     "seconds_since_last_message_in": seconds_since,
                     "$set": {
-                        "agent_name": self._agent_name,
                         "runtime": self._runtime,
                     },
                 },
@@ -111,7 +109,6 @@ class StatsAccumulator:
         posthog_api_key: str,
         posthog_host: str = "https://us.i.posthog.com",
         instance_id: str,
-        agent_name: str = "",
         runtime: str = "hermes",
         environment: str = "",
         version: str = "",
@@ -121,7 +118,6 @@ class StatsAccumulator:
         self._posthog_api_key = posthog_api_key
         self._posthog_host = posthog_host.rstrip("/")
         self._instance_id = instance_id
-        self._agent_name = agent_name
         self._runtime = runtime
         self._environment = environment
         self._version = version
