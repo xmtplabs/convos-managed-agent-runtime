@@ -104,17 +104,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { suite: knows,        timeout: 300, only: "" }
-          - { suite: skills,       timeout: 300, only: "" }
-          - { suite: soul,         timeout: 300, only: "" }
-          - { suite: lifecycle,    timeout: 300, only: "" }
-          - { suite: convos,       timeout: 300, only: "" }
-          - { suite: models,       timeout: 300, only: openclaw }
-          - { suite: async,        timeout: 300, only: "" }
-          - { suite: memory,       timeout: 300, only: "" }
-          - { suite: poller,       timeout: 300, only: "" }
-          - { suite: poller-hooks, timeout: 300, only: "" }
-          - { suite: silence,      timeout: 300, only: "" }
+          - { suite: knows,        timeout: 300, only: "", fresh: false }
+          - { suite: skills,       timeout: 300, only: "", fresh: false }
+          - { suite: soul,         timeout: 300, only: "", fresh: false }
+          - { suite: lifecycle,    timeout: 300, only: "", fresh: false }
+          - { suite: convos,       timeout: 300, only: "", fresh: false }
+          - { suite: models,       timeout: 300, only: openclaw, fresh: false }
+          - { suite: async,        timeout: 300, only: "", fresh: false }
+          - { suite: memory,       timeout: 300, only: "", fresh: false }
+          - { suite: poller,       timeout: 300, only: "", fresh: false }
+          - { suite: poller-hooks, timeout: 300, only: "", fresh: false }
+          - { suite: silence,      timeout: 300, only: "", fresh: false }
+          - { suite: provision,    timeout: 300, only: "", fresh: true }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
@@ -135,10 +136,10 @@ jobs:
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            -e POOL_URL="${{ secrets.POOL_URL }}" \
-            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            -e AGENTMAIL_API_KEY="${{ secrets.AGENTMAIL_API_KEY }}" \
-            -e AGENTMAIL_INBOX_ID="${{ secrets.AGENTMAIL_INBOX_ID }}" \
+            ${{ !matrix.fresh && format('-e POOL_URL="{0}"', secrets.POOL_URL) || '' }} \
+            ${{ !matrix.fresh && format('-e INSTANCE_ID="{0}"', secrets.INSTANCE_ID) || '' }} \
+            ${{ !matrix.fresh && format('-e AGENTMAIL_API_KEY="{0}"', secrets.AGENTMAIL_API_KEY) || '' }} \
+            ${{ !matrix.fresh && format('-e AGENTMAIL_INBOX_ID="{0}"', secrets.AGENTMAIL_INBOX_ID) || '' }} \
             ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
             ${{ inputs.docker_run_extra }} \
             ${{ inputs.image }}:${{ inputs.pending_tag }} \
