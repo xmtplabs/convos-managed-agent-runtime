@@ -74,8 +74,8 @@ export function profileMetadataEquals(output, context) {
     const match = profiles.some((p) => {
       const raw = p.metadata?.[key];
       // Handle both plain values and typed objects ({ type, value })
-      const actual = raw && typeof raw === 'object' && 'value' in raw ? String(raw.value) : raw;
-      return actual === value;
+      const actual = raw && typeof raw === 'object' && 'value' in raw ? String(raw.value) : String(raw);
+      return actual === String(value);
     });
     return {
       pass: match,

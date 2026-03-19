@@ -18,7 +18,11 @@ brand_section "Uploading assistant brain"
 mkdir -p "$STATE_DIR"
 
 # Assemble AGENTS.md (shared base + runtime extra) — after sync so it overwrites the synced copy
-. "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
+if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh" ]; then
+  . "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
+else
+  echo "⚠ SHARED_SCRIPTS_DIR not set — skipping agents-assemble"
+fi
 assemble_agents "$SHARED_WORKSPACE_DIR" "$RUNTIME_DIR/workspace/agents-extra.md" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
 
 # Sync shared web-tools assets (Docker copies to /app/web-tools; locally we mirror here)

@@ -113,6 +113,10 @@ export async function provision(opts: ProvisionOpts) {
       });
       if (!updated) throw new Error("Claim status changed before pending acceptance could be recorded");
       report("convo", "ok", "Instance reserved while join waits for approval");
+
+      metricCount("instance.claim.complete", 1, { status: "pending_acceptance" });
+      metricHistogram("instance.claim.duration_ms", Date.now() - claimStart);
+
       return {
         inviteUrl: result.inviteUrl || joinUrl || null,
         conversationId: null,
