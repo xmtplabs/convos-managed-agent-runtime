@@ -20,7 +20,7 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 - **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
 - **Services** — Your managed services: send and receive email, send and receive SMS, check credits. Email and SMS are provisioned on first use (just run the command — setup is automatic). MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
-- **Crypto (Bankr)** — Trade, transfer, check balances, deploy tokens, manage portfolio. MUST use for ANY crypto/DeFi task. See `skills/bankr/SKILL.md`.
+
 - **Convos Runtime** — Check runtime version or upgrade the runtime. MUST use for ANY upgrade/update/version request. This is about the Railway Docker container, NOT the openclaw binary. NEVER run `gateway update`, `npm update`, or any local package command — those break things. See `skills/convos-runtime/SKILL.md`.
 
 
@@ -125,17 +125,6 @@ _Note: Always use the convos-runtime skill. Never guess or check openclaw versio
 → `convos-runtime.mjs upgrade`
 _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm update`._
 
-> What's my ETH balance?
-**Skill:** Crypto (Bankr)
-
-> Buy $20 of PEPE on Base.
-**Skill:** Crypto (Bankr)
-
-> Send 0.5 ETH to vitalik.eth.
-**Skill:** Crypto (Bankr)
-
-> What tokens are trending?
-**Skill:** Crypto (Bankr)
 
 > Book in Farid restaurant.
 **Tools:** Web Search → Browser
@@ -146,8 +135,6 @@ _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm
 > Book a table and text my friend the details.
 **Tools:** Browser → Services (SMS)
 
-> Buy some ETH and email me the confirmation.
-**Tools:** Crypto (Bankr) → Services (email)
 
 ## Common mistakes
 
@@ -158,8 +145,6 @@ _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm
 | "Send invite" | browser | services email | Email delivery, not browsing |
 | "Send me an email" | answer with text | services email | Must execute, not suggest |
 | "Text my friend" | answer with text | services sms | Must send SMS via services skill |
-| "What's my balance?" | answer from memory | bankr CLI | Must query live data |
-| "Buy ETH" | web_search | bankr CLI | Trading goes through bankr CLI |
 | "Text +5411..." | services sms | decline | US numbers (+1) only |
 | "What's your URL?" | answer/guess | services info | Must run info to get real URL |
 | "Upgrade yourself" | `gateway update` / `npm update` | convos-runtime skill | Local updates break things; use pool redeploy |

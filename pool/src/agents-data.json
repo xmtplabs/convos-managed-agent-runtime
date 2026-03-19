@@ -1111,21 +1111,6 @@
   },
   {
     "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
-    "number": 13,
-    "globalNumber": 72,
-    "name": "Bankr",
-    "description": "On-chain crypto agent. Multi-chain wallet management, trading with safety layer, prediction markets, DeFi, portfolio tracking, group trading floor.",
-    "skills": [
-      "Web Search",
-      "Browsing",
-      "Payments",
-      "Scheduling"
-    ],
-    "status": "written",
-    "subPageUrl": "https://www.notion.so/30730823ce92813486a4ce2d2a6d0270"
-  },
-  {
-    "category": "⚡ Superpower Agents — Platform Powers as Privacy Tools",
     "number": 14,
     "globalNumber": 73,
     "name": "The Prediction Manager",
