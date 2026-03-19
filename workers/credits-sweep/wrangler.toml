@@ -1,6 +1,7 @@
 name = "credits-sweep"
 main = "src/index.ts"
 compatibility_date = "2025-03-17"
+account_id = "7d30165bd08c4b64b3a0005065315967"
 
 # Setup (deploy):
 #   1. wrangler kv namespace create STATS_CREDITS
