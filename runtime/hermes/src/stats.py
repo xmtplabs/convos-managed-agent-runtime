@@ -84,7 +84,8 @@ class StatsAccumulator:
         }
 
     def has_activity(self) -> bool:
-        return any(v > 0 for v in self._counters.values())
+        return (any(v > 0 for v in self._counters.values())
+                or any(v > 0 for v in self._gauges.values()))
 
     def flush(self) -> dict:
         batch = self._build_posthog_batch()

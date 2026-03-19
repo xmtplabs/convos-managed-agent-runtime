@@ -10,7 +10,9 @@ function parseKeyName(name: string): { instanceId: string; environment: string }
     const rest = name.slice(NEW_PREFIX.length);
     const dashIdx = rest.indexOf("-");
     if (dashIdx === -1) return null;
-    return { environment: rest.slice(0, dashIdx), instanceId: rest.slice(dashIdx + 1) };
+    const instanceId = rest.slice(dashIdx + 1);
+    if (!instanceId) return null;
+    return { environment: rest.slice(0, dashIdx), instanceId };
   }
   if (name.startsWith(LEGACY_PREFIX)) {
     const instanceId = name.slice(LEGACY_PREFIX.length);
@@ -81,7 +83,7 @@ async function creditsSweep(env: Env): Promise<void> {
       const delta = Math.max(0, usage - lastUsage);
 
       // Only write KV and emit event when usage changed
-      if (delta === 0 && lastUsageStr !== null) continue;
+      if (usage === lastUsage && lastUsageStr !== null) continue;
       await env.STATS_CREDITS.put(kvKey, String(usage));
 
       events.push({
