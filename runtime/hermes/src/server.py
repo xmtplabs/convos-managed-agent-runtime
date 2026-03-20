@@ -496,16 +496,20 @@ async def _apply_attestation() -> None:
     if not adapter or not adapter.instance or not adapter.instance.inbox_id:
         return
     att = await _fetch_attestation(adapter.instance.inbox_id)
-    if att:
-        # Store for subprocess restarts
-        adapter.instance.set_attestation(att["attestation"], att["attestation_ts"], att["attestation_kid"])
-        # Push to running agent serve process
-        await adapter.instance.update_profile(metadata={
-            "attestation": att["attestation"],
-            "attestation_ts": att["attestation_ts"],
-            "attestation_kid": att["attestation_kid"],
-        })
-        logger.info("Attestation signed for %s...", adapter.instance.inbox_id[:12])
+    if not att:
+        return
+    if not all(k in att for k in ("attestation", "attestation_ts", "attestation_kid")):
+        logger.warning("Attestation response missing required fields: %s", list(att.keys()))
+        return
+    # Store for subprocess restarts
+    adapter.instance.set_attestation(att["attestation"], att["attestation_ts"], att["attestation_kid"])
+    # Push to running agent serve process
+    await adapter.instance.update_profile(metadata={
+        "attestation": att["attestation"],
+        "attestation_ts": att["attestation_ts"],
+        "attestation_kid": att["attestation_kid"],
+    })
+    logger.info("Attestation signed for %s...", adapter.instance.inbox_id[:12])
 
 
 async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConfig) -> None:
