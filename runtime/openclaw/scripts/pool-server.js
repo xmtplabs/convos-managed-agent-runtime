@@ -42,8 +42,13 @@ const RUNTIME_VERSION = (() => {
     path.resolve(__dirname, "../runtime-version.json"),     // /app/runtime-version.json (Docker)
   ];
   for (const p of candidates) {
-    try { const v = require(p).version; if (v) return v; } catch {}
+    try {
+      const raw = fs.readFileSync(p, "utf8");
+      const v = JSON.parse(raw).version;
+      if (v) { console.log(`[pool-server] Version ${v} from ${p}`); return v; }
+    } catch {}
   }
+  console.warn(`[pool-server] Could not resolve version from: ${candidates.join(", ")}`);
   return "unknown";
 })();
 process.env.RUNTIME_VERSION = RUNTIME_VERSION;
