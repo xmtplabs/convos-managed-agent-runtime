@@ -997,13 +997,16 @@ async def convos_reattest(body: ReattestRequest):
     adapter = get_adapter()
     if not adapter or not adapter.instance:
         raise HTTPException(status_code=400, detail="No active conversation")
-    adapter.instance.set_attestation(body.attestation, body.attestation_ts, body.attestation_kid)
-    await adapter.instance.update_profile(metadata={
-        "attestation": body.attestation,
-        "attestation_ts": body.attestation_ts,
-        "attestation_kid": body.attestation_kid,
-    })
-    return {"ok": True}
+    try:
+        adapter.instance.set_attestation(body.attestation, body.attestation_ts, body.attestation_kid)
+        await adapter.instance.update_profile(metadata={
+            "attestation": body.attestation,
+            "attestation_ts": body.attestation_ts,
+            "attestation_kid": body.attestation_kid,
+        })
+        return {"ok": True}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
 
 
 # ---- /convos/lock ----
