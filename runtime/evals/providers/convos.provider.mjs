@@ -66,14 +66,19 @@ export default class ConvosProvider {
         sleep(2_000);
       }
       const finalMsgs = h.fetchMessages();
-      const cronPings = h.agentCount(finalMsgs) - setupCount;
-      // Capture the actual text of cron-delivered messages for content verification
-      const cronPingTexts = finalMsgs
+      // Get all new agent messages after setup, then separate pings from noise
+      const newAgentTexts = finalMsgs
         .filter(m => m.senderInboxId !== h.userInboxId)
         .slice(setupCount)
         .map(m => m.content || m.text || '')
         .filter(Boolean);
-      log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 30)}"`).join(', ') || '(none)'}`);
+      // Pings are short messages containing "ping" — filter out poller notifications etc.
+      const cronPingTexts = newAgentTexts.filter(t => /ping/i.test(t) && t.length < 100);
+      const cronPings = cronPingTexts.length;
+      log(`Cron delivered ${cronPings} pings in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 30)}"`).join(', ') || '(none)'}`)
+      if (newAgentTexts.length > cronPings) {
+        log(`  (${newAgentTexts.length - cronPings} non-ping agent messages also arrived)`);
+      }
 
       // Cleanup: delete the cron job so pings don't interfere with later tests
       let cleanedUp = false;

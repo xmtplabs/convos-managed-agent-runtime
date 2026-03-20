@@ -21,12 +21,11 @@ tests:
   - description: "Agent creates a cron job, pings arrive, then deletes it"
     vars:
       prompt: >
-        Create a recurring cron job that pings me every 30 seconds. Use
-        schedule kind "every" with everyMs 30000. Use sessionTarget "main"
-        with a systemEvent payload whose text is: "Send a short ping message
-        to the conversation — just say Ping!" — set wakeMode to "now".
-        This is a private test conversation with only me — do it now,
-        no questions asked.
+        Create a recurring cron job that pings me every 30 seconds. Use these
+        exact params: schedule kind "every" with everyMs 30000, sessionTarget
+        "isolated", payload kind "agentTurn" with message "Say exactly: Ping!",
+        lightContext true, delivery mode "announce" with channel "convos".
+        This is a private test conversation — do it now, no questions asked.
     metadata:
       cronWait: true
       cronWaitSeconds: 40
