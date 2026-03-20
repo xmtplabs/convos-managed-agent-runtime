@@ -1,0 +1,175 @@
+name: PR Quality Gates
+
+on:
+  pull_request:
+    branches: [dev, staging, main]
+
+concurrency:
+  group: pr-quality-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Auto-label by path ───────────────────────────────────────────────
+  label:
+    name: Label PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labeler.yml
+
+  # ── PR size warning ──────────────────────────────────────────────────
+  size-check:
+    name: PR Size
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          STATS=$(git diff --stat "$BASE_SHA" "$HEAD_SHA" | tail -1)
+          INS=$(echo "$STATS" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo 0)
+          DEL=$(echo "$STATS" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo 0)
+          TOTAL=$(( ${INS:-0} + ${DEL:-0} ))
+
+          echo "PR size: $TOTAL lines changed"
+
+          if [ "$TOTAL" -gt 500 ]; then
+            echo "::warning::PR changes $TOTAL lines (>500). Consider splitting."
+            # Only comment if we haven't already
+            EXISTING=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
+              --jq '.comments[].body' 2>/dev/null | grep -c "PR Size Warning" || true)
+            if [ "${EXISTING:-0}" -eq 0 ]; then
+              gh pr comment "$PR_NUMBER" --repo "$REPO" \
+                --body "**PR Size Warning**: This PR changes **$TOTAL lines** — consider splitting into smaller PRs for easier review." \
+                2>/dev/null || true
+            fi
+          fi
+
+  # ── Lockfile consistency ─────────────────────────────────────────────
+  lockfile:
+    name: Lockfile Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check lockfile in sync
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          # Check each workspace: if package.json changed, lockfile should too
+          check_lockfile() {
+            local dir="$1"
+            local pkg_changed lock_changed
+            pkg_changed=$(echo "$CHANGED" | grep -c "^${dir}package.json$" || true)
+            lock_changed=$(echo "$CHANGED" | grep -c "pnpm-lock.yaml" || true)
+
+            if [ "${pkg_changed:-0}" -gt 0 ] && [ "${lock_changed:-0}" -eq 0 ]; then
+              echo "::error::${dir}package.json was modified but pnpm-lock.yaml was not updated. Run 'pnpm install' and commit the lockfile."
+              return 1
+            fi
+            return 0
+          }
+
+          FAIL=0
+          check_lockfile "pool/" || FAIL=1
+          check_lockfile "runtime/" || FAIL=1
+          check_lockfile "runtime/openclaw/" || FAIL=1
+          check_lockfile "runtime/hermes/" || FAIL=1
+          check_lockfile "workers/credits-sweep/" || FAIL=1
+          check_lockfile "dashboard/" || FAIL=1
+
+          if [ "$FAIL" -eq 1 ]; then
+            exit 1
+          fi
+          echo "Lockfile check passed."
+
+  # ── TypeScript build (pool) ──────────────────────────────────────────
+  pool-build:
+    name: Pool Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pool/pnpm-lock.yaml
+
+      - name: Install & build
+        working-directory: pool
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+  # ── Secrets leak scan ────────────────────────────────────────────────
+  secrets-scan:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Scan diff for secrets
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          DIFF=$(git diff "$BASE_SHA" "$HEAD_SHA" -- . ':!pnpm-lock.yaml' ':!*.lock')
+
+          PATTERNS=(
+            'PRIVATE.KEY'
+            'sk-[a-zA-Z0-9]{20,}'
+            'xoxb-[0-9]+'
+            'ghp_[a-zA-Z0-9]{36}'
+            'AKIA[0-9A-Z]{16}'
+            'password\s*[:=]\s*["\x27][^"\x27]{8,}'
+          )
+
+          FAIL=0
+          for pat in "${PATTERNS[@]}"; do
+            MATCHES=$(echo "$DIFF" | grep -nE "^\+" | grep -iE "$pat" || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::error::Potential secret found matching pattern: $pat"
+              echo "$MATCHES" | head -5
+              FAIL=1
+            fi
+          done
+
+          # Check for .env files being committed
+          ENV_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E '\.env($|\.)' | grep -v '\.env\.example' || true)
+          if [ -n "$ENV_FILES" ]; then
+            echo "::error::Environment files should not be committed: $ENV_FILES"
+            FAIL=1
+          fi
+
+          if [ "$FAIL" -eq 1 ]; then
+            exit 1
+          fi
+          echo "Secrets scan passed."
