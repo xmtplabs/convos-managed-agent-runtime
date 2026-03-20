@@ -80,13 +80,17 @@ jobs:
           # Check each workspace: if package.json changed, lockfile should too
           check_lockfile() {
             local dir="$1"
-            local pkg_changed lock_changed
+            local pkg_changed lock_changed deps_changed
             pkg_changed=$(echo "$CHANGED" | grep -c "^${dir}package.json$" || true)
             lock_changed=$(echo "$CHANGED" | grep -c "pnpm-lock.yaml" || true)
 
             if [ "${pkg_changed:-0}" -gt 0 ] && [ "${lock_changed:-0}" -eq 0 ]; then
-              echo "::error::${dir}package.json was modified but pnpm-lock.yaml was not updated. Run 'pnpm install' and commit the lockfile."
-              return 1
+              # Only fail if dependencies actually changed (not just version/scripts)
+              deps_changed=$(git diff "$BASE_SHA" "$HEAD_SHA" -- "${dir}package.json" | grep -cE '^\+.*(dependencies|devDependencies|peerDependencies|optionalDependencies)' || true)
+              if [ "${deps_changed:-0}" -gt 0 ]; then
+                echo "::error::${dir}package.json was modified but pnpm-lock.yaml was not updated. Run 'pnpm install' and commit the lockfile."
+                return 1
+              fi
             fi
             return 0
           }
