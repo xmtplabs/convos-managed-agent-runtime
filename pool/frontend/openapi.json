@@ -218,12 +218,73 @@
         "responses": { "200": { "description": "Updated" } }
       }
     },
+    "/api/pool/upgrade/stream": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Mass runtime upgrade with SSE progress",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "ids", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Comma-separated instance IDs" },
+          { "name": "image", "in": "query", "schema": { "type": "string" }, "description": "Optional image override" }
+        ],
+        "responses": { "200": { "description": "SSE stream" } }
+      }
+    },
+    "/api/pool/refresh-versions": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Refresh runtime version info for all active instances",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "properties": { "ids": { "type": "array", "items": { "type": "string" }, "description": "Optional subset of instance IDs to refresh" } } } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "updated": { "type": "integer" }, "total": { "type": "integer" } } } } } } }
+      }
+    },
+    "/api/pool/self-info": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Query instance runtime version and image",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "instanceId": { "type": "string" }, "runtimeVersion": { "type": "string", "nullable": true }, "runtimeImage": { "type": "string", "nullable": true }, "latestImage": { "type": "string", "nullable": true } } } } } } }
+      }
+    },
+    "/api/pool/self-upgrade": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Instance requests a runtime image upgrade",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "instanceId": { "type": "string" }, "image": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/self-reset": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Instance requests a redeploy (same image, fresh container)",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "instanceId": { "type": "string" } } } } } } }
+      }
+    },
     "/api/pool/self-destruct": {
       "post": {
         "tags": ["Instance"],
         "summary": "Instance requests its own teardown",
         "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
         "responses": { "200": { "description": "Accepted" } }
+      }
+    },
+    "/api/pool/pending-acceptance/complete": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Notify pool that a pending join resolved successfully",
+        "requestBody": { "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/InstanceAuth" }, { "type": "object", "required": ["conversationId"], "properties": { "conversationId": { "type": "string" } } }] } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "instanceId": { "type": "string" }, "conversationId": { "type": "string" } } } } } } }
+      }
+    },
+    "/api/pool/pending-acceptance/fail": {
+      "post": {
+        "tags": ["Instance"],
+        "summary": "Notify pool that a pending join failed",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InstanceAuth" } } } },
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "instanceId": { "type": "string" } } } } } } }
       }
     },
     "/api/pool/credits-check": {
@@ -248,6 +309,15 @@
         "summary": "Redeem a coupon code for credits (+$20)",
         "requestBody": { "content": { "application/json": { "schema": { "allOf": [{ "$ref": "#/components/schemas/InstanceAuth" }, { "type": "object", "required": ["code"], "properties": { "code": { "type": "string" } } }] } } } },
         "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "previousLimit": { "type": "number" }, "newLimit": { "type": "number" } } } } } }, "400": { "description": "Invalid code" }, "409": { "description": "Max coupon limit reached" } }
+      }
+    },
+    "/api/proxy/services/status": {
+      "get": {
+        "tags": ["Proxy"],
+        "summary": "Check if an instance has email/SMS provisioned (admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "instanceId", "in": "query", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "instanceId": { "type": "string" }, "email": { "type": "string", "nullable": true }, "phone": { "type": "string", "nullable": true } } } } } } }
       }
     },
     "/api/proxy/info": {
@@ -280,6 +350,23 @@
         "summary": "Send an email via instance's inbox",
         "security": [{ "GatewayToken": [] }],
         "requestBody": { "content": { "application/json": { "schema": { "type": "object", "description": "AgentMail send message body" } } } },
+        "responses": { "200": { "description": "Proxied from AgentMail" } }
+      }
+    },
+    "/api/proxy/email/messages/{messageId}": {
+      "get": {
+        "tags": ["Proxy"],
+        "summary": "Get a single email message with inline attachments",
+        "security": [{ "GatewayToken": [] }],
+        "parameters": [{ "name": "messageId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Proxied from AgentMail (with inline attachment data)" } }
+      },
+      "patch": {
+        "tags": ["Proxy"],
+        "summary": "Update email message labels",
+        "security": [{ "GatewayToken": [] }],
+        "parameters": [{ "name": "messageId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "content": { "application/json": { "schema": { "type": "object", "description": "Label update body (proxied to AgentMail)" } } } },
         "responses": { "200": { "description": "Proxied from AgentMail" } }
       }
     },
