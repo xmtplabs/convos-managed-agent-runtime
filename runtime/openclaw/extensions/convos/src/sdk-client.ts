@@ -504,12 +504,14 @@ export class ConvosInstance {
       const imageMatch = text.match(/--image\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
       const name = nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3];
       const image = imageMatch?.[1] ?? imageMatch?.[2] ?? imageMatch?.[3];
-      const metadataMatches = [...text.matchAll(/--metadata\s+(\S+)/g)];
+      const metadataMatches = [...text.matchAll(/--metadata\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)];
       let metadata: Record<string, string> | undefined;
       if (metadataMatches.length > 0) {
         metadata = {};
         for (const m of metadataMatches) {
-          const [k, ...rest] = m[1].split("=");
+          const raw = m[1] ?? m[2] ?? m[3];
+          if (!raw) continue;
+          const [k, ...rest] = raw.split("=");
           if (k && rest.length > 0) metadata[k] = rest.join("=");
         }
       }

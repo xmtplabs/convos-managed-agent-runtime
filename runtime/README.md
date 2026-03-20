@@ -42,7 +42,7 @@ runtime/
 │   ├── workspace/
 │   │   ├── AGENTS-base.md  # shared agent instructions (~80% of AGENTS.md)
 │   │   ├── SOUL.md         # personality
-│   │   └── skills/         # services, convos-runtime, convos-cli
+│   │   └── skills/         # services, convos-runtime, profile-update
 │   └── web-tools/          # browser automation, landing page, forms
 ├── openclaw/               # OpenClaw runtime
 │   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
@@ -62,7 +62,7 @@ runtime/
     ├── workspace/
     │   ├── agents-extra.md # hermes-specific agent instructions
     │   ├── config.yaml     # hermes toolset config
-    │   └── CONVOS_PROMPT.md # platform prompt (hermes-only)
+    │   └── CONVOS_PLATFORM.md # platform context (hermes-only)
     └── scripts/            # entrypoint, apply-config, eval-env, etc.
 ```
 
@@ -76,7 +76,7 @@ runtime/
 |------|---------|----------|
 | `AGENTS-base.md` | Shared agent instructions (~80% of final AGENTS.md) | Concatenated with runtime's `agents-extra.md` to produce AGENTS.md |
 | `SOUL.md` | Personality / persona (includes OpenClaw YAML frontmatter, ignored by Hermes) | Copied as-is |
-| `skills/` | All skills (services, convos-runtime, convos-cli) | Copied to runtime's skills directory |
+| `skills/` | All skills (services, convos-runtime, profile-update) | Copied to runtime's skills directory |
 
 **AGENTS.md assembly:** `cat AGENTS-base.md agents-extra.md > AGENTS.md`. Each runtime keeps an `agents-extra.md` in its own workspace with runtime-specific sections (e.g. Delegation, Memory, Identity for Hermes).
 
