@@ -1,17 +1,22 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime.
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (13 suites).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
 | **knows** | `knows.yaml` | Parallel (5x) | Knowledge — time, version, URLs, credits |
 | **skills** | `skills.yaml` | Parallel (5x) | Services — email, SMS, browse, search |
 | **soul** | `soul.yaml` | Parallel (5x) | Personality & values — brevity, privacy, empathy, identity |
-| **convos** | `convos.yaml` | Sequential (1x) | XMTP lifecycle — welcome, profile, image, members, self-destruct |
-| **async** | `async.yaml` | Sequential (1x) | Non-blocking — agent stays responsive during complex tasks |
+| **provision** | `provision.yaml` | Parallel (5x) | Provisioning protocol — check-first, ask-consent, SMS disclosure |
+| **convos** | `convos.yaml` | Sequential (1x) | Convos capabilities — profile updates, vision, group awareness |
+| **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — join, welcome message, self-destruct |
+| **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
 | **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch OpenRouter models |
-| **poller** | `poller.yaml` | Sequential (1x) | Email poller pipeline |
+| **async-delegation** | `async-delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
+| **async-cron** | `async-cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
+| **async-poller** | `async-poller.yaml` | Sequential (1x) | Email poller — self-send, detect, notify, answer |
+| **async-poller-hooks** | `async-poller-hooks.yaml` | Sequential (1x) | Poller hooks — auto-discover and run poll.sh skills |
 
 ## Running
 
@@ -62,25 +67,36 @@ evals/
 │   ├── knows.yaml
 │   ├── skills.yaml
 │   ├── soul.yaml
+│   ├── provision.yaml
 │   ├── convos.yaml
-│   ├── async.yaml
+│   ├── lifecycle.yaml
+│   ├── silence.yaml
 │   ├── memory.yaml
 │   ├── models.yaml
-│   └── poller.yaml
+│   ├── async-delegation.yaml
+│   ├── async-cron.yaml
+│   ├── async-poller.yaml
+│   └── async-poller-hooks.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
 │   ├── convos.provider.mjs
 │   ├── async.provider.mjs
 │   ├── memory.provider.mjs
-│   └── poller.provider.mjs
+│   ├── poller.provider.mjs
+│   └── poller-hooks.provider.mjs
 ├── lib/
 │   ├── assertions.mjs
+│   ├── convos-harness.mjs # shared XMTP conversation harness
 │   ├── runtime.mjs        # loads the active runtime adapter
+│   ├── summarize.mjs      # CI summary generation
 │   └── utils.mjs
-└── adapters/
-    ├── openclaw.mjs        # baseline adapter
-    ├── hermes.mjs          # hermes adapter (see comparison table inside)
-    └── env.sh              # shared env setup per runtime
+├── adapters/
+│   ├── openclaw.mjs        # baseline adapter
+│   ├── hermes.mjs          # hermes adapter (see comparison table inside)
+│   └── env.sh              # shared env setup per runtime
+└── fixtures/
+    ├── eval-poller-note.txt
+    └── test-image.png
 ```
 
 ## Adding a test
@@ -100,6 +116,8 @@ Add to the `tests` array in the relevant suite yaml:
 
 All suites run as parallel matrix jobs in PR and dispatch workflows:
 
-- **PR builds** — `runtime-pr.yml`, `runtime-hermes-pr.yml`
+- **PR builds** — `runtime-pr.yml` (calls `runtime-pipeline.yml` per runtime)
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
+
+All 13 suites auto-discover from `suites/*.yaml` — no matrix config needed.
