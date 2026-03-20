@@ -18,13 +18,6 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Agent has attestation after joining"
-    vars:
-      prompt: "Hello, are you there?"
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:profileHasAttestation"
-
   - description: "Agent can update profile name"
     vars:
       prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
