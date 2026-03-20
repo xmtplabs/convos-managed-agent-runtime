@@ -233,7 +233,24 @@ export function cronPingsReceived(output, context) {
     score: pass ? 1 : 0,
     reason: pass
       ? `Received ${pings} cron pings during wait window`
-      : `Expected at least 2 cron pings, got ${pings}. Cron delivery to Convos may be broken.`,
+      : `Expected at least 1 cron ping, got ${pings}. Cron delivery to Convos may be broken.`,
+  };
+}
+
+export function cronJobDeleted(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const cleanedUp = meta.cleanedUp;
+
+  if (cleanedUp == null) {
+    return { pass: false, score: 0, reason: 'No cleanedUp in provider metadata — cronCleanupPrompt may be missing' };
+  }
+
+  return {
+    pass: cleanedUp,
+    score: cleanedUp ? 1 : 0,
+    reason: cleanedUp
+      ? 'Agent confirmed cron job deletion'
+      : 'Agent did not confirm cron job deletion within timeout',
   };
 }
 

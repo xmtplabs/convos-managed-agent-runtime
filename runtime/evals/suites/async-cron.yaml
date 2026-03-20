@@ -32,3 +32,5 @@ tests:
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:cronPingsReceived"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:cronJobDeleted"
