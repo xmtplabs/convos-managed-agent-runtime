@@ -24,6 +24,19 @@ export const convosOutbound: ChannelOutboundAdapter = {
   chunkerMode: "markdown",
   textChunkLimit: 4000,
 
+  // Resolve delivery target for cron announce and sub-agent delivery.
+  // Single-conversation process: always route to the bound conversation.
+  resolveTarget: ({ to }) => {
+    const inst = instance;
+    if (!inst) {
+      return { ok: false, error: new Error(`${TAG} resolveTarget failed — no instance running`) };
+    }
+    if (to && to !== inst.conversationId) {
+      console.warn(`${TAG} resolveTarget: target ${to} differs from bound ${inst.conversationId} — routing to bound conversation`);
+    }
+    return { ok: true, to: inst.conversationId };
+  },
+
   sendText: async ({ to, text }) => {
     if (!instance) {
       throw new Error(`${TAG} sendText failed — no instance running. Is the gateway started?`);

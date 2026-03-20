@@ -1,0 +1,37 @@
+# runtime/evals/async-cron.yaml
+# Cron eval — verify the agent can create a cron job and pings arrive via Convos.
+# Single conversation: create job → wait for ping → delete job.
+
+description: "Eval: Async Cron"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/convos.provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: "openrouter:{{ env.EVALS_MODEL | default('openai/gpt-5.4-mini') }}"
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  - description: "Agent creates a cron job and a ping arrives in conversation"
+    vars:
+      prompt: >
+        Create a recurring cron job that pings me every 30 seconds. Use these
+        exact params: schedule kind "every" with everyMs 30000, sessionTarget
+        "isolated", payload kind "agentTurn" with message "Say exactly: Ping!",
+        lightContext true, delivery mode "announce" with channel "convos".
+        This is a private test conversation — do it now, no questions asked.
+    metadata:
+      cronWait: true
+      cronWaitSeconds: 45
+      cronCleanupPrompt: "Stop and delete the ping cron job you just created."
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:cronPingsReceived"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:cronJobDeleted"
