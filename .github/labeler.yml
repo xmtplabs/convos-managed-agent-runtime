@@ -1,0 +1,41 @@
+pool:
+  - changed-files:
+      - any-glob-to-any-file: 'pool/**'
+
+runtime:
+  - changed-files:
+      - any-glob-to-any-file: 'runtime/**'
+
+runtime/openclaw:
+  - changed-files:
+      - any-glob-to-any-file: 'runtime/openclaw/**'
+
+runtime/hermes:
+  - changed-files:
+      - any-glob-to-any-file: 'runtime/hermes/**'
+
+runtime/shared:
+  - changed-files:
+      - any-glob-to-any-file: 'runtime/shared/**'
+
+dashboard:
+  - changed-files:
+      - any-glob-to-any-file: 'dashboard/**'
+
+workers:
+  - changed-files:
+      - any-glob-to-any-file: 'workers/**'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: '.github/**'
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file: '**/*.md'
+
+evals:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'runtime/**/evals/**'
+          - 'runtime/**/eval-config.*'

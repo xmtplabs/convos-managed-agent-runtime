@@ -252,6 +252,49 @@ export function memoryFileUpdated(output, context) {
   };
 }
 
+export function cronPingsReceived(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pings = meta.cronPings;
+  const pingTexts = meta.cronPingTexts || [];
+
+  if (pings == null) {
+    return { pass: false, score: 0, reason: 'No cronPings in provider metadata — cronWait handler may not have run' };
+  }
+
+  if (pings < 1) {
+    return { pass: false, score: 0, reason: `Expected at least 1 cron ping, got ${pings}. Cron delivery to Convos may be broken.` };
+  }
+
+  // Verify at least one ping contains "ping" — proves the cron payload was
+  // delivered with actual content, not just a SILENT/empty response.
+  const hasPingContent = pingTexts.some(t => /ping/i.test(t));
+  const pass = hasPingContent;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Received ${pings} cron pings, content verified (${pingTexts[0]?.slice(0, 40)})`
+      : `Received ${pings} cron pings but none contain "ping" — content: [${pingTexts.map(t => `"${t.slice(0, 30)}"`).join(', ')}]`,
+  };
+}
+
+export function cronJobDeleted(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const cleanedUp = meta.cleanedUp;
+
+  if (cleanedUp == null) {
+    return { pass: false, score: 0, reason: 'No cleanedUp in provider metadata — cronCleanupPrompt may be missing' };
+  }
+
+  return {
+    pass: cleanedUp,
+    score: cleanedUp ? 1 : 0,
+    reason: cleanedUp
+      ? 'Agent confirmed cron job deletion'
+      : 'Agent did not confirm cron job deletion within timeout',
+  };
+}
+
 export function responseTimeBelowThreshold(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const actual = meta.responseTimeMs;

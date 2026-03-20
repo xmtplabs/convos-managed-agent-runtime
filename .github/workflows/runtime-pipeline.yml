@@ -110,12 +110,13 @@ jobs:
           - { suite: lifecycle,    timeout: 300, only: "", fresh: false }
           - { suite: convos,       timeout: 300, only: "", fresh: false }
           - { suite: models,       timeout: 300, only: openclaw, fresh: false }
-          - { suite: async,        timeout: 300, only: "", fresh: false }
-          - { suite: memory,       timeout: 300, only: "", fresh: false }
-          - { suite: poller,       timeout: 300, only: "", fresh: false }
-          - { suite: poller-hooks, timeout: 300, only: "", fresh: false }
-          - { suite: silence,      timeout: 300, only: "", fresh: false }
-          - { suite: provision,    timeout: 300, only: "", fresh: true }
+          - { suite: async-delegation,   timeout: 300, only: "", fresh: false }
+          - { suite: async-cron,         timeout: 300, only: openclaw, fresh: false }
+          - { suite: async-poller,       timeout: 300, only: "", fresh: false }
+          - { suite: async-poller-hooks, timeout: 300, only: "", fresh: false }
+          - { suite: memory,             timeout: 300, only: "", fresh: false }
+          - { suite: silence,            timeout: 300, only: "", fresh: false }
+          - { suite: provision,          timeout: 300, only: "", fresh: true }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5

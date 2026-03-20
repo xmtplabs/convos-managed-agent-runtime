@@ -121,7 +121,7 @@ export function queryAgentAsync(prompt, sessionId, opts = {}) {
         '-X', 'POST', `${_queryUrl}/agent/query`,
         '-H', 'Content-Type: application/json',
         '-H', `Authorization: Bearer ${_gatewayToken}`,
-        '-d', JSON.stringify({ query: prompt }),
+        '-d', JSON.stringify({ query: prompt, session: sessionId }),
       ];
     } else {
       bin = runtime.bin;
@@ -146,11 +146,12 @@ export function queryAgentAsync(prompt, sessionId, opts = {}) {
       }
     }, timeoutMs);
 
-    proc.on('close', () => {
+    proc.on('close', (code) => {
       if (!settled) {
         settled = true;
         clearTimeout(timer);
-        resolve({ output: cleanOutput(stdout.trim()), durationMs: Date.now() - start, error: null });
+        const err = code !== 0 ? `Process exited with code ${code}` : null;
+        resolve({ output: cleanOutput(stdout.trim()), durationMs: Date.now() - start, error: err });
       }
     });
 

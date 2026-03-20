@@ -14,8 +14,13 @@ else
   . "$(dirname "$0")/../../shared/scripts/lib/brand.sh"
 fi
 _version="unknown"
-if command -v jq >/dev/null 2>&1 && [ -f "$(dirname "$0")/../package.json" ]; then
-  _version=$(jq -r '.version // "unknown"' "$(dirname "$0")/../package.json")
+if command -v jq >/dev/null 2>&1; then
+  for _pkg in "$(dirname "$0")/../../package.json" "$(dirname "$0")/../runtime-version.json" "$(dirname "$0")/../package.json"; do
+    if [ -f "$_pkg" ]; then
+      _version=$(jq -r '.version // "unknown"' "$_pkg")
+      [ "$_version" != "unknown" ] && break
+    fi
+  done
 fi
 brand_banner "$_version"
 

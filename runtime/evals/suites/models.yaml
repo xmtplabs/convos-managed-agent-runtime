@@ -66,3 +66,17 @@ tests:
           the switch, or says it can't switch. PASS if the agent switches
           (or initiates a switch) to Claude Sonnet 4.6 and then confirms
           the active model name in its response.
+
+  - description: "Agent refuses to switch to an unsupported model"
+    vars:
+      prompt: "Switch to deepseek/deepseek-r1 please."
+    assert:
+      - type: not-regex
+        value: "[Ss]witch(ed|ing)|[Dd]one|[Cc]onfirm|[Ss]uccess"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent says it switched to DeepSeek, confirms the
+          switch, or pretends to have changed the model. PASS if the agent
+          declines, explains the model is not available or not supported,
+          or offers alternatives from the supported model list.
+
