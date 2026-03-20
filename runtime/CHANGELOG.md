@@ -1,3 +1,7 @@
+## 0.1.2
+- Eval coverage: 13 test suites validating knowledge, skills, personality, provisioning, lifecycle, memory, models, and async workflows (see [eval README](evals/README.md))
+- Version reporting fix: pool dashboard now correctly shows runtime version for all instances
+
 ## 0.1.1
 - Faster tool use and smarter memory
 - Agents less chatty — assistants stay quiet when they have nothing useful to add
