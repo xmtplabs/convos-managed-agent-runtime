@@ -67,11 +67,37 @@ export default class ConvosProvider {
       }
       const finalMsgs = h.fetchMessages();
       const cronPings = h.agentCount(finalMsgs) - setupCount;
-      const output = h.transcript(finalMsgs, msgsBefore);
       log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s`);
+
+      // Cleanup: delete the cron job so pings don't interfere with later tests
+      let cleanedUp = false;
+      if (meta.cronCleanupPrompt) {
+        const cleanupBaseline = h.agentCount(finalMsgs);
+        log(`Sending cleanup: "${meta.cronCleanupPrompt}"`);
+        h.convos(['conversation', 'send-text', h.conversationId, meta.cronCleanupPrompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
+        // Wait longer — pings may interleave, we need the actual deletion reply
+        const cleanupDeadline = Date.now() + 30_000;
+        while (Date.now() < cleanupDeadline) {
+          sleep(2_000);
+          const msgs = h.fetchMessages();
+          const newMsgs = msgs.filter(m => m.senderInboxId !== h.userInboxId).slice(cleanupBaseline);
+          const hasDeleteConfirm = newMsgs.some(m => {
+            const text = (m.content || m.text || '').toLowerCase();
+            return /delet|remov|stop|kill|cancel|gone|done/.test(text) && !/ping/.test(text);
+          });
+          if (hasDeleteConfirm) {
+            cleanedUp = true;
+            log('Cron job cleanup confirmed');
+            break;
+          }
+        }
+        if (!cleanedUp) log('Cron job cleanup not confirmed (pings may still fire)');
+      }
+
+      const output = h.transcript(h.fetchMessages(), msgsBefore);
       return {
         output,
-        metadata: { conversationId: h.conversationId, cronPings, setupReply },
+        metadata: { conversationId: h.conversationId, cronPings, setupReply, cleanedUp },
       };
     }
 

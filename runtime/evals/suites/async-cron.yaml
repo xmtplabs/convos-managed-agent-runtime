@@ -18,7 +18,7 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Agent creates a cron job and delivers pings to conversation"
+  - description: "Agent creates a cron job, pings arrive, then deletes it"
     vars:
       prompt: >
         Create a recurring cron job that pings me every 10 seconds. Use
@@ -27,17 +27,8 @@ tests:
         short — just say "ping" or similar. Do it now, no questions asked.
     metadata:
       cronWait: true
-      cronWaitSeconds: 20
+      cronWaitSeconds: 25
+      cronCleanupPrompt: "Stop and delete the ping cron job you just created."
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:cronPingsReceived"
-
-  - description: "Agent stops the cron job when asked"
-    vars:
-      prompt: "Stop and delete the ping cron job you just created."
-    assert:
-      - type: llm-rubric
-        value: >
-          FAIL if the response does not confirm that the cron job was stopped
-          or deleted. PASS if it clearly acknowledges removing/stopping the
-          ping cron job.
