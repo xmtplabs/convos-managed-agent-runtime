@@ -10,8 +10,7 @@
     "evals": "sh evals/eval.sh"
   },
   "dependencies": {
-    "@bankr/cli": "^0.1.3",
-    "@xmtp/convos-cli": "^0.6.2",
+    "@xmtp/convos-cli": "^0.7.0",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "openclaw": "2026.3.11",

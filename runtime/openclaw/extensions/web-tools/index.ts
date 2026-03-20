@@ -209,6 +209,19 @@ export default function register(api: OpenClawPluginApi) {
   });
 
   api.registerHttpRoute({
+    path: "/web-tools/convos/landing.css",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      serveFile(res, path.join(agentsDir, "landing.css"), "text/css", "max-age=3600");
+    },
+  });
+
+  api.registerHttpRoute({
     path: "/web-tools/convos/icon.svg",
     auth: "plugin",
     handler: async (req, res) => {

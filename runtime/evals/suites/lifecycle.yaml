@@ -46,6 +46,8 @@ tests:
         value: "trading"
       - type: javascript
         value: "file://../lib/assertions.mjs:profileHasInstanceId"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileHasAttestation"
 
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"

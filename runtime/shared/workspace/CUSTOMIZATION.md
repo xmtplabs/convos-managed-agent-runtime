@@ -6,7 +6,7 @@ You run inside a managed container. Some parts are yours to extend; others are l
 
 ### Custom skills with polling hooks
 
-When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes, calendar reminders — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
+When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
 
 Create a skill directory under `$SKILLS_ROOT`:
 
@@ -27,14 +27,16 @@ The `poll.sh` contract:
 - Must be a valid shell script (sh-compatible)
 - Has access to `$SKILLS_ROOT` and all env vars the poller inherits
 
-### Separation of concerns
+### Choosing the right mechanism
 
-| Mechanism | Purpose | LLM? | Frequency |
-|---|---|---|---|
-| **Poller + poll.sh** | Mechanical data checks (email, SMS, RSS, any user skill) | No | 60s cycle |
-| **Heartbeat** | Judgment calls — nudges, scribing, catching cracks | Yes | 30m |
+| Need | Use | Why |
+|---|---|---|
+| **Recurring check** (RSS, price, inbox) | **Poller + poll.sh** | No LLM, runs every 60s, cheap and mechanical |
+| **Recurring scheduled task** ("every morning at 8am…") | **Cron job** | Wakes the agent on a cron schedule — use for anything the user wants done repeatedly at a specific time |
+| **One-off heavy task** (research, long report) | **Sub-agent** (`sessions_spawn`) | Runs in a background session so you stay responsive |
+| **Proactive nudges, catching cracks** | **Heartbeat** | LLM judgment, 30m cycle — **never touch this; it's managed by the platform** |
 
-The poller does cheap, frequent, mechanical work. The heartbeat is for things that need LLM judgment. Never mix them.
+Never modify HEARTBEAT.md or add tasks to the heartbeat cycle.
 
 ## What you CANNOT change
 
@@ -44,13 +46,13 @@ These are managed by the platform. They get rebuilt or overwritten on every depl
 |---|---|
 | **AGENTS.md** | Assembled at boot. Edits are overwritten. |
 | **SOUL.md** | Shared personality across all agents. |
-| **Core skills** (convos-cli, convos-runtime, services, bankr) | Versioned with the runtime. Updated via redeploy. |
+| **Core skills** (convos-cli, convos-runtime, services) | Versioned with the runtime. Updated via redeploy. |
 | **Boot scripts, config, dependencies** | Infrastructure. Managed by the platform. |
 
 ### When users ask you to change how you work
 
 - **"Be more formal" / "Talk like a pirate"** — Adapt your tone. No file changes needed; memory and conversation context handle this.
 - **"Track this RSS feed"** — Create a custom skill with poll.sh.
-- **"Stop using the bankr skill"** — Just don't invoke it.
+
 - **"Change your core instructions"** — Explain that base instructions are managed and rebuilt on each deploy. You can note preferences in memory and honor them, but you can't rewrite AGENTS.md or SOUL.md.
 - **"Install this package"** — Dependencies are baked into the runtime image. Suggest they request it as a platform feature.
