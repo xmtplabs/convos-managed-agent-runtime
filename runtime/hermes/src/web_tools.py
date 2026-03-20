@@ -232,6 +232,12 @@ async def convos_sw():
                          "application/javascript", "max-age=0")
 
 
+@router.get("/web-tools/convos/landing.css")
+async def convos_landing_css():
+    return _serve_static(_CONVOS_DIR / "landing.css", "text/css",
+                         "max-age=3600")
+
+
 @router.get("/web-tools/convos/icon.svg")
 async def convos_icon():
     return _serve_static(_CONVOS_DIR / "icon.svg", "image/svg+xml")

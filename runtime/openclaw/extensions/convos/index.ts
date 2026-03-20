@@ -90,6 +90,7 @@ function buildRuntimeStatus() {
   const inst = getConvosInstance();
   return {
     conversationId: inst?.conversationId ?? null,
+    inboxId: inst?.inboxId ?? null,
     pending: false,
     clean: isClean(),
   };
@@ -184,6 +185,44 @@ function checkPoolAuth(req: IncomingMessage): boolean {
   if (!token) return true; // No gateway token configured — allow all
   const authHeader = req.headers.authorization;
   return authHeader === `Bearer ${token}`;
+}
+
+/** Fetch a signed attestation from the pool manager and push it to the active instance. */
+async function fetchAndApplyAttestation(): Promise<void> {
+  const inst = getConvosInstance();
+  if (!inst?.inboxId) return;
+
+  const poolUrl = process.env.POOL_URL;
+  const instanceId = process.env.INSTANCE_ID;
+  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (!poolUrl || !instanceId || !gatewayToken) {
+    console.warn("[convos] Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN");
+    return;
+  }
+  try {
+    const res = await fetch(`${poolUrl}/api/pool/attest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instanceId, gatewayToken, inboxId: inst.inboxId }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      console.error(`[convos] Attestation request failed: ${res.status} ${await res.text()}`);
+      return;
+    }
+    const att = await res.json() as { attestation: string; attestation_ts: string; attestation_kid: string };
+    // Store for subprocess restarts
+    inst.setAttestation(att.attestation, att.attestation_ts, att.attestation_kid);
+    // Push to running agent serve process as ProfileUpdate metadata
+    await inst.updateProfile(undefined, undefined, {
+      attestation: att.attestation,
+      attestation_ts: att.attestation_ts,
+      attestation_kid: att.attestation_kid,
+    });
+    console.log(`[convos] Attestation signed for ${inst.inboxId.slice(0, 12)}...`);
+  } catch (err) {
+    console.error(`[convos] Attestation request error: ${String(err)}`);
+  }
 }
 
 // --- Plugin ---
@@ -295,6 +334,9 @@ const plugin = {
             env,
           });
 
+          // Sign and apply attestation (non-fatal if pool unreachable)
+          await fetchAndApplyAttestation();
+
           jsonResponse(res, 200, {
             conversationId: result.conversationId,
             inviteUrl: result.inviteUrl,
@@ -398,6 +440,9 @@ const plugin = {
             identityId: instance.identityId,
             env,
           });
+
+          // Sign and apply attestation (non-fatal if pool unreachable)
+          await fetchAndApplyAttestation();
 
           jsonResponse(res, 200, { status: "joined", conversationId });
         } catch (err) {
@@ -565,6 +610,46 @@ const plugin = {
             return;
           }
           await inst.updateProfile(undefined, undefined, metadata as Record<string, string>);
+          jsonResponse(res, 200, { ok: true });
+        } catch (err) {
+          jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+      },
+    });
+
+    // Re-attest — pool manager pushes a fresh attestation to the running instance.
+    api.registerHttpRoute({
+      path: "/convos/re-attest",
+      auth: "plugin",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        if (!checkPoolAuth(req)) {
+          jsonResponse(res, 401, { error: "Unauthorized" });
+          return;
+        }
+        try {
+          const inst = getConvosInstance();
+          if (!inst) {
+            jsonResponse(res, 400, { error: "No active conversation" });
+            return;
+          }
+          const body = await readJsonBody(req);
+          const attestation = typeof body.attestation === "string" ? body.attestation : undefined;
+          const attestation_ts = typeof body.attestation_ts === "string" ? body.attestation_ts : undefined;
+          const attestation_kid = typeof body.attestation_kid === "string" ? body.attestation_kid : undefined;
+          if (!attestation || !attestation_ts || !attestation_kid) {
+            jsonResponse(res, 400, { error: "attestation, attestation_ts, and attestation_kid are required" });
+            return;
+          }
+          inst.setAttestation(attestation, attestation_ts, attestation_kid);
+          await inst.updateProfile(undefined, undefined, {
+            attestation,
+            attestation_ts,
+            attestation_kid,
+          });
           jsonResponse(res, 200, { ok: true });
         } catch (err) {
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });

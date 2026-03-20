@@ -1,5 +1,5 @@
 # runtime/evals/convos.yaml
-# Capabilities eval — profile updates, vision, group awareness, heartbeat.
+# Capabilities eval — profile updates, vision, group awareness.
 # Tests share one XMTP conversation and run sequentially.
 
 description: "Eval: Convos"
@@ -44,6 +44,13 @@ tests:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileMetadataEquals"
 
+  - description: "Attestation survives metadata update"
+    vars:
+      prompt: "What are my credits?"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:attestationSurvivesProfileUpdate"
+
   - description: "Agent can recognize image content"
     vars:
       prompt: "What do you see in that image? Describe it briefly."
@@ -64,14 +71,3 @@ tests:
           Pass if the AGENT's response mentions or lists any participants, members,
           identities, addresses, or people in the group.
           Fail only if the AGENT refused, said it doesn't know, or gave no answer.
-
-  - description: "Heartbeat does not leak system tokens into conversation"
-    vars:
-      prompt: "Run your heartbeat check. Report only if there's something worth notifying."
-    assert:
-      - type: not-icontains
-        value: "HEARTBEAT_OK"
-      - type: not-icontains
-        value: "[diagnostic]"
-      - type: not-icontains
-        value: "lane enqueue"

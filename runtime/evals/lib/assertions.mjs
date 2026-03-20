@@ -108,6 +108,41 @@ export function profileHasInstanceId(output, context) {
   });
 }
 
+export function profileHasAttestation(output, context) {
+  return withProfiles(context, (profiles) => {
+    const agent = profiles.find((p) => {
+      const att = p.metadata?.attestation;
+      const ts = p.metadata?.attestation_ts;
+      const kid = p.metadata?.attestation_kid;
+      // Handle both plain strings and typed objects ({ type, value })
+      const hasAtt = att && (typeof att === 'string' || (typeof att === 'object' && 'value' in att));
+      const hasTs = ts && (typeof ts === 'string' || (typeof ts === 'object' && 'value' in ts));
+      const hasKid = kid && (typeof kid === 'string' || (typeof kid === 'object' && 'value' in kid));
+      return hasAtt && hasTs && hasKid;
+    });
+    if (!agent) {
+      return {
+        pass: false,
+        score: 0,
+        reason: `No profile has attestation metadata: ${profiles.map((p) => JSON.stringify(p.metadata || {})).join(', ')}`,
+      };
+    }
+    const val = (v) => v && typeof v === 'object' && 'value' in v ? v.value : v;
+    return {
+      pass: true,
+      score: 1,
+      reason: `Profile has attestation (kid=${val(agent.metadata.attestation_kid)}, ts=${val(agent.metadata.attestation_ts)}, sig=${String(val(agent.metadata.attestation)).slice(0, 16)}...)`,
+    };
+  });
+}
+
+export function attestationSurvivesProfileUpdate(output, context) {
+  // This assertion runs AFTER the agent has updated its profile (name/image/metadata).
+  // It checks that the attestation fields are still present — the CLI merges metadata,
+  // so they should survive.
+  return profileHasAttestation(output, context);
+}
+
 export function agentSelfDestructed(output) {
   const pass = output === 'SELF_DESTRUCT_CONFIRMED';
   return {
@@ -141,16 +176,19 @@ export function followUpResponded(output, context) {
   return { pass: true, score: 1, reason: 'Follow-up query returned a response' };
 }
 
+// Silence indicators per runtime — empty output or any of these exact strings
+// means the agent intentionally chose not to reply.
+const SILENCE_TOKENS = new Set(['', 'SILENT', 'No reply from agent.', 'completed']);
+
 export function agentChoseSilence(output) {
   const trimmed = (output || '').trim();
-  // Hermes returns "SILENT", OpenClaw returns "completed" or empty when the agent stays quiet
-  const pass = !trimmed || trimmed === 'SILENT' || trimmed === 'No reply from agent.' || trimmed === 'completed';
+  const pass = SILENCE_TOKENS.has(trimmed);
   return {
     pass,
     score: pass ? 1 : 0,
     reason: pass
       ? `Agent chose silence (output: ${trimmed ? `"${trimmed}"` : 'empty'})`
-      : `Expected silence or SILENT, got: "${trimmed.slice(0, 120)}"`,
+      : `Expected silence, got: "${trimmed.slice(0, 120)}"`,
   };
 }
 

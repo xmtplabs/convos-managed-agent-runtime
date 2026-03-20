@@ -82,4 +82,8 @@ export const config = {
   // Telemetry
   posthogApiKey: getEnv("POSTHOG_API_KEY"),
   posthogHost: getEnv("POSTHOG_HOST", "https://us.i.posthog.com"),
+
+  // Attestation — Ed25519 signing key for agent identity verification
+  attestationPrivateKeyPem: getEnv("ATTESTATION_PRIVATE_KEY_PEM").replace(/\\n/g, "\n"),
+  attestationKid: getEnv("ATTESTATION_KID", "convos-agents-1"),
 };

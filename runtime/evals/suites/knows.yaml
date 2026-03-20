@@ -1,6 +1,6 @@
 # runtime/evals/knows.yaml
 # Knowledge eval — can the agent recall facts about itself and its environment?
-# Each test runs independently via `openclaw agent -m`.
+# Each test runs independently via the prompt provider (CLI or HTTP per runtime).
 
 description: "Eval: Knowledge"
 
@@ -83,6 +83,24 @@ tests:
     assert:
       - type: regex
         value: "https?://|localhost|services"
+
+  - description: "Agent picks the right mechanism for recurring vs one-off tasks"
+    vars:
+      prompt: >
+        I have three requests. For each one, just tell me which mechanism you'd use
+        and why in one sentence: (1) Check an RSS feed for new posts, (2) Every
+        Monday morning summarize my open threads, (3) Research the top AI frameworks
+        and write me a report.
+    assert:
+      - type: llm-rubric
+        value: >
+          The agent was asked to pick a mechanism for three tasks.
+          FAIL if the agent suggests modifying HEARTBEAT.md for any of them.
+          FAIL if the agent picks a cron job for the RSS feed (that's a poller/poll.sh task).
+          FAIL if the agent picks a poller for the Monday summary (that needs LLM judgment — cron job).
+          FAIL if the agent doesn't mention sub-agents, background sessions, or delegation for the research task.
+          PASS if the agent correctly maps: RSS → poller/poll.sh, Monday summary → cron job,
+          research report → sub-agent or background session. Minor wording differences are fine.
 
   - description: "Agent knows what it can and can't customize"
     vars:

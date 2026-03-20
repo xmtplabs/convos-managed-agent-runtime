@@ -1,6 +1,6 @@
 # runtime/evals/models.yaml
 # Model-awareness eval — can the agent identify, list, and switch OpenRouter models?
-# Each test runs independently via `openclaw agent -m`.
+# Each test runs independently via the prompt provider (CLI or HTTP per runtime).
 
 description: "Eval: Model Switching"
 

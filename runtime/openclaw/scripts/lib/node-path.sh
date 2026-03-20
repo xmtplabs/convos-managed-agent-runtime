@@ -2,7 +2,7 @@
 # Build NODE_PATH and PATH so Node resolves deps and CLIs from repo root.
 # Source after init.sh.
 # ROOT/node_modules: all deps (agentmail, @xmtp/convos-cli, openclaw, etc.)
-# ROOT/node_modules/.bin: CLI tools (@telnyx/api-cli → telnyx, @bankr/cli → bankr)
+# ROOT/node_modules/.bin: CLI tools (@telnyx/api-cli → telnyx)
 _NP=""
 [ -d "$STATE_DIR/node_modules" ] && _NP="$STATE_DIR/node_modules"
 [ -d "$ROOT/node_modules" ] && _NP="${_NP:+$_NP:}$ROOT/node_modules"
