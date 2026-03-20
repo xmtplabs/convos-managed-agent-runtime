@@ -94,7 +94,9 @@ export default class ConvosProvider {
           const newMsgs = msgs.filter(m => m.senderInboxId !== h.userInboxId).slice(cleanupBaseline);
           const hasDeleteConfirm = newMsgs.some(m => {
             const text = (m.content || m.text || '').toLowerCase();
-            return /delet|remov|stop|kill|cancel|gone|done/.test(text) && !/ping/.test(text);
+            // Match deletion confirmations — allow "ping" in the text since
+            // "deleted the ping job" is a valid confirmation.
+            return /delet|remov|stop|kill|cancel|gone/.test(text) && text.length > 5;
           });
           if (hasDeleteConfirm) {
             cleanedUp = true;
