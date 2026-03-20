@@ -91,7 +91,7 @@ async def require_auth(request: Request) -> None:
 _poller_proc: asyncio.subprocess.Process | None = None
 
 
-async def _start_poller(conversation_id: str, env: str) -> None:
+async def _start_poller() -> None:
     """Launch the shared poller as a background process."""
     global _poller_proc
     scripts_dir = os.environ.get("SHARED_SCRIPTS_DIR", "")
@@ -101,7 +101,7 @@ async def _start_poller(conversation_id: str, env: str) -> None:
         return
 
     cfg = get_config()
-    poller_env = {**os.environ, "CONVOS_CONVERSATION_ID": conversation_id, "CONVOS_ENV": env, "SKILLS_ROOT": str(Path(cfg.hermes_home) / "skills")}
+    poller_env = {**os.environ, "SKILLS_ROOT": str(Path(cfg.hermes_home) / "skills")}
 
     _poller_proc = await asyncio.create_subprocess_exec(
         "sh", script,
@@ -184,7 +184,7 @@ async def start_wired_instance(
         adapter._greeting_done.set()
 
     # Start background email/SMS poller
-    await _start_poller(conversation_id, env)
+    await _start_poller()
 
     return ready_info
 
