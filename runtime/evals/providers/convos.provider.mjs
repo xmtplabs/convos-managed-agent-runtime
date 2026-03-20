@@ -45,7 +45,7 @@ export default class ConvosProvider {
     // Cron wait: wait for a setup reply, then collect messages over a window.
     // Returns the total agent message count received during the wait window
     // (excluding the initial setup reply) so assertions can verify delivery.
-    if (meta.cronWait) {
+    if (meta.cronWait || meta.cronPing) {
       const existing = h.fetchMessages();
       const baseline = h.agentCount(existing);
       const msgsBefore = existing.length;
