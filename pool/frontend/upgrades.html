@@ -82,6 +82,7 @@
             </div>
           </div>
           <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade outdated</button>
+          <button class="btn btn-upgrade" id="btn-reattest-all" style="border-color:var(--color-edge);color:var(--color-foreground-secondary)">Re-attest all</button>
         </div>
       </div>
     </div>
@@ -510,6 +511,40 @@
         confirmLabel: 'Upgrade all',
       });
       if (ok) massUpgrade(ids);
+    });
+
+    document.getElementById('btn-reattest-all').addEventListener('click', async function () {
+      var btn = this;
+      var ok = await showConfirm({
+        icon: '\uD83D\uDD10',
+        title: 'Re-attest all claimed instances',
+        message: 'This will sign fresh attestations for all claimed and pending_acceptance instances and push them as profile updates.',
+        confirmLabel: 'Re-attest all',
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      btn.textContent = 'Re-attesting...';
+      try {
+        var res = await fetch('/api/pool/re-attest-all', {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        await showInfo({
+          icon: '\u2705',
+          title: 'Re-attestation complete',
+          message: data.succeeded + '/' + data.total + ' succeeded' + (data.failed > 0 ? ', ' + data.failed + ' failed' : ''),
+        });
+      } catch (err) {
+        await showInfo({
+          icon: '\u274C',
+          title: 'Re-attestation failed',
+          message: err.message || 'Unknown error',
+        });
+      }
+      btn.disabled = false;
+      btn.textContent = 'Re-attest all';
     });
 
     async function refreshVersionGroup(btn, ids) {

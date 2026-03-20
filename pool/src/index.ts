@@ -553,6 +553,65 @@ app.post("/api/pool/re-attest/:id", requireAuth, async (req, res) => {
   }
 });
 
+// Re-attest all claimed instances (bulk backfill for upgrades / key rotation).
+app.post("/api/pool/re-attest-all", requireAuth, async (req, res) => {
+  try {
+    const claimed = await db.getByStatus(["claimed", "pending_acceptance"]);
+    const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+
+    for (const inst of claimed) {
+      if (!inst.url) {
+        results.push({ id: inst.id, ok: false, error: "no URL" });
+        continue;
+      }
+      try {
+        const token = await db.getGatewayToken(inst.id);
+        if (!token) {
+          results.push({ id: inst.id, ok: false, error: "no gateway token" });
+          continue;
+        }
+
+        const statusRes = await authFetch(`${inst.url}/convos/status`, {
+          gatewayToken: token,
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!statusRes.ok) {
+          results.push({ id: inst.id, ok: false, error: `status ${statusRes.status}` });
+          continue;
+        }
+        const status = await statusRes.json() as { inboxId?: string };
+        if (!status.inboxId) {
+          results.push({ id: inst.id, ok: false, error: "no inboxId" });
+          continue;
+        }
+
+        const attestation = signAttestation(status.inboxId);
+        const reattestRes = await authFetch(`${inst.url}/convos/re-attest`, {
+          gatewayToken: token,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify(attestation),
+        });
+        if (!reattestRes.ok) {
+          results.push({ id: inst.id, ok: false, error: `re-attest ${reattestRes.status}` });
+          continue;
+        }
+        results.push({ id: inst.id, ok: true });
+      } catch (err: any) {
+        results.push({ id: inst.id, ok: false, error: err.message?.slice(0, 200) });
+      }
+    }
+
+    const succeeded = results.filter((r) => r.ok).length;
+    const failed = results.filter((r) => !r.ok).length;
+    res.json({ ok: true, total: results.length, succeeded, failed, results });
+  } catch (err: any) {
+    console.error("[api] re-attest-all failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
