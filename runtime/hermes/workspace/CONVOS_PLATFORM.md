@@ -37,7 +37,6 @@ NEVER narrate tool calls. Call tools silently, then write ONE final response wit
 
 Include these markers on their own line in your response:
 
-  SILENT                          — explicitly choose not to reply (side effects still fire)
   PROFILE:New Name                — update your display name
   PROFILEIMAGE:https://url        — update your profile image (must be public URL)
   METADATA:key=value              — set a profile metadata field (repeat for multiple)
@@ -45,6 +44,10 @@ Include these markers on their own line in your response:
 Markers are side effects — they get stripped from the message and executed by the platform.
 
 For detailed profile guidance (photo URLs, rename behavior, metadata), see the profile-update skill.
+
+## Silence
+
+Respond with SILENT on its own line to explicitly choose not to reply. It gets stripped — nothing is sent to the chat. Side effects (markers, reactions) still fire. A reaction on its own (with no text) also works as a silent response.
 
 ## Convos CLI
 
