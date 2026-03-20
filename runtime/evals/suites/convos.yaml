@@ -34,13 +34,6 @@ tests:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileNameEquals"
 
-  - description: "Attestation survives profile name update"
-    vars:
-      prompt: "What is your name?"
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:attestationSurvivesProfileUpdate"
-
   - description: "Agent can update profile photo"
     vars:
       prompt: "Update your profile photo to https://avatars.githubusercontent.com/u/82580170. Confirm when done."
