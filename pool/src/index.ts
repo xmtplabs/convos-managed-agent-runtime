@@ -553,10 +553,10 @@ app.post("/api/pool/re-attest/:id", requireAuth, async (req, res) => {
   }
 });
 
-// Re-attest all claimed instances (bulk backfill for upgrades / key rotation).
+// Re-attest all active instances (bulk backfill for upgrades / key rotation).
 app.post("/api/pool/re-attest-all", requireAuth, async (req, res) => {
   try {
-    const claimed = await db.getByStatus(["claimed", "pending_acceptance"]);
+    const claimed = await db.getByStatus(["claimed", "pending_acceptance", "crashed"]);
     const results: Array<{ id: string; ok: boolean; error?: string }> = [];
 
     for (const inst of claimed) {

@@ -518,7 +518,7 @@
       var ok = await showConfirm({
         icon: '\uD83D\uDD10',
         title: 'Re-attest all claimed instances',
-        message: 'This will sign fresh attestations for all claimed and pending_acceptance instances and push them as profile updates.',
+        message: 'This will sign fresh attestations for all claimed, pending_acceptance, and crashed instances and push them as profile updates.',
         confirmLabel: 'Re-attest all',
       });
       if (!ok) return;
