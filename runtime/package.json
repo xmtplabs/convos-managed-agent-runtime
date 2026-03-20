@@ -1,6 +1,6 @@
 {
   "name": "convos-assistants",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "scripts": {
     "start": "cd openclaw && sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/gateway.sh",
