@@ -28,10 +28,13 @@ export const convosOutbound: ChannelOutboundAdapter = {
     if (!instance) {
       throw new Error(`${TAG} sendText failed — no instance running. Is the gateway started?`);
     }
-    console.log(`${TAG} sendText to=${to ?? "(bound)"} conv=${instance.conversationId} len=${text.length}`);
+    // Single-conversation process: any target resolves to the bound conversation.
+    // normalizeTarget already maps non-ID strings, but cron announce delivery
+    // and sub-agents may bypass it — log a warning instead of throwing.
     if (to && to !== instance.conversationId) {
-      throw new Error(`${TAG} routing mismatch: bound to ${instance.conversationId}, but target is ${to}`);
+      console.warn(`${TAG} sendText: target ${to} differs from bound ${instance.conversationId} — routing to bound conversation`);
     }
+    console.log(`${TAG} sendText to=${to ?? "(bound)"} conv=${instance.conversationId} len=${text.length}`);
 
     const policy = await applyOutboundTextPolicy(text);
     if (policy.suppress) {
@@ -56,10 +59,10 @@ export const convosOutbound: ChannelOutboundAdapter = {
     if (!instance) {
       throw new Error(`${TAG} sendMedia failed — no instance running. Is the gateway started?`);
     }
-    console.log(`${TAG} sendMedia to=${to ?? "(bound)"} conv=${instance.conversationId} url=${mediaUrl ?? "(none)"}`);
     if (to && to !== instance.conversationId) {
-      throw new Error(`${TAG} routing mismatch: bound to ${instance.conversationId}, but target is ${to}`);
+      console.warn(`${TAG} sendMedia: target ${to} differs from bound ${instance.conversationId} — routing to bound conversation`);
     }
+    console.log(`${TAG} sendMedia to=${to ?? "(bound)"} conv=${instance.conversationId} url=${mediaUrl ?? "(none)"}`);
     if (!mediaUrl) {
       throw new Error(`${TAG} sendMedia failed — no mediaUrl provided`);
     }
