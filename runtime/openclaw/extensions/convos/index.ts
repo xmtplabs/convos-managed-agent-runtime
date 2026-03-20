@@ -210,7 +210,11 @@ async function fetchAndApplyAttestation(): Promise<void> {
       console.error(`[convos] Attestation request failed: ${res.status} ${await res.text()}`);
       return;
     }
-    const att = await res.json() as { attestation: string; attestation_ts: string; attestation_kid: string };
+    const att = await res.json() as { attestation?: string; attestation_ts?: string; attestation_kid?: string };
+    if (!att.attestation || !att.attestation_ts || !att.attestation_kid) {
+      console.warn("[convos] Attestation response missing required fields");
+      return;
+    }
     // Store for subprocess restarts
     inst.setAttestation(att.attestation, att.attestation_ts, att.attestation_kid);
     // Push to running agent serve process as ProfileUpdate metadata

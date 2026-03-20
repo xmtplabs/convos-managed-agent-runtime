@@ -1,3 +1,12 @@
+## 0.1.2
+- Customization guide: agents now know what they can and can't change — including how to create custom skills with polling hooks (see [CUSTOMIZATION.md](shared/workspace/CUSTOMIZATION.md))
+- Model switching: users can ask the agent to switch models mid-conversation
+- SMS outbound: agents can send outbound SMS messages
+- Removed Bankr integration
+- Cronjob fix: fixed a regression in scheduled tasks
+- Version reporting fix: pool dashboard now correctly shows runtime version for all instances
+
+
 ## 0.1.1
 - Faster tool use and smarter memory
 - Agents less chatty — assistants stay quiet when they have nothing useful to add

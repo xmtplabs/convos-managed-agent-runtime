@@ -19,8 +19,13 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 _version="unknown"
-if command -v jq >/dev/null 2>&1 && [ -f "$ROOT/package.json" ]; then
-  _version=$(jq -r '.version // "unknown"' "$ROOT/package.json")
+if command -v jq >/dev/null 2>&1; then
+  for _pkg in "$ROOT/../package.json" "$ROOT/runtime-version.json" "$ROOT/package.json"; do
+    if [ -f "$_pkg" ]; then
+      _version=$(jq -r '.version // "unknown"' "$_pkg")
+      [ "$_version" != "unknown" ] && break
+    fi
+  done
 fi
 brand_banner "$_version"
 

@@ -1,8 +1,8 @@
-# runtime/evals/poller.yaml
+# runtime/evals/async-poller.yaml
 # E2E poller eval — self-send email → poller detects → notification → agent answers.
-# OpenClaw only. Sequential — tests share one conversation.
+# Sequential — tests share one conversation.
 
-description: "Eval: Poller"
+description: "Eval: Async Poller"
 
 evaluateOptions:
   maxConcurrency: 1
@@ -34,6 +34,10 @@ tests:
       - type: llm-rubric
         value: >
           The output is a chat transcript. The USER asked about an email.
-          Fail only if the AGENT response is completely empty. Any response
-          that engages with the question — even saying it doesn't have the
-          details — passes.
+          FAIL if the AGENT response is completely empty or says it has no
+          information about any email.
+          FAIL if the AGENT does not mention at least one of: the sender
+          (Convos Agent), the subject (poller eval test), or a phrase from
+          the body (test email with an attachment).
+          PASS if the AGENT references any concrete detail from the email —
+          sender, subject, body content, or the attachment filename.
