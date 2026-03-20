@@ -82,17 +82,28 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 
 export { provision } from "./provision";
 
+export type HealthCheckResult = { ready: boolean; version?: string; runtime?: string };
+export type HealthCheckOutcome =
+  | { ok: true; data: HealthCheckResult }
+  | { ok: false; reason: string };
+
 // Health-check a single instance via /pool/health.
-export async function healthCheck(url: string, gatewayToken?: string | null) {
+export async function healthCheck(url: string, gatewayToken?: string | null): Promise<HealthCheckOutcome> {
   try {
     const res = await authFetch(`${url}/pool/health`, {
       gatewayToken,
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return null;
-    return await res.json() as { ready: boolean; version?: string; runtime?: string };
-  } catch {
-    return null;
+    if (!res.ok) return { ok: false, reason: `http_${res.status}` };
+    const data = await res.json() as HealthCheckResult;
+    if (!data.ready) return { ok: false, reason: "not_ready" };
+    return { ok: true, data };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("abort") || msg.includes("timeout")) return { ok: false, reason: "timeout" };
+    if (msg.includes("ECONNREFUSED")) return { ok: false, reason: "connection_refused" };
+    if (msg.includes("ENOTFOUND")) return { ok: false, reason: "dns_failed" };
+    return { ok: false, reason: msg.slice(0, 80) };
   }
 }
 
@@ -103,8 +114,9 @@ export async function checkStarting() {
   for (const row of rows) {
     if (!row.url) continue;
     const token = await db.getGatewayToken(row.id);
-    const hc = await healthCheck(row.url, token);
-    if (hc?.ready) {
+    const hcResult = await healthCheck(row.url, token);
+    if (hcResult.ok) {
+      const hc = hcResult.data;
       await db.updateStatus(row.id, { status: "idle" });
       if (hc.version) await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
       promoted.push(row.id);
@@ -254,11 +266,13 @@ export async function recheckInstance(id: string) {
   }
 
   const instToken = await db.getGatewayToken(id);
-  const hc = await healthCheck(inst.url, instToken);
-  if (!hc?.ready) {
-    console.log(`[pool] recheck ${id}: health check failed (status=${inst.status}, url=${inst.url}, hc=${JSON.stringify(hc)})`);
+  const hcResult = await healthCheck(inst.url, instToken);
+  if (!hcResult.ok) {
+    const ri = await db.getRuntimeInfo(id);
+    console.log(`[pool] recheck ${id}: health check failed (status=${inst.status}, reason=${hcResult.reason}, runtime=${ri.type || "unknown"}, v=${ri.version || "?"}, url=${inst.url})`);
     return { id, status: inst.status, changed: false, reason: "health_failed", agentName: inst.agentName || null };
   }
+  const hc = hcResult.data;
 
   // Ask the runtime for its status
   let rs: ParsedRuntimeStatus | null = null;

@@ -202,6 +202,13 @@ app.post("/api/pool/self-info", async (req, res) => {
   }
 });
 
+/** Detect harness type from a container image reference. */
+function detectHarnessFromImage(image: string): "openclaw" | "hermes" | null {
+  if (image.includes("runtime-hermes")) return "hermes";
+  if (image.includes("convos-runtime")) return "openclaw";
+  return null;
+}
+
 /**
  * Upgrade an instance's runtime image on Railway.
  *
@@ -211,11 +218,18 @@ app.post("/api/pool/self-info", async (req, res) => {
  */
 async function upgradeInstanceRuntime(
   instanceId: string,
-  infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string },
+  infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string; runtimeType?: string | null },
   imageOverride?: string,
 ): Promise<string> {
   const rawImage = imageOverride || config.railwayRuntimeImage;
   if (!rawImage) throw new Error("No runtime image configured");
+
+  // Guard: don't deploy an openclaw image to a hermes instance or vice versa.
+  const targetHarness = detectHarnessFromImage(rawImage);
+  const currentHarness = infra.runtimeType as "openclaw" | "hermes" | null;
+  if (targetHarness && currentHarness && targetHarness !== currentHarness) {
+    throw new Error(`Harness mismatch: instance is ${currentHarness} but image is ${targetHarness} (${rawImage})`);
+  }
 
   const image = await resolveImageDigest(rawImage);
   const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
@@ -583,6 +597,7 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
     providerEnvId: instanceInfra.providerEnvId,
     runtimeVersion: instanceInfra.runtimeVersion,
     runtimeImage: instanceInfra.runtimeImage,
+    runtimeType: instanceInfra.runtimeType,
   }).from(instanceInfra).where(inArray(instanceInfra.instanceId, idList));
   const infraById: Record<string, typeof infraRows[0]> = {};
   infraRows.forEach(r => { infraById[r.instanceId] = r; });
@@ -598,7 +613,8 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
       railwayUrl = `https://railway.com/project/${infra.providerProjectId}/service/${infra.providerServiceId}`;
       if (infra.providerEnvId) railwayUrl += `?environmentId=${infra.providerEnvId}`;
     }
-    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, railwayUrl });
+    const runtimeType = infra?.runtimeType || null;
+    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, runtimeType, railwayUrl });
   });
 
   let upgraded = 0, failed = 0;
@@ -642,11 +658,16 @@ app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
       if (!row.url) continue;
       try {
         const token = await db.getGatewayToken(row.id);
-        const hc = await pool.healthCheck(row.url, token);
-        console.log(`[pool] refresh-version ${row.id}: url=${row.url} version=${hc?.version ?? "null"} runtime=${hc?.runtime ?? "null"} ready=${hc?.ready ?? "null"}`);
-        if (hc?.version) {
-          await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
-          updated++;
+        const hcResult = await pool.healthCheck(row.url, token);
+        if (hcResult.ok) {
+          const hc = hcResult.data;
+          console.log(`[pool] refresh-version ${row.id}: version=${hc.version ?? "null"} runtime=${hc.runtime ?? "null"}`);
+          if (hc.version) {
+            await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
+            updated++;
+          }
+        } else {
+          console.log(`[pool] refresh-version ${row.id}: failed (${hcResult.reason})`);
         }
       } catch (err: any) {
         console.log(`[pool] refresh-version ${row.id}: url=${row.url} error=${err.message}`);

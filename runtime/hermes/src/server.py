@@ -373,6 +373,14 @@ def _is_clean() -> bool:
 def _build_runtime_status() -> dict:
     adapter = get_adapter()
     conversation_id = adapter.instance.conversation_id if adapter and adapter.instance else None
+    # After a process restart the in-memory adapter is gone but credentials
+    # are persisted on disk.  Fall back so the pool manager can match the
+    # conversation and recover the instance to "claimed".
+    if not conversation_id:
+        cfg = get_config()
+        creds = load_credentials(cfg.hermes_home)
+        if creds:
+            conversation_id = creds["conversationId"]
     provision = _get_provision_status()
     return {
         "conversationId": conversation_id,

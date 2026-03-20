@@ -28,9 +28,19 @@ import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Match OpenClaw's userTimezone (openclaw.json defaults to "America/New_York").
+# Override via USER_TIMEZONE env var; falls back to UTC if the zone is invalid.
+_tz_name = os.environ.get("USER_TIMEZONE", "America/New_York")
+try:
+    _USER_TZ = ZoneInfo(_tz_name)
+except KeyError:
+    logger.warning("Unknown timezone %r — falling back to UTC", _tz_name)
+    _USER_TZ = timezone.utc
 
 _AIAgent = None
 _SessionDB = None
@@ -181,11 +191,18 @@ class AgentRunner:
         timestamp: float,
         message_id: str,
     ) -> str:
-        """Format an inbound message with current time and full message ID."""
-        msg_ts = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%I:%M %p")
-        now = datetime.now(tz=timezone.utc).strftime("%a, %b %d, %Y, %I:%M %p %Z")
+        """Format an inbound message with current time and full message ID.
+
+        Uses the same timezone and format as OpenClaw's Intl.DateTimeFormat
+        (en-US, weekday short / year numeric / month short / day numeric /
+        hour numeric / minute 2-digit / timeZoneName short).
+        """
+        msg_ts = datetime.fromtimestamp(timestamp, tz=_USER_TZ).strftime("%I:%M %p")
+        now = datetime.now(tz=_USER_TZ)
+        # Produce "Thu, Mar 20, 2026, 10:30 AM EDT" — matches OpenClaw's Intl output.
+        now_str = now.strftime("%a, %b %-d, %Y, %-I:%M %p %Z")
         name = sender_name or sender_id[:12]
-        return f"[Current time: {now}]\n[{message_id} {msg_ts}] {name}: {content}"
+        return f"[Current time: {now_str}]\n[{message_id} {msg_ts}] {name}: {content}"
 
     async def handle_message(
         self,
