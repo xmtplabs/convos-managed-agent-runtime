@@ -1,9 +1,9 @@
-# runtime/evals/poller-hooks.yaml
+# runtime/evals/async-poller-hooks.yaml
 # E2E poller hooks eval — plants a test skill with poll.sh, verifies the poller
 # auto-discovers and runs it, and that the agent knows how to create polling skills.
-# OpenClaw only. Sequential — tests share one conversation.
+# Sequential — tests share one conversation.
 
-description: "Eval: Poller Hooks"
+description: "Eval: Async Poller Hooks"
 
 evaluateOptions:
   maxConcurrency: 1

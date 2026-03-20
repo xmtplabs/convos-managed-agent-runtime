@@ -220,20 +220,26 @@ export function memoryFileUpdated(output, context) {
 export function cronPingsReceived(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const pings = meta.cronPings;
+  const pingTexts = meta.cronPingTexts || [];
 
   if (pings == null) {
     return { pass: false, score: 0, reason: 'No cronPings in provider metadata — cronWait handler may not have run' };
   }
 
-  // One delivered ping is enough to prove the cron→Convos delivery pipeline
-  // works. Agent turn time (~5s) plus scheduling jitter means ≥2 is unreliable.
-  const pass = pings >= 1;
+  if (pings < 1) {
+    return { pass: false, score: 0, reason: `Expected at least 1 cron ping, got ${pings}. Cron delivery to Convos may be broken.` };
+  }
+
+  // Verify at least one ping contains "ping" — proves the cron payload was
+  // delivered with actual content, not just a SILENT/empty response.
+  const hasPingContent = pingTexts.some(t => /ping/i.test(t));
+  const pass = hasPingContent;
   return {
     pass,
     score: pass ? 1 : 0,
     reason: pass
-      ? `Received ${pings} cron pings during wait window`
-      : `Expected at least 1 cron ping, got ${pings}. Cron delivery to Convos may be broken.`,
+      ? `Received ${pings} cron pings, content verified (${pingTexts[0]?.slice(0, 40)})`
+      : `Received ${pings} cron pings but none contain "ping" — content: [${pingTexts.map(t => `"${t.slice(0, 30)}"`).join(', ')}]`,
   };
 }
 

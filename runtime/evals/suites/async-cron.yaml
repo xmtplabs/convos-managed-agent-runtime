@@ -1,8 +1,8 @@
-# runtime/evals/cron.yaml
-# Cron eval — verify the agent can create a cron job and deliver pings via Convos.
-# Creates a high-frequency job, waits for delivery, then cleans up.
+# runtime/evals/async-cron.yaml
+# Cron eval — verify the agent can create a cron job, deliver pings via Convos,
+# and clean up afterwards. Single test to avoid cron ping interleaving issues.
 
-description: "Eval: Cron"
+description: "Eval: Async Cron"
 
 evaluateOptions:
   maxConcurrency: 1
@@ -23,8 +23,9 @@ tests:
       prompt: >
         Create a recurring cron job that pings me every 10 seconds. Use
         schedule kind "every" with everyMs 10000 — do NOT use a cron expression.
-        Deliver to this conversation via announce. Keep the ping message very
-        short — just say "ping" or similar. Do it now, no questions asked.
+        Use sessionTarget "isolated" with an agentTurn payload whose message is
+        exactly: "Respond with only the word: Ping!" — deliver to this
+        conversation via announce mode. Do it now, no questions asked.
     metadata:
       cronWait: true
       cronWaitSeconds: 25

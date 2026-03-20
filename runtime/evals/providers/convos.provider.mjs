@@ -67,7 +67,13 @@ export default class ConvosProvider {
       }
       const finalMsgs = h.fetchMessages();
       const cronPings = h.agentCount(finalMsgs) - setupCount;
-      log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s`);
+      // Capture the actual text of cron-delivered messages for content verification
+      const cronPingTexts = finalMsgs
+        .filter(m => m.senderInboxId !== h.userInboxId)
+        .slice(setupCount)
+        .map(m => m.content || m.text || '')
+        .filter(Boolean);
+      log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 30)}"`).join(', ') || '(none)'}`);
 
       // Cleanup: delete the cron job so pings don't interfere with later tests
       let cleanedUp = false;
@@ -97,7 +103,7 @@ export default class ConvosProvider {
       const output = h.transcript(h.fetchMessages(), msgsBefore);
       return {
         output,
-        metadata: { conversationId: h.conversationId, cronPings, setupReply, cleanedUp },
+        metadata: { conversationId: h.conversationId, cronPings, cronPingTexts, setupReply, cleanedUp },
       };
     }
 
