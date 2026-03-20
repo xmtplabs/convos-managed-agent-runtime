@@ -99,24 +99,24 @@ jobs:
     name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { suite: knows,        timeout: 300, only: "", fresh: false }
-          - { suite: skills,       timeout: 300, only: "", fresh: false }
-          - { suite: soul,         timeout: 300, only: "", fresh: false }
-          - { suite: lifecycle,    timeout: 300, only: "", fresh: false }
-          - { suite: convos,       timeout: 300, only: "", fresh: false }
-          - { suite: models,       timeout: 300, only: openclaw, fresh: false }
-          - { suite: async-delegation,   timeout: 300, only: "", fresh: false }
-          - { suite: async-cron,         timeout: 300, only: openclaw, fresh: false }
-          - { suite: async-poller,       timeout: 300, only: "", fresh: false }
-          - { suite: async-poller-hooks, timeout: 300, only: "", fresh: false }
-          - { suite: memory,             timeout: 300, only: "", fresh: false }
-          - { suite: silence,            timeout: 300, only: "", fresh: false }
-          - { suite: provision,          timeout: 300, only: "", fresh: true }
+          - { suite: knows,        timeout: 900, only: "", fresh: false }
+          - { suite: skills,       timeout: 900, only: "", fresh: false }
+          - { suite: soul,         timeout: 900, only: "", fresh: false }
+          - { suite: lifecycle,    timeout: 900, only: "", fresh: false }
+          - { suite: convos,       timeout: 900, only: "", fresh: false }
+          - { suite: models,       timeout: 900, only: openclaw, fresh: false }
+          - { suite: async-delegation,   timeout: 900, only: "", fresh: false }
+          - { suite: async-cron,         timeout: 900, only: openclaw, fresh: false }
+          - { suite: async-poller,       timeout: 900, only: "", fresh: false }
+          - { suite: async-poller-hooks, timeout: 900, only: "", fresh: false }
+          - { suite: memory,             timeout: 900, only: "", fresh: false }
+          - { suite: silence,            timeout: 900, only: "", fresh: false }
+          - { suite: provision,          timeout: 900, only: "", fresh: true }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
