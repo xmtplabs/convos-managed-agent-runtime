@@ -1,6 +1,5 @@
 {
   "name": "convos-agents",
-  "version": "0.0.27",
   "private": true,
   "engines": {
     "node": ">=22"
