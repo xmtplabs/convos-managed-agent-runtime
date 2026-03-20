@@ -108,6 +108,41 @@ export function profileHasInstanceId(output, context) {
   });
 }
 
+export function profileHasAttestation(output, context) {
+  return withProfiles(context, (profiles) => {
+    const agent = profiles.find((p) => {
+      const att = p.metadata?.attestation;
+      const ts = p.metadata?.attestation_ts;
+      const kid = p.metadata?.attestation_kid;
+      // Handle both plain strings and typed objects ({ type, value })
+      const hasAtt = att && (typeof att === 'string' || (typeof att === 'object' && 'value' in att));
+      const hasTs = ts && (typeof ts === 'string' || (typeof ts === 'object' && 'value' in ts));
+      const hasKid = kid && (typeof kid === 'string' || (typeof kid === 'object' && 'value' in kid));
+      return hasAtt && hasTs && hasKid;
+    });
+    if (!agent) {
+      return {
+        pass: false,
+        score: 0,
+        reason: `No profile has attestation metadata: ${profiles.map((p) => JSON.stringify(p.metadata || {})).join(', ')}`,
+      };
+    }
+    const val = (v) => v && typeof v === 'object' && 'value' in v ? v.value : v;
+    return {
+      pass: true,
+      score: 1,
+      reason: `Profile has attestation (kid=${val(agent.metadata.attestation_kid)}, ts=${val(agent.metadata.attestation_ts)}, sig=${String(val(agent.metadata.attestation)).slice(0, 16)}...)`,
+    };
+  });
+}
+
+export function attestationSurvivesProfileUpdate(output, context) {
+  // This assertion runs AFTER the agent has updated its profile (name/image/metadata).
+  // It checks that the attestation fields are still present — the CLI merges metadata,
+  // so they should survive.
+  return profileHasAttestation(output, context);
+}
+
 export function agentSelfDestructed(output) {
   const pass = output === 'SELF_DESTRUCT_CONFIRMED';
   return {
