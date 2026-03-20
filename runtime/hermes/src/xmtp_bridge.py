@@ -120,6 +120,7 @@ class ConvosInstance:
         self._restart_count = 0
         self._last_start_time = 0.0
         self._member_names: dict[str, str] = {}
+        self.attestation_env: dict[str, str] = {}
 
         self._ready_event: asyncio.Event = asyncio.Event()
         self._ready_info: ReadyEvent | None = None
@@ -367,6 +368,14 @@ class ConvosInstance:
             logger.info(f"Refreshed member names: {len(self._member_names)} members")
         return profiles
 
+    def set_attestation(self, attestation: str, ts: str, kid: str) -> None:
+        """Store attestation values to pass as env vars to agent serve."""
+        self.attestation_env = {
+            "CONVOS_ATTESTATION": attestation,
+            "CONVOS_ATTESTATION_TS": ts,
+            "CONVOS_ATTESTATION_KID": kid,
+        }
+
     def set_member_name(self, inbox_id: str, name: str) -> None:
         if inbox_id and name:
             self._member_names[inbox_id] = name
@@ -461,7 +470,7 @@ class ConvosInstance:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            env={**os.environ, "CONVOS_ENV": self.env},
+            env={**os.environ, "CONVOS_ENV": self.env, **self.attestation_env},
         )
         self._last_start_time = time.monotonic()
 

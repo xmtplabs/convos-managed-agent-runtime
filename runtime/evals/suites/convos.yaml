@@ -44,6 +44,13 @@ tests:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileMetadataEquals"
 
+  - description: "Attestation survives metadata update"
+    vars:
+      prompt: "What are my credits?"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:attestationSurvivesProfileUpdate"
+
   - description: "Agent can recognize image content"
     vars:
       prompt: "What do you see in that image? Describe it briefly."
