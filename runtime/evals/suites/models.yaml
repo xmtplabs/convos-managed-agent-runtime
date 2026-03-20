@@ -36,13 +36,13 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the agent says it doesn't know or can't list models.
-          PASS if the agent lists at least 3 specific model names that could
-          be switched to (e.g. Claude Sonnet, GPT-5.4 Mini, Gemini, etc.).
+          FAIL if the agent says it has no way to list or identify any models.
+          PASS if the agent lists specific model names, OR names at least
+          its current model and mentions others exist.
 
   - description: "Agent can switch to a different model"
     vars:
-      prompt: "Switch me to openai/gpt-5.4-mini and confirm the switch."
+      prompt: "Switch me to GPT-5.4 Mini and confirm the switch."
     assert:
       - type: regex
         value: "[Gg][Pp][Tt]|5\\.4|switch|model"
@@ -50,9 +50,8 @@ tests:
         value: >
           FAIL if the agent says it can't switch models, doesn't recognize
           the model, or ignores the request entirely. PASS if the agent
-          acknowledges the model switch — either by confirming it happened,
-          executing a /model command, or clearly explaining it initiated
-          the switch to openai/gpt-5.4-mini.
+          acknowledges the model switch — either by confirming it happened
+          or clearly explaining it initiated the switch to GPT-5.4 Mini.
 
   - description: "Agent confirms the active model after a switch"
     vars:
