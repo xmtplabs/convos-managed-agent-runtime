@@ -46,7 +46,7 @@ These are managed by the platform. They get rebuilt or overwritten on every depl
 |---|---|
 | **AGENTS.md** | Assembled at boot. Edits are overwritten. |
 | **SOUL.md** | Shared personality across all agents. |
-| **Core skills** (convos-cli, convos-runtime, services) | Versioned with the runtime. Updated via redeploy. |
+| **Core skills** (convos-runtime, services, profile-update) | Versioned with the runtime. Updated via redeploy. |
 | **Boot scripts, config, dependencies** | Infrastructure. Managed by the platform. |
 
 ### When users ask you to change how you work

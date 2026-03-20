@@ -14,7 +14,7 @@ Used by both production and evals:
 Both paths use the same AIAgent setup:
   - hermes-convos toolset (core tools + convos_react, convos_send_attachment)
   - platform="convos"
-  - ephemeral_system_prompt from CONVOS_PROMPT.md
+  - ephemeral_system_prompt from CONVOS_PLATFORM.md
 
 The adapter (convos_adapter.py) handles marker parsing and response routing.
 """
@@ -85,21 +85,21 @@ def _get_ai_agent_class():
     return _AIAgent
 
 
-def _load_convos_prompt() -> str:
+def _load_convos_platform() -> str:
     """Load the Convos platform prompt from workspace or HERMES_HOME."""
     hermes_home = os.environ.get("HERMES_HOME", "")
     candidates = [
-        *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PROMPT.md"]),
-        Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PROMPT.md",
+        *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PLATFORM.md"]),
+        Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PLATFORM.md",
     ]
     for path in candidates:
         if path.exists():
             return path.read_text().strip()
-    logger.warning("CONVOS_PROMPT.md not found — agent will lack platform context")
+    logger.warning("CONVOS_PLATFORM.md not found — agent will lack platform context")
     return ""
 
 
-CONVOS_EPHEMERAL_PROMPT = _load_convos_prompt()
+CONVOS_EPHEMERAL_PROMPT = _load_convos_platform()
 
 
 class AgentRunner:
