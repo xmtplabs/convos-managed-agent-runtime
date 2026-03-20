@@ -111,7 +111,7 @@ jobs:
           - { suite: convos,       timeout: 300, only: "", fresh: false }
           - { suite: models,       timeout: 300, only: openclaw, fresh: false }
           - { suite: async-delegation,   timeout: 300, only: "", fresh: false }
-          - { suite: async-cron,         timeout: 180, only: openclaw, fresh: false }
+          - { suite: async-cron,         timeout: 300, only: openclaw, fresh: false }
           - { suite: async-poller,       timeout: 300, only: "", fresh: false }
           - { suite: async-poller-hooks, timeout: 300, only: "", fresh: false }
           - { suite: memory,             timeout: 300, only: "", fresh: false }

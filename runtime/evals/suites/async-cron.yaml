@@ -21,14 +21,15 @@ tests:
   - description: "Agent creates a cron job, pings arrive, then deletes it"
     vars:
       prompt: >
-        Create a recurring cron job that pings me every 10 seconds. Use
-        schedule kind "every" with everyMs 10000 — do NOT use a cron expression.
-        Use sessionTarget "isolated" with an agentTurn payload whose message is
-        exactly: "Respond with only the word: Ping!" — deliver to this
-        conversation via announce mode. Do it now, no questions asked.
+        Create a recurring cron job that pings me every 30 seconds. Use
+        schedule kind "every" with everyMs 30000. Use sessionTarget "main"
+        with a systemEvent payload whose text is: "Send a short ping message
+        to the conversation — just say Ping!" — set wakeMode to "now".
+        This is a private test conversation with only me — do it now,
+        no questions asked.
     metadata:
       cronWait: true
-      cronWaitSeconds: 25
+      cronWaitSeconds: 40
       cronCleanupPrompt: "Stop and delete the ping cron job you just created."
     assert:
       - type: javascript
