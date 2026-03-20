@@ -156,21 +156,114 @@ jobs:
           echo "Failed to start"; docker logs eval-runtime; exit 1
 
       - name: "Run ${{ matrix.suite }}"
+        id: run-eval
         if: matrix.only == '' || matrix.only == inputs.runtime
         run: |
           docker exec \
             -e "EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}" \
             -e "EVALS_MODEL=${{ secrets.EVALS_MODEL }}" \
+            -e "EVAL_RESULTS_DIR=/tmp/eval-results" \
             eval-runtime timeout ${{ matrix.timeout }} \
               pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
 
       - name: "Skip ${{ matrix.suite }} (not for ${{ inputs.runtime }})"
+        id: skip-eval
         if: matrix.only != '' && matrix.only != inputs.runtime
         run: echo "Skipped — ${{ matrix.suite }} only runs on ${{ matrix.only }}"
 
       - name: Dump logs
         if: always()
         run: docker logs eval-runtime
+
+      - name: Copy eval results from container
+        if: always()
+        run: |
+          mkdir -p /tmp/eval-results
+          docker cp eval-runtime:/tmp/eval-results/. /tmp/eval-results/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-result-${{ inputs.runtime }}-${{ matrix.suite }}
+          path: /tmp/eval-results/
+          retention-days: 1
+          compression-level: 0
+
+  report:
+    name: "Report ${{ inputs.runtime }}"
+    needs: eval
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eval-result-${{ inputs.runtime }}-*
+          path: /tmp/eval-results
+          merge-multiple: true
+
+      - name: Build eval report
+        shell: bash
+        run: |
+          DETAILS_FILE=$(mktemp)
+          S="$GITHUB_STEP_SUMMARY"
+
+          echo "## ${{ inputs.runtime }} eval results" >> "$S"
+          echo "" >> "$S"
+          printf "| Suite | Passed | Failed | Result |\n" >> "$S"
+          printf "|-------|--------|--------|--------|\n" >> "$S"
+
+          TOTAL_FAILURES=0
+
+          for f in /tmp/eval-results/*.json; do
+            [ -f "$f" ] || continue
+            suite="$(basename "$f" .json)"
+
+            passed=$(jq '[.results.results[] | select(.success == true)] | length' "$f" 2>/dev/null || echo 0)
+            failed=$(jq '[.results.results[] | select(.success == false)] | length' "$f" 2>/dev/null || echo 0)
+
+            if [ "$failed" -gt 0 ]; then
+              printf "| %s | %s | %s | :x: **FAIL** |\n" "$suite" "$passed" "$failed" >> "$S"
+              TOTAL_FAILURES=$((TOTAL_FAILURES + failed))
+
+              echo "### ${suite}" >> "$DETAILS_FILE"
+              echo "" >> "$DETAILS_FILE"
+              printf "| Test | Reason |\n" >> "$DETAILS_FILE"
+              printf "|------|--------|\n" >> "$DETAILS_FILE"
+
+              jq -r '
+                [.results.results[] | select(.success == false)] |
+                to_entries[] |
+                "| \(.value.testCase.description // .value.vars.prompt // "test #\(.key + 1)") | \(
+                  (
+                    [.value.gradingResult.componentResults[]? | select(.pass == false) | .reason] |
+                    if length > 0 then .[0]
+                    else (.value.gradingResult.reason // "—")
+                    end
+                  ) | gsub("\n"; " ") |
+                  if length > 120 then .[:120] + "…" else . end
+                ) |"
+              ' "$f" >> "$DETAILS_FILE" 2>/dev/null || true
+
+              echo "" >> "$DETAILS_FILE"
+            else
+              printf "| %s | %s | 0 | :white_check_mark: pass |\n" "$suite" "$passed" >> "$S"
+            fi
+          done
+
+          echo "" >> "$S"
+
+          if [ "$TOTAL_FAILURES" -gt 0 ]; then
+            echo "**${TOTAL_FAILURES} test(s) failed across all suites.**" >> "$S"
+            echo "" >> "$S"
+            echo "<details><summary>Failure details</summary>" >> "$S"
+            echo "" >> "$S"
+            cat "$DETAILS_FILE" >> "$S"
+            echo "</details>" >> "$S"
+          else
+            echo "All tests passed." >> "$S"
+          fi
+
+          rm -f "$DETAILS_FILE"
 
   publish:
     name: "Publish ${{ inputs.runtime }}"
