@@ -996,6 +996,40 @@ async def convos_update_metadata(body: UpdateMetadataRequest):
         raise HTTPException(status_code=500, detail=str(err))
 
 
+# ---- /convos/notify ----
+
+class NotifyRequest(BaseModel):
+    text: str
+
+
+@app.post("/convos/notify", dependencies=[Depends(require_auth)])
+async def convos_notify(body: NotifyRequest):
+    """Dispatch a background notification as a synthetic system message.
+
+    The agent responds over XMTP but the notification itself is invisible
+    to the user (same pattern as the greeting dispatch).
+    """
+    adapter = get_adapter()
+    if not adapter or not adapter.instance or not adapter.agent:
+        raise HTTPException(status_code=400, detail="No active conversation")
+
+    try:
+        response = await adapter.agent.handle_message(
+            content=body.text,
+            sender_name="System",
+            sender_id="system",
+            timestamp=time.time(),
+            conversation_id=adapter.instance.conversation_id,
+            message_id=f"system-notify-{int(time.time() * 1000)}",
+            group_members=adapter.instance.get_group_members(),
+        )
+        if response:
+            await adapter._dispatch_response(response)
+        return {"ok": True}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
 # ---- /convos/re-attest ----
 
 class ReattestRequest(BaseModel):
