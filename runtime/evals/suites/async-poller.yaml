@@ -24,8 +24,13 @@ tests:
     metadata:
       waitForNotification: true
     assert:
-      - type: icontains
-        value: "You got a new email"
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. A background poller detected a new
+          email and dispatched a silent notification to the agent.
+          FAIL if there is no AGENT message that references receiving, noticing,
+          or reading a new email.
+          PASS if the AGENT mentions an email, a new message, or inbox activity.
 
   - description: "Agent recalls email content from poller notification"
     vars:

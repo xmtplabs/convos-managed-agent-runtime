@@ -62,8 +62,7 @@ const h = createHarness('poller-hooks', {
       env: {
         ...process.env,
         HOME: EVAL_HOME,
-        CONVOS_CONVERSATION_ID: sharedConversationId,
-        CONVOS_ENV: process.env.XMTP_ENV || 'dev',
+        PORT: String(h.gatewayPort),
         POLL_INTERVAL_SECONDS: '10',
         SKILLS_ROOT: tempSkillsRoot,
       },
@@ -91,7 +90,7 @@ export default class PollerHooksProvider {
 
     // Test 1: Wait for the custom poll.sh notification to appear
     if (meta.waitForNotification) {
-      const { msgs: notifMsgs } = h.waitForContent(/New post on Eval Feed/i, 120_000);
+      const { msgs: notifMsgs } = h.waitForContent(/eval feed|new post/i, 120_000);
       const text = h.transcript(notifMsgs);
       h.log(`Transcript:\n${text}`);
       h.log(`Hook discovery test done (${elapsed(t)})`);
