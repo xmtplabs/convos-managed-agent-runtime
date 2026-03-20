@@ -254,6 +254,14 @@ export async function getGatewayToken(instanceId: string): Promise<string | null
   return rows[0]?.gatewayToken ?? null;
 }
 
+export async function getRuntimeInfo(instanceId: string): Promise<{ version: string | null; type: string | null }> {
+  const rows = await db.select({
+    version: instanceInfra.runtimeVersion,
+    type: instanceInfra.runtimeType,
+  }).from(instanceInfra).where(eq(instanceInfra.instanceId, instanceId));
+  return rows[0] ?? { version: null, type: null };
+}
+
 export async function setRuntimeVersion(instanceId: string, version: string, runtimeType?: string) {
   const updates: Record<string, unknown> = {
     runtimeVersion: version,

@@ -140,72 +140,74 @@ async function runHealthCheckWithRetries(
     }
 
     const instToken = await db.getGatewayToken(instanceId);
-    const hc = await healthCheck(url, instToken);
-    if (hc?.ready) {
-      // Ask the runtime for its status
-      let rs: ParsedRuntimeStatus | null = null;
-      try {
-        const csRes = await authFetch(`${url}/convos/status`, {
-          gatewayToken: instToken,
-          signal: AbortSignal.timeout(5000),
-        });
-        if (csRes.ok) rs = parseRuntimeStatus(await csRes.json());
-      } catch {}
+    const hcResult = await healthCheck(url, instToken);
+    if (!hcResult.ok) continue;
+    const hc = hcResult.data;
 
-      if (!rs) {
-        console.warn(`[webhook] ${instanceId}: /convos/status failed, leaving as ${statusAtWebhookTime}`);
-        return;
-      }
+    // Ask the runtime for its status
+    let rs: ParsedRuntimeStatus | null = null;
+    try {
+      const csRes = await authFetch(`${url}/convos/status`, {
+        gatewayToken: instToken,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (csRes.ok) rs = parseRuntimeStatus(await csRes.json());
+    } catch {}
 
-      let updated: boolean;
-      let newStatus: string;
-      if (rs.conversationId) {
-        const inst = await db.findById(instanceId);
-        if (inst?.status === "pending_acceptance") {
-          newStatus = "claimed";
-          updated = await db.completePendingAcceptance(instanceId, rs.conversationId);
-        } else if (inst?.conversationId && inst.conversationId === rs.conversationId) {
-          newStatus = "claimed";
-          updated = await db.conditionalUpdateStatus(instanceId, "claimed", statusAtWebhookTime);
-        } else {
-          newStatus = "tainted";
-          updated = await db.conditionalUpdateStatus(instanceId, "tainted", statusAtWebhookTime);
-        }
-      } else if (rs.pending && statusAtWebhookTime === "pending_acceptance") {
-        console.log(`[webhook] ${instanceId}: pending acceptance still active`);
-        return;
-      } else if (rs.clean === true) {
-        newStatus = "idle";
-        updated = await db.recoverToIdle(instanceId, statusAtWebhookTime);
-      } else if (!rs.pending && statusAtWebhookTime === "pending_acceptance") {
-        newStatus = "tainted";
-        updated = await db.failPendingAcceptance(instanceId);
-      } else {
-        console.log(`[webhook] ${instanceId}: runtime not clean (clean=${rs.clean} pending=${rs.pending}) — leaving as ${statusAtWebhookTime}`);
-        return;
-      }
-      if (!updated) {
-        console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);
-        return;
-      }
-      if (hc.version) await db.setRuntimeVersion(instanceId, hc.version, hc.runtime);
-      metricCount("webhook.health_check_promoted", 1, { from: statusAtWebhookTime, to: newStatus });
-      // Starting instance promoted = completed create lifecycle
-      if (statusAtWebhookTime === "starting") {
-        const inst = await db.findById(instanceId);
-        if (inst) {
-          const durationMs = Date.now() - new Date(inst.createdAt).getTime();
-          metricCount("instance.create.complete");
-          metricHistogram("instance.create.duration_ms", durationMs);
-          logger.info("create.complete", { instanceId, name: inst.name, duration_ms: durationMs });
-        }
-      }
-      console.log(`[webhook] ${instanceId}: health check passed (attempt ${attempt}), ${statusAtWebhookTime} → ${newStatus} (v${hc.version || "?"})`);
+    if (!rs) {
+      console.warn(`[webhook] ${instanceId}: /convos/status failed, leaving as ${statusAtWebhookTime}`);
       return;
     }
+
+    let updated: boolean;
+    let newStatus: string;
+    if (rs.conversationId) {
+      const inst = await db.findById(instanceId);
+      if (inst?.status === "pending_acceptance") {
+        newStatus = "claimed";
+        updated = await db.completePendingAcceptance(instanceId, rs.conversationId);
+      } else if (inst?.conversationId && inst.conversationId === rs.conversationId) {
+        newStatus = "claimed";
+        updated = await db.conditionalUpdateStatus(instanceId, "claimed", statusAtWebhookTime);
+      } else {
+        newStatus = "tainted";
+        updated = await db.conditionalUpdateStatus(instanceId, "tainted", statusAtWebhookTime);
+      }
+    } else if (rs.pending && statusAtWebhookTime === "pending_acceptance") {
+      console.log(`[webhook] ${instanceId}: pending acceptance still active`);
+      return;
+    } else if (rs.clean === true) {
+      newStatus = "idle";
+      updated = await db.recoverToIdle(instanceId, statusAtWebhookTime);
+    } else if (!rs.pending && statusAtWebhookTime === "pending_acceptance") {
+      newStatus = "tainted";
+      updated = await db.failPendingAcceptance(instanceId);
+    } else {
+      console.log(`[webhook] ${instanceId}: runtime not clean (clean=${rs.clean} pending=${rs.pending}) — leaving as ${statusAtWebhookTime}`);
+      return;
+    }
+    if (!updated) {
+      console.log(`[webhook] ${instanceId}: conditional promotion skipped (status changed from ${statusAtWebhookTime})`);
+      return;
+    }
+    if (hc.version) await db.setRuntimeVersion(instanceId, hc.version, hc.runtime);
+    metricCount("webhook.health_check_promoted", 1, { from: statusAtWebhookTime, to: newStatus });
+    // Starting instance promoted = completed create lifecycle
+    if (statusAtWebhookTime === "starting") {
+      const inst = await db.findById(instanceId);
+      if (inst) {
+        const durationMs = Date.now() - new Date(inst.createdAt).getTime();
+        metricCount("instance.create.complete");
+        metricHistogram("instance.create.duration_ms", durationMs);
+        logger.info("create.complete", { instanceId, name: inst.name, duration_ms: durationMs });
+      }
+    }
+    console.log(`[webhook] ${instanceId}: health check passed (attempt ${attempt}), ${statusAtWebhookTime} → ${newStatus} (v${hc.version || "?"})`);
+    return;
   }
 
-  console.warn(`[webhook] ${instanceId}: health check failed after ${HEALTH_CHECK_RETRIES} attempts, leaving status as ${statusAtWebhookTime}`);
+  const ri = await db.getRuntimeInfo(instanceId);
+  console.warn(`[webhook] ${instanceId}: health check failed after ${HEALTH_CHECK_RETRIES} attempts (runtime=${ri.type || "unknown"}, v=${ri.version || "?"}), leaving status as ${statusAtWebhookTime}`);
 }
 
 // ── Auto-register webhook rule ─────────────────────────────────────────────
