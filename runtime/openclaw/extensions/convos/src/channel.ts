@@ -39,8 +39,8 @@ function loadConvosMessagingHints(): string[] {
       const content = fs.readFileSync(hintsPath, "utf-8");
       _cachedMessagingHints = content
         .split("\n---\n")
-        .map((s) => s.trim())
-        .filter((s) => s && !s.startsWith("#"));
+        .map((s) => s.split("\n").filter((line) => !line.startsWith("#")).join("\n").trim())
+        .filter((s) => s.length > 0);
       return _cachedMessagingHints;
     } catch {
       continue;

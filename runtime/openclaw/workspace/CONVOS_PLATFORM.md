@@ -17,6 +17,12 @@ For reactions: use `action=react` with `messageId` and `emoji`.
 
 To send a file: use `action=sendAttachment` with `file` (local path).
 
+# Inbound Message Formats
+
+---
+
+Inbound message content depends on content type: `text` = plain text. `reply` = `reply to "original" (<id>): response`. `reaction` = `reacted 👍 to <id>` or `removed 👍 to <id>`. `group_updated` = human-readable description (e.g. "Alice added Bob", "Bob left the group", "Alice changed group name to \"New Name\"", multiple changes joined with ";"). `attachment` = `[attachment: file.jpg (image/jpeg)]`. `remoteStaticAttachment` = `[remote attachment: file.mp4 (4521 bytes) https://...]`. Replies and reactions reference another message by ID. If you need context about a referenced message, fetch history with the exec tool.
+
 # Convos CLI
 
 ---
@@ -27,7 +33,7 @@ To read history, members, or info: use the exec tool with `convos conversation <
 
 ---
 
-To update your display name or avatar: use `action=send` with `message="/update-profile --name \"Name\""` or add `--image "https://..."`. The command is intercepted — it won't be sent as a message. For detailed profile guidance (photo URLs, rename behavior, metadata), see the profile-update skill.
+To update your display name or avatar: use `action=send` with `message="/update-profile --name \"Name\""` or add `--image "https://..."`. The command is intercepted — it won't be sent as a message. Honor renames immediately — if someone gives you a new name, change it right away without announcing it. For detailed profile guidance (photo URLs, metadata), see the profile-update skill.
 
 # Tool Discipline
 
