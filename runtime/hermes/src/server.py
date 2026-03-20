@@ -19,6 +19,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
@@ -375,6 +376,7 @@ def _build_runtime_status() -> dict:
     provision = _get_provision_status()
     return {
         "conversationId": conversation_id,
+        "inboxId": adapter.instance.inbox_id if adapter and adapter.instance else None,
         "pending": provision["state"] == "pending_acceptance",
         "clean": _is_clean(),
     }
@@ -465,6 +467,47 @@ async def _notify_pool_pending_join(event: str, *, conversation_id: str | None =
         logger.warning("Pending join pool callback failed: %s", err)
 
 
+async def _fetch_attestation(inbox_id: str) -> dict[str, str] | None:
+    """Fetch a signed attestation from the pool manager."""
+    pool_url = os.environ.get("POOL_URL")
+    instance_id = os.environ.get("INSTANCE_ID")
+    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
+    if not pool_url or not instance_id or not gateway_token:
+        logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN")
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{pool_url}/api/pool/attest",
+                json={"instanceId": instance_id, "gatewayToken": gateway_token, "inboxId": inbox_id},
+            )
+            if resp.status_code != 200:
+                logger.error("Attestation request failed: %d %s", resp.status_code, resp.text[:200])
+                return None
+            return resp.json()
+    except Exception as err:
+        logger.error("Attestation request error: %s", err)
+        return None
+
+
+async def _apply_attestation() -> None:
+    """Fetch attestation from pool and push to running instance."""
+    adapter = get_adapter()
+    if not adapter or not adapter.instance or not adapter.instance.inbox_id:
+        return
+    att = await _fetch_attestation(adapter.instance.inbox_id)
+    if att:
+        # Store for subprocess restarts
+        adapter.instance.set_attestation(att["attestation"], att["attestation_ts"], att["attestation_kid"])
+        # Push to running agent serve process
+        await adapter.instance.update_profile(metadata={
+            "attestation": att["attestation"],
+            "attestation_ts": att["attestation_ts"],
+            "attestation_kid": att["attestation_kid"],
+        })
+        logger.info("Attestation signed for %s...", adapter.instance.inbox_id[:12])
+
+
 async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConfig) -> None:
     """Background task that retries joining until accepted or timed out."""
     env = cfg.xmtp_env
@@ -490,6 +533,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                     debug=True,
                 )
                 _clear_provision_state(generation)
+                await _apply_attestation()
                 await _notify_pool_pending_join("claimed", conversation_id=conversation_id)
                 logger.info("Pending join accepted: conversation %s", conversation_id[:12])
                 return
@@ -755,6 +799,7 @@ async def pool_provision(body: ProvisionRequest):
                 env=env,
                 debug=True,
             )
+            await _apply_attestation()
             return {
                 "ok": True,
                 "conversationId": conversation_id,
@@ -776,6 +821,7 @@ async def pool_provision(body: ProvisionRequest):
                 name=body.agentName,
                 debug=True,
             )
+            await _apply_attestation()
 
             return {
                 "ok": True,
@@ -832,6 +878,7 @@ async def convos_conversation(body: ConversationRequest):
             name=body.name,
             debug=True,
         )
+        await _apply_attestation()
 
         return {
             "conversationId": result["conversationId"],
@@ -881,6 +928,7 @@ async def convos_join(body: JoinRequest):
             env=env,
             debug=True,
         )
+        await _apply_attestation()
 
         return {"status": "joined", "conversationId": conversation_id}
     except Exception as err:
@@ -934,6 +982,28 @@ async def convos_update_metadata(body: UpdateMetadataRequest):
         return {"ok": True}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
+
+
+# ---- /convos/re-attest ----
+
+class ReattestRequest(BaseModel):
+    attestation: str
+    attestation_ts: str
+    attestation_kid: str
+
+
+@app.post("/convos/re-attest", dependencies=[Depends(require_auth)])
+async def convos_reattest(body: ReattestRequest):
+    adapter = get_adapter()
+    if not adapter or not adapter.instance:
+        raise HTTPException(status_code=400, detail="No active conversation")
+    adapter.instance.set_attestation(body.attestation, body.attestation_ts, body.attestation_kid)
+    await adapter.instance.update_profile(metadata={
+        "attestation": body.attestation,
+        "attestation_ts": body.attestation_ts,
+        "attestation_kid": body.attestation_kid,
+    })
+    return {"ok": True}
 
 
 # ---- /convos/lock ----

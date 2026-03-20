@@ -29,6 +29,8 @@ import { configureRouter } from "./services/routes/configure";
 import { toolsRouter } from "./services/routes/tools";
 import { dashboardRouter } from "./services/routes/dashboard";
 import { registryRouter } from "./services/routes/registry";
+import { signAttestation, buildJwksFromConfig } from "./attestation";
+import { authFetch } from "./authFetch";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -115,6 +117,16 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 
 const BUILD_VERSION = "2026-02-25T01:unified-pool-v1";
 app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: config.poolEnvironment }));
+
+// JWKS — public endpoint for agent attestation verification.
+// Production: hosted on convos.org. This serves as dev/staging fallback.
+app.get("/.well-known/agents.json", (_req, res) => {
+  try {
+    res.json(buildJwksFromConfig());
+  } catch (err: any) {
+    res.status(503).json({ error: "Attestation not configured" });
+  }
+});
 
 app.get("/api/pool/counts", async (_req, res) => {
   res.json(await db.getCounts());
@@ -331,6 +343,28 @@ app.post("/api/pool/self-destruct", async (req, res) => {
   }
 });
 
+// Attest — instance requests a signed attestation for its inbox ID.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/attest", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken, inboxId } = req.body || {};
+    if (!instanceId || !gatewayToken || !inboxId) {
+      res.status(400).json({ error: "instanceId, gatewayToken, and inboxId are required" });
+      return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid credentials" });
+      return;
+    }
+    const result = signAttestation(inboxId);
+    res.json(result);
+  } catch (err: any) {
+    console.error("[api] attest failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // --- Railway webhook (public — auth via secret in URL path) ---
 app.use(webhookRouter);
@@ -452,6 +486,55 @@ app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (err: any) {
     console.error("[api] Recheck failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Re-attest — admin triggers a fresh attestation for a running instance.
+app.post("/api/pool/re-attest/:id", requireAuth, async (req, res) => {
+  try {
+    const inst = await db.findById(req.params.id as string);
+    if (!inst) { res.status(404).json({ error: "Instance not found" }); return; }
+    if (!inst.url) { res.status(400).json({ error: "Instance has no URL" }); return; }
+
+    const token = await db.getGatewayToken(inst.id);
+    if (!token) { res.status(400).json({ error: "No gateway token for instance" }); return; }
+
+    // Get inboxId from runtime
+    const statusRes = await authFetch(`${inst.url}/convos/status`, {
+      gatewayToken: token,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!statusRes.ok) {
+      res.status(502).json({ error: `Runtime status check failed: ${statusRes.status}` });
+      return;
+    }
+    const status = await statusRes.json() as { inboxId?: string; conversationId?: string };
+    if (!status.inboxId) {
+      res.status(400).json({ error: "Runtime has no inboxId (agent not provisioned?)" });
+      return;
+    }
+
+    // Sign attestation
+    const attestation = signAttestation(status.inboxId);
+
+    // Push to runtime
+    const reattestRes = await authFetch(`${inst.url}/convos/re-attest`, {
+      gatewayToken: token,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify(attestation),
+    });
+    if (!reattestRes.ok) {
+      const text = await reattestRes.text();
+      res.status(502).json({ error: `Runtime re-attest failed: ${reattestRes.status} ${text.slice(0, 500)}` });
+      return;
+    }
+
+    res.json({ ok: true, instanceId: inst.id, inboxId: status.inboxId, ...attestation });
+  } catch (err: any) {
+    console.error("[api] re-attest failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
