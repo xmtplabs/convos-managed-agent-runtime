@@ -503,13 +503,13 @@ async def _apply_attestation() -> None:
         return
     # Store for subprocess restarts
     adapter.instance.set_attestation(att["attestation"], att["attestation_ts"], att["attestation_kid"])
-        # Push to running agent serve process
-        await adapter.instance.update_profile(metadata={
-            "attestation": att["attestation"],
-            "attestation_ts": att["attestation_ts"],
-            "attestation_kid": att["attestation_kid"],
-        })
-        logger.info("Attestation signed for %s...", adapter.instance.inbox_id[:12])
+    # Push to running agent serve process
+    await adapter.instance.update_profile(metadata={
+        "attestation": att["attestation"],
+        "attestation_ts": att["attestation_ts"],
+        "attestation_kid": att["attestation_kid"],
+    })
+    logger.info("Attestation signed for %s...", adapter.instance.inbox_id[:12])
 
 
 async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConfig) -> None:
