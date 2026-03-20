@@ -18,6 +18,13 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
+  - description: "Agent has attestation after joining"
+    vars:
+      prompt: "Hello, are you there?"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileHasAttestation"
+
   - description: "Agent can update profile name"
     vars:
       prompt: "Update your profile name to 'QA Bot Alpha'. Confirm when done."
@@ -26,6 +33,13 @@ tests:
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileNameEquals"
+
+  - description: "Attestation survives profile name update"
+    vars:
+      prompt: "What is your name?"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:attestationSurvivesProfileUpdate"
 
   - description: "Agent can update profile photo"
     vars:
@@ -43,6 +57,13 @@ tests:
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileMetadataEquals"
+
+  - description: "Attestation survives metadata update"
+    vars:
+      prompt: "What are my credits?"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:attestationSurvivesProfileUpdate"
 
   - description: "Agent can recognize image content"
     vars:
