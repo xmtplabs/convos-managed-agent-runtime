@@ -3,7 +3,9 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_LIB="$(cd "$(dirname "$0")/lib" 2>/dev/null && pwd)" || SCRIPT_LIB="$ROOT/scripts/lib"
 _ENV_FILE="$ROOT/../.env"
-. "$ROOT/../shared/scripts/lib/init-common.sh"
+_init_common="$ROOT/../shared/scripts/lib/init-common.sh"
+[ ! -f "$_init_common" ] && _init_common="/app/shared-scripts/lib/init-common.sh"
+. "$_init_common"
 
 # Docker detection — single source of truth
 is_docker() { [ -d "/opt/hermes-agent" ]; }
