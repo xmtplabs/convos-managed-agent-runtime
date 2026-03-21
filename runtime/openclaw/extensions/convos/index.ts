@@ -88,8 +88,16 @@ function isClean(): boolean {
 
 function buildRuntimeStatus() {
   const inst = getConvosInstance();
+  let conversationId = inst?.conversationId ?? null;
+  // After a process restart the in-memory instance is gone but credentials
+  // are persisted on disk.  Fall back so the pool manager can match the
+  // conversation and recover the instance to "claimed".
+  if (!conversationId) {
+    const creds = loadConvosCredentials();
+    if (creds) conversationId = creds.ownerConversationId;
+  }
   return {
-    conversationId: inst?.conversationId ?? null,
+    conversationId,
     inboxId: inst?.inboxId ?? null,
     pending: false,
     clean: isClean(),

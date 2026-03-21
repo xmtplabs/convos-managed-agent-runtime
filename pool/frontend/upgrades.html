@@ -82,6 +82,7 @@
             </div>
           </div>
           <button class="btn btn-primary btn-upgrade" id="btn-upgrade-outdated" disabled>Upgrade outdated</button>
+          <button class="btn btn-upgrade" id="btn-reattest-all" style="border-color:var(--color-edge);color:var(--color-foreground-secondary)">Re-attest all</button>
         </div>
       </div>
     </div>
@@ -154,25 +155,30 @@
       all.forEach(function (a) {
         var infra = infraMap[a.id] || {};
         var ver = infra.runtime_version || null;
-        var label = ver || 'unknown';
-        if (!buckets[label]) {
-          buckets[label] = { version: ver, label: label, instances: [], isLatest: false };
+        var harness = infra.runtime_type || 'unknown';
+        var key = (ver || 'unknown') + '/' + harness;
+        if (!buckets[key]) {
+          buckets[key] = { version: ver, harness: harness, label: ver || 'unknown', instances: [], isLatest: false };
         }
         var status = crashedCache.indexOf(a) !== -1 ? 'crashed'
           : claimedCache.indexOf(a) !== -1 ? 'running'
           : idleCache.indexOf(a) !== -1 ? 'idle' : 'starting';
-        buckets[label].instances.push({ id: a.id, name: a.agentName || a.name || a.id, status: status });
+        buckets[key].instances.push({ id: a.id, name: a.agentName || a.name || a.id, status: status });
       });
-      var highestVer = null;
-      var highestKey = null;
+      // Mark latest per harness
+      var latestByHarness = {};
       Object.keys(buckets).forEach(function (k) {
-        var sv = parseSemver(buckets[k].version);
-        if (sv && (!highestVer || cmpSemver(sv, highestVer) > 0)) {
-          highestVer = sv;
-          highestKey = k;
+        var b = buckets[k];
+        var sv = parseSemver(b.version);
+        if (!sv) return;
+        var h = b.harness;
+        if (!latestByHarness[h] || cmpSemver(sv, latestByHarness[h].sv) > 0) {
+          latestByHarness[h] = { sv: sv, key: k };
         }
       });
-      if (highestKey) buckets[highestKey].isLatest = true;
+      Object.values(latestByHarness).forEach(function (entry) {
+        buckets[entry.key].isLatest = true;
+      });
       var sorted = Object.values(buckets).sort(function (a, b) {
         if (a.isLatest && !b.isLatest) return -1;
         if (!a.isLatest && b.isLatest) return 1;
@@ -242,9 +248,10 @@
 
       var legendHtml = '';
       buckets.forEach(function (b, i) {
+        var hTag = b.harness && b.harness !== 'unknown' ? ' <span style="opacity:0.5">' + b.harness + '</span>' : '';
         legendHtml += '<div class="upgrade-legend-pill">'
           + '<span class="upgrade-legend-dot" style="background:' + PIE_COLORS[i % PIE_COLORS.length] + '"></span>'
-          + '<span class="upgrade-legend-ver">' + esc(b.label) + '</span>'
+          + '<span class="upgrade-legend-ver">' + esc(b.label) + hTag + '</span>'
           + '<span class="upgrade-legend-count">' + b.instances.length + '</span>'
           + '</div>';
       });
@@ -277,12 +284,16 @@
         var badge = b.isLatest
           ? '<span class="upgrade-version-badge latest">latest</span>'
           : (b.label === 'unknown' ? '' : '<span class="upgrade-version-badge outdated">outdated</span>');
+        var harnessBadge = b.harness && b.harness !== 'unknown'
+          ? '<span class="upgrade-version-badge" style="background:' + (b.harness === 'hermes' ? '#AF52DE22' : '#007AFF22') + ';color:' + (b.harness === 'hermes' ? '#AF52DE' : '#007AFF') + '">' + b.harness + '</span>'
+          : '';
         var versionIds = b.instances.map(function (inst) { return inst.id; });
         listHtml += '<div class="upgrade-version-group" data-vgroup="' + i + '">'
           + '<div class="upgrade-version-header">'
           + '<span class="upgrade-version-expand" onclick="this.closest(\'.upgrade-version-group\').classList.toggle(\'open\')">'
           + '<span class="upgrade-legend-dot" style="background:' + PIE_COLORS[i % PIE_COLORS.length] + ';width:10px;height:10px;border-radius:3px;flex-shrink:0"></span>'
           + '<span class="upgrade-version-tag">' + esc(b.label) + '</span>'
+          + harnessBadge
           + badge
           + '<span class="upgrade-version-count">' + b.instances.length + '</span>'
           + '</span>'
@@ -500,6 +511,40 @@
         confirmLabel: 'Upgrade all',
       });
       if (ok) massUpgrade(ids);
+    });
+
+    document.getElementById('btn-reattest-all').addEventListener('click', async function () {
+      var btn = this;
+      var ok = await showConfirm({
+        icon: '\uD83D\uDD10',
+        title: 'Re-attest all claimed instances',
+        message: 'This will sign fresh attestations for all claimed, pending_acceptance, and crashed instances and push them as profile updates.',
+        confirmLabel: 'Re-attest all',
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      btn.textContent = 'Re-attesting...';
+      try {
+        var res = await fetch('/api/pool/re-attest-all', {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        await showInfo({
+          icon: '\u2705',
+          title: 'Re-attestation complete',
+          message: data.succeeded + '/' + data.total + ' succeeded' + (data.failed > 0 ? ', ' + data.failed + ' failed' : ''),
+        });
+      } catch (err) {
+        await showInfo({
+          icon: '\u274C',
+          title: 'Re-attestation failed',
+          message: err.message || 'Unknown error',
+        });
+      }
+      btn.disabled = false;
+      btn.textContent = 'Re-attest all';
     });
 
     async function refreshVersionGroup(btn, ids) {

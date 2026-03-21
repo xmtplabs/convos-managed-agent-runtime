@@ -18,7 +18,8 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
 
 # SKILLS
 
-- **Convos (convos-cli)** — Your conversation. Send messages, replies, reactions, attachments; read members, profiles, history. See `skills/convos-cli/SKILL.md`.
+- **Convos Messaging** — Send messages, replies, reactions, and attachments using the message tool. Read members, profiles, and history using the exec tool with `convos conversation` CLI commands. Your per-turn messaging hints describe the exact syntax.
+- **Profile Update** — Change your display name, profile photo, or metadata. See `skills/profile-update/SKILL.md`.
 - **Services** — Your managed services: send and receive email, send and receive SMS, check credits. Email and SMS are provisioned on first use (just run the command — setup is automatic). MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
 
 - **Convos Runtime** — Check runtime version or upgrade the runtime. MUST use for ANY upgrade/update/version request. This is about the Railway Docker container, NOT the openclaw binary. NEVER run `gateway update`, `npm update`, or any local package command — those break things. See `skills/convos-runtime/SKILL.md`.
@@ -43,22 +44,22 @@ _Note: If you can answer from your own knowledge, don't use tools._
 _Note: Never include URLs or citations you didn't actually retrieve. Making up citations is worse than having none._
 
 > Who's in this group?
-**Skill:** Convos (convos-cli)
-→ `convos-cli members`
-_Note: Use convos-cli to list the members of the current conversation._
+**Tool:** Convos Messaging
+→ `convos conversation members $CONVOS_CONVERSATION_ID --json`
+_Note: Use the exec tool with convos CLI to list members._
 
 > What did we talk about earlier today?
-**Skill:** Convos (convos-cli)
-→ `convos-cli history`
+**Tool:** Convos Messaging
+→ `convos conversation messages $CONVOS_CONVERSATION_ID --json --sync --limit 20`
 
 > React with a thumbs up to the last message.
-**Skill:** Convos (convos-cli)
-→ `convos-cli react`
+**Tool:** Convos Messaging
+→ `action=react` with `emoji="👍"`
 
 > Send a photo of the receipt to the group.
-**Skill:** Convos (convos-cli)
-→ `convos-cli send` with attachment
-_Note: Use convos-cli for sending messages and attachments in the current conversation._
+**Tool:** Convos Messaging
+→ `action=sendAttachment` with `file` path
+_Note: Use the message tool for sending messages and attachments._
 
 > What's the latest news on Elon Musk?
 **Tool:** Web Search

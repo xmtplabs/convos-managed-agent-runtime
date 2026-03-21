@@ -14,7 +14,7 @@ Used by both production and evals:
 Both paths use the same AIAgent setup:
   - hermes-convos toolset (core tools + convos_react, convos_send_attachment)
   - platform="convos"
-  - ephemeral_system_prompt from CONVOS_PROMPT.md
+  - ephemeral_system_prompt from CONVOS_PLATFORM.md
 
 The adapter (convos_adapter.py) handles marker parsing and response routing.
 """
@@ -28,9 +28,19 @@ import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Match OpenClaw's userTimezone (openclaw.json defaults to "America/New_York").
+# Override via USER_TIMEZONE env var; falls back to UTC if the zone is invalid.
+_tz_name = os.environ.get("USER_TIMEZONE", "America/New_York")
+try:
+    _USER_TZ = ZoneInfo(_tz_name)
+except KeyError:
+    logger.warning("Unknown timezone %r — falling back to UTC", _tz_name)
+    _USER_TZ = timezone.utc
 
 _AIAgent = None
 _SessionDB = None
@@ -85,21 +95,21 @@ def _get_ai_agent_class():
     return _AIAgent
 
 
-def _load_convos_prompt() -> str:
+def _load_convos_platform() -> str:
     """Load the Convos platform prompt from workspace or HERMES_HOME."""
     hermes_home = os.environ.get("HERMES_HOME", "")
     candidates = [
-        *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PROMPT.md"]),
-        Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PROMPT.md",
+        *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PLATFORM.md"]),
+        Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PLATFORM.md",
     ]
     for path in candidates:
         if path.exists():
             return path.read_text().strip()
-    logger.warning("CONVOS_PROMPT.md not found — agent will lack platform context")
+    logger.warning("CONVOS_PLATFORM.md not found — agent will lack platform context")
     return ""
 
 
-CONVOS_EPHEMERAL_PROMPT = _load_convos_prompt()
+CONVOS_EPHEMERAL_PROMPT = _load_convos_platform()
 
 
 class AgentRunner:
@@ -181,11 +191,18 @@ class AgentRunner:
         timestamp: float,
         message_id: str,
     ) -> str:
-        """Format an inbound message with current time and full message ID."""
-        msg_ts = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%I:%M %p")
-        now = datetime.now(tz=timezone.utc).strftime("%a, %b %d, %Y, %I:%M %p %Z")
+        """Format an inbound message with current time and full message ID.
+
+        Uses the same timezone and format as OpenClaw's Intl.DateTimeFormat
+        (en-US, weekday short / year numeric / month short / day numeric /
+        hour numeric / minute 2-digit / timeZoneName short).
+        """
+        msg_ts = datetime.fromtimestamp(timestamp, tz=_USER_TZ).strftime("%I:%M %p")
+        now = datetime.now(tz=_USER_TZ)
+        # Produce "Thu, Mar 20, 2026, 10:30 AM EDT" — matches OpenClaw's Intl output.
+        now_str = now.strftime("%a, %b %-d, %Y, %-I:%M %p %Z")
         name = sender_name or sender_id[:12]
-        return f"[Current time: {now}]\n[{message_id} {msg_ts}] {name}: {content}"
+        return f"[Current time: {now_str}]\n[{message_id} {msg_ts}] {name}: {content}"
 
     async def handle_message(
         self,
