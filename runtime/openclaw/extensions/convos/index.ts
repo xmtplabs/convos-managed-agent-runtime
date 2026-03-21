@@ -653,7 +653,9 @@ const plugin = {
           await dispatchNotification(text);
           jsonResponse(res, 200, { ok: true });
         } catch (err) {
-          jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
+          const msg = err instanceof Error ? err.message : String(err);
+          const status = msg.includes("No active conversation") || msg.includes("No runtime") ? 503 : 500;
+          jsonResponse(res, status, { error: msg });
         }
       },
     });

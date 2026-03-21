@@ -28,14 +28,16 @@ notify() {
     || { _raw=$(printf '%s' "$1" | awk 'BEGIN{ORS=""}{gsub(/\\/,"\\\\");gsub(/"/,"\\\"");gsub(/\t/,"\\t");if(NR>1)printf "\\n";print}'); _escaped="\"$_raw\""; }
 
   # Write body to temp file to avoid eval and shell quoting issues
-  _body="/tmp/.poller-notify-body.json"
+  _body=$(mktemp /tmp/.poller-notify-XXXXXX.json)
   printf '{ "text": %s }' "$_escaped" > "$_body"
 
   _curl_args="-s -f -X POST http://localhost:$_port/convos/notify -H Content-Type:application/json -d @$_body"
   [ -n "$_token" ] && _curl_args="$_curl_args -H Authorization:Bearer $_token"
 
   curl $_curl_args >/dev/null 2>&1
+  _rc=$?
   rm -f "$_body"
+  return $_rc
 }
 
 # Reset cursors to "now" so we don't re-report old messages on boot

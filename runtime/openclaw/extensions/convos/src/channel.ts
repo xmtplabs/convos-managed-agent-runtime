@@ -1050,14 +1050,12 @@ async function dispatchGreeting(
 export async function dispatchNotification(text: string): Promise<void> {
   const inst = getConvosInstance();
   if (!inst) {
-    console.error("[convos] No instance available for notification dispatch");
-    return;
+    throw new Error("No active conversation");
   }
 
   const runtime = getConvosRuntime();
   if (!runtime) {
-    console.error("[convos] No runtime available for notification dispatch");
-    return;
+    throw new Error("No runtime available");
   }
 
   const cfg = runtime.config.loadConfig() as CoreConfig;
