@@ -28,7 +28,7 @@ RUN uv pip install --system --no-cache -r requirements.txt
 
 # Node dependencies (convos CLI only)
 COPY runtime/hermes/package.json runtime/hermes/pnpm-lock.yaml* /app/
-RUN CI=true pnpm install --frozen-lockfile
+RUN CI=true pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 ENV PATH="/app/node_modules/.bin:${PATH}"
 
