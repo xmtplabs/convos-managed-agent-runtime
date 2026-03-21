@@ -5,7 +5,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/start.sh"
+    "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/start.sh",
+    "evals": "sh evals/eval.sh"
   },
   "dependencies": {
     "@xmtp/convos-cli": "^0.7.0",
