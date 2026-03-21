@@ -71,8 +71,10 @@ const h = createHarness('poller-hooks', {
     pollerProc.stdout.on('data', (d) => { process.stdout.write(d); });
     pollerProc.stderr.on('data', (d) => { process.stderr.write(d); });
 
-    log('Waiting 18s for poller startup...');
-    sleep(18_000);
+    // Wait for poller startup (15s sleep in poller.sh) + first poll cycle (10s interval)
+    // to ensure the custom poll.sh has been discovered and run at least once.
+    log('Waiting 30s for poller startup + first poll cycle...');
+    sleep(30_000);
   },
 });
 

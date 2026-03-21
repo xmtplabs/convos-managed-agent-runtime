@@ -3,7 +3,7 @@
 # Usage: EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml [promptfoo args ...]
 #
 # EVAL_MAX_FAILURES (default: 1) — tolerate up to N test failures per suite.
-# Promptfoo exits 100 on ANY failure; this wrapper parses the results line.
+# Promptfoo exits non-zero on ANY failure; this wrapper parses the results line.
 
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"

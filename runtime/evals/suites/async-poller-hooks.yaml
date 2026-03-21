@@ -39,5 +39,6 @@ tests:
           FAIL if the agent says it cannot do recurring checks.
           FAIL if the agent suggests a cron job instead of a polling skill (RSS feeds
           are mechanical fixed-interval checks — poll.sh is the right tool).
-          PASS if the agent describes creating a skill with a poll.sh file, or creates
-          a skill directory with a poll hook for the background poller to auto-discover.
+          PASS if the agent describes creating a poller, polling skill, or poll hook —
+          any mention of setting up a poller, poll.sh, skill directory, or background
+          polling mechanism counts. The agent does not need to say "poll.sh" verbatim.

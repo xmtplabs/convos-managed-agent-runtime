@@ -36,6 +36,7 @@ from .xmtp_bridge import ConvosInstance, InboundMessage
 from .agent_runner import AgentRunner
 from .config import RuntimeConfig
 from .profile_image_renewal import ProfileImageRenewalStore
+from .credentials import clear_credentials
 from .stats import stats
 
 logger = logging.getLogger(__name__)
@@ -413,6 +414,7 @@ class ConvosAdapter:
             if termination_reason:
                 logger.info(f"Membership ended, self-destructing ({termination_reason})")
                 await self.stop()
+                clear_credentials(self._config.hermes_home)
                 await _notify_pool_self_destruct()
                 if not os.environ.get("EVAL_MODE"):
                     sys.exit(0)
