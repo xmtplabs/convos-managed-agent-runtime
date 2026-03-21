@@ -1013,6 +1013,9 @@ async def convos_notify(body: NotifyRequest):
     if not adapter or not adapter.instance or not adapter.agent:
         raise HTTPException(status_code=400, detail="No active conversation")
 
+    # Wait for greeting to complete so history order is preserved
+    await adapter._greeting_done.wait()
+
     try:
         response = await adapter.agent.handle_message(
             content=body.text,

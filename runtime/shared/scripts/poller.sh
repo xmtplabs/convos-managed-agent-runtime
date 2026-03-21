@@ -25,16 +25,22 @@ notify() {
 
   # JSON-escape the notification text (try python3, fall back to awk)
   _escaped=$(printf '%s' "$1" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))' 2>/dev/null) \
-    || { _raw=$(printf '%s' "$1" | awk 'BEGIN{ORS=""}{gsub(/\\/,"\\\\");gsub(/"/,"\\\"");gsub(/\t/,"\\t");if(NR>1)printf "\\n";print}'); _escaped="\"$_raw\""; }
+    || { _raw=$(printf '%s' "$1" | awk 'BEGIN{ORS=""}{gsub(/\\/,"\\\\");gsub(/"/,"\\\"");gsub(/\t/,"\\t");gsub(/\r/,"\\r");if(NR>1)printf "\\n";print}'); _escaped="\"$_raw\""; }
 
   # Write body to temp file to avoid eval and shell quoting issues
   _body=$(mktemp /tmp/.poller-notify-XXXXXX.json)
   printf '{ "text": %s }' "$_escaped" > "$_body"
 
-  _curl_args="-s -f -X POST http://localhost:$_port/convos/notify -H Content-Type:application/json -d @$_body"
-  [ -n "$_token" ] && _curl_args="$_curl_args -H Authorization:Bearer $_token"
-
-  curl $_curl_args >/dev/null 2>&1
+  if [ -n "$_token" ]; then
+    curl -s -f -X POST "http://localhost:$_port/convos/notify" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $_token" \
+      -d "@$_body" >/dev/null 2>&1
+  else
+    curl -s -f -X POST "http://localhost:$_port/convos/notify" \
+      -H "Content-Type: application/json" \
+      -d "@$_body" >/dev/null 2>&1
+  fi
   _rc=$?
   rm -f "$_body"
   return $_rc
