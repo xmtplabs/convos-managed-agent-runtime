@@ -164,6 +164,7 @@ jobs:
             -e "EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}" \
             -e "EVALS_MODEL=${{ secrets.EVALS_MODEL }}" \
             -e "EVAL_RESULTS_DIR=/tmp/eval-results" \
+            -e "EVAL_MAX_FAILURES=0" \
             eval-runtime timeout ${{ matrix.timeout }} \
               pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
 
