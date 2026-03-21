@@ -3,8 +3,7 @@
   "private": true,
   "description": "Convos agent runtime powered by Hermes agent",
   "scripts": {
-    "start": "sh scripts/keys.sh && sh scripts/install-deps.sh && sh scripts/apply-config.sh && sh scripts/identity.sh && sh scripts/start.sh",
-    "evals": "sh evals/eval.sh"
+    "start": "sh scripts/keys.sh && sh scripts/install-deps.sh && sh scripts/apply-config.sh && sh scripts/identity.sh && sh scripts/start.sh"
   },
   "dependencies": {
     "@xmtp/convos-cli": "^0.7.0"
