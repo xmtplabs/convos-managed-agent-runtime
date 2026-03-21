@@ -173,6 +173,21 @@
       }
     }
 
+    // Playroom deeplink (environment-aware)
+    var playroomUrls = {
+      production: 'https://www.convos.org/assistants',
+      staging: 'https://agents-staging.convos.org/',
+      dev: 'https://agents-dev.convos.org/'
+    };
+    var playroomUrl = playroomUrls[env];
+    if (playroomUrl) {
+      var pl = document.getElementById('playroom-link');
+      if (pl) {
+        pl.href = playroomUrl;
+        pl.style.display = '';
+      }
+    }
+
     // Close env dropdown on outside click
     document.addEventListener('click', function (e) {
       var switcher = document.querySelector('.env-switcher');
