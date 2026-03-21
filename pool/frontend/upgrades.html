@@ -46,11 +46,15 @@
     </div>
   </div>
 
-  <div class="content">
+  <div class="content" id="upgrades-content">
     <!-- Unified upgrade hero card -->
     <div class="upgrade-hero-card">
       <div class="upgrade-hero-chart">
-        <canvas id="version-pie" width="180" height="180"></canvas>
+        <!-- Skeleton pie chart -->
+        <div class="skeleton-wrap">
+          <div class="skeleton skeleton-circle" style="width:180px;height:180px"></div>
+        </div>
+        <canvas id="version-pie" width="180" height="180" style="display:none"></canvas>
       </div>
       <div class="upgrade-hero-body">
         <div class="upgrade-hero-top">
@@ -58,9 +62,22 @@
             <span class="upgrade-hero-heading">Runtime upgrades</span>
             <span class="upgrade-hero-meta"><span id="upgrade-total-count"></span> &middot; <a href="https://github.com/xmtplabs/convos-agents/blob/dev/runtime/CHANGELOG.md" target="_blank" rel="noopener" class="upgrade-changelog-link">Changelog</a></span>
           </div>
-          <div class="upgrade-hero-stats" id="upgrade-target-info"></div>
+          <div class="upgrade-hero-stats" id="upgrade-target-info">
+            <!-- Skeleton stats -->
+            <div class="skeleton-wrap" style="display:flex;gap:16px">
+              <div class="skeleton skeleton-text" style="width:90px;height:14px"></div>
+              <div class="skeleton skeleton-text" style="width:80px;height:14px"></div>
+            </div>
+          </div>
         </div>
-        <div class="upgrade-hero-legend" id="version-legend"></div>
+        <div class="upgrade-hero-legend" id="version-legend">
+          <!-- Skeleton legend -->
+          <div class="skeleton-wrap" style="display:flex;gap:8px">
+            <div class="skeleton skeleton-pill" style="width:120px"></div>
+            <div class="skeleton skeleton-pill" style="width:100px"></div>
+            <div class="skeleton skeleton-pill" style="width:110px"></div>
+          </div>
+        </div>
         <div class="upgrade-hero-actions">
           <div class="image-picker" id="upgrade-image-picker-wrap">
             <div class="image-picker-selects">
@@ -103,7 +120,14 @@
       <div class="upgrade-card-header">
         <span class="upgrade-card-title">Instances by version</span>
       </div>
-      <div class="upgrade-version-list" id="upgrade-version-list"></div>
+      <div class="upgrade-version-list" id="upgrade-version-list">
+        <!-- Skeleton version rows -->
+        <div class="skeleton-wrap">
+          <div class="skeleton-row"><div class="skeleton skeleton-dot" style="width:10px;height:10px"></div><div class="skeleton skeleton-text" style="width:60px"></div><div class="skeleton skeleton-pill" style="width:56px;height:20px"></div><div class="skeleton skeleton-text" style="width:20px;margin-left:auto"></div></div>
+          <div class="skeleton-row"><div class="skeleton skeleton-dot" style="width:10px;height:10px"></div><div class="skeleton skeleton-text" style="width:60px"></div><div class="skeleton skeleton-pill" style="width:64px;height:20px"></div><div class="skeleton skeleton-text" style="width:20px;margin-left:auto"></div></div>
+          <div class="skeleton-row"><div class="skeleton skeleton-dot" style="width:10px;height:10px"></div><div class="skeleton skeleton-text" style="width:60px"></div><div class="skeleton skeleton-pill" style="width:52px;height:20px"></div><div class="skeleton skeleton-text" style="width:20px;margin-left:auto"></div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -242,6 +266,11 @@
     function renderUpgradesPanel() {
       var buckets = getVersionBuckets();
       var total = buckets.reduce(function (s, b) { return s + b.instances.length; }, 0);
+
+      // Show canvas, mark loaded to hide skeletons
+      var canvas = document.getElementById('version-pie');
+      if (canvas) canvas.style.display = '';
+      document.getElementById('upgrades-content').classList.add('loaded');
 
       drawPieChart(buckets);
       document.getElementById('upgrade-total-count').textContent = total + ' total';
