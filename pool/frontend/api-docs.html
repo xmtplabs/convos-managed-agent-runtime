@@ -24,7 +24,7 @@
     /* Hide Swagger's own topbar and info block — we use the admin header + hero card */
     .swagger-ui .topbar { display: none; }
     .swagger-ui .information-container { display: none; }
-    .swagger-ui .scheme-container { background: transparent; box-shadow: none; border: none; }
+    .swagger-ui .scheme-container { position: absolute; left: -9999px; opacity: 0; pointer-events: none; height: 0; overflow: hidden; }
     /* Constrain Swagger to content width */
     .swagger-wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
     .swagger-ui .wrapper { padding: 0; }
@@ -72,6 +72,7 @@
           <div class="upgrade-hero-stats" id="api-stats"></div>
         </div>
         <div style="font-size:12px;color:var(--color-foreground-secondary);margin-top:4px">Pool manager API for provisioning, managing, and monitoring Convos agent instances.</div>
+        <div class="upgrade-hero-actions" id="api-hero-actions" style="margin-top:12px"></div>
       </div>
     </div>
   </div>
@@ -126,7 +127,7 @@
       docExpansion: "list",
     });
 
-    // Populate API stats from the spec
+    // Populate API stats + hero actions from the spec
     fetch('/admin/assets/openapi.json').then(function (r) { return r.json(); }).then(function (spec) {
       var paths = spec.paths || {};
       var endpoints = 0;
@@ -142,6 +143,60 @@
       if (statsEl) {
         statsEl.innerHTML = '<div class="upgrade-stat"><strong>' + endpoints + '</strong> endpoints</div>'
           + '<div class="upgrade-stat"><strong>' + tags.size + '</strong> tags</div>';
+      }
+
+      // Build server selector + authorize button in hero card
+      var actionsEl = document.getElementById('api-hero-actions');
+      if (!actionsEl) return;
+
+      var servers = spec.servers || [];
+      var schemes = (spec.components && spec.components.securitySchemes) || {};
+      var schemeNames = Object.keys(schemes);
+
+      var h = '';
+
+      // Server selector
+      if (servers.length > 0) {
+        h += '<select id="api-server-select" class="upgrade-image-select" style="min-width:180px">';
+        servers.forEach(function (s, i) {
+          var label = s.url + (s.description ? ' — ' + s.description : '');
+          h += '<option value="' + i + '">' + label + '</option>';
+        });
+        h += '</select>';
+      }
+
+      // Authorize button — triggers Swagger's built-in auth modal
+      if (schemeNames.length > 0) {
+        h += '<button class="btn btn-upgrade" id="btn-api-authorize" style="border-color:var(--color-edge);color:var(--color-foreground-secondary)">'
+          + '<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect x="5" y="9" width="10" height="8" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>'
+          + 'Authorize</button>';
+      }
+
+      actionsEl.innerHTML = h;
+
+      // Wire authorize button → click Swagger's hidden authorize btn
+      var authBtn = document.getElementById('btn-api-authorize');
+      if (authBtn) {
+        authBtn.addEventListener('click', function () {
+          // Swagger renders .btn.authorize after init — find and click it
+          var swaggerAuth = document.querySelector('.swagger-ui .auth-wrapper .authorize');
+          if (swaggerAuth) {
+            swaggerAuth.click();
+          }
+        });
+      }
+
+      // Wire server selector → update Swagger's server
+      var serverSel = document.getElementById('api-server-select');
+      if (serverSel) {
+        serverSel.addEventListener('change', function () {
+          // Swagger's scheme-container has a select — update it to match
+          var swaggerSel = document.querySelector('.swagger-ui .scheme-container select');
+          if (swaggerSel) {
+            swaggerSel.value = servers[this.value].url;
+            swaggerSel.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
       }
     });
   </script>
