@@ -38,16 +38,23 @@ notify() {
   printf '{ "text": %s }' "$_escaped" > "$_body"
 
   if [ -n "$_token" ]; then
-    curl -s -f -X POST "http://localhost:$_port/convos/notify" \
+    _resp=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:$_port/convos/notify" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $_token" \
-      -d "@$_body" >/dev/null 2>&1
+      -d "@$_body" 2>&1)
   else
-    curl -s -f -X POST "http://localhost:$_port/convos/notify" \
+    _resp=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:$_port/convos/notify" \
       -H "Content-Type: application/json" \
-      -d "@$_body" >/dev/null 2>&1
+      -d "@$_body" 2>&1)
   fi
   _rc=$?
+  _http_code=$(printf '%s' "$_resp" | tail -1)
+  _resp_body=$(printf '%s' "$_resp" | sed '$d')
+  if [ "$_rc" -ne 0 ]; then
+    log "notify error: curl exit $_rc (port $_port)"
+  elif [ "$_http_code" -ge 400 ] 2>/dev/null; then
+    log "notify error: HTTP $_http_code — $_resp_body"
+  fi
   rm -f "$_body"
   return $_rc
 }

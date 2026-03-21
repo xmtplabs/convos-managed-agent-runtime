@@ -40,7 +40,7 @@ on:
         type: string
         default: ""
       docker_cmd:
-        description: "Override container CMD (e.g. 'node scripts/pool-server.js')"
+        description: "Override container CMD (e.g. 'node src/pool-server.js')"
         required: false
         type: string
         default: ""

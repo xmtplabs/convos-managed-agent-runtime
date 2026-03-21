@@ -57,7 +57,7 @@ jobs:
       publish_tags: "${{ needs.prepare.outputs.sha }} ${{ inputs.tag }}"
       health_path: "/__openclaw__/canvas/"
       docker_run_extra: "-e OPENCLAW_STATE_DIR=/app"
-      docker_cmd: "node scripts/pool-server.js"
+      docker_cmd: "node src/pool-server.js"
       buildx_driver: docker
       cache_from: type=gha
       cache_to: "type=gha,mode=max"
