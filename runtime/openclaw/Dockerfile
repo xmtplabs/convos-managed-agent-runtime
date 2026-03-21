@@ -23,7 +23,7 @@ COPY runtime/openclaw/package.json runtime/openclaw/pnpm-lock.yaml /app/
 RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
-# RUNTIME_DIR=$ROOT/openclaw in paths.sh — apply-config syncs from here to STATE_DIR (/app)
+# RUNTIME_DIR=$ROOT/openclaw in init.sh — apply-config syncs from here to STATE_DIR (/app)
 COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/openclaw/workspace /app/openclaw/workspace
 COPY runtime/openclaw/extensions /app/openclaw/extensions

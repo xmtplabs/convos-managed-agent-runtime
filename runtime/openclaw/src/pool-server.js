@@ -7,7 +7,7 @@
  *
  * Serves (on public PORT):
  *   GET  /pool/health           → { ready: boolean }
- *   POST /pool/restart-gateway  → write env overrides to volume, restart gateway.sh
+ *   POST /pool/restart-gateway  → write env overrides to volume, restart start.sh
  *   POST /pool/provision        → invite/join convos (instructions written by convos extension), return { ok, inviteUrl?, conversationId?, joined }
  */
 
@@ -64,7 +64,7 @@ function spawnGateway(extraEnv = {}) {
   gatewayReady = false;
   convosReady = false;
 
-  const child = spawn("sh", ["scripts/gateway.sh"], {
+  const child = spawn("sh", ["scripts/start.sh"], {
     cwd: ROOT,
     stdio: "inherit",
     env: {

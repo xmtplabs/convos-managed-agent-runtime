@@ -1,20 +1,30 @@
 #!/bin/sh
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/init.sh"
 cd "$ROOT"
-. "$ROOT/scripts/lib/env-load.sh"
-# Brand helpers — prefer shared copy, fall back to local
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
-else
-  . "$ROOT/../shared/scripts/lib/brand.sh"
-fi
+
+brand_section "Paths"
+brand_dim "" "resolved directories and config"
+brand_ok "RUNTIME_DIR"   "$RUNTIME_DIR"
+brand_ok "STATE_DIR"     "$STATE_DIR"
+brand_ok "WORKSPACE_DIR" "$WORKSPACE_DIR"
+brand_ok "SKILLS_ROOT"   "$SKILLS_ROOT"
+brand_ok "EXTENSIONS_DIR" "$EXTENSIONS_DIR"
+brand_ok "CONFIG"        "$CONFIG"
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
 
-. "$ROOT/scripts/lib/node-path.sh"
+# Node PATH — resolve deps and CLIs from repo root
+_NP=""
+[ -d "$STATE_DIR/node_modules" ] && _NP="$STATE_DIR/node_modules"
+[ -d "$ROOT/node_modules" ] && _NP="${_NP:+$_NP:}$ROOT/node_modules"
+[ -n "$_NP" ] && export NODE_PATH="$_NP${NODE_PATH:+:$NODE_PATH}"
+unset _NP
+_BIN="$ROOT/node_modules/.bin"
+[ -d "$_BIN" ] && case ":$PATH:" in *":$_BIN:"*) ;; *) export PATH="$_BIN:$PATH" ;; esac
+unset _BIN
 
 CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
 RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
@@ -22,7 +32,7 @@ RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
 # --- Clean up any previous gateway processes ---
 $ENTRY gateway stop >/dev/null 2>&1 || true
 
-# Kill stale gateway.sh wrapper scripts (excluding ourselves and ancestors) so
+# Kill stale start.sh wrapper scripts (excluding ourselves and ancestors) so
 # their restart loops don't respawn the gateway we're about to kill.
 _my_pid=$$
 # Collect ancestor PIDs so we never kill our own process tree (pnpm -> sh chain)
@@ -54,7 +64,8 @@ lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
 sleep 1
 
-brand_section "Launching assistant"
+brand_section "Gateway"
+brand_dim "" "ports, services, and background processes"
 
 # Port availability checks
 _gw_busy=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
@@ -140,7 +151,7 @@ fi
 
 
 # --- Seed cron jobs ---
-. "$ROOT/scripts/crons.sh"
+CRON_DIR="$STATE_DIR/cron" . "$SHARED_SCRIPTS_DIR/crons.sh"
 
 # --- Background poller (email/SMS) ---
 # Runs outside the LLM — only pokes the gateway when there's something new.
@@ -167,7 +178,7 @@ _cleanup_poller() {
 trap '_cleanup_poller' EXIT INT TERM
 unset _poller_pidfile
 
-brand_done "Assistant is starting up"
+brand_done "Gateway ready"
 brand_flush
 
 # In-process restart: SIGUSR1 reloads config inside the same process instead
