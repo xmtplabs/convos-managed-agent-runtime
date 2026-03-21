@@ -25,6 +25,7 @@ import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound
 import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
+import { clearConvosCredentials } from "./credentials.js";
 import { stats } from "./stats.js";
 
 let _cachedMessagingHints: string[] | null = null;
@@ -1225,6 +1226,9 @@ export async function selfDestruct(reason?: string): Promise<void> {
   if (!poolSelfDestructAck) {
     await disableConvosAccountAfterSelfDestruct(reason);
   }
+
+  // Clear persisted credentials so /convos/status reports conversationId=null
+  clearConvosCredentials();
 
   // Stop the Convos instance and unblock startAccount so the gateway exits
   const inst = getConvosInstance();
