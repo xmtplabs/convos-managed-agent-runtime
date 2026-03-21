@@ -309,7 +309,7 @@
           var nameHtml = rUrl
             ? '<a class="upgrade-instance-link" href="' + esc(rUrl) + '" target="_blank" rel="noopener">' + esc(inst.name) + '</a>'
             : '<span>' + esc(inst.name) + '</span>';
-          listHtml += '<div class="upgrade-version-instance">'
+          listHtml += '<div class="upgrade-version-instance" data-instance-id="' + esc(inst.id) + '">'
             + '<span class="upgrade-instance-name">' + nameHtml + '</span>'
             + '<span class="upgrade-instance-status ' + statusClass + '">' + statusLabel + '</span>'
             + (canUpgrade ? '<button class="upgrade-instance-btn" onclick="upgradeSingle(\'' + inst.id + '\', this)">Upgrade</button>' : '')
@@ -409,6 +409,15 @@
       }
     }
 
+    function harnessLabel(h) {
+      if (h === 'openclaw') return 'OpenClaw';
+      if (h === 'hermes') return 'Hermes';
+      return h || '';
+    }
+    function harnessColor(h) {
+      return h === 'hermes' ? '#AF52DE' : '#007AFF';
+    }
+
     function updateUpgradeHeader(instanceNum) {
       var info = upgradeInstanceInfo[instanceNum];
       if (!info) return;
@@ -417,13 +426,16 @@
       var nameHtml = info.railwayUrl
         ? '<a class="provision-step-link" href="' + esc(info.railwayUrl) + '" target="_blank" rel="noopener">' + esc(info.name) + '</a>'
         : esc(info.name);
-      var versionHtml = info.version && info.version !== 'unknown'
-        ? ' <span style="font-size:10px;color:var(--color-foreground-tertiary);font-weight:400">' + esc(info.version) + '</span>'
+      var harness = info.harness && info.harness !== 'unknown'
+        ? ' <span style="font-size:9px;font-weight:600;color:' + harnessColor(info.harness) + ';opacity:0.8">' + harnessLabel(info.harness) + '</span>'
         : '';
-      header.innerHTML = nameHtml + versionHtml;
+      var versionHtml = info.version && info.version !== 'unknown'
+        ? ' <span class="upgrade-stream-version" id="upgrade-inst-ver-' + instanceNum + '">' + esc(info.version) + '</span>'
+        : '';
+      header.innerHTML = nameHtml + harness + versionHtml;
     }
 
-    function markUpgradeInstance(instanceNum, success, message) {
+    function markUpgradeInstance(instanceNum, success, message, targetImage) {
       upgradeStreamDone++;
       document.getElementById('upgrade-stream-count').textContent = upgradeStreamDone + '/' + upgradeStreamTotal;
       var statusEl = document.getElementById('upgrade-inst-status-' + instanceNum);
@@ -434,6 +446,16 @@
         } else {
           statusEl.className = 'prov-status failed';
           statusEl.textContent = message || 'Failed';
+        }
+      }
+      // Update version display to show "from → to" on success
+      if (success && targetImage) {
+        var verEl = document.getElementById('upgrade-inst-ver-' + instanceNum);
+        var info = upgradeInstanceInfo[instanceNum];
+        if (verEl && info && info.version && info.version !== 'unknown') {
+          // Extract short tag from target image (e.g. "ghcr.io/xmtplabs/convos-runtime:dev" → "dev")
+          var tag = targetImage.includes(':') ? targetImage.split(':').pop() : targetImage;
+          verEl.innerHTML = esc(info.version) + ' → <span style="color:var(--color-success)">' + esc(tag) + '</span>';
         }
       }
     }
@@ -466,12 +488,13 @@
             upgradeInstanceInfo[data.instanceNum] = {
               name: data.name,
               version: data.version,
+              harness: data.harness || data.runtimeType || null,
               railwayUrl: data.railwayUrl
             };
             updateUpgradeHeader(data.instanceNum);
           } else if (data.type === 'step') {
             if (data.step === 'done') {
-              markUpgradeInstance(data.instanceNum, true);
+              markUpgradeInstance(data.instanceNum, true, null, data.targetImage);
             } else if (data.step === 'error') {
               markUpgradeInstance(data.instanceNum, false, data.message);
             } else if (data.status === 'active') {
@@ -551,21 +574,71 @@
       if (!ids || !ids.length) return;
       btn.disabled = true;
       btn.classList.add('spinning');
-      try {
-        var res = await fetch('/api/pool/refresh-versions', {
-          method: 'POST',
-          headers: Object.assign({}, authHeaders, { 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ ids: ids }),
+
+      // Find the version group container and show streaming results
+      var group = btn.closest('.upgrade-version-group');
+      var instancesDiv = group ? group.querySelector('.upgrade-version-instances') : null;
+      if (group) group.classList.add('open');
+
+      // Add streaming status badges to each instance row
+      if (instancesDiv) {
+        var rows = instancesDiv.querySelectorAll('.upgrade-version-instance');
+        rows.forEach(function (row) {
+          // Remove existing refresh status if any
+          var existing = row.querySelector('.refresh-status');
+          if (existing) existing.remove();
+          var badge = document.createElement('span');
+          badge.className = 'refresh-status';
+          badge.style.cssText = 'font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;background:#FEF3C7;color:#92400E;white-space:nowrap;margin-left:auto';
+          badge.textContent = '...';
+          row.appendChild(badge);
         });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-        await refreshInstances();
-        setTimeout(function () { renderUpgradesPanel(); }, 500);
-      } catch (err) {
-        console.error('[pool] refresh version group failed:', err);
       }
-      btn.classList.remove('spinning');
-      btn.disabled = false;
+
+      var idStr = encodeURIComponent(ids.join(','));
+      var es = new EventSource('/api/pool/refresh-versions/stream?ids=' + idStr);
+
+      es.onmessage = function (ev) {
+        try {
+          var data = JSON.parse(ev.data);
+          if (data.type === 'result' && instancesDiv) {
+            // Find the instance row and update its refresh badge
+            var rows = instancesDiv.querySelectorAll('.upgrade-version-instance');
+            rows.forEach(function (row) {
+              var link = row.querySelector('.upgrade-instance-link');
+              var nameEl = row.querySelector('.upgrade-instance-name');
+              var name = link ? link.textContent : (nameEl ? nameEl.textContent.trim() : '');
+              if (name === data.name || row.dataset.instanceId === data.instanceId) {
+                var badge = row.querySelector('.refresh-status');
+                if (badge) {
+                  if (data.status === 'ok') {
+                    badge.style.background = 'var(--color-success-bg)';
+                    badge.style.color = '#065F46';
+                    badge.textContent = data.version || 'ok';
+                  } else {
+                    badge.style.background = 'var(--color-error-bg)';
+                    badge.style.color = '#991B1B';
+                    badge.textContent = data.reason || 'fail';
+                  }
+                }
+              }
+            });
+          } else if (data.type === 'complete') {
+            es.close();
+            btn.classList.remove('spinning');
+            btn.disabled = false;
+            refreshInstances().then(function () {
+              setTimeout(function () { renderUpgradesPanel(); }, 1500);
+            });
+          }
+        } catch (e) {}
+      };
+
+      es.onerror = function () {
+        es.close();
+        btn.classList.remove('spinning');
+        btn.disabled = false;
+      };
     }
 
     // --- Init + polling ---
