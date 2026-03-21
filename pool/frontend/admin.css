@@ -442,12 +442,12 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
 .upgrade-version-instance:last-child { border-bottom: none; }
 .upgrade-instance-name { font-weight: 500; }
 .upgrade-instance-status { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
-.upgrade-instance-btn { font-family: inherit; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-brand); background: var(--color-surface); color: var(--color-brand); transition: all 0.15s; }
-.upgrade-instance-btn:hover:not(:disabled) { background: var(--color-brand); color: #fff; }
-.upgrade-instance-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .upgrade-instance-link { color: var(--color-brand); text-decoration: none; font-weight: 500; }
 .upgrade-instance-link:hover { text-decoration: underline; }
 .upgrade-version-expand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+.upgrade-group-btn { font-family: inherit; font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-brand); background: var(--color-surface); color: var(--color-brand); transition: all 0.15s; flex-shrink: 0; white-space: nowrap; }
+.upgrade-group-btn:hover:not(:disabled) { background: var(--color-brand); color: #fff; }
+.upgrade-group-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .upgrade-refresh-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--color-edge-muted); background: var(--color-surface); color: var(--color-foreground-tertiary); cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
 .upgrade-refresh-btn:hover:not(:disabled) { color: var(--color-brand); border-color: var(--color-brand); background: var(--color-surface-hover); }
 .upgrade-refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -553,6 +553,6 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
   .upgrade-version-header { padding: 12px; }
   .upgrade-version-instances { padding: 0 12px 10px 12px; }
   .upgrade-version-instance { padding: 8px 0; }
-  .upgrade-instance-btn { min-height: 36px; padding: 6px 14px; }
+  .upgrade-group-btn { min-height: 36px; padding: 6px 14px; }
   .upgrade-refresh-btn { width: 36px; height: 36px; }
 }
