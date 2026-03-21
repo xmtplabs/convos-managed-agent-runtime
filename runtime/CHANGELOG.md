@@ -11,8 +11,6 @@
 - Cronjob fix: fixed a regression in scheduled tasks
 - Version reporting fix: pool dashboard now correctly shows runtime version for all instances
 
-
-
 ## 0.1.1
 - Faster tool use and smarter memory
 - Agents less chatty — assistants stay quiet when they have nothing useful to add

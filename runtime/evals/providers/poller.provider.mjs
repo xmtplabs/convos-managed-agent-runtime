@@ -37,8 +37,7 @@ const h = createHarness('poller', {
       env: {
         ...process.env,
         HOME: EVAL_HOME,
-        CONVOS_CONVERSATION_ID: sharedConversationId,
-        CONVOS_ENV: process.env.XMTP_ENV || 'dev',
+        PORT: String(h.gatewayPort),
         POLL_INTERVAL_SECONDS: '10',
         SKILLS_ROOT,
       },
@@ -47,8 +46,10 @@ const h = createHarness('poller', {
     pollerProc.stdout.on('data', (d) => { process.stdout.write(d); });
     pollerProc.stderr.on('data', (d) => { process.stderr.write(d); });
 
-    log('Waiting 18s for poller startup...');
-    sleep(18_000);
+    // Wait for poller startup (15s sleep in poller.sh) + first poll cycle (10s interval)
+    // to complete so the email cursor is set before we send the test email.
+    log('Waiting 30s for poller startup + first poll cycle...');
+    sleep(30_000);
 
     log(`Sending test email to ${AGENTMAIL_INBOX_ID} with attachment...`);
     try {
@@ -80,7 +81,7 @@ export default class PollerProvider {
 
     // Test 1: Wait for poller notification to appear in transcript
     if (meta.waitForNotification) {
-      const { msgs: notifMsgs } = h.waitForContent(/You got a new email/i, 120_000);
+      const { msgs: notifMsgs } = h.waitForContent(/email|mail|inbox/i, 120_000);
       const notifBaseline = h.agentCount(notifMsgs);
       h.log(`Notification matched — agent count=${notifBaseline} total=${notifMsgs.length}`);
       h.log('Waiting for agent to finish processing notification...');

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
-import { convosPlugin, startWiredInstance } from "./src/channel.js";
+import { convosPlugin, startWiredInstance, dispatchNotification } from "./src/channel.js";
 import { getConvosInstance, setConvosInstance } from "./src/outbound.js";
 import { getConvosRuntime, setConvosRuntime } from "./src/runtime.js";
 import { ConvosInstance } from "./src/sdk-client.js";
@@ -625,6 +625,37 @@ const plugin = {
           jsonResponse(res, 200, { ok: true });
         } catch (err) {
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
+        }
+      },
+    });
+
+    // Dispatch a background notification as a synthetic system message.
+    // The agent responds over XMTP but the notification itself is invisible.
+    api.registerHttpRoute({
+      path: "/convos/notify",
+      auth: "plugin",
+      handler: async (req, res) => {
+        if (req.method !== "POST") {
+          jsonResponse(res, 405, { error: "Method Not Allowed" });
+          return;
+        }
+        if (!checkPoolAuth(req)) {
+          jsonResponse(res, 401, { error: "Unauthorized" });
+          return;
+        }
+        try {
+          const body = await readJsonBody(req);
+          const text = body?.text;
+          if (!text || typeof text !== "string") {
+            jsonResponse(res, 400, { error: "text (string) is required" });
+            return;
+          }
+          await dispatchNotification(text);
+          jsonResponse(res, 200, { ok: true });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const status = msg.includes("No active conversation") || msg.includes("No runtime") ? 503 : 500;
+          jsonResponse(res, status, { error: msg });
         }
       },
     });

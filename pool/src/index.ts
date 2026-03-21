@@ -673,8 +673,15 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
       if (infra.providerEnvId) railwayUrl += `?environmentId=${infra.providerEnvId}`;
     }
     const runtimeType = infra?.runtimeType || null;
-    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, runtimeType, railwayUrl });
+    const harness = runtimeType || (infra ? detectHarnessFromImage(infra.runtimeImage || "") : null) || "unknown";
+    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, harness, runtimeType, railwayUrl });
   });
+
+  // Resolve target image label for "from → to" display
+  const targetImage = imageOverride || config.railwayRuntimeImage || "";
+  const targetHarness = detectHarnessFromImage(targetImage);
+  // Extract tag from image (e.g. "ghcr.io/xmtplabs/convos-runtime:dev" → "dev")
+  const targetTag = targetImage.includes(":") ? targetImage.split(":").pop() || "" : "";
 
   let upgraded = 0, failed = 0;
 
@@ -692,8 +699,7 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
     try {
       send({ type: "step", instanceNum, step: "deploy", status: "active", message: "Deploying..." });
       const image = await upgradeInstanceRuntime(id, infra, imageOverride || undefined);
-      send({ type: "step", instanceNum, step: "deploy", status: "ok", message: image });
-      send({ type: "step", instanceNum, step: "done", status: "ok", message: "" });
+      send({ type: "step", instanceNum, step: "done", status: "ok", message: image, targetImage: image, targetTag });
       upgraded++;
     } catch (err: any) {
       send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
@@ -702,6 +708,53 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
   }
 
   send({ type: "complete", upgraded, failed, total: idList.length });
+  res.end();
+});
+
+// --- SSE streaming endpoint for refresh-versions ---
+app.get("/api/pool/refresh-versions/stream", requireAuth, async (req, res) => {
+  const idList = ((req.query.ids as string) || "").split(",").filter(Boolean);
+  if (!idList.length) { res.status(400).json({ error: "No instance IDs" }); return; }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  const rows = await db.getByStatus(["idle", "claimed"]);
+  const targets = rows.filter((r) => idList.includes(r.id));
+  let updated = 0;
+
+  for (let i = 0; i < targets.length; i++) {
+    const row = targets[i];
+    if (!row.url) {
+      send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "skip", reason: "no url" });
+      continue;
+    }
+    try {
+      const token = await db.getGatewayToken(row.id);
+      const hcResult = await pool.healthCheck(row.url, token);
+      if (hcResult.ok) {
+        const hc = hcResult.data;
+        if (hc.version) {
+          await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
+          updated++;
+        }
+        send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "ok", version: hc.version || "unknown", runtime: hc.runtime || "unknown" });
+      } else {
+        send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "fail", reason: hcResult.reason });
+      }
+    } catch (err: any) {
+      send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "fail", reason: err.message });
+    }
+  }
+
+  send({ type: "complete", updated, total: targets.length });
   res.end();
 });
 

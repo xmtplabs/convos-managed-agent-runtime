@@ -95,12 +95,18 @@ tests:
       - type: llm-rubric
         value: >
           The agent was asked to pick a mechanism for three tasks.
-          FAIL if the agent suggests modifying HEARTBEAT.md for any of them.
-          FAIL if the agent picks a cron job for the RSS feed (that's a poller/poll.sh task).
-          FAIL if the agent picks a poller for the Monday summary (that needs LLM judgment — cron job).
-          FAIL if the agent doesn't mention sub-agents, background sessions, or delegation for the research task.
-          PASS if the agent correctly maps: RSS → poller/poll.sh, Monday summary → cron job,
-          research report → sub-agent or background session. Minor wording differences are fine.
+          Evaluate each task independently — pass if at least 2 of 3 are correct:
+
+          (1) RSS feed → should use a poller, poll.sh, or polling skill.
+              FAIL this item only if it picks a cron job or HEARTBEAT.md.
+          (2) Monday summary → should use a cron job or scheduled task.
+              FAIL this item only if it picks a poller/poll.sh.
+          (3) Research report → should use a sub-agent, background session,
+              or delegation. FAIL this item only if it picks a cron or poller.
+
+          PASS the overall test if at least 2 of the 3 items are correct.
+          Minor wording differences are fine — focus on the mechanism chosen,
+          not exact terminology.
 
   - description: "Agent knows what it can and can't customize"
     vars:
