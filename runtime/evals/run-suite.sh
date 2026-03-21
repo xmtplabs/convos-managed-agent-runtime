@@ -2,7 +2,7 @@
 # Run a single eval suite. Supports any runtime via EVAL_RUNTIME env var.
 # Usage: EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml [promptfoo args ...]
 #
-# EVAL_MAX_FAILURES (default: 1) — tolerate up to N test failures per suite.
+# EVAL_MAX_FAILURES (default: 0) — tolerate up to N test failures per suite.
 # Promptfoo exits 100 on ANY failure; this wrapper parses the results line.
 
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,7 +12,7 @@ _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 SUITE="$1"; shift
 [ "$1" = "--" ] && shift
 
-MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
+MAX_FAILURES="${EVAL_MAX_FAILURES:-0}"
 
 TMPOUT=$(mktemp)
 SUITE_NAME="$(basename "$SUITE" .yaml)"
