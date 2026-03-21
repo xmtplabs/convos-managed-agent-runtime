@@ -114,8 +114,6 @@ export default class ConvosProvider {
       };
     }
 
-
-
     if (meta.waitForWelcome) {
       log('Waiting for agent welcome message...');
       const msgs = h.waitForAgent(0);

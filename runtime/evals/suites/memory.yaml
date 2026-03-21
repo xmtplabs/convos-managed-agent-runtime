@@ -78,7 +78,11 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the agent explicitly discourages the cooking. if not, passes.
+          Fail only if the agent explicitly discourages the cooking class
+          (e.g. "that's not for you", "I wouldn't recommend it").
+          Asking clarifying questions, saying "I don't know you well enough",
+          or being noncommittal is NOT discouragement — that passes.
+          Any response that is neutral, encouraging, or curious passes.
       - type: javascript
         value: "file://../lib/assertions.mjs:memoryFileUpdated"
 

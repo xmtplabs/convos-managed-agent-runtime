@@ -8,18 +8,21 @@
 SERVICES="$SKILLS_ROOT/services/scripts/services.mjs"
 
 format_emails() {
-  _from="" _body="" _att=""
+  _id="" _from="" _subj="" _body="" _att=""
   printf '%s\n\n' "$1" | while IFS= read -r line; do
     case "$line" in
+      ID:*)          _id=$(echo "$line" | sed 's/^ID: *//') ;;
       From:*)        _from=$(echo "$line" | sed 's/^From: *//') ;;
+      Subject:*)     _subj=$(echo "$line" | sed 's/^Subject: *//') ;;
       Body:*)        _body=$(echo "$line" | sed 's/^Body: *//' | cut -c1-80) ;;
       Attachments:*) _att=$(echo "$line" | sed 's/^Attachments: *//') ;;
       "")
         if [ -n "$_from" ]; then
-          _msg="You got a new email. \"${_body:-(no preview)}\" from $_from"
-          [ -n "$_att" ] && _msg="$_msg [$_att]"
+          _msg="[System: new email] From: $_from | Subject: ${_subj:-(none)}"
+          [ -n "$_att" ] && _msg="$_msg | Attachments: $_att"
+          [ -n "$_id" ] && _msg="$_msg — Read the full email with: email read --id $_id"
           printf '%s\n' "$_msg"
-          _from="" _body="" _att=""
+          _id="" _from="" _subj="" _body="" _att=""
         fi
         ;;
     esac

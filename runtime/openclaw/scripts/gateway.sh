@@ -153,10 +153,6 @@ pkill -f "poller.sh" 2>/dev/null || true
 
 if [ -n "$SHARED_SCRIPTS_DIR" ] && [ -f "$SHARED_SCRIPTS_DIR/poller.sh" ]; then
   SKILLS_ROOT="${SKILLS_ROOT:-$STATE_DIR/workspace/skills}" \
-  CONVOS_ENV="${CONVOS_ENV:-dev}" \
-  POLLER_CREDS_FILE="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/credentials/convos-identity.json" \
-  POLLER_SESSIONS_DIR="$STATE_DIR/agents/main/sessions" \
-  POLLER_SESSIONS_INDEX="$STATE_DIR/agents/main/sessions/sessions.json" \
   sh "$SHARED_SCRIPTS_DIR/poller.sh" &
   echo $! > "$_poller_pidfile"
   brand_ok "poller" "started (pid $!, every ${POLL_INTERVAL_SECONDS:-60}s)"

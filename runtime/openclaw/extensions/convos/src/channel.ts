@@ -25,6 +25,7 @@ import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound
 import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
+import { clearConvosCredentials } from "./credentials.js";
 import { stats } from "./stats.js";
 
 let _cachedMessagingHints: string[] | null = null;
@@ -1042,6 +1043,39 @@ async function dispatchGreeting(
   await handleInboundMessage(account, syntheticMsg, runtime);
 }
 
+/**
+ * Dispatch a background notification (email/SMS) as a synthetic system message.
+ * The agent sees it and responds immediately over XMTP, but the notification
+ * prompt itself is never sent to the conversation (same as greeting dispatch).
+ */
+export async function dispatchNotification(text: string): Promise<void> {
+  const inst = getConvosInstance();
+  if (!inst) {
+    throw new Error("No active conversation");
+  }
+
+  const runtime = getConvosRuntime();
+  if (!runtime) {
+    throw new Error("No runtime available");
+  }
+
+  const cfg = runtime.config.loadConfig() as CoreConfig;
+  const account = resolveConvosAccount({ cfg });
+
+  const syntheticMsg: InboundMessage = {
+    conversationId: inst.conversationId,
+    messageId: `system-notify-${crypto.randomUUID()}`,
+    senderId: SYSTEM_SENDER_ID,
+    senderName: "System",
+    content: text,
+    contentType: "text",
+    timestamp: new Date(),
+  };
+
+  console.log("[convos] Dispatching notification message");
+  await handleInboundMessage(account, syntheticMsg, runtime);
+}
+
 async function dispatchWorkspaceRefresh(
   account: ResolvedConvosAccount,
   runtime: PluginRuntime,
@@ -1192,6 +1226,9 @@ export async function selfDestruct(reason?: string): Promise<void> {
   if (!poolSelfDestructAck) {
     await disableConvosAccountAfterSelfDestruct(reason);
   }
+
+  // Clear persisted credentials so /convos/status reports conversationId=null
+  clearConvosCredentials();
 
   // Stop the Convos instance and unblock startAccount so the gateway exits
   const inst = getConvosInstance();
