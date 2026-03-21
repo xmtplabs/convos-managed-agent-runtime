@@ -91,7 +91,7 @@ async def require_auth(request: Request) -> None:
 _poller_proc: asyncio.subprocess.Process | None = None
 
 
-async def _start_poller(conversation_id: str, env: str) -> None:
+async def _start_poller() -> None:
     """Launch the shared poller as a background process."""
     global _poller_proc
     scripts_dir = os.environ.get("SHARED_SCRIPTS_DIR", "")
@@ -101,7 +101,7 @@ async def _start_poller(conversation_id: str, env: str) -> None:
         return
 
     cfg = get_config()
-    poller_env = {**os.environ, "CONVOS_CONVERSATION_ID": conversation_id, "CONVOS_ENV": env, "SKILLS_ROOT": str(Path(cfg.hermes_home) / "skills")}
+    poller_env = {**os.environ, "SKILLS_ROOT": str(Path(cfg.hermes_home) / "skills")}
 
     _poller_proc = await asyncio.create_subprocess_exec(
         "sh", script,
@@ -184,7 +184,7 @@ async def start_wired_instance(
         adapter._greeting_done.set()
 
     # Start background email/SMS poller
-    await _start_poller(conversation_id, env)
+    await _start_poller()
 
     return ready_info
 
@@ -991,6 +991,43 @@ async def convos_update_metadata(body: UpdateMetadataRequest):
 
     try:
         await adapter.instance.update_profile(metadata=body.metadata)
+        return {"ok": True}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
+# ---- /convos/notify ----
+
+class NotifyRequest(BaseModel):
+    text: str
+
+
+@app.post("/convos/notify", dependencies=[Depends(require_auth)])
+async def convos_notify(body: NotifyRequest):
+    """Dispatch a background notification as a synthetic system message.
+
+    The agent responds over XMTP but the notification itself is invisible
+    to the user (same pattern as the greeting dispatch).
+    """
+    adapter = get_adapter()
+    if not adapter or not adapter.instance or not adapter.agent:
+        raise HTTPException(status_code=400, detail="No active conversation")
+
+    # Wait for greeting to complete so history order is preserved
+    await adapter._greeting_done.wait()
+
+    try:
+        response = await adapter.agent.handle_message(
+            content=body.text,
+            sender_name="System",
+            sender_id="system",
+            timestamp=time.time(),
+            conversation_id=adapter.instance.conversation_id,
+            message_id=f"system-notify-{int(time.time() * 1000)}",
+            group_members=adapter.instance.get_group_members(),
+        )
+        if response:
+            await adapter._dispatch_response(response)
         return {"ok": True}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))

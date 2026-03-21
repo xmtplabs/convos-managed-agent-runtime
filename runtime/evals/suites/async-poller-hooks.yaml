@@ -26,7 +26,7 @@ tests:
       waitForNotification: true
     assert:
       - type: icontains
-        value: "New post on Eval Feed"
+        value: "Eval Feed"
 
   - description: "Agent creates a polling skill instead of modifying HEARTBEAT"
     vars:

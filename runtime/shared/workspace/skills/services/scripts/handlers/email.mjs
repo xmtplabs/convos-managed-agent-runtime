@@ -337,6 +337,7 @@ async function recent(argv) {
   }
 
   for (const m of messages) {
+    console.log(`ID: ${m.message_id}`);
     console.log(`From: ${m.from}`);
     console.log(`Subject: ${m.subject || "(none)"}`);
     console.log(`Date: ${m.timestamp}`);
