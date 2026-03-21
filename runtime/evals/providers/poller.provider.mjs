@@ -46,8 +46,10 @@ const h = createHarness('poller', {
     pollerProc.stdout.on('data', (d) => { process.stdout.write(d); });
     pollerProc.stderr.on('data', (d) => { process.stderr.write(d); });
 
-    log('Waiting 18s for poller startup...');
-    sleep(18_000);
+    // Wait for poller startup (15s sleep in poller.sh) + first poll cycle (10s interval)
+    // to complete so the email cursor is set before we send the test email.
+    log('Waiting 30s for poller startup + first poll cycle...');
+    sleep(30_000);
 
     log(`Sending test email to ${AGENTMAIL_INBOX_ID} with attachment...`);
     try {
