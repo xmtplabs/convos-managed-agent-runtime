@@ -170,7 +170,15 @@ export function createHarness(tag, opts = {}) {
       try { watcher.kill(); } catch {}
     }
 
-    sleep(2_000);
+    // Wait for the agent's welcome message so the first test gets a clean
+    // baseline. Without this, the welcome can arrive mid-test and be counted
+    // as the response, shifting every subsequent result by one message.
+    // This replaces the old fixed sleep(2_000) — it polls every 1.5s and
+    // returns once the message arrives and stabilises (~3s), adapting to
+    // actual network timing instead of hoping 2s is enough.
+    log('Waiting for agent welcome message...');
+    waitForAgent(0, 30_000);
+    log(`Welcome drained (${agentCount(fetchMessages())} agent msgs)`);
 
     if (opts.afterSetup) opts.afterSetup({ sharedConversationId, EVAL_HOME, log });
 
