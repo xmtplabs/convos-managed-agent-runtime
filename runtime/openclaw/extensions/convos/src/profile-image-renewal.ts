@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 export const DEFAULT_PROFILE_IMAGE_RENEW_AFTER_MS = 29 * 24 * 60 * 60 * 1000;
@@ -17,7 +16,8 @@ type ProfileImageRenewalOptions = {
 };
 
 function resolveStatePath(conversationId: string): string {
-  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const stateDir = process.env.OPENCLAW_STATE_DIR;
+  if (!stateDir) throw new Error("OPENCLAW_STATE_DIR not set — init.sh must export it");
   return path.join(stateDir, "profile-image", `${conversationId}.json`);
 }
 

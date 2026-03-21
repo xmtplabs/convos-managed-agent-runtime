@@ -135,7 +135,8 @@ const CONVOS_IMG_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 let cachedMediaDir: string | undefined;
 function resolveMediaDir(): string {
   if (cachedMediaDir) return cachedMediaDir;
-  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const stateDir = process.env.OPENCLAW_STATE_DIR;
+  if (!stateDir) throw new Error("OPENCLAW_STATE_DIR not set — init.sh must export it");
   const mediaDir = path.join(stateDir, "media");
   fs.mkdirSync(mediaDir, { recursive: true });
   cachedMediaDir = mediaDir;

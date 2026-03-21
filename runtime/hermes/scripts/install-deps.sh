@@ -18,7 +18,7 @@ else
   brand_subsection "venv"
   if [ ! -f "$VENV_PYTHON" ]; then
     brand_info "venv" "creating at $VENV_DIR ..."
-    uv venv "$VENV_DIR"
+    uv venv --python ">=3.11" "$VENV_DIR"
     brand_ok "venv" "created"
   else
     brand_ok "venv" "$VENV_DIR"
@@ -31,6 +31,14 @@ INSTALLED_TAG=$(cd "$HERMES_AGENT_DIR" 2>/dev/null && git describe --tags --exac
 if is_docker; then
   brand_ok "hermes-agent" "$HERMES_TAG (pre-installed)"
 elif [ "$INSTALLED_TAG" = "$HERMES_TAG" ]; then
+  # Tag matches but venv may be stale — verify deps are actually installed
+  if ! uv pip show $PIP_TARGET hermes-agent >/dev/null 2>&1; then
+    brand_info "hermes-agent" "$HERMES_TAG (reinstalling deps …)"
+    cd "$HERMES_AGENT_DIR"
+    uv pip install $PIP_TARGET ".[all]"
+    uv pip install $PIP_TARGET "./mini-swe-agent"
+    cd "$ROOT"
+  fi
   brand_ok "hermes-agent" "$HERMES_TAG"
 else
   [ -n "$INSTALLED_TAG" ] && brand_info "hermes-agent" "$INSTALLED_TAG → $HERMES_TAG"

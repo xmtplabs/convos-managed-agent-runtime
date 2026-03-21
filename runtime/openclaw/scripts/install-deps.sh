@@ -4,7 +4,6 @@
 # CLIs resolve via PATH (node-path.sh).
 # Skill scripts use REST APIs directly via fetch — no JS library imports needed.
 set -e
-export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 . "$(dirname "$0")/init.sh"
 
 brand_section "Dependencies"

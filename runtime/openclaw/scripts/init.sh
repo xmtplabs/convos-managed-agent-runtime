@@ -13,7 +13,10 @@ if [ -f "$ROOT/openclaw.json" ]; then
 else
   RUNTIME_DIR="$ROOT/openclaw"
 fi
-STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+# Docker/Railway set OPENCLAW_STATE_DIR explicitly (e.g. /app).
+# Local dev defaults to .openclaw-dev inside the runtime dir (same pattern as hermes).
+STATE_DIR="${OPENCLAW_STATE_DIR:-$ROOT/.openclaw-dev}"
+export OPENCLAW_STATE_DIR="$STATE_DIR"
 WORKSPACE_DIR="$STATE_DIR/workspace"
 SKILLS_DIR="$WORKSPACE_DIR/skills"
 SKILLS_ROOT="$SKILLS_DIR"

@@ -2,11 +2,10 @@
 
 import { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname, join } from 'path';
-import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const stateDir = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
+const stateDir = process.env.OPENCLAW_STATE_DIR || resolve(__dirname, '../../openclaw/.openclaw-dev');
 const workspaceDir = join(stateDir, 'workspace');
 const sessionsDir = join(stateDir, 'agents', 'main', 'sessions');
 const templateDir = resolve(__dirname, '../../openclaw/workspace');

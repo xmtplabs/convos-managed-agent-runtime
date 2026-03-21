@@ -11,7 +11,6 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -124,7 +123,7 @@ function resolveConvosBin(): string {
 
   // Strategy 3: check OPENCLAW_STATE_DIR/extensions/convos/node_modules
   {
-    const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+    const stateDir = process.env.OPENCLAW_STATE_DIR!;
     const binPath = path.join(stateDir, "extensions", "convos", "node_modules", "@xmtp", "convos-cli", "bin", "run.js");
     if (existsSync(binPath)) {
       cachedBinPath = binPath;

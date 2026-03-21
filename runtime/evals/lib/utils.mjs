@@ -4,12 +4,11 @@
 import { execFileSync, spawn as spawnProc } from 'child_process';
 import { existsSync, readdirSync, unlinkSync } from 'fs';
 import { resolve, dirname, join } from 'path';
-import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 import { runtime } from './runtime.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
+const STATE_DIR = process.env.OPENCLAW_STATE_DIR || resolve(__dirname, '../../openclaw/.openclaw-dev');
 let _sessionsCleared = false;
 
 export function resolveConvos() {

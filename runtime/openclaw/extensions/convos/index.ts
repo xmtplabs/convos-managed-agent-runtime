@@ -1,7 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { emptyPluginConfigSchema } from "openclaw/plugin-sdk";
 import { resolveConvosAccount, type CoreConfig } from "./src/accounts.js";
@@ -15,7 +14,9 @@ import { stats } from "./src/stats.js";
 const CUSTOM_INSTRUCTIONS_MARKER = "## Custom Instructions";
 
 function convosStateDir(): string {
-  return process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const dir = process.env.OPENCLAW_STATE_DIR;
+  if (!dir) throw new Error("OPENCLAW_STATE_DIR not set — init.sh must export it");
+  return dir;
 }
 
 function convosWorkspaceDir(): string {

@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 const CREDENTIALS_FILE = "convos-identity.json";
@@ -10,7 +9,8 @@ export type ConvosCredentials = {
 };
 
 function credentialsPath(): string {
-  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  const stateDir = process.env.OPENCLAW_STATE_DIR;
+  if (!stateDir) throw new Error("OPENCLAW_STATE_DIR not set — init.sh must export it");
   return path.join(stateDir, "credentials", CREDENTIALS_FILE);
 }
 
