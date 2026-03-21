@@ -21,8 +21,9 @@
     .swagger-ui table { width: revert; border-collapse: revert; table-layout: revert; }
     .swagger-ui th, .swagger-ui td { text-align: revert; font-size: revert; font-weight: revert; text-transform: revert; letter-spacing: revert; color: revert; padding: revert; border-bottom: revert; vertical-align: revert; overflow: revert; text-overflow: revert; white-space: revert; background: revert; }
     .swagger-ui tr:last-child td { border-bottom: revert; }
-    /* Hide Swagger's own topbar and info block — we use the admin header */
+    /* Hide Swagger's own topbar and info block — we use the admin header + hero card */
     .swagger-ui .topbar { display: none; }
+    .swagger-ui .information-container { display: none; }
     .swagger-ui .scheme-container { background: transparent; box-shadow: none; border: none; }
     /* Constrain Swagger to content width */
     .swagger-wrap { max-width: 960px; margin: 0 auto; padding: 24px; }
@@ -60,6 +61,20 @@
     </div>
   </div>
 
+  <div class="content">
+    <div class="upgrade-hero-card" style="margin-bottom:0">
+      <div class="upgrade-hero-body" style="width:100%">
+        <div class="upgrade-hero-top">
+          <div class="upgrade-hero-title">
+            <span class="upgrade-hero-heading">API Reference</span>
+            <span class="upgrade-hero-meta">OpenAPI 3.0 &middot; <a href="/admin/assets/openapi.json" target="_blank" rel="noopener" class="upgrade-changelog-link">openapi.json</a></span>
+          </div>
+          <div class="upgrade-hero-stats" id="api-stats"></div>
+        </div>
+        <div style="font-size:12px;color:var(--color-foreground-secondary);margin-top:4px">Pool manager API for provisioning, managing, and monitoring Convos agent instances.</div>
+      </div>
+    </div>
+  </div>
   <div class="swagger-wrap">
     <div id="swagger-ui"></div>
   </div>
@@ -109,6 +124,25 @@
       layout: "BaseLayout",
       defaultModelsExpandDepth: -1,
       docExpansion: "list",
+    });
+
+    // Populate API stats from the spec
+    fetch('/admin/assets/openapi.json').then(function (r) { return r.json(); }).then(function (spec) {
+      var paths = spec.paths || {};
+      var endpoints = 0;
+      var tags = new Set();
+      Object.keys(paths).forEach(function (p) {
+        Object.keys(paths[p]).forEach(function (method) {
+          endpoints++;
+          var t = paths[p][method].tags || [];
+          t.forEach(function (tag) { tags.add(tag); });
+        });
+      });
+      var statsEl = document.getElementById('api-stats');
+      if (statsEl) {
+        statsEl.innerHTML = '<div class="upgrade-stat"><strong>' + endpoints + '</strong> endpoints</div>'
+          + '<div class="upgrade-stat"><strong>' + tags.size + '</strong> tags</div>';
+      }
     });
   </script>
 </body>
