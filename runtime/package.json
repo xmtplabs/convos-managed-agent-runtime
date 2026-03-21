@@ -3,7 +3,7 @@
   "version": "0.1.3",
   "private": true,
   "scripts": {
-    "start": "cd openclaw && sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/start.sh",
+    "start": "cd openclaw && pnpm start",
     "keys": "cd openclaw && sh scripts/keys.sh",
     "apply": "cd openclaw && sh scripts/apply-config.sh",
     "install-deps": "cd openclaw && sh scripts/install-deps.sh",
@@ -12,7 +12,7 @@
     "build": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
     "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
     "build:run": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
-    "start:hermes": "cd hermes && sh scripts/keys.sh && sh scripts/install-deps.sh && sh scripts/apply-config.sh && sh scripts/identity.sh && sh scripts/start.sh",
+    "start:hermes": "cd hermes && pnpm start",
     "build:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local .",
     "docker:run:hermes": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
     "build:run:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local . && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
