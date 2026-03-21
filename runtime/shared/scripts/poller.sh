@@ -12,6 +12,12 @@
 #   POLL_INTERVAL_SECONDS     — polling interval (default: 60)
 #   PORT                      — local HTTP port (default: 8080)
 #   OPENCLAW_GATEWAY_TOKEN    — bearer token for /convos/notify auth
+#   DISABLE_POLLER            — set to 1 to skip polling entirely
+
+if [ "${DISABLE_POLLER:-0}" = "1" ]; then
+  printf "[poller] disabled via DISABLE_POLLER=1\n"
+  exit 0
+fi
 
 POLL_INTERVAL="${POLL_INTERVAL_SECONDS:-60}"
 
