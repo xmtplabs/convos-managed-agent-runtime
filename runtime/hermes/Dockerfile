@@ -40,7 +40,7 @@ RUN git clone --recurse-submodules --branch v2026.3.17 --depth 1 https://github.
   && cd /opt/hermes-agent \
   && uv pip install --system ".[all]" \
   && uv pip install --system "./mini-swe-agent"
-ENV PYTHONPATH="/opt/hermes-agent:${PYTHONPATH:-}"
+ENV PYTHONPATH="/opt/hermes-agent"
 
 # Runtime version (shared root package.json)
 COPY runtime/package.json /app/runtime-version.json
