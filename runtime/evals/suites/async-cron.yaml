@@ -21,9 +21,9 @@ tests:
   - description: "Agent creates a cron job and a ping arrives in conversation"
     vars:
       prompt: >
-        Create a recurring cron job that runs every 1 minute.
-        The job should respond with exactly "Ping!" each time — just
-        the text, no tool calls. Do it now, no questions asked.
+        Hey, I need a recurring ping to make sure notifications are
+        working on my phone. Set up a cron job that says "Ping!" every
+        1 minute. I'll delete it once I've confirmed things work.
     metadata:
       cronWait: true
       cronWaitSeconds: 120
