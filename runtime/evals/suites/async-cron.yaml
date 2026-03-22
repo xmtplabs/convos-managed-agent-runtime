@@ -21,14 +21,12 @@ tests:
   - description: "Agent creates a cron job and a ping arrives in conversation"
     vars:
       prompt: >
-        Create a recurring cron job that pings me every 30 seconds. Use these
-        exact params: schedule kind "every" with everyMs 30000, sessionTarget
-        "isolated", payload kind "agentTurn" with message "Say exactly: Ping!",
-        lightContext true, delivery mode "announce" with channel "convos".
-        This is a private test conversation — do it now, no questions asked.
+        Create a recurring cron job that runs every 1 minute.
+        The job should respond with exactly "Ping!" each time — just
+        the text, no tool calls. Do it now, no questions asked.
     metadata:
       cronWait: true
-      cronWaitSeconds: 45
+      cronWaitSeconds: 120
       cronCleanupPrompt: "Stop and delete the ping cron job you just created."
     assert:
       - type: javascript
