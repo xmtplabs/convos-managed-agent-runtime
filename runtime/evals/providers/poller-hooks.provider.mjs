@@ -92,8 +92,7 @@ export default class PollerHooksProvider {
 
     // Test 1: Wait for the custom poll.sh notification to appear
     if (meta.waitForNotification) {
-      const { msgs: notifMsgs } = h.waitForContent(/eval feed|new post/i, 120_000);
-      const text = h.transcript(notifMsgs);
+      const { text } = h.waitForContent(/eval feed|new post/i, 120_000);
       h.log(`Transcript:\n${text}`);
       h.log(`Hook discovery test done (${elapsed(t)})`);
       return { output: text, metadata: { conversationId: h.conversationId } };
