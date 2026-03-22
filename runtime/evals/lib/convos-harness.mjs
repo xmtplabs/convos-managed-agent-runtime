@@ -67,6 +67,7 @@ export function createHarness(tag, opts = {}) {
   let sharedConversationId = null;
   let userInboxId = null;
   let testIndex = 0;
+  let setupMsgCount = 0;
 
   // --- Cleanup -----------------------------------------------------------
 
@@ -178,7 +179,9 @@ export function createHarness(tag, opts = {}) {
     // actual network timing instead of hoping 2s is enough.
     log('Waiting for agent welcome message...');
     waitForAgent(0, 30_000);
-    log(`Welcome drained (${agentCount(fetchMessages())} agent msgs)`);
+    const welcomeMsgs = fetchMessages();
+    setupMsgCount = welcomeMsgs.length;
+    log(`Welcome drained (${agentCount(welcomeMsgs)} agent msgs)`);
 
     if (opts.afterSetup) opts.afterSetup({ sharedConversationId, EVAL_HOME, log });
 
@@ -243,7 +246,7 @@ export function createHarness(tag, opts = {}) {
       sleep(5_000);
       try {
         const msgs = fetchMessages();
-        const text = transcript(msgs);
+        const text = transcript(msgs, setupMsgCount);
         if (pattern.test(text)) {
           log(`Content matched: ${pattern}`);
           return { msgs, text };
@@ -252,7 +255,7 @@ export function createHarness(tag, opts = {}) {
     }
     log(`Content NOT matched within ${timeoutMs / 1000}s: ${pattern}`);
     const msgs = fetchMessages();
-    return { msgs, text: transcript(msgs) };
+    return { msgs, text: transcript(msgs, setupMsgCount) };
   }
 
   function transcript(msgs, afterIndex = 0) {
@@ -271,7 +274,9 @@ export function createHarness(tag, opts = {}) {
   }
 
   // Wait a short window and confirm the agent stays quiet (no new messages).
+  // baseline defaults to the agent count at setup so welcome messages are ignored.
   function waitForSilence(baseline, windowMs = 15_000) {
+    if (baseline == null) baseline = agentCount(fetchMessages());
     const deadline = Date.now() + windowMs;
     while (Date.now() < deadline) {
       sleep(1_500);
