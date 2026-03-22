@@ -22,7 +22,8 @@ fi
 WORKSPACE_DIR="$ROOT/workspace"
 SKILLS_ROOT="$HERMES_HOME/skills"
 
-export HERMES_HOME HERMES_AGENT_DIR WORKSPACE_DIR SKILLS_ROOT
+CONVOS_HOME="${CONVOS_HOME:-$HERMES_HOME/convos}"
+export HERMES_HOME HERMES_AGENT_DIR WORKSPACE_DIR SKILLS_ROOT CONVOS_HOME
 
 # ── Node / Python ────────────────────────────────────────────────────────
 export NODE_PATH="${NODE_PATH:-$ROOT/node_modules}"

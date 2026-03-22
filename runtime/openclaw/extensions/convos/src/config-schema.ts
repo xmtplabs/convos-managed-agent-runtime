@@ -21,7 +21,7 @@ export const ConvosConfigSchema = z.object({
   /** Markdown formatting overrides (tables). */
   markdown: MarkdownConfigSchema,
 
-  /** CLI-managed identity ID (stored in ~/.convos/identities/). */
+  /** CLI-managed identity ID (stored in $CONVOS_HOME/identities/). */
   identityId: z.string().optional(),
 
   /** XMTP environment: production (default) or dev. */

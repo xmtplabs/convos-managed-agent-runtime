@@ -13,7 +13,7 @@ export type ConvosAccountConfig = {
   name?: string;
   /** If false, do not start this Convos account. Default: true. */
   enabled?: boolean;
-  /** CLI-managed identity ID (stored in ~/.convos/identities/). */
+  /** CLI-managed identity ID (stored in $CONVOS_HOME/identities/). */
   identityId?: string;
   /** XMTP environment: production (default) or dev. */
   env?: "production" | "dev";

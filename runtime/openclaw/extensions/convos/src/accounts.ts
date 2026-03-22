@@ -14,7 +14,7 @@ export type ResolvedConvosAccount = {
   enabled: boolean;
   name?: string;
   configured: boolean;
-  /** CLI-managed identity ID (stored in ~/.convos/identities/) */
+  /** CLI-managed identity ID (stored in $CONVOS_HOME/identities/) */
   identityId?: string;
   /** XMTP environment */
   env: "production" | "dev";

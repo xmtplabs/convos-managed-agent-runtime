@@ -1,0 +1,53 @@
+# runtime/evals/lifecycle-http.yaml
+# HTTP lifecycle eval — verify gateway endpoints respond without errors.
+# Catches import failures, missing modules, and broken lifecycle code paths.
+# No XMTP or convos CLI required — just a running gateway.
+
+description: "Eval: Lifecycle HTTP"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/lifecycle-http.provider.mjs
+
+tests:
+  - description: "Gateway health endpoint responds"
+    vars:
+      prompt: "(health check)"
+    metadata:
+      action: health
+    assert:
+      - type: equals
+        value: "200"
+
+  - description: "Runtime status endpoint returns valid JSON"
+    vars:
+      prompt: "(status check)"
+    metadata:
+      action: status
+    assert:
+      - type: contains
+        value: '"clean"'
+      - type: contains
+        value: '"pending"'
+
+  - description: "Factory reset succeeds"
+    vars:
+      prompt: "(factory reset)"
+    metadata:
+      action: reset
+    assert:
+      - type: contains
+        value: '"ok":true'
+      - type: contains
+        value: '"reset":true'
+
+  - description: "Status is clean after reset"
+    vars:
+      prompt: "(post-reset status)"
+    metadata:
+      action: status
+    assert:
+      - type: contains
+        value: '"clean":true'

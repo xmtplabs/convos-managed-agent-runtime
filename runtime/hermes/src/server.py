@@ -350,9 +350,10 @@ def _is_clean() -> bool:
         return False
     if _has_custom_instructions(hermes_home):
         return False
-    if _path_has_state(Path.home() / ".convos" / "identities"):
+    convos_home = Path(os.environ.get("CONVOS_HOME", str(Path.home() / ".convos")))
+    if _path_has_state(convos_home / "identities"):
         return False
-    if _path_has_state(Path.home() / ".convos" / "db"):
+    if _path_has_state(convos_home / "db"):
         return False
     if _path_has_state(Path(hermes_home) / "sessions"):
         return False
@@ -440,7 +441,7 @@ async def _factory_reset() -> dict:
         shutil.rmtree(target, ignore_errors=True)
 
     # 9. Clear XMTP CLI identity
-    convos_home = Path.home() / ".convos"
+    convos_home = Path(os.environ.get("CONVOS_HOME", str(Path.home() / ".convos")))
     for entry in ("identities", "db"):
         target = convos_home / entry
         shutil.rmtree(target, ignore_errors=True)

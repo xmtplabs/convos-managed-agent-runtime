@@ -27,10 +27,6 @@ function convosIdentityPath(): string {
   return path.join(convosWorkspaceDir(), "IDENTITY.md");
 }
 
-function convosHomeDir(): string {
-  return path.join(os.homedir(), ".convos");
-}
-
 function pathHasState(target: string): boolean {
   try {
     const stat = fs.statSync(target);
@@ -71,8 +67,8 @@ function isClean(): boolean {
   if (getConvosInstance()) return false;
   if (loadConvosCredentials()) return false;
   if (hasCustomInstructions()) return false;
-  if (pathHasState(path.join(convosHomeDir(), "identities"))) return false;
-  if (pathHasState(path.join(convosHomeDir(), "db"))) return false;
+  if (pathHasState(path.join(convosStateDir(), "identities"))) return false;
+  if (pathHasState(path.join(convosStateDir(), "db"))) return false;
   if (process.env.CONVOS_CONVERSATION_ID?.trim()) return false;
   try {
     const runtime = getConvosRuntime();
@@ -132,7 +128,7 @@ async function factoryReset() {
 
   // Clear CLI identity + db
   for (const entry of ["identities", "db"]) {
-    const target = path.join(convosHomeDir(), entry);
+    const target = path.join(convosStateDir(), entry);
     try { fs.rmSync(target, { recursive: true, force: true }); } catch {}
   }
 
