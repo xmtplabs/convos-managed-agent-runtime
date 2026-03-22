@@ -13,7 +13,7 @@ if [ -f "$ROOT/openclaw.json" ]; then
 else
   RUNTIME_DIR="$ROOT/openclaw"
 fi
-STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+STATE_DIR="${OPENCLAW_STATE_DIR:-$ROOT/.openclaw-dev}"
 WORKSPACE_DIR="$STATE_DIR/workspace"
 SKILLS_DIR="$WORKSPACE_DIR/skills"
 SKILLS_ROOT="$SKILLS_DIR"

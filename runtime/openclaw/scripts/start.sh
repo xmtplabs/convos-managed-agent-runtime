@@ -29,6 +29,9 @@ unset _BIN
 CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
 RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
 
+# Tell the openclaw binary where state lives (must be set before any openclaw command)
+export OPENCLAW_STATE_DIR="$STATE_DIR"
+
 # --- Clean up any previous gateway processes ---
 $ENTRY gateway stop >/dev/null 2>&1 || true
 
