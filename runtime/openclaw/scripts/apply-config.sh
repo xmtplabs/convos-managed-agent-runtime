@@ -124,12 +124,10 @@ if command -v jq >/dev/null 2>&1; then
     jq --argjson p "$_PORT" '.gateway.port = $p | .gateway.bind = "lan"' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "gateway" "port $_PORT, bind lan"
   fi
-  # Workspace path must match where we sync; ~/.openclaw/workspace is wrong when STATE_DIR=/app
-  if [ -n "$OPENCLAW_STATE_DIR" ]; then
-    jq --arg w "$STATE_DIR/workspace" '.agents.defaults.workspace = $w' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-    # Force plugin load from synced extensions so /web-tools/* routes work on Railway
-    jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-  fi
+  # Workspace path must match where we sync; template says ~/.openclaw/workspace but STATE_DIR may differ
+  jq --arg w "$STATE_DIR/workspace" '.agents.defaults.workspace = $w' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+  # Plugin load paths must point at synced extensions
+  jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
   # Trust Railway's internal proxy so connections are treated as local,
   # and whitelist the instance's public domain for the control UI.
   if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
