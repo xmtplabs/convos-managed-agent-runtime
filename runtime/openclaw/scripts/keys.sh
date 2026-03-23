@@ -4,13 +4,7 @@
 # Email/SMS are proxied via pool manager — no direct API keys needed.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
-# Brand helpers — prefer shared copy, fall back to local
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
-else
-  . "$ROOT/../shared/scripts/lib/brand.sh"
-fi
+. "$(dirname "$0")/init.sh"
 ENV_FILE="$ROOT/.env"
 
 if [ -f "$ENV_FILE" ]; then
@@ -29,7 +23,8 @@ if command -v jq >/dev/null 2>&1; then
 fi
 brand_banner "$_version"
 
-brand_section "Provisioning assistant keys"
+brand_section "Keys"
+brand_dim "" "validate API keys and write .env"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 
 if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/keys-common.sh" ]; then

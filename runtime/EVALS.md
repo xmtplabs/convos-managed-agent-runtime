@@ -16,7 +16,6 @@
 | **async-delegation** | `async-delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
 | **async-cron** | `async-cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
 | **async-poller** | `async-poller.yaml` | Sequential (1x) | Email poller — self-send, detect, notify, answer |
-| **async-poller-hooks** | `async-poller-hooks.yaml` | Sequential (1x) | Poller hooks — auto-discover and run poll.sh skills |
 
 ## Running
 
@@ -76,14 +75,13 @@ evals/
 │   ├── async-delegation.yaml
 │   ├── async-cron.yaml
 │   ├── async-poller.yaml
-│   └── async-poller-hooks.yaml
+│   └── async-poller.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
 │   ├── convos.provider.mjs
 │   ├── async.provider.mjs
 │   ├── memory.provider.mjs
-│   ├── poller.provider.mjs
-│   └── poller-hooks.provider.mjs
+│   └── poller.provider.mjs
 ├── lib/
 │   ├── assertions.mjs
 │   ├── convos-harness.mjs # shared XMTP conversation harness

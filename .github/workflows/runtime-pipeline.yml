@@ -40,7 +40,7 @@ on:
         type: string
         default: ""
       docker_cmd:
-        description: "Override container CMD (e.g. 'node scripts/pool-server.js')"
+        description: "Override container CMD (e.g. 'node src/pool-server.js')"
         required: false
         type: string
         default: ""
@@ -111,9 +111,8 @@ jobs:
           - { suite: convos,       timeout: 900, only: "", fresh: false, poller: false }
           - { suite: models,       timeout: 900, only: openclaw, fresh: false, poller: false }
           - { suite: async-delegation,   timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: async-cron,         timeout: 900, only: openclaw, fresh: false, poller: false }
+          - { suite: async-cron,         timeout: 900, only: "", fresh: false, poller: false }
           - { suite: async-poller,       timeout: 900, only: "", fresh: false, poller: true }
-          - { suite: async-poller-hooks, timeout: 900, only: "", fresh: false, poller: true }
           - { suite: memory,             timeout: 900, only: "", fresh: false, poller: false }
           - { suite: silence,            timeout: 900, only: "", fresh: false, poller: false }
           - { suite: provision,          timeout: 900, only: "", fresh: true, poller: false }

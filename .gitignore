@@ -17,6 +17,7 @@ xmtp-*.db3-wal
 # OpenClaw local state
 .clawhub/
 .openclaw/
+.openclaw-dev/
 
 # Assembled AGENTS.md (built at boot from AGENTS-base.md + agents-extra.md)
 runtime/hermes/AGENTS.md
