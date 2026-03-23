@@ -137,9 +137,9 @@ export default function Home() {
           <div>
             <div className="story-label">Built in</div>
             <p className="story-text">
-              Convos AI Assistants can browse the web and use email, SMS, and
-              crypto wallets to help your group with scheduling, reservations,
-              payments, and more.
+              Convos AI Assistants can browse the web and use crypto wallets to
+              help your group with scheduling, reservations, payments, and
+              more.
               <br />
               <a href="https://openclaw.io" target="_blank" rel="noopener noreferrer">Built with OpenClaw 🦞</a>
             </p>

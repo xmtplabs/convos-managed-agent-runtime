@@ -107,6 +107,14 @@ test.describe("Template page 404", () => {
       page.getByRole("link", { name: "Browse all assistants" }),
     ).toBeVisible();
   });
+
+  test("returns 404 for assistants filtered out of the first release", async ({
+    page,
+  }) => {
+    const response = await page.goto("/a/hide-my-email");
+    expect(response?.status()).toBe(404);
+    await expect(page.getByText("Assistant not found")).toBeVisible();
+  });
 });
 
 test.describe("Template page actions", () => {

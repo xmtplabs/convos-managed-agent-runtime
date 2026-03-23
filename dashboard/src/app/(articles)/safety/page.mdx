@@ -41,9 +41,6 @@ Every assistant runs on [OpenClaw](https://openclaw.ai), an open-source agent ru
 | **LLM routing** | [OpenRouter](https://openrouter.ai) | Routes prompts to the model provider best suited for each task. |
 | **AI models** | [Anthropic](https://anthropic.com), [OpenAI](https://openai.com), [Google](https://deepmind.google/technologies/gemini/), [Meta](https://llama.meta.com), [DeepSeek](https://deepseek.com), and others | Your messages are sent to whichever model the assistant selects — Claude, GPT, Gemini, Llama, etc. Each provider has its own data policies. |
 | **Web search** | [Perplexity](https://www.perplexity.ai) via OpenRouter | Real-time web lookups. Queries are sent to Perplexity's Sonar model through OpenRouter. |
-| **Email** | [AgentMail](https://agentmail.to) | Each assistant gets a unique inbox. Emails sent and received by the assistant pass through AgentMail's API. |
-| **SMS & phone** | [Telnyx](https://telnyx.com) | Each assistant can be assigned a US phone number. Text messages and calls are routed through Telnyx. |
-
 | **Web browsing** | Chromium (local) | A headless browser running on the same server as the assistant. No third-party service involved. |
 | **Messaging** | [XMTP](https://xmtp.org) | The assistant communicates with your group over the XMTP network, the same protocol Convos uses for all messages. |
 

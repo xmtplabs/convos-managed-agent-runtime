@@ -1,4 +1,8 @@
 import type { AgentSkill, PoolCounts, PromptData } from "./types";
+import {
+  filterReleaseCandidateTemplates,
+  isReleaseCandidateTemplate,
+} from "./release-candidate";
 
 const POOL_API_URL = process.env.POOL_API_URL || "http://localhost:3001";
 
@@ -7,7 +11,8 @@ export async function getSkills(): Promise<AgentSkill[]> {
     next: { revalidate: 60 },
   });
   if (!res.ok) throw new Error(`Failed to fetch templates: ${res.status}`);
-  return res.json();
+  const data: AgentSkill[] = await res.json();
+  return filterReleaseCandidateTemplates(data);
 }
 
 export async function getSkill(slug: string): Promise<AgentSkill | null> {
@@ -16,7 +21,8 @@ export async function getSkill(slug: string): Promise<AgentSkill | null> {
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Failed to fetch template: ${res.status}`);
-  return res.json();
+  const data: AgentSkill = await res.json();
+  return isReleaseCandidateTemplate(data) ? data : null;
 }
 
 export async function getPoolCounts(): Promise<PoolCounts> {
