@@ -1,6 +1,12 @@
 provider_routing:
   only: ["anthropic", "openai", "google", "perplexity"]
+  # allow_fallbacks is not yet wired through to the OpenRouter API call
+  # in the hermes-agent package — this field is currently ignored.
   allow_fallbacks: false
+
+fallback_model:
+  provider: openrouter
+  model: google/gemini-2.5-pro
 
 platform_toolsets:
   cli: [web, terminal, file, vision, image_gen, browser, skills, todo, memory, session_search, clarify, code_execution, cronjob]
