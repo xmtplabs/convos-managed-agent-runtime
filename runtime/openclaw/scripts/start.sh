@@ -166,6 +166,7 @@ fi
 pkill -f "poller.sh" 2>/dev/null || true
 
 if [ -n "$SHARED_SCRIPTS_DIR" ] && [ -f "$SHARED_SCRIPTS_DIR/poller.sh" ]; then
+  PORT="$PORT" \
   SKILLS_ROOT="${SKILLS_ROOT:-$STATE_DIR/workspace/skills}" \
   sh "$SHARED_SCRIPTS_DIR/poller.sh" &
   echo $! > "$_poller_pidfile"
