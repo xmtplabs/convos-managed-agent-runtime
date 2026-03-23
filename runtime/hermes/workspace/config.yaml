@@ -6,7 +6,7 @@ provider_routing:
 
 fallback_model:
   provider: openrouter
-  model: google/gemini-2.5-pro
+  model: google/gemini-3.1-pro-preview
 
 platform_toolsets:
   cli: [web, terminal, file, vision, image_gen, browser, skills, todo, memory, session_search, clarify, code_execution, cronjob]
