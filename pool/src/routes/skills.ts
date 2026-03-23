@@ -107,8 +107,9 @@ skillsRouter.post("/api/skills", requireAuth, async (req, res) => {
       res.status(400).json({ error: `description must be at most ${MAX_DESCRIPTION_LEN} characters` }); return;
     }
 
-    // Check slug collision
-    const slug = skills.slugify(agentName);
+    // Check slug collision (including fallback slug for special-char-only names)
+    let slug = skills.slugify(agentName);
+    if (!slug) slug = `skill-${crypto.randomUUID().slice(0, 8)}`;
     const existing = await skills.findBySlug(slug);
     if (existing) {
       res.status(409).json({ error: "A skill with this name already exists" }); return;
@@ -116,6 +117,7 @@ skillsRouter.post("/api/skills", requireAuth, async (req, res) => {
 
     const skill = await skills.createSkill({
       agentName,
+      slug,
       prompt: prompt ?? "",
       description,
       category,

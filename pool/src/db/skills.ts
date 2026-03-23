@@ -9,6 +9,7 @@ export function slugify(name: string): string {
 
 export async function createSkill(data: {
   agentName: string;
+  slug?: string;
   prompt?: string;
   description?: string;
   category?: string;
@@ -17,10 +18,10 @@ export async function createSkill(data: {
   published?: boolean;
 }): Promise<SkillRow> {
   const id = crypto.randomUUID();
-  const slug = slugify(data.agentName);
+  const slug = data.slug || slugify(data.agentName) || `skill-${id.slice(0, 8)}`;
   const rows = await db.insert(agentSkills).values({
     id,
-    slug: slug || `skill-${id.slice(0, 8)}`,
+    slug,
     agentName: data.agentName,
     description: data.description ?? "",
     prompt: data.prompt ?? "",

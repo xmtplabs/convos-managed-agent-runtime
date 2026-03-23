@@ -35,29 +35,34 @@ async function fetchNotionPrompt(pageId: string): Promise<string> {
     "Notion-Version": "2022-06-28",
   };
 
-  const blocksRes = await fetch(
-    `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100`,
-    { headers },
-  );
-  if (!blocksRes.ok) throw new Error(`Notion API ${blocksRes.status}`);
-  const blocksData = await blocksRes.json() as any;
-
   let text = "";
-  for (const block of blocksData.results || []) {
-    if (block.type === "heading_1" || block.type === "heading_2" || block.type === "heading_3") {
-      const prefix = block.type === "heading_1" ? "# " : block.type === "heading_2" ? "## " : "### ";
-      const ht = block[block.type]?.rich_text;
-      if (ht) text += prefix + ht.map((t: any) => t.plain_text).join("") + "\n";
-    } else if (block.type === "bulleted_list_item" || block.type === "numbered_list_item") {
-      const lt = block[block.type]?.rich_text;
-      if (lt) text += "- " + lt.map((t: any) => t.plain_text).join("") + "\n";
-    } else if (block.type === "divider") {
-      text += "---\n";
-    } else {
-      const rt = block[block.type]?.rich_text;
-      if (rt) text += rt.map((t: any) => t.plain_text).join("") + "\n";
+  let cursor: string | undefined;
+
+  do {
+    const url = `https://api.notion.com/v1/blocks/${pageId}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`;
+    const blocksRes = await fetch(url, { headers });
+    if (!blocksRes.ok) throw new Error(`Notion API ${blocksRes.status}`);
+    const blocksData = await blocksRes.json() as any;
+
+    for (const block of blocksData.results || []) {
+      if (block.type === "heading_1" || block.type === "heading_2" || block.type === "heading_3") {
+        const prefix = block.type === "heading_1" ? "# " : block.type === "heading_2" ? "## " : "### ";
+        const ht = block[block.type]?.rich_text;
+        if (ht) text += prefix + ht.map((t: any) => t.plain_text).join("") + "\n";
+      } else if (block.type === "bulleted_list_item" || block.type === "numbered_list_item") {
+        const lt = block[block.type]?.rich_text;
+        if (lt) text += "- " + lt.map((t: any) => t.plain_text).join("") + "\n";
+      } else if (block.type === "divider") {
+        text += "---\n";
+      } else {
+        const rt = block[block.type]?.rich_text;
+        if (rt) text += rt.map((t: any) => t.plain_text).join("") + "\n";
+      }
     }
-  }
+
+    cursor = blocksData.has_more ? blocksData.next_cursor : undefined;
+  } while (cursor);
+
   return text.trim();
 }
 

@@ -1046,6 +1046,8 @@ runMigrations()
   .then(() => {
     ensureWebhookRule().catch((err) =>
       console.warn("[startup] Webhook rule registration failed:", err.message));
+    // Seed catalog on first boot (after migrations complete)
+    seedCatalog().catch((e) => console.error("[seed] Catalog seed failed:", e));
   })
   .catch((err) => {
     console.error("[startup] Migration failed:", err);
@@ -1054,6 +1056,4 @@ runMigrations()
 
 app.listen(config.port, () => {
   console.log(`Pool manager listening on :${config.port}`);
-  // Seed catalog on first boot
-  seedCatalog().catch((e) => console.error("[seed] Catalog seed failed:", e));
 });
