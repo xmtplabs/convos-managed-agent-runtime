@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/auth";
 import * as skills from "../db/skills";
 import { isAuthenticated } from "../admin";
 import { config } from "../config";
+import { generateSkill } from "../services/skillGen";
 
 export const skillsRouter = Router();
 
@@ -36,6 +37,27 @@ skillsRouter.get("/api/skills", async (req, res) => {
   } catch (err: any) {
     console.error("[skills] list failed:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+const MAX_IDEA_LEN = 500;
+
+/** Generate a full skill from a one-sentence idea via LLM. */
+skillsRouter.post("/api/skills/generate", requireAuth, async (req, res) => {
+  try {
+    const { idea } = req.body || {};
+    if (!idea || typeof idea !== "string") {
+      res.status(400).json({ error: "idea is required" }); return;
+    }
+    if (idea.length > MAX_IDEA_LEN) {
+      res.status(400).json({ error: `idea must be at most ${MAX_IDEA_LEN} characters` }); return;
+    }
+
+    const generated = await generateSkill(idea);
+    res.json(generated);
+  } catch (err: any) {
+    console.error("[skills] generate failed:", err);
+    res.status(502).json({ error: "Generation failed", details: err.message });
   }
 });
 

@@ -54,6 +54,7 @@ export const config = {
   openrouterManagementKey: getEnv("OPENROUTER_MANAGEMENT_KEY"),
   openrouterKeyLimit: parseInt(getEnv("OPENROUTER_KEY_LIMIT", "20"), 10),
   openrouterKeyLimitReset: getEnv("OPENROUTER_KEY_LIMIT_RESET", "monthly"),
+  openrouterApiKey: getEnv("OPENROUTER_API_KEY"),
 
   // AgentMail (from services)
   agentmailApiKey: getEnv("AGENTMAIL_API_KEY"),
