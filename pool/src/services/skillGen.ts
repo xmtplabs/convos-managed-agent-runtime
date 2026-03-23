@@ -25,8 +25,8 @@ export interface GeneratedSkill {
 }
 
 export async function generateSkill(idea: string): Promise<GeneratedSkill> {
-  if (!config.openrouterApiKey) {
-    throw new Error("OPENROUTER_API_KEY not configured");
+  if (!config.skillsOpenrouterApiKey) {
+    throw new Error("SKILLS_OPENROUTER_API_KEY not configured");
   }
   if (!SYSTEM_PROMPT) {
     throw new Error("Skill generator system prompt not loaded");
@@ -35,7 +35,7 @@ export async function generateSkill(idea: string): Promise<GeneratedSkill> {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${config.openrouterApiKey}`,
+      "Authorization": `Bearer ${config.skillsOpenrouterApiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
