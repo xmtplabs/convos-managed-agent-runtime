@@ -22,6 +22,10 @@ const apiDocsHtmlTemplate = fs.readFileSync(
   path.join(__adminDir, "..", "frontend", "api-docs.html"),
   "utf-8",
 );
+const skillsHtmlTemplate = fs.readFileSync(
+  path.join(__adminDir, "..", "frontend", "skills.html"),
+  "utf-8",
+);
 
 const COOKIE_NAME = "pool_admin_session";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -228,6 +232,17 @@ export function apiDocsPage({
 }) {
   const config = JSON.stringify({ poolEnvironment, railwayProjectId, railwayEnvironmentId, adminUrls });
   return apiDocsHtmlTemplate.replace(
+    "<!--__POOL_CONFIG__-->",
+    `<script>window.__POOL_CONFIG__=${config}</script>`,
+  );
+}
+
+export function skillsPage({
+  poolEnvironment,
+  adminUrls = [],
+}) {
+  const config = JSON.stringify({ poolEnvironment, adminUrls });
+  return skillsHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
   );
