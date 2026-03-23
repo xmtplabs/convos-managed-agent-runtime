@@ -22,6 +22,13 @@
       "when": 1773984000000,
       "tag": "0002_add_payments_table",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774284693525,
+      "tag": "0003_clever_bloodscream",
+      "breakpoints": true
     }
   ]
 }
