@@ -854,13 +854,22 @@
 
     function loadSkills() {
       fetch('/api/skills?all=true')
-        .then(function (res) { return res.json(); })
+        .then(function (res) {
+          if (!res.ok) {
+            console.error('[skills] fetch failed:', res.status, res.statusText);
+            // Fall back to public list (without ?all=true)
+            return fetch('/api/skills').then(function (r) { return r.json(); });
+          }
+          return res.json();
+        })
         .then(function (data) {
           allSkills = Array.isArray(data) ? data : [];
+          console.log('[skills] loaded', allSkills.length, 'skills');
           document.getElementById('skills-skeleton').style.display = 'none';
           applyFilters();
         })
-        .catch(function () {
+        .catch(function (err) {
+          console.error('[skills] load error:', err);
           document.getElementById('skills-skeleton').style.display = 'none';
           document.getElementById('skills-rows').innerHTML =
             '<div class="skills-empty">Failed to load skills.</div>';
@@ -1140,8 +1149,7 @@
         });
     }
 
-    // ── Convenience alias (esc is on window from admin-common.js) ──
-    function esc(s) { return window.esc(s); }
+    // esc() is already available on window from admin-common.js
 
     // ── Bootstrap ──
     loadSkills();
