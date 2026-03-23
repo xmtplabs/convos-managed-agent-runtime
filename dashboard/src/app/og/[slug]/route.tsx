@@ -124,7 +124,7 @@ export async function GET(
                 marginBottom: "12px",
               }}
             >
-              {template.name}
+              {template.agentName}
             </span>
 
             {/* Description */}

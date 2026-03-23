@@ -18,7 +18,7 @@ export default function Home() {
   const [poolEnvironment, setPoolEnvironment] = useState("production");
 
   // Prompt modal state
-  const [promptModalPageId, setPromptModalPageId] = useState<string | null>(
+  const [promptModalPrompt, setPromptModalPrompt] = useState<string | null>(
     null,
   );
   const [promptModalName, setPromptModalName] = useState("");
@@ -58,15 +58,15 @@ export default function Home() {
   // -----------------------------------------------------------------------
 
   const handleOpenPromptModal = useCallback(
-    (pageId: string, name: string) => {
-      setPromptModalPageId(pageId);
+    (prompt: string, name: string) => {
+      setPromptModalPrompt(prompt);
       setPromptModalName(name);
     },
     [],
   );
 
   const handleClosePromptModal = useCallback(() => {
-    setPromptModalPageId(null);
+    setPromptModalPrompt(null);
     setPromptModalName("");
   }, []);
 
@@ -167,7 +167,7 @@ export default function Home() {
 
         {/* Prompt modal */}
         <PromptModal
-          pageId={promptModalPageId}
+          prompt={promptModalPrompt}
           agentName={promptModalName}
           onClose={handleClosePromptModal}
           activeStep={activeStep}
