@@ -1,8 +1,9 @@
 #!/bin/sh
-# Seed cron jobs. Called (sourced) from gateway.sh.
+# Seed cron jobs. Called (sourced) from start.sh.
 # Preserves agent-created jobs when jq is available.
+# Caller must set CRON_DIR (e.g. $STATE_DIR/cron or $HERMES_HOME/cron).
 
-_cron_dir="$STATE_DIR/cron"
+_cron_dir="${CRON_DIR:?CRON_DIR must be set before sourcing crons.sh}"
 _cron_store="$_cron_dir/jobs.json"
 mkdir -p "$_cron_dir"
 

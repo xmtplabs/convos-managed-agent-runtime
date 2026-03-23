@@ -4,7 +4,7 @@
 # Email/SMS are proxied via pool manager — no direct API keys needed.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/init.sh"
 ENV_FILE="$ROOT/.env"
 
 if [ -f "$ENV_FILE" ]; then
@@ -21,7 +21,8 @@ for _pkg in "$ROOT/../package.json" "$ROOT/runtime-version.json" "$ROOT/package.
 done
 brand_banner "$_version"
 
-brand_section "Provisioning keys"
+brand_section "Keys"
+brand_dim "" "validate API keys and write .env"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 
 . "$SHARED_SCRIPTS_DIR/lib/keys-common.sh"

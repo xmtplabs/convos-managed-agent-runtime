@@ -3,16 +3,10 @@
 # Validates credentials file, identity keys, and XMTP environment.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
-. "$ROOT/scripts/lib/env-load.sh"
-# Brand helpers — prefer shared copy, fall back to local
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
-else
-  . "$ROOT/../shared/scripts/lib/brand.sh"
-fi
+. "$(dirname "$0")/init.sh"
 
-brand_section "Convos identity"
+brand_section "Identity"
+brand_dim "" "verify XMTP credentials and Convos CLI"
 
 CREDS_FILE="$STATE_DIR/credentials/convos-identity.json"
 

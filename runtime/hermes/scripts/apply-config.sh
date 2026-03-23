@@ -3,9 +3,10 @@
 # Sources: shared workspace (SOUL, base AGENTS, shared skills) then
 #          runtime workspace (config, CONVOS_PLATFORM, agents-extra).
 set -e
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/init.sh"
 
-brand_section "Syncing workspace"
+brand_section "Workspace"
+brand_dim "" "sync skills, agents, and config"
 
 # ── HERMES_HOME structure ────────────────────────────────────────────────
 mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
@@ -48,5 +49,5 @@ assemble_agents "$SHARED_WORKSPACE_DIR" "$WORKSPACE_DIR/agents-extra.md" "$ROOT/
 [ -f "$WORKSPACE_DIR/CONVOS_PLATFORM.md" ] && cp "$WORKSPACE_DIR/CONVOS_PLATFORM.md" "$HERMES_HOME/CONVOS_PLATFORM.md"
 
 brand_ok "HERMES_HOME" "$HERMES_HOME"
-brand_done "Workspace synced"
+brand_done "Workspace ready"
 brand_flush

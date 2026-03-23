@@ -4,16 +4,11 @@
 # CLIs resolve via PATH (node-path.sh).
 # Skill scripts use REST APIs directly via fetch — no JS library imports needed.
 set -e
-export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
-. "$(dirname "$0")/lib/init.sh"
-# Brand helpers — prefer shared copy, fall back to local
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
-else
-  . "$ROOT/../shared/scripts/lib/brand.sh"
-fi
+. "$(dirname "$0")/init.sh"
+export OPENCLAW_STATE_DIR="$STATE_DIR"
 
-brand_section "Installing dependencies"
+brand_section "Dependencies"
+brand_dim "" "install extensions and check toolchain"
 
 # Extensions
 brand_subsection "extensions"

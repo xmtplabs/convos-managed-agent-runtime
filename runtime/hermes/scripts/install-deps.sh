@@ -1,11 +1,12 @@
 #!/bin/sh
 # Bootstrap hermes-agent (first run) and ensure all deps are installed.
 set -e
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/init.sh"
 
 HERMES_TAG="v2026.3.17"
 
-brand_section "Installing dependencies"
+brand_section "Dependencies"
+brand_dim "" "install extensions and check toolchain"
 
 # ── Pip target — Docker uses system Python; macOS needs a venv (PEP 668) ─
 if is_docker; then

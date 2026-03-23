@@ -3,9 +3,10 @@
 # Validates identity keys, XMTP environment, and CLI availability.
 set -e
 
-. "$(dirname "$0")/lib/init.sh"
+. "$(dirname "$0")/init.sh"
 
-brand_section "Convos identity"
+brand_section "Identity"
+brand_dim "" "verify XMTP credentials and Convos CLI"
 
 # ── XMTP environment ─────────────────────────────────────────────────────
 _env="${XMTP_ENV:-}"

@@ -37,6 +37,7 @@ from .agent_runner import AgentRunner
 from .config import RuntimeConfig
 from .profile_image_renewal import ProfileImageRenewalStore
 from .credentials import clear_credentials
+from .outbound_policy import apply_outbound_policy
 from .stats import stats
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,6 @@ ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
 CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
 PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
 _last_prune_at = 0.0
-
 
 async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
@@ -628,7 +628,9 @@ class ConvosAdapter:
 
         # Renew profile image on any outbound activity (before SILENT check
         # so media-only sends still trigger renewal)
-        text = strip_markdown(parsed.text)
+        raw_text = strip_markdown(parsed.text)
+        policy = await apply_outbound_policy(raw_text)
+        text = policy.text
         if parsed.media or text:
             try:
                 await self._renew_profile_image_on_activity()
@@ -638,6 +640,10 @@ class ConvosAdapter:
         # Agent explicitly chose silence — side effects above still fire, but no text
         if parsed.silent:
             logger.info("Agent chose SILENT — suppressing text reply")
+            return
+
+        if policy.suppress:
+            logger.info("Outbound policy suppressed text reply")
             return
 
         if text:

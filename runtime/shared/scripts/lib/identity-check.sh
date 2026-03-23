@@ -7,7 +7,7 @@ check_identity_keys() {
   IDENTITIES_DIR="$CONVOS_DIR/identities"
 
   if [ -d "$IDENTITIES_DIR" ]; then
-    _id_count=$(find "$IDENTITIES_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+    _id_count=$(find "$IDENTITIES_DIR" -mindepth 1 -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')
     if [ "$_id_count" -gt 0 ]; then
       brand_ok "identities" "$_id_count stored in $IDENTITIES_DIR"
     else
