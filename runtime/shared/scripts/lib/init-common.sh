@@ -1,9 +1,8 @@
 #!/bin/sh
-# Set ROOT and state paths. Source from scripts: . "$(dirname "$0")/lib/init.sh"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# .env lives at the runtime root (one level above openclaw/)
-_ENV_FILE="$ROOT/.env"
-[ ! -f "$_ENV_FILE" ] && [ -f "$ROOT/../.env" ] && _ENV_FILE="$ROOT/../.env"
+# Shared init: load .env, resolve shared dirs, load brand helpers.
+# Caller must set ROOT and _ENV_FILE before sourcing.
+
+# Load .env
 [ -f "$_ENV_FILE" ] && set -a && . "$_ENV_FILE" 2>/dev/null || true && set +a
 
 # Resolve shared dirs
@@ -16,4 +15,9 @@ else
   SHARED_SCRIPTS_DIR=""
 fi
 
-. "$ROOT/scripts/lib/paths.sh"
+# Brand helpers
+if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/brand.sh" ]; then
+  . "$SHARED_SCRIPTS_DIR/lib/brand.sh"
+else
+  . "$ROOT/../shared/scripts/lib/brand.sh"
+fi

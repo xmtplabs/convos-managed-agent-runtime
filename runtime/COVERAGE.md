@@ -16,12 +16,11 @@
 | **Memory persistence** (store & recall) | `memory` | 6 | Strong | Strong |
 | **Async delegation** (sub-agents) | `async-delegation` | 1 | Strong | Strong |
 | **Poller** (email polling & notifications) | `async-poller` | 2 | Weak | Weak |
-| **Poller hooks** (custom poll.sh) | `async-poller-hooks` | 2 | Medium | Medium |
 | **Silence / non-response** | `silence` | 2 | Strong | Strong |
 | **Model switching** | `models` | 4 | Medium | — |
 | **Cron jobs** | `async-cron` | 2 | Medium | — |
 
-**13 suites, 59 tests total**
+**12 suites, 57 tests total**
 
 ## Gaps (documented but untested)
 

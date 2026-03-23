@@ -111,6 +111,12 @@ Manual migration steps:
 
 </important>
 
+<important if="you are modifying runtime boot scripts (runtime/openclaw/scripts/ or runtime/hermes/scripts/)">
+
+**Do not rename, reorder, or remove boot scripts.** Both runtimes follow the same fixed pipeline: `init.sh` → `apply-config.sh` → `install-deps.sh` → `identity.sh` → `start.sh`. The names and execution order are load-bearing — Dockerfiles, entrypoints, CI workflows, and `pnpm start` all depend on them. Edit script internals when needed, but never change the script names or the sequence.
+
+</important>
+
 <important if="you are writing or modifying evals, rubrics, or eval configs">
 
 - Optimize rubrics for FAIL-first: "FAIL if X, otherwise PASS".
