@@ -20,7 +20,7 @@ export const config = {
 
   // Pool environment context
   poolEnvironment:
-    getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "undefined"),
+    getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "local"),
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
   instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
@@ -69,8 +69,21 @@ export const config = {
     .map((s) => s.trim())
     .filter(Boolean),
 
+  // Stripe (sandbox)
+  stripeSecretKey: getEnv("STRIPE_SECRET_KEY"),
+  stripePublishableKey: getEnv("STRIPE_PUBLISHABLE_KEY"),
+  stripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET"),
+
   // Instance passthrough env vars
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   convosApiKey: getEnv("CONVOS_API_KEY"),
+
+  // Telemetry
+  posthogApiKey: getEnv("POSTHOG_API_KEY"),
+  posthogHost: getEnv("POSTHOG_HOST", "https://us.i.posthog.com"),
+
+  // Attestation — Ed25519 signing key for agent identity verification
+  attestationPrivateKeyPem: getEnv("ATTESTATION_PRIVATE_KEY_PEM").replace(/\\n/g, "\n"),
+  attestationKid: getEnv("ATTESTATION_KID", "convos-agents-1"),
 };

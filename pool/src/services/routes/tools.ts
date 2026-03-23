@@ -47,7 +47,7 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
         res.status(400).json({ error: "OPENROUTER_MANAGEMENT_KEY not configured" });
         return;
       }
-      const keyName = `convos-agent-${instanceId}`;
+      const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
       const limit = (toolConfig?.limit as number) ?? config.openrouterKeyLimit;
       const { key, hash } = await openrouter.createKey(keyName, limit);
       resourceId = hash;
@@ -93,6 +93,20 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
       envValue,
       resourceMeta,
     });
+
+    // Update profile metadata on the runtime with the provisioned value
+    if ((toolId === "agentmail" || toolId === "telnyx") && infra.url && infra.gatewayToken) {
+      const metaKey = toolId === "agentmail" ? "email" : "phone";
+      fetch(`${infra.url}/convos/update-metadata`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${infra.gatewayToken}`,
+        },
+        body: JSON.stringify({ metadata: { [metaKey]: resourceId } }),
+        signal: AbortSignal.timeout(10_000),
+      }).catch((err) => console.warn(`[tools] metadata update for ${toolId} failed: ${err.message}`));
+    }
 
     const result: ProvisionResult = { toolId, resourceId, status: "active" };
     console.log(`[tools] Provisioned ${toolId} for ${instanceId}: ${resourceId}`);

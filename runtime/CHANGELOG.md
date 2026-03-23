@@ -1,4 +1,22 @@
-# Convos runtime changelog
+## 0.1.3
+- Cleaner instruction architecture — agent instructions reorganized into 5 clear layers so assistants load less redundant context per turn
+- Profile management skill — dedicated guidance for name, photo, and metadata updates (shared across both runtimes)
+- Platform context now editable without code changes — OpenClaw messaging hints moved from hardcoded TypeScript to a markdown file
+
+## 0.1.2
+- Customization guide: agents now know what they can and can't change — including how to create custom skills with polling hooks (see [CUSTOMIZATION.md](shared/workspace/CUSTOMIZATION.md))
+- Model switching: users can ask the agent to switch models mid-conversation
+- SMS outbound: agents can send outbound SMS messages
+- Removed Bankr integration
+- Cronjob fix: fixed a regression in scheduled tasks
+- Version reporting fix: pool dashboard now correctly shows runtime version for all instances
+
+## 0.1.1
+- Faster tool use and smarter memory
+- Agents less chatty — assistants stay quiet when they have nothing useful to add
+
+## 0.1.0 — Multi-harness
+- Multi-harness: runtime supports both OpenClaw and Hermes engines — same workspace, skills, and agent instructions across both
 
 ## 0.0.27
 - Background email/SMS polling: new messages are detected and delivered to the chat automatically — no more LLM calls burning credits just to check the inbox
@@ -58,7 +76,7 @@
 - Credit exhaustion: friendly message when out of credits instead of failing silently
 
 ## 0.0.14
-- Bump `@bankr/cli` to `0.1.0-beta.18`
+- Dependency updates
 
 ## 0.0.13
 - Fix email inbox polling

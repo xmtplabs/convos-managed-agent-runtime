@@ -11,6 +11,8 @@
 
   // --- Shared data caches ---
   window.claimedCache = [];
+  window.pendingCache = [];
+  window.taintedCache = [];
   window.crashedCache = [];
   window.idleCache = [];
   window.startingCache = [];
@@ -68,6 +70,8 @@
       var res = await fetch('/api/pool/agents');
       var data = await res.json();
       window.claimedCache = (data.claimed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+      window.pendingCache = (data.pendingAcceptance || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+      window.taintedCache = (data.tainted || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
       window.crashedCache = (data.crashed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
       window.idleCache = (data.idle || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
       window.startingCache = (data.starting || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
@@ -99,8 +103,8 @@
     console.log('[pool] refresh start');
     try {
       await Promise.all([window.refreshCounts(), window.refreshAgents(), window.refreshInstances()]);
-      console.log('[pool] refresh done — claimed:%d idle:%d starting:%d crashed:%d',
-        window.claimedCache.length, window.idleCache.length, window.startingCache.length, window.crashedCache.length);
+      console.log('[pool] refresh done — claimed:%d pending:%d idle:%d starting:%d tainted:%d crashed:%d',
+        window.claimedCache.length, window.pendingCache.length, window.idleCache.length, window.startingCache.length, window.taintedCache.length, window.crashedCache.length);
     } finally {
       _refreshing = false;
       if (_refreshQueued) { _refreshQueued = false; window.refresh(); }
@@ -166,6 +170,21 @@
       if (rl) {
         rl.href = 'https://railway.com/project/' + C.railwayProjectId + (C.railwayEnvironmentId ? '?environmentId=' + C.railwayEnvironmentId : '');
         rl.style.display = '';
+      }
+    }
+
+    // Playroom deeplink (environment-aware)
+    var playroomUrls = {
+      production: 'https://www.convos.org/assistants',
+      staging: 'https://agents-staging.convos.org/',
+      dev: 'https://agents-dev.convos.org/'
+    };
+    var playroomUrl = playroomUrls[env];
+    if (playroomUrl) {
+      var pl = document.getElementById('playroom-link');
+      if (pl) {
+        pl.href = playroomUrl;
+        pl.style.display = '';
       }
     }
 

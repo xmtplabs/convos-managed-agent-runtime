@@ -92,6 +92,9 @@ pnpm start
 | `RAILWAY_TEAM_ID` | Railway team ID (sharded — one project per agent) |
 | `RAILWAY_API_TOKEN` | Railway API token for managing services |
 | `RAILWAY_RUNTIME_IMAGE` | Runtime Docker image (default `ghcr.io/xmtplabs/convos-runtime:<env>`) |
+| **Attestation** | |
+| `ATTESTATION_PRIVATE_KEY_PEM` | Ed25519 private key in PEM format (use `\n` for newlines in single-line env vars) |
+| `ATTESTATION_KID` | Key ID for the JWKS (default `convos-agents-1`) |
 | **Providers** | |
 | `OPENROUTER_MANAGEMENT_KEY` | OpenRouter provisioning key (creates per-instance keys) |
 | `AGENTMAIL_API_KEY` | AgentMail API key (provisions per-instance inboxes) |
@@ -119,7 +122,7 @@ Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | TEXT PK | Instance ID (12-char nanoid) |
-| `name` | TEXT | Service name (`convos-agent-{id}`) |
+| `name` | TEXT | Service name (`assistant-{env}-{id}`) |
 | `url` | TEXT | Public HTTPS URL |
 | `status` | TEXT | `starting`, `idle`, `claiming`, `claimed`, `crashed`, `dead`, `sleeping` |
 | `agent_name` | TEXT | Name given at claim time |
@@ -146,3 +149,36 @@ Full API documentation is available at `/admin/api-docs` in the admin dashboard 
 | dev | `convos-agents-dev.up.railway.app` | dev | *(your branch)* |
 | staging | `convos-agents-staging.up.railway.app` | dev | `staging` |
 | production | `convos-agents.up.railway.app` | production | `main` |
+
+## Attestation
+
+Agents include Ed25519 attestations in their XMTP ProfileUpdate metadata so clients can verify they were provisioned by the Convos backend. The pool signs attestations; clients verify against a JWKS hosted at `convos.org/.well-known/agents.json`.
+
+### Generating a key
+
+```sh
+node -e "const{generateKeyPairSync}=require('crypto');console.log(generateKeyPairSync('ed25519').privateKey.export({type:'pkcs8',format:'pem'}))"
+```
+
+Set the full PEM output (including `-----BEGIN/END PRIVATE KEY-----` lines) as `ATTESTATION_PRIVATE_KEY_PEM` in Railway. Use `\n` for newlines in single-line env var format.
+
+### Publishing the JWKS
+
+After deploying, grab the public key:
+
+```sh
+curl https://<pool-url>/.well-known/agents.json
+```
+
+Host the output at:
+- `https://convos.org/.well-known/agents.json` (production)
+- `https://dev.convos.org/.well-known/agents.json` (dev)
+
+### Rotating keys
+
+1. Generate a new key pair (see above)
+2. Set `ATTESTATION_PRIVATE_KEY_PEM` and update `ATTESTATION_KID` (e.g. `convos-agents-2`) in Railway
+3. Re-deploy pool
+4. Update the JWKS on `convos.org` — include both old and new keys so existing attestations remain valid
+5. Re-attest running instances: `POST /api/pool/re-attest/:id` per instance
+6. Once all instances have the new attestation, remove the old key from the JWKS

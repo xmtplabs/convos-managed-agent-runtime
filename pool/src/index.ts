@@ -18,6 +18,8 @@ import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
 import { ensureWebhookRule } from "./webhook";
 import { couponRouter } from "./couponRoute";
+import { stripeRouter } from "./stripeRoute";
+import * as stripe from "./services/providers/stripe";
 import { serviceProxyRouter } from "./routes/serviceProxy";
 
 // Services routes (now local, no HTTP)
@@ -27,6 +29,8 @@ import { configureRouter } from "./services/routes/configure";
 import { toolsRouter } from "./services/routes/tools";
 import { dashboardRouter } from "./services/routes/dashboard";
 import { registryRouter } from "./services/routes/registry";
+import { signAttestation, buildJwksFromConfig } from "./attestation";
+import { authFetch } from "./authFetch";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -86,7 +90,11 @@ const app = express();
 app.disable("x-powered-by");
 // Higher limit for proxy routes (email attachments are base64-encoded in body)
 app.use("/api/proxy", express.json({ limit: "10mb" }));
-app.use(express.json());
+// Skip JSON parsing for Stripe webhooks — they need the raw body for signature verification
+app.use((req, res, next) => {
+  if (req.path === "/webhooks/stripe") return next();
+  express.json()(req, res, next);
+});
 app.use(express.urlencoded({ extended: false }));
 
 // --- CORS for template site ---
@@ -110,16 +118,28 @@ app.get("/healthz", (_req, res) => res.json({ ok: true }));
 const BUILD_VERSION = "2026-02-25T01:unified-pool-v1";
 app.get("/version", (_req, res) => res.json({ version: BUILD_VERSION, environment: config.poolEnvironment }));
 
+// JWKS — public endpoint for agent attestation verification.
+// Production: hosted on convos.org. This serves as dev/staging fallback.
+app.get("/.well-known/agents.json", (_req, res) => {
+  try {
+    res.json(buildJwksFromConfig());
+  } catch (err: any) {
+    res.status(503).json({ error: "Attestation not configured" });
+  }
+});
+
 app.get("/api/pool/counts", async (_req, res) => {
   res.json(await db.getCounts());
 });
 
 app.get("/api/pool/agents", async (_req, res) => {
   const claimed = await db.getByStatus("claimed");
+  const pendingAcceptance = await db.getByStatus("pending_acceptance");
+  const tainted = await db.getByStatus("tainted");
   const crashed = await db.getByStatus("crashed");
   const idle = await db.getByStatus("idle");
   const starting = await db.getByStatus("starting");
-  res.json({ claimed, crashed, idle, starting });
+  res.json({ claimed, pendingAcceptance, tainted, crashed, idle, starting });
 });
 
 app.get("/api/pool/info", (_req, res) => {
@@ -182,6 +202,13 @@ app.post("/api/pool/self-info", async (req, res) => {
   }
 });
 
+/** Detect harness type from a container image reference. */
+function detectHarnessFromImage(image: string): "openclaw" | "hermes" | null {
+  if (image.includes("runtime-hermes")) return "hermes";
+  if (image.includes("convos-runtime")) return "openclaw";
+  return null;
+}
+
 /**
  * Upgrade an instance's runtime image on Railway.
  *
@@ -191,11 +218,18 @@ app.post("/api/pool/self-info", async (req, res) => {
  */
 async function upgradeInstanceRuntime(
   instanceId: string,
-  infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string },
+  infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string; runtimeType?: string | null },
   imageOverride?: string,
 ): Promise<string> {
   const rawImage = imageOverride || config.railwayRuntimeImage;
   if (!rawImage) throw new Error("No runtime image configured");
+
+  // Guard: don't deploy an openclaw image to a hermes instance or vice versa.
+  const targetHarness = detectHarnessFromImage(rawImage);
+  const currentHarness = infra.runtimeType as "openclaw" | "hermes" | null;
+  if (targetHarness && currentHarness && targetHarness !== currentHarness) {
+    throw new Error(`Harness mismatch: instance is ${currentHarness} but image is ${targetHarness} (${rawImage})`);
+  }
 
   const image = await resolveImageDigest(rawImage);
   const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
@@ -261,6 +295,43 @@ app.post("/api/pool/self-reset", async (req, res) => {
   }
 });
 
+// Pending acceptance callbacks — runtime notifies pool when a pending join resolves.
+app.post("/api/pool/pending-acceptance/complete", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken, conversationId } = req.body || {};
+    if (!instanceId || !gatewayToken || !conversationId) {
+      res.status(400).json({ error: "instanceId, gatewayToken, and conversationId are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const updated = await db.completePendingAcceptance(instanceId, conversationId);
+    res.json({ ok: updated, instanceId, conversationId });
+  } catch (err: any) {
+    console.error("[api] pending-acceptance complete failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/pool/pending-acceptance/fail", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken } = req.body || {};
+    if (!instanceId || !gatewayToken) {
+      res.status(400).json({ error: "instanceId and gatewayToken are required" }); return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid instance ID or token" }); return;
+    }
+    const updated = await db.failPendingAcceptance(instanceId);
+    res.json({ ok: updated, instanceId });
+  } catch (err: any) {
+    console.error("[api] pending-acceptance fail failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Self-destruct — instance requests its own destruction.
 // Auth: instance sends its own ID + gateway token (per-instance secret).
 // This prevents instances from destroying each other.
@@ -286,10 +357,33 @@ app.post("/api/pool/self-destruct", async (req, res) => {
   }
 });
 
+// Attest — instance requests a signed attestation for its inbox ID.
+// Auth: instance sends its own ID + gateway token (same as self-destruct).
+app.post("/api/pool/attest", async (req, res) => {
+  try {
+    const { instanceId, gatewayToken, inboxId } = req.body || {};
+    if (!instanceId || !gatewayToken || !inboxId) {
+      res.status(400).json({ error: "instanceId, gatewayToken, and inboxId are required" });
+      return;
+    }
+    const valid = await db.findInstanceByToken(instanceId, gatewayToken);
+    if (!valid) {
+      res.status(403).json({ error: "Invalid credentials" });
+      return;
+    }
+    const result = signAttestation(inboxId);
+    res.json(result);
+  } catch (err: any) {
+    console.error("[api] attest failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // --- Railway webhook (public — auth via secret in URL path) ---
 app.use(webhookRouter);
 app.use(couponRouter);
+app.use(stripeRouter);
 
 // --- Service proxy (instance auth via gateway token) ---
 app.use(serviceProxyRouter);
@@ -388,6 +482,10 @@ app.post("/api/pool/credits-topup", async (req, res) => {
     const updatedMeta = { ...(svc.resourceMeta as any || {}), limit: newLimit };
     await pgDb.update(instanceServices).set({ resourceMeta: updatedMeta }).where(eq(instanceServices.id, svc.id));
 
+    // Lazily ensure a Stripe customer exists (fire-and-forget)
+    stripe.ensureCustomer({ instanceId })
+      .catch((err) => console.warn(`[stripe] Failed to ensure customer for ${instanceId}:`, err.message));
+
     console.log(`[pool] Credits top-up for instance ${instanceId}: $${currentLimit} → $${newLimit}`);
     res.json({ ok: true, previousLimit: currentLimit, newLimit });
   } catch (err: any) {
@@ -402,6 +500,114 @@ app.post("/api/pool/recheck/:id", requireAuth, async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (err: any) {
     console.error("[api] Recheck failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Re-attest — admin triggers a fresh attestation for a running instance.
+app.post("/api/pool/re-attest/:id", requireAuth, async (req, res) => {
+  try {
+    const inst = await db.findById(req.params.id as string);
+    if (!inst) { res.status(404).json({ error: "Instance not found" }); return; }
+    if (!inst.url) { res.status(400).json({ error: "Instance has no URL" }); return; }
+
+    const token = await db.getGatewayToken(inst.id);
+    if (!token) { res.status(400).json({ error: "No gateway token for instance" }); return; }
+
+    // Get inboxId from runtime
+    const statusRes = await authFetch(`${inst.url}/convos/status`, {
+      gatewayToken: token,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!statusRes.ok) {
+      res.status(502).json({ error: `Runtime status check failed: ${statusRes.status}` });
+      return;
+    }
+    const status = await statusRes.json() as { inboxId?: string; conversationId?: string };
+    if (!status.inboxId) {
+      res.status(400).json({ error: "Runtime has no inboxId (agent not provisioned?)" });
+      return;
+    }
+
+    // Sign attestation
+    const attestation = signAttestation(status.inboxId);
+
+    // Push to runtime
+    const reattestRes = await authFetch(`${inst.url}/convos/re-attest`, {
+      gatewayToken: token,
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify(attestation),
+    });
+    if (!reattestRes.ok) {
+      const text = await reattestRes.text();
+      res.status(502).json({ error: `Runtime re-attest failed: ${reattestRes.status} ${text.slice(0, 500)}` });
+      return;
+    }
+
+    res.json({ ok: true, instanceId: inst.id, inboxId: status.inboxId, ...attestation });
+  } catch (err: any) {
+    console.error("[api] re-attest failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Re-attest all active instances (bulk backfill for upgrades / key rotation).
+app.post("/api/pool/re-attest-all", requireAuth, async (req, res) => {
+  try {
+    const claimed = await db.getByStatus(["claimed", "pending_acceptance", "crashed"]);
+    const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+
+    for (const inst of claimed) {
+      if (!inst.url) {
+        results.push({ id: inst.id, ok: false, error: "no URL" });
+        continue;
+      }
+      try {
+        const token = await db.getGatewayToken(inst.id);
+        if (!token) {
+          results.push({ id: inst.id, ok: false, error: "no gateway token" });
+          continue;
+        }
+
+        const statusRes = await authFetch(`${inst.url}/convos/status`, {
+          gatewayToken: token,
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!statusRes.ok) {
+          results.push({ id: inst.id, ok: false, error: `status ${statusRes.status}` });
+          continue;
+        }
+        const status = await statusRes.json() as { inboxId?: string };
+        if (!status.inboxId) {
+          results.push({ id: inst.id, ok: false, error: "no inboxId" });
+          continue;
+        }
+
+        const attestation = signAttestation(status.inboxId);
+        const reattestRes = await authFetch(`${inst.url}/convos/re-attest`, {
+          gatewayToken: token,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify(attestation),
+        });
+        if (!reattestRes.ok) {
+          results.push({ id: inst.id, ok: false, error: `re-attest ${reattestRes.status}` });
+          continue;
+        }
+        results.push({ id: inst.id, ok: true });
+      } catch (err: any) {
+        results.push({ id: inst.id, ok: false, error: err.message?.slice(0, 200) });
+      }
+    }
+
+    const succeeded = results.filter((r) => r.ok).length;
+    const failed = results.filter((r) => !r.ok).length;
+    res.json({ ok: true, total: results.length, succeeded, failed, results });
+  } catch (err: any) {
+    console.error("[api] re-attest-all failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -450,6 +656,7 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
     providerEnvId: instanceInfra.providerEnvId,
     runtimeVersion: instanceInfra.runtimeVersion,
     runtimeImage: instanceInfra.runtimeImage,
+    runtimeType: instanceInfra.runtimeType,
   }).from(instanceInfra).where(inArray(instanceInfra.instanceId, idList));
   const infraById: Record<string, typeof infraRows[0]> = {};
   infraRows.forEach(r => { infraById[r.instanceId] = r; });
@@ -465,8 +672,16 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
       railwayUrl = `https://railway.com/project/${infra.providerProjectId}/service/${infra.providerServiceId}`;
       if (infra.providerEnvId) railwayUrl += `?environmentId=${infra.providerEnvId}`;
     }
-    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, railwayUrl });
+    const runtimeType = infra?.runtimeType || null;
+    const harness = runtimeType || (infra ? detectHarnessFromImage(infra.runtimeImage || "") : null) || "unknown";
+    send({ type: "info", instanceNum: i + 1, instanceId: id, name, version, harness, runtimeType, railwayUrl });
   });
+
+  // Resolve target image label for "from → to" display
+  const targetImage = imageOverride || config.railwayRuntimeImage || "";
+  const targetHarness = detectHarnessFromImage(targetImage);
+  // Extract tag from image (e.g. "ghcr.io/xmtplabs/convos-runtime:dev" → "dev")
+  const targetTag = targetImage.includes(":") ? targetImage.split(":").pop() || "" : "";
 
   let upgraded = 0, failed = 0;
 
@@ -484,8 +699,7 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
     try {
       send({ type: "step", instanceNum, step: "deploy", status: "active", message: "Deploying..." });
       const image = await upgradeInstanceRuntime(id, infra, imageOverride || undefined);
-      send({ type: "step", instanceNum, step: "deploy", status: "ok", message: image });
-      send({ type: "step", instanceNum, step: "done", status: "ok", message: "" });
+      send({ type: "step", instanceNum, step: "done", status: "ok", message: image, targetImage: image, targetTag });
       upgraded++;
     } catch (err: any) {
       send({ type: "step", instanceNum, step: "error", status: "fail", message: err.message });
@@ -494,6 +708,53 @@ app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
   }
 
   send({ type: "complete", upgraded, failed, total: idList.length });
+  res.end();
+});
+
+// --- SSE streaming endpoint for refresh-versions ---
+app.get("/api/pool/refresh-versions/stream", requireAuth, async (req, res) => {
+  const idList = ((req.query.ids as string) || "").split(",").filter(Boolean);
+  if (!idList.length) { res.status(400).json({ error: "No instance IDs" }); return; }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (data: Record<string, any>) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  const rows = await db.getByStatus(["idle", "claimed"]);
+  const targets = rows.filter((r) => idList.includes(r.id));
+  let updated = 0;
+
+  for (let i = 0; i < targets.length; i++) {
+    const row = targets[i];
+    if (!row.url) {
+      send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "skip", reason: "no url" });
+      continue;
+    }
+    try {
+      const token = await db.getGatewayToken(row.id);
+      const hcResult = await pool.healthCheck(row.url, token);
+      if (hcResult.ok) {
+        const hc = hcResult.data;
+        if (hc.version) {
+          await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
+          updated++;
+        }
+        send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "ok", version: hc.version || "unknown", runtime: hc.runtime || "unknown" });
+      } else {
+        send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "fail", reason: hcResult.reason });
+      }
+    } catch (err: any) {
+      send({ type: "result", instanceId: row.id, name: (row as any).agentName || (row as any).name || row.id, status: "fail", reason: err.message });
+    }
+  }
+
+  send({ type: "complete", updated, total: targets.length });
   res.end();
 });
 
@@ -509,11 +770,16 @@ app.post("/api/pool/refresh-versions", requireAuth, async (req, res) => {
       if (!row.url) continue;
       try {
         const token = await db.getGatewayToken(row.id);
-        const hc = await pool.healthCheck(row.url, token);
-        console.log(`[pool] refresh-version ${row.id}: url=${row.url} version=${hc?.version ?? "null"} ready=${hc?.ready ?? "null"}`);
-        if (hc?.version) {
-          await db.setRuntimeVersion(row.id, hc.version);
-          updated++;
+        const hcResult = await pool.healthCheck(row.url, token);
+        if (hcResult.ok) {
+          const hc = hcResult.data;
+          console.log(`[pool] refresh-version ${row.id}: version=${hc.version ?? "null"} runtime=${hc.runtime ?? "null"}`);
+          if (hc.version) {
+            await db.setRuntimeVersion(row.id, hc.version, hc.runtime);
+            updated++;
+          }
+        } else {
+          console.log(`[pool] refresh-version ${row.id}: failed (${hcResult.reason})`);
         }
       } catch (err: any) {
         console.log(`[pool] refresh-version ${row.id}: url=${row.url} error=${err.message}`);
@@ -596,7 +862,7 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 });
 
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
-  const { agentName, instructions, joinUrl, source } = req.body || {};
+  const { agentName, instructions, joinUrl, profileImage, metadata, source } = req.body || {};
   if (instructions && typeof instructions !== "string") {
     res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
@@ -605,6 +871,12 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   }
   if (joinUrl && typeof joinUrl !== "string") {
     res.status(400).json({ error: "joinUrl must be a string if provided" }); return;
+  }
+  if (profileImage && typeof profileImage !== "string") {
+    res.status(400).json({ error: "profileImage must be a string if provided" }); return;
+  }
+  if (metadata && (typeof metadata !== "object" || Array.isArray(metadata))) {
+    res.status(400).json({ error: "metadata must be an object if provided" }); return;
   }
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -618,6 +890,8 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       agentName: agentName || "Assistant",
       instructions: instructions || "You are a helpful AI assistant.",
       joinUrl: joinUrl || undefined,
+      profileImage: (typeof profileImage === "string" && profileImage) || undefined,
+      metadata: metadata || undefined,
       source: (typeof source === "string" && source) || "api",
     });
     if (!result) {
@@ -635,7 +909,18 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   const agentName = (req.query.agentName as string) || "Assistant";
   const instructions = (req.query.instructions as string) || "You are a helpful AI assistant.";
   const joinUrl = (req.query.joinUrl as string) || undefined;
+  const profileImage = (req.query.profileImage as string) || undefined;
   const source = (req.query.source as string) || "api";
+
+  let metadata: Record<string, string> | undefined;
+  if (req.query.metadata) {
+    try {
+      const parsed = JSON.parse(req.query.metadata as string);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        metadata = parsed;
+      }
+    } catch { /* ignore */ }
+  }
 
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -659,6 +944,8 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
       agentName,
       instructions,
       joinUrl,
+      profileImage,
+      metadata,
       source,
       onProgress(step, status, message) {
         send({ type: "step", step, status, message: message || "" });

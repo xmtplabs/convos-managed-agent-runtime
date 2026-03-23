@@ -18,6 +18,21 @@ export async function runMigrations() {
     const db = drizzle(pool);
     await migrate(db, { migrationsFolder: "./drizzle" });
     console.log("[migrate] All migrations complete.");
+
+    // Backfill runtime_type from runtime_image for instances that predate the field.
+    const { rowCount } = await pool.query(`
+      UPDATE instance_infra
+      SET runtime_type = CASE
+        WHEN runtime_image LIKE '%runtime-hermes%' THEN 'hermes'
+        WHEN runtime_image LIKE '%convos-runtime%' THEN 'openclaw'
+      END
+      WHERE runtime_type IS NULL
+        AND runtime_image IS NOT NULL
+        AND (runtime_image LIKE '%convos-runtime%' OR runtime_image LIKE '%runtime-hermes%')
+    `);
+    if (rowCount && rowCount > 0) {
+      console.log(`[migrate] Backfilled runtime_type for ${rowCount} instances.`);
+    }
   } finally {
     await pool.end();
   }

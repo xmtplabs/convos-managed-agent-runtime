@@ -1,0 +1,4 @@
+__pycache__/
+.hermes-dev/
+.eval-home/
+scripts/dev-run.sh

@@ -1,7 +1,16 @@
 import { pgTable, text, timestamp, index, serial, jsonb, unique, integer } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
-export type InstanceStatus = "starting" | "idle" | "claimed" | "crashed" | "claiming" | "dead" | "sleeping";
+export type InstanceStatus =
+  | "starting"
+  | "idle"
+  | "claimed"
+  | "pending_acceptance"
+  | "tainted"
+  | "crashed"
+  | "claiming"
+  | "dead"
+  | "sleeping";
 
 // ── instances ──────────────────────────────────────────────────────────────────
 export const instances = pgTable("instances", {
@@ -31,6 +40,7 @@ export const instanceInfra = pgTable("instance_infra", {
   runtimeImage: text("runtime_image"),
   gatewayToken: text("gateway_token"),
   runtimeVersion: text("runtime_version"),
+  runtimeType: text("runtime_type"),
   volumeId: text("volume_id"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
@@ -63,7 +73,23 @@ export const phoneNumberPool = pgTable("phone_number_pool", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
+// ── payments ──────────────────────────────────────────────────────────────────
+export type PaymentStatus = "pending" | "succeeded" | "failed";
+
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  instanceId: text("instance_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  stripePaymentIntentId: text("stripe_payment_intent_id").notNull().unique(),
+  amountCents: integer("amount_cents").notNull(),
+  status: text("status").$type<PaymentStatus>().notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
+
 // ── Inferred types ─────────────────────────────────────────────────────────────
+export type PaymentRow = InferSelectModel<typeof payments>;
+export type NewPayment = InferInsertModel<typeof payments>;
 export type InstanceRow = InferSelectModel<typeof instances>;
 export type NewInstance = InferInsertModel<typeof instances>;
 export type InfraRow = InferSelectModel<typeof instanceInfra>;
