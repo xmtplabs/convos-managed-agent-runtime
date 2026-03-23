@@ -5,7 +5,7 @@ import * as pool from "./pool";
 import * as db from "./db/pool";
 import { config } from "./config";
 import { requireAuth } from "./middleware/auth";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upgradesPage, apiDocsPage } from "./admin";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upgradesPage, apiDocsPage, skillsPage } from "./admin";
 import { eq, and, inArray } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
@@ -794,6 +794,14 @@ app.get("/admin/api-docs", (req, res) => {
     poolEnvironment: config.poolEnvironment,
     railwayProjectId: config.railwayProjectId,
     railwayEnvironmentId: config.railwayEnvironmentId,
+    adminUrls: POOL_ADMIN_URLS as any,
+  }));
+});
+
+app.get("/admin/skills", (req, res) => {
+  if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
+  res.type("html").send(skillsPage({
+    poolEnvironment: config.poolEnvironment,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
 });
