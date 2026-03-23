@@ -22,6 +22,7 @@ import { stripeRouter } from "./stripeRoute";
 import * as stripe from "./services/providers/stripe";
 import { serviceProxyRouter } from "./routes/serviceProxy";
 import { skillsRouter } from "./routes/skills";
+import { seedCatalog } from "./db/seed";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -1186,4 +1187,6 @@ runMigrations()
 
 app.listen(config.port, () => {
   console.log(`Pool manager listening on :${config.port}`);
+  // Seed catalog on first boot
+  seedCatalog().catch((e) => console.error("[seed] Catalog seed failed:", e));
 });
