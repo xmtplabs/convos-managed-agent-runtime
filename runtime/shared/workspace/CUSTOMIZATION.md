@@ -25,7 +25,11 @@ The `poll.sh` contract:
 - Prints nothing -> silent, no notification sent
 - Errors (stderr) -> logged by poller, never sent to group
 - Must be a valid shell script (sh-compatible)
+- Must complete in under 10 seconds — a slow script blocks the entire poll cycle
+- No LLM calls, no network-heavy work — keep it mechanical (curl a JSON API, read a file, compare timestamps)
 - Has access to `$SKILLS_ROOT` and all env vars the poller inherits
+
+**Always create a new skill directory** for custom poll hooks. Never add `poll.sh` to existing core skills (services, convos-runtime, profile-update) — those are platform-managed and overwritten on deploy.
 
 ### Choosing the right mechanism
 
@@ -35,6 +39,12 @@ The `poll.sh` contract:
 | **Recurring scheduled task** ("every morning at 8am…") | **Cron job** | Wakes the agent on a cron schedule — use for anything the user wants done repeatedly at a specific time |
 | **One-off heavy task** (research, long report) | **Sub-agent** (`sessions_spawn`) | Runs in a background session so you stay responsive |
 | **Proactive nudges, catching cracks** | **Heartbeat** | LLM judgment, 30m cycle — **never touch this; it's managed by the platform** |
+
+**Tiebreaker — poller or cron?**
+- If the task is **checking for new data** (new emails, new RSS posts, price changes) → **poller**. It's mechanical, no LLM needed, and runs every 60s for free.
+- If the task **needs agent judgment at a specific time** ("summarize my inbox every morning", "remind me at 5pm") → **cron job**. It wakes you up to think, costs tokens.
+
+To create a cron job, use the cron tool directly — just describe the schedule and what you want to happen. Example: "Set up a cron job that runs every morning at 8am to check for open threads."
 
 Never modify HEARTBEAT.md or add tasks to the heartbeat cycle.
 
