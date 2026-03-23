@@ -9,218 +9,111 @@ on:
     types: [opened, synchronize, closed]
     paths:
       - 'runtime/**'
-      - '!runtime/CHANGELOG.md'
-      - '!runtime/evals/**'
-      - '!runtime/scripts/**'
+      - '!runtime/*.md'
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   packages: write
 
 jobs:
-  build:
-    name: Build runtime image
+  # ── Prepare ──────────────────────────────────────────────────────────
+  prepare:
+    name: Prepare
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
-      pending: ${{ steps.meta.outputs.pending }}
-      tag: ${{ steps.meta.outputs.tag }}
       sha: ${{ steps.meta.outputs.sha }}
       version: ${{ steps.meta.outputs.version }}
+      pending: ${{ steps.meta.outputs.pending }}
+      publish_tags: ${{ steps.meta.outputs.publish_tags }}
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver: docker
-
-      - name: Compute image tags
-        id: meta
+      - uses: actions/checkout@v5
+      - id: meta
         run: |
           SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
-          TAG="pr-${{ github.event.number }}"
-          VERSION="$(jq -r '.version' runtime/package.json)"
-          echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          VERSION="$(jq -r '.version // "unknown"' runtime/package.json 2>/dev/null || echo 'unknown')"
           echo "sha=sha-$SHA" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "sha=$SHA | tag=$TAG | pending=pending-$SHA | version=$VERSION"
+          echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
+          echo "publish_tags=sha-$SHA pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
 
-      - name: "Build and push v${{ steps.meta.outputs.version }} (:pending-${{ steps.meta.outputs.sha }})"
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: runtime/Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: ghcr.io/xmtplabs/convos-runtime:${{ steps.meta.outputs.pending }}
-          cache-from: type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}
-          cache-to: type=inline
+  # ── Pipelines (parallel) ─────────────────────────────────────────────
+  openclaw:
+    name: OpenClaw
+    needs: prepare
+    uses: ./.github/workflows/runtime-pipeline.yml
+    secrets: inherit
+    with:
+      runtime: openclaw
+      image: ghcr.io/xmtplabs/convos-runtime
+      dockerfile: runtime/openclaw/Dockerfile
+      pending_tag: ${{ needs.prepare.outputs.pending }}
+      publish_tags: ${{ needs.prepare.outputs.publish_tags }}
+      health_path: "/__openclaw__/canvas/"
+      docker_run_extra: "-e OPENCLAW_STATE_DIR=/app"
+      docker_cmd: "node src/pool-server.js"
+      buildx_driver: docker
+      cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
+      cache_to: type=inline
 
-  eval:
-    name: "Eval: ${{ matrix.suite }}"
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - suite: knows
-            timeout: 180
-          - suite: skills
-            timeout: 300
-          - suite: soul
-            timeout: 180
-          - suite: convos
-            timeout: 600
-          - suite: async
-            timeout: 120
-          - suite: memory
-            timeout: 300
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  hermes:
+    name: Hermes
+    needs: prepare
+    uses: ./.github/workflows/runtime-pipeline.yml
+    secrets: inherit
+    with:
+      runtime: hermes
+      image: ghcr.io/xmtplabs/convos-runtime-hermes
+      dockerfile: runtime/hermes/Dockerfile
+      pending_tag: ${{ needs.prepare.outputs.pending }}
+      publish_tags: ${{ needs.prepare.outputs.publish_tags }}
+      needs_checkout: true
 
-      - name: "Start container (:${{ needs.build.outputs.pending }})"
-        run: |
-          docker pull ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }}
-          docker run -d --name eval-runtime \
-            -p 8080:8080 \
-            -e PORT=8080 \
-            -e OPENCLAW_STATE_DIR=/app \
-            -e EVAL_MODE=1 \
-            -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
-            -e BANKR_API_KEY="${{ secrets.BANKR_API_KEY }}" \
-            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
-            -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
-            -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
-            -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            -e POOL_URL="${{ secrets.POOL_URL }}" \
-            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
-            ghcr.io/xmtplabs/convos-runtime:${{ needs.build.outputs.pending }} \
-            node scripts/pool-server.js
-
-      - name: Wait for gateway
-        run: |
-          SECONDS=0
-          while (( SECONDS < 120 )); do
-            if curl -sf http://localhost:8080/pool/health | grep -q '"ready":true'; then
-              echo "Gateway ready after ${SECONDS}s"
-              exit 0
-            fi
-            sleep 0.25
-          done
-          echo "Gateway failed to start within 120s"
-          docker logs eval-runtime
-          exit 1
-
-      - name: "Run ${{ matrix.suite }} suite"
-        run: |
-          docker exec \
-            -e EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }} \
-            eval-runtime timeout ${{ matrix.timeout }} pnpm evals:${{ matrix.suite }}
-
-      - name: Dump container logs
-        if: always()
-        run: docker logs eval-runtime
-
-  publish:
-    name: "Publish v${{ needs.build.outputs.version }}"
-    needs: [build, eval]
-    if: always() && needs.build.result == 'success' && needs.eval.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Retag v${{ needs.build.outputs.version }} (:${{ needs.build.outputs.pending }} → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }})"
-        run: |
-          IMAGE="ghcr.io/xmtplabs/convos-runtime"
-          PENDING="${{ needs.build.outputs.pending }}"
-
-          AUTH="$HOME/.docker/config.json"
-          skopeo copy --all --authfile "$AUTH" \
-            "docker://$IMAGE:$PENDING" \
-            "docker://$IMAGE:${{ needs.build.outputs.sha }}"
-          skopeo copy --all --authfile "$AUTH" \
-            "docker://$IMAGE:$PENDING" \
-            "docker://$IMAGE:pr-${{ github.event.number }}"
-          echo "Retagged → :${{ needs.build.outputs.sha }}, :pr-${{ github.event.number }}"
-
+  # ── Promote on merge ─────────────────────────────────────────────────
   promote:
-    name: "Promote on merge"
+    name: Promote on merge
     if: github.event.action == 'closed' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+      - uses: docker/login-action@v4
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Map branch → environment tag"
+      - name: "Map branch → env tag"
         id: env
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
-          VERSION="$(jq -r '.version' runtime/package.json)"
           case "$BASE" in
-            scaling) echo "tag=scaling" >> "$GITHUB_OUTPUT" ;;
-            dev)     echo "tag=dev" >> "$GITHUB_OUTPUT" ;;
-            staging) echo "tag=staging" >> "$GITHUB_OUTPUT" ;;
-            main)    echo "tag=production" >> "$GITHUB_OUTPUT" ;;
-            *)       echo "tag=" >> "$GITHUB_OUTPUT" ;;
-          esac
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            scaling) echo "tag=scaling" ;; dev) echo "tag=dev" ;; staging) echo "tag=staging" ;; main) echo "tag=production" ;; *) echo "tag=" ;;
+          esac >> "$GITHUB_OUTPUT"
 
-      - name: "Verify source image exists"
-        id: verify
+      - name: Promote OpenClaw
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
-          if skopeo inspect --authfile "$HOME/.docker/config.json" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "Source image $IMAGE:sha-$SHA exists"
+          TAG="${{ steps.env.outputs.tag }}"
+          AUTH="$HOME/.docker/config.json"
+          if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+            skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
+            echo "Promoted OpenClaw → :$TAG"
           else
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Source image $IMAGE:sha-$SHA not found — skipping promote (no runtime/ changes were built for this PR)"
+            echo "::warning::OpenClaw image sha-$SHA not found — skipping"
           fi
 
-      - name: "Promote v${{ steps.env.outputs.version }} → :${{ steps.env.outputs.tag }}"
-        if: steps.env.outputs.tag != '' && steps.verify.outputs.found == 'true'
+      - name: Promote Hermes
+        if: steps.env.outputs.tag != ''
         run: |
-          IMAGE="ghcr.io/xmtplabs/convos-runtime"
+          IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
           SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
-          ENV_TAG="${{ steps.env.outputs.tag }}"
-
-          echo "Promoting v${{ steps.env.outputs.version }}: $IMAGE:sha-$SHA → $IMAGE:$ENV_TAG"
+          TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
-          skopeo copy --all --authfile "$AUTH" \
-            "docker://$IMAGE:sha-$SHA" \
-            "docker://$IMAGE:$ENV_TAG"
-          echo "Done: $IMAGE:$ENV_TAG (v${{ steps.env.outputs.version }})"
+          if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+            skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
+            echo "Promoted Hermes → :$TAG"
+          else
+            echo "::warning::Hermes image sha-$SHA not found — skipping"
+          fi

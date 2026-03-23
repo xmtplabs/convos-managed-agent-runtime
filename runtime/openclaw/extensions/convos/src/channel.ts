@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   DEFAULT_ACCOUNT_ID,
   deleteAccountFromConfigSection,
@@ -24,6 +25,39 @@ import { convosOutbound, getConvosInstance, setConvosInstance } from "./outbound
 import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
+import { clearConvosCredentials } from "./credentials.js";
+import { stats } from "./stats.js";
+
+let _cachedMessagingHints: string[] | null = null;
+
+function loadConvosMessagingHints(): string[] {
+  if (_cachedMessagingHints) return _cachedMessagingHints;
+  let thisDir: string | undefined;
+  try {
+    thisDir = path.dirname(fileURLToPath(import.meta.url));
+  } catch {
+    // jiti or non-file: URL — skip this candidate
+  }
+  const candidates = [
+    path.resolve(process.env.OPENCLAW_STATE_DIR || ".", "workspace", "CONVOS_PLATFORM.md"),
+    ...(thisDir ? [path.resolve(thisDir, "..", "..", "workspace", "CONVOS_PLATFORM.md")] : []),
+  ];
+  for (const hintsPath of candidates) {
+    try {
+      const content = fs.readFileSync(hintsPath, "utf-8");
+      _cachedMessagingHints = content
+        .split("\n---\n")
+        .map((s) => s.split("\n").filter((line) => !line.startsWith("#")).join("\n").trim())
+        .filter((s) => s.length > 0);
+      return _cachedMessagingHints;
+    } catch {
+      continue;
+    }
+  }
+  console.warn("CONVOS_PLATFORM.md not found — agent will lack messaging hints");
+  _cachedMessagingHints = [];
+  return _cachedMessagingHints;
+}
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
@@ -60,14 +94,18 @@ const meta = {
 function normalizeConvosMessagingTarget(raw: string): string | undefined {
   let normalized = raw.trim();
   if (!normalized) {
-    return undefined;
+    // No explicit target — fall back to the bound conversation so cron jobs
+    // (and other callers) that omit delivery.to still route correctly.
+    const inst = getConvosInstance();
+    return inst?.conversationId;
   }
   const lowered = normalized.toLowerCase();
   if (lowered.startsWith("convos:")) {
     normalized = normalized.slice("convos:".length).trim();
   }
   if (!normalized) {
-    return undefined;
+    const inst = getConvosInstance();
+    return inst?.conversationId;
   }
   // Single-conversation process: if the target isn't already a conversation ID,
   // resolve it to the bound conversation so the framework's looksLikeId check
@@ -167,16 +205,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   onboarding: convosOnboardingAdapter,
   actions: convosMessageActions,
   agentPrompt: {
-    messageToolHints: () => [
-      "- To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID. In a 2-member conversation, only use `replyTo` when referencing an older message — replying to the most recent message is redundant when there is only one other person.",
-      "- For reactions: use `action=react` with `messageId` and `emoji`.",
-      "- To send a file: use `action=sendAttachment` with `file` (local path).",
-      "- To read history, members, or info: use the exec tool with `convos conversation <subcommand> $CONVOS_CONVERSATION_ID`. The `$CONVOS_CONVERSATION_ID` env var is always set — use it directly, never hard-code or look up the ID.",
-      "- To update your display name or avatar: use `action=send` with `message=\"/update-profile --name \\\"Name\\\"\"` or add `--image \\\"https://...\\\"`. The command is intercepted — it won't be sent as a message.",
-      "- CRITICAL — NEVER narrate tool calls: Every text block you produce becomes a separate chat message pushed to every member's phone. NEVER write text before, between, or alongside tool calls — not even to report errors, explain retries, or describe a change in approach. If a tool fails, silently try the next approach. Call all tools silently, then write ONE message after you have the final result. This overrides the Tool Call Style defaults above.",
-      "- Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji=\"👀\"` — literal emoji, not a shortcode) to signal you are working on it. After you post the final result, remove the reaction (`action=react`, `remove=true`).",
-      "- CRITICAL — Do not reply endlessly: You do NOT need to reply to every message. After you send a message, your turn is OVER. If the response to your message is acknowledgment, agreement, thanks, encouragement, or anything that does not directly ask you a question or give you a task — do not reply. Stay silent or react with an emoji. You are not obligated to respond just because someone (human or agent) responded to you.",
-    ],
+    messageToolHints: () => loadConvosMessagingHints(),
   },
   config: {
     listAccountIds: (cfg) => listConvosAccountIds(cfg as CoreConfig),
@@ -461,6 +490,15 @@ async function handleInboundMessage(
     return;
   }
 
+  // Telemetry: count inbound messages (skip catchup, group_updated, reactions)
+  if (inst && !msg.catchup && msg.contentType !== "group_updated" && msg.contentType !== "reaction") {
+    stats.increment("messages_in");
+    const members = inst.getGroupMembers();
+    if (members) {
+      stats.set("group_member_count", members.split(", ").length);
+    }
+  }
+
   if (
     inst &&
     !msg.catchup &&
@@ -472,6 +510,9 @@ async function handleInboundMessage(
     } catch (err) {
       errorLog(`[${account.accountId}] Failed to renew profile image on activity: ${String(err)}`);
     }
+
+    // Fire-and-forget read receipt for non-catchup messages
+    inst.sendReadReceipt().catch(() => {});
   }
 
   const cfg = runtime.config.loadConfig();
@@ -1002,6 +1043,39 @@ async function dispatchGreeting(
   await handleInboundMessage(account, syntheticMsg, runtime);
 }
 
+/**
+ * Dispatch a background notification (email/SMS) as a synthetic system message.
+ * The agent sees it and responds immediately over XMTP, but the notification
+ * prompt itself is never sent to the conversation (same as greeting dispatch).
+ */
+export async function dispatchNotification(text: string): Promise<void> {
+  const inst = getConvosInstance();
+  if (!inst) {
+    throw new Error("No active conversation");
+  }
+
+  const runtime = getConvosRuntime();
+  if (!runtime) {
+    throw new Error("No runtime available");
+  }
+
+  const cfg = runtime.config.loadConfig() as CoreConfig;
+  const account = resolveConvosAccount({ cfg });
+
+  const syntheticMsg: InboundMessage = {
+    conversationId: inst.conversationId,
+    messageId: `system-notify-${crypto.randomUUID()}`,
+    senderId: SYSTEM_SENDER_ID,
+    senderName: "System",
+    content: text,
+    contentType: "text",
+    timestamp: new Date(),
+  };
+
+  console.log("[convos] Dispatching notification message");
+  await handleInboundMessage(account, syntheticMsg, runtime);
+}
+
 async function dispatchWorkspaceRefresh(
   account: ResolvedConvosAccount,
   runtime: PluginRuntime,
@@ -1090,6 +1164,14 @@ export async function startWiredInstance(params: {
   setConvosInstance(inst);
   await inst.start();
 
+  const posthogApiKey = process.env.POSTHOG_API_KEY || "";
+  const posthogHost = process.env.POSTHOG_HOST || "https://us.i.posthog.com";
+  const instanceId = process.env.INSTANCE_ID || "";
+  if (posthogApiKey && instanceId) {
+    const environment = process.env.POOL_ENVIRONMENT || "";
+    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "" });
+  }
+
   // Fire-and-forget: dispatch LLM-generated welcome message.
   // Does not block startWiredInstance from returning to the pool manager.
   dispatchGreeting(account, runtime).catch((err) => {
@@ -1099,6 +1181,7 @@ export async function startWiredInstance(params: {
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
   clearConversationExpirationCheck(accountId, log, false);
+  await stats.shutdown();
   const inst = getConvosInstance();
   if (inst) {
     try {
@@ -1118,6 +1201,7 @@ async function stopInstance(accountId: string, log?: RuntimeLogger) {
  */
 export async function selfDestruct(reason?: string): Promise<void> {
   clearConversationExpirationCheck(DEFAULT_ACCOUNT_ID, undefined, false);
+  await stats.shutdown();
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -1142,6 +1226,9 @@ export async function selfDestruct(reason?: string): Promise<void> {
   if (!poolSelfDestructAck) {
     await disableConvosAccountAfterSelfDestruct(reason);
   }
+
+  // Clear persisted credentials so /convos/status reports conversationId=null
+  clearConvosCredentials();
 
   // Stop the Convos instance and unblock startAccount so the gateway exits
   const inst = getConvosInstance();

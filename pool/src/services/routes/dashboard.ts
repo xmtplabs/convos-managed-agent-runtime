@@ -17,7 +17,7 @@ dashboardRouter.get("/dashboard/instances", async (_req, res) => {
     const result = await db.execute(sql`
       SELECT i.instance_id, i.provider, i.provider_service_id, i.provider_env_id,
              i.provider_project_id, i.url, i.deploy_status, i.runtime_image,
-             i.runtime_version, i.volume_id, i.created_at, i.updated_at,
+             i.runtime_version, i.runtime_type, i.volume_id, i.created_at, i.updated_at,
              COALESCE(json_agg(json_build_object(
                'id', s.id, 'instance_id', s.instance_id, 'tool_id', s.tool_id,
                'resource_id', s.resource_id, 'resource_meta', s.resource_meta,

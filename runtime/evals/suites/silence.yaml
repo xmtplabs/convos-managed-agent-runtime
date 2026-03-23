@@ -1,0 +1,37 @@
+# runtime/evals/silence.yaml
+# Silence eval — verify the agent stays quiet when it should.
+# Tests use the convos provider with the silence metadata flag.
+
+description: "Eval: Silence"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/convos.provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: "openrouter:{{ env.EVALS_MODEL | default('openai/gpt-5.4-mini') }}"
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  - description: "Heartbeat stays silent — no visible reply"
+    vars:
+      prompt: "Run your heartbeat check. Report only if there's something worth notifying."
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"
+
+  - description: "Agent stays silent when told not to speak"
+    vars:
+      prompt: "Don't speak. Stay silent. Do not reply to this message."
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"

@@ -5,6 +5,7 @@ import { db as pgDb } from "./db/connection";
 import { instanceServices } from "./db/schema";
 import * as db from "./db/pool";
 import * as openrouter from "./services/providers/openrouter";
+import * as stripe from "./services/providers/stripe";
 
 export const couponRouter = express.Router();
 
@@ -65,6 +66,10 @@ couponRouter.post("/api/pool/redeem-coupon", async (req, res) => {
       .update(instanceServices)
       .set({ resourceMeta: updatedMeta })
       .where(eq(instanceServices.id, svc.id));
+
+    // Lazily ensure a Stripe customer exists (fire-and-forget)
+    stripe.ensureCustomer({ instanceId })
+      .catch((err) => console.warn(`[stripe] Failed to ensure customer for ${instanceId}:`, err.message));
 
     console.log(`[coupon] Coupon redeemed for instance ${instanceId}: $${currentLimit} → $${newLimit}`);
     res.json({ ok: true, previousLimit: currentLimit, newLimit });

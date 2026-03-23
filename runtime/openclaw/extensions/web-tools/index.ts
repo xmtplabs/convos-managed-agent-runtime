@@ -77,7 +77,9 @@ async function getServicesData(): Promise<Record<string, unknown>> {
   if (!email) email = process.env.AGENTMAIL_INBOX_ID || null;
   if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
 
-  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId };
+  // Show shortened pool URL so the user can tell if they're hitting localhost or Railway
+  const poolHost = poolUrl ? new URL(poolUrl).host : null;
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId, poolHost };
 
   // Fetch runtime version/image from pool
   if (instanceId && gatewayToken && poolUrl) {
@@ -137,8 +139,13 @@ function buildServicesUrl(): string {
 }
 
 export default function register(api: OpenClawPluginApi) {
-  const agentsDir = path.resolve(__dirname, "convos");
-  const servicesDir = path.resolve(__dirname, "services");
+  // Docker: /app/web-tools/. Local: apply-config.sh copies to STATE_DIR/web-tools/.
+  const stateWebTools = path.join(process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"), "web-tools");
+  const sharedRoot = fs.existsSync("/app/web-tools") ? "/app/web-tools"
+    : fs.existsSync(stateWebTools) ? stateWebTools
+    : __dirname;
+  const agentsDir = path.resolve(sharedRoot, "convos");
+  const servicesDir = path.resolve(sharedRoot, "services");
 
   api.registerHttpRoute({
     path: "/web-tools/convos",
@@ -198,6 +205,19 @@ export default function register(api: OpenClawPluginApi) {
         "application/javascript",
         "max-age=0",
       );
+    },
+  });
+
+  api.registerHttpRoute({
+    path: "/web-tools/convos/landing.css",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      serveFile(res, path.join(agentsDir, "landing.css"), "text/css", "max-age=3600");
     },
   });
 

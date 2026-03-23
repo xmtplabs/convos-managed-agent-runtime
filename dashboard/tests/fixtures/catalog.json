@@ -1110,21 +1110,6 @@
     "notionPageId": "30730823ce928177a901e254c1a012e0"
   },
   {
-    "slug": "bankr",
-    "name": "Bankr",
-    "description": "On-chain crypto agent. Multi-chain wallet management, trading with safety layer, prediction markets, DeFi, portfolio tracking, group trading floor.",
-    "category": "Superpowers",
-    "emoji": "⚡",
-    "skills": [
-      "Web Search",
-      "Browsing",
-      "Payments",
-      "Scheduling"
-    ],
-    "status": "written",
-    "notionPageId": "30730823ce92813486a4ce2d2a6d0270"
-  },
-  {
     "slug": "the-prediction-manager",
     "name": "The Prediction Manager",
     "description": "Prediction market tracker and group opinion manager. Market monitoring, group consensus, resolution scoring, leaderboards, category tracking.",

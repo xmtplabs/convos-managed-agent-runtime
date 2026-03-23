@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#f5f5f5">
+  <title>convos assistant</title>
+  <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <link rel="manifest" href="/web-tools/convos/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/web-tools/convos/landing.css">
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+        <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+      </svg>
+      <span>convos assistant</span>
+    </div>
+    <div class="status-bar" id="status-bar">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">checking…</span>
+    </div>
+    <a class="qr-wrap" id="qr-wrap" href="#" target="_blank" rel="noopener" style="display: none;">
+      <img id="qr-img" src="" width="240" height="240" alt="QR code">
+      <div class="icon-center" aria-hidden="true">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <style>.s0{fill:#000}.s1{fill:#fff}.s2{fill:none;stroke:#000;stroke-width:7.2}</style>
+          <path fill-rule="evenodd" class="s0" d="m24 0h72c13.25 0 24 10.75 24 24v72c0 13.25-10.75 24-24 24h-72c-13.25 0-24-10.75-24-24v-72c0-13.25 10.75-24 24-24z"/>
+          <path fill-rule="evenodd" class="s1" d="m60 30c16.57 0 30 13.43 30 30 0 16.57-13.43 30-30 30-16.57 0-30-13.43-30-30 0-16.57 13.43-30 30-30z"/>
+          <path class="s2" d="m40 60h40"/>
+          <path class="s2" d="m50 60h40"/>
+          <path class="s2" d="m60 40v40"/>
+          <path class="s2" d="m45.9 45.86l28.28 28.28"/>
+          <path class="s2" d="m45.9 74.14l28.28-28.28"/>
+        </svg>
+      </div>
+    </a>
+    <div id="qr-placeholder">
+      <div class="screen screen-modes" id="screen-modes">
+        <button type="button" class="mode-join-btn" id="mode-join-btn">Add to existing Convo</button>
+        <div class="divider" aria-hidden="true">— or —</div>
+        <div class="mode-create">
+          <button type="button" id="create-btn">Create new agent</button>
+        </div>
+      </div>
+      <div class="screen screen-join" id="screen-join" style="display: none;">
+        <input id="invite-input" type="text" placeholder="Paste invite link" autocomplete="off" />
+        <button type="button" id="join-btn">Join</button>
+        <a id="join-open-link" class="join-open-link" href="#" target="_blank" rel="noopener" style="display: none;">Open in Convos</a>
+        <p id="gateway-tip" class="gateway-tip" style="display: none;"></p>
+      </div>
+      <span id="placeholder-text" style="display: none;">Loading…</span>
+      <div class="screen screen-connected" id="screen-connected" style="display: none;">
+        <div class="connected-balloon" aria-hidden="true">
+          <svg viewBox="0 0 56 78" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M28 56C43.464 56 56 43.464 56 28C56 12.536 43.464 0 28 0C12.536 0 0 12.536 0 28C0 43.464 12.536 56 28 56Z" fill="#FC4F37"/>
+            <ellipse cx="18" cy="18" rx="6" ry="8" transform="rotate(-30 18 18)" fill="white" opacity="0.18"/>
+            <path d="M28 56L34 68H22L28 56Z" fill="#FC4F37"/>
+            <line x1="28" y1="68" x2="28" y2="78" stroke="#FC4F37" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 2.5"/>
+          </svg>
+        </div>
+        <div class="connected-label">Conversation bound</div>
+        <div class="convo-id" id="convo-id"></div>
+        <button type="button" id="reset-btn" class="reset-btn">Reset identity</button>
+      </div>
+    </div>
+    <div id="error" class="error" role="alert"></div>
+  </div>
+
+  <footer class="footer" id="footer">alpha</footer>
+
+  <script>
+    (function () {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/web-tools/convos/sw.js", { scope: "/web-tools/convos/" }).catch(function () {});
+      }
+
+      var qrWrap = document.getElementById("qr-wrap");
+      var qrImg = document.getElementById("qr-img");
+      var placeholder = document.getElementById("qr-placeholder");
+      var placeholderText = document.getElementById("placeholder-text");
+      var screenModes = document.getElementById("screen-modes");
+      var screenJoin = document.getElementById("screen-join");
+      var screenConnected = document.getElementById("screen-connected");
+      var joinBtn = document.getElementById("join-btn");
+      var createBtn = document.getElementById("create-btn");
+      var modeJoinBtn = document.getElementById("mode-join-btn");
+      var inviteInput = document.getElementById("invite-input");
+      var errorEl = document.getElementById("error");
+      var gatewayTip = document.getElementById("gateway-tip");
+      var joinOpenLink = document.getElementById("join-open-link");
+      var statusDot = document.getElementById("status-dot");
+      var statusText = document.getElementById("status-text");
+      var convoIdEl = document.getElementById("convo-id");
+      var testMsgInput = document.getElementById("test-msg-input");
+      var sendTestBtn = document.getElementById("send-test-btn");
+
+      // Auth token injected by web-tools server
+      var poolToken = window.__POOL_TOKEN || "";
+      function authHeaders(extra) {
+        var h = extra || {};
+        if (poolToken) h["Authorization"] = "Bearer " + poolToken;
+        return h;
+      }
+
+      function setStatus(state, text) {
+        statusDot.className = "status-dot" + (state ? " status-dot--" + state : "");
+        statusText.textContent = text;
+      }
+
+      function hideAllScreens() {
+        screenModes.style.display = "none";
+        screenJoin.style.display = "none";
+        screenConnected.style.display = "none";
+        placeholderText.style.display = "none";
+        qrWrap.style.display = "none";
+      }
+
+      function showConnected(convoId, streaming) {
+        hideAllScreens();
+        placeholder.style.display = "flex";
+        screenConnected.style.display = "flex";
+        convoIdEl.textContent = convoId;
+        setStatus(streaming ? "streaming" : "connected", streaming ? "streaming" : "connected");
+      }
+
+      function isGatewayOrigin() {
+        var h = window.location.hostname;
+        return h === "localhost" || h === "127.0.0.1";
+      }
+
+      function showGatewayTipIfNeeded() {
+        if (!gatewayTip) return;
+        if (isGatewayOrigin()) {
+          gatewayTip.style.display = "none";
+          return;
+        }
+        gatewayTip.textContent = "Join only works when this page is opened from your agent's public URL. Open your agent URL + /web-tools/convos, then paste the invite and click Join.";
+        gatewayTip.style.display = "block";
+      }
+
+      function showError(msg) {
+        errorEl.textContent = msg || "";
+        errorEl.className = "error";
+        errorEl.style.display = msg ? "block" : "none";
+      }
+
+      function showSuccess(msg) {
+        errorEl.textContent = msg || "";
+        errorEl.className = "success";
+        errorEl.style.display = msg ? "block" : "none";
+      }
+
+      function showTwoModes() {
+        hideAllScreens();
+        placeholder.style.display = "flex";
+        screenModes.style.display = "flex";
+      }
+
+      function showLoading() {
+        hideAllScreens();
+        placeholder.style.display = "flex";
+        placeholderText.textContent = "Loading…";
+        placeholderText.style.display = "inline";
+        placeholder.classList.add("loading");
+      }
+
+      // Check /convos/status on page load
+      function checkStatus() {
+        fetch("/convos/status", { headers: authHeaders() })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok) {
+              setStatus("error", "error: " + (_.data.error || "status " + _.data.status));
+              showTwoModes();
+              return;
+            }
+            var d = _.data;
+            if (d.conversationId) {
+              showConnected(d.conversationId, false);
+            } else {
+              setStatus(null, "no conversation bound");
+              showTwoModes();
+            }
+          })
+          .catch(function (err) {
+            setStatus("error", "unreachable");
+            showTwoModes();
+          });
+      }
+
+      checkStatus();
+
+      modeJoinBtn.addEventListener("click", function () {
+        showError("");
+        showGatewayTipIfNeeded();
+        if (joinOpenLink) { joinOpenLink.style.display = "none"; }
+        if (joinBtn) { joinBtn.style.display = "block"; }
+        hideAllScreens();
+        placeholder.style.display = "flex";
+        screenJoin.style.display = "flex";
+      });
+
+      function fetchInvite() {
+        showError("");
+        showLoading();
+        setStatus(null, "creating conversation…");
+
+        fetch("/convos/conversation", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ name: "Convos Agent" }),
+        })
+          .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; }); })
+          .then(function (_) {
+            placeholder.classList.remove("loading");
+            if (!_.ok) {
+              if (_.status === 409) {
+                // Already bound — refresh status to show connected view
+                showError("");
+                checkStatus();
+                return;
+              }
+              showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
+              showTwoModes();
+              setStatus("error", "create failed");
+              return;
+            }
+            var inviteUrl = _.data.inviteUrl;
+            if (!inviteUrl) {
+              showError("No inviteUrl in response: " + JSON.stringify(_.data));
+              showTwoModes();
+              return;
+            }
+            setStatus("connected", "created — scan QR to join");
+            var qrSrc = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=" + encodeURIComponent(inviteUrl);
+            qrImg.src = qrSrc;
+            qrImg.alt = "QR code — " + inviteUrl;
+            qrWrap.href = inviteUrl;
+            hideAllScreens();
+            placeholder.style.display = "none";
+            qrWrap.style.display = "block";
+          })
+          .catch(function (err) {
+            placeholder.classList.remove("loading");
+            showError("Network error: " + (err.message || err));
+            showTwoModes();
+            setStatus("error", "network error");
+          });
+      }
+
+      joinBtn.addEventListener("click", function () {
+        var url = (inviteInput.value || "").trim();
+        if (!url) {
+          showError("Paste an invite link first.");
+          return;
+        }
+        showError("");
+        joinBtn.disabled = true;
+        joinBtn.textContent = "Joining…";
+        setStatus(null, "joining…");
+        fetch("/convos/join", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ inviteUrl: url }),
+        })
+          .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; }); })
+          .then(function (_) {
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Join";
+            if (_.ok) {
+              var status = _.data.status;
+              if (status === "joined") {
+                showSuccess("Joined.");
+                checkStatus();
+              } else {
+                showSuccess("Join request sent. Waiting for approval.");
+                setStatus(null, "waiting for approval");
+              }
+              if (joinOpenLink && url) {
+                joinOpenLink.href = url;
+                joinOpenLink.style.display = "block";
+                joinBtn.style.display = "none";
+              }
+            } else {
+              if (_.status === 409) {
+                showError("");
+                checkStatus();
+                return;
+              }
+              showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
+              setStatus("error", "join failed");
+            }
+          })
+          .catch(function (err) {
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Join";
+            showError("Network error: " + (err.message || err));
+            setStatus("error", "network error");
+          });
+      });
+
+      createBtn.addEventListener("click", function () {
+        fetchInvite();
+      });
+
+      // Reset identity
+      var resetBtn = document.getElementById("reset-btn");
+      resetBtn.addEventListener("click", function () {
+        if (!confirm("Reset convos identity? This will create a fresh identity and clear the current conversation.")) return;
+        showError("");
+        resetBtn.disabled = true;
+        resetBtn.textContent = "Resetting…";
+        setStatus(null, "resetting…");
+        fetch("/convos/reset", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({}),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); })
+          .then(function (_) {
+            resetBtn.disabled = false;
+            resetBtn.textContent = "Reset identity";
+            if (_.ok) {
+              showSuccess("Identity reset.");
+              setStatus(null, "no conversation bound");
+              showTwoModes();
+            } else {
+              showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
+              setStatus("error", "reset failed");
+            }
+          })
+          .catch(function (err) {
+            resetBtn.disabled = false;
+            resetBtn.textContent = "Reset identity";
+            showError("Reset failed: " + (err.message || err));
+            setStatus("error", "network error");
+          });
+      });
+
+      // Send test message
+      sendTestBtn.addEventListener("click", function () {
+        var msg = (testMsgInput.value || "").trim();
+        if (!msg) return;
+        sendTestBtn.disabled = true;
+        sendTestBtn.textContent = "Sending…";
+        showError("");
+        fetch("/convos/conversation/send", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ message: msg }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, data: d }; }); })
+          .then(function (_) {
+            sendTestBtn.disabled = false;
+            sendTestBtn.textContent = "Send";
+            if (_.ok) {
+              showSuccess("Sent.");
+            } else {
+              showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
+            }
+          })
+          .catch(function (err) {
+            sendTestBtn.disabled = false;
+            sendTestBtn.textContent = "Send";
+            showError("Send failed: " + (err.message || err));
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

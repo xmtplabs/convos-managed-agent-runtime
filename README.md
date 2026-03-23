@@ -40,35 +40,28 @@ assistants.convos.org          Pool Manager              Railway
 
 ```
 convos-agents/
-├── runtime/       # Assistant runtime — OpenClaw gateway, extensions, skills
-│   └── scripts/   # Startup, provisioning, health, and cron scripts
-├── pool/          # Pool manager — instance lifecycle + provider APIs
-└── dashboard/     # Playroom — Next.js app at assistants.convos.org
+├── runtime/           # Agent harnesses, shared evals, shared .env
+│   ├── openclaw/      #   OpenClaw harness (gateway + extensions + skills)
+│   ├── hermes/        #   Hermes harness (Python FastAPI + XMTP bridge)
+│   └── evals/         #   Shared eval suite (Promptfoo, multi-harness)
+├── pool/              # Pool manager + provider services (Express API + Postgres)
+├── workers/           # Cloudflare Workers
+│   └── credits-sweep/ #   Per-instance OpenRouter credit tracking → PostHog
+└── dashboard/         # Playroom — Next.js app at assistants.convos.org
 ```
 
 ## Runtime
 
-The assistant runtime image. Each instance runs as a container on Railway with an [OpenClaw](https://openclaw.io) gateway, the Convos channel extension, and a set of skills.
+Multi-harness architecture — each harness has its own Dockerfile, deps, and scripts under `runtime/`. Shared infrastructure (skills, personality, evals, `.env`, version) lives at the runtime root. Currently: **OpenClaw** (Node.js, primary) and **Hermes** (Python, experimental).
 
-**Startup sequence** (`runtime/scripts/`):
-
-| Script | What it does |
-|--------|-------------|
-| `keys.sh` | Provisions API keys (OpenRouter, AgentMail) and displays env status |
-| `apply-config.sh` | Syncs workspace, extensions, and config to the state directory |
-| `install-deps.sh` | Installs extension dependencies |
-| `gateway.sh` | Starts the OpenClaw gateway with crash recovery and cron seeding |
-| `poller.sh` | Background email/SMS poller (no LLM) |
-| `pool-server.js` | Health, provision, and status endpoints for pool integration |
-
-**Skills** — what each assistant can do:
+**Skills** — shared across both runtimes:
 
 | Skill | Capability |
 |-------|-----------|
-| [`services`](runtime/openclaw/workspace/skills/services/) | Email, SMS, credits, and account info |
-| [`bankr`](runtime/openclaw/workspace/skills/bankr/) | Payments, transfers, and swaps |
-| [`convos-cli`](runtime/openclaw/workspace/skills/convos-cli/) | Convos client operations |
-| [`convos-runtime`](runtime/openclaw/workspace/skills/convos-runtime/) | Version check and runtime upgrade |
+| [`services`](runtime/shared/workspace/skills/services/) | Email, SMS, credits, and account info |
+
+| [`convos-cli`](runtime/shared/workspace/skills/convos-cli/) | Convos client operations |
+| [`convos-runtime`](runtime/shared/workspace/skills/convos-runtime/) | Version check and runtime upgrade |
 
 See [`runtime/README.md`](runtime/README.md) for environment variables, Docker setup, and CI.
 
@@ -107,6 +100,17 @@ See [`dashboard/README.md`](dashboard/README.md) for setup, routes, and deployme
 
 Returns an `inviteUrl` to share (QR code or deep link). Omit `joinUrl` to create a new conversation.
 
+## Telemetry
+
+Privacy-preserving usage analytics via [PostHog](https://posthog.com). Counts only — no message content, no PII.
+
+| Pipeline | Source | Event | Frequency | Transport |
+|----------|--------|-------|-----------|-----------|
+| Usage stats | Each runtime | `instance_stats` | Every 60s | Runtime → PostHog directly |
+| Credit spend | Cloudflare Worker | `instance_credits` | Every 15min | Worker → PostHog |
+
+Runtimes require `POSTHOG_API_KEY` and `POSTHOG_HOST` env vars (forwarded by the pool manager). The credits sweep Worker runs independently — see [`workers/credits-sweep/`](workers/credits-sweep/).
+
 ## Providers
 
 | Provider | Role | Integration |
@@ -115,4 +119,3 @@ Returns an `inviteUrl` to share (QR code or deep link). Omit `joinUrl` to create
 | [Railway](https://railway.com) | Container compute for each assistant | [`railway.ts`](pool/src/services/providers/railway.ts) |
 | [AgentMail](https://agentmail.to) | Per-assistant email inbox | [`agentmail.ts`](pool/src/services/providers/agentmail.ts) |
 | [Telnyx](https://telnyx.com) | Per-assistant US phone number for SMS | [`telnyx.ts`](pool/src/services/providers/telnyx.ts) |
-| [Bankr](https://bankr.bot) | Per-assistant wallet | [`wallet.ts`](pool/src/services/providers/wallet.ts) |

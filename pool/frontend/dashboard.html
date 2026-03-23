@@ -38,6 +38,7 @@
         <a href="/admin/upgrades" class="nav-link">Upgrades</a>
         <a href="/admin/api-docs" class="nav-link">API</a>
         <a id="railway-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Railway <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
+        <a id="playroom-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Playroom <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
         <div class="nav-sep"></div>
         <form method="POST" action="/admin/logout" style="display:contents">
           <button class="logout-btn" type="submit">Logout</button>
@@ -128,13 +129,24 @@
         </div>
         <div class="replenish-field">
           <label>Image</label>
-          <select class="replenish-select" id="runtime-image">
-            <option value="ghcr.io/xmtplabs/convos-runtime:production">:production</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:staging">:staging</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:dev">:dev</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime:vibe">:vibe</option>
-            <option value="ghcr.io/xmtplabs/convos-runtime-hermes:dev">:dev:hermes</option>
-          </select>
+          <div class="image-picker" id="image-picker">
+            <div class="image-picker-selects">
+              <select class="replenish-select" id="runtime-harness">
+                <option value="convos-runtime">OpenClaw</option>
+                <option value="convos-runtime-hermes">Hermes</option>
+                <option value="__custom__">other...</option>
+              </select>
+              <select class="replenish-select" id="runtime-env">
+                <option value="production">production</option>
+                <option value="staging">staging</option>
+                <option value="dev">dev</option>
+              </select>
+            </div>
+            <div class="image-custom-row" id="image-custom-row">
+              <input type="text" class="image-custom-input" id="runtime-image-custom" placeholder="ghcr.io/xmtplabs/convos-runtime:pr-505" spellcheck="false">
+              <button type="button" class="image-custom-clear" id="image-custom-clear" title="Back to presets">&times;</button>
+            </div>
+          </div>
         </div>
         <div class="replenish-field">
           <label>Parallel</label>
@@ -230,8 +242,10 @@
           <div class="filter-pills" id="filter-pills">
             <button class="filter-pill active" data-filter="">All <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="running">Running <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="pending">Pending <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="idle">Ready <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="starting">Starting <span class="pill-count">-</span></button>
+            <button class="filter-pill" data-filter="tainted">Tainted <span class="pill-count">-</span></button>
             <button class="filter-pill" data-filter="crashed">Crashed <span class="pill-count">-</span></button>
           </div>
         </div>
@@ -239,9 +253,8 @@
       <table>
           <colgroup>
             <col class="col-name">
-            <col class="col-status">
             <col class="col-instance">
-            <col class="col-version">
+            <col class="col-runtime">
             <col class="col-usage">
             <col class="col-uptime">
             <col class="col-actions">
@@ -249,16 +262,15 @@
           <thead>
             <tr>
               <th>Name</th>
-              <th>Status</th>
               <th>Instance</th>
-              <th>Version</th>
+              <th>Runtime</th>
               <th class="sortable" data-sort="usage" onclick="toggleSort('usage')">Usage <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="uptime" onclick="toggleSort('uptime')">Uptime <span class="sort-arrow"></span></th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="agents-body">
-            <tr><td class="empty-row" colspan="7">Loading...</td></tr>
+            <tr><td class="empty-row" colspan="6">Loading...</td></tr>
           </tbody>
         </table>
     </div>
@@ -307,12 +319,19 @@
 
     document.getElementById('launch-url').placeholder = (C.poolEnvironment === 'production') ? 'popup.convos.org/...' : 'dev.convos.org/...';
 
-    // Pre-select the current runtime image in the picker
+    // Pre-select the current runtime image in the harness/env pickers
     (function () {
-      var sel = document.getElementById('runtime-image');
       var cur = C.runtimeImage || '';
-      for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === cur) { sel.selectedIndex = i; break; }
+      var match = cur.match(/ghcr\.io\/xmtplabs\/(convos-runtime(?:-hermes)?):(\w+)/);
+      if (match) {
+        var harnessSel = document.getElementById('runtime-harness');
+        var envSel = document.getElementById('runtime-env');
+        for (var i = 0; i < harnessSel.options.length; i++) {
+          if (harnessSel.options[i].value === match[1]) { harnessSel.selectedIndex = i; break; }
+        }
+        for (var i = 0; i < envSel.options.length; i++) {
+          if (envSel.options[i].value === match[2]) { envSel.selectedIndex = i; break; }
+        }
       }
     })();
 
@@ -352,8 +371,8 @@
     });
 
     function updatePillCounts() {
-      var total = claimedCache.length + crashedCache.length + idleCache.length + startingCache.length;
-      var counts = { '': total, running: claimedCache.length, idle: idleCache.length, starting: startingCache.length, crashed: crashedCache.length };
+      var total = claimedCache.length + pendingCache.length + taintedCache.length + crashedCache.length + idleCache.length + startingCache.length;
+      var counts = { '': total, running: claimedCache.length, pending: pendingCache.length, idle: idleCache.length, starting: startingCache.length, tainted: taintedCache.length, crashed: crashedCache.length };
       document.querySelectorAll('.filter-pill').forEach(function (pill) {
         var f = pill.getAttribute('data-filter');
         var span = pill.querySelector('.pill-count');
@@ -361,18 +380,27 @@
       });
     }
 
+    function lookupKey(id) {
+      return svcKeyMap['assistant-' + POOL_ENV + '-' + id]
+          || svcKeyMap['convos-agent-' + id];
+    }
+
     function renderAgents() {
       var body = document.getElementById('agents-body');
       var count = document.getElementById('table-count');
-      var all = crashedCache.concat(claimedCache).concat(idleCache).concat(startingCache);
+      var all = crashedCache.concat(taintedCache).concat(pendingCache).concat(claimedCache).concat(idleCache).concat(startingCache);
       updatePillCounts();
       count.textContent = '';
 
       var showCrashed = !statusFilter || statusFilter === 'crashed';
+      var showTainted = !statusFilter || statusFilter === 'tainted';
+      var showPending = !statusFilter || statusFilter === 'pending';
       var showClaimed = !statusFilter || statusFilter === 'running';
       var showIdle = !statusFilter || statusFilter === 'idle';
       var showStarting = !statusFilter || statusFilter === 'starting';
       var filtered = (showCrashed ? crashedCache : [])
+        .concat(showTainted ? taintedCache : [])
+        .concat(showPending ? pendingCache : [])
         .concat(showClaimed ? claimedCache : [])
         .concat(showIdle ? idleCache : [])
         .concat(showStarting ? startingCache : []);
@@ -385,22 +413,21 @@
       }
 
       if (!all.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="7">No instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
         return;
       }
       if (!filtered.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="7">No matching instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="6">No matching instances</td></tr>';
         return;
       }
 
       var recheckSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>';
       var runtimeSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>';
-      var qrSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="21" y1="14" x2="21" y2="14.01"/><line x1="21" y1="21" x2="21" y2="21.01"/><line x1="17" y1="21" x2="17" y2="21.01"/></svg>';
       var killSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
       var infoSvg = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
 
       function getUsageValue(a) {
-        var key = svcKeyMap['convos-agent-' + a.id];
+        var key = lookupKey(a.id);
         if (!key) return -1;
         return key.usage || 0;
       }
@@ -420,8 +447,9 @@
       function renderRow(a, status, badge, actions) {
         var isKilling = !!killingSet[a.id];
         var isProtected = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
-        var rUrl = railwayUrl(a.serviceId, a.id);
-        var key = svcKeyMap['convos-agent-' + a.id];
+        var infra = infraMap[a.id] || {};
+        var rUrl = railwayUrl(a.serviceId || infra.provider_service_id, a.id);
+        var key = lookupKey(a.id);
         var usageCell = '';
         if (key) {
           var usage = key.usage || 0;
@@ -435,15 +463,38 @@
           usageCell = '<td class="usage-cell" style="color:#CCC">-</td>';
         }
         var rowClass = status + (isKilling ? ' destroying' : '') + (isProtected ? ' protected' : '');
-        var rowBadge = isKilling ? '<span class="status-badge" style="background:#FEE2E2;color:#991B1B">Destroying...</span>' : '<span class="status-badge status-' + status + '">' + badge + '</span>';
         var rowActions = isKilling ? '<span style="font-size:11px;color:#999">Destroying...</span>' : actions;
-        var infra = infraMap[a.id] || {};
-        var versionCell = '<td class="version-cell">' + esc(infra.runtime_version || '-') + '</td>';
+
+        // Name cell: dot + agent name for running/crashed, dot + status label for idle/starting
+        var nameContent;
+        if (isKilling) {
+          nameContent = '<span class="status-dot dot-' + status + '"></span>'
+            + '<span class="status-name status-name-destroying">Destroying</span>';
+        } else if (status === 'running' || status === 'crashed') {
+          nameContent = '<span class="status-dot dot-' + status + '"></span>'
+            + '<span class="name-text">' + esc(a.agentName || a.name || a.id) + '</span>';
+        } else {
+          nameContent = '<span class="status-dot dot-' + status + '"></span>'
+            + '<span class="status-name status-name-' + status + '">' + badge + '</span>';
+        }
+
+        // Runtime cell: inline tags for type + version
+        var rtType = infra.runtime_type || '';
+        var rtVer = infra.runtime_version || '';
+        var runtimeTags = '';
+        if (rtType || rtVer) {
+          if (rtType) runtimeTags += '<span class="runtime-tag">' + esc(rtType) + '</span>';
+          if (rtVer) runtimeTags += '<span class="runtime-tag">' + esc(rtVer) + '</span>';
+        } else {
+          runtimeTags = '<span style="color:#CCC">-</span>';
+        }
+
+        var linkoutSvg = '<svg class="linkout-icon" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+
         html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
-          + '<td class="agent-name-cell">' + esc(a.agentName || a.name || a.id) + '</td>'
-          + '<td>' + rowBadge + '</td>'
-          + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + '</a>' : esc(a.id)) + '</td>'
-          + versionCell
+          + '<td class="agent-name-cell"><div class="name-wrap">' + nameContent + '</div></td>'
+          + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + ' ' + linkoutSvg + '</a>' : '<span class="instance-link">' + esc(a.id) + '</span>') + '</td>'
+          + '<td><div class="runtime-tags">' + runtimeTags + '</div></td>'
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
           + '<td><div class="action-btns">' + rowActions + '</div></td></tr>';
@@ -451,19 +502,24 @@
 
       filtered.forEach(function (a) {
         var isCrashed = crashedCache.indexOf(a) !== -1;
+        var isTainted = taintedCache.indexOf(a) !== -1;
+        var isPending = pendingCache.indexOf(a) !== -1;
         var isClaimed = claimedCache.indexOf(a) !== -1;
         var isIdle = idleCache.indexOf(a) !== -1;
         var recheckBtn = '<button class="action-btn" data-recheck="' + a.id + '" title="Recheck health">' + recheckSvg + '</button>';
-        var qrBtn = '<button class="action-btn" data-qr="' + a.id + '" title="Show QR code">' + qrSvg + '</button>';
         var hasVersion = !!(infraMap[a.id] || {}).runtime_version;
         var runtimeBtn = hasVersion ? '<button class="action-btn" data-runtime="' + a.id + '" title="Update runtime">' + runtimeSvg + '</button>' : '';
         var isProtectedInstance = PROTECTED_INSTANCES.indexOf(a.id) !== -1;
         var protectedBtn = isProtectedInstance ? '<button class="action-btn" data-protected-info="1" title="Protected instance">' + infoSvg + '</button>' : '';
         var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', qrBtn + recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'crashed', 'Crashed', recheckBtn + killBtn + protectedBtn);
+        } else if (isTainted) {
+          renderRow(a, 'tainted', 'Tainted', recheckBtn + killBtn + protectedBtn);
+        } else if (isPending) {
+          renderRow(a, 'pending', 'Pending', recheckBtn + killBtn + protectedBtn);
         } else if (isClaimed) {
-          renderRow(a, 'running', 'Running', qrBtn + runtimeBtn + recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'running', 'Running', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isIdle) {
           renderRow(a, 'idle', 'Ready', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else {
@@ -499,13 +555,6 @@
 
     // --- Actions ---
     document.getElementById('agents-body').addEventListener('click', function (e) {
-      var qrBtn = e.target.closest('[data-qr]');
-      if (qrBtn) {
-        var qrId = qrBtn.getAttribute('data-qr');
-        var a = claimedCache.concat(crashedCache).find(function (x) { return x.id === qrId; });
-        if (a) showQr(a.agentName || a.id, a.inviteUrl || '');
-        return;
-      }
       var protectedInfo = e.target.closest('[data-protected-info]');
       if (protectedInfo) { showInfo({ icon: '\uD83D\uDD12', title: 'Protected Instance', message: 'This instance is reserved for QA CI and cannot be deleted from the dashboard.' }); return; }
       var killBtn = e.target.closest('[data-kill]');
@@ -584,6 +633,8 @@
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Kill failed');
         claimedCache = claimedCache.filter(function (a) { return a.id !== id; });
+        pendingCache = pendingCache.filter(function (a) { return a.id !== id; });
+        taintedCache = taintedCache.filter(function (a) { return a.id !== id; });
         idleCache = idleCache.filter(function (a) { return a.id !== id; });
         startingCache = startingCache.filter(function (a) { return a.id !== id; });
         crashedCache = crashedCache.filter(function (a) { return a.id !== id; });
@@ -671,7 +722,10 @@
     function showProvisionLog(count) {
       provisionTotal = count;
       provisionDone = 0;
-      provisionImageTag = (document.getElementById('runtime-image').value || '').split(':').pop() || 'production';
+      var harness = document.getElementById('runtime-harness');
+      var harnessLabel = harness.value === '__custom__' ? 'custom' : harness.options[harness.selectedIndex].text;
+      var envVal = document.getElementById('runtime-env').value || 'production';
+      provisionImageTag = envVal + ' (' + harnessLabel + ')';
       var panel = document.getElementById('provision-log');
       var body = document.getElementById('provision-log-body');
       body.innerHTML = '';
@@ -781,7 +835,7 @@
         try {
           var res = await fetch('/api/pool/agents');
           var data = await res.json();
-          var allInstances = [].concat(data.idle || [], data.claimed || [], data.crashed || [], data.starting || []);
+          var allInstances = [].concat(data.idle || [], data.claimed || [], data.pendingAcceptance || [], data.tainted || [], data.crashed || [], data.starting || []);
 
           var remaining = 0;
           pending.forEach(function (num) {
@@ -796,12 +850,20 @@
             } else if (inst.status === 'crashed' || inst.status === 'dead') {
               markProvisionDeploy(num, 'fail', 'Deploy crashed');
               delete provisionInstanceIds[num];
+            } else if (inst.status === 'tainted') {
+              markProvisionDeploy(num, 'fail', 'Tainted');
+              delete provisionInstanceIds[num];
+            } else if (inst.status === 'pending_acceptance') {
+              markProvisionDeploy(num, 'ok', 'Pending acceptance', inst.url);
+              delete provisionInstanceIds[num];
             } else {
               remaining++;
             }
           });
 
           claimedCache = (data.claimed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          pendingCache = (data.pendingAcceptance || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
+          taintedCache = (data.tainted || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
           crashedCache = (data.crashed || []).sort(function (a, b) { return new Date(b.claimedAt) - new Date(a.claimedAt); });
           idleCache = (data.idle || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
           startingCache = (data.starting || []).sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
@@ -825,6 +887,32 @@
     }
 
     // --- Replenish (SSE streaming) ---
+    (function () {
+      var harnessSel = document.getElementById('runtime-harness');
+      var envSel = document.getElementById('runtime-env');
+      var defaultHarnessIndex = harnessSel.selectedIndex;
+      var customRow = document.getElementById('image-custom-row');
+      var customInput = document.getElementById('runtime-image-custom');
+      var clearBtn = document.getElementById('image-custom-clear');
+
+      harnessSel.addEventListener('change', function () {
+        if (this.value === '__custom__') {
+          customRow.classList.add('visible');
+          envSel.classList.add('hidden');
+          harnessSel.classList.add('hidden');
+          setTimeout(function () { customInput.focus(); }, 180);
+        }
+      });
+
+      clearBtn.addEventListener('click', function () {
+        customInput.value = '';
+        customRow.classList.remove('visible');
+        envSel.classList.remove('hidden');
+        harnessSel.classList.remove('hidden');
+        harnessSel.selectedIndex = defaultHarnessIndex;
+      });
+    })();
+
     document.getElementById('replenish-btn').addEventListener('click', function () {
       var btn = this;
       var n = parseInt(document.getElementById('replenish-count').value) || 1;
@@ -833,7 +921,11 @@
       showProvisionLog(n);
 
       var lastInstanceId = {};
-      var image = encodeURIComponent(document.getElementById('runtime-image').value);
+      var harness = document.getElementById('runtime-harness').value;
+      var rawImage = harness === '__custom__'
+        ? (document.getElementById('runtime-image-custom').value || '')
+        : 'ghcr.io/xmtplabs/' + harness + ':' + document.getElementById('runtime-env').value;
+      var image = encodeURIComponent(rawImage.replace(/^https?:\/\//, ''));
       var model = encodeURIComponent(document.getElementById('instance-model').value);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);
       es.onmessage = function (ev) {
@@ -1242,11 +1334,11 @@
       document.querySelectorAll('tr.expanded').forEach(function (r) { r.classList.remove('expanded'); });
 
       var tools = svcToolsMap[instanceId] || [];
-      var key = svcKeyMap['convos-agent-' + instanceId];
+      var key = lookupKey(instanceId);
       var infra = infraMap[instanceId] || {};
-      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).find(function (a) { return a.id === instanceId; });
+      var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).concat(pendingCache).concat(taintedCache).find(function (a) { return a.id === instanceId; });
 
-      var html = '<td colspan="7"><div class="expand-inner">';
+      var html = '<td colspan="6"><div class="expand-inner">';
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var orTool = tools.find(function (t) { return t.tool_id === 'openrouter'; });
@@ -1261,11 +1353,12 @@
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
         + (instanceModel ? '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(instanceModel) + '</span></div>' : '')
+        + (infra.runtime_type ? '<div class="expand-kv"><span class="expand-label">Runtime</span> <span class="expand-val mono">' + esc(infra.runtime_type) + '</span></div>' : '')
         + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
           + (railwayUrl(infra.provider_service_id, instanceId)
-            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">convos-agent-' + esc(instanceId) + '</a>'
-            : '<span class="expand-val mono">convos-agent-' + esc(instanceId) + '</span>')
+            ? '<a class="expand-link" href="' + railwayUrl(infra.provider_service_id, instanceId) + '" target="_blank" rel="noopener">assistant-' + esc(POOL_ENV) + '-' + esc(instanceId) + '</a>'
+            : '<span class="expand-val mono">assistant-' + esc(POOL_ENV) + '-' + esc(instanceId) + '</span>')
           + '</div>' : '')
         + '</div>';
 

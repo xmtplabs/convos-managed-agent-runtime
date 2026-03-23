@@ -5,7 +5,7 @@
  * long-lived child process using an ndjson stdin/stdout protocol.
  *
  * Stdout events: ready, message, member_joined, sent, heartbeat, error
- * Stdin commands: send, react, attach, remote-attach, rename, lock, unlock, explode, stop
+ * Stdin commands: send, react, read-receipt, attach, remote-attach, rename, lock, unlock, explode, stop
  */
 
 import { execFile, spawn, type ChildProcess } from "node:child_process";
@@ -155,6 +155,18 @@ export class ConvosInstance {
   /** XMTP inbox ID — set from the `ready` event. */
   inboxId: string | null = null;
 
+  /** Attestation data — stored for subprocess restarts via env vars. */
+  private attestationEnv: Record<string, string> = {};
+
+  /** Store attestation values. Passed as env vars on subprocess (re)start. */
+  setAttestation(attestation: string, ts: string, kid: string): void {
+    this.attestationEnv = {
+      CONVOS_ATTESTATION: attestation,
+      CONVOS_ATTESTATION_TS: ts,
+      CONVOS_ATTESTATION_KID: kid,
+    };
+  }
+
   private env: "production" | "dev";
   private child: ChildProcess | null = null;
   private running = false;
@@ -248,6 +260,7 @@ export class ConvosInstance {
     params?: {
       name?: string;
       profileName?: string;
+      profileImage?: string;
       description?: string;
       imageUrl?: string;
       permissions?: "all-members" | "admin-only";
@@ -257,6 +270,7 @@ export class ConvosInstance {
     const args = ["conversations", "create"];
     if (params?.name) args.push("--name", params.name);
     if (params?.profileName) args.push("--profile-name", params.profileName);
+    if (params?.profileImage) args.push("--profile-image", params.profileImage);
     if (params?.description) args.push("--description", params.description);
     if (params?.imageUrl) args.push("--image-url", params.imageUrl);
     if (params?.permissions) args.push("--permissions", params.permissions);
@@ -278,6 +292,9 @@ export class ConvosInstance {
       options,
     });
     instance.inboxId = data.inboxId;
+    if (params?.profileImage) {
+      instance.profileImageRenewal.recordAppliedImage(params.profileImage);
+    }
 
     return {
       instance,
@@ -293,7 +310,7 @@ export class ConvosInstance {
   static async join(
     env: "production" | "dev",
     invite: string,
-    params?: { profileName?: string; timeout?: number },
+    params?: { profileName?: string; profileImage?: string; metadata?: Record<string, string>; timeout?: number },
     options?: ConvosInstanceOptions,
   ): Promise<{
     instance: ConvosInstance | null;
@@ -303,6 +320,12 @@ export class ConvosInstance {
   }> {
     const args = ["conversations", "join", invite];
     if (params?.profileName) args.push("--profile-name", params.profileName);
+    if (params?.profileImage) args.push("--profile-image", params.profileImage);
+    if (params?.metadata) {
+      for (const [key, value] of Object.entries(params.metadata)) {
+        args.push("--metadata", `${key}=${value}`);
+      }
+    }
     args.push("--timeout", String(params?.timeout ?? 60));
 
     const tmp = new ConvosInstance({ conversationId: "", identityId: "", env, options });
@@ -481,8 +504,19 @@ export class ConvosInstance {
       const imageMatch = text.match(/--image\s+(?:"([^"]+)"|'([^']+)'|(\S+))/);
       const name = nameMatch?.[1] ?? nameMatch?.[2] ?? nameMatch?.[3];
       const image = imageMatch?.[1] ?? imageMatch?.[2] ?? imageMatch?.[3];
-      if (name || image) {
-        await this.updateProfile(name, image);
+      const metadataMatches = [...text.matchAll(/--metadata\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g)];
+      let metadata: Record<string, string> | undefined;
+      if (metadataMatches.length > 0) {
+        metadata = {};
+        for (const m of metadataMatches) {
+          const raw = m[1] ?? m[2] ?? m[3];
+          if (!raw) continue;
+          const [k, ...rest] = raw.split("=");
+          if (k && rest.length > 0) metadata[k] = rest.join("=");
+        }
+      }
+      if (name || image || (metadata && Object.keys(metadata).length > 0)) {
+        await this.updateProfile(name, image, metadata);
         return { success: true, messageId: undefined };
       }
       return { success: false, messageId: undefined };
@@ -520,16 +554,22 @@ export class ConvosInstance {
     return { success: true, action: action === "add" ? "added" : "removed" };
   }
 
+  async sendReadReceipt(): Promise<void> {
+    this.assertRunning();
+    this.writeCommand({ type: "read-receipt" });
+  }
+
   async rename(name: string): Promise<void> {
     this.assertRunning();
     this.writeCommand({ type: "rename", name });
   }
 
-  async updateProfile(name?: string, image?: string): Promise<void> {
+  async updateProfile(name?: string, image?: string, metadata?: Record<string, string>): Promise<void> {
     this.assertRunning();
     const cmd: Record<string, unknown> = { type: "update-profile" };
     if (name !== undefined) cmd.name = name;
     if (image !== undefined) cmd.image = image;
+    if (metadata !== undefined) cmd.metadata = metadata;
     this.writeCommand(cmd);
     if (image !== undefined) {
       this.profileImageRenewal.recordAppliedImage(image);
@@ -595,7 +635,7 @@ export class ConvosInstance {
         bin === "convos" ? args : [bin, ...args],
         {
           stdio: ["pipe", "pipe", "pipe"],
-          env: { ...process.env, CONVOS_ENV: this.env },
+          env: { ...process.env, CONVOS_ENV: this.env, ...this.attestationEnv },
         },
       );
 
