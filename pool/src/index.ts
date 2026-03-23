@@ -21,6 +21,7 @@ import { couponRouter } from "./couponRoute";
 import { stripeRouter } from "./stripeRoute";
 import * as stripe from "./services/providers/stripe";
 import { serviceProxyRouter } from "./routes/serviceProxy";
+import { skillsRouter } from "./routes/skills";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -150,6 +151,8 @@ app.get("/api/pool/info", (_req, res) => {
     railwayServiceId: config.railwayServiceId,
   });
 });
+
+app.use(skillsRouter);
 
 app.get("/api/pool/templates", (_req, res) => { res.json(AGENT_CATALOG); });
 app.get("/api/pool/templates/:slug", (req, res) => {
