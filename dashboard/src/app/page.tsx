@@ -31,7 +31,7 @@ export default function Home() {
   useEffect(() => {
     async function loadSkills() {
       try {
-        const res = await fetch(`${basePath}/api/pool/templates`);
+        const res = await fetch(`${basePath}/api/skills`);
         if (!res.ok) return;
         const data: AgentSkill[] = await res.json();
         setSkills(data);
