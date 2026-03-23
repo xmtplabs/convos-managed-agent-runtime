@@ -255,6 +255,7 @@
             <col class="col-name">
             <col class="col-instance">
             <col class="col-runtime">
+            <col class="col-memory">
             <col class="col-usage">
             <col class="col-uptime">
             <col class="col-actions">
@@ -264,13 +265,14 @@
               <th>Name</th>
               <th>Instance</th>
               <th>Runtime</th>
+              <th>Memory</th>
               <th class="sortable" data-sort="usage" onclick="toggleSort('usage')">Usage <span class="sort-arrow"></span></th>
               <th class="sortable" data-sort="uptime" onclick="toggleSort('uptime')">Uptime <span class="sort-arrow"></span></th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="agents-body">
-            <tr><td class="empty-row" colspan="6">Loading...</td></tr>
+            <tr><td class="empty-row" colspan="7">Loading...</td></tr>
           </tbody>
         </table>
     </div>
@@ -413,11 +415,11 @@
       }
 
       if (!all.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="6">No instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="7">No instances</td></tr>';
         return;
       }
       if (!filtered.length) {
-        body.innerHTML = '<tr><td class="empty-row" colspan="6">No matching instances</td></tr>';
+        body.innerHTML = '<tr><td class="empty-row" colspan="7">No matching instances</td></tr>';
         return;
       }
 
@@ -489,12 +491,28 @@
           runtimeTags = '<span style="color:#CCC">-</span>';
         }
 
+        // Memory cell
+        var mem = metricsMap[a.id];
+        var memoryCell = '';
+        if (mem) {
+          var memGb = (mem.currentMb / 1024).toFixed(1);
+          var memLimit = (mem.limitMb / 1024).toFixed(0);
+          var memPct = Math.min(100, (mem.currentMb / mem.limitMb) * 100);
+          var memBarClass = memPct > 80 ? 'danger' : memPct > 50 ? 'warn' : '';
+          memoryCell = '<td class="memory-cell">'
+            + memGb + ' / ' + memLimit + ' GB'
+            + '<div class="usage-bar-wrap"><div class="usage-bar ' + memBarClass + '" style="width:' + memPct + '%"></div></div></td>';
+        } else {
+          memoryCell = '<td class="memory-cell" style="color:#CCC">-</td>';
+        }
+
         var linkoutSvg = '<svg class="linkout-icon" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 
         html += '<tr class="' + rowClass + '" id="row-' + a.id + '" data-expand="' + a.id + '" style="cursor:pointer">'
           + '<td class="agent-name-cell"><div class="name-wrap">' + nameContent + '</div></td>'
           + '<td>' + (rUrl ? '<a class="instance-link" href="' + rUrl + '" target="_blank">' + esc(a.id) + ' ' + linkoutSvg + '</a>' : '<span class="instance-link">' + esc(a.id) + '</span>') + '</td>'
           + '<td><div class="runtime-tags">' + runtimeTags + '</div></td>'
+          + memoryCell
           + usageCell
           + '<td class="uptime">' + timeAgo(a.claimedAt || a.createdAt) + '</td>'
           + '<td><div class="action-btns">' + rowActions + '</div></td></tr>';
@@ -1338,7 +1356,7 @@
       var infra = infraMap[instanceId] || {};
       var agent = claimedCache.concat(crashedCache).concat(idleCache).concat(startingCache).concat(pendingCache).concat(taintedCache).find(function (a) { return a.id === instanceId; });
 
-      var html = '<td colspan="6"><div class="expand-inner">';
+      var html = '<td colspan="7"><div class="expand-inner">';
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var orTool = tools.find(function (t) { return t.tool_id === 'openrouter'; });
@@ -1476,8 +1494,9 @@
     refreshInboxes();
     refreshORKeys();
     refreshPhones();
+    refreshMetrics();
     setInterval(refresh, 5000);
-    setInterval(function () { refreshCredits(); refreshInstances(); refreshInboxes(); refreshORKeys(); refreshPhones(); }, 60000);
+    setInterval(function () { refreshCredits(); refreshInstances(); refreshInboxes(); refreshORKeys(); refreshPhones(); refreshMetrics(); }, 60000);
   </script>
 </body>
 </html>
