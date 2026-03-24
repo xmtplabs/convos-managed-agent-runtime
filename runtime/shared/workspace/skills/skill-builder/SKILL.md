@@ -120,7 +120,7 @@ The output must match this schema (same as the pool `agent_skills` table):
   "slug": "<kebab-case-name>",
   "agentName": "The Commish 🏈",
   "description": "One or two sentences, third person",
-  "prompt": "The FULL system prompt text, inline. 300+ words. Covers BRAIN, SOUL, HEART, SUPERPOWERS, THE ENTRANCE, THE LINE.",
+  "prompt": "The FULL system prompt text, inline. 300+ words. Covers BRAIN, SOUL, HEART, SUPERPOWERS, THE ENGINE, THE ENTRANCE, THE LINE.",
   "category": "One of: Sports & Rec, Travel & Adventures, Food & Dining, Events & Occasions, Hobbies & Interests, Entertainment & Culture, Music & Creative, Kids & Family, Wellness & Fitness, Money & Investing, Work, Local, Superpowers",
   "emoji": "🏈",
   "tools": ["Search", "Browse", "Email", "Schedule"],
@@ -166,7 +166,13 @@ On approval:
 1. Set `"active": "<slug>"` in `$SKILLS_ROOT/generated/skills.json`
 2. Update your profile name: use your platform's profile update tool with the `agentName`
 3. Update your profile image if you have a suitable URL for the emoji/category
-4. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt
+4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `WHEN: immediately`, set it up now:
+   - Cron jobs → use the cron tool
+   - Pollers → create a skill directory with poll.sh (see CUSTOMIZATION.md)
+   - Skip all items marked `WHEN: after learning <context>` — you don't have the context yet
+5. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt. Be honest about what's live: mention automations you just set up, and note what you'll set up once you learn more about the group/user.
+
+**After activation, as you converse naturally:** When you learn a piece of context that unlocks a deferred ENGINE item (e.g., the user mentions their wake time), set up that automation right then. Don't ask permission for automations the user already approved in the skill — just set them up and confirm: "Got it, 7:30 wake time — I'll check in with you every morning."
 
 ### 8. Group readiness check
 
@@ -249,12 +255,53 @@ Only include tools the skill genuinely needs:
 | Email | Send confirmations, calendar invites, summaries. Each group gets an address. |
 | Schedule | Cron reminders, timed check-ins, recurring nudges, countdowns |
 
+### THE ENGINE — What Runs in the Background
+
+List every recurring or automated behavior this skill needs. For each item, specify WHAT it does and WHEN it should be set up.
+
+**WHEN options:**
+- `immediately` — no user context needed, set up at activation (e.g., RSS feed monitoring, weekly league standings)
+- `after learning <context>` — needs a specific piece of info from the user first (e.g., "after learning wake time", "after learning which league platform")
+
+**Types of automation:**
+- **Cron jobs** — time-based: morning check-ins, weekly summaries, deadline reminders
+- **Pollers** — feed-based: RSS monitoring, API checks, inbox scanning
+
+**If the skill is purely reactive** (only responds when asked, no proactive behavior), write:
+```
+THE ENGINE: None. Reactive only.
+```
+
+**Examples:**
+
+Sleep coach:
+```
+THE ENGINE:
+- Huberman feed monitor → poller, check RSS for new sleep episodes. WHEN: immediately.
+- Morning check-in → cron, ask how they slept. WHEN: after learning wake time.
+- Evening wind-down → cron, screen/light reminder. WHEN: after learning bedtime.
+```
+
+Fantasy football commissioner:
+```
+THE ENGINE:
+- Weekly power rankings → cron, Monday morning hot takes. WHEN: immediately.
+- League activity monitor → poller, check for trades/waivers. WHEN: after learning platform and league.
+- Waiver deadline nudge → cron, remind before lock. WHEN: after learning waiver day/time.
+```
+
+Trivia bot:
+```
+THE ENGINE: None. Reactive only.
+```
+
 ### THE ENTRANCE — Welcome Message
 
 The first impression after transformation. Rules:
 - Lead with personality, not a feature list
 - Disclose capabilities in SIMPLE language — like a friend talking, not a product spec
 - Share useful info immediately (email address if available)
+- **Be honest about what's actually running** — if automations are set up, say what's live. If some are pending user context, say what you're waiting to learn before you can set them up. Never claim something is running when it isn't.
 - Keep it SHORT. 4-6 lines max
 - End with an invitation to engage
 
