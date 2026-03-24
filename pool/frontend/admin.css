@@ -180,12 +180,11 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hel
 .table-title { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
 .table-count { font-size: 12px; color: var(--color-foreground-secondary); }
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-col.col-name { width: 16%; }
-col.col-instance { width: 14%; }
-col.col-runtime { width: 16%; }
-col.col-memory { width: 12%; }
-col.col-usage { width: 18%; }
-col.col-uptime { width: 8%; }
+col.col-name { width: 18%; }
+col.col-instance { width: 16%; }
+col.col-runtime { width: 20%; }
+col.col-usage { width: 20%; }
+col.col-uptime { width: 10%; }
 col.col-actions { width: 16%; }
 th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-foreground-secondary); padding: 10px 20px; border-bottom: 1px solid var(--color-surface-muted); background: var(--color-surface-hover); }
 th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
@@ -261,7 +260,6 @@ tr.protected td { background: #FFFBEB; }
 .usage-bar.warn { background: #FF9500; }
 .usage-bar.danger { background: var(--color-error); }
 .usage-cell { font-size: 11px; color: var(--color-foreground-secondary); }
-.memory-cell { font-size: 11px; color: var(--color-foreground-secondary); }
 
 /* QR Modal */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
