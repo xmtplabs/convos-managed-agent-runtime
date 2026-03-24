@@ -802,6 +802,8 @@ app.get("/admin/skills", (req, res) => {
   if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
   res.type("html").send(skillsPage({
     poolEnvironment: config.poolEnvironment,
+    railwayProjectId: config.railwayProjectId,
+    railwayEnvironmentId: config.railwayEnvironmentId,
     adminUrls: POOL_ADMIN_URLS as any,
   }));
 });
