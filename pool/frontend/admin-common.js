@@ -19,7 +19,6 @@
   window.svcKeyMap = {};
   window.svcToolsMap = {};
   window.infraMap = {};
-  window.metricsMap = {};
 
   // --- Utility functions ---
   window.esc = function (s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
@@ -92,15 +91,6 @@
           window.infraMap[inst.instance_id] = inst;
         }
       });
-    } catch (e) {}
-  };
-
-  window.refreshMetrics = async function () {
-    try {
-      var res = await fetch('/dashboard/metrics', { headers: window.authHeaders });
-      var data = await res.json();
-      window.metricsMap = data || {};
-      if (typeof window.renderAgents === 'function') window.renderAgents();
     } catch (e) {}
   };
 
