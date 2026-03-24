@@ -120,7 +120,7 @@ The output must match this schema (same as the pool `agent_skills` table):
   "slug": "<kebab-case-name>",
   "agentName": "The Commish 🏈",
   "description": "One or two sentences, third person",
-  "prompt": "The FULL system prompt. 300+ words. Covers BRAIN, SOUL, HEART, SUPERPOWERS, THE ENTRANCE, THE LINE.",
+  "prompt": "The FULL system prompt text, inline. 300+ words. Covers BRAIN, SOUL, HEART, SUPERPOWERS, THE ENTRANCE, THE LINE.",
   "category": "One of: Sports & Rec, Travel & Adventures, Food & Dining, Events & Occasions, Hobbies & Interests, Entertainment & Culture, Music & Creative, Kids & Family, Wellness & Fitness, Money & Investing, Work, Local, Superpowers",
   "emoji": "🏈",
   "tools": ["Search", "Browse", "Email", "Schedule"],
@@ -130,14 +130,17 @@ The output must match this schema (same as the pool `agent_skills` table):
 }
 ```
 
+**IMPORTANT: The `prompt` field must contain the entire system prompt as a string — NOT a file path or reference like "See SKILL.md in generated/...". The full prompt text must be inline in the JSON.** This is what gets displayed on the skill page.
+
 ### 6. Write the skill and share the page
 
 1. Write the skill entry to `$SKILLS_ROOT/generated/skills.json`:
    - If the file exists, read it and append to the `skills` array
    - If not, create it with `{ "active": null, "skills": [ <entry> ] }`
    - Do NOT set `active` yet — that happens after approval
+   - The `prompt` field MUST contain the full prompt text inline — never a file reference
 
-2. Write the generated prompt to `$SKILLS_ROOT/generated/<slug>/SKILL.md`
+2. Also write the generated prompt to `$SKILLS_ROOT/generated/<slug>/SKILL.md` (a copy for the agent's own use)
 
 3. Get the skill page URL:
 
