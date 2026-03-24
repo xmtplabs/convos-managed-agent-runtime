@@ -1106,39 +1106,6 @@ export async function dispatchNotification(text: string): Promise<void> {
   await handleInboundMessage(account, syntheticMsg, runtime);
 }
 
-/**
- * Dispatch a background notification (email/SMS) as a synthetic system message.
- * The agent sees it and responds immediately over XMTP, but the notification
- * prompt itself is never sent to the conversation (same as greeting dispatch).
- */
-export async function dispatchNotification(text: string): Promise<void> {
-  const inst = getConvosInstance();
-  if (!inst) {
-    throw new Error("No active conversation");
-  }
-
-  const runtime = getConvosRuntime();
-  if (!runtime) {
-    throw new Error("No runtime available");
-  }
-
-  const cfg = runtime.config.loadConfig() as CoreConfig;
-  const account = resolveConvosAccount({ cfg });
-
-  const syntheticMsg: InboundMessage = {
-    conversationId: inst.conversationId,
-    messageId: `system-notify-${crypto.randomUUID()}`,
-    senderId: SYSTEM_SENDER_ID,
-    senderName: "System",
-    content: text,
-    contentType: "text",
-    timestamp: new Date(),
-  };
-
-  console.log("[convos] Dispatching notification message");
-  await handleInboundMessage(account, syntheticMsg, runtime);
-}
-
 async function dispatchWorkspaceRefresh(
   account: ResolvedConvosAccount,
   runtime: PluginRuntime,
