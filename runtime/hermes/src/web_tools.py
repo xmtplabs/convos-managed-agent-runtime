@@ -24,6 +24,7 @@ _SHARED_ROOT = Path("/app/web-tools") if Path("/app/web-tools").exists() else (
 )
 _SERVICES_DIR = _SHARED_ROOT / "services"
 _CONVOS_DIR = _SHARED_ROOT / "convos"
+_SKILLS_DIR = _SHARED_ROOT / "skills"
 
 
 def _gateway_token() -> str:
@@ -241,3 +242,83 @@ async def convos_landing_css():
 @router.get("/web-tools/convos/icon.svg")
 async def convos_icon():
     return _serve_static(_CONVOS_DIR / "icon.svg", "image/svg+xml")
+
+
+# ── Skills pages ────────────────────────────────────────────
+
+
+def _skills_data_path() -> Path:
+    """Resolve the path to $SKILLS_ROOT/generated/skills.json."""
+    skills_root = os.environ.get("SKILLS_ROOT", "")
+    if not skills_root:
+        hermes_home = os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
+        skills_root = str(Path(hermes_home) / "skills")
+    return Path(skills_root) / "generated" / "skills.json"
+
+
+def _read_skill_by_slug(slug: str) -> dict | None:
+    """Read skills.json and return a single skill by slug."""
+    try:
+        data = json.loads(_skills_data_path().read_text())
+        skills = data.get("skills", [])
+        if not isinstance(skills, list):
+            return None
+        return next((s for s in skills if s.get("slug") == slug), None)
+    except Exception:
+        return None
+
+
+def _read_skills_data() -> dict:
+    """Read the full skills.json."""
+    try:
+        return json.loads(_skills_data_path().read_text())
+    except Exception:
+        return {"active": None, "skills": []}
+
+
+@router.get("/web-tools/skills/skills.css")
+async def skills_css():
+    return _serve_static(_SKILLS_DIR / "skills.css", "text/css")
+
+
+@router.get("/web-tools/skills/api")
+async def skills_api_list():
+    """Return the full skills.json (all skills + active marker)."""
+    return Response(
+        content=json.dumps(_read_skills_data()),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/web-tools/skills/api/{slug}")
+async def skills_api(slug: str):
+    """Return a single skill's JSON data by slug."""
+    skill = _read_skill_by_slug(slug)
+    if skill:
+        return Response(
+            content=json.dumps(skill),
+            media_type="application/json",
+            headers={"Cache-Control": "no-store"},
+        )
+    return Response(
+        content=json.dumps({"error": "skill not found"}),
+        status_code=404,
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/web-tools/skills")
+@router.get("/web-tools/skills/")
+async def skills_index():
+    """Serve the skills index page."""
+    return _serve_static(_SKILLS_DIR / "index.html", "text/html; charset=utf-8",
+                         cache_control="no-store")
+
+
+@router.get("/web-tools/skills/{slug}")
+async def skills_page(slug: str):
+    """Serve the skill page HTML shell for any slug."""
+    return _serve_static(_SKILLS_DIR / "skill.html", "text/html; charset=utf-8",
+                         cache_control="no-store")

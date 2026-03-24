@@ -201,6 +201,19 @@ def _clear_session_state(hermes_home: str) -> None:
             logger.error("Failed to clear session state: %s", err)
 
 
+def _has_active_skill() -> bool:
+    """Check if the agent has an active skill configured."""
+    skills_root = os.environ.get("SKILLS_ROOT", "")
+    if not skills_root:
+        return False
+    skills_json = Path(skills_root) / "generated" / "skills.json"
+    try:
+        data = json.loads(skills_json.read_text())
+        return bool(data.get("active"))
+    except Exception:
+        return False
+
+
 async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
     """Send an LLM-generated welcome message via the adapter pipeline.
 
@@ -211,11 +224,21 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         if not adapter.agent or not adapter.instance:
             return
 
-        response = await adapter.agent.handle_message(
-            content=(
+        if _has_active_skill():
+            greeting_content = (
                 "[System: You just joined this conversation. Send your welcome message now. "
                 "Follow the 'Welcome message' section in AGENTS.md.]"
-            ),
+            )
+        else:
+            greeting_content = (
+                "[System: You just joined this conversation. You have no skill configured yet. "
+                "Follow the skill-builder skill to discover what this group needs "
+                "and become the right agent for them.]"
+            )
+
+        logger.info("Dispatching greeting (skill-builder=%s)", not _has_active_skill())
+        response = await adapter.agent.handle_message(
+            content=greeting_content,
             sender_name="System",
             sender_id="system",
             timestamp=time.time(),

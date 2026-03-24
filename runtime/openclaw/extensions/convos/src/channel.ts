@@ -1040,6 +1040,19 @@ async function deliverConvosReply(params: {
  * prompt through the normal reply pipeline. The agent sees its full context
  * (IDENTITY + SOUL + TOOLS) and crafts a natural greeting per SOUL.md.
  */
+/** Check if the agent has an active skill configured. */
+function hasActiveSkill(): boolean {
+  const skillsRoot = process.env.SKILLS_ROOT || "";
+  if (!skillsRoot) return false;
+  try {
+    const raw = fs.readFileSync(path.join(skillsRoot, "generated", "skills.json"), "utf-8");
+    const data = JSON.parse(raw);
+    return !!data.active;
+  } catch {
+    return false;
+  }
+}
+
 async function dispatchGreeting(
   account: ResolvedConvosAccount,
   runtime: PluginRuntime,
@@ -1050,19 +1063,23 @@ async function dispatchGreeting(
     return;
   }
 
+  const greetingContent = hasActiveSkill()
+    ? "[System: You just joined this conversation. Send your welcome message now. " +
+      "Follow the 'Welcome message' section in AGENTS.md.]"
+    : "[System: You just joined this conversation. You have no skill configured yet. " +
+      "Follow the skill-builder skill to discover what this group needs and become the right agent for them.]";
+
   const syntheticMsg: InboundMessage = {
     conversationId: inst.conversationId,
     messageId: `system-greeting-${crypto.randomUUID()}`,
     senderId: SYSTEM_SENDER_ID,
     senderName: "System",
-    content:
-      "[System: You just joined this conversation. Send your welcome message now. " +
-      "Follow the 'Welcome message' section in AGENTS.md.]",
+    content: greetingContent,
     contentType: "text",
     timestamp: new Date(),
   };
 
-  console.log("[convos] Dispatching greeting message");
+  console.log(`[convos] Dispatching greeting message (skill-builder=${!hasActiveSkill()})`);
   try {
     await handleInboundMessage(account, syntheticMsg, runtime);
   } finally {
