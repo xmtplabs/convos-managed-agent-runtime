@@ -2,6 +2,7 @@
 FROM python:3.11-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
 
 # System deps + Node.js 22 (for convos CLI)
 RUN apt-get update \
