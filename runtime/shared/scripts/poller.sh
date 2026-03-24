@@ -38,12 +38,12 @@ notify() {
   printf '{ "text": %s }' "$_escaped" > "$_body"
 
   if [ -n "$_token" ]; then
-    _resp=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:$_port/convos/notify" \
+    _resp=$(curl -s -m 30 -w "\n%{http_code}" -X POST "http://localhost:$_port/convos/notify" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $_token" \
       -d "@$_body" 2>&1)
   else
-    _resp=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:$_port/convos/notify" \
+    _resp=$(curl -s -m 30 -w "\n%{http_code}" -X POST "http://localhost:$_port/convos/notify" \
       -H "Content-Type: application/json" \
       -d "@$_body" 2>&1)
   fi

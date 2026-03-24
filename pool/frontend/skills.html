@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Convos Pool — Skills</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!--__POOL_CONFIG__-->
+  <link rel="stylesheet" href="/admin/assets/admin.css">
+  <style>
+    /* ── Skills page ── */
+
+    /* Generator section */
+    .skills-generator {
+      background: var(--color-surface);
+      border: 1px solid var(--color-edge);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .skills-generator-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--color-edge);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .skills-generator-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+    .skills-generator-body {
+      padding: 16px 20px;
+    }
+    .gen-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .gen-input {
+      flex: 1;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      border: 1px solid var(--color-edge);
+      border-radius: 8px;
+      background: var(--color-surface);
+      color: var(--color-foreground);
+      transition: border-color 0.15s;
+    }
+    .gen-input:focus {
+      outline: none;
+      border-color: var(--color-foreground-tertiary);
+    }
+    .gen-input::placeholder {
+      color: var(--color-foreground-tertiary);
+    }
+    .btn-generate {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+      background: var(--color-brand);
+      color: #fff;
+      transition: background 0.15s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-generate:hover:not(:disabled) {
+      background: var(--color-brand-hover);
+    }
+    .btn-generate:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .gen-loading {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--color-foreground-secondary);
+      margin-top: 12px;
+    }
+    .gen-loading.visible {
+      display: flex;
+    }
+    .gen-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--color-edge);
+      border-top-color: var(--color-brand);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .gen-error {
+      display: none;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: var(--color-error-bg);
+      border: 1px solid #FCA5A5;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--color-error);
+    }
+    .gen-error.visible { display: block; }
+
+    /* Preview card */
+    .gen-preview {
+      display: none;
+      margin-top: 16px;
+      border: 1px solid var(--color-edge);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .gen-preview.visible { display: block; }
+    .gen-preview-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--color-surface-muted);
+      border-bottom: 1px solid var(--color-edge);
+    }
+    .gen-preview-emoji {
+      font-size: 24px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .gen-preview-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .gen-preview-category {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-foreground-secondary);
+      background: var(--color-surface);
+      border: 1px solid var(--color-edge);
+      border-radius: 5px;
+      padding: 2px 8px;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .gen-preview-body {
+      padding: 14px 16px;
+      display: grid;
+      gap: 10px;
+    }
+    .gen-preview-field {
+      display: grid;
+      gap: 3px;
+    }
+    .gen-preview-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--color-foreground-tertiary);
+    }
+    .gen-preview-value {
+      font-size: 13px;
+      color: var(--color-foreground);
+      line-height: 1.5;
+    }
+    .gen-preview-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .gen-tool-chip {
+      font-size: 11px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--color-surface-muted);
+      border: 1px solid var(--color-edge);
+      color: var(--color-foreground-secondary);
+    }
+    .gen-preview-prompt {
+      font-size: 12px;
+      color: var(--color-foreground-secondary);
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      background: var(--color-surface-muted);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    }
+    .gen-preview-actions {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--color-edge);
+      background: var(--color-surface-muted);
+    }
+    .btn-save-draft {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid var(--color-brand);
+      background: var(--color-brand);
+      color: #fff;
+      transition: all 0.15s;
+    }
+    .btn-save-draft:hover:not(:disabled) { background: var(--color-brand-hover); border-color: var(--color-brand-hover); }
+    .btn-save-draft:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-discard {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid var(--color-edge);
+      background: var(--color-surface);
+      color: var(--color-foreground-secondary);
+      transition: all 0.15s;
+    }
+    .btn-discard:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
+
+    /* Skills list */
+    .skills-list-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-edge);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .skills-list-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--color-edge);
+      flex-wrap: wrap;
+    }
+    .skills-list-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      margin-right: 4px;
+    }
+    .skills-count {
+      font-size: 12px;
+      color: var(--color-foreground-secondary);
+      font-weight: 500;
+    }
+    .skills-header-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .skills-search {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      border: 1px solid var(--color-edge);
+      border-radius: 7px;
+      background: var(--color-surface-muted);
+      color: var(--color-foreground);
+      width: 180px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .skills-search:focus {
+      outline: none;
+      border-color: var(--color-foreground-tertiary);
+      background: var(--color-surface);
+    }
+    .skills-search::placeholder { color: var(--color-foreground-tertiary); }
+    .skills-cat-filter {
+      padding: 6px 28px 6px 10px;
+      font-size: 12px;
+      font-family: inherit;
+      border: 1px solid var(--color-edge);
+      border-radius: 7px;
+      background: var(--color-surface-muted);
+      color: var(--color-foreground);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .skills-cat-filter:focus { outline: none; border-color: var(--color-foreground-tertiary); }
+    .btn-create {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      border: 1px solid var(--color-brand);
+      background: var(--color-brand);
+      color: #fff;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-create:hover { background: var(--color-brand-hover); border-color: var(--color-brand-hover); }
+
+    /* Skill rows */
+    .skills-empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--color-foreground-tertiary);
+      font-size: 13px;
+    }
+    .skill-row {
+      border-bottom: 1px solid var(--color-edge-muted);
+    }
+    .skill-row:last-child { border-bottom: none; }
+    .skill-row-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.1s;
+      user-select: none;
+    }
+    .skill-row-main:hover { background: var(--color-surface-hover); }
+    .skill-row.expanded .skill-row-main { background: var(--color-surface-muted); }
+    .skill-emoji {
+      font-size: 18px;
+      line-height: 1;
+      width: 28px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .skill-name {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .skill-category-badge {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--color-foreground-secondary);
+      flex-shrink: 0;
+    }
+    .skill-pub-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .skill-pub-dot.published { background: var(--color-success); }
+    .skill-pub-dot.draft { background: var(--color-foreground-tertiary); }
+    .skill-row-chevron {
+      width: 12px;
+      height: 12px;
+      color: var(--color-foreground-tertiary);
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .skill-row.expanded .skill-row-chevron { transform: rotate(90deg); }
+
+    /* Inline edit form */
+    .skill-edit-form {
+      display: none;
+      padding: 16px;
+      border-top: 1px solid var(--color-edge-muted);
+      background: var(--color-surface-muted);
+    }
+    .skill-row.expanded .skill-edit-form { display: block; }
+    .skill-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .skill-form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .skill-form-field.full { grid-column: 1 / -1; }
+    .skill-form-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--color-foreground-secondary);
+    }
+    .skill-form-input,
+    .skill-form-select,
+    .skill-form-textarea {
+      padding: 8px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      border: 1px solid var(--color-edge);
+      border-radius: 8px;
+      background: var(--color-surface);
+      color: var(--color-foreground);
+      transition: border-color 0.15s;
+    }
+    .skill-form-input:focus,
+    .skill-form-select:focus,
+    .skill-form-textarea:focus {
+      outline: none;
+      border-color: var(--color-foreground-tertiary);
+    }
+    .skill-form-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+      cursor: pointer;
+    }
+    .skill-form-textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-size: 12px;
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    }
+    .skill-form-checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 4px;
+    }
+    .skill-form-checkbox-row input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+      accent-color: var(--color-success);
+    }
+    .skill-form-checkbox-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-foreground);
+      cursor: pointer;
+    }
+    .skill-form-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 4px;
+    }
+    .btn-skill-save {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid var(--color-brand);
+      background: var(--color-brand);
+      color: #fff;
+      transition: all 0.15s;
+    }
+    .btn-skill-save:hover:not(:disabled) { background: var(--color-brand-hover); border-color: var(--color-brand-hover); }
+    .btn-skill-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-skill-delete {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid var(--color-error-bg);
+      background: var(--color-surface);
+      color: var(--color-error);
+      transition: all 0.15s;
+      margin-left: auto;
+    }
+    .btn-skill-delete:hover:not(:disabled) { background: var(--color-error-bg); }
+    .btn-skill-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-skill-cancel {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid var(--color-edge);
+      background: var(--color-surface);
+      color: var(--color-foreground-secondary);
+      transition: all 0.15s;
+    }
+    .btn-skill-cancel:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
+    .skill-form-msg {
+      font-size: 12px;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+    .skill-form-msg.success { color: var(--color-success); }
+    .skill-form-msg.error { color: var(--color-error); }
+
+    /* New skill form at top of list */
+    .skill-new-form-wrap {
+      display: none;
+      padding: 16px;
+      border-bottom: 1px solid var(--color-edge);
+      background: var(--color-surface-muted);
+    }
+    .skill-new-form-wrap.visible { display: block; }
+    .skill-new-form-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-foreground-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    /* Loading skeleton for skills list */
+    .skills-skeleton { padding: 0; }
+    .skills-loading-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--color-edge-muted);
+    }
+    .skills-loading-row:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="28">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="var(--color-brand)"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="var(--color-brand)"/>
+          </svg>
+        </div>
+        <span class="brand-name">Convos <span class="brand-name-labs">Pool</span></span>
+      </div>
+      <div class="env-switcher" onclick="this.classList.toggle('open')">
+        <button class="env-switcher-btn" id="env-switcher-btn"></button>
+        <div class="env-dropdown" id="env-dropdown"></div>
+      </div>
+    </div>
+    <div class="header-right">
+      <nav class="top-nav">
+        <a href="/admin" class="nav-link">Dashboard</a>
+        <a href="/admin/upgrades" class="nav-link">Upgrades</a>
+        <a href="/admin/api-docs" class="nav-link">API</a>
+        <a href="/admin/skills" class="nav-link active">Skills</a>
+        <a id="railway-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Railway <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
+        <a id="playroom-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Playroom <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
+        <div class="nav-sep"></div>
+        <form method="POST" action="/admin/logout" style="display:contents">
+          <button class="logout-btn" type="submit">Logout</button>
+        </form>
+      </nav>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Generator Section -->
+    <div class="skills-generator">
+      <div class="skills-generator-header">
+        <span class="skills-generator-title">Generate a skill</span>
+      </div>
+      <div class="skills-generator-body">
+        <div class="gen-input-row">
+          <input
+            type="text"
+            class="gen-input"
+            id="gen-idea-input"
+            placeholder="Describe a skill idea, e.g. &quot;a hiking trip planner for groups&quot;"
+            autocomplete="off"
+          />
+          <button class="btn-generate" id="gen-btn" onclick="handleGenerate()">Generate</button>
+        </div>
+        <div class="gen-loading" id="gen-loading">
+          <div class="gen-spinner"></div>
+          <span>Generating skill&hellip; this may take 5&ndash;15 seconds</span>
+        </div>
+        <div class="gen-error" id="gen-error"></div>
+        <div class="gen-preview" id="gen-preview">
+          <div class="gen-preview-header">
+            <span class="gen-preview-emoji" id="gen-p-emoji"></span>
+            <span class="gen-preview-name" id="gen-p-name"></span>
+            <span class="gen-preview-category" id="gen-p-category"></span>
+          </div>
+          <div class="gen-preview-body">
+            <div class="gen-preview-field">
+              <span class="gen-preview-label">Description</span>
+              <span class="gen-preview-value" id="gen-p-description"></span>
+            </div>
+            <div class="gen-preview-field">
+              <span class="gen-preview-label">Tools</span>
+              <div class="gen-preview-tools" id="gen-p-tools"></div>
+            </div>
+            <div class="gen-preview-field">
+              <span class="gen-preview-label">System Prompt</span>
+              <div class="gen-preview-prompt" id="gen-p-prompt"></div>
+            </div>
+          </div>
+          <div class="gen-preview-actions">
+            <button class="btn-save-draft" id="gen-save-btn" onclick="handleSaveDraft()">Save as draft</button>
+            <button class="btn-discard" onclick="clearPreview()">Discard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skills List Section -->
+    <div class="skills-list-card">
+      <div class="skills-list-header">
+        <span class="skills-list-title">Skills</span>
+        <span class="skills-count" id="skills-count"></span>
+        <div class="skills-header-actions">
+          <input
+            type="text"
+            class="skills-search"
+            id="skills-search"
+            placeholder="Search&hellip;"
+            oninput="applyFilters()"
+            autocomplete="off"
+          />
+          <select class="skills-cat-filter" id="skills-cat-filter" onchange="applyFilters()">
+            <option value="">All categories</option>
+            <option>Sports &amp; Rec</option>
+            <option>Travel &amp; Adventures</option>
+            <option>Food &amp; Dining</option>
+            <option>Events &amp; Occasions</option>
+            <option>Hobbies &amp; Interests</option>
+            <option>Entertainment &amp; Culture</option>
+            <option>Music &amp; Creative</option>
+            <option>Kids &amp; Family</option>
+            <option>Wellness &amp; Fitness</option>
+            <option>Money &amp; Investing</option>
+            <option>Work</option>
+            <option>Local</option>
+            <option>Superpowers</option>
+          </select>
+          <button class="btn-create" onclick="showNewForm()">+ Create</button>
+        </div>
+      </div>
+
+      <!-- New skill form (hidden by default) -->
+      <div class="skill-new-form-wrap" id="new-skill-form-wrap">
+        <div class="skill-new-form-title">New skill</div>
+        <div id="new-skill-form-inner"></div>
+      </div>
+
+      <!-- Skills rows -->
+      <div id="skills-list-body">
+        <!-- Loading skeleton -->
+        <div class="skills-skeleton" id="skills-skeleton">
+          <div class="skills-loading-row">
+            <div class="skeleton skeleton-text" style="width:28px;height:18px;border-radius:4px"></div>
+            <div class="skeleton skeleton-text" style="width:160px;height:13px"></div>
+            <div class="skeleton skeleton-text" style="width:100px;height:12px;margin-left:auto"></div>
+            <div class="skeleton" style="width:7px;height:7px;border-radius:50%"></div>
+          </div>
+          <div class="skills-loading-row">
+            <div class="skeleton skeleton-text" style="width:28px;height:18px;border-radius:4px"></div>
+            <div class="skeleton skeleton-text" style="width:140px;height:13px"></div>
+            <div class="skeleton skeleton-text" style="width:120px;height:12px;margin-left:auto"></div>
+            <div class="skeleton" style="width:7px;height:7px;border-radius:50%"></div>
+          </div>
+          <div class="skills-loading-row">
+            <div class="skeleton skeleton-text" style="width:28px;height:18px;border-radius:4px"></div>
+            <div class="skeleton skeleton-text" style="width:180px;height:13px"></div>
+            <div class="skeleton skeleton-text" style="width:90px;height:12px;margin-left:auto"></div>
+            <div class="skeleton" style="width:7px;height:7px;border-radius:50%"></div>
+          </div>
+        </div>
+        <div id="skills-rows"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/admin/assets/admin-common.js"></script>
+  <script>
+    initAdminCommon();
+
+    var CATEGORIES = [
+      'Sports & Rec',
+      'Travel & Adventures',
+      'Food & Dining',
+      'Events & Occasions',
+      'Hobbies & Interests',
+      'Entertainment & Culture',
+      'Music & Creative',
+      'Kids & Family',
+      'Wellness & Fitness',
+      'Money & Investing',
+      'Work',
+      'Local',
+      'Superpowers'
+    ];
+
+    // ── State ──
+    var allSkills = [];
+    var filteredSkills = [];
+    var expandedId = null;   // id of currently expanded row (or null)
+    var generatedData = null; // last generated skill data
+    var showingNewForm = false;
+
+    // ── Generator ──
+
+    function handleGenerate() {
+      var input = document.getElementById('gen-idea-input');
+      var idea = (input.value || '').trim();
+      if (!idea) { input.focus(); return; }
+
+      setGenLoading(true);
+      hideGenError();
+      clearPreview();
+
+      fetch('/api/skills/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea: idea })
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || ('HTTP ' + res.status)); });
+          return res.json();
+        })
+        .then(function (data) {
+          setGenLoading(false);
+          generatedData = data;
+          showPreview(data);
+        })
+        .catch(function (err) {
+          setGenLoading(false);
+          showGenError(err.message || 'Generation failed. Please try again.');
+        });
+    }
+
+    function setGenLoading(on) {
+      var btn = document.getElementById('gen-btn');
+      var loading = document.getElementById('gen-loading');
+      btn.disabled = on;
+      btn.textContent = on ? 'Generating\u2026' : 'Generate';
+      if (on) loading.classList.add('visible');
+      else loading.classList.remove('visible');
+    }
+
+    function showGenError(msg) {
+      var el = document.getElementById('gen-error');
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+
+    function hideGenError() {
+      document.getElementById('gen-error').classList.remove('visible');
+    }
+
+    function showPreview(data) {
+      document.getElementById('gen-p-emoji').textContent = data.emoji || '';
+      document.getElementById('gen-p-name').textContent = data.agentName || '';
+      document.getElementById('gen-p-category').textContent = data.category || '';
+      document.getElementById('gen-p-description').textContent = data.description || '';
+
+      var toolsEl = document.getElementById('gen-p-tools');
+      var tools = Array.isArray(data.tools) ? data.tools : [];
+      if (tools.length) {
+        toolsEl.innerHTML = tools.map(function (t) {
+          return '<span class="gen-tool-chip">' + esc(t) + '</span>';
+        }).join('');
+      } else {
+        toolsEl.textContent = 'none';
+      }
+
+      document.getElementById('gen-p-prompt').textContent = data.prompt || '';
+      document.getElementById('gen-preview').classList.add('visible');
+    }
+
+    function clearPreview() {
+      generatedData = null;
+      document.getElementById('gen-preview').classList.remove('visible');
+      document.getElementById('gen-p-emoji').textContent = '';
+      document.getElementById('gen-p-name').textContent = '';
+      document.getElementById('gen-p-category').textContent = '';
+      document.getElementById('gen-p-description').textContent = '';
+      document.getElementById('gen-p-tools').innerHTML = '';
+      document.getElementById('gen-p-prompt').textContent = '';
+    }
+
+    function handleSaveDraft() {
+      if (!generatedData) return;
+      var btn = document.getElementById('gen-save-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving\u2026';
+
+      var payload = {
+        agentName: generatedData.agentName || '',
+        description: generatedData.description || '',
+        prompt: generatedData.prompt || '',
+        category: generatedData.category || '',
+        emoji: generatedData.emoji || '',
+        tools: Array.isArray(generatedData.tools) ? generatedData.tools : [],
+        published: false
+      };
+
+      fetch('/api/skills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || ('HTTP ' + res.status)); });
+          return res.json();
+        })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = 'Save as draft';
+          clearPreview();
+          document.getElementById('gen-idea-input').value = '';
+          loadSkills();
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          btn.textContent = 'Save as draft';
+          showGenError('Save failed: ' + (err.message || 'unknown error'));
+        });
+    }
+
+    // Listen for Enter key in generator input
+    document.getElementById('gen-idea-input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') handleGenerate();
+    });
+
+    // ── Skills list ──
+
+    function loadSkills() {
+      fetch('/api/skills?all=true')
+        .then(function (res) {
+          if (!res.ok) {
+            console.error('[skills] fetch failed:', res.status, res.statusText);
+            // Fall back to public list (without ?all=true)
+            return fetch('/api/skills').then(function (r) { return r.json(); });
+          }
+          return res.json();
+        })
+        .then(function (data) {
+          allSkills = Array.isArray(data) ? data : [];
+          console.log('[skills] loaded', allSkills.length, 'skills');
+          document.getElementById('skills-skeleton').style.display = 'none';
+          applyFilters();
+        })
+        .catch(function (err) {
+          console.error('[skills] load error:', err);
+          document.getElementById('skills-skeleton').style.display = 'none';
+          document.getElementById('skills-rows').innerHTML =
+            '<div class="skills-empty">Failed to load skills.</div>';
+        });
+    }
+
+    function applyFilters() {
+      var q = (document.getElementById('skills-search').value || '').toLowerCase().trim();
+      var cat = document.getElementById('skills-cat-filter').value;
+
+      filteredSkills = allSkills.filter(function (s) {
+        var matchQ = !q ||
+          (s.agentName || '').toLowerCase().indexOf(q) !== -1 ||
+          (s.description || '').toLowerCase().indexOf(q) !== -1;
+        var matchCat = !cat || s.category === cat;
+        return matchQ && matchCat;
+      });
+
+      renderSkillsList();
+    }
+
+    function renderSkillsList() {
+      var count = document.getElementById('skills-count');
+      count.textContent = filteredSkills.length + ' of ' + allSkills.length;
+
+      var container = document.getElementById('skills-rows');
+      if (!filteredSkills.length) {
+        container.innerHTML = '<div class="skills-empty">No skills found.</div>';
+        return;
+      }
+
+      var html = '';
+      for (var i = 0; i < filteredSkills.length; i++) {
+        html += renderSkillRow(filteredSkills[i], i);
+      }
+      container.innerHTML = html;
+    }
+
+    function renderSkillRow(skill, idx) {
+      var isExpanded = expandedId !== null && skill.id === expandedId;
+      var pubClass = skill.published ? 'published' : 'draft';
+      return (
+        '<div class="skill-row' + (isExpanded ? ' expanded' : '') + '" id="skill-row-' + esc(String(skill.id)) + '" data-idx="' + idx + '">' +
+          '<div class="skill-row-main" onclick="toggleRow(' + idx + ')">' +
+            '<span class="skill-emoji">' + esc(skill.emoji || '') + '</span>' +
+            '<span class="skill-name">' + esc(skill.agentName || '') + '</span>' +
+            '<span class="skill-category-badge">' + esc(skill.category || '') + '</span>' +
+            '<span class="skill-pub-dot ' + pubClass + '" title="' + (skill.published ? 'Published' : 'Draft') + '"></span>' +
+            '<svg class="skill-row-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg>' +
+          '</div>' +
+          '<div class="skill-edit-form">' +
+            renderEditForm(skill, idx, false) +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    function renderEditForm(skill, idx, isNew) {
+      var tools = Array.isArray(skill.tools) ? skill.tools.join(', ') : (skill.tools || '');
+      var formId = isNew ? 'new-skill' : ('skill-' + esc(String(skill.id)));
+      return (
+        '<div class="skill-form-grid">' +
+          '<div class="skill-form-field">' +
+            '<label class="skill-form-label">Agent Name</label>' +
+            '<input type="text" class="skill-form-input" id="' + formId + '-name" value="' + esc(skill.agentName || '') + '" />' +
+          '</div>' +
+          '<div class="skill-form-field">' +
+            '<label class="skill-form-label">Emoji</label>' +
+            '<input type="text" class="skill-form-input" id="' + formId + '-emoji" value="' + esc(skill.emoji || '') + '" />' +
+          '</div>' +
+          '<div class="skill-form-field full">' +
+            '<label class="skill-form-label">Description</label>' +
+            '<input type="text" class="skill-form-input" id="' + formId + '-desc" value="' + esc(skill.description || '') + '" />' +
+          '</div>' +
+          '<div class="skill-form-field">' +
+            '<label class="skill-form-label">Category</label>' +
+            renderCategorySelect(formId + '-cat', skill.category || '') +
+          '</div>' +
+          '<div class="skill-form-field">' +
+            '<label class="skill-form-label">Tools <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--color-foreground-tertiary)">(comma-separated)</span></label>' +
+            '<input type="text" class="skill-form-input" id="' + formId + '-tools" value="' + esc(tools) + '" />' +
+          '</div>' +
+          '<div class="skill-form-field full">' +
+            '<label class="skill-form-label">System Prompt</label>' +
+            '<textarea class="skill-form-textarea" id="' + formId + '-prompt" rows="5">' + esc(skill.prompt || '') + '</textarea>' +
+          '</div>' +
+        '</div>' +
+        '<div class="skill-form-checkbox-row" style="margin-bottom:14px">' +
+          '<input type="checkbox" id="' + formId + '-pub"' + (skill.published ? ' checked' : '') + ' />' +
+          '<label class="skill-form-checkbox-label" for="' + formId + '-pub">Published</label>' +
+        '</div>' +
+        '<div class="skill-form-actions">' +
+          (isNew
+            ? '<button class="btn-skill-save" id="' + formId + '-save-btn" onclick="handleCreateSkill()">Create</button>'
+            : '<button class="btn-skill-save" id="' + formId + '-save-btn" onclick="handleSaveSkill(' + idx + ')">Save</button>') +
+          '<button class="btn-skill-cancel" onclick="' + (isNew ? 'hideNewForm()' : 'collapseRow()') + '">Cancel</button>' +
+          '<span class="skill-form-msg" id="' + formId + '-msg"></span>' +
+          (!isNew
+            ? '<button class="btn-skill-delete" onclick="handleDeleteSkill(' + idx + ')">Delete</button>'
+            : '') +
+        '</div>'
+      );
+    }
+
+    function renderCategorySelect(id, selected) {
+      var html = '<select class="skill-form-select" id="' + id + '">';
+      html += '<option value="">-- select --</option>';
+      for (var i = 0; i < CATEGORIES.length; i++) {
+        var c = CATEGORIES[i];
+        html += '<option' + (c === selected ? ' selected' : '') + '>' + esc(c) + '</option>';
+      }
+      html += '</select>';
+      return html;
+    }
+
+    function toggleRow(idx) {
+      var skill = filteredSkills[idx];
+      if (!skill) return;
+
+      if (expandedId === skill.id) {
+        // Collapse
+        collapseRow();
+      } else {
+        // Expand this one (collapse any previous)
+        expandedId = skill.id;
+        renderSkillsList();
+        // Scroll row into view gently
+        var row = document.getElementById('skill-row-' + skill.id);
+        if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    function collapseRow() {
+      expandedId = null;
+      renderSkillsList();
+    }
+
+    function getFormValues(formId) {
+      var nameEl = document.getElementById(formId + '-name');
+      var emojiEl = document.getElementById(formId + '-emoji');
+      var descEl = document.getElementById(formId + '-desc');
+      var catEl = document.getElementById(formId + '-cat');
+      var toolsEl = document.getElementById(formId + '-tools');
+      var promptEl = document.getElementById(formId + '-prompt');
+      var pubEl = document.getElementById(formId + '-pub');
+
+      var toolsRaw = toolsEl ? toolsEl.value : '';
+      var tools = toolsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+
+      return {
+        agentName: nameEl ? nameEl.value.trim() : '',
+        emoji: emojiEl ? emojiEl.value.trim() : '',
+        description: descEl ? descEl.value.trim() : '',
+        category: catEl ? catEl.value : '',
+        tools: tools,
+        prompt: promptEl ? promptEl.value : '',
+        published: pubEl ? pubEl.checked : false
+      };
+    }
+
+    function handleSaveSkill(idx) {
+      var skill = filteredSkills[idx];
+      if (!skill) return;
+
+      var formId = 'skill-' + skill.id;
+      var btn = document.getElementById(formId + '-save-btn');
+      var msgEl = document.getElementById(formId + '-msg');
+
+      btn.disabled = true;
+      btn.textContent = 'Saving\u2026';
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'skill-form-msg'; }
+
+      var payload = getFormValues(formId);
+
+      fetch('/api/skills/' + encodeURIComponent(skill.id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || ('HTTP ' + res.status)); });
+          return res.json();
+        })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = 'Save';
+          expandedId = null;
+          loadSkills();
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          btn.textContent = 'Save';
+          if (msgEl) { msgEl.textContent = err.message || 'Save failed'; msgEl.className = 'skill-form-msg error'; }
+        });
+    }
+
+    function handleDeleteSkill(idx) {
+      var skill = filteredSkills[idx];
+      if (!skill) return;
+      if (!confirm('Delete "' + (skill.agentName || 'this skill') + '"? This cannot be undone.')) return;
+
+      var formId = 'skill-' + skill.id;
+      var saveBtn = document.getElementById(formId + '-save-btn');
+      var delBtn = document.querySelector('#skill-row-' + skill.id + ' .btn-skill-delete');
+      if (saveBtn) saveBtn.disabled = true;
+      if (delBtn) { delBtn.disabled = true; delBtn.textContent = 'Deleting\u2026'; }
+
+      fetch('/api/skills/' + encodeURIComponent(skill.id), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || ('HTTP ' + res.status)); });
+          return res.json();
+        })
+        .then(function () {
+          expandedId = null;
+          loadSkills();
+        })
+        .catch(function (err) {
+          if (saveBtn) saveBtn.disabled = false;
+          if (delBtn) { delBtn.disabled = false; delBtn.textContent = 'Delete'; }
+          alert('Delete failed: ' + (err.message || 'unknown error'));
+        });
+    }
+
+    // ── New skill form ──
+
+    function showNewForm() {
+      showingNewForm = true;
+      expandedId = null;
+      renderSkillsList();
+
+      var wrap = document.getElementById('new-skill-form-wrap');
+      var inner = document.getElementById('new-skill-form-inner');
+      inner.innerHTML = renderEditForm({ agentName: '', emoji: '', description: '', category: '', tools: [], prompt: '', published: false }, -1, true);
+      wrap.classList.add('visible');
+      // Focus first input
+      var first = inner.querySelector('input');
+      if (first) first.focus();
+    }
+
+    function hideNewForm() {
+      showingNewForm = false;
+      var wrap = document.getElementById('new-skill-form-wrap');
+      wrap.classList.remove('visible');
+      document.getElementById('new-skill-form-inner').innerHTML = '';
+    }
+
+    function handleCreateSkill() {
+      var btn = document.getElementById('new-skill-save-btn');
+      var msgEl = document.getElementById('new-skill-msg');
+
+      btn.disabled = true;
+      btn.textContent = 'Creating\u2026';
+      if (msgEl) { msgEl.textContent = ''; msgEl.className = 'skill-form-msg'; }
+
+      var payload = getFormValues('new-skill');
+
+      fetch('/api/skills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || ('HTTP ' + res.status)); });
+          return res.json();
+        })
+        .then(function () {
+          hideNewForm();
+          loadSkills();
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          btn.textContent = 'Create';
+          if (msgEl) { msgEl.textContent = err.message || 'Create failed'; msgEl.className = 'skill-form-msg error'; }
+        });
+    }
+
+    // esc() is already available on window from admin-common.js
+
+    // ── Bootstrap ──
+    loadSkills();
+  </script>
+</body>
+</html>

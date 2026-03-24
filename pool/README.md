@@ -97,6 +97,7 @@ pnpm start
 | `ATTESTATION_KID` | Key ID for the JWKS (default `convos-agents-1`) |
 | **Providers** | |
 | `OPENROUTER_MANAGEMENT_KEY` | OpenRouter provisioning key (creates per-instance keys) |
+| `SKILLS_OPENROUTER_API_KEY` | OpenRouter API key for skill generation (`POST /api/skills/generate`) |
 | `AGENTMAIL_API_KEY` | AgentMail API key (provisions per-instance inboxes) |
 | `AGENTMAIL_DOMAIN` | AgentMail inbox domain |
 | `TELNYX_API_KEY` | Telnyx API key (provisions per-instance phone numbers) |

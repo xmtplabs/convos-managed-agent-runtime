@@ -2,7 +2,6 @@
 
 import {
   useState,
-  useEffect,
   useMemo,
   useCallback,
   useRef,
@@ -15,7 +14,6 @@ import type { AgentSkill } from "@/lib/types";
 // Constants
 // ---------------------------------------------------------------------------
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const PS_LIMIT = 10;
 
 // ---------------------------------------------------------------------------
@@ -24,7 +22,7 @@ const PS_LIMIT = 10;
 
 interface SkillBrowserProps {
   skills: AgentSkill[];
-  onOpenModal: (pageId: string, name: string) => void;
+  onOpenModal: (prompt: string, name: string) => void;
   activeStep: number;
   setActiveStep: (step: number) => void;
 }
@@ -32,38 +30,6 @@ interface SkillBrowserProps {
 interface CategoryInfo {
   name: string;
   emoji: string;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Prompt cache + in-flight promise deduplication. */
-const promptCache: Record<string, { prompt: string }> = {};
-const pendingFetches: Record<string, Promise<{ prompt: string } | null>> = {};
-
-async function fetchPrompt(
-  pageId: string,
-): Promise<{ prompt: string } | null> {
-  if (promptCache[pageId]) return promptCache[pageId];
-  if (pageId in pendingFetches) return pendingFetches[pageId];
-
-  const promise = (async () => {
-    try {
-      const res = await fetch(`${basePath}/api/prompts/${pageId}`);
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-      promptCache[pageId] = data;
-      return data;
-    } catch {
-      return null;
-    } finally {
-      delete pendingFetches[pageId];
-    }
-  })();
-
-  pendingFetches[pageId] = promise;
-  return promise;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,30 +42,11 @@ export const SkillBrowser = forwardRef<HTMLDivElement, SkillBrowserProps>(
     const [search, setSearch] = useState("");
     const [expanded, setExpanded] = useState(false);
 
-    // Track per-button copy/loading state by pageId
-    const [copyStates, setCopyStates] = useState<
-      Record<string, "idle" | "loading" | "copied" | "error">
-    >({});
-    const copyTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-    // Clear all copy timers on unmount to prevent setState on unmounted component
-    useEffect(() => {
-      return () => {
-        for (const id of Object.values(copyTimers.current)) {
-          clearTimeout(id);
-        }
-      };
-    }, []);
-
     // Inner div ref for forwarding
     const innerRef = useRef<HTMLDivElement>(null);
     useImperativeHandle(ref, () => innerRef.current as HTMLDivElement);
 
-    // Only show agents with a notionPageId (they have viewable/copyable prompts)
-    const skills = useMemo(
-      () => rawSkills.filter((a) => a.notionPageId),
-      [rawSkills],
-    );
+    const skills = rawSkills;
 
     // ------------------------------------------------------------------
     // Derived data
@@ -125,7 +72,7 @@ export const SkillBrowser = forwardRef<HTMLDivElement, SkillBrowserProps>(
         if (category !== "All" && a.category !== category) return false;
         if (
           q &&
-          a.name.toLowerCase().indexOf(q) === -1 &&
+          a.agentName.toLowerCase().indexOf(q) === -1 &&
           a.description.toLowerCase().indexOf(q) === -1
         )
           return false;
@@ -184,84 +131,30 @@ export const SkillBrowser = forwardRef<HTMLDivElement, SkillBrowserProps>(
     }, []);
 
     const handleCopy = useCallback(
-      async (pageId: string, e: React.MouseEvent) => {
+      async (prompt: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        // Set loading state
-        setCopyStates((prev) => ({ ...prev, [pageId]: "loading" }));
-
-        const data = await fetchPrompt(pageId);
-        if (!data) {
-          setCopyStates((prev) => ({ ...prev, [pageId]: "error" }));
-          if (copyTimers.current[pageId])
-            clearTimeout(copyTimers.current[pageId]);
-          copyTimers.current[pageId] = setTimeout(() => {
-            setCopyStates((prev) => ({ ...prev, [pageId]: "idle" }));
-          }, 1500);
-          return;
-        }
-
         try {
-          await navigator.clipboard.writeText(data.prompt);
-          setCopyStates((prev) => ({ ...prev, [pageId]: "copied" }));
-
-          // Advance step 2 -> 3
-          if (activeStep === 2) {
-            setActiveStep(3);
-          }
-
-          if (copyTimers.current[pageId])
-            clearTimeout(copyTimers.current[pageId]);
-          copyTimers.current[pageId] = setTimeout(() => {
-            setCopyStates((prev) => ({ ...prev, [pageId]: "idle" }));
-          }, 1500);
-        } catch {
-          setCopyStates((prev) => ({ ...prev, [pageId]: "error" }));
-          if (copyTimers.current[pageId])
-            clearTimeout(copyTimers.current[pageId]);
-          copyTimers.current[pageId] = setTimeout(() => {
-            setCopyStates((prev) => ({ ...prev, [pageId]: "idle" }));
-          }, 1500);
-        }
+          await navigator.clipboard.writeText(prompt);
+          if (activeStep === 2) setActiveStep(3);
+        } catch {}
       },
       [activeStep, setActiveStep],
     );
 
     const handleView = useCallback(
-      (pageId: string, name: string, e: React.MouseEvent) => {
+      (prompt: string, name: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        onOpenModal(pageId, name);
+        onOpenModal(prompt, name);
       },
       [onOpenModal],
     );
 
     const handleRowClick = useCallback(
-      (pageId: string | null, name: string) => {
-        if (pageId) {
-          onOpenModal(pageId, name);
-        }
+      (prompt: string, name: string) => {
+        if (prompt) onOpenModal(prompt, name);
       },
       [onOpenModal],
     );
-
-    // ------------------------------------------------------------------
-    // Render helpers
-    // ------------------------------------------------------------------
-
-    function getCopyButtonText(pageId: string): string {
-      const state = copyStates[pageId] || "idle";
-      if (state === "loading") return "...";
-      if (state === "copied") return "Copied!";
-      if (state === "error") return "Error";
-      return "Copy";
-    }
-
-    function getCopyButtonClass(pageId: string): string {
-      const state = copyStates[pageId] || "idle";
-      let cls = "ps-btn primary ps-copy-btn";
-      if (state === "copied") cls += " copied";
-      if (state === "loading") cls += " loading";
-      return cls;
-    }
 
     // Build the list with category headers interspersed
     const listElements: React.ReactNode[] = [];
@@ -279,34 +172,28 @@ export const SkillBrowser = forwardRef<HTMLDivElement, SkillBrowserProps>(
         <div
           key={agent.slug}
           className="ps-agent-row"
-          data-pid={agent.notionPageId || ""}
-          data-name={agent.name}
-          onClick={() => handleRowClick(agent.notionPageId, agent.name)}
+          onClick={() => handleRowClick(agent.prompt, agent.agentName)}
         >
           <div className="ps-agent-info">
-            <div className="ps-agent-name">{agent.name}</div>
+            <div className="ps-agent-name">{agent.agentName}</div>
             <div className="ps-agent-desc">{agent.description}</div>
           </div>
           <div className="ps-agent-actions">
-            {agent.notionPageId && (
+            {agent.prompt && (
               <>
                 <button
                   className="ps-btn ps-view-btn"
-                  data-pid={agent.notionPageId}
-                  data-name={agent.name}
                   onClick={(e) =>
-                    handleView(agent.notionPageId!, agent.name, e)
+                    handleView(agent.prompt, agent.agentName, e)
                   }
                 >
                   View
                 </button>
                 <button
-                  className={getCopyButtonClass(agent.notionPageId)}
-                  data-pid={agent.notionPageId}
-                  data-name={agent.name}
-                  onClick={(e) => handleCopy(agent.notionPageId!, e)}
+                  className="ps-btn primary ps-copy-btn"
+                  onClick={(e) => handleCopy(agent.prompt, e)}
                 >
-                  {getCopyButtonText(agent.notionPageId)}
+                  Copy
                 </button>
               </>
             )}

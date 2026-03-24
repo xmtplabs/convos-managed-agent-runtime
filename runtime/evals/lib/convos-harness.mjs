@@ -199,7 +199,8 @@ export function createHarness(tag, opts = {}) {
   function isSystemMsg(m) {
     if (!m.contentType) return false;
     const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
-    return typeId && typeId !== 'text';
+    // text and reply are both valid agent messages — reply is an XMTP quote.
+    return typeId && typeId !== 'text' && typeId !== 'reply';
   }
 
   function isAgentReply(m) {
@@ -246,13 +247,13 @@ export function createHarness(tag, opts = {}) {
         const text = transcript(msgs);
         if (pattern.test(text)) {
           log(`Content matched: ${pattern}`);
-          return { msgs, text };
+          return { msgs, text, matched: true };
         }
       } catch {}
     }
     log(`Content NOT matched within ${timeoutMs / 1000}s: ${pattern}`);
     const msgs = fetchMessages();
-    return { msgs, text: transcript(msgs) };
+    return { msgs, text: transcript(msgs), matched: false };
   }
 
   function transcript(msgs, afterIndex = 0) {
@@ -261,7 +262,7 @@ export function createHarness(tag, opts = {}) {
       .filter((m) => {
         if (!m.contentType) return true;
         const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
-        return typeId === 'text';
+        return typeId === 'text' || typeId === 'reply';
       })
       .map((m) => {
         const who = m.senderInboxId === userInboxId ? 'USER' : 'AGENT';

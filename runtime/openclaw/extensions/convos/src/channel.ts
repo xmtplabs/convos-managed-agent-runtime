@@ -61,6 +61,29 @@ function loadConvosMessagingHints(): string[] {
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
+
+/**
+ * Greeting gate — prevents notifications from being dispatched before the
+ * greeting run completes. Without this, concurrent dispatches compete for the
+ * session lane and the notification gets dropped.
+ *
+ * Mirrors Hermes's `_greeting_done` asyncio.Event.
+ */
+let _greetingResolve: (() => void) | null = null;
+let _greetingDone: Promise<void> = Promise.resolve(); // pre-resolved for resume path
+
+function resetGreetingGate(): void {
+  _greetingDone = new Promise<void>((resolve) => {
+    _greetingResolve = resolve;
+  });
+}
+
+function signalGreetingDone(): void {
+  if (_greetingResolve) {
+    _greetingResolve();
+    _greetingResolve = null;
+  }
+}
 const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
 const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
 const EXPLOSION_IMMEDIATE_SKEW_MS = 3_000;
@@ -1040,6 +1063,46 @@ async function dispatchGreeting(
   };
 
   console.log("[convos] Dispatching greeting message");
+  try {
+    await handleInboundMessage(account, syntheticMsg, runtime);
+  } finally {
+    signalGreetingDone();
+  }
+}
+
+/**
+ * Dispatch a background notification (email/SMS) as a synthetic system message.
+ * The agent sees it and responds immediately over XMTP, but the notification
+ * prompt itself is never sent to the conversation (same as greeting dispatch).
+ */
+export async function dispatchNotification(text: string): Promise<void> {
+  // Wait for greeting to complete so the notification doesn't race with the
+  // greeting run for the session lane (mirrors Hermes's _greeting_done gate).
+  await _greetingDone;
+  const inst = getConvosInstance();
+  if (!inst) {
+    throw new Error("No active conversation");
+  }
+
+  const runtime = getConvosRuntime();
+  if (!runtime) {
+    throw new Error("No runtime available");
+  }
+
+  const cfg = runtime.config.loadConfig() as CoreConfig;
+  const account = resolveConvosAccount({ cfg });
+
+  const syntheticMsg: InboundMessage = {
+    conversationId: inst.conversationId,
+    messageId: `system-notify-${crypto.randomUUID()}`,
+    senderId: SYSTEM_SENDER_ID,
+    senderName: "System",
+    content: text,
+    contentType: "text",
+    timestamp: new Date(),
+  };
+
+  console.log("[convos] Dispatching notification message");
   await handleInboundMessage(account, syntheticMsg, runtime);
 }
 
@@ -1144,9 +1207,13 @@ export async function startWiredInstance(params: {
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,
     onMessage: (msg: InboundMessage) => {
-      handleInboundMessage(account, msg, runtime).catch((err) => {
-        console.error(`[convos] Message handling failed: ${String(err)}`);
-      });
+      // Wait for greeting to complete before processing inbound messages so
+      // the greeting is already in session history (mirrors Hermes gate).
+      _greetingDone
+        .then(() => handleInboundMessage(account, msg, runtime))
+        .catch((err) => {
+          console.error(`[convos] Message handling failed: ${String(err)}`);
+        });
     },
     onMemberJoined: (info) => {
       console.log(`[convos] Join accepted: ${info.joinerInboxId}`);
@@ -1174,6 +1241,8 @@ export async function startWiredInstance(params: {
 
   // Fire-and-forget: dispatch LLM-generated welcome message.
   // Does not block startWiredInstance from returning to the pool manager.
+  // Reset the greeting gate so notifications wait until the greeting completes.
+  resetGreetingGate();
   dispatchGreeting(account, runtime).catch((err) => {
     console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
   });
