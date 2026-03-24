@@ -239,9 +239,11 @@ export function apiDocsPage({
 
 export function skillsPage({
   poolEnvironment,
+  railwayProjectId = "",
+  railwayEnvironmentId = "",
   adminUrls = [],
 }) {
-  const config = JSON.stringify({ poolEnvironment, adminUrls });
+  const config = JSON.stringify({ poolEnvironment, railwayProjectId, railwayEnvironmentId, adminUrls });
   return skillsHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
