@@ -459,7 +459,13 @@ export default function register(api: OpenClawPluginApi) {
 
       // API: /web-tools/skills/api/<slug> — single skill
       if (pathParts.length >= 5 && pathParts[pathParts.length - 2] === "api") {
-        const slug = decodeURIComponent(lastPart);
+        let slug: string;
+        try { slug = decodeURIComponent(lastPart); } catch {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: "invalid slug" }));
+          return;
+        }
         const skill = readSkillBySlug(slug);
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Cache-Control", "no-store");

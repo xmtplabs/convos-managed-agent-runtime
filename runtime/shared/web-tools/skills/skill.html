@@ -40,7 +40,7 @@
         .then(function (_) {
           if (!_.ok || !_.data) {
             loading.className = "error-msg";
-            loading.textContent = _.data.error || "skill not found";
+            loading.textContent = (_.data && _.data.error) || "skill not found";
             return;
           }
           render(_.data);

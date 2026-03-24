@@ -28,16 +28,23 @@ tests:
       - type: llm-rubric
         value: >
           The output is a chat transcript with lines prefixed [AGENT].
-          The AGENT just joined a group conversation and sent a welcome message.
-          Evaluate against ALL requirements:
+          The AGENT just joined a group conversation and sent an initial message.
+          The agent may send EITHER a standard welcome OR a skill-builder discovery question. Both are valid.
 
+          OPTION A — Standard welcome. Evaluate against ALL of these:
           1. The message must be 1-2 sentences max. Three or more sentences is a fail.
           2. It must contain a greeting (e.g. "hey", "hi", "hello", "what's up").
           3. It must ask what the group is up to, working on, or what's going on.
-          4. It must reference naming — either inviting the group to suggest a name, or asking what it should be called. Any phrasing about names counts.
+          4. It must reference naming — either inviting the group to suggest a name, or asking what it should be called.
           5. It must NOT mention crypto, wallets, tokens, trading, Hermes, or Nous Research.
 
-          Pass if all five requirements are met. Be lenient on exact phrasing — focus on whether the intent of each requirement is satisfied.
+          OPTION B — Skill-builder discovery. Evaluate against ALL of these:
+          1. The message must be 1-2 sentences max. Three or more sentences is a fail.
+          2. It must contain a greeting or friendly opening.
+          3. It must ask what the group needs help with, what they're looking for, or what kind of agent they want.
+          4. It must NOT mention crypto, wallets, tokens, trading, Hermes, or Nous Research.
+
+          Pass if EITHER Option A or Option B requirements are fully met. Be lenient on exact phrasing — focus on whether the intent of each requirement is satisfied.
       - type: not-icontains
         value: "crypto"
       - type: not-icontains
