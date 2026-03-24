@@ -777,6 +777,7 @@ async def pool_restart():
             logger.error("Error stopping adapter during restart: %s", err)
         _adapter = None
 
+    await _stop_poller()
     await _try_resume_from_credentials(cfg)
 
     adapter = get_adapter()
