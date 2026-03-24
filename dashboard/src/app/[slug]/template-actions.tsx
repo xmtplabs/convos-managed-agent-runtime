@@ -94,7 +94,7 @@ export function SkillActions({ slug, prompt, siteUrl }: SkillActionsProps) {
   }, []);
 
   const handleShare = useCallback(async () => {
-    const url = `${siteUrl}/a/${encodeURIComponent(slug)}`;
+    const url = `${siteUrl}/${encodeURIComponent(slug)}`;
 
     // Try native share first (mobile), fall back to clipboard
     if (typeof navigator !== "undefined" && navigator.share) {

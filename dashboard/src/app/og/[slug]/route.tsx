@@ -37,7 +37,7 @@ export async function GET(
 
   // Build QR code URL pointing to the template page
   const siteUrl = getSiteUrl(request);
-  const templateUrl = `${siteUrl}/a/${encodeURIComponent(slug)}`;
+  const templateUrl = `${siteUrl}/${encodeURIComponent(slug)}`;
   const qrUrl = `${siteUrl}/qr/${encodeURIComponent(slug)}`;
 
   return new ImageResponse(

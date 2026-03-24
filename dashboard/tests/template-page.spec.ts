@@ -100,7 +100,7 @@ test.describe("Template page SSR", () => {
 
 test.describe("Template page 404", () => {
   test("returns 404 for unknown slug", async ({ page }) => {
-    const response = await page.goto("/a/this-agent-does-not-exist-at-all");
+    const response = await page.goto("/this-agent-does-not-exist-at-all");
     expect(response?.status()).toBe(404);
     await expect(page.getByText("Assistant not found")).toBeVisible();
     await expect(

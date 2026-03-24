@@ -42,7 +42,7 @@ export function getSiteUrl(request: Request): string {
   } catch {
     // Absolute last resort
     return (
-      process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org"
+      process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistants"
     );
   }
 }

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getSkill } from "@/lib/api";
 import { ConvosLogo } from "@/components/convos-logo";
 import { SkillActions } from "./template-actions";
-import "../../(articles)/article.css";
+import "../(articles)/article.css";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,7 +31,7 @@ export async function generateMetadata({
   const description = skill.description;
 
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistants";
   const ogImageUrl = `${siteUrl}/og/${encodeURIComponent(slug)}`;
 
   return {
@@ -143,7 +143,7 @@ export default async function SkillPage({ params }: TemplatePageProps) {
     notFound();
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistants";
 
   return (
     <div style={{ minHeight: "100vh", background: "#FFFFFF", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif", WebkitFontSmoothing: "antialiased" }}>
