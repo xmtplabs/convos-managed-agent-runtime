@@ -67,6 +67,7 @@ function spawnGateway(extraEnv = {}) {
   const child = spawn("sh", ["scripts/start.sh"], {
     cwd: ROOT,
     stdio: "inherit",
+    detached: true, // own process group so we can kill the entire tree on restart
     env: {
       ...process.env,
       ...extraEnv,
@@ -107,6 +108,7 @@ async function pollGateway() {
 const initialChild = spawn("pnpm", ["start"], {
   cwd: ROOT,
   stdio: "inherit",
+  detached: true, // own process group so restart can kill the entire tree
   env: {
     ...process.env,
     PORT: String(INTERNAL_PORT),
@@ -261,28 +263,18 @@ const server = http.createServer(async (req, res) => {
     try {
       restarting = true;
       if (gatewayChild) {
-        console.log("[pool-server] Killing current gateway for restart...");
-        gatewayChild.kill("SIGTERM");
-        // Wait for the child to exit before respawning
+        console.log("[pool-server] Killing current gateway process group...");
+        // Kill the entire process group (shell + gateway + children) so the
+        // port is fully released before we respawn.
+        try { process.kill(-gatewayChild.pid, "SIGTERM"); } catch {}
+        // Wait for the child to exit
         await new Promise((resolve) => {
           const onExit = () => resolve();
           gatewayChild.once("exit", onExit);
-          // If already dead, resolve immediately
           if (gatewayChild.exitCode !== null) resolve();
         });
-        // The shell exits but the actual gateway process may still hold the
-        // port.  Poll until the port is free before respawning.
-        console.log("[pool-server] Waiting for port to be released...");
-        for (let i = 0; i < 30; i++) {
-          try {
-            await fetch(`http://localhost:${INTERNAL_PORT}/__openclaw__/canvas/`, { signal: AbortSignal.timeout(500) });
-            // Still responding — port still in use
-            await new Promise((r) => setTimeout(r, 1000));
-          } catch {
-            // Connection refused — port is free
-            break;
-          }
-        }
+        // Small grace period for OS to release sockets
+        await new Promise((r) => setTimeout(r, 2000));
       }
       restarting = false;
 
