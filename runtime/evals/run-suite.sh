@@ -12,10 +12,18 @@ _ENV_RUNTIME_DIR="$(cd "$EVAL_DIR/.." && pwd)"
 SUITE="$1"; shift
 [ "$1" = "--" ] && shift
 
-MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
+SUITE_NAME="$(basename "$SUITE" .yaml)"
+
+# Auto-detect: suites with only 1 test get threshold 0 (no free pass).
+# Count top-level test entries (lines matching "  - description:").
+_test_count=$(grep -c '^  - description:' "$EVAL_DIR/suites/$SUITE" 2>/dev/null || echo 0)
+if [ "$_test_count" -le 1 ]; then
+  MAX_FAILURES="${EVAL_MAX_FAILURES:-0}"
+else
+  MAX_FAILURES="${EVAL_MAX_FAILURES:-1}"
+fi
 
 TMPOUT=$(mktemp)
-SUITE_NAME="$(basename "$SUITE" .yaml)"
 
 # JSON output for CI report (opt-in via EVAL_RESULTS_DIR)
 JSON_FLAG=""

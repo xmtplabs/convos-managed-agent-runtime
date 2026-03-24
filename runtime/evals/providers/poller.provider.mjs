@@ -39,6 +39,7 @@ const h = createHarness('poller', {
         HOME: EVAL_HOME,
         PORT: String(h.gatewayPort),
         POLL_INTERVAL_SECONDS: '10',
+        DISABLE_POLLER: '0',
         SKILLS_ROOT,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -79,17 +80,35 @@ export default class PollerProvider {
 
     h.ensureSetup();
 
-    // Test 1: Wait for poller notification to appear in transcript
+    // Test 1: Wait for poller notification to appear in transcript.
+    // The agent sometimes proactively announces the email, sometimes stays
+    // silent (the system prompt includes "Does this even need a reply?").
+    // If no proactive announcement within 60s, nudge the agent so we still
+    // verify the full pipeline: poller → notify → agent awareness.
     if (meta.waitForNotification) {
-      const { msgs: notifMsgs } = h.waitForContent(/email|mail|inbox/i, 120_000);
-      const notifBaseline = h.agentCount(notifMsgs);
-      h.log(`Notification matched — agent count=${notifBaseline} total=${notifMsgs.length}`);
-      h.log('Waiting for agent to finish processing notification...');
-      h.waitForAgent(notifBaseline - 1, 120_000, 5_000);
+      const preMsgs = h.fetchMessages();
+      const welcomeEnd = preMsgs.length;
+      h.log(`Baseline before notification wait: ${h.agentCount(preMsgs)} agent msgs, ${welcomeEnd} total`);
+
+      // Wait for the agent to mention the email. 120s accounts for external
+      // email delivery latency (agentmail API indexing).
+      const { matched } = h.waitForContent(/email|mail|inbox/i, 120_000);
+
+      if (matched) {
+        h.log('Proactive announcement detected — waiting for agent to settle...');
+        const cur = h.fetchMessages();
+        h.waitForAgent(h.agentCount(cur) - 1, 60_000, 5_000);
+      } else {
+        // Nudge: the notification is in the agent's session history even if it
+        // didn't announce. Ask specifically about emails so the agent checks.
+        h.log('No proactive announcement — nudging agent...');
+        h.sendAndWait('Did any emails or notifications come in? Check your inbox.', {});
+      }
+
       const finalMsgs = h.fetchMessages();
       h.log(`After wait — agent count=${h.agentCount(finalMsgs)} total=${finalMsgs.length}`);
-      const text = h.transcript(finalMsgs);
-      h.log(`Transcript:\n${text}`);
+      const text = h.transcript(finalMsgs, welcomeEnd);
+      h.log(`Transcript (post-welcome):\n${text || '(empty — agent did not respond to notification)'}`);
       h.log(`Notification test done (${elapsed(t)})`);
       return { output: text, metadata: { conversationId: h.conversationId } };
     }

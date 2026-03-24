@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, index, serial, jsonb, unique, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, index, serial, jsonb, unique, integer, boolean } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 export type InstanceStatus =
@@ -87,6 +87,23 @@ export const payments = pgTable("payments", {
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
+// ── agent_skills ──────────────────────────────────────────────────────────────
+export const agentSkills = pgTable("agent_skills", {
+  id:          text("id").primaryKey(),
+  slug:        text("slug").unique().notNull(),
+  agentName:   text("agent_name").notNull(),
+  description: text("description").notNull().default(""),
+  prompt:      text("prompt").notNull().default(""),
+  category:    text("category").notNull().default(""),
+  emoji:       text("emoji").notNull().default(""),
+  tools:       text("tools").array().notNull().default([]),
+  published:   boolean("published").notNull().default(false),
+  createdAt:   timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt:   timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+}, (table) => [
+  index("idx_skills_category").on(table.category),
+]);
+
 // ── Inferred types ─────────────────────────────────────────────────────────────
 export type PaymentRow = InferSelectModel<typeof payments>;
 export type NewPayment = InferInsertModel<typeof payments>;
@@ -98,3 +115,5 @@ export type ServiceRow = InferSelectModel<typeof instanceServices>;
 export type NewService = InferInsertModel<typeof instanceServices>;
 export type PhonePoolRow = InferSelectModel<typeof phoneNumberPool>;
 export type NewPhonePool = InferInsertModel<typeof phoneNumberPool>;
+export type SkillRow = InferSelectModel<typeof agentSkills>;
+export type NewSkill = InferInsertModel<typeof agentSkills>;

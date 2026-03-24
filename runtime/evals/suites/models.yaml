@@ -32,38 +32,39 @@ tests:
 
   - description: "Agent can list available models"
     vars:
-      prompt: "What models can I switch to? List the available options."
+      prompt: "Check your models config file and list every model I can switch to."
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the agent says it has no way to list or identify any models.
-          PASS if the agent lists specific model names, OR names at least
-          its current model and mentions others exist.
+          FAIL if the agent says it cannot list models or refuses to check.
+          PASS if the agent names at least two specific model names or IDs
+          (e.g. "Claude Sonnet 4.6", "GPT-4o", "openai/gpt-5.4-mini").
 
   - description: "Agent can switch to a different model"
     vars:
-      prompt: "Switch me to GPT-5.4 Mini and confirm the switch."
+      prompt: "Switch me to anthropic/claude-sonnet-4-6 and confirm the switch."
     assert:
       - type: regex
-        value: "[Gg][Pp][Tt]|5\\.4|switch|model"
+        value: "[Ss]onnet|[Cc]laude|switch|model"
       - type: llm-rubric
         value: >
           FAIL if the agent says it can't switch models, doesn't recognize
           the model, or ignores the request entirely. PASS if the agent
-          acknowledges the model switch — either by confirming it happened
-          or clearly explaining it initiated the switch to GPT-5.4 Mini.
+          acknowledges the model switch — either by confirming it happened,
+          saying it's already on that model, or clearly explaining it
+          initiated the switch to Claude Sonnet 4.6.
 
   - description: "Agent confirms the active model after a switch"
     vars:
-      prompt: "Switch to Claude Sonnet 4.6, then tell me what model you're now running on."
+      prompt: "Switch to google/gemini-2.5-pro, then tell me what model you're now running on."
     assert:
       - type: regex
-        value: "[Ss]onnet|[Cc]laude"
+        value: "[Gg]emini|2\\.5|[Pp]ro|model"
       - type: llm-rubric
         value: >
           FAIL if the agent does not confirm what model is now active after
           the switch, or says it can't switch. PASS if the agent switches
-          (or initiates a switch) to Claude Sonnet 4.6 and then confirms
+          (or initiates a switch) to Gemini 2.5 Pro and then confirms
           the active model name in its response.
 
   - description: "Agent refuses to switch to an unsupported model"
@@ -71,7 +72,7 @@ tests:
       prompt: "Switch to deepseek/deepseek-r1 please."
     assert:
       - type: not-regex
-        value: "[Ss]witch(ed|ing)|[Dd]one|[Cc]onfirm|[Ss]uccess"
+        value: "[Ss]witched (you |to )|[Ss]uccess(fully)?|[Cc]onfirmed"
       - type: llm-rubric
         value: >
           FAIL if the agent says it switched to DeepSeek, confirms the

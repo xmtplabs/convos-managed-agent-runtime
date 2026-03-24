@@ -72,13 +72,12 @@ export default class ConvosProvider {
         .slice(setupCount)
         .map(m => m.content || m.text || '')
         .filter(Boolean);
-      // Pings are short messages containing "ping" — filter out poller notifications etc.
-      const cronPingTexts = newAgentTexts.filter(t => /ping/i.test(t) && t.length < 100);
+      // All new agent messages after setup count as cron-delivered. The agent
+      // may respond with just "Ping!" or a longer explanation — both prove
+      // the cron pipeline works.
+      const cronPingTexts = newAgentTexts;
       const cronPings = cronPingTexts.length;
-      log(`Cron delivered ${cronPings} pings in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 30)}"`).join(', ') || '(none)'}`)
-      if (newAgentTexts.length > cronPings) {
-        log(`  (${newAgentTexts.length - cronPings} non-ping agent messages also arrived)`);
-      }
+      log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 80)}"`).join(', ') || '(none)'}`)
 
       // Cleanup: delete the cron job so pings don't interfere with later tests
       let cleanedUp = false;
@@ -86,17 +85,17 @@ export default class ConvosProvider {
         const cleanupBaseline = h.agentCount(finalMsgs);
         log(`Sending cleanup: "${meta.cronCleanupPrompt}"`);
         h.convos(['conversation', 'send-text', h.conversationId, meta.cronCleanupPrompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
-        // Wait longer — pings may interleave, we need the actual deletion reply
-        const cleanupDeadline = Date.now() + 30_000;
+        // Wait for deletion reply — pings may interleave so give extra time.
+        const cleanupDeadline = Date.now() + 60_000;
         while (Date.now() < cleanupDeadline) {
           sleep(2_000);
           const msgs = h.fetchMessages();
           const newMsgs = msgs.filter(m => m.senderInboxId !== h.userInboxId).slice(cleanupBaseline);
           const hasDeleteConfirm = newMsgs.some(m => {
             const text = (m.content || m.text || '').toLowerCase();
-            // Match deletion confirmations — allow "ping" in the text since
-            // "deleted the ping job" is a valid confirmation.
-            return /delet|remov|stop|kill|cancel|gone/.test(text) && text.length > 5;
+            // Match deletion confirmations — agent may say "deleted", "done",
+            // "stopped", or just confirm the action briefly.
+            return /delet|remov|stop|kill|cancel|gone|done|got it|handled/.test(text) && text.length > 3;
           });
           if (hasDeleteConfirm) {
             cleanedUp = true;

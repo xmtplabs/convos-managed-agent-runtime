@@ -654,15 +654,19 @@ def _patch_cron_delivery() -> None:
 
 
 async def _cron_tick_loop() -> None:
-    """Run the Hermes cron scheduler every 60 seconds.
+    """Run the Hermes cron scheduler periodically.
 
     Jobs are stored in HERMES_HOME/cron/jobs.json. The tick() function
     checks for due jobs, runs them, and saves output. Delivery to the
     active Convos conversation is routed through the adapter via the
     monkey-patched _deliver_result.
+
+    In eval mode the interval is 15s so cron tests don't need to wait
+    a full minute for the first tick.
     """
+    interval = 15 if os.environ.get("EVAL_MODE") == "1" else 60
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(interval)
         try:
             from cron.scheduler import tick
             loop = asyncio.get_event_loop()
