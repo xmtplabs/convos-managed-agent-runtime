@@ -205,10 +205,21 @@ export default async function SkillPage({ params }: TemplatePageProps) {
           siteUrl={siteUrl}
         />
 
-        {/* Full prompt — rendered as styled prose */}
+        {/* Full prompt — collapsed by default */}
         {skill.prompt && (
-          <div style={{ borderTop: "1px solid #F0F0F0", paddingTop: "28px", marginTop: "32px" }}>
+          <div style={{ borderTop: "1px solid #F0F0F0", marginTop: "32px" }}>
             <style dangerouslySetInnerHTML={{ __html: `
+              .skill-prompt-toggle {
+                width: 100%;
+                padding: 20px 0;
+                cursor: pointer;
+                list-style: none;
+              }
+              .skill-prompt-toggle::-webkit-details-marker { display: none; }
+              .skill-prompt-toggle::marker { display: none; content: ""; }
+              .skill-prompt-details[open] .skill-prompt-toggle .skill-chevron {
+                transform: rotate(90deg);
+              }
               .skill-prose h2 {
                 font-size: 15px;
                 font-weight: 700;
@@ -216,9 +227,7 @@ export default async function SkillPage({ params }: TemplatePageProps) {
                 letter-spacing: -0.2px;
                 margin: 28px 0 8px;
               }
-              .skill-prose h2:first-child {
-                margin-top: 0;
-              }
+              .skill-prose h2:first-child { margin-top: 0; }
               .skill-prose h3 {
                 font-size: 14px;
                 font-weight: 600;
@@ -243,20 +252,24 @@ export default async function SkillPage({ params }: TemplatePageProps) {
                 color: #555;
                 line-height: 1.55;
               }
-              .skill-prose strong {
-                color: #333;
-                font-weight: 600;
-              }
+              .skill-prose strong { color: #333; font-weight: 600; }
               .skill-prose hr {
                 border: none;
                 border-top: 1px solid #F0F0F0;
                 margin: 24px 0;
               }
             ` }} />
-            <div
-              className="skill-prose"
-              dangerouslySetInnerHTML={{ __html: markdownToHtml(skill.prompt) }}
-            />
+            <details className="skill-prompt-details">
+              <summary className="skill-prompt-toggle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "#000" }}>Full skill prompt</span>
+                <svg className="skill-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "transform 0.15s ease", flexShrink: 0 }}>
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </summary>
+              <div className="skill-prose" style={{ paddingBottom: "24px" }}
+                dangerouslySetInnerHTML={{ __html: markdownToHtml(skill.prompt) }}
+              />
+            </details>
           </div>
         )}
       </main>
