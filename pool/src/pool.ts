@@ -1,4 +1,6 @@
-import { nanoid } from "nanoid";
+import { customAlphabet } from "nanoid";
+
+const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 12);
 import * as db from "./db/pool";
 import { authFetch } from "./authFetch";
 import { config } from "./config";
@@ -49,7 +51,7 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
 
 // Create a single new instance via services and insert into DB.
 export async function createInstance(onProgress?: ProgressCallback, runtimeImage?: string, model?: string) {
-  const id = nanoid(12);
+  const id = nanoid();
   const name = `assistant-${config.poolEnvironment}-${id}`;
   const createStart = Date.now();
 
