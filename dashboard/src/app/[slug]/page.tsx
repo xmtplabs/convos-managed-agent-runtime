@@ -118,6 +118,31 @@ function applyInline(text: string): string {
   return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
+/** Extract a summary from the prompt: first paragraph + first few bullet points. */
+function extractSummary(md: string): { intro: string; bullets: string[] } {
+  const lines = md.split("\n").map((l) => l.trim()).filter(Boolean);
+  let intro = "";
+  const bullets: string[] = [];
+
+  for (const line of lines) {
+    // Skip headings
+    if (line.startsWith("#")) continue;
+    // Collect bullets (up to 4)
+    if (line.startsWith("- ") && bullets.length < 4) {
+      bullets.push(line.slice(2));
+      continue;
+    }
+    // First non-heading, non-bullet line is the intro
+    if (!intro && !line.startsWith("- ")) {
+      intro = line.replace(/\*\*(.+?)\*\*/g, "$1");
+    }
+    // Stop once we have both
+    if (intro && bullets.length >= 3) break;
+  }
+
+  return { intro, bullets };
+}
+
 function formatDate(dateStr: string): string {
   try {
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -204,6 +229,35 @@ export default async function SkillPage({ params }: TemplatePageProps) {
           agentName={skill.agentName}
           siteUrl={siteUrl}
         />
+
+        {/* Summary card */}
+        {skill.prompt && (() => {
+          const { intro, bullets } = extractSummary(skill.prompt);
+          if (!intro && !bullets.length) return null;
+          return (
+            <div style={{
+              marginTop: "28px",
+              background: "#F9FAFB",
+              border: "1px solid #F0F0F0",
+              borderRadius: "12px",
+              padding: "20px 24px",
+            }}>
+              <div style={{ fontSize: "10px", fontWeight: 600, color: "#B2B2B2", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
+                About this skill
+              </div>
+              {intro && (
+                <p style={{ fontSize: "14px", fontWeight: 500, color: "#000", lineHeight: "1.55", margin: "0 0 10px" }}>
+                  {intro}
+                </p>
+              )}
+              {bullets.length > 0 && (
+                <ul style={{ margin: 0, padding: "0 0 0 18px", fontSize: "13px", color: "#666", lineHeight: "1.75", display: "flex", flexDirection: "column", gap: "2px" }}>
+                  {bullets.map((b, i) => <li key={i}>{b}</li>)}
+                </ul>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Full prompt — collapsed by default */}
         {skill.prompt && (
