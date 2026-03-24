@@ -62,7 +62,7 @@ export default {
   defaultPort: '8080',
   healthPath: '/pool/health',
   // For restart eval: kill pattern and respawn command.
-  processKillPattern: 'uvicorn.*src\\.server',
+  processKillPattern: 'python3.*src\\.main',
   restartCmd: { cmd: 'python3', args: ['-m', 'src.main'], cwd: hermesDir },
   filterLines: (lines) => lines.filter((l) => {
     if (l.match(/^session_id:\s/)) return false;
