@@ -30,7 +30,10 @@ function log(msg) { _log('eval:async', msg); }
 function httpGet(port, path, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
-    const req = http.get({ hostname: '127.0.0.1', port, path }, (res) => {
+    const headers = {};
+    const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const req = http.get({ hostname: '127.0.0.1', port, path, headers }, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => resolve({ status: res.statusCode, data, latencyMs: Date.now() - start }));
