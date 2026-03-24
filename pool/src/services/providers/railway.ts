@@ -503,6 +503,9 @@ export async function deployImage(
     services: {
       [serviceId]: {
         source: { image },
+        deploy: {
+          ...(image.includes("runtime-hermes") ? {} : { startCommand: "node src/pool-server.js" }),
+        },
         variables: {
           _DEPLOY_TS: { value: Date.now().toString() },
         },
