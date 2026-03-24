@@ -4,8 +4,14 @@ import { db } from "../../db/connection";
 import { destroyInstance } from "../infra";
 import * as openrouter from "../providers/openrouter";
 import * as agentmail from "../providers/agentmail";
+import { fetchServiceMetrics } from "../providers/railway";
 
 export const dashboardRouter = Router();
+
+// ── Metrics cache (60s TTL) ─────────────────────────────────────────────────
+let metricsCache: Record<string, { currentMb: number; peakMb: number; limitMb: number }> | null = null;
+let metricsCacheTime = 0;
+const METRICS_CACHE_TTL = 60_000;
 
 /**
  * GET /dashboard/instances
@@ -97,6 +103,53 @@ dashboardRouter.get("/dashboard/phones", async (_req, res) => {
     res.json(counts);
   } catch (err: any) {
     console.error("[dashboard] phones failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /dashboard/metrics
+ * Memory usage per instance from Railway metrics API (cached 60s).
+ */
+dashboardRouter.get("/dashboard/metrics", async (_req, res) => {
+  try {
+    if (metricsCache && Date.now() - metricsCacheTime < METRICS_CACHE_TTL) {
+      res.json(metricsCache);
+      return;
+    }
+
+    const instances = await db.execute<{
+      instance_id: string;
+      provider_service_id: string;
+      provider_env_id: string;
+    }>(sql`
+      SELECT instance_id, provider_service_id, provider_env_id
+      FROM instance_infra
+      WHERE provider_service_id IS NOT NULL
+        AND provider_env_id IS NOT NULL
+    `);
+
+    const results: Record<string, { currentMb: number; peakMb: number; limitMb: number }> = {};
+    const CONCURRENCY = 5;
+
+    for (let i = 0; i < instances.rows.length; i += CONCURRENCY) {
+      const batch = instances.rows.slice(i, i + CONCURRENCY);
+      const metrics = await Promise.all(
+        batch.map((inst) =>
+          fetchServiceMetrics(inst.provider_service_id, inst.provider_env_id)
+            .then((m) => ({ instanceId: inst.instance_id, metrics: m })),
+        ),
+      );
+      for (const { instanceId, metrics: m } of metrics) {
+        if (m) results[instanceId] = { ...m, limitMb: 8192 };
+      }
+    }
+
+    metricsCache = results;
+    metricsCacheTime = Date.now();
+    res.json(results);
+  } catch (err: any) {
+    console.error("[dashboard] metrics failed:", err);
     res.status(500).json({ error: err.message });
   }
 });

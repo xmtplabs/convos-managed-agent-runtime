@@ -1,0 +1,29 @@
+name = "memory-sweep"
+main = "src/index.ts"
+compatibility_date = "2025-03-17"
+account_id = "7d30165bd08c4b64b3a0005065315967"
+
+# Setup (deploy):
+#   1. wrangler kv namespace create STATS_MEMORY
+#   2. Fill in the KV ID below
+#   3. wrangler secret put POSTHOG_API_KEY
+#   4. wrangler secret put RAILWAY_API_TOKEN
+#   5. wrangler secret put RAILWAY_TEAM_ID
+#   6. wrangler deploy
+#
+# Local testing:
+#   1. cp .dev.vars.example .dev.vars && fill in real values
+#   2. wrangler dev --test-scheduled
+#   3. curl "http://localhost:8787/__scheduled?cron=0+*/6+*+*+*"
+
+[observability]
+[observability.logs]
+enabled = false
+invocation_logs = true
+
+[triggers]
+crons = ["0 */6 * * *"]
+
+[[kv_namespaces]]
+binding = "STATS_MEMORY"
+id = "81e7d74e21f74519ad05ab26573aad7f"
