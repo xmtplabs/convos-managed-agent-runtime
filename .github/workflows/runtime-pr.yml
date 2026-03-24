@@ -62,6 +62,9 @@ jobs:
   hermes:
     name: Hermes
     needs: prepare
+    # TEMPORARY: litellm quarantined on PyPI — Hermes Docker build fails.
+    # Remove this line when https://github.com/NousResearch/hermes-agent/issues/2790 resolves.
+    if: false
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
