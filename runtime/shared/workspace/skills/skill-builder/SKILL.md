@@ -170,7 +170,7 @@ On approval:
 After applying the skill, check if the group is ready to use it. Look at the conversation members:
 
 - **If the skill is group-oriented** (hiking, dinner planning, fantasy league, event coordination — anything that only makes sense with multiple people) **and there are only 1-2 members**, bridge to invitations:
-  > "I'm ready to go — but it's just us so far. Hit the + in the top corner to grab an invite link for the crew."
+  > "I'm ready to go — but it's just us so far. Want to invite the rest of the crew? You can add people with the + button."
 - **If the skill is single-player** (personal tracker, writing coach, research assistant — things that work fine 1-on-1), skip this entirely. Don't suggest inviting people.
 - **If there are already 3+ members**, skip this — the group exists.
 
