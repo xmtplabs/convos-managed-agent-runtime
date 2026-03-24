@@ -39,6 +39,7 @@ const h = createHarness('poller', {
         HOME: EVAL_HOME,
         PORT: String(h.gatewayPort),
         POLL_INTERVAL_SECONDS: '10',
+        DISABLE_POLLER: '0',
         SKILLS_ROOT,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
