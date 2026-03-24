@@ -402,6 +402,28 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 
       log?.info(`[${account.accountId}] starting Convos provider (env: ${account.env})`);
 
+      // Clear the OpenClaw delivery queue on restart. XMTP messages are
+      // durable on the network once sent — replaying "pending" deliveries
+      // after a container restart causes verbatim duplicate messages because
+      // the queue entry survived a SIGKILL but the send had already succeeded.
+      const stateDir = process.env.OPENCLAW_STATE_DIR || "";
+      if (stateDir) {
+        const queueDir = path.join(stateDir, "delivery-queue");
+        if (fs.existsSync(queueDir)) {
+          try {
+            const files = fs.readdirSync(queueDir).filter((f) => f.endsWith(".json"));
+            if (files.length > 0) {
+              for (const f of files) {
+                fs.unlinkSync(path.join(queueDir, f));
+              }
+              log?.info(`[${account.accountId}] Cleared ${files.length} stale delivery queue entries`);
+            }
+          } catch (err) {
+            log?.error(`[${account.accountId}] Failed to clear delivery queue: ${String(err)}`);
+          }
+        }
+      }
+
       // Inherit env so exec tool CLI commands use the correct XMTP network
       process.env.CONVOS_ENV = account.env;
       // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
