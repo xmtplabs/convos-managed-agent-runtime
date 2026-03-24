@@ -147,6 +147,13 @@ function handleRestart(h, prompt) {
     return { output: 'RESTART_SKIPPED: adapter not configured', metadata: { conversationId: h.conversationId, restarted: false } };
   }
 
+  // In CI (Docker), the runtime is PID 1 — killing it kills the container and
+  // the eval process with it. Skip gracefully so CI doesn't crash.
+  if (process.env.EVAL_MODE === '1') {
+    h.log('SKIP — restart test not supported in CI (runtime is PID 1 in Docker)');
+    return { output: 'RESTART_SKIPPED: CI mode', metadata: { conversationId: h.conversationId, restarted: true } };
+  }
+
   // 1. Kill the runtime process
   h.log(`Killing runtime (pkill -f "${killPattern}")...`);
   try {
