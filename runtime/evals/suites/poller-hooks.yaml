@@ -27,5 +27,8 @@ tests:
           FAIL if the agent says it will modify HEARTBEAT.md or add this to heartbeat.
           FAIL if the agent says it cannot do recurring checks or monitoring.
           FAIL if the agent suggests a cron job instead of a polling skill.
-          PASS if the agent describes creating a polling skill with poll.sh — any mention
-          of poll.sh, poller hook, skill directory, or background polling counts.
+          PASS if the agent mentions poll.sh, poller hook, skill directory, or
+          background polling.
+          PASS if the agent confirms it set up recurring tracking or monitoring
+          without mentioning cron jobs or HEARTBEAT.md — this implies the polling
+          skill mechanism was used correctly.
