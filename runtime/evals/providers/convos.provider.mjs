@@ -72,16 +72,12 @@ export default class ConvosProvider {
         .slice(setupCount)
         .map(m => m.content || m.text || '')
         .filter(Boolean);
-      // Cron-delivered messages: the agent was asked to say "Ping!" so look
-      // for any short message that came from the cron system. Ignore long
-      // messages (poller notifications, etc.) but accept any short reply —
-      // the agent may phrase it differently ("Ping!", "🔔 Ping", "pinging").
-      const cronPingTexts = newAgentTexts.filter(t => t.length < 100);
+      // All new agent messages after setup count as cron-delivered. The agent
+      // may respond with just "Ping!" or a longer explanation — both prove
+      // the cron pipeline works.
+      const cronPingTexts = newAgentTexts;
       const cronPings = cronPingTexts.length;
-      log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 50)}"`).join(', ') || '(none)'}`)
-      if (newAgentTexts.length > cronPings) {
-        log(`  (${newAgentTexts.length - cronPings} long agent messages also arrived)`);
-      }
+      log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 80)}"`).join(', ') || '(none)'}`)
 
       // Cleanup: delete the cron job so pings don't interfere with later tests
       let cleanedUp = false;

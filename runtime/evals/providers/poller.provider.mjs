@@ -98,9 +98,10 @@ export default class PollerProvider {
         h.waitForAgent(h.agentCount(cur) - 1, 60_000, 5_000);
       } else {
         // Nudge: the notification is in the agent's session history even if it
-        // didn't announce. A gentle prompt surfaces it reliably.
+        // didn't announce. Ask specifically about emails/notifications so the
+        // agent checks its inbox rather than just reviewing chat history.
         h.log('No proactive announcement — nudging agent...');
-        h.sendAndWait('Anything new come in while I was away?', {});
+        h.sendAndWait('Did any emails or notifications come in? Check your inbox.', {});
       }
 
       const finalMsgs = h.fetchMessages();
