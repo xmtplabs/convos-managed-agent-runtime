@@ -90,8 +90,9 @@ export default class PollerProvider {
       const welcomeEnd = preMsgs.length;
       h.log(`Baseline before notification wait: ${h.agentCount(preMsgs)} agent msgs, ${welcomeEnd} total`);
 
-      // Shorter timeout — if the agent will announce, it happens quickly.
-      const { matched } = h.waitForContent(/email|mail|inbox/i, 60_000);
+      // Wait for the agent to mention the email. 120s accounts for external
+      // email delivery latency (agentmail API indexing).
+      const { matched } = h.waitForContent(/email|mail|inbox/i, 120_000);
 
       if (matched) {
         h.log('Proactive announcement detected — waiting for agent to settle...');
