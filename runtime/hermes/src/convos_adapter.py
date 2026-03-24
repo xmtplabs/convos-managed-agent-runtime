@@ -436,6 +436,13 @@ class ConvosAdapter:
         if msg.content_type == "group_updated":
             return
 
+        # Catchup messages are historical — the agent already replied during
+        # the previous session. Skip reply dispatch to avoid duplicating old
+        # responses after a restart.
+        if msg.catchup:
+            logger.info(f"Skipping reply dispatch for catchup message [{msg.message_id[:12]}]")
+            return
+
         # Wait for greeting to finish before processing real messages.
         # Messages that arrive during the greeting's LLM call queue here
         # so they see the greeting in history instead of empty context.

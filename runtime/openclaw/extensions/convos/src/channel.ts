@@ -538,6 +538,16 @@ async function handleInboundMessage(
     inst.sendReadReceipt().catch(() => {});
   }
 
+  // Catchup messages are historical — the agent already replied during the
+  // previous session. Record them in the session for context but do NOT
+  // dispatch a new LLM reply, which would duplicate old responses.
+  if (msg.catchup) {
+    if (account.debug) {
+      debugLog(`[${account.accountId}] Skipping reply dispatch for catchup message from ${msg.senderId}`);
+    }
+    return;
+  }
+
   const cfg = runtime.config.loadConfig();
   const rawBody = msg.content;
 
