@@ -6,140 +6,152 @@ import { useState, useCallback, useRef, useEffect } from "react";
 // Types
 // ---------------------------------------------------------------------------
 
-interface TemplateActionsProps {
+interface SkillActionsProps {
   slug: string;
   prompt: string;
   agentName: string;
-  /** Base site URL passed from the server to avoid hardcoding in SSR fallback. */
   siteUrl: string;
+}
+
+// ---------------------------------------------------------------------------
+// Styles (inline to override homepage.css global reset)
+// ---------------------------------------------------------------------------
+
+const btnBase: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  fontFamily: "'Inter', -apple-system, sans-serif",
+  fontWeight: 600,
+  fontSize: "14px",
+  lineHeight: "1",
+  borderRadius: "10px",
+  cursor: "pointer",
+  textDecoration: "none",
+  transition: "all 0.15s ease",
+  border: "none",
+  whiteSpace: "nowrap",
+};
+
+const btnPrimary: React.CSSProperties = {
+  ...btnBase,
+  padding: "12px 20px",
+  backgroundColor: "#FC4F37",
+  color: "#FFFFFF",
+};
+
+const btnSecondary: React.CSSProperties = {
+  ...btnBase,
+  padding: "10px 16px",
+  backgroundColor: "#FFFFFF",
+  color: "#666666",
+  border: "1px solid #EBEBEB",
+  fontWeight: 500,
+};
+
+// ---------------------------------------------------------------------------
+// Icons
+// ---------------------------------------------------------------------------
+
+function ShareIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function TemplateActions({
-  slug,
-  prompt,
-  agentName,
-  siteUrl,
-}: TemplateActionsProps) {
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+export function SkillActions({ slug, prompt, siteUrl }: SkillActionsProps) {
+  const [shareState, setShareState] = useState<"idle" | "copied">("idle");
+  const [promptState, setPromptState] = useState<"idle" | "copied" | "error">("idle");
+  const shareTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const promptTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
 
-  // Track mount state and cleanup timer on unmount
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      if (copyTimerRef.current) {
-        clearTimeout(copyTimerRef.current);
-      }
+      if (shareTimer.current) clearTimeout(shareTimer.current);
+      if (promptTimer.current) clearTimeout(promptTimer.current);
     };
   }, []);
 
-  // -----------------------------------------------------------------------
-  // Copy prompt handler
-  // -----------------------------------------------------------------------
+  const handleShare = useCallback(async () => {
+    const url = `${siteUrl}/a/${encodeURIComponent(slug)}`;
+
+    // Try native share first (mobile), fall back to clipboard
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ url });
+        return;
+      } catch {
+        // User cancelled or not supported — fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      if (!mountedRef.current) return;
+      setShareState("copied");
+      if (shareTimer.current) clearTimeout(shareTimer.current);
+      shareTimer.current = setTimeout(() => {
+        if (mountedRef.current) setShareState("idle");
+      }, 2000);
+    } catch {}
+  }, [slug, siteUrl]);
 
   const handleCopyPrompt = useCallback(async () => {
     if (!prompt) return;
-    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     try {
       await navigator.clipboard.writeText(prompt);
       if (!mountedRef.current) return;
-      setCopyState("copied");
-      copyTimerRef.current = setTimeout(() => {
-        if (mountedRef.current) setCopyState("idle");
+      setPromptState("copied");
+      if (promptTimer.current) clearTimeout(promptTimer.current);
+      promptTimer.current = setTimeout(() => {
+        if (mountedRef.current) setPromptState("idle");
       }, 2000);
     } catch {
       if (!mountedRef.current) return;
-      setCopyState("error");
-      copyTimerRef.current = setTimeout(() => {
-        if (mountedRef.current) setCopyState("idle");
+      setPromptState("error");
+      if (promptTimer.current) clearTimeout(promptTimer.current);
+      promptTimer.current = setTimeout(() => {
+        if (mountedRef.current) setPromptState("idle");
       }, 2000);
     }
   }, [prompt]);
 
-  // -----------------------------------------------------------------------
-  // QR code via our self-hosted /qr/:slug route (Task 10).
-  // -----------------------------------------------------------------------
-
-  const qrImageUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/qr/${encodeURIComponent(slug)}`
-    : `${siteUrl}/qr/${encodeURIComponent(slug)}`;
-
-  // -----------------------------------------------------------------------
-  // Render
-  // -----------------------------------------------------------------------
-
   return (
-    <div className="space-y-6">
-      {/* Action buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* Add to group chat button */}
-        <a
-          href={`/?agent=${encodeURIComponent(slug)}`}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-brand rounded-xl no-underline hover:bg-brand-hover transition-colors"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          Add to group chat
-        </a>
-
-        {/* Copy prompt button */}
-        {prompt && (
-          <button
-            onClick={handleCopyPrompt}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-medium text-foreground-secondary bg-white rounded-xl border border-edge hover:bg-surface-hover transition-colors cursor-pointer"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-            {copyState === "copied" ? "Copied!" : copyState === "error" ? "Failed" : "Copy prompt"}
-          </button>
-        )}
-      </div>
-
-      {/* QR code section */}
-      <div className="pt-6 border-t border-edge-muted">
-        <h2 className="text-xs font-semibold text-foreground-inverted-secondary uppercase tracking-wider mb-3">
-          Share this assistant
-        </h2>
-        <div className="flex items-center gap-4">
-          <img
-            src={qrImageUrl}
-            alt={`QR code for ${agentName}`}
-            width={96}
-            height={96}
-            className="rounded-lg border border-edge"
-          />
-          <p className="text-sm text-foreground-secondary leading-relaxed">
-            Scan this QR code to open this assistant page on another device.
-          </p>
-        </div>
-      </div>
+    <div style={{ display: "flex", gap: "8px", marginBottom: "0" }}>
+      <button onClick={handleShare} style={btnPrimary}>
+        <ShareIcon />
+        {shareState === "copied" ? "Link copied!" : "Share"}
+      </button>
+      {prompt && (
+        <button onClick={handleCopyPrompt} style={btnSecondary}>
+          <CopyIcon />
+          {promptState === "copied" ? "Copied!" : promptState === "error" ? "Failed" : "Copy prompt"}
+        </button>
+      )}
     </div>
   );
 }
+
+// Keep the old export name as an alias for backwards compat with any imports
+export { SkillActions as TemplateActions };
