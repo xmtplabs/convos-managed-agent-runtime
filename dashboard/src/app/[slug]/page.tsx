@@ -249,8 +249,8 @@ export default async function SkillPage({ params }: TemplatePageProps) {
                 {skill.description}
               </p>
               {bullets.length > 0 && (
-                <ul style={{ margin: 0, padding: "0 0 0 18px", fontSize: "13px", color: "#666", lineHeight: "1.8" }}>
-                  {bullets.map((b, i) => <li key={i}>{b}</li>)}
+                <ul style={{ margin: 0, padding: "0 0 0 18px", fontSize: "13px", color: "#666", lineHeight: "1.8", listStyleType: "disc" }}>
+                  {bullets.map((b, i) => <li key={i} style={{ paddingLeft: "4px" }}>{b}</li>)}
                 </ul>
               )}
             </div>
@@ -287,11 +287,13 @@ export default async function SkillPage({ params }: TemplatePageProps) {
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
+                list-style-type: disc;
               }
               .skill-prose li {
                 font-size: 14px;
                 color: #555;
                 line-height: 1.55;
+                padding-left: 4px;
               }
               .skill-prose strong { color: #333; font-weight: 600; }
               .skill-prose hr {
@@ -300,10 +302,7 @@ export default async function SkillPage({ params }: TemplatePageProps) {
                 margin: 24px 0;
               }
             ` }} />
-            <div style={{ borderTop: "1px solid #F0F0F0", marginTop: "28px", paddingTop: "24px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-                <h2 style={{ fontSize: "13px", fontWeight: 600, color: "#000", margin: 0 }}>Full skill prompt</h2>
-              </div>
+            <div style={{ borderTop: "1px solid #F0F0F0", marginTop: "32px", paddingTop: "28px" }}>
               <div className="skill-prose"
                 dangerouslySetInnerHTML={{ __html: markdownToHtml(skill.prompt) }}
               />
