@@ -756,6 +756,35 @@ async def pool_health():
     return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
 
 
+# ---- /pool/restart ----
+
+@app.post("/pool/restart", dependencies=[Depends(require_auth)])
+async def pool_restart():
+    """Stop the adapter and re-resume from saved credentials.
+
+    Simulates a process restart without killing PID 1 — stops the running
+    conversation, then boots it back up from credentials on disk.  Used by
+    the lifecycle eval to verify restart-resume in CI (Docker).
+    """
+    global _adapter
+    cfg = get_config()
+
+    adapter = get_adapter()
+    if adapter:
+        try:
+            await adapter.stop()
+        except Exception as err:
+            logger.error("Error stopping adapter during restart: %s", err)
+        _adapter = None
+
+    await _try_resume_from_credentials(cfg)
+
+    adapter = get_adapter()
+    if adapter and adapter.instance:
+        return {"ok": True, "conversationId": adapter.instance.conversation_id}
+    raise HTTPException(status_code=500, detail="Resume failed after restart")
+
+
 # ---- /pool/provision ----
 
 class ProvisionRequest(BaseModel):

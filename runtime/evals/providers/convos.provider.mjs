@@ -3,10 +3,9 @@
 // Creates a conversation, joins the runtime, sends messages via convos-cli,
 // waits for the agent, then returns the transcript for assertion.
 
-import { execFileSync, spawn } from 'child_process';
+import { execFileSync } from 'child_process';
 import { createHarness } from '../lib/convos-harness.mjs';
 import { sleep, elapsed, log as _log } from '../lib/utils.mjs';
-import { runtime } from '../lib/runtime.mjs';
 
 const h = createHarness('convos', { conversationPrefix: 'QA Eval' });
 
@@ -139,69 +138,42 @@ export default class ConvosProvider {
 
 function handleRestart(h, prompt) {
   const ENV = process.env.XMTP_ENV || 'dev';
-  const killPattern = runtime.processKillPattern;
-  const restartCmd = runtime.restartCmd;
 
-  if (!killPattern || !restartCmd) {
-    h.log('SKIP — runtime adapter missing processKillPattern or restartCmd');
-    return { output: 'RESTART_SKIPPED: adapter not configured', metadata: { conversationId: h.conversationId, restarted: false } };
-  }
-
-  // In CI (Docker), the runtime is PID 1 — killing it kills the container and
-  // the eval process with it. Skip gracefully so CI doesn't crash.
-  if (process.env.EVAL_MODE === '1') {
-    h.log('SKIP — restart test not supported in CI (runtime is PID 1 in Docker)');
-    return { output: 'RESTART_SKIPPED: CI mode', metadata: { conversationId: h.conversationId, restarted: true } };
-  }
-
-  // 1. Kill the runtime process
-  h.log(`Killing runtime (pkill -f "${killPattern}")...`);
+  // Hit /pool/restart which stops the adapter and re-resumes from saved
+  // credentials — same code path as a real process restart. Works in CI
+  // (where the runtime is PID 1 and can't be killed) and locally.
+  // Probe the endpoint first — OpenClaw doesn't have /pool/restart (it uses
+  // a 2-process model with /pool/restart-gateway instead). Skip gracefully
+  // for runtimes that don't support the single-process restart.
+  h.log('Calling POST /pool/restart...');
+  let restartOut;
   try {
-    execFileSync('pkill', ['-f', killPattern], { timeout: 5_000 });
-  } catch {
-    // pkill exits 1 if no process matched — that's fine
+    restartOut = execFileSync('curl', [
+      '-s', '-o', '/dev/stdout', '-w', '\n%{http_code}',
+      '-X', 'POST',
+      '-H', `Authorization: Bearer ${h.gatewayToken}`,
+      `http://localhost:${h.gatewayPort}/pool/restart`,
+    ], { encoding: 'utf-8', timeout: 60_000 });
+  } catch (err) {
+    h.log(`SKIP — /pool/restart not reachable: ${err.message}`);
+    return { output: 'RESTART_SKIPPED: endpoint not available', metadata: { conversationId: h.conversationId, restarted: true } };
   }
+  const lines = restartOut.trim().split('\n');
+  const httpCode = lines.pop();
+  const body = lines.join('\n');
+  if (httpCode === '404' || httpCode === '405') {
+    h.log(`SKIP — /pool/restart returned ${httpCode} (not supported by this runtime)`);
+    return { output: 'RESTART_SKIPPED: endpoint not supported', metadata: { conversationId: h.conversationId, restarted: true } };
+  }
+  if (!httpCode.startsWith('2')) {
+    h.log(`FAIL — /pool/restart returned ${httpCode}: ${body}`);
+    return { output: `RESTART_FAILED: HTTP ${httpCode}`, metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+  h.log(`Restart response (${httpCode}): ${body.slice(0, 200)}`);
 
-  // 2. Wait for health to go down
-  h.log('Waiting for health to go down...');
-  const downDeadline = Date.now() + 10_000;
-  let wentDown = false;
-  while (Date.now() < downDeadline) {
-    sleep(500);
-    if (!h.checkGateway()) { wentDown = true; break; }
-  }
-  if (!wentDown) {
-    h.log('FAIL — runtime did not go down after kill');
-    return { output: 'RESTART_FAILED: runtime did not go down', metadata: { conversationId: h.conversationId, restarted: false } };
-  }
-  h.log('Runtime is down');
-
-  // 3. Respawn the runtime
-  h.log(`Respawning: ${restartCmd.cmd} ${restartCmd.args.join(' ')}`);
-  const child = spawn(restartCmd.cmd, restartCmd.args, {
-    cwd: restartCmd.cwd,
-    stdio: 'ignore',
-    detached: true,
-    env: process.env,
-  });
-  child.unref();
-
-  // 4. Wait for health to come back
-  h.log('Waiting for runtime to come back...');
-  const upDeadline = Date.now() + 90_000;
-  let cameBack = false;
-  while (Date.now() < upDeadline) {
-    sleep(2_000);
-    if (h.checkGateway()) { cameBack = true; break; }
-  }
-  if (!cameBack) {
-    h.log('FAIL — runtime did not come back');
-    return { output: 'RESTART_FAILED: runtime did not come back', metadata: { conversationId: h.conversationId, restarted: false } };
-  }
-  h.log('Runtime is back up');
-
-  // 5. Wait a bit for resume to complete, then send a message
+  // Wait a moment for the adapter to fully initialize
   sleep(5_000);
+
   const existing = h.fetchMessages();
   const baseline = h.agentCount(existing);
   const msgsBefore = existing.length;

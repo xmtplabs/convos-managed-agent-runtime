@@ -47,17 +47,12 @@ function clearAgentCronJobs(jobsFile) {
   } catch {}
 }
 
-const openclawDir = resolve(__dirname, '../../openclaw');
-
 export default {
   name: 'openclaw',
   bin: process.env.OPENCLAW_ENTRY || 'openclaw',
   args: (prompt, session) => ['agent', '-m', prompt, '--agent', 'main', '--session-id', session],
   defaultPort: '18789',
   healthPath: '/__openclaw__/canvas/',
-  // For restart eval: kill pattern and respawn command.
-  processKillPattern: 'node.*pool-server',
-  restartCmd: { cmd: 'node', args: ['src/pool-server.js'], cwd: openclawDir },
   filterLines: (lines) => lines,
   needsSessionClear: true,
   convosPath: '../../openclaw/node_modules/.bin/convos',
