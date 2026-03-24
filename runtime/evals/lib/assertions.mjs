@@ -143,6 +143,18 @@ export function attestationSurvivesProfileUpdate(output, context) {
   return profileHasAttestation(output, context);
 }
 
+export function agentRespondedAfterRestart(output) {
+  const agentLines = (output || '').split('\n').filter(l => l.startsWith('[AGENT]'));
+  const pass = agentLines.length > 0;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? `Agent responded after restart (${agentLines.length} message(s))`
+      : 'Agent did not respond after restart',
+  };
+}
+
 export function agentSelfDestructed(output) {
   const pass = output === 'SELF_DESTRUCT_CONFIRMED';
   return {
