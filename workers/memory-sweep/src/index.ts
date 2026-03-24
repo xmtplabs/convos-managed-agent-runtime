@@ -52,43 +52,36 @@ interface ServiceInfo {
   environment: string;
 }
 
-async function listTeamServices(token: string, teamId: string): Promise<ServiceInfo[]> {
-  const projectData = await railwayGql(
+async function listTeamServices(token: string): Promise<ServiceInfo[]> {
+  const data = await railwayGql(
     token,
-    `query($teamId: String!) {
-      team(id: $teamId) {
-        projects { edges { node { id } } }
-      }
-    }`,
-    { teamId },
-  );
-
-  const projects = projectData.team?.projects?.edges || [];
-  const services: ServiceInfo[] = [];
-
-  for (const proj of projects) {
-    const projectId = proj.node.id;
-    const svcData = await railwayGql(
-      token,
-      `query($id: String!) {
-        project(id: $id) {
-          services(first: 500) {
-            edges {
-              node {
-                id
-                name
-                serviceInstances {
-                  edges { node { environmentId } }
+    `{
+      projects {
+        edges {
+          node {
+            id
+            services(first: 500) {
+              edges {
+                node {
+                  id
+                  name
+                  serviceInstances {
+                    edges { node { environmentId } }
+                  }
                 }
               }
             }
           }
         }
-      }`,
-      { id: projectId },
-    );
+      }
+    }`,
+  );
 
-    for (const edge of svcData.project?.services?.edges || []) {
+  const projects = data.projects?.edges || [];
+  const services: ServiceInfo[] = [];
+
+  for (const proj of projects) {
+    for (const edge of proj.node.services?.edges || []) {
       const parsed = parseServiceName(edge.node.name);
       if (!parsed) continue;
       const envId = edge.node.serviceInstances?.edges?.[0]?.node?.environmentId;
@@ -100,65 +93,72 @@ async function listTeamServices(token: string, teamId: string): Promise<ServiceI
         environment: parsed.environment,
       });
     }
-
-    // Throttle between projects
-    await new Promise((r) => setTimeout(r, 200));
   }
 
   return services;
 }
 
-// ── Metrics fetching ────────────────────────────────────────────────────────
+// ── Metrics fetching (batched via GraphQL aliases) ──────────────────────────
 
-async function fetchMemoryMetrics(
+function parseMetricsValues(values: any[]): { currentMb: number; peakMb: number } | null {
+  if (values.length === 0) return null;
+  const mbValues = values.map((v: any) => (v.value || 0) * 1024);
+  return {
+    currentMb: Math.round(mbValues[mbValues.length - 1]),
+    peakMb: Math.round(Math.max(...mbValues)),
+  };
+}
+
+const METRICS_BATCH_SIZE = 20;
+
+async function fetchMetricsBatch(
   token: string,
-  serviceId: string,
-  environmentId: string,
-): Promise<{ currentMb: number; peakMb: number } | null> {
-  try {
-    const startDate = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-    const data = await railwayGql(
-      token,
-      `query($serviceId: String!, $environmentId: String!, $startDate: DateTime!, $measurements: [MetricMeasurement!]!) {
-        metrics(serviceId: $serviceId, environmentId: $environmentId, startDate: $startDate, measurements: $measurements) {
-          measurements {
-            metric
-            values { date value }
-          }
-        }
-      }`,
-      {
-        serviceId,
-        environmentId,
-        startDate,
-        measurements: ["MEMORY_USAGE_GB"],
-      },
+  services: ServiceInfo[],
+): Promise<Map<string, { currentMb: number; peakMb: number }>> {
+  const results = new Map<string, { currentMb: number; peakMb: number }>();
+  const startDate = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+
+  for (let i = 0; i < services.length; i += METRICS_BATCH_SIZE) {
+    const batch = services.slice(i, i + METRICS_BATCH_SIZE);
+
+    // Build aliased query: svc_0, svc_1, ...
+    const fragments = batch.map(
+      (svc, idx) =>
+        `svc_${idx}: metrics(serviceId: "${svc.serviceId}", environmentId: "${svc.environmentId}", startDate: "${startDate}", measurements: [MEMORY_USAGE_GB]) {
+          measurement values { ts value }
+        }`,
     );
 
-    const values = data.metrics?.measurements?.[0]?.values || [];
-    if (values.length === 0) return null;
+    try {
+      const data = await railwayGql(token, `{ ${fragments.join("\n")} }`);
+      for (let idx = 0; idx < batch.length; idx++) {
+        const values = data[`svc_${idx}`]?.[0]?.values || [];
+        const parsed = parseMetricsValues(values);
+        if (parsed) results.set(batch[idx].serviceId, parsed);
+      }
+    } catch (err) {
+      console.warn(`[cron] metrics batch ${i} failed:`, err);
+    }
 
-    const mbValues = values.map((v: any) => (v.value || 0) * 1024);
-    return {
-      currentMb: Math.round(mbValues[mbValues.length - 1]),
-      peakMb: Math.round(Math.max(...mbValues)),
-    };
-  } catch (err) {
-    console.warn(`[cron] fetchMemoryMetrics(${serviceId}) failed:`, err);
-    return null;
+    if (i + METRICS_BATCH_SIZE < services.length) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
   }
+
+  return results;
 }
 
 // ── Sweep logic ─────────────────────────────────────────────────────────────
 
 const MEMORY_LIMIT_MB = 8192;
-const BATCH_SIZE = 5;
 
 async function memorySweep(env: Env): Promise<void> {
   console.log("[cron] Memory sweep starting");
 
-  const services = await listTeamServices(env.RAILWAY_API_TOKEN, env.RAILWAY_TEAM_ID);
+  const services = await listTeamServices(env.RAILWAY_API_TOKEN);
   console.log(`[cron] Found ${services.length} assistant services`);
+
+  const metricsMap = await fetchMetricsBatch(env.RAILWAY_API_TOKEN, services);
 
   const events: Array<{
     event: string;
@@ -167,49 +167,31 @@ async function memorySweep(env: Env): Promise<void> {
     timestamp: string;
   }> = [];
 
-  for (let i = 0; i < services.length; i += BATCH_SIZE) {
-    const batch = services.slice(i, i + BATCH_SIZE);
-    const results = await Promise.all(
-      batch.map(async (svc) => {
-        const metrics = await fetchMemoryMetrics(
-          env.RAILWAY_API_TOKEN,
-          svc.serviceId,
-          svc.environmentId,
-        );
-        return { svc, metrics };
-      }),
-    );
+  for (const svc of services) {
+    const metrics = metricsMap.get(svc.serviceId);
+    if (!metrics) continue;
 
-    for (const { svc, metrics } of results) {
-      if (!metrics) continue;
+    // Track all-time peak in KV
+    const kvKey = `memory:${svc.instanceId}`;
+    const lastPeakStr = await env.STATS_MEMORY.get(kvKey);
+    const lastPeak = lastPeakStr ? parseFloat(lastPeakStr) : 0;
+    const allTimePeak = Math.max(lastPeak, metrics.peakMb);
+    await env.STATS_MEMORY.put(kvKey, String(allTimePeak));
 
-      // Track all-time peak in KV
-      const kvKey = `memory:${svc.instanceId}`;
-      const lastPeakStr = await env.STATS_MEMORY.get(kvKey);
-      const lastPeak = lastPeakStr ? parseFloat(lastPeakStr) : 0;
-      const allTimePeak = Math.max(lastPeak, metrics.peakMb);
-      await env.STATS_MEMORY.put(kvKey, String(allTimePeak));
-
-      events.push({
-        event: "instance_memory",
-        distinct_id: `instance:${svc.instanceId}`,
-        properties: {
-          instance_id: svc.instanceId,
-          environment: svc.environment,
-          memory_current_mb: metrics.currentMb,
-          memory_peak_mb: metrics.peakMb,
-          memory_all_time_peak_mb: allTimePeak,
-          memory_limit_mb: MEMORY_LIMIT_MB,
-          memory_utilization_pct: Math.round((metrics.peakMb / MEMORY_LIMIT_MB) * 100),
-        },
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Throttle between batches
-    if (i + BATCH_SIZE < services.length) {
-      await new Promise((r) => setTimeout(r, 200));
-    }
+    events.push({
+      event: "instance_memory",
+      distinct_id: `instance:${svc.instanceId}`,
+      properties: {
+        instance_id: svc.instanceId,
+        environment: svc.environment,
+        memory_current_mb: metrics.currentMb,
+        memory_peak_mb: metrics.peakMb,
+        memory_all_time_peak_mb: allTimePeak,
+        memory_limit_mb: MEMORY_LIMIT_MB,
+        memory_utilization_pct: Math.round((metrics.peakMb / MEMORY_LIMIT_MB) * 100),
+      },
+      timestamp: new Date().toISOString(),
+    });
   }
 
   // Batch send to PostHog

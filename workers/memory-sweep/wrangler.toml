@@ -26,4 +26,4 @@ crons = ["0 */6 * * *"]
 
 [[kv_namespaces]]
 binding = "STATS_MEMORY"
-id = "PLACEHOLDER_KV_ID"
+id = "81e7d74e21f74519ad05ab26573aad7f"
