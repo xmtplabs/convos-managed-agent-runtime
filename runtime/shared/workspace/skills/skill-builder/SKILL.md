@@ -83,6 +83,17 @@ Pick from these categories — you don't need all of them. Choose the 2-3 that m
 | **Group context** | How many people, how they use the chat | When group dynamics would change the agent's behavior (2 people vs. 20). |
 | **Tools** | Search, email, scheduling needs | When the domain clearly benefits from specific capabilities. Skip if it's purely conversational. |
 
+#### Domain-specific context you MUST surface
+
+Beyond the standard categories, think about what the agent literally cannot do its job without knowing. Ask about these as open-ended questions (not multiple choice — only the user knows the answer):
+
+- **Location** — if the skill involves real-world places, activities, events, meetups, or anything geographically bound (hiking, dining, local events, fitness), ask where the group is based. "Where are you all located? This shapes what I can recommend."
+- **Timing/frequency** — if the skill involves scheduling or recurring events, ask how often. "How often does this group get together — weekly, monthly, whenever?"
+- **Existing tools/platforms** — if the skill overlaps with something they might already use, ask. "Are you using anything for this already — an app, a spreadsheet, a group text?"
+- **Budget/constraints** — if the skill involves spending money (travel, dining, events), ask about budget sensitivity.
+
+Not every skill needs these. A trivia bot doesn't need to know location. A fantasy football commissioner doesn't need to know budget. But a hiking trip planner that doesn't know where the group is based is useless. Use judgment — if the skill can't give good recommendations without a piece of context, ask for it.
+
 #### Adapting based on responses
 
 - If someone gives a short, vague answer to a follow-up — don't move on. Rephrase the question or offer more concrete options.
@@ -154,7 +165,18 @@ On approval:
 3. Update your profile image if you have a suitable URL for the emoji/category
 4. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt
 
-### 8. Versioned updates
+### 8. Group readiness check
+
+After applying the skill, check if the group is ready to use it. Look at the conversation members:
+
+- **If the skill is group-oriented** (hiking, dinner planning, fantasy league, event coordination — anything that only makes sense with multiple people) **and there are only 1-2 members**, bridge to invitations:
+  > "I'm ready to go — but it's just us so far. Want to invite the rest of the crew? You can add people with the + button."
+- **If the skill is single-player** (personal tracker, writing coach, research assistant — things that work fine 1-on-1), skip this entirely. Don't suggest inviting people.
+- **If there are already 3+ members**, skip this — the group exists.
+
+This should feel natural, not like a checklist step. One sentence, then move on. Don't block on it — if the user ignores the suggestion, start being useful immediately.
+
+### 9. Versioned updates
 
 When the group asks to modify the current skill:
 
