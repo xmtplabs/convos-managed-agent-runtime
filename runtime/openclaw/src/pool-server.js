@@ -7,7 +7,7 @@
  *
  * Serves (on public PORT):
  *   GET  /pool/health           → { ready: boolean }
- *   POST /pool/restart-gateway  → write env overrides to volume, restart start.sh
+ *   POST /pool/restart  → write env overrides to volume, restart start.sh
  *   POST /pool/provision        → invite/join convos (instructions written by convos extension), return { ok, inviteUrl?, conversationId?, joined }
  */
 
@@ -241,8 +241,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /pool/restart-gateway
-  if (req.method === "POST" && req.url === "/pool/restart-gateway") {
+  // POST /pool/restart
+  if (req.method === "POST" && req.url === "/pool/restart") {
     if (!checkAuth(req, res)) return;
 
     let body;
@@ -280,7 +280,7 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { ok: true });
     } catch (err) {
       restarting = false;
-      console.error("[pool-server] restart-gateway failed:", err);
+      console.error("[pool-server] restart failed:", err);
       json(res, 500, { error: err.message || "Restart failed" });
     }
     return;

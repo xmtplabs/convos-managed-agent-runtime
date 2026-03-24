@@ -140,10 +140,9 @@ export default class ConvosProvider {
 function handleRestart(h, prompt) {
   const ENV = process.env.XMTP_ENV || 'dev';
 
-  // Each runtime exposes a restart endpoint: Hermes has /pool/restart (stops
-  // adapter, re-resumes from credentials), OpenClaw has /pool/restart-gateway
-  // (kills and respawns the gateway child). Both exercise the resume-from-
-  // saved-credentials code path.
+  // Both runtimes expose POST /pool/restart which exercises the resume-from-
+  // saved-credentials code path. Hermes stops the adapter and re-resumes;
+  // OpenClaw kills and respawns the gateway child.
   const restartPath = runtime.restartPath;
   if (!restartPath) {
     h.log('FAIL — runtime adapter missing restartPath');
