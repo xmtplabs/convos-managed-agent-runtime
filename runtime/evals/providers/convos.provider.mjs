@@ -86,17 +86,17 @@ export default class ConvosProvider {
         const cleanupBaseline = h.agentCount(finalMsgs);
         log(`Sending cleanup: "${meta.cronCleanupPrompt}"`);
         h.convos(['conversation', 'send-text', h.conversationId, meta.cronCleanupPrompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
-        // Wait longer — pings may interleave, we need the actual deletion reply
-        const cleanupDeadline = Date.now() + 30_000;
+        // Wait for deletion reply — pings may interleave so give extra time.
+        const cleanupDeadline = Date.now() + 60_000;
         while (Date.now() < cleanupDeadline) {
           sleep(2_000);
           const msgs = h.fetchMessages();
           const newMsgs = msgs.filter(m => m.senderInboxId !== h.userInboxId).slice(cleanupBaseline);
           const hasDeleteConfirm = newMsgs.some(m => {
             const text = (m.content || m.text || '').toLowerCase();
-            // Match deletion confirmations — allow "ping" in the text since
-            // "deleted the ping job" is a valid confirmation.
-            return /delet|remov|stop|kill|cancel|gone/.test(text) && text.length > 5;
+            // Match deletion confirmations — agent may say "deleted", "done",
+            // "stopped", or just confirm the action briefly.
+            return /delet|remov|stop|kill|cancel|gone|done|got it|handled/.test(text) && text.length > 3;
           });
           if (hasDeleteConfirm) {
             cleanedUp = true;
