@@ -232,8 +232,10 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         else:
             greeting_content = (
                 "[System: You just joined this conversation. You have no skill configured yet. "
-                "Follow the skill-builder skill to discover what this group needs "
-                "and become the right agent for them.]"
+                "Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md and follow it. "
+                "Start with step 1: ask one open-ended question about what this group needs. "
+                "Do NOT send a standard welcome message. Do NOT mention your capabilities or ask for a name. "
+                "Just ask what the group needs help with.]"
             )
 
         logger.info("Dispatching greeting (skill-builder=%s)", not _has_active_skill())
