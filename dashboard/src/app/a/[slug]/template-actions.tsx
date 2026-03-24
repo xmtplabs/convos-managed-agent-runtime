@@ -152,6 +152,3 @@ export function SkillActions({ slug, prompt, siteUrl }: SkillActionsProps) {
     </div>
   );
 }
-
-// Keep the old export name as an alias for backwards compat with any imports
-export { SkillActions as TemplateActions };
