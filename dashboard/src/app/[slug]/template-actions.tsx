@@ -96,16 +96,6 @@ export function SkillActions({ slug, prompt, siteUrl }: SkillActionsProps) {
   const handleShare = useCallback(async () => {
     const url = `${siteUrl}/${encodeURIComponent(slug)}`;
 
-    // Try native share first (mobile), fall back to clipboard
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ url });
-        return;
-      } catch {
-        // User cancelled or not supported — fall through to clipboard
-      }
-    }
-
     try {
       await navigator.clipboard.writeText(url);
       if (!mountedRef.current) return;
