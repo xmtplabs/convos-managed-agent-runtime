@@ -1,6 +1,6 @@
 // Runtime adapter for OpenClaw.
 
-import { readFileSync, writeFileSync, readdirSync, unlinkSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, unlinkSync, rmSync, existsSync, mkdirSync, statSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
@@ -8,13 +8,41 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const stateDir = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
 const workspaceDir = join(stateDir, 'workspace');
+const skillsDir = join(workspaceDir, 'skills');
+const cronFile = join(stateDir, 'cron', 'jobs.json');
 const sessionsDir = join(stateDir, 'agents', 'main', 'sessions');
 const templateDir = resolve(__dirname, '../../openclaw/workspace');
+const sharedSkillsDir = resolve(__dirname, '../../shared/workspace/skills');
 
 function clearDir(dir) {
   try {
     for (const f of readdirSync(dir)) {
       try { unlinkSync(join(dir, f)); } catch {}
+    }
+  } catch {}
+}
+
+// Remove agent-created skill directories, keeping only core skills from the
+// shared template. Prevents previous eval runs from bleeding into new ones.
+function clearCustomSkills(targetDir, templateRefDir) {
+  if (!existsSync(targetDir) || !existsSync(templateRefDir)) return;
+  const core = new Set(readdirSync(templateRefDir));
+  for (const d of readdirSync(targetDir)) {
+    if (!core.has(d) && statSync(join(targetDir, d)).isDirectory()) {
+      try { rmSync(join(targetDir, d), { recursive: true, force: true }); } catch {}
+    }
+  }
+}
+
+// Remove agent-created cron jobs, keeping only seed jobs (id starts with "seed-").
+function clearAgentCronJobs(jobsFile) {
+  if (!existsSync(jobsFile)) return;
+  try {
+    const data = JSON.parse(readFileSync(jobsFile, 'utf-8'));
+    const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+    const seedOnly = jobs.filter((j) => j.id && j.id.startsWith('seed-'));
+    if (seedOnly.length !== jobs.length) {
+      writeFileSync(jobsFile, JSON.stringify({ ...data, jobs: seedOnly }, null, 2));
     }
   } catch {}
 }
@@ -28,6 +56,10 @@ export default {
   filterLines: (lines) => lines,
   needsSessionClear: true,
   convosPath: '../../openclaw/node_modules/.bin/convos',
+  cleanEvalState() {
+    clearCustomSkills(skillsDir, sharedSkillsDir);
+    clearAgentCronJobs(cronFile);
+  },
   memory: {
     extraArgs: ['--local'],
     reset() {
@@ -41,6 +73,8 @@ export default {
         }
       }
       clearDir(sessionsDir);
+      clearCustomSkills(skillsDir, sharedSkillsDir);
+      clearAgentCronJobs(cronFile);
     },
     clearSessions() {
       clearDir(sessionsDir);

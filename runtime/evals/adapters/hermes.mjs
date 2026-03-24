@@ -12,22 +12,49 @@
 // │ bin/args/env/cwd    │ Yes (CLI invocation)       │ Not used (HTTP only)     │
 // └─────────────────────┴──────────────────────────┴──────────────────────────┘
 
-import { readdirSync, readFileSync, unlinkSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { readdirSync, readFileSync, writeFileSync, unlinkSync, rmSync, statSync, existsSync } from 'fs';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const hermesDir = join(__dirname, '../../hermes');
 const hermesHome = process.env.HERMES_HOME || join(hermesDir, '.hermes-dev', 'home');
+const skillsDir = join(hermesHome, 'skills');
+const cronFile = join(hermesHome, 'cron', 'jobs.json');
+const cronOutputDir = join(hermesHome, 'cron', 'output');
 const memoriesDir = join(hermesHome, 'memories');
 const sessionsDir = join(hermesHome, 'sessions');
 const stateDb = join(hermesHome, 'state.db');
+const sharedSkillsDir = resolve(__dirname, '../../shared/workspace/skills');
 
 function clearDir(dir) {
   if (!existsSync(dir)) return;
   for (const f of readdirSync(dir)) {
     try { unlinkSync(join(dir, f)); } catch {}
   }
+}
+
+function clearCustomSkills(targetDir, templateRefDir) {
+  if (!existsSync(targetDir) || !existsSync(templateRefDir)) return;
+  const core = new Set(readdirSync(templateRefDir));
+  for (const d of readdirSync(targetDir)) {
+    if (!core.has(d) && statSync(join(targetDir, d)).isDirectory()) {
+      try { rmSync(join(targetDir, d), { recursive: true, force: true }); } catch {}
+    }
+  }
+}
+
+// Remove agent-created cron jobs, keeping only seed jobs (id starts with "seed-").
+function clearAgentCronJobs(jobsFile) {
+  if (!existsSync(jobsFile)) return;
+  try {
+    const data = JSON.parse(readFileSync(jobsFile, 'utf-8'));
+    const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+    const seedOnly = jobs.filter((j) => j.id && j.id.startsWith('seed-'));
+    if (seedOnly.length !== jobs.length) {
+      writeFileSync(jobsFile, JSON.stringify({ ...data, jobs: seedOnly }, null, 2));
+    }
+  } catch {}
 }
 
 export default {
@@ -46,11 +73,19 @@ export default {
   // Providers use queryUrl to curl the production server's /agent/query endpoint.
   // No eval server, no process management — same path in CI and local dev.
   queryUrl: `http://127.0.0.1:${process.env.PORT || '8080'}`,
+  cleanEvalState() {
+    clearCustomSkills(skillsDir, sharedSkillsDir);
+    clearAgentCronJobs(cronFile);
+    clearDir(cronOutputDir);
+  },
   memory: {
     extraArgs: [],
     reset() {
       clearDir(memoriesDir);
       clearDir(sessionsDir);
+      clearCustomSkills(skillsDir, sharedSkillsDir);
+      clearAgentCronJobs(cronFile);
+      clearDir(cronOutputDir);
       try { unlinkSync(stateDb); } catch {}
     },
     clearSessions() {

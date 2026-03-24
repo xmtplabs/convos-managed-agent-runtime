@@ -246,13 +246,13 @@ export function createHarness(tag, opts = {}) {
         const text = transcript(msgs);
         if (pattern.test(text)) {
           log(`Content matched: ${pattern}`);
-          return { msgs, text };
+          return { msgs, text, matched: true };
         }
       } catch {}
     }
     log(`Content NOT matched within ${timeoutMs / 1000}s: ${pattern}`);
     const msgs = fetchMessages();
-    return { msgs, text: transcript(msgs) };
+    return { msgs, text: transcript(msgs), matched: false };
   }
 
   function transcript(msgs, afterIndex = 0) {
