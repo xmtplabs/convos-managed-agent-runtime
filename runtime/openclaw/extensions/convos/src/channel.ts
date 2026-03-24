@@ -10,7 +10,7 @@ import {
   type ChannelPlugin,
   type PluginRuntime,
   type ReplyPayload,
-} from "openclaw/plugin-sdk";
+} from "openclaw/plugin-sdk/core";
 import {
   listConvosAccountIds,
   resolveConvosAccount,
