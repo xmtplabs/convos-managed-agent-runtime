@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { getSkill } from "@/lib/api";
 import { ConvosLogo } from "@/components/convos-logo";
 import { SkillActions } from "./template-actions";
-import "../(articles)/article.css";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -208,10 +207,54 @@ export default async function SkillPage({ params }: TemplatePageProps) {
 
         {/* Full prompt — rendered as styled prose */}
         {skill.prompt && (
-          <div style={{ borderTop: "1px solid #F0F0F0", paddingTop: "24px", marginTop: "32px" }}>
+          <div style={{ borderTop: "1px solid #F0F0F0", paddingTop: "28px", marginTop: "32px" }}>
+            <style dangerouslySetInnerHTML={{ __html: `
+              .skill-prose h2 {
+                font-size: 15px;
+                font-weight: 700;
+                color: #000;
+                letter-spacing: -0.2px;
+                margin: 28px 0 8px;
+              }
+              .skill-prose h2:first-child {
+                margin-top: 0;
+              }
+              .skill-prose h3 {
+                font-size: 14px;
+                font-weight: 600;
+                color: #000;
+                margin: 20px 0 6px;
+              }
+              .skill-prose p {
+                font-size: 14px;
+                color: #555;
+                line-height: 1.65;
+                margin: 0 0 10px;
+              }
+              .skill-prose ul {
+                margin: 0 0 12px;
+                padding-left: 18px;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+              }
+              .skill-prose li {
+                font-size: 14px;
+                color: #555;
+                line-height: 1.55;
+              }
+              .skill-prose strong {
+                color: #333;
+                font-weight: 600;
+              }
+              .skill-prose hr {
+                border: none;
+                border-top: 1px solid #F0F0F0;
+                margin: 24px 0;
+              }
+            ` }} />
             <div
-              className="article"
-              style={{ maxWidth: "none", padding: 0, margin: 0 }}
+              className="skill-prose"
               dangerouslySetInnerHTML={{ __html: markdownToHtml(skill.prompt) }}
             />
           </div>
