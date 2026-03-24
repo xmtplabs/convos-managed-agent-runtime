@@ -53,6 +53,7 @@ export default {
   args: (prompt, session) => ['agent', '-m', prompt, '--agent', 'main', '--session-id', session],
   defaultPort: '18789',
   healthPath: '/__openclaw__/canvas/',
+  restartPath: '/pool/restart-gateway',
   filterLines: (lines) => lines,
   needsSessionClear: true,
   convosPath: '../../openclaw/node_modules/.bin/convos',

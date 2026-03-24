@@ -6,6 +6,7 @@
 import { execFileSync } from 'child_process';
 import { createHarness } from '../lib/convos-harness.mjs';
 import { sleep, elapsed, log as _log } from '../lib/utils.mjs';
+import { runtime } from '../lib/runtime.mjs';
 
 const h = createHarness('convos', { conversationPrefix: 'QA Eval' });
 
@@ -139,34 +140,36 @@ export default class ConvosProvider {
 function handleRestart(h, prompt) {
   const ENV = process.env.XMTP_ENV || 'dev';
 
-  // Hit /pool/restart which stops the adapter and re-resumes from saved
-  // credentials — same code path as a real process restart. Works in CI
-  // (where the runtime is PID 1 and can't be killed) and locally.
-  // Probe the endpoint first — OpenClaw doesn't have /pool/restart (it uses
-  // a 2-process model with /pool/restart-gateway instead). Skip gracefully
-  // for runtimes that don't support the single-process restart.
-  h.log('Calling POST /pool/restart...');
+  // Each runtime exposes a restart endpoint: Hermes has /pool/restart (stops
+  // adapter, re-resumes from credentials), OpenClaw has /pool/restart-gateway
+  // (kills and respawns the gateway child). Both exercise the resume-from-
+  // saved-credentials code path.
+  const restartPath = runtime.restartPath;
+  if (!restartPath) {
+    h.log('FAIL — runtime adapter missing restartPath');
+    return { output: 'RESTART_FAILED: no restartPath configured', metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+
+  h.log(`Calling POST ${restartPath}...`);
   let restartOut;
   try {
     restartOut = execFileSync('curl', [
       '-s', '-o', '/dev/stdout', '-w', '\n%{http_code}',
       '-X', 'POST',
+      '-H', 'Content-Type: application/json',
       '-H', `Authorization: Bearer ${h.gatewayToken}`,
-      `http://localhost:${h.gatewayPort}/pool/restart`,
-    ], { encoding: 'utf-8', timeout: 60_000 });
+      '-d', '{}',
+      `http://localhost:${h.gatewayPort}${restartPath}`,
+    ], { encoding: 'utf-8', timeout: 90_000 });
   } catch (err) {
-    h.log(`SKIP — /pool/restart not reachable: ${err.message}`);
-    return { output: 'RESTART_SKIPPED: endpoint not available', metadata: { conversationId: h.conversationId, restarted: true } };
+    h.log(`FAIL — ${restartPath} not reachable: ${err.message}`);
+    return { output: `RESTART_FAILED: ${err.message}`, metadata: { conversationId: h.conversationId, restarted: false } };
   }
   const lines = restartOut.trim().split('\n');
   const httpCode = lines.pop();
   const body = lines.join('\n');
-  if (httpCode === '404' || httpCode === '405') {
-    h.log(`SKIP — /pool/restart returned ${httpCode} (not supported by this runtime)`);
-    return { output: 'RESTART_SKIPPED: endpoint not supported', metadata: { conversationId: h.conversationId, restarted: true } };
-  }
   if (!httpCode.startsWith('2')) {
-    h.log(`FAIL — /pool/restart returned ${httpCode}: ${body}`);
+    h.log(`FAIL — ${restartPath} returned ${httpCode}: ${body}`);
     return { output: `RESTART_FAILED: HTTP ${httpCode}`, metadata: { conversationId: h.conversationId, restarted: false } };
   }
   h.log(`Restart response (${httpCode}): ${body.slice(0, 200)}`);
