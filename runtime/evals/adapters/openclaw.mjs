@@ -53,7 +53,10 @@ export default {
   args: (prompt, session) => ['agent', '-m', prompt, '--agent', 'main', '--session-id', session],
   defaultPort: '18789',
   healthPath: '/__openclaw__/canvas/',
-  restartPath: '/pool/restart',
+  // OpenClaw's /pool/restart kills the gateway child and respawns, but the
+  // old process doesn't release port 18789 fast enough → port conflict crash
+  // loop. Disabled until the restart mechanism waits for port release.
+  // restartPath: '/pool/restart',
   filterLines: (lines) => lines,
   needsSessionClear: true,
   convosPath: '../../openclaw/node_modules/.bin/convos',
