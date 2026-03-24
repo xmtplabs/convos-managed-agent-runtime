@@ -27,7 +27,7 @@ tests:
         confirmed things work.
     metadata:
       cronWait: true
-      cronWaitSeconds: 180
+      cronWaitSeconds: 120
       cronCleanupPrompt: "Stop and delete the ping cron job you just created."
     assert:
       - type: javascript

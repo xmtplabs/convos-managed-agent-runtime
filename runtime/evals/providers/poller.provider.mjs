@@ -100,16 +100,8 @@ export default class PollerProvider {
       } else {
         // Nudge: the notification is in the agent's session history even if it
         // didn't announce. Ask specifically about emails so the agent checks.
-        // If the nudge also gets no response (agent stuck), fall back to the
-        // direct email question — gives the agent a second chance and a more
-        // concrete prompt.
         h.log('No proactive announcement — nudging agent...');
-        const nudge = h.sendAndWait('Did any emails or notifications come in? Check your inbox.', {});
-        const nudgeGotReply = h.agentCount(h.fetchMessages()) > h.agentCount(preMsgs);
-        if (!nudgeGotReply) {
-          h.log('Nudge got no response — trying direct email question...');
-          h.sendAndWait('What did the last email say? Who sent it?', {});
-        }
+        h.sendAndWait('Did any emails or notifications come in? Check your inbox.', {});
       }
 
       const finalMsgs = h.fetchMessages();
