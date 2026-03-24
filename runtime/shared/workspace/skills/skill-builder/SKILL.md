@@ -106,7 +106,7 @@ Before you generate the full skill, present a quick direction check — 2-3 sent
 
 > "So here's what I'm thinking: a trash-talking fantasy football commissioner who tracks trades, roasts bad deals, and nudges on waiver deadlines. Competitive but not mean. Sound right, or should I adjust the direction?"
 
-This is lighter than the full summary in step 6. It's a quick "am I on the right track?" before you do the work of generating. If they say yes, generate. If they push back, adjust and re-check.
+This is lighter than the full summary in step 7. It's a quick "am I on the right track?" before you do the work of generating. If they say yes, generate. If they push back, adjust and re-check.
 
 ### 5. Generate the skill
 
@@ -132,7 +132,23 @@ The output must match this schema (same as the pool `agent_skills` table):
 
 **IMPORTANT: The `prompt` field must contain the entire system prompt as a string — NOT a file path or reference like "See SKILL.md in generated/...". The full prompt text must be inline in the JSON.** This is what gets displayed on the skill page.
 
-### 6. Write the skill and share the page
+### 6. Find a profile image
+
+Search for a profile image that matches the skill's identity. Use the agent name, emoji, and category as search terms (e.g., search for "hiking boots emoji" or "football commissioner icon").
+
+**Requirements** (from the profile-update skill):
+- Must be a publicly accessible HTTPS URL (e.g., `https://example.com/photo.jpg`)
+- Must be currently reachable — HTTP 200, Content-Type `image/*`
+- Must not require authentication, cookies, or a session
+- Prefer direct static file URLs (paths ending in `.jpg`, `.png`, `.webp`, `.svg`)
+- Reject dynamic/transform URLs (`thumb.php`, resize endpoints, signed/expiring URLs)
+- Do NOT use URLs from training data without verifying them first
+
+**Validate the URL before proceeding** — fetch it and confirm it returns 200 with an image content type. If you can't find a valid image, skip this step. A missing profile image is fine; a broken one is not.
+
+Store the validated URL — you'll apply it in step 8 (activation). Do NOT set the profile image yet.
+
+### 7. Write the skill and share the page
 
 1. Write the skill entry to `$SKILLS_ROOT/generated/skills.json`:
    - If the file exists, read it and append to the `skills` array
@@ -159,13 +175,13 @@ node "$SKILLS_ROOT/skill-builder/scripts/skill-url.mjs" <slug>
 
 **Do NOT apply the skill until the group approves.** This is a hard gate.
 
-### 7. Apply the skill
+### 8. Apply the skill
 
 On approval:
 
 1. Set `"active": "<slug>"` in `$SKILLS_ROOT/generated/skills.json`
 2. Update your profile name: use your platform's profile update tool with the `agentName`
-3. Update your profile image if you have a suitable URL for the emoji/category
+3. Update your profile image with the validated URL from step 6 (skip if no image was found)
 4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `WHEN: immediately`, set it up now:
    - Cron jobs → use the cron tool
    - Pollers → create a skill directory with poll.sh (see CUSTOMIZATION.md)
@@ -174,7 +190,7 @@ On approval:
 
 **After activation, as you converse naturally:** When you learn a piece of context that unlocks a deferred ENGINE item (e.g., the user mentions their wake time), set up that automation right then. Don't ask permission for automations the user already approved in the skill — just set them up and confirm: "Got it, 7:30 wake time — I'll check in with you every morning."
 
-### 8. Group readiness check
+### 9. Group readiness check
 
 After applying the skill, check if the group is ready to use it. Look at the conversation members:
 
@@ -185,7 +201,7 @@ After applying the skill, check if the group is ready to use it. Look at the con
 
 This should feel natural, not like a checklist step. One sentence, then move on. Don't block on it — if the user ignores the suggestion, start being useful immediately.
 
-### 9. Versioned updates
+### 10. Versioned updates
 
 When the group asks to modify the current skill:
 
