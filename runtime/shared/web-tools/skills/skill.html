@@ -75,23 +75,12 @@
           toolsHtml +
           '<div class="skill-section">' +
             '<div class="section-label">system prompt</div>' +
-            '<button class="prompt-toggle" id="prompt-toggle">show prompt</button>' +
-            '<div class="prompt-content" id="prompt-content">' + esc(skill.prompt || "") + '</div>' +
+            '<div class="prompt-content visible">' + esc(skill.prompt || "") + '</div>' +
           '</div>' +
           '<div class="skill-meta">' +
             '<span>created ' + esc(created) + '</span>' +
             (updated !== created ? '<span>updated ' + esc(updated) + '</span>' : '') +
           '</div>';
-
-        // Wire up prompt toggle
-        var toggle = document.getElementById("prompt-toggle");
-        var content = document.getElementById("prompt-content");
-        if (toggle && content) {
-          toggle.addEventListener("click", function () {
-            var visible = content.classList.toggle("visible");
-            toggle.textContent = visible ? "hide prompt" : "show prompt";
-          });
-        }
       }
 
       function esc(s) {
