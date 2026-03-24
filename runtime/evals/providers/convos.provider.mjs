@@ -3,9 +3,10 @@
 // Creates a conversation, joins the runtime, sends messages via convos-cli,
 // waits for the agent, then returns the transcript for assertion.
 
-import { execFileSync } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import { createHarness } from '../lib/convos-harness.mjs';
 import { sleep, elapsed, log as _log } from '../lib/utils.mjs';
+import { runtime } from '../lib/runtime.mjs';
 
 const h = createHarness('convos', { conversationPrefix: 'QA Eval' });
 
@@ -23,6 +24,12 @@ export default class ConvosProvider {
     h.ensureSetup();
 
     const meta = context.test?.metadata || {};
+
+    if (meta.restart) {
+      const result = handleRestart(h, prompt);
+      log(`${result.metadata?.restarted ? 'OK' : 'FAIL'} ${desc} (${elapsed(t)})`);
+      return result;
+    }
 
     if (meta.selfDestruct) {
       const result = handleSelfDestruct(h);
@@ -128,6 +135,78 @@ export default class ConvosProvider {
     log(`Done (${elapsed(t)})`);
     return { output, metadata: { conversationId: h.conversationId } };
   }
+}
+
+function handleRestart(h, prompt) {
+  const ENV = process.env.XMTP_ENV || 'dev';
+  const killPattern = runtime.processKillPattern;
+  const restartCmd = runtime.restartCmd;
+
+  if (!killPattern || !restartCmd) {
+    h.log('SKIP — runtime adapter missing processKillPattern or restartCmd');
+    return { output: 'RESTART_SKIPPED: adapter not configured', metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+
+  // 1. Kill the runtime process
+  h.log(`Killing runtime (pkill -f "${killPattern}")...`);
+  try {
+    execFileSync('pkill', ['-f', killPattern], { timeout: 5_000 });
+  } catch {
+    // pkill exits 1 if no process matched — that's fine
+  }
+
+  // 2. Wait for health to go down
+  h.log('Waiting for health to go down...');
+  const downDeadline = Date.now() + 10_000;
+  let wentDown = false;
+  while (Date.now() < downDeadline) {
+    sleep(500);
+    if (!h.checkGateway()) { wentDown = true; break; }
+  }
+  if (!wentDown) {
+    h.log('FAIL — runtime did not go down after kill');
+    return { output: 'RESTART_FAILED: runtime did not go down', metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+  h.log('Runtime is down');
+
+  // 3. Respawn the runtime
+  h.log(`Respawning: ${restartCmd.cmd} ${restartCmd.args.join(' ')}`);
+  const child = spawn(restartCmd.cmd, restartCmd.args, {
+    cwd: restartCmd.cwd,
+    stdio: 'ignore',
+    detached: true,
+    env: process.env,
+  });
+  child.unref();
+
+  // 4. Wait for health to come back
+  h.log('Waiting for runtime to come back...');
+  const upDeadline = Date.now() + 90_000;
+  let cameBack = false;
+  while (Date.now() < upDeadline) {
+    sleep(2_000);
+    if (h.checkGateway()) { cameBack = true; break; }
+  }
+  if (!cameBack) {
+    h.log('FAIL — runtime did not come back');
+    return { output: 'RESTART_FAILED: runtime did not come back', metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+  h.log('Runtime is back up');
+
+  // 5. Wait a bit for resume to complete, then send a message
+  sleep(5_000);
+  const existing = h.fetchMessages();
+  const baseline = h.agentCount(existing);
+  const msgsBefore = existing.length;
+
+  h.log(`Sending post-restart message: "${prompt}"`);
+  h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', ENV], { timeout: 30_000 });
+  const msgs = h.waitForAgent(baseline);
+  const output = h.transcript(msgs, msgsBefore);
+
+  const responded = h.agentCount(msgs) > baseline;
+  h.log(responded ? 'Agent responded after restart' : 'FAIL — agent did not respond after restart');
+  return { output, metadata: { conversationId: h.conversationId, restarted: responded } };
 }
 
 function handleSelfDestruct(h) {

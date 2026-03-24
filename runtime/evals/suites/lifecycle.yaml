@@ -49,6 +49,20 @@ tests:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileHasAttestation"
 
+  # --- Restart resume ---
+  - description: "Agent resumes conversation after process restart"
+    vars:
+      prompt: "Hey, are you still there?"
+    metadata:
+      restart: true
+    assert:
+      - type: javascript
+        value: |
+          (output) => {
+            const agentLines = output.split('\n').filter(l => l.startsWith('[AGENT]'));
+            return agentLines.length > 0 ? { pass: true } : { pass: false, reason: 'Agent did not respond after restart' };
+          }
+
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"
     vars:
