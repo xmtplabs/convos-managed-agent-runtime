@@ -207,10 +207,10 @@ When the group asks to modify the current skill:
 
 1. Ask what they want to change (one question)
 2. Regenerate the skill definition with the changes applied
-3. Update the entry in `skills.json` (same `id` and `slug`, new `updatedAt`)
-4. Overwrite `$SKILLS_ROOT/generated/<slug>/SKILL.md`
-5. Re-share the skill page link with a summary of what changed
-6. Wait for approval before applying changes
+3. Re-share the skill page link with a summary of what changed — but do NOT write the changes yet
+4. Wait for approval before applying changes
+5. On approval: update the entry in `skills.json` (same `id` and `slug`, new `updatedAt`), overwrite `$SKILLS_ROOT/generated/<slug>/SKILL.md`, and apply any new ENGINE automations
+6. On rejection: discard the changes — the original skill remains untouched
 
 When asked to become something entirely new: run the full flow from step 1.
 
