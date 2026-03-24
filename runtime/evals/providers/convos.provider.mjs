@@ -150,28 +150,19 @@ function handleRestart(h, prompt) {
   }
 
   h.log(`Calling POST ${restartPath}...`);
-  let restartOut;
   try {
-    restartOut = execFileSync('curl', [
-      '-s', '-o', '/dev/stdout', '-w', '\n%{http_code}',
-      '-X', 'POST',
+    const out = execFileSync('curl', [
+      '-sf', '-X', 'POST',
       '-H', 'Content-Type: application/json',
       '-H', `Authorization: Bearer ${h.gatewayToken}`,
       '-d', '{}',
       `http://localhost:${h.gatewayPort}${restartPath}`,
     ], { encoding: 'utf-8', timeout: 90_000 });
+    h.log(`Restart OK: ${(out || '').trim().slice(0, 200)}`);
   } catch (err) {
-    h.log(`FAIL — ${restartPath} not reachable: ${err.message}`);
-    return { output: `RESTART_FAILED: ${err.message}`, metadata: { conversationId: h.conversationId, restarted: false } };
+    h.log(`FAIL — ${restartPath} failed: ${err.status || err.message}`);
+    return { output: `RESTART_FAILED: ${restartPath} returned error`, metadata: { conversationId: h.conversationId, restarted: false } };
   }
-  const lines = restartOut.trim().split('\n');
-  const httpCode = lines.pop();
-  const body = lines.join('\n');
-  if (!httpCode.startsWith('2')) {
-    h.log(`FAIL — ${restartPath} returned ${httpCode}: ${body}`);
-    return { output: `RESTART_FAILED: HTTP ${httpCode}`, metadata: { conversationId: h.conversationId, restarted: false } };
-  }
-  h.log(`Restart response (${httpCode}): ${body.slice(0, 200)}`);
 
   // Wait a moment for the adapter to fully initialize
   sleep(5_000);
