@@ -37,6 +37,7 @@
         <a href="/admin" class="nav-link active">Dashboard</a>
         <a href="/admin/upgrades" class="nav-link">Upgrades</a>
         <a href="/admin/api-docs" class="nav-link">API</a>
+        <a href="/admin/skills" class="nav-link">Skills</a>
         <a id="railway-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Railway <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
         <a id="playroom-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Playroom <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
         <div class="nav-sep"></div>
@@ -1269,8 +1270,8 @@
       });
     });
 
-    // --- Templates count ---
-    fetch('/api/pool/templates').then(function (r) { return r.json(); }).then(function (d) {
+    // --- Skills count ---
+    fetch('/api/skills').then(function (r) { return r.json(); }).then(function (d) {
       document.getElementById('s-templates').textContent = Array.isArray(d) ? d.length : '-';
     }).catch(function () {});
 

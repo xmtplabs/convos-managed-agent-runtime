@@ -76,15 +76,15 @@ app.get("/api/pool/counts", (_req, res) => {
   res.json(COUNTS[currentState] || COUNTS.idle);
 });
 
-// Templates and counts are intentionally public (no auth) -- mirrors the real
-// Pool where the catalog and availability are public-facing for the template site.
-app.get("/api/pool/templates", (_req, res) => {
+// Skills are intentionally public (no auth) -- mirrors the real
+// Pool where the catalog is public-facing for the template site.
+app.get("/api/skills", (_req, res) => {
   res.json(CATALOG);
 });
 
-app.get("/api/pool/templates/:slug", (req, res) => {
+app.get("/api/skills/:slug", (req, res) => {
   const t = CATALOG.find((a: any) => a.slug === req.params.slug);
-  if (!t) return res.status(404).json({ error: "Template not found" });
+  if (!t) return res.status(404).json({ error: "Skill not found" });
   res.json(t);
 });
 
