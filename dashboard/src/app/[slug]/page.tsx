@@ -243,15 +243,13 @@ export default async function SkillPage({ params }: TemplatePageProps) {
               padding: "20px 24px",
             }}>
               <div style={{ fontSize: "10px", fontWeight: 600, color: "#B2B2B2", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
-                About this skill
+                Summary
               </div>
-              {intro && (
-                <p style={{ fontSize: "14px", fontWeight: 500, color: "#000", lineHeight: "1.55", margin: "0 0 10px" }}>
-                  {intro}
-                </p>
-              )}
+              <p style={{ fontSize: "14px", fontWeight: 600, color: "#000", lineHeight: "1.55", margin: "0 0 12px" }}>
+                {skill.description}
+              </p>
               {bullets.length > 0 && (
-                <ul style={{ margin: 0, padding: "0 0 0 18px", fontSize: "13px", color: "#666", lineHeight: "1.75", display: "flex", flexDirection: "column", gap: "2px" }}>
+                <ul style={{ margin: 0, padding: "0 0 0 18px", fontSize: "13px", color: "#666", lineHeight: "1.8" }}>
                   {bullets.map((b, i) => <li key={i}>{b}</li>)}
                 </ul>
               )}
@@ -259,13 +257,18 @@ export default async function SkillPage({ params }: TemplatePageProps) {
           );
         })()}
 
+        {/* Divider */}
+        {skill.prompt && (
+          <div style={{ borderTop: "1px solid #F0F0F0", margin: "28px 0 0" }} />
+        )}
+
         {/* Full prompt — collapsed by default */}
         {skill.prompt && (
-          <div style={{ borderTop: "1px solid #F0F0F0", marginTop: "32px" }}>
+          <>
             <style dangerouslySetInnerHTML={{ __html: `
               .skill-prompt-toggle {
                 width: 100%;
-                padding: 20px 0;
+                padding: 18px 0;
                 cursor: pointer;
                 list-style: none;
               }
@@ -324,7 +327,7 @@ export default async function SkillPage({ params }: TemplatePageProps) {
                 dangerouslySetInnerHTML={{ __html: markdownToHtml(skill.prompt) }}
               />
             </details>
-          </div>
+          </>
         )}
       </main>
     </div>
