@@ -79,7 +79,8 @@ export async function createInstance(
   let projectId: string;
   try {
     const projStart = Date.now();
-    const proj = await railway.projectCreate(`assistant-${config.poolEnvironment}-${instanceId}`);
+    const envTag = config.poolEnvironment === "production" ? "prod" : config.poolEnvironment;
+    const proj = await railway.projectCreate(`assistant-${envTag}-${instanceId}`);
     projectId = proj.projectId;
     metricHistogram("provider.railway.project.duration_ms", Date.now() - projStart);
     metricCount("provider.railway.project.provisioned");
