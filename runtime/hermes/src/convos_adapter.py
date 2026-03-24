@@ -50,6 +50,11 @@ ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
 CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
 PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
 _last_prune_at = 0.0
+GROUP_EXPIRATION_UPDATE_RE = re.compile(r"\bset conversation expiration to ([^;]+)(?:;|$)", re.IGNORECASE)
+GROUP_EXPIRATION_CLEARED_RE = re.compile(r"\bcleared conversation expiration(?:;|$)", re.IGNORECASE)
+EXPLOSION_IMMEDIATE_SKEW_S = 3.0
+_expiration_timer: asyncio.TimerHandle | None = None
+_expiration_at_s: float | None = None
 
 async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
@@ -211,6 +216,37 @@ def is_member_removal_group_update(content: str) -> bool:
         ):
             return True
     return False
+
+
+def _parse_conversation_expiration(content: str) -> tuple[str, float] | tuple[str, None] | None:
+    """Parse a group_updated message for expiration info.
+
+    Returns ("cleared", None) if expiration was cleared,
+    (raw_timestamp_str, epoch_seconds) if set, or None if not an expiration update.
+    """
+    if GROUP_EXPIRATION_CLEARED_RE.search(content):
+        return ("cleared", None)
+
+    m = GROUP_EXPIRATION_UPDATE_RE.search(content)
+    if not m:
+        return None
+
+    raw = m.group(1).strip()
+    try:
+        from datetime import datetime
+        expires_at = datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp()
+    except (ValueError, OverflowError):
+        return None
+
+    return (raw, expires_at)
+
+
+def _clear_expiration_timer() -> None:
+    global _expiration_timer, _expiration_at_s
+    if _expiration_timer is not None:
+        _expiration_timer.cancel()
+        _expiration_timer = None
+    _expiration_at_s = None
 
 
 def is_inactive_group_error(err: Exception) -> bool:
@@ -410,14 +446,26 @@ class ConvosAdapter:
             return
 
         if msg.content_type == "group_updated":
+            parsed = _parse_conversation_expiration(msg.content)
+            if parsed is not None:
+                raw, expires_at = parsed
+                if raw == "cleared":
+                    _clear_expiration_timer()
+                    logger.info("Conversation expiration cleared")
+                elif expires_at is not None:
+                    import time
+                    now = time.time()
+                    if expires_at <= now + EXPLOSION_IMMEDIATE_SKEW_S:
+                        logger.info(f"Conversation exploded, self-destructing (expiration reached at {raw})")
+                        await self._self_destruct_and_exit()
+                        return
+                    else:
+                        self._schedule_expiration_timer(expires_at, raw)
+
             termination_reason = await self._detect_membership_termination_reason(msg)
             if termination_reason:
                 logger.info(f"Membership ended, self-destructing ({termination_reason})")
-                await self.stop()
-                clear_credentials(self._config.hermes_home)
-                await _notify_pool_self_destruct()
-                if not os.environ.get("EVAL_MODE"):
-                    sys.exit(0)
+                await self._self_destruct_and_exit()
                 return
 
         if not msg.catchup:
@@ -555,6 +603,44 @@ class ConvosAdapter:
         attachment_msg, flush_task, download_task = entry
         flush_task.cancel()
         return attachment_msg, download_task
+
+    async def _self_destruct_and_exit(self) -> None:
+        _clear_expiration_timer()
+        await stats.shutdown()
+        await self.stop()
+        clear_credentials(self._config.hermes_home)
+        await _notify_pool_self_destruct()
+        if not os.environ.get("EVAL_MODE"):
+            sys.exit(0)
+
+    def _schedule_expiration_timer(self, expires_at_s: float, raw: str) -> None:
+        global _expiration_timer, _expiration_at_s
+        # Already scheduled for the same time — no-op
+        if _expiration_at_s == expires_at_s and _expiration_timer is not None:
+            return
+
+        _clear_expiration_timer()
+        _expiration_at_s = expires_at_s
+
+        import time
+        delay = max(0.0, expires_at_s - time.time())
+        logger.info(f"Scheduled conversation expiration check for {raw} (in {delay:.1f}s)")
+
+        loop = asyncio.get_event_loop()
+
+        def _on_expire() -> None:
+            global _expiration_timer, _expiration_at_s
+            _expiration_timer = None
+            _expiration_at_s = None
+
+            import time as _t
+            if expires_at_s > _t.time() + EXPLOSION_IMMEDIATE_SKEW_S:
+                return
+
+            logger.info(f"Conversation expiration reached, self-destructing (expiration reached at {raw})")
+            asyncio.ensure_future(self._self_destruct_and_exit())
+
+        _expiration_timer = loop.call_later(delay, _on_expire)
 
     async def _detect_membership_termination_reason(self, msg: InboundMessage) -> str | None:
         inst = self._instance
