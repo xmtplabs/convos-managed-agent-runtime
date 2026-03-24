@@ -22,8 +22,9 @@ tests:
     vars:
       prompt: >
         Hey, I need a recurring ping to make sure notifications are
-        working on my phone. Set up a cron job that says "Ping!" every
-        1 minute. I'll delete it once I've confirmed things work.
+        working on my phone. Use the cron/cronjob tool to schedule a job
+        that says "Ping!" every 1 minute. I'll delete it once I've
+        confirmed things work.
     metadata:
       cronWait: true
       cronWaitSeconds: 180
