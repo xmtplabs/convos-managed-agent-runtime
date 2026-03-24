@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getSkill } from "@/lib/api";
 import { ConvosLogo } from "@/components/convos-logo";
 import { SkillActions } from "./template-actions";
+import "../../(articles)/article.css";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,6 +63,61 @@ export async function generateMetadata({
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Convert simple markdown (headings, lists, bold, paragraphs) to HTML. */
+function markdownToHtml(md: string): string {
+  const escaped = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const lines = escaped.split("\n");
+  const html: string[] = [];
+  let inList = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Headings
+    if (trimmed.startsWith("### ")) {
+      if (inList) { html.push("</ul>"); inList = false; }
+      html.push(`<h3>${applyInline(trimmed.slice(4))}</h3>`);
+    } else if (trimmed.startsWith("## ")) {
+      if (inList) { html.push("</ul>"); inList = false; }
+      html.push(`<h2>${applyInline(trimmed.slice(3))}</h2>`);
+    } else if (trimmed.startsWith("# ")) {
+      if (inList) { html.push("</ul>"); inList = false; }
+      html.push(`<h2>${applyInline(trimmed.slice(2))}</h2>`);
+    }
+    // List items
+    else if (trimmed.startsWith("- ")) {
+      if (!inList) { html.push("<ul>"); inList = true; }
+      html.push(`<li>${applyInline(trimmed.slice(2))}</li>`);
+    }
+    // Horizontal rule
+    else if (trimmed === "---") {
+      if (inList) { html.push("</ul>"); inList = false; }
+      html.push("<hr />");
+    }
+    // Empty line
+    else if (trimmed === "") {
+      if (inList) { html.push("</ul>"); inList = false; }
+    }
+    // Paragraph
+    else {
+      if (inList) { html.push("</ul>"); inList = false; }
+      html.push(`<p>${applyInline(trimmed)}</p>`);
+    }
+  }
+
+  if (inList) html.push("</ul>");
+  return html.join("\n");
+}
+
+/** Apply inline formatting: **bold** */
+function applyInline(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
 
 function formatDate(dateStr: string): string {
   try {
@@ -150,26 +206,14 @@ export default async function SkillPage({ params }: TemplatePageProps) {
           siteUrl={siteUrl}
         />
 
-        {/* Full prompt */}
+        {/* Full prompt — rendered as styled prose */}
         {skill.prompt && (
           <div style={{ borderTop: "1px solid #F0F0F0", paddingTop: "24px", marginTop: "32px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <h2 style={{ fontSize: "13px", fontWeight: 600, color: "#000", margin: 0 }}>Full skill prompt</h2>
-            </div>
-            <div style={{
-              fontSize: "13px",
-              color: "#333",
-              lineHeight: "1.8",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              fontFamily: "'SF Mono', 'Menlo', 'Monaco', monospace",
-              background: "#FAFAFA",
-              border: "1px solid #F0F0F0",
-              borderRadius: "10px",
-              padding: "24px",
-            }}>
-              {skill.prompt}
-            </div>
+            <div
+              className="article"
+              style={{ maxWidth: "none", padding: 0, margin: 0 }}
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(skill.prompt) }}
+            />
           </div>
         )}
       </main>
