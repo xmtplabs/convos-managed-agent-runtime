@@ -12,7 +12,8 @@ function parseKeyName(name: string): { instanceId: string; environment: string }
     if (dashIdx === -1) return null;
     const instanceId = rest.slice(dashIdx + 1);
     if (!instanceId) return null;
-    return { environment: rest.slice(0, dashIdx), instanceId };
+    const rawEnv = rest.slice(0, dashIdx);
+    return { environment: rawEnv === "prod" ? "production" : rawEnv, instanceId };
   }
   if (name.startsWith(LEGACY_PREFIX)) {
     const instanceId = name.slice(LEGACY_PREFIX.length);
