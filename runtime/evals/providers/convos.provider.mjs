@@ -164,8 +164,33 @@ function handleRestart(h, prompt) {
     return { output: `RESTART_FAILED: ${restartPath} returned error`, metadata: { conversationId: h.conversationId, restarted: false } };
   }
 
-  // Wait a moment for the adapter to fully initialize
-  sleep(5_000);
+  // Wait for the convos adapter to reconnect — the gateway may be up but
+  // the XMTP bridge needs time to re-establish the conversation stream.
+  h.log('Waiting for convos adapter to reconnect...');
+  const statusDeadline = Date.now() + 90_000;
+  let adapterReady = false;
+  while (Date.now() < statusDeadline) {
+    sleep(3_000);
+    try {
+      const statusOut = execFileSync('curl', [
+        '-sf',
+        '-H', `Authorization: Bearer ${h.gatewayToken}`,
+        `http://localhost:${h.gatewayPort}/convos/status`,
+      ], { encoding: 'utf-8', timeout: 5_000 });
+      const status = JSON.parse(statusOut);
+      if (status.conversationId) {
+        h.log(`Adapter reconnected: conversation ${status.conversationId.slice(0, 12)}`);
+        adapterReady = true;
+        break;
+      }
+    } catch {}
+  }
+  if (!adapterReady) {
+    h.log('FAIL — adapter did not reconnect within 90s');
+    return { output: 'RESTART_FAILED: adapter did not reconnect', metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+  // Extra settle time for message streams
+  sleep(3_000);
 
   const existing = h.fetchMessages();
   const baseline = h.agentCount(existing);
