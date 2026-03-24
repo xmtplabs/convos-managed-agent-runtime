@@ -38,7 +38,8 @@ function parseServiceName(name: string): { instanceId: string; environment: stri
   const rest = name.slice(SERVICE_PREFIX.length);
   const dashIdx = rest.indexOf("-");
   if (dashIdx === -1) return null;
-  const environment = rest.slice(0, dashIdx);
+  const rawEnv = rest.slice(0, dashIdx);
+  const environment = rawEnv === "prod" ? "production" : rawEnv;
   const instanceId = rest.slice(dashIdx + 1);
   return instanceId ? { instanceId, environment } : null;
 }
