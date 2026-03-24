@@ -61,6 +61,7 @@ export default {
   name: 'hermes',
   defaultPort: '8080',
   healthPath: '/pool/health',
+  restartPath: '/pool/restart',
   filterLines: (lines) => lines.filter((l) => {
     if (l.match(/^session_id:\s/)) return false;
     if (l.match(/^\s*[\u2800-\u28FF]/)) return false;

@@ -7,7 +7,7 @@
  *
  * Serves (on public PORT):
  *   GET  /pool/health           → { ready: boolean }
- *   POST /pool/restart-gateway  → write env overrides to volume, restart start.sh
+ *   POST /pool/restart  → write env overrides to volume, restart start.sh
  *   POST /pool/provision        → invite/join convos (instructions written by convos extension), return { ok, inviteUrl?, conversationId?, joined }
  */
 
@@ -67,6 +67,7 @@ function spawnGateway(extraEnv = {}) {
   const child = spawn("sh", ["scripts/start.sh"], {
     cwd: ROOT,
     stdio: "inherit",
+    detached: true, // own process group so we can kill the entire tree on restart
     env: {
       ...process.env,
       ...extraEnv,
@@ -109,6 +110,7 @@ async function pollGateway() {
 const initialChild = spawn("pnpm", ["start"], {
   cwd: ROOT,
   stdio: "inherit",
+  detached: true, // own process group so restart can kill the entire tree
   env: {
     ...process.env,
     PORT: String(INTERNAL_PORT),
@@ -243,8 +245,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /pool/restart-gateway
-  if (req.method === "POST" && req.url === "/pool/restart-gateway") {
+  // POST /pool/restart
+  if (req.method === "POST" && req.url === "/pool/restart") {
     if (!checkAuth(req, res)) return;
 
     let body;
@@ -263,15 +265,18 @@ const server = http.createServer(async (req, res) => {
     try {
       restarting = true;
       if (gatewayChild) {
-        console.log("[pool-server] Killing current gateway for restart...");
-        gatewayChild.kill("SIGTERM");
-        // Wait for the child to exit before respawning
+        console.log("[pool-server] Killing current gateway process group...");
+        // Kill the entire process group (shell + gateway + children) so the
+        // port is fully released before we respawn.
+        try { process.kill(-gatewayChild.pid, "SIGTERM"); } catch {}
+        // Wait for the child to exit
         await new Promise((resolve) => {
           const onExit = () => resolve();
           gatewayChild.once("exit", onExit);
-          // If already dead, resolve immediately
           if (gatewayChild.exitCode !== null) resolve();
         });
+        // Small grace period for OS to release sockets
+        await new Promise((r) => setTimeout(r, 2000));
       }
       restarting = false;
 
@@ -282,7 +287,7 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { ok: true });
     } catch (err) {
       restarting = false;
-      console.error("[pool-server] restart-gateway failed:", err);
+      console.error("[pool-server] restart failed:", err);
       json(res, 500, { error: err.message || "Restart failed" });
     }
     return;

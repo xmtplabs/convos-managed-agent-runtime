@@ -49,6 +49,16 @@ tests:
       - type: javascript
         value: "file://../lib/assertions.mjs:profileHasAttestation"
 
+  # --- Restart resume ---
+  - description: "Agent resumes conversation after process restart"
+    vars:
+      prompt: "Hey, are you still there?"
+    metadata:
+      restart: true
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentRespondedAfterRestart"
+
   # --- Teardown (must be last) ---
   - description: "Agent self-destructs when removed from group"
     vars:
