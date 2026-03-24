@@ -100,12 +100,12 @@ async function listTeamServices(token: string): Promise<ServiceInfo[]> {
 
 // ── Metrics fetching (batched via GraphQL aliases) ──────────────────────────
 
-function parseMetricsValues(values: any[]): { currentMb: number; peakMb: number } | null {
+function parseMetricsValues(values: any[]): { currentGb: number; peakGb: number } | null {
   if (values.length === 0) return null;
-  const mbValues = values.map((v: any) => (v.value || 0) * 1024);
+  const gbValues = values.map((v: any) => v.value || 0);
   return {
-    currentMb: Math.round(mbValues[mbValues.length - 1]),
-    peakMb: Math.round(Math.max(...mbValues)),
+    currentGb: Math.round(gbValues[gbValues.length - 1] * 100) / 100,
+    peakGb: Math.round(Math.max(...gbValues) * 100) / 100,
   };
 }
 
@@ -114,8 +114,8 @@ const METRICS_BATCH_SIZE = 20;
 async function fetchMetricsBatch(
   token: string,
   services: ServiceInfo[],
-): Promise<Map<string, { currentMb: number; peakMb: number }>> {
-  const results = new Map<string, { currentMb: number; peakMb: number }>();
+): Promise<Map<string, { currentGb: number; peakGb: number }>> {
+  const results = new Map<string, { currentGb: number; peakGb: number }>();
   const startDate = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
 
   for (let i = 0; i < services.length; i += METRICS_BATCH_SIZE) {
@@ -150,7 +150,7 @@ async function fetchMetricsBatch(
 
 // ── Sweep logic ─────────────────────────────────────────────────────────────
 
-const MEMORY_LIMIT_MB = 8192;
+const MEMORY_LIMIT_GB = 8;
 
 async function memorySweep(env: Env): Promise<void> {
   console.log("[cron] Memory sweep starting");
@@ -175,7 +175,7 @@ async function memorySweep(env: Env): Promise<void> {
     const kvKey = `memory:${svc.instanceId}`;
     const lastPeakStr = await env.STATS_MEMORY.get(kvKey);
     const lastPeak = lastPeakStr ? parseFloat(lastPeakStr) : 0;
-    const allTimePeak = Math.max(lastPeak, metrics.peakMb);
+    const allTimePeak = Math.max(lastPeak, metrics.peakGb);
     await env.STATS_MEMORY.put(kvKey, String(allTimePeak));
 
     events.push({
@@ -184,11 +184,11 @@ async function memorySweep(env: Env): Promise<void> {
       properties: {
         instance_id: svc.instanceId,
         environment: svc.environment,
-        memory_current_mb: metrics.currentMb,
-        memory_peak_mb: metrics.peakMb,
-        memory_all_time_peak_mb: allTimePeak,
-        memory_limit_mb: MEMORY_LIMIT_MB,
-        memory_utilization_pct: Math.round((metrics.peakMb / MEMORY_LIMIT_MB) * 100),
+        memory_current_gb: metrics.currentGb,
+        memory_peak_gb: metrics.peakGb,
+        memory_all_time_peak_gb: allTimePeak,
+        memory_limit_gb: MEMORY_LIMIT_GB,
+        memory_utilization_pct: Math.round((metrics.peakGb / MEMORY_LIMIT_GB) * 100),
       },
       timestamp: new Date().toISOString(),
     });
