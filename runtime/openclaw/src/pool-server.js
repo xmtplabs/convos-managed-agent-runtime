@@ -270,6 +270,19 @@ const server = http.createServer(async (req, res) => {
           // If already dead, resolve immediately
           if (gatewayChild.exitCode !== null) resolve();
         });
+        // The shell exits but the actual gateway process may still hold the
+        // port.  Poll until the port is free before respawning.
+        console.log("[pool-server] Waiting for port to be released...");
+        for (let i = 0; i < 30; i++) {
+          try {
+            await fetch(`http://localhost:${INTERNAL_PORT}/__openclaw__/canvas/`, { signal: AbortSignal.timeout(500) });
+            // Still responding — port still in use
+            await new Promise((r) => setTimeout(r, 1000));
+          } catch {
+            // Connection refused — port is free
+            break;
+          }
+        }
       }
       restarting = false;
 
