@@ -60,7 +60,7 @@ async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
     instance_id = os.environ.get("INSTANCE_ID")
     pool_url = os.environ.get("POOL_URL")
-    gateway_token = os.environ.get("GATEWAY_TOKEN")
+    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
 
     if not instance_id or not pool_url or not gateway_token:
         logger.info("Self-destruct skipped: not a pool-managed instance")
