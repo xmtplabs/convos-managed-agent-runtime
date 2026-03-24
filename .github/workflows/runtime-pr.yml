@@ -29,8 +29,12 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       pending: ${{ steps.meta.outputs.pending }}
       publish_tags: ${{ steps.meta.outputs.publish_tags }}
+      run_openclaw: ${{ steps.changes.outputs.run_openclaw }}
+      run_hermes: ${{ steps.changes.outputs.run_hermes }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - id: meta
         run: |
           SHA="$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
@@ -39,11 +43,41 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "publish_tags=sha-$SHA pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
+      - name: Detect changed runtimes
+        id: changes
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref }}"
+          FILES=$(git diff --name-only "$BASE"...HEAD -- runtime/)
+
+          HAS_OPENCLAW=false
+          HAS_HERMES=false
+          HAS_SHARED=false
+
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              runtime/openclaw/*) HAS_OPENCLAW=true ;;
+              runtime/hermes/*)   HAS_HERMES=true ;;
+              *)                  HAS_SHARED=true ;;
+            esac
+          done <<< "$FILES"
+
+          # Shared files (runtime/shared/*, runtime/evals/*, runtime/package.json, etc.)
+          # affect both runtimes
+          if [ "$HAS_SHARED" = "true" ]; then
+            HAS_OPENCLAW=true
+            HAS_HERMES=true
+          fi
+
+          echo "run_openclaw=$HAS_OPENCLAW" >> "$GITHUB_OUTPUT"
+          echo "run_hermes=$HAS_HERMES" >> "$GITHUB_OUTPUT"
+          echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | openclaw=$HAS_OPENCLAW hermes=$HAS_HERMES shared=$HAS_SHARED"
 
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
     name: OpenClaw
     needs: prepare
+    if: needs.prepare.outputs.run_openclaw == 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
@@ -62,6 +96,7 @@ jobs:
   hermes:
     name: Hermes
     needs: prepare
+    if: needs.prepare.outputs.run_hermes == 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
