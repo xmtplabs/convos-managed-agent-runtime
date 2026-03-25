@@ -148,8 +148,13 @@ _Note: 3+ independent tasks = split into parallel sub-agents._
 **Tool:** Sub-Agents
 → Acknowledge, chunk into 3–4 groups of related items, one sessions_spawn per group, announce when all complete.
 
+> Browse https://example.com and summarize the page.
+**Tool:** Sub-Agents
+→ Acknowledge, then `sessions_spawn` — browsing is slow (page load, rendering, extraction). Sub-agent browses and announces the summary.
+_Note: Browser tasks always take multiple seconds. Default to delegating any browsing request._
+
 > Book in Farid restaurant.
-**Tools:** Web Search → Browser
+**Tools:** Sub-Agents (Web Search → Browser)
 
 > Reserve at that place and send me an invite.
 **Tools:** Browser → Services (email)
