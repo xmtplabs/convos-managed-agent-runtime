@@ -1245,7 +1245,9 @@ export async function startWiredInstance(params: {
   const instanceId = process.env.INSTANCE_ID || "";
   if (posthogApiKey && instanceId) {
     const environment = process.env.POOL_ENVIRONMENT || "";
-    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "" });
+    const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+    const cronJobsFile = path.join(stateDir, "cron", "jobs.json");
+    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile });
   }
 
   // Fire-and-forget: dispatch LLM-generated welcome message.

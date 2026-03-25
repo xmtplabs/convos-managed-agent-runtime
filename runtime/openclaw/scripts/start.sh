@@ -94,11 +94,11 @@ unset _gw_busy _relay_busy _cdp_busy
 
 # Service URL
 if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
-  brand_ok "SERVICE_URL" "https://$RAILWAY_PUBLIC_DOMAIN"
+  brand_ok "URL" "https://$RAILWAY_PUBLIC_DOMAIN"
 elif [ -n "$NGROK_URL" ]; then
-  brand_ok "SERVICE_URL" "$NGROK_URL (ngrok)"
+  brand_ok "URL" "$NGROK_URL (ngrok)"
 else
-  brand_dim "SERVICE_URL" "localhost"
+  brand_dim "URL" "localhost"
 fi
 
 # Chrome (read from the patched config)

@@ -133,6 +133,7 @@ async def start_wired_instance(
     _adapter = adapter
 
     if cfg.posthog_api_key and cfg.instance_id:
+        cron_jobs_file = os.path.join(cfg.hermes_home, "cron", "jobs.json")
         stats.start(
             posthog_api_key=cfg.posthog_api_key,
             posthog_host=cfg.posthog_host,
@@ -141,6 +142,7 @@ async def start_wired_instance(
             runtime="hermes",
             environment=os.environ.get("POOL_ENVIRONMENT", ""),
             version=RUNTIME_VERSION or "",
+            cron_jobs_file=cron_jobs_file,
         )
 
     # Fire greeting in background (skip if resuming — caller handles workspace refresh).
