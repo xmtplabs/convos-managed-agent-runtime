@@ -255,16 +255,16 @@ class AgentRunner:
         # Append to shared history after the call completes.
         # Hermes handles context window management internally via
         # ContextCompressor and session splitting.
-        # Skip recording interrupted turns — the partial response is stale
-        # and the user message will be visible in the next turn's history.
-        if not was_interrupted:
-            async with self._history_lock:
-                self._conversation_history.append({"role": "user", "content": envelope})
-                if response and not is_silent:
-                    self._conversation_history.append({
-                        "role": "assistant",
-                        "content": response,
-                    })
+        # Always record the user message so the agent sees what was said.
+        # Skip the assistant response for interrupted turns — the partial
+        # "Operation interrupted" diagnostic is not a real reply.
+        async with self._history_lock:
+            self._conversation_history.append({"role": "user", "content": envelope})
+            if response and not is_silent and not was_interrupted:
+                self._conversation_history.append({
+                    "role": "assistant",
+                    "content": response,
+                })
 
         if was_interrupted or is_silent or not response or not response.strip():
             return None
