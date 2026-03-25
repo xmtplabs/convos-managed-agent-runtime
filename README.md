@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml">
-    <img src="https://github.com/xmtplabs/convos-agents/actions/workflows/runtime-pr.yml/badge.svg" alt="Runtime: PR" />
+  <a href="https://github.com/xmtplabs/convos-assistants/actions/workflows/runtime-pr.yml">
+    <img src="https://github.com/xmtplabs/convos-assistants/actions/workflows/runtime-pr.yml/badge.svg" alt="Runtime: PR" />
   </a>
 </p>
 
@@ -39,7 +39,7 @@ assistants.convos.org          Pool Manager              Railway
 ## Repo layout
 
 ```
-convos-agents/
+convos-assistants/
 ├── runtime/           # Agent harnesses, shared evals, shared .env
 │   ├── openclaw/      #   OpenClaw harness (gateway + extensions + skills)
 │   ├── hermes/        #   Hermes harness (Python FastAPI + XMTP bridge)
