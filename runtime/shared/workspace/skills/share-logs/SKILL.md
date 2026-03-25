@@ -17,7 +17,7 @@ When removed, the page returns 403.
 
 ```bash
 # Works on both Hermes and OpenClaw runtimes
-touch "${HERMES_HOME:-${OPENCLAW_STATE_DIR:-$HOME}}/.share-trajectories"
+touch "${HERMES_HOME:-${OPENCLAW_STATE_DIR:-$HOME/.openclaw}}/.share-trajectories"
 ```
 
 After creating the file, give the user the link:
@@ -41,7 +41,7 @@ fi
 ## Disable sharing
 
 ```bash
-rm -f "${HERMES_HOME:-${OPENCLAW_STATE_DIR:-$HOME}}/.share-trajectories"
+rm -f "${HERMES_HOME:-${OPENCLAW_STATE_DIR:-$HOME/.openclaw}}/.share-trajectories"
 ```
 
 ## Response templates

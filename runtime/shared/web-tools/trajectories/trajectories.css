@@ -136,6 +136,7 @@ body {
 .copy-all-row {
   display: flex;
   justify-content: flex-end;
+  gap: 0.4rem;
   margin-bottom: 0.5rem;
 }
 .copy-all-btn {
@@ -153,6 +154,7 @@ body {
   align-items: center;
   gap: 0.3rem;
 }
+a.copy-all-btn { text-decoration: none; }
 .copy-all-btn:hover { color: var(--color-fg); border-color: var(--color-fg-tertiary); }
 .copy-all-btn.copied { color: var(--color-fg); border-color: var(--color-fg); }
 
@@ -310,6 +312,15 @@ body {
   font-size: 0.65rem;
 }
 
+/* Per-turn timestamp */
+.turn-ts {
+  font-weight: 400;
+  color: var(--color-fg-tertiary);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 0.3rem;
+}
+
 /* Envelope metadata on user messages */
 .turn-meta {
   font-size: 0.6rem;
@@ -317,6 +328,14 @@ body {
   margin-bottom: 0.2rem;
   font-family: 'SF Mono', ui-monospace, monospace;
 }
+
+/* Error highlighting on tool response turns */
+.turn.turn-error {
+  background: #FEF2F2;
+  border-left: 3px solid var(--color-error);
+}
+.turn.turn-error .turn-role { color: var(--color-error); }
+.turn.turn-error .turn-content { color: var(--color-error); }
 
 .empty { color: var(--color-fg-tertiary); font-style: italic; }
 

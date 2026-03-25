@@ -482,14 +482,27 @@ export default function register(api: OpenClawPluginApi) {
             if (!msg) continue;
             const role = msg.role || "unknown";
             let content = msg.content;
-            // content can be string or array of {type:"text", text:"..."}
+            // content can be string or array of content blocks:
+            //   {type:"text", text:"..."} — text content
+            //   {type:"toolCall", name:"...", arguments:{...}} — tool invocation
             if (Array.isArray(content)) {
-              content = content
-                .filter((c: Record<string, unknown>) => c.type === "text")
-                .map((c: Record<string, unknown>) => c.text)
-                .join("\n");
+              const parts: string[] = [];
+              for (const block of content) {
+                const b = block as Record<string, unknown>;
+                if (b.type === "text") {
+                  parts.push(b.text as string);
+                } else if (b.type === "toolCall") {
+                  // Wrap in <tool_call> tags so frontend parser handles them (same as Hermes)
+                  parts.push("<tool_call>\n" + JSON.stringify({ name: b.name, arguments: b.arguments }) + "\n</tool_call>");
+                }
+              }
+              content = parts.join("\n");
             }
-            conversations.push({ from: role, value: content || "" });
+            conversations.push({
+              from: role,
+              value: content || "",
+              timestamp: parsed.timestamp || undefined,
+            });
           } catch { /* skip bad lines */ }
         }
         if (conversations.length > 0) {
@@ -526,6 +539,53 @@ export default function register(api: OpenClawPluginApi) {
       // CSS
       if (lastPart === "trajectories.css") {
         serveFile(res, path.join(trajDir, "trajectories.css"), "text/css", "max-age=3600");
+        return;
+      }
+
+      // Download raw JSONL as zip
+      if (lastPart === "download") {
+        if (!isSharingEnabled()) {
+          res.statusCode = 403;
+          res.end();
+          return;
+        }
+        const sessionsDir = path.join(stateDir, "agents", "main", "sessions");
+        const indexPath = path.join(sessionsDir, "sessions.json");
+        try {
+          const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+          // Collect JSONL files
+          const files: { name: string; path: string }[] = [];
+          for (const [, val] of Object.entries(index) as [string, Record<string, unknown>][]) {
+            if (val?.sessionId) {
+              const jsonlPath = path.join(sessionsDir, `${val.sessionId}.jsonl`);
+              if (fs.existsSync(jsonlPath)) {
+                files.push({ name: `${val.sessionId}.jsonl`, path: jsonlPath });
+              }
+            }
+          }
+          if (files.length === 0) {
+            res.statusCode = 404;
+            res.end("No JSONL files found");
+            return;
+          }
+          // Create zip using child_process
+          const { execSync } = require("node:child_process");
+          const os = require("node:os");
+          const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "traj-"));
+          const zipPath = path.join(tmpDir, "trajectories.zip");
+          const filePaths = files.map(f => f.path).join(" ");
+          execSync(`zip -j "${zipPath}" ${filePaths}`, { stdio: "ignore" });
+          const zipBuf = fs.readFileSync(zipPath);
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/zip");
+          res.setHeader("Content-Disposition", "attachment; filename=trajectories.zip");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(zipBuf);
+        } catch {
+          res.statusCode = 500;
+          res.end("Failed to create zip");
+        }
         return;
       }
 

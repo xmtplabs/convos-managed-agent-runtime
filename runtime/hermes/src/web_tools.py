@@ -6,9 +6,11 @@ the same UI at /web-tools/services and /web-tools/convos.
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
+import zipfile
 from pathlib import Path
 
 import httpx
@@ -372,11 +374,34 @@ async def trajectories_api():
     failed = _read_trajectory_jsonl(home / "failed_trajectories.jsonl")
     all_entries = entries + failed
     # Sort by timestamp descending
-    all_entries.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    all_entries.sort(key=lambda e: str(e.get("timestamp") or ""), reverse=True)
     return Response(
         content=json.dumps({"runtime": "hermes", "entries": all_entries[:200]}),
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/web-tools/trajectories/download")
+async def trajectories_download():
+    """Download raw JSONL files as a zip."""
+    if not _sharing_enabled():
+        return Response(status_code=403)
+    home = _hermes_home()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in ("trajectory_samples.jsonl", "failed_trajectories.jsonl"):
+            path = home / name
+            if path.exists() and path.stat().st_size > 0:
+                zf.write(path, name)
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=trajectories.zip",
+            "Cache-Control": "no-store",
+        },
     )
 
 

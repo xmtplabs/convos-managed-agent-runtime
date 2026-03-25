@@ -33,6 +33,9 @@
     (function () {
       var content = document.getElementById("content");
 
+      // Expose functions for inline onclick handlers
+      function expose(name, fn) { window[name] = fn; }
+
       // ── Helpers ──────────────────────────────────────────────
 
       function esc(s) {
@@ -69,14 +72,15 @@
         return r;
       }
 
-      // Extract first user message as summary
+      // Extract first user message as summary (stripped of envelope)
       function extractQuery(conversations) {
         if (!conversations || !conversations.length) return "(empty)";
         for (var i = 0; i < conversations.length; i++) {
           var c = conversations[i];
           var role = normalizeRole(c.from || c.role);
           if (role === "user") {
-            return truncate(c.value || c.content || "", 120);
+            var env = parseEnvelope(c.value || c.content || "");
+            return truncate(env.message, 120);
           }
         }
         return truncate(conversations[0].value || conversations[0].content || "", 120);
@@ -100,6 +104,7 @@
         }, 1500);
       }
 
+      expose("copyTrajectory", copyTrajectory);
       function copyTrajectory(idx, evt) {
         if (evt) evt.stopPropagation();
         var entry = window.__trajectoryEntries[idx];
@@ -110,6 +115,7 @@
         }).catch(function () {});
       }
 
+      expose("copyTurn", copyTurn);
       function copyTurn(entryIdx, turnIdx, evt) {
         if (evt) evt.stopPropagation();
         var entry = window.__trajectoryEntries[entryIdx];
@@ -123,6 +129,7 @@
         }).catch(function () {});
       }
 
+      expose("copyAllTrajectories", copyAllTrajectories);
       function copyAllTrajectories() {
         var entries = window.__trajectoryEntries || [];
         var lines = [];
@@ -204,6 +211,24 @@
         } catch (e) {
           return esc(jsonStr);
         }
+      }
+
+      // Detect actual errors in tool responses (not error-handling code)
+      function hasError(text) {
+        if (!text) return false;
+        // Check for JSON with error/status fields
+        try {
+          var obj = JSON.parse(text.replace(/<\/?tool_response>/g, "").trim());
+          if (obj.status === "error" || obj.error) return true;
+          var c = obj.content;
+          if (c && typeof c === "object" && (c.status === "error" || c.error)) return true;
+          if (c && typeof c === "string" && /^(Error|Traceback)/.test(c)) return true;
+        } catch (e) {}
+        // Only match unambiguous error output patterns (not source code)
+        var stripped = text.replace(/<\/?tool_response>/g, "").trim();
+        if (/^Error:|^Traceback \(most recent/m.test(stripped)) return true;
+        if (/^\s*"?status"?\s*:\s*"error"/m.test(stripped)) return true;
+        return false;
       }
 
       // Parse tool response content
@@ -304,7 +329,11 @@
         // Store entries globally for copy
         window.__trajectoryEntries = entries;
 
-        var html = '<div class="copy-all-row"><button class="copy-all-btn" id="copy-all-btn" onclick="copyAllTrajectories()">' + COPY_ICON + ' copy all</button></div>';
+        var DL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        var html = '<div class="copy-all-row">';
+        html += '<a class="copy-all-btn" href="/web-tools/trajectories/download" download>' + DL_ICON + ' download zip</a>';
+        html += '<button class="copy-all-btn" id="copy-all-btn" onclick="copyAllTrajectories()">' + COPY_ICON + ' copy all</button>';
+        html += '</div>';
         html += '<div class="entry-list">';
         for (var i = 0; i < entries.length; i++) {
           var e = entries[i];
@@ -337,13 +366,16 @@
             // Detect assistant turns that are purely tool calls (no visible text)
             var isToolCall = role === "assistant" && rendered.indexOf('tool-call') !== -1 &&
                              rendered.replace(/<div class="tool-call">[\s\S]*?<\/div>/g, "").replace(/<div class="think-block">[\s\S]*?<\/div>/g, "").trim() === "";
+            var isError = role === "tool" && hasError(val);
             var isTool = role === "tool" || isToolCall;
-            var turnClass = "turn turn-" + role + (isToolCall ? " turn-assistant-toolcall" : "");
+            var turnClass = "turn turn-" + role + (isToolCall ? " turn-assistant-toolcall" : "") + (isError ? " turn-error" : "");
             html += '<div class="' + turnClass + '">';
             var roleLabel = isToolCall ? "tool call" : role === "tool" ? "tool response" : role;
             var turnId = 'turn-' + i + '-' + j;
             html += '<div class="turn-header">';
-            html += '<div class="turn-role ' + esc(role) + '">' + esc(roleLabel) + '</div>';
+            html += '<div class="turn-role ' + esc(role) + '">' + esc(roleLabel);
+            if (t.timestamp) html += ' <span class="turn-ts">' + formatTime(t.timestamp) + '</span>';
+            html += '</div>';
             html += '<button class="copy-btn copy-turn" data-turn="' + i + '-' + j + '" onclick="copyTurn(' + i + ',' + j + ',event)" title="Copy">' + COPY_ICON + '</button>';
             html += '</div>';
             var contentClass = 'turn-content';
