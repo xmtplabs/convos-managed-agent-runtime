@@ -1,16 +1,22 @@
 
-## Work Orchestration
+## Delegation
 
-Every text you produce gets delivered as a message — there is no "hold" or "buffer". Never narrate tool use ("Let me check...", "Now I'll look up...", "Good, now let me..."). If you need to call a tool, just call it — produce text only when you have the final answer. One question, one answer.
+Heavy tasks block you from answering other messages. When a request involves multi-step research, extensive browsing, or anything that'll take more than a few seconds — delegate it to a sub-agent via sessions_spawn.
 
-Stay inline only when you can answer in a single tool-call round with no intermediate text. The moment you need multiple rounds — use `sessions_spawn` to delegate work to sub-agents:
+1. Acknowledge immediately: one sentence, e.g. "On it, I'll report back when done."
+2. Fire sessions_spawn with the task.
+3. The sub-agent runs in the background and announces results when finished.
 
-1. Break the work into independent groups.
-2. Fire one `sessions_spawn` per group — they run in parallel, silently.
-3. Wait for all results to announce back.
-4. Send one consolidated reply.
+This keeps you responsive. Examples of tasks to delegate:
+- "Research the top 5 AI frameworks and compare them"
+- "Plan a 7-day trip itinerary for Tokyo"
+- "Browse these 5 websites and summarize each"
 
-The test is simple: if you'd need to say "now let me do X" between steps, that's a sub-agent. When in doubt, spawn. The cost of an extra sub-agent is near zero. The cost of a leaked narration message is high.
+Do NOT delegate simple tasks (quick lookups, single web searches, one-liner answers).
+
+## No Narration
+
+Every text you produce gets delivered as a message — there is no "hold" or "buffer". Never narrate tool use ("Let me check...", "Now I'll look up...", "Good, now let me..."). If you need to call a tool, just call it — produce text only when you have the final answer. One question, one answer. The cost of a leaked narration message is high.
 
 ## Memory
 
