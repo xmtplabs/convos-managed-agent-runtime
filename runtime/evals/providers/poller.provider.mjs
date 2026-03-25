@@ -60,31 +60,30 @@ export default class PollerProvider {
 
     h.ensureSetup();
 
-    // Test 1: Ask agent to create the RSS polling skill.
-    // After it responds, start the poller so it discovers the new poll.sh.
+    // Test 1: Start the poller early (it has a 15s startup delay), then ask the
+    // agent to create the RSS skill. By the time the skill files are written,
+    // the poller is already running and discovers them on the next cycle.
     if (!meta.waitForNotification) {
+      if (!pollerProc) {
+        h.log('[TESTING] Pre-starting poller (15s startup delay runs in parallel with agent work)...');
+        startPoller();
+      }
+
       h.log(`[TESTING] Agent creates RSS poll.sh skill — prompt: "${prompt.slice(0, 80)}..."`);
       const { output } = h.sendAndWait(prompt, meta);
       h.log(`Done (${elapsed(t)})`);
-
-      // Start the poller now that the skill should be created
-      if (!pollerProc) {
-        h.log('[TESTING] Starting poller to discover and run the new poll.sh skill...');
-        sleep(3_000);
-        startPoller();
-      }
 
       return { output, metadata: { conversationId: h.conversationId } };
     }
 
     // Test 2: Wait for poller to run the skill and deliver a notification.
-    // The poller has a 15s startup delay + 10s interval, so we may need
-    // to wait a while. If no proactive announcement, nudge the agent.
+    // The poller should already be running from test 1. Give it enough time
+    // for the poll cycle to discover the new skill and run poll.sh.
     const preMsgs = h.fetchMessages();
     const welcomeEnd = preMsgs.length;
 
-    h.log('[TESTING] Waiting for poller to run poll.sh and deliver RSS notification (up to 90s)...');
-    const { matched } = h.waitForContent(/rss|feed|post|hacker|hnrss|new.*item/i, 90_000);
+    h.log('[TESTING] Waiting for poller to run poll.sh and deliver RSS notification (up to 120s)...');
+    const { matched } = h.waitForContent(/rss|feed|post|hacker|hnrss|new.*item/i, 120_000);
 
     if (matched) {
       h.log('Agent responded to poller notification — settling...');
