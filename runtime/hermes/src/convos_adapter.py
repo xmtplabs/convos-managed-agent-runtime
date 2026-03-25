@@ -560,42 +560,44 @@ class ConvosAdapter:
         ai_agent.clear_interrupt()
 
         try:
-            response = await agent.handle_message(
-                content=content,
-                sender_name=msg.sender_name,
-                sender_id=msg.sender_id,
-                timestamp=msg.timestamp,
-                conversation_id=msg.conversation_id,
-                message_id=msg.message_id,
-                group_members=inst.get_group_members(),
-            )
-        except Exception as err:
-            logger.error(f"Agent error: {err}")
-            response = "I encountered an error. Please try again."
+            try:
+                response = await agent.handle_message(
+                    content=content,
+                    sender_name=msg.sender_name,
+                    sender_id=msg.sender_id,
+                    timestamp=msg.timestamp,
+                    conversation_id=msg.conversation_id,
+                    message_id=msg.message_id,
+                    group_members=inst.get_group_members(),
+                )
+            except Exception as err:
+                logger.error(f"Agent error: {err}")
+                response = "I encountered an error. Please try again."
+
+            # If the agent was interrupted, skip sending the partial response —
+            # the pending message will get a fresh turn below.
+            was_interrupted = ai_agent.is_interrupted
+            ai_agent.clear_interrupt()
+
+            if response and not was_interrupted:
+                await self._dispatch_response(response)
+
+            # Auto-remove eyes reaction after dispatch
+            if msg.message_id:
+                try:
+                    await inst.react(msg.message_id, "\U0001f440", "remove")
+                except Exception:
+                    pass  # silently ignore if eyes weren't placed
+
+            # ── Drain pending message ──
+            pending = self._pending_message
+            if pending:
+                self._pending_message = None
+                logger.info(f"Draining pending message [{pending.message_id[:12]}]")
+                await self._run_agent_turn(pending)
+                return  # recursive call handles clearing _agent_running
         finally:
             self._agent_running = False
-
-        # If the agent was interrupted, skip sending the partial response —
-        # the pending message will get a fresh turn below.
-        was_interrupted = ai_agent.is_interrupted
-        ai_agent.clear_interrupt()
-
-        if response and not was_interrupted:
-            await self._dispatch_response(response)
-
-        # Auto-remove eyes reaction after dispatch (agent adds it mid-processing via convos_react)
-        if msg.message_id:
-            try:
-                await inst.react(msg.message_id, "\U0001f440", "remove")
-            except Exception:
-                pass  # silently ignore if eyes weren't placed
-
-        # ── Drain pending message (if a newer message arrived during this turn) ──
-        pending = self._pending_message
-        if pending:
-            self._pending_message = None
-            logger.info(f"Draining pending message [{pending.message_id[:12]}]")
-            await self._run_agent_turn(pending)
 
     # ---- Attachment download + hold/merge ----
 
