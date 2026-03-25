@@ -568,13 +568,12 @@ export default function register(api: OpenClawPluginApi) {
             res.end("No JSONL files found");
             return;
           }
-          // Create zip using child_process
-          const { execSync } = require("node:child_process");
+          // Create zip using child_process (execFileSync avoids shell injection)
+          const { execFileSync } = require("node:child_process");
           const os = require("node:os");
           const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "traj-"));
           const zipPath = path.join(tmpDir, "trajectories.zip");
-          const filePaths = files.map(f => f.path).join(" ");
-          execSync(`zip -j "${zipPath}" ${filePaths}`, { stdio: "ignore" });
+          execFileSync("zip", ["-j", zipPath, ...files.map(f => f.path)], { stdio: "ignore" });
           const zipBuf = fs.readFileSync(zipPath);
           fs.rmSync(tmpDir, { recursive: true, force: true });
           res.statusCode = 200;

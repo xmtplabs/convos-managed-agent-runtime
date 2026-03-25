@@ -347,7 +347,7 @@
           html += '<div class="entry-meta" onclick="this.closest(\'.entry\').classList.toggle(\'open\')">';
           html += '<div class="entry-query">' + esc(query) + '</div>';
           html += '<div class="entry-info">';
-          if (e.timestamp) html += '<span>' + formatTime(e.timestamp) + '</span>';
+          if (e.timestamp) html += '<span>' + esc(formatTime(e.timestamp)) + '</span>';
           if (e.model) html += '<span>' + esc(e.model) + '</span>';
           html += '<span>' + convos.length + ' turns</span>';
           html += '</div></div>';
@@ -374,7 +374,7 @@
             var turnId = 'turn-' + i + '-' + j;
             html += '<div class="turn-header">';
             html += '<div class="turn-role ' + esc(role) + '">' + esc(roleLabel);
-            if (t.timestamp) html += ' <span class="turn-ts">' + formatTime(t.timestamp) + '</span>';
+            if (t.timestamp) html += ' <span class="turn-ts">' + esc(formatTime(t.timestamp)) + '</span>';
             html += '</div>';
             html += '<button class="copy-btn copy-turn" data-turn="' + i + '-' + j + '" onclick="copyTurn(' + i + ',' + j + ',event)" title="Copy">' + COPY_ICON + '</button>';
             html += '</div>';
