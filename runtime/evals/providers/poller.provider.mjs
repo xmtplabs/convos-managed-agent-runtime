@@ -71,6 +71,10 @@ export default class PollerProvider {
 
       h.log(`[TESTING] Agent creates RSS poll.sh skill — prompt: "${prompt.slice(0, 80)}..."`);
       const { output } = h.sendAndWait(prompt, meta);
+      // The agent sends an initial ack quickly but keeps running tool calls to
+      // create skill files. Wait for it to fully settle before moving to test 2.
+      h.log('Waiting for agent to finish creating skill files...');
+      sleep(30_000);
       h.log(`Done (${elapsed(t)})`);
 
       return { output, metadata: { conversationId: h.conversationId } };
