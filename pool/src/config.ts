@@ -59,6 +59,7 @@ export const config = {
   // AgentMail (from services)
   agentmailApiKey: getEnv("AGENTMAIL_API_KEY"),
   agentmailDomain: getEnv("AGENTMAIL_DOMAIN"),
+  agentmailWebhookSecret: getEnv("AGENTMAIL_WEBHOOK_SECRET"),
 
   // Telnyx (from services)
   telnyxApiKey: getEnv("TELNYX_API_KEY"),

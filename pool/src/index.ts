@@ -41,7 +41,7 @@ app.disable("x-powered-by");
 app.use("/api/proxy", express.json({ limit: "10mb" }));
 // Skip JSON parsing for Stripe webhooks — they need the raw body for signature verification
 app.use((req, res, next) => {
-  if (req.path === "/webhooks/stripe") return next();
+  if (req.path === "/webhooks/stripe" || req.path === "/webhooks/agentmail") return next();
   express.json()(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));

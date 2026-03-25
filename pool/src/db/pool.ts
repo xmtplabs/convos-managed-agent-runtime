@@ -291,6 +291,40 @@ export async function getServiceResources(instanceId: string): Promise<{ inboxId
   return { inboxId, phoneNumber };
 }
 
+/** Reverse lookup: find the instance that owns a given phone number. */
+export async function findInstanceByPhone(
+  phoneNumber: string,
+): Promise<{ instanceId: string; url: string | null; gatewayToken: string | null } | null> {
+  const rows = await db
+    .select({
+      instanceId: instanceServices.instanceId,
+      url: instanceInfra.url,
+      gatewayToken: instanceInfra.gatewayToken,
+    })
+    .from(instanceServices)
+    .innerJoin(instanceInfra, eq(instanceServices.instanceId, instanceInfra.instanceId))
+    .where(and(eq(instanceServices.toolId, "telnyx"), eq(instanceServices.resourceId, phoneNumber)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Reverse lookup: find the instance that owns a given AgentMail inbox. */
+export async function findInstanceByInboxId(
+  inboxId: string,
+): Promise<{ instanceId: string; url: string | null; gatewayToken: string | null } | null> {
+  const rows = await db
+    .select({
+      instanceId: instanceServices.instanceId,
+      url: instanceInfra.url,
+      gatewayToken: instanceInfra.gatewayToken,
+    })
+    .from(instanceServices)
+    .innerJoin(instanceInfra, eq(instanceServices.instanceId, instanceInfra.instanceId))
+    .where(and(eq(instanceServices.toolId, "agentmail"), eq(instanceServices.resourceId, inboxId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 /** Check if an instance is already claiming/claimed for a given invite URL. */
 export async function hasActiveInviteUrl(inviteUrl: string): Promise<boolean> {
   const rows = await db.select({ id: instances.id }).from(instances).where(
