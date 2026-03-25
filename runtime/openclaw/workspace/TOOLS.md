@@ -134,6 +134,11 @@ _Note: Always use the convos-runtime skill. Never guess or check openclaw versio
 _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm update`._
 
 
+> Google the top 5 AI frameworks released this year.
+**Tool:** Sub-Agents
+→ Acknowledge, then `sessions_spawn`. "Google …" / "Search for …" / "Look up …" = always delegate.
+_Note: Any prompt that asks you to search or Google something requires web round-trips — delegate it._
+
 > Research the top 5 AI frameworks released this year and compare them.
 **Tool:** Sub-Agents
 → Acknowledge, then `sessions_spawn` with the full research task. Sub-agent searches, fetches, compares, and announces results.
