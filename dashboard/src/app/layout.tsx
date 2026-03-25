@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://assistants.convos.org",
+    process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistants",
   ),
   title: "Convos Assistants",
   description: "AI assistants for your group chats",

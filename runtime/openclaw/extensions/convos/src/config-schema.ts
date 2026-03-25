@@ -3,7 +3,7 @@
  * Used for Control UI form generation
  */
 
-import { MarkdownConfigSchema, buildChannelConfigSchema } from "openclaw/plugin-sdk";
+import { MarkdownConfigSchema, buildChannelConfigSchema } from "openclaw/plugin-sdk/channel-config-schema";
 import { z } from "zod";
 
 const allowFromEntry = z.union([z.string(), z.number()]);

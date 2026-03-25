@@ -149,8 +149,12 @@ jobs:
 
       - name: Wait for health
         run: |
+          HEALTH_CURL_ARGS=(-sf)
+          if [ -n "${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" ]; then
+            HEALTH_CURL_ARGS+=(-H "Authorization: Bearer ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}")
+          fi
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
+            if curl "${HEALTH_CURL_ARGS[@]}" http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
               echo "Ready after ${i}s"; exit 0
             fi; sleep 1
           done

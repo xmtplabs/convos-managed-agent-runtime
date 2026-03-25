@@ -1,19 +1,17 @@
 import type { ChannelMessageActionAdapter } from "openclaw/plugin-sdk";
-import { jsonResult, readStringParam, readReactionParams } from "openclaw/plugin-sdk";
+import { jsonResult, readStringParam, readReactionParams } from "openclaw/plugin-sdk/core";
 import { listConvosAccountIds, type CoreConfig } from "./accounts.js";
 import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosInstance } from "./outbound.js";
 
 export const convosMessageActions: ChannelMessageActionAdapter = {
-  listActions: ({ cfg }) => {
+  describeMessageTool: ({ cfg }) => {
     const ids = listConvosAccountIds(cfg as CoreConfig);
-    if (ids.length === 0) {
-      return [];
-    }
-    return ["send", "react", "sendAttachment"];
+    if (ids.length === 0) return null;
+    return {
+      actions: ["send", "react", "sendAttachment"],
+    };
   },
-
-  supportsButtons: () => false,
 
   handleAction: async ({ action, params }) => {
     const inst = getConvosInstance();

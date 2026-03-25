@@ -29,7 +29,7 @@ export const config = {
   railwayEnvironmentName: getEnv("RAILWAY_ENVIRONMENT_NAME"),
 
   // Template site
-  templateSiteUrl: getEnv("TEMPLATE_SITE_URL", "https://assistants.convos.org"),
+  templateSiteUrl: getEnv("TEMPLATE_SITE_URL", "https://convos.org/assistants"),
   templateSiteOrigins: getEnv("TEMPLATE_SITE_ORIGINS", "http://localhost:3000"),
 
   // Notion
