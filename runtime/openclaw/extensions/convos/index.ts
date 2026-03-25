@@ -135,6 +135,10 @@ async function factoryReset() {
     try { fs.rmSync(target, { recursive: true, force: true }); } catch {}
   }
 
+  // Clear trajectory sharing flag
+  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
+  try { fs.unlinkSync(path.join(stateDir, ".share-trajectories")); } catch (e: any) { if (e.code !== "ENOENT") console.error(`[convos] Failed to clear share flag: ${e}`); }
+
   const status = buildRuntimeStatus();
   console.log(`[convos] Factory reset complete (clean=${status.clean})`);
   return { ok: true, reset: true, status };
