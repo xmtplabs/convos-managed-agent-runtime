@@ -116,6 +116,46 @@ body {
   gap: 0.75rem;
 }
 
+.copy-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  color: var(--color-fg-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.copy-btn:hover { color: var(--color-fg-secondary); }
+.copy-btn.copied { color: var(--color-fg); }
+
+/* Global copy all button */
+.copy-all-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+.copy-all-btn {
+  background: none;
+  border: 1px solid var(--color-edge);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--color-fg-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.copy-all-btn:hover { color: var(--color-fg); border-color: var(--color-fg-tertiary); }
+.copy-all-btn.copied { color: var(--color-fg); border-color: var(--color-fg); }
+
 .entry-status {
   font-size: 0.55rem;
   font-weight: 600;
@@ -132,33 +172,100 @@ body {
 .entry-turns {
   display: none;
   border-top: 1px solid var(--color-edge);
-  padding: 0.5rem 0;
 }
 .entry.open .entry-turns { display: block; }
 
 .turn {
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1rem;
 }
-.turn + .turn { border-top: 1px solid var(--color-surface-muted); }
+
+/* User and assistant turns are prominent */
+.turn.turn-user,
+.turn.turn-assistant {
+  padding: 0.75rem 1rem;
+}
+.turn.turn-user + .turn,
+.turn.turn-assistant + .turn { border-top: 1px solid var(--color-edge); }
+
+/* Tool turns are subordinate + collapsed by default */
+.turn.turn-tool,
+.turn.turn-assistant-toolcall {
+  padding: 0.4rem 1rem 0.4rem 2rem;
+  background: var(--color-surface-muted);
+  border-top: 1px solid var(--color-edge);
+}
+/* Collapsible tool content — controlled by JS .collapsed class */
+.turn.turn-tool .turn-content,
+.turn.turn-assistant-toolcall .turn-content {
+  position: relative;
+}
+.turn.turn-tool .turn-content.collapsed,
+.turn.turn-assistant-toolcall .turn-content.collapsed {
+  max-height: 8.7rem;
+  overflow: hidden;
+}
+.turn.turn-tool .turn-content.collapsed.overflowing::after,
+.turn.turn-assistant-toolcall .turn-content.collapsed.overflowing::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1.5rem;
+  background: linear-gradient(transparent, var(--color-surface-muted));
+  pointer-events: none;
+}
+
+/* Expand/collapse toggle */
+.turn-toggle {
+  background: none;
+  border: none;
+  padding: 0.1rem;
+  color: var(--color-fg-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.turn-toggle:hover { color: var(--color-fg-secondary); }
+.turn-toggle svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s;
+}
+.turn-toggle.open svg { transform: rotate(90deg); }
+
+/* System turn */
+.turn.turn-system {
+  padding: 0.4rem 1rem;
+  background: var(--color-surface-muted);
+}
+.turn.turn-system + .turn { border-top: 1px solid var(--color-edge); }
+
+.turn-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.2rem;
+}
+.turn-header .copy-turn {
+  margin-left: auto;
+}
 
 .turn-role {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 0.25rem;
 }
 .turn-role.system { color: var(--color-fg-tertiary); }
-.turn-role.human { color: #1565C0; }
-.turn-role.gpt { color: #6A1B9A; }
-.turn-role.tool { color: #E65100; }
-.turn-role.assistant { color: #6A1B9A; }
 .turn-role.user { color: #1565C0; }
+.turn-role.assistant { color: #6A1B9A; }
+.turn-role.tool { color: #B45309; }
 
 .turn-content {
-  font-family: 'SF Mono', ui-monospace, monospace;
-  font-size: 0.72rem;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  line-height: 1.55;
   color: var(--color-fg);
   white-space: pre-wrap;
   word-break: break-word;
@@ -166,9 +273,19 @@ body {
   overflow-y: auto;
 }
 
+/* Tool and system turns get monospace + smaller text */
+.turn.turn-tool .turn-content,
+.turn.turn-system .turn-content,
+.turn.turn-assistant-toolcall .turn-content {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--color-fg-secondary);
+}
+
 /* Collapsed system prompt */
 .turn-content.collapsed {
-  max-height: 3rem;
+  max-height: 2.5rem;
   overflow: hidden;
   position: relative;
   cursor: pointer;
@@ -180,30 +297,46 @@ body {
   left: 0;
   right: 0;
   height: 1.5rem;
-  background: linear-gradient(transparent, var(--color-surface));
+  background: linear-gradient(transparent, var(--color-surface-muted));
 }
 
 /* Think blocks */
 .think-block {
   color: var(--color-fg-tertiary);
   font-style: italic;
+  font-size: 0.7rem;
   border-left: 2px solid var(--color-edge);
   padding-left: 0.5rem;
   margin-bottom: 0.25rem;
 }
 
-/* Tool calls */
+/* Tool calls (inside assistant turns) */
 .tool-call {
-  background: var(--color-surface-muted);
-  border-radius: 4px;
-  padding: 0.35rem 0.5rem;
-  margin-top: 0.25rem;
-  font-size: 0.68rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
 }
-.tool-call-name {
+.tc-name {
   font-weight: 600;
-  color: #E65100;
+  color: #B45309;
 }
+.tc-args {
+  color: var(--color-fg-tertiary);
+  font-size: 0.65rem;
+}
+
+/* Envelope metadata on user messages */
+.turn-meta {
+  font-size: 0.6rem;
+  color: var(--color-fg-tertiary);
+  margin-bottom: 0.2rem;
+  font-family: 'SF Mono', ui-monospace, monospace;
+}
+
+.empty { color: var(--color-fg-tertiary); font-style: italic; }
 
 /* ── Footer ─────────────────────────────────────────────────── */
 .footer {
