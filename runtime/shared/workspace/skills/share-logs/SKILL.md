@@ -38,7 +38,7 @@ console.log('Sharing enabled at ' + p);
 node -e "
 var p = process.env.HERMES_HOME || process.env.OPENCLAW_STATE_DIR || '';
 if (!p) p = require('fs').existsSync(require('path').join(process.env.HOME, '.hermes')) ? process.env.HOME + '/.hermes' : process.env.HOME + '/.openclaw';
-try { require('fs').unlinkSync(require('path').join(p, '.share-trajectories')); } catch(e) {}
+try { require('fs').unlinkSync(require('path').join(p, '.share-trajectories')); } catch(e) { if (e.code !== 'ENOENT') throw e; }
 console.log('Sharing disabled');
 "
 ```
