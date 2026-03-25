@@ -109,7 +109,7 @@ jobs:
           - { suite: soul,         timeout: 900, only: "", fresh: false }
           - { suite: lifecycle,    timeout: 900, only: "", fresh: false }
           - { suite: convos,       timeout: 900, only: "", fresh: false }
-          - { suite: models,       timeout: 900, only: openclaw, fresh: false }
+          - { suite: models,       timeout: 900, only: "", fresh: false }
           - { suite: delegation,   timeout: 900, only: "", fresh: false }
           - { suite: cron,         timeout: 900, only: "", fresh: false }
           - { suite: webhooks,     timeout: 900, only: "", fresh: false }

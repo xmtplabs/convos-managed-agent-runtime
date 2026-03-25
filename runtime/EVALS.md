@@ -12,7 +12,7 @@
 | **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — join, welcome message, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
-| **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch OpenRouter models |
+| **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
 | **delegation** | `delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
 | **cron** | `cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
 | **webhooks** | `webhooks.yaml` | Sequential (1x) | Webhook notifications — email and SMS delivered via /convos/notify |
