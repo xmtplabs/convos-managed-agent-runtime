@@ -332,6 +332,11 @@ class ConvosAdapter:
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
         self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[None], asyncio.Task[None] | None]] = {}
         self._greeting_done = asyncio.Event()  # gates message processing until greeting completes
+        # Interrupt-and-queue: tracks whether an agent call is in-flight and
+        # holds the latest pending message so we can interrupt + replay.
+        self._agent_running = False
+        self._pending_message: InboundMessage | None = None
+        self._skipped_content: list[str] = []  # messages superseded while queued
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -437,7 +442,13 @@ class ConvosAdapter:
         await self._process_message(msg)
 
     async def _process_message(self, msg: InboundMessage) -> None:
-        """Full message pipeline: eyes -> agent -> parse -> execute -> send -> remove eyes."""
+        """Full message pipeline: eyes -> agent -> parse -> execute -> send -> remove eyes.
+
+        Interrupt-and-queue: if the agent is already processing a message,
+        interrupt it and stash this message as pending.  When the interrupted
+        turn finishes, the pending message is picked up automatically so the
+        agent responds to the latest context instead of racing.
+        """
         if msg.content_type == "reaction":
             return
 
@@ -491,6 +502,29 @@ class ConvosAdapter:
         # so they see the greeting in history instead of empty context.
         await self._greeting_done.wait()
 
+        # ── Interrupt-and-queue: if agent is busy, interrupt and stash ──
+        if self._agent_running:
+            if self._pending_message is not None:
+                # Previous pending is being superseded — preserve its content
+                pm = self._pending_message
+                self._skipped_content.append(
+                    f"[{pm.sender_name or pm.sender_id[:12]}]: {pm.content}"
+                )
+            self._pending_message = msg  # latest wins
+            ai_agent = agent._ensure_agent()
+            ai_agent.interrupt(msg.content)
+            logger.info(f"Interrupted running agent — pending [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}")
+            return
+
+        await self._run_agent_turn(msg)
+
+    async def _run_agent_turn(self, msg: InboundMessage) -> None:
+        """Execute a single agent turn, then drain any pending message."""
+        inst = self._instance
+        agent = self._agent
+        if not inst or not agent:
+            return
+
         # Update member name cache
         if msg.sender_id and msg.sender_name and msg.sender_id != "system":
             inst.set_member_name(msg.sender_id, msg.sender_name)
@@ -502,6 +536,15 @@ class ConvosAdapter:
         if local_path and is_attachment_message(msg):
             content = f"[Image attached: {local_path}] Use your vision_analyze tool with this file path to see the image."
 
+        # Prepend any messages that were skipped while the agent was busy
+        if self._skipped_content:
+            skipped = "\n".join(self._skipped_content)
+            content = (
+                f"[Messages that arrived while you were responding:]\n{skipped}\n\n"
+                f"[Latest message:]\n{content}"
+            )
+            self._skipped_content.clear()
+
         if not msg.catchup:
             stats.increment("messages_in")
             if self._instance:
@@ -511,29 +554,50 @@ class ConvosAdapter:
 
         logger.info(f"Inbound [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}: {content[:80]}")
 
+        # Clear interrupt state from any previous cycle so the agent starts clean.
+        ai_agent = agent._ensure_agent()
+        ai_agent.clear_interrupt()
+        self._agent_running = True
+
         try:
-            response = await agent.handle_message(
-                content=content,
-                sender_name=msg.sender_name,
-                sender_id=msg.sender_id,
-                timestamp=msg.timestamp,
-                conversation_id=msg.conversation_id,
-                message_id=msg.message_id,
-                group_members=inst.get_group_members(),
-            )
-        except Exception as err:
-            logger.error(f"Agent error: {err}")
-            response = "I encountered an error. Please try again."
-
-        if response:
-            await self._dispatch_response(response)
-
-        # Auto-remove eyes reaction after dispatch (agent adds it mid-processing via convos_react)
-        if msg.message_id:
             try:
-                await inst.react(msg.message_id, "\U0001f440", "remove")
-            except Exception:
-                pass  # silently ignore if eyes weren't placed
+                response = await agent.handle_message(
+                    content=content,
+                    sender_name=msg.sender_name,
+                    sender_id=msg.sender_id,
+                    timestamp=msg.timestamp,
+                    conversation_id=msg.conversation_id,
+                    message_id=msg.message_id,
+                    group_members=inst.get_group_members(),
+                )
+            except Exception as err:
+                logger.error(f"Agent error: {err}")
+                response = "I encountered an error. Please try again."
+
+            # If the agent was interrupted, skip sending the partial response —
+            # the pending message will get a fresh turn below.
+            was_interrupted = ai_agent.is_interrupted
+            ai_agent.clear_interrupt()
+
+            if response and not was_interrupted:
+                await self._dispatch_response(response)
+
+            # Auto-remove eyes reaction after dispatch
+            if msg.message_id:
+                try:
+                    await inst.react(msg.message_id, "\U0001f440", "remove")
+                except Exception:
+                    pass  # silently ignore if eyes weren't placed
+
+            # ── Drain pending message ──
+            pending = self._pending_message
+            if pending:
+                self._pending_message = None
+                logger.info(f"Draining pending message [{pending.message_id[:12]}]")
+                await self._run_agent_turn(pending)
+                return  # recursive call handles clearing _agent_running
+        finally:
+            self._agent_running = False
 
     # ---- Attachment download + hold/merge ----
 
