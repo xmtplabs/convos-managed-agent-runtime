@@ -110,13 +110,6 @@
         }).catch(function () {});
       }
 
-      function toggleTurn(btn, id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.classList.toggle('collapsed');
-        btn.classList.toggle('open');
-      }
-
       function copyTurn(entryIdx, turnIdx, evt) {
         if (evt) evt.stopPropagation();
         var entry = window.__trajectoryEntries[entryIdx];
@@ -350,9 +343,6 @@
             var roleLabel = isToolCall ? "tool call" : role === "tool" ? "tool response" : role;
             var turnId = 'turn-' + i + '-' + j;
             html += '<div class="turn-header">';
-            if (isTool) {
-              html += '<button class="turn-toggle" data-toggle="' + turnId + '" onclick="toggleTurn(this,\'' + turnId + '\')" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>';
-            }
             html += '<div class="turn-role ' + esc(role) + '">' + esc(roleLabel) + '</div>';
             html += '<button class="copy-btn copy-turn" data-turn="' + i + '-' + j + '" onclick="copyTurn(' + i + ',' + j + ',event)" title="Copy">' + COPY_ICON + '</button>';
             html += '</div>';
@@ -370,19 +360,13 @@
         content.innerHTML = html;
 
         // Only collapse tool turns that actually overflow.
-        // First measure uncollapsed, then add collapsed + chevron if needed.
         var toolTurns = content.querySelectorAll('.turn-tool, .turn-assistant-toolcall');
         for (var k = 0; k < toolTurns.length; k++) {
-          var turnEl = toolTurns[k];
-          var contentEl = turnEl.querySelector('.turn-content');
-          var toggleBtn = turnEl.querySelector('.turn-toggle');
+          var contentEl = toolTurns[k].querySelector('.turn-content');
           if (!contentEl) continue;
-          // Temporarily apply max-height to measure overflow
           contentEl.classList.add('collapsed');
-          var overflows = contentEl.scrollHeight > contentEl.clientHeight;
-          if (overflows) {
+          if (contentEl.scrollHeight > contentEl.clientHeight) {
             contentEl.classList.add('overflowing');
-            if (toggleBtn) toggleBtn.style.display = '';
           } else {
             contentEl.classList.remove('collapsed');
           }

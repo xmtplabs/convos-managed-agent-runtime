@@ -216,24 +216,6 @@ body {
   pointer-events: none;
 }
 
-/* Expand/collapse toggle */
-.turn-toggle {
-  background: none;
-  border: none;
-  padding: 0.1rem;
-  color: var(--color-fg-tertiary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  transition: color 0.15s;
-}
-.turn-toggle:hover { color: var(--color-fg-secondary); }
-.turn-toggle svg {
-  width: 12px;
-  height: 12px;
-  transition: transform 0.2s;
-}
-.turn-toggle.open svg { transform: rotate(90deg); }
 
 /* System turn */
 .turn.turn-system {
