@@ -554,10 +554,10 @@ class ConvosAdapter:
 
         logger.info(f"Inbound [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}: {content[:80]}")
 
-        self._agent_running = True
         # Clear interrupt state from any previous cycle so the agent starts clean.
         ai_agent = agent._ensure_agent()
         ai_agent.clear_interrupt()
+        self._agent_running = True
 
         try:
             try:
