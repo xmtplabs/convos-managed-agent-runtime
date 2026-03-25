@@ -16,37 +16,31 @@ When removed, the page returns 403.
 ## Enable sharing
 
 ```bash
-# Hermes sets HERMES_HOME, OpenClaw sets OPENCLAW_STATE_DIR — one will always be set.
-# Fallback handles edge cases where neither is set.
-_state="${HERMES_HOME:-${OPENCLAW_STATE_DIR:-}}"
-[ -z "$_state" ] && { [ -d "$HOME/.hermes" ] && _state="$HOME/.hermes" || _state="$HOME/.openclaw"; }
-touch "$_state/.share-trajectories"
+node "$SKILLS_ROOT/services/scripts/services.mjs" info
 ```
 
-After creating the file, give the user the link:
+This returns JSON with a `servicesUrl` field. Replace `/services` with `/trajectories` to get the logs URL.
 
-```
-https://<PUBLIC_DOMAIN>/web-tools/trajectories
-```
-
-Build the URL by running this command and using its output:
+Then create the flag file:
 
 ```bash
-if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
-  echo "https://$RAILWAY_PUBLIC_DOMAIN/web-tools/trajectories"
-elif [ -n "$NGROK_URL" ]; then
-  echo "${NGROK_URL%/}/web-tools/trajectories"
-else
-  echo "http://localhost:${POOL_SERVER_PORT:-${PORT:-18789}}/web-tools/trajectories"
-fi
+node -e "
+var p = process.env.HERMES_HOME || process.env.OPENCLAW_STATE_DIR || '';
+if (!p) p = require('fs').existsSync(require('path').join(process.env.HOME, '.hermes')) ? process.env.HOME + '/.hermes' : process.env.HOME + '/.openclaw';
+require('fs').writeFileSync(require('path').join(p, '.share-trajectories'), '');
+console.log('Sharing enabled at ' + p);
+"
 ```
 
 ## Disable sharing
 
 ```bash
-_state="${HERMES_HOME:-${OPENCLAW_STATE_DIR:-}}"
-[ -z "$_state" ] && { [ -d "$HOME/.hermes" ] && _state="$HOME/.hermes" || _state="$HOME/.openclaw"; }
-rm -f "$_state/.share-trajectories"
+node -e "
+var p = process.env.HERMES_HOME || process.env.OPENCLAW_STATE_DIR || '';
+if (!p) p = require('fs').existsSync(require('path').join(process.env.HOME, '.hermes')) ? process.env.HOME + '/.hermes' : process.env.HOME + '/.openclaw';
+try { require('fs').unlinkSync(require('path').join(p, '.share-trajectories')); } catch(e) {}
+console.log('Sharing disabled');
+"
 ```
 
 ## Response templates
@@ -54,9 +48,11 @@ rm -f "$_state/.share-trajectories"
 **When enabling:**
 > Your logs are now shared. Anyone with this link can view your conversation history:
 >
-> {url}
+> {servicesUrl with /services replaced by /trajectories}
 >
 > Say "stop sharing my logs" to disable access.
+
+Never make up a URL. Always derive it from the `servicesUrl` returned by `services.mjs info`.
 
 **When disabling:**
 > Log sharing is off. The link no longer works.
