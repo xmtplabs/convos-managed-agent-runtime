@@ -1,8 +1,8 @@
-# runtime/evals/async-cron.yaml
+# runtime/evals/cron.yaml
 # Cron eval — verify the agent can create a cron job and pings arrive via Convos.
 # Single conversation: create job → wait for ping → delete job.
 
-description: "Eval: Async Cron"
+description: "Eval: Cron"
 
 evaluateOptions:
   maxConcurrency: 1

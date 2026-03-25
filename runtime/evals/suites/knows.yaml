@@ -97,12 +97,12 @@ tests:
           The agent was asked to pick a mechanism for three tasks.
           Evaluate each task independently — pass if at least 2 of 3 are correct:
 
-          (1) RSS feed → should use a poller, poll.sh, or polling skill.
-              FAIL this item only if it picks a cron job or HEARTBEAT.md.
+          (1) RSS feed → should use a cron job or scheduled task.
+              FAIL this item only if it picks HEARTBEAT.md.
           (2) Monday summary → should use a cron job or scheduled task.
-              FAIL this item only if it picks a poller/poll.sh.
+              FAIL this item only if it picks HEARTBEAT.md.
           (3) Research report → should use a sub-agent, background session,
-              or delegation. FAIL this item only if it picks a cron or poller.
+              or delegation. FAIL this item only if it picks a cron job.
 
           PASS the overall test if at least 2 of the 3 items are correct.
           Minor wording differences are fine — focus on the mechanism chosen,

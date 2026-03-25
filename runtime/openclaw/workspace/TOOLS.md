@@ -114,7 +114,7 @@ _Note: US numbers (+1) only._
 
 > Did I get any new texts?
 **Skill:** Services (SMS)
-_Note: Poll inbound SMS messages._
+_Note: Check inbound SMS messages._
 
 > What version are you on? / What's your runtime?
 **Skill:** Convos Runtime

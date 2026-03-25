@@ -1,11 +1,11 @@
-# runtime/evals/async-delegation.yaml
+# runtime/evals/delegation.yaml
 # Async delegation eval — does the agent delegate heavy tasks and stay responsive?
 #
 # Sends a complex task that should trigger sessions_spawn delegation, then
 # immediately sends a simple query in a fresh session to verify the agent
 # isn't blocked.
 
-description: "Eval: Async Delegation"
+description: "Eval: Delegation"
 
 evaluateOptions:
   maxConcurrency: 1

@@ -88,40 +88,8 @@ async def require_auth(request: Request) -> None:
 
 # ---- Instance lifecycle ----
 
-_poller_proc: asyncio.subprocess.Process | None = None
 
-
-async def _start_poller() -> None:
-    """Launch the shared poller as a background process."""
-    global _poller_proc
-    scripts_dir = os.environ.get("SHARED_SCRIPTS_DIR", "")
-    script = os.path.join(scripts_dir, "poller.sh") if scripts_dir else None
-    if not script or not os.path.isfile(script):
-        logger.info("Poller: shared poller.sh not found — disabled")
-        return
-
-    cfg = get_config()
-    poller_env = {**os.environ, "SKILLS_ROOT": str(Path(cfg.hermes_home) / "skills")}
-
-    _poller_proc = await asyncio.create_subprocess_exec(
-        "sh", script,
-        env=poller_env,
-    )
-    logger.info("Poller: started (pid=%d)", _poller_proc.pid)
-
-
-async def _stop_poller() -> None:
-    global _poller_proc
-    if _poller_proc:
-        try:
-            _poller_proc.terminate()
-            await asyncio.wait_for(_poller_proc.wait(), timeout=5)
-        except Exception:
-            try:
-                _poller_proc.kill()
-            except ProcessLookupError:
-                pass
-        _poller_proc = None
+# Webhooks handle email/SMS — no cronjob needed.
 
 
 async def start_wired_instance(
@@ -182,9 +150,6 @@ async def start_wired_instance(
         asyncio.create_task(_dispatch_greeting(adapter))
     else:
         adapter._greeting_done.set()
-
-    # Start background email/SMS poller
-    await _start_poller()
 
     return ready_info
 
@@ -441,10 +406,7 @@ async def _factory_reset() -> dict:
             logger.error("Error stopping adapter during reset: %s", err)
         _adapter = None
 
-    # 3. Stop poller
-    await _stop_poller()
-
-    # 4. Clear credentials
+    # 3. Clear credentials
     clear_credentials(hermes_home)
 
     # 5. Clear custom instructions
@@ -743,7 +705,6 @@ async def lifespan(app: FastAPI):
             await _pending_join_task
         except (asyncio.CancelledError, Exception):
             pass
-    await _stop_poller()
     await stats.shutdown()
     adapter = get_adapter()
     if adapter:
@@ -802,7 +763,6 @@ async def pool_restart():
             logger.error("Error stopping adapter during restart: %s", err)
         _adapter = None
 
-    await _stop_poller()
     await _try_resume_from_credentials(cfg)
 
     adapter = get_adapter()
