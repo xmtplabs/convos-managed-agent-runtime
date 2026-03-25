@@ -64,12 +64,14 @@
       // Normalize role names across runtimes:
       // Hermes (ShareGPT): human, gpt, tool, system
       // OpenClaw: user, assistant, toolResult
+      // Returns only known safe values (used in class attributes).
       function normalizeRole(raw) {
-        var r = (raw || "unknown").toLowerCase();
-        if (r === "human") return "user";
-        if (r === "gpt") return "assistant";
+        var r = (raw || "").toLowerCase();
+        if (r === "human" || r === "user") return "user";
+        if (r === "gpt" || r === "assistant") return "assistant";
         if (r === "tool" || r === "toolresult") return "tool";
-        return r;
+        if (r === "system") return "system";
+        return "unknown";
       }
 
       // Extract first user message as summary (stripped of envelope)

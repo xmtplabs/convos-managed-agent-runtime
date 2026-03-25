@@ -15,32 +15,26 @@ When removed, the page returns 403.
 
 ## Enable sharing
 
+1. Get the URL:
+
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" info
 ```
 
 This returns JSON with a `servicesUrl` field. Replace `/services` with `/trajectories` to get the logs URL.
 
-Then create the flag file:
+2. Create the flag file:
 
 ```bash
-node -e "
-var p = process.env.HERMES_HOME || process.env.OPENCLAW_STATE_DIR || '';
-if (!p) p = require('fs').existsSync(require('path').join(process.env.HOME, '.hermes')) ? process.env.HOME + '/.hermes' : process.env.HOME + '/.openclaw';
-require('fs').writeFileSync(require('path').join(p, '.share-trajectories'), '');
-console.log('Sharing enabled at ' + p);
-"
+touch "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
 ```
+
+`HERMES_HOME` is always set on Hermes, `OPENCLAW_STATE_DIR` is always set on OpenClaw. One will always resolve.
 
 ## Disable sharing
 
 ```bash
-node -e "
-var p = process.env.HERMES_HOME || process.env.OPENCLAW_STATE_DIR || '';
-if (!p) p = require('fs').existsSync(require('path').join(process.env.HOME, '.hermes')) ? process.env.HOME + '/.hermes' : process.env.HOME + '/.openclaw';
-try { require('fs').unlinkSync(require('path').join(p, '.share-trajectories')); } catch(e) { if (e.code !== 'ENOENT') throw e; }
-console.log('Sharing disabled');
-"
+rm -f "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
 ```
 
 ## Response templates
