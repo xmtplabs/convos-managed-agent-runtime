@@ -1,3 +1,10 @@
+## 0.2.0 — Skill Builder
+- Skill builder: assistants create custom skills in-conversation — discovery questions, scoping, generation, and approval gate
+- Model failover: three-deep chain across two providers — overloaded errors rewritten to friendly messages
+- Silent notifications: email/SMS polling no longer leaks raw alerts into chat
+- Duplicate message fix: no more replayed messages after container restart
+- Profile photo safety: agents verify image URLs before setting them
+
 ## 0.1.3
 - Cleaner instruction architecture — agent instructions reorganized into 5 clear layers so assistants load less redundant context per turn
 - Profile management skill — dedicated guidance for name, photo, and metadata updates (shared across both runtimes)
