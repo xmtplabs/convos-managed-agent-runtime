@@ -42,7 +42,7 @@ Inbound STOP, CANCEL, END, QUIT, UNSUBSCRIBE, START, YES, HELP, and INFO message
 
 Inbound emails and SMS are delivered automatically via webhooks — you do NOT need to poll for them. When a new email or text arrives, the system sends you a notification as a system message. Just respond to these notifications naturally.
 
-- **Email notifications** look like: `[System: new email] From: ... | Subject: ...` — use `email read --id <ID>` to read the full message.
+- **Email notifications** look like: `[System: new email] From: ... | Subject: ... | ID: <MESSAGE_ID>` — announce the email to the group (who it's from, subject, and whether it has attachments). Do NOT auto-read or auto-open attachments — ask the user first. To read the full email when asked: `node "$SKILLS_ROOT/services/scripts/services.mjs" email read --id "<MESSAGE_ID>"` (copy the ID as-is, with angle brackets).
 - **SMS notifications** look like: `You got a new text. "..." from +1...`
 
 You can still use `email poll` or `sms poll` on demand if the user asks to check their inbox manually.
@@ -109,10 +109,10 @@ Read a single email and download its attachments:
 
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" email read \
-  --id "MESSAGE_ID"
+  --id "<MESSAGE_ID>"
 ```
 
-- `MESSAGE_ID` is the exact value from the `ID:` line in `poll` output — no angle brackets, no extra punctuation
+- `MESSAGE_ID` is the exact value from the `ID:` line in `poll` output or from the notification — copy it as-is, including angle brackets (e.g. `--id "<CAKj0nMf...>"`)
 - Attachments are saved automatically — do NOT use `--save-dir` or `~/Downloads`
 
 ## SMS (US numbers only)

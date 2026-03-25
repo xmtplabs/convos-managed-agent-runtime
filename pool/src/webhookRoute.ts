@@ -110,7 +110,7 @@ webhookRouter.post(
     const subject = message.subject || "(none)";
     const messageId = message.message_id || "";
     let text = `[System: new email] From: ${from} | Subject: ${subject}`;
-    if (messageId) text += ` — Read the full email with: email read --id ${messageId}`;
+    if (messageId) text += ` | ID: ${messageId}`;
 
     // Fire-and-forget: forward to instance via /convos/notify
     fetch(`${instance.url}/convos/notify`, {
