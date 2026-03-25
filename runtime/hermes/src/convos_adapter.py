@@ -474,12 +474,12 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Profile image renewal on inbound activity failed: {err}")
 
-            # Fire-and-forget read receipt for non-catchup messages
-            if msg.content_type not in ("group_updated", "reaction"):
-                try:
-                    await inst.send_read_receipt()
-                except Exception:
-                    pass  # silent
+            # TEMPORARILY DISABLED — read receipts causing issues
+            # if msg.content_type not in ("group_updated", "reaction"):
+            #     try:
+            #         await inst.send_read_receipt()
+            #     except Exception:
+            #         pass  # silent
 
         if msg.content_type == "group_updated":
             return

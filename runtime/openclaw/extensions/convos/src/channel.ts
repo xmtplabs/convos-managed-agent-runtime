@@ -556,8 +556,8 @@ async function handleInboundMessage(
       errorLog(`[${account.accountId}] Failed to renew profile image on activity: ${String(err)}`);
     }
 
-    // Fire-and-forget read receipt for non-catchup messages
-    inst.sendReadReceipt().catch(() => {});
+    // TEMPORARILY DISABLED — read receipts causing issues
+    // inst.sendReadReceipt().catch(() => {});
   }
 
   const cfg = runtime.config.loadConfig();
