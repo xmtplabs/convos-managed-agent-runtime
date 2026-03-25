@@ -97,7 +97,7 @@
   },
   "messages": {
     "queue": {
-      "mode": "steer"
+      "mode": "interrupt"
     }
   },
   "channels": {
