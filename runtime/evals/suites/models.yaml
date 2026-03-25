@@ -56,15 +56,15 @@ tests:
 
   - description: "Agent confirms the active model after a switch"
     vars:
-      prompt: "Switch to google/gemini-2.5-pro, then tell me what model you're now running on."
+      prompt: "Switch to google/gemini-3-pro-preview, then tell me what model you're now running on."
     assert:
       - type: regex
-        value: "[Gg]emini|2\\.5|[Pp]ro|model"
+        value: "[Gg]emini|3.*[Pp]ro|model"
       - type: llm-rubric
         value: >
           FAIL if the agent does not confirm what model is now active after
           the switch, or says it can't switch. PASS if the agent switches
-          (or initiates a switch) to Gemini 2.5 Pro and then confirms
+          (or initiates a switch) to Gemini 3 Pro and then confirms
           the active model name in its response.
 
   - description: "Agent refuses to switch to an unsupported model"
