@@ -1210,6 +1210,13 @@ export async function startWiredInstance(params: {
     }
   }
 
+  // Clear trajectory sharing flag on reset
+  const shareFlag = path.join(
+    process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"),
+    ".share-trajectories",
+  );
+  try { fs.unlinkSync(shareFlag); } catch (e: any) { if (e.code !== "ENOENT") console.error(`[convos] Failed to clear share flag: ${e}`); }
+
   // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
   process.env.CONVOS_CONVERSATION_ID = params.conversationId;
 

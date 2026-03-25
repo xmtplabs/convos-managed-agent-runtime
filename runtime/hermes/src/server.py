@@ -428,6 +428,11 @@ async def _factory_reset() -> dict:
         target = Path(hermes_home) / d
         shutil.rmtree(target, ignore_errors=True)
 
+    # 8b. Clear trajectory files and sharing flag
+    for f in ("trajectory_samples.jsonl", "failed_trajectories.jsonl", ".share-trajectories"):
+        target = Path(hermes_home) / f
+        target.unlink(missing_ok=True)
+
     # 9. Clear XMTP CLI identity
     convos_home = Path.home() / ".convos"
     for entry in ("identities", "db"):
