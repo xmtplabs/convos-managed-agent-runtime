@@ -64,14 +64,14 @@ tests:
 
   - description: "Agent can browse a webpage"
     vars:
-      prompt: "Browse https://example.com and tell me what the page says."
+      prompt: "Browse https://example.com and tell me what the page says. Don't delegate this task."
     assert:
       - type: regex
         value: "[Ee]xample [Dd]omain|example\\.com|[Dd]ocumentation|[Ii]ana"
 
   - description: "Agent can search the web"
     vars:
-      prompt: "Search the current BTC price. Reply: BTC: $<price>."
+      prompt: "Search the current BTC price. Reply: BTC: $<price>. Don't delegate this task."
     assert:
       - type: regex
         value: "\\$[\\d,]+"

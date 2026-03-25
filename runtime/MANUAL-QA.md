@@ -12,8 +12,8 @@ Run all of these. One message back with results. Some items need my input — as
 13. Check if I've received any SMS messages recently and tell me what they say.
 14. Browse wikipedia and tell me what you see on the page.
 15. Search the web for the current price of Bitcoin and give me a dollar figure.
-16. Schedule a cron job that says "Ping!" to me every 1 minute.
-17. Wait for at least 2 pings to arrive, then confirm with timestamps.
-18. Now stop and delete that ping cron job. Confirm it's gone.
-19. What time is it?
-20. I'm going to send you an image. Tell me what you see.
+16. Schedule a cron job that sends a funny joke every 1 minute
+17. What time is it?
+18. I'm going to send you an image. Tell me what you see.
+19. Confirm you received an email notification and could read the attachment
+20. Share the usernames of everyone in this group.
