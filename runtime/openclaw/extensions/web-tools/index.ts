@@ -462,26 +462,41 @@ export default function register(api: OpenClawPluginApi) {
     sessions.sort((a, b) => b.updatedAt - a.updatedAt);
 
     // Read each session's JSONL file
+    // Format: each line is {type, ...}. Messages have type:"message" with
+    // message:{role, content}. Content is string or [{type:"text",text:"..."}].
     for (const sess of sessions.slice(0, maxEntries)) {
       const jsonlPath = path.join(sessionsDir, `${sess.sessionId}.jsonl`);
       try {
         if (!fs.existsSync(jsonlPath)) continue;
         const lines = fs.readFileSync(jsonlPath, "utf-8").split("\n").filter(Boolean);
         const conversations: Record<string, unknown>[] = [];
+        let model: string | undefined;
         for (const line of lines) {
           try {
             const parsed = JSON.parse(line);
-            // Normalize OpenClaw session entries to {from, value} format
-            const role = parsed.role || "unknown";
-            const content = parsed.content || parsed.text || "";
-            conversations.push({ from: role, value: typeof content === "string" ? content : JSON.stringify(content) });
+            if (parsed.type === "model_change" && parsed.modelId) {
+              model = parsed.modelId;
+            }
+            if (parsed.type !== "message") continue;
+            const msg = parsed.message;
+            if (!msg) continue;
+            const role = msg.role || "unknown";
+            let content = msg.content;
+            // content can be string or array of {type:"text", text:"..."}
+            if (Array.isArray(content)) {
+              content = content
+                .filter((c: Record<string, unknown>) => c.type === "text")
+                .map((c: Record<string, unknown>) => c.text)
+                .join("\n");
+            }
+            conversations.push({ from: role, value: content || "" });
           } catch { /* skip bad lines */ }
         }
         if (conversations.length > 0) {
           entries.push({
             conversations,
             timestamp: sess.updatedAt ? new Date(sess.updatedAt).toISOString() : undefined,
-            model: undefined,
+            model,
             completed: true,
             sessionKey: sess.key,
             sessionId: sess.sessionId,

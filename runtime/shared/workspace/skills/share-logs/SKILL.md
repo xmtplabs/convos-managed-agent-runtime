@@ -26,10 +26,17 @@ After creating the file, give the user the link:
 https://<PUBLIC_DOMAIN>/web-tools/trajectories
 ```
 
-Build the URL from environment variables:
-- `RAILWAY_PUBLIC_DOMAIN` → `https://${RAILWAY_PUBLIC_DOMAIN}/web-tools/trajectories`
-- `NGROK_URL` → `${NGROK_URL}/web-tools/trajectories`
-- Fallback → `http://localhost:${PORT:-8080}/web-tools/trajectories`
+Build the URL by running this command and using its output:
+
+```bash
+if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
+  echo "https://$RAILWAY_PUBLIC_DOMAIN/web-tools/trajectories"
+elif [ -n "$NGROK_URL" ]; then
+  echo "${NGROK_URL%/}/web-tools/trajectories"
+else
+  echo "http://localhost:${POOL_SERVER_PORT:-${PORT:-18789}}/web-tools/trajectories"
+fi
+```
 
 ## Disable sharing
 
