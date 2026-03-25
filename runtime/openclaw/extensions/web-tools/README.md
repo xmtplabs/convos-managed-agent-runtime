@@ -6,6 +6,7 @@ OpenClaw plugin that serves public-facing web pages and handles credit managemen
 
 1. **Convos landing page** — installable PWA at `/web-tools/convos` with invite link and QR code
 2. **Services page** — shows instance identity (email, phone), credit balance, and coupon redemption at `/web-tools/services`
+3. **Skills pages** — index and detail pages for generated skills at `/web-tools/skills`, backed by a JSON API reading from `$SKILLS_ROOT/generated/skills.json`
 
 ## Routes
 
@@ -20,6 +21,11 @@ OpenClaw plugin that serves public-facing web pages and handles credit managemen
 | `/web-tools/services/api` | GET | JSON API — instance identity + credit balance |
 | `/web-tools/services/topup` | POST | Proxy credit top-up request to pool manager |
 | `/web-tools/services/redeem-coupon` | POST | Proxy coupon redemption to pool manager |
+| `/web-tools/skills` | GET | Skills index page (list all generated skills) |
+| `/web-tools/skills/:slug` | GET | Skill detail page |
+| `/web-tools/skills/skills.css` | GET | Stylesheet for skills pages |
+| `/web-tools/skills/api` | GET | JSON API — list all skills |
+| `/web-tools/skills/api/:slug` | GET | JSON API — single skill by slug |
 
 ## Files
 
@@ -32,6 +38,9 @@ OpenClaw plugin that serves public-facing web pages and handles credit managemen
 | `convos/icon.svg` | App icon |
 | `services/services.html` | Services dashboard page |
 | `services/services.css` | Extracted styles for services page |
+| `../../shared/web-tools/skills/index.html` | Skills index page (shared) |
+| `../../shared/web-tools/skills/skill.html` | Skill detail page (shared) |
+| `../../shared/web-tools/skills/skills.css` | Styles for skills pages (shared) |
 
 ## Credit flow
 

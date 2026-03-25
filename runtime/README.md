@@ -43,7 +43,7 @@ runtime/
 │   │   ├── AGENTS-base.md  # shared agent instructions (~80% of AGENTS.md)
 │   │   ├── SOUL.md         # personality
 │   │   └── skills/         # services, convos-runtime, profile-update
-│   └── web-tools/          # browser automation, landing page, forms
+│   └── web-tools/          # browser automation, landing page, forms, skills pages
 ├── openclaw/               # OpenClaw runtime
 │   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
 │   ├── package.json        # openclaw deps + runtime scripts
