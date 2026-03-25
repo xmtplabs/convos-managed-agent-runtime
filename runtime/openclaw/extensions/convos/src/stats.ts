@@ -41,6 +41,10 @@ class StatsAccumulator {
     this.gauges[metric] = value;
   }
 
+  private refreshMemory(): void {
+    this.gauges.memory_gb = +(process.memoryUsage().rss / 1_073_741_824).toFixed(2);
+  }
+
   private async refreshCronCount(): Promise<void> {
     if (!this.cronJobsFile) return;
     try {
@@ -76,6 +80,7 @@ class StatsAccumulator {
           skills_invoked: this.counters.skills_invoked ?? 0,
           group_member_count: this.gauges.group_member_count ?? 0,
           cron_job_count: this.gauges.cron_job_count ?? 0,
+          memory_gb: this.gauges.memory_gb ?? 0,
           environment: this.environment,
           runtime_version: this.version,
           seconds_since_last_message_in: secondsSince,
@@ -140,8 +145,10 @@ class StatsAccumulator {
     this.started = true;
 
     this.timer = setInterval(async () => {
+      this.refreshMemory();
       await this.refreshCronCount();
       if (!this.hasActivity()) return;
+      console.log(`[stats] flush: msgs_in=${this.counters.messages_in ?? 0} msgs_out=${this.counters.messages_out ?? 0} cron=${this.gauges.cron_job_count ?? 0} mem=${this.gauges.memory_gb ?? 0}gb`);
       const batch = this.flush();
       this.send(batch).catch(() => {});
     }, FLUSH_INTERVAL_MS);
