@@ -405,6 +405,8 @@ class ConvosAdapter:
                 download_task.cancel()
         self._pending_attachments.clear()
 
+        _clear_expiration_timer()
+
         if self._instance:
             await self._instance.stop()
             self._instance = None
