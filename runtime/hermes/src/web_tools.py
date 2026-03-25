@@ -309,6 +309,80 @@ async def skills_api(slug: str):
     )
 
 
+# ── Trajectories / logs ──────────────────────────────────────
+
+
+_TRAJECTORIES_DIR = _SHARED_ROOT / "trajectories"
+
+
+def _hermes_home() -> Path:
+    return Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+
+
+def _sharing_enabled() -> bool:
+    return (_hermes_home() / ".share-trajectories").exists()
+
+
+def _read_trajectory_jsonl(file_path: Path, max_entries: int = 200) -> list[dict]:
+    """Read a JSONL trajectory file, return most-recent-first."""
+    entries: list[dict] = []
+    if not file_path.exists():
+        return entries
+    try:
+        for line in file_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    except Exception:
+        return entries
+    entries.reverse()
+    return entries[:max_entries]
+
+
+@router.get("/web-tools/trajectories")
+@router.get("/web-tools/trajectories/")
+async def trajectories_page():
+    return _serve_static(
+        _TRAJECTORIES_DIR / "trajectories.html",
+        "text/html; charset=utf-8",
+        cache_control="no-store",
+    )
+
+
+@router.get("/web-tools/trajectories/trajectories.css")
+async def trajectories_css():
+    return _serve_static(_TRAJECTORIES_DIR / "trajectories.css", "text/css")
+
+
+@router.get("/web-tools/trajectories/api")
+async def trajectories_api():
+    """Return trajectory entries if sharing is enabled."""
+    if not _sharing_enabled():
+        return Response(
+            content=json.dumps({"error": "sharing not enabled"}),
+            status_code=403,
+            media_type="application/json",
+        )
+    home = _hermes_home()
+    entries = _read_trajectory_jsonl(home / "trajectory_samples.jsonl")
+    failed = _read_trajectory_jsonl(home / "failed_trajectories.jsonl")
+    all_entries = entries + failed
+    # Sort by timestamp descending
+    all_entries.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    return Response(
+        content=json.dumps({"runtime": "hermes", "entries": all_entries[:200]}),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+# ── Skills pages ────────────────────────────────────────────
+
+
 @router.get("/web-tools/skills")
 @router.get("/web-tools/skills/")
 async def skills_index():

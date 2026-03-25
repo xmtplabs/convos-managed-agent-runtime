@@ -179,6 +179,7 @@ class AgentRunner:
             quiet_mode=os.path.isfile("/.dockerenv"),
             session_db=self._session_db,
             honcho_session_key=honcho_key,
+            save_trajectories=True,
         )
         return self._agent
 

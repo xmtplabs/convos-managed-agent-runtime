@@ -1,0 +1,220 @@
+/* ── Design tokens (shared with services) ───────────────────── */
+:root {
+  --color-brand: #FC4F37;
+  --color-fg: #000;
+  --color-fg-secondary: #666;
+  --color-fg-tertiary: #B2B2B2;
+  --color-surface: #fff;
+  --color-surface-muted: #F5F5F5;
+  --color-edge: #EBEBEB;
+  --color-error: #DC2626;
+}
+
+/* ── Reset & Layout ─────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  background: var(--color-surface-muted);
+  color: var(--color-fg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+}
+
+/* ── Container ──────────────────────────────────────────────── */
+.container {
+  max-width: 720px;
+  width: 100%;
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 1rem 0 1.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fg-secondary);
+}
+.brand-balloon { width: 16px; height: 20px; flex-shrink: 0; }
+
+/* ── Empty / error states ───────────────────────────────────── */
+.status-msg {
+  text-align: center;
+  color: var(--color-fg-tertiary);
+  font-size: 0.8rem;
+  padding: 3rem 1rem;
+}
+.status-msg.error { color: var(--color-error); }
+
+/* ── Loading shimmer ────────────────────────────────────────── */
+.loading-shimmer {
+  background: linear-gradient(90deg, var(--color-surface-muted) 25%, var(--color-edge) 50%, var(--color-surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+  height: 3.5rem;
+  width: 100%;
+}
+.loading-shimmer + .loading-shimmer { margin-top: 0.5rem; }
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Entry list ─────────────────────────────────────────────── */
+.entry-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.entry {
+  background: var(--color-surface);
+  border: 1px solid var(--color-edge);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ── Entry header (always visible) ──────────────────────────── */
+.entry-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.entry-header:hover { background: var(--color-surface-muted); }
+
+.entry-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-fg-tertiary);
+  transition: transform 0.2s;
+}
+.entry.open .entry-chevron { transform: rotate(90deg); }
+
+.entry-meta { flex: 1; min-width: 0; }
+.entry-query {
+  font-size: 0.8rem;
+  color: var(--color-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entry-info {
+  font-size: 0.6rem;
+  color: var(--color-fg-tertiary);
+  margin-top: 0.1rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.entry-status {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.entry-status.completed { background: #E8F5E9; color: #2E7D32; }
+.entry-status.failed { background: #FFEBEE; color: #C62828; }
+
+/* ── Turn list (expanded) ───────────────────────────────────── */
+.entry-turns {
+  display: none;
+  border-top: 1px solid var(--color-edge);
+  padding: 0.5rem 0;
+}
+.entry.open .entry-turns { display: block; }
+
+.turn {
+  padding: 0.5rem 1rem;
+}
+.turn + .turn { border-top: 1px solid var(--color-surface-muted); }
+
+.turn-role {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}
+.turn-role.system { color: var(--color-fg-tertiary); }
+.turn-role.human { color: #1565C0; }
+.turn-role.gpt { color: #6A1B9A; }
+.turn-role.tool { color: #E65100; }
+.turn-role.assistant { color: #6A1B9A; }
+.turn-role.user { color: #1565C0; }
+
+.turn-content {
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+/* Collapsed system prompt */
+.turn-content.collapsed {
+  max-height: 3rem;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+.turn-content.collapsed::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1.5rem;
+  background: linear-gradient(transparent, var(--color-surface));
+}
+
+/* Think blocks */
+.think-block {
+  color: var(--color-fg-tertiary);
+  font-style: italic;
+  border-left: 2px solid var(--color-edge);
+  padding-left: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Tool calls */
+.tool-call {
+  background: var(--color-surface-muted);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.68rem;
+}
+.tool-call-name {
+  font-weight: 600;
+  color: #E65100;
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--color-fg-tertiary);
+}
+
+@media (max-width: 440px) {
+  body { padding: 0.5rem; }
+  .entry-header { padding: 0.6rem 0.75rem; }
+  .turn { padding: 0.4rem 0.75rem; }
+}

@@ -423,6 +423,117 @@ export default function register(api: OpenClawPluginApi) {
     },
   });
 
+  // --- Trajectories / logs ---
+
+  const trajDir = path.resolve(sharedRoot, "trajectories");
+  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
+
+  function isSharingEnabled(): boolean {
+    return fs.existsSync(path.join(stateDir, ".share-trajectories"));
+  }
+
+  /** Read OpenClaw session JSONL files and normalize to trajectory format. */
+  function readSessionTrajectories(maxEntries = 200): Record<string, unknown>[] {
+    const sessionsDir = path.join(stateDir, "agents", "main", "sessions");
+    const indexPath = path.join(sessionsDir, "sessions.json");
+    const entries: Record<string, unknown>[] = [];
+
+    // Read the sessions.json index to find session IDs
+    let index: Record<string, { sessionId?: string; updatedAt?: number }>;
+    try {
+      index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+    } catch {
+      return entries;
+    }
+
+    // Collect session IDs and their metadata
+    const sessions: { key: string; sessionId: string; updatedAt: number }[] = [];
+    for (const [key, val] of Object.entries(index)) {
+      if (val && typeof val === "object" && val.sessionId) {
+        sessions.push({
+          key,
+          sessionId: val.sessionId,
+          updatedAt: val.updatedAt || 0,
+        });
+      }
+    }
+
+    // Sort by most recent first
+    sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+
+    // Read each session's JSONL file
+    for (const sess of sessions.slice(0, maxEntries)) {
+      const jsonlPath = path.join(sessionsDir, `${sess.sessionId}.jsonl`);
+      try {
+        if (!fs.existsSync(jsonlPath)) continue;
+        const lines = fs.readFileSync(jsonlPath, "utf-8").split("\n").filter(Boolean);
+        const conversations: Record<string, unknown>[] = [];
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            // Normalize OpenClaw session entries to {from, value} format
+            const role = parsed.role || "unknown";
+            const content = parsed.content || parsed.text || "";
+            conversations.push({ from: role, value: typeof content === "string" ? content : JSON.stringify(content) });
+          } catch { /* skip bad lines */ }
+        }
+        if (conversations.length > 0) {
+          entries.push({
+            conversations,
+            timestamp: sess.updatedAt ? new Date(sess.updatedAt).toISOString() : undefined,
+            model: undefined,
+            completed: true,
+            sessionKey: sess.key,
+            sessionId: sess.sessionId,
+          });
+        }
+      } catch { /* skip unreadable sessions */ }
+    }
+
+    return entries;
+  }
+
+  api.registerHttpRoute({
+    path: "/web-tools/trajectories",
+    match: "prefix",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const url = new URL(req.url || "", "http://localhost");
+      const pathParts = url.pathname.replace(/\/+$/, "").split("/");
+      const lastPart = pathParts[pathParts.length - 1];
+
+      // CSS
+      if (lastPart === "trajectories.css") {
+        serveFile(res, path.join(trajDir, "trajectories.css"), "text/css", "max-age=3600");
+        return;
+      }
+
+      // API
+      if (lastPart === "api") {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        if (!isSharingEnabled()) {
+          res.statusCode = 403;
+          res.end(JSON.stringify({ error: "sharing not enabled" }));
+          return;
+        }
+        const entries = readSessionTrajectories();
+        res.statusCode = 200;
+        res.end(JSON.stringify({ runtime: "openclaw", entries }));
+        return;
+      }
+
+      // Page
+      serveFile(res, path.join(trajDir, "trajectories.html"), "text/html; charset=utf-8");
+    },
+  });
+
   // --- Skills pages ---
 
   // Serve skill page HTML for any slug: /web-tools/skills/<slug>
