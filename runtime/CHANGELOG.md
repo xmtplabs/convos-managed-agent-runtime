@@ -1,3 +1,8 @@
+## 0.2.1 — Webhooks
+- Real-time email and SMS: notifications are now pushed instantly via webhooks instead of polling every 60 seconds
+- Recurring tasks use cron jobs: scheduled agent tasks (morning check-ins, RSS feeds) run on proper cron instead of the poller loop
+- On-demand inbox checks still available: agents can manually check email and SMS when asked
+
 ## 0.2.0 — Skill Builder
 - Skill builder: assistants create custom skills in-conversation — discovery questions, scoping, generation, and approval gate
 - Model failover: three-deep chain across two providers — overloaded errors rewritten to friendly messages
