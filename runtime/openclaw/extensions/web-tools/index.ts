@@ -572,15 +572,18 @@ export default function register(api: OpenClawPluginApi) {
           const { execFileSync } = require("node:child_process");
           const os = require("node:os");
           const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "traj-"));
-          const zipPath = path.join(tmpDir, "trajectories.zip");
-          execFileSync("zip", ["-j", zipPath, ...files.map(f => f.path)], { stdio: "ignore" });
-          const zipBuf = fs.readFileSync(zipPath);
-          fs.rmSync(tmpDir, { recursive: true, force: true });
-          res.statusCode = 200;
-          res.setHeader("Content-Type", "application/zip");
-          res.setHeader("Content-Disposition", "attachment; filename=trajectories.zip");
-          res.setHeader("Cache-Control", "no-store");
-          res.end(zipBuf);
+          try {
+            const zipPath = path.join(tmpDir, "trajectories.zip");
+            execFileSync("zip", ["-j", zipPath, ...files.map(f => f.path)], { stdio: "ignore" });
+            const zipBuf = fs.readFileSync(zipPath);
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/zip");
+            res.setHeader("Content-Disposition", "attachment; filename=trajectories.zip");
+            res.setHeader("Cache-Control", "no-store");
+            res.end(zipBuf);
+          } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          }
         } catch {
           res.statusCode = 500;
           res.end("Failed to create zip");

@@ -374,7 +374,7 @@ async def trajectories_api():
     failed = _read_trajectory_jsonl(home / "failed_trajectories.jsonl")
     all_entries = entries + failed
     # Sort by timestamp descending
-    all_entries.sort(key=lambda e: str(e.get("timestamp") or ""), reverse=True)
+    all_entries.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
     return Response(
         content=json.dumps({"runtime": "hermes", "entries": all_entries[:200]}),
         media_type="application/json",
