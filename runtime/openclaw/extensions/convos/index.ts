@@ -215,7 +215,9 @@ async function fetchAndApplyAttestation(): Promise<void> {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      console.error(`[convos] Attestation request failed: ${res.status} ${await res.text()}`);
+      const body = await res.text();
+      const preview = body.length > 120 ? body.slice(0, 120) + "…" : body;
+      console.warn(`[convos] Attestation request failed: ${res.status} ${preview}`);
       return;
     }
     const att = await res.json() as { attestation?: string; attestation_ts?: string; attestation_kid?: string };
