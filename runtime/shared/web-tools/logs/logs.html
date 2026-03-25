@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/web-tools/trajectories/trajectories.css">
+  <link rel="stylesheet" href="/web-tools/logs/logs.css">
 </head>
 <body>
   <div class="container">
@@ -333,7 +333,7 @@
 
         var DL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
         var html = '<div class="copy-all-row">';
-        html += '<a class="copy-all-btn" href="/web-tools/trajectories/download" download>' + DL_ICON + ' download zip</a>';
+        html += '<a class="copy-all-btn" href="/web-tools/logs/download" download>' + DL_ICON + ' download zip</a>';
         html += '<button class="copy-all-btn" id="copy-all-btn" onclick="copyAllTrajectories()">' + COPY_ICON + ' copy all</button>';
         html += '</div>';
         html += '<div class="entry-list">';
@@ -409,7 +409,7 @@
 
       // ── Fetch ───────────────────────────────────────────────
 
-      fetch("/web-tools/trajectories/api")
+      fetch("/web-tools/logs/api")
         .then(function (r) {
           if (r.status === 403) {
             content.innerHTML = '<div class="status-msg">log sharing is not enabled</div>';

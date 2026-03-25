@@ -425,7 +425,7 @@ export default function register(api: OpenClawPluginApi) {
 
   // --- Trajectories / logs ---
 
-  const trajDir = path.resolve(sharedRoot, "trajectories");
+  const trajDir = path.resolve(sharedRoot, "logs");
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
 
   function isSharingEnabled(): boolean {
@@ -522,7 +522,7 @@ export default function register(api: OpenClawPluginApi) {
   }
 
   api.registerHttpRoute({
-    path: "/web-tools/trajectories",
+    path: "/web-tools/logs",
     match: "prefix",
     auth: "plugin",
     handler: async (req, res) => {
@@ -537,8 +537,8 @@ export default function register(api: OpenClawPluginApi) {
       const lastPart = pathParts[pathParts.length - 1];
 
       // CSS
-      if (lastPart === "trajectories.css") {
-        serveFile(res, path.join(trajDir, "trajectories.css"), "text/css", "max-age=3600");
+      if (lastPart === "logs.css") {
+        serveFile(res, path.join(trajDir, "logs.css"), "text/css", "max-age=3600");
         return;
       }
 
@@ -604,7 +604,7 @@ export default function register(api: OpenClawPluginApi) {
       }
 
       // Page
-      serveFile(res, path.join(trajDir, "trajectories.html"), "text/html; charset=utf-8");
+      serveFile(res, path.join(trajDir, "logs.html"), "text/html; charset=utf-8");
     },
   });
 

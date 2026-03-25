@@ -314,7 +314,7 @@ async def skills_api(slug: str):
 # ── Trajectories / logs ──────────────────────────────────────
 
 
-_TRAJECTORIES_DIR = _SHARED_ROOT / "trajectories"
+_TRAJECTORIES_DIR = _SHARED_ROOT / "logs"
 
 
 def _hermes_home() -> Path:
@@ -345,22 +345,22 @@ def _read_trajectory_jsonl(file_path: Path, max_entries: int = 200) -> list[dict
     return entries[:max_entries]
 
 
-@router.get("/web-tools/trajectories")
-@router.get("/web-tools/trajectories/")
+@router.get("/web-tools/logs")
+@router.get("/web-tools/logs/")
 async def trajectories_page():
     return _serve_static(
-        _TRAJECTORIES_DIR / "trajectories.html",
+        _TRAJECTORIES_DIR / "logs.html",
         "text/html; charset=utf-8",
         cache_control="no-store",
     )
 
 
-@router.get("/web-tools/trajectories/trajectories.css")
+@router.get("/web-tools/logs/logs.css")
 async def trajectories_css():
-    return _serve_static(_TRAJECTORIES_DIR / "trajectories.css", "text/css")
+    return _serve_static(_TRAJECTORIES_DIR / "logs.css", "text/css")
 
 
-@router.get("/web-tools/trajectories/api")
+@router.get("/web-tools/logs/api")
 async def trajectories_api():
     """Return trajectory entries if sharing is enabled."""
     if not _sharing_enabled():
@@ -382,7 +382,7 @@ async def trajectories_api():
     )
 
 
-@router.get("/web-tools/trajectories/download")
+@router.get("/web-tools/logs/download")
 async def trajectories_download():
     """Download raw JSONL files as a zip."""
     if not _sharing_enabled():

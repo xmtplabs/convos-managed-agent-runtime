@@ -21,7 +21,7 @@ When removed, the page returns 403.
 node "$SKILLS_ROOT/services/scripts/services.mjs" info
 ```
 
-This returns JSON with a `servicesUrl` field. Replace `/services` with `/trajectories` to get the logs URL.
+This returns JSON with a `servicesUrl` field. Replace `/services` with `/logs` to get the logs URL.
 
 2. Create the flag file:
 
@@ -42,7 +42,7 @@ rm -f "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
 **When enabling:**
 > Your logs are now shared. Anyone with this link can view your conversation history:
 >
-> {servicesUrl with /services replaced by /trajectories}
+> {servicesUrl with /services replaced by /logs}
 >
 > Say "stop sharing my logs" to disable access.
 
