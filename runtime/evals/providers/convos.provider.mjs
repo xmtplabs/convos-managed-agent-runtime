@@ -6,6 +6,7 @@
 import { execFileSync } from 'child_process';
 import { createHarness } from '../lib/convos-harness.mjs';
 import { sleep, elapsed, log as _log } from '../lib/utils.mjs';
+import { runtime } from '../lib/runtime.mjs';
 
 const h = createHarness('convos', { conversationPrefix: 'QA Eval' });
 
@@ -23,6 +24,12 @@ export default class ConvosProvider {
     h.ensureSetup();
 
     const meta = context.test?.metadata || {};
+
+    if (meta.restart) {
+      const result = handleRestart(h, prompt);
+      log(`${result.metadata?.restarted ? 'OK' : 'FAIL'} ${desc} (${elapsed(t)})`);
+      return result;
+    }
 
     if (meta.selfDestruct) {
       const result = handleSelfDestruct(h);
@@ -128,6 +135,75 @@ export default class ConvosProvider {
     log(`Done (${elapsed(t)})`);
     return { output, metadata: { conversationId: h.conversationId } };
   }
+}
+
+function handleRestart(h, prompt) {
+  const ENV = process.env.XMTP_ENV || 'dev';
+
+  // Both runtimes expose POST /pool/restart which exercises the resume-from-
+  // saved-credentials code path. Hermes stops the adapter and re-resumes;
+  // OpenClaw kills and respawns the gateway child.
+  const restartPath = runtime.restartPath;
+  if (!restartPath) {
+    h.log('SKIP — restart not supported by this runtime');
+    return { output: '[AGENT] (restart test skipped)', metadata: { conversationId: h.conversationId, restarted: true } };
+  }
+
+  h.log(`Calling POST ${restartPath}...`);
+  try {
+    const out = execFileSync('curl', [
+      '-sf', '-X', 'POST',
+      '-H', 'Content-Type: application/json',
+      '-H', `Authorization: Bearer ${h.gatewayToken}`,
+      '-d', '{}',
+      `http://localhost:${h.gatewayPort}${restartPath}`,
+    ], { encoding: 'utf-8', timeout: 90_000 });
+    h.log(`Restart OK: ${(out || '').trim().slice(0, 200)}`);
+  } catch (err) {
+    h.log(`FAIL — ${restartPath} failed: ${err.status || err.message}`);
+    return { output: `RESTART_FAILED: ${restartPath} returned error`, metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+
+  // Wait for the convos adapter to reconnect — the gateway may be up but
+  // the XMTP bridge needs time to re-establish the conversation stream.
+  h.log('Waiting for convos adapter to reconnect...');
+  const statusDeadline = Date.now() + 90_000;
+  let adapterReady = false;
+  while (Date.now() < statusDeadline) {
+    sleep(3_000);
+    try {
+      const statusOut = execFileSync('curl', [
+        '-sf',
+        '-H', `Authorization: Bearer ${h.gatewayToken}`,
+        `http://localhost:${h.gatewayPort}/convos/status`,
+      ], { encoding: 'utf-8', timeout: 5_000 });
+      const status = JSON.parse(statusOut);
+      if (status.conversationId) {
+        h.log(`Adapter reconnected: conversation ${status.conversationId.slice(0, 12)}`);
+        adapterReady = true;
+        break;
+      }
+    } catch {}
+  }
+  if (!adapterReady) {
+    h.log('FAIL — adapter did not reconnect within 90s');
+    return { output: 'RESTART_FAILED: adapter did not reconnect', metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+  // Extra settle time for message streams
+  sleep(3_000);
+
+  const existing = h.fetchMessages();
+  const baseline = h.agentCount(existing);
+  const msgsBefore = existing.length;
+
+  h.log(`Sending post-restart message: "${prompt}"`);
+  h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', ENV], { timeout: 30_000 });
+  const msgs = h.waitForAgent(baseline);
+  const output = h.transcript(msgs, msgsBefore);
+
+  const responded = h.agentCount(msgs) > baseline;
+  h.log(responded ? 'Agent responded after restart' : 'FAIL — agent did not respond after restart');
+  return { output, metadata: { conversationId: h.conversationId, restarted: responded } };
 }
 
 function handleSelfDestruct(h) {

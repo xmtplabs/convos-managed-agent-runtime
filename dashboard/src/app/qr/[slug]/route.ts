@@ -28,7 +28,7 @@ export async function GET(
   }
 
   const siteUrl = getSiteUrl(request);
-  const templateUrl = `${siteUrl}/a/${encodeURIComponent(slug)}`;
+  const templateUrl = `${siteUrl}/${encodeURIComponent(slug)}`;
 
   const pngBuffer = await QRCode.toBuffer(templateUrl, {
     type: "png",

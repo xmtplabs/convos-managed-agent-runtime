@@ -82,7 +82,10 @@ export function createHarness(tag, opts = {}) {
 
   function checkGateway() {
     try {
-      execFileSync('curl', ['-sf', `http://localhost:${GATEWAY_PORT}${runtime.healthPath}`], {
+      const curlArgs = ['-sf'];
+      if (GATEWAY_TOKEN) curlArgs.push('-H', `Authorization: Bearer ${GATEWAY_TOKEN}`);
+      curlArgs.push(`http://localhost:${GATEWAY_PORT}${runtime.healthPath}`);
+      execFileSync('curl', curlArgs, {
         encoding: 'utf-8',
         timeout: 5_000,
       });

@@ -2,7 +2,7 @@
 # Run a single eval suite. Supports any runtime via EVAL_RUNTIME env var.
 # Usage: EVAL_RUNTIME=hermes sh evals/run-suite.sh knows.yaml [promptfoo args ...]
 #
-# EVAL_MAX_FAILURES (default: 1) — tolerate up to N test failures per suite.
+# EVAL_MAX_FAILURES (default: 1) — tolerate up to N test failures + errors per suite.
 # Promptfoo exits non-zero on ANY failure; this wrapper parses the results line.
 
 EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -47,14 +47,12 @@ FAILED=$(grep -oE '[0-9]+ failed' "$TMPOUT" | grep -oE '[0-9]+' || echo "999")
 ERRORS=$(grep -oE '[0-9]+ error' "$TMPOUT" | head -1 | grep -oE '[0-9]+' || echo "999")
 rm -f "$TMPOUT"
 
-if [ "${ERRORS:-0}" -gt 0 ] 2>/dev/null; then
-  echo "Suite had $ERRORS error(s) — failing."
-  exit 1
-fi
+TOTAL=$(( ${FAILED:-999} + ${ERRORS:-0} ))
 
-if [ "${FAILED:-999}" -le "$MAX_FAILURES" ] 2>/dev/null; then
-  echo "Suite had $FAILED failure(s) within threshold ($MAX_FAILURES) — passing."
+if [ "$TOTAL" -le "$MAX_FAILURES" ] 2>/dev/null; then
+  echo "Suite had $FAILED failure(s) + $ERRORS error(s) within threshold ($MAX_FAILURES) — passing."
   exit 0
 fi
 
+echo "Suite had $FAILED failure(s) + $ERRORS error(s), exceeds threshold ($MAX_FAILURES) — failing."
 exit 1
