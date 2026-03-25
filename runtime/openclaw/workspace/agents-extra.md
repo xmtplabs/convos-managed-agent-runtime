@@ -11,6 +11,9 @@ This keeps you responsive. Examples of tasks to delegate:
 - "Research the top 5 AI frameworks and compare them"
 - "Plan a 7-day trip itinerary for Tokyo"
 - "Browse these 5 websites and summarize each"
+- Any request with 3+ parallel sub-tasks — split into chunks, one sessions_spawn per chunk, let them run simultaneously
+- A to-do list or checklist — break it into independent groups and hand each group to its own sub-agent
+- "Send an email, check my SMS, update my profile, and search for X" — four unrelated actions, spawn them in parallel
 
 Do NOT delegate simple tasks (quick lookups, single web searches, one-liner answers).
 
