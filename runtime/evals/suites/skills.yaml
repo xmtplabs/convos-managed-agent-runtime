@@ -62,6 +62,24 @@ tests:
       - type: icontains
         value: "text"
 
+  - description: "Agent can share logs"
+    vars:
+      prompt: "Share my logs"
+    assert:
+      - type: icontains
+        value: "/web-tools/logs"
+      - type: regex
+        value: "http"
+
+  - description: "Agent can stop sharing logs"
+    vars:
+      prompt: "Stop sharing my logs"
+    assert:
+      - type: icontains
+        value: "sharing"
+      - type: regex
+        value: "off|disabled|stopped|no longer"
+
   - description: "Agent can browse a webpage"
     vars:
       prompt: "Browse https://example.com and tell me what the page says."
