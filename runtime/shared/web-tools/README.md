@@ -1,6 +1,15 @@
 # web-tools
 
-OpenClaw plugin that serves public-facing web pages and handles credit management for pool-managed instances.
+Public-facing web pages served by both runtimes — landing page, services dashboard, and skills browser.
+
+## Implementations
+
+| Runtime | Entry point |
+|---------|-------------|
+| OpenClaw | `openclaw/extensions/web-tools/index.ts` (OpenClaw plugin) |
+| Hermes | `hermes/src/web_tools.py` (FastAPI router) |
+
+Both implementations serve the same routes from the shared HTML/CSS in this directory.
 
 ## What it does
 
@@ -31,16 +40,15 @@ OpenClaw plugin that serves public-facing web pages and handles credit managemen
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | Plugin entry — route registration, services API, coupon proxy |
 | `convos/landing.html` | Convos landing page |
 | `convos/landing-manifest.json` | PWA manifest |
 | `convos/sw.js` | Service worker for offline support |
 | `convos/icon.svg` | App icon |
 | `services/services.html` | Services dashboard page |
 | `services/services.css` | Extracted styles for services page |
-| `../../shared/web-tools/skills/index.html` | Skills index page (shared) |
-| `../../shared/web-tools/skills/skill.html` | Skill detail page (shared) |
-| `../../shared/web-tools/skills/skills.css` | Styles for skills pages (shared) |
+| `skills/index.html` | Skills index page |
+| `skills/skill.html` | Skill detail page |
+| `skills/skills.css` | Styles for skills pages |
 
 ## Credit flow
 
