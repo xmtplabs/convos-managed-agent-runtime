@@ -1,6 +1,6 @@
 // runtime/evals/lib/convos-harness.mjs
 // Shared harness for e2e eval providers that interact with the agent via XMTP
-// conversations (convos, poller, poller-hooks). Extracts the duplicated
+// conversations (convos, poller, webhook). Extracts the duplicated
 // setup / messaging / transcript helpers into one place.
 
 import { execFileSync, spawn } from 'child_process';

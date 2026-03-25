@@ -35,14 +35,16 @@ The `poll.sh` contract:
 
 | Need | Use | Why |
 |---|---|---|
-| **Recurring check** (RSS, price, inbox) | **Poller + poll.sh** | No LLM, runs every 60s, cheap and mechanical |
+| **Recurring check** (RSS, price, website) | **Poller + poll.sh** | No LLM, runs every 60s, cheap and mechanical |
 | **Recurring scheduled task** ("every morning at 8am…") | **Cron job** | Wakes the agent on a cron schedule — use for anything the user wants done repeatedly at a specific time |
 | **One-off heavy task** (research, long report) | **Sub-agent** (`sessions_spawn`) | Runs in a background session so you stay responsive |
 | **Proactive nudges, catching cracks** | **Heartbeat** | LLM judgment, 30m cycle — **never touch this; it's managed by the platform** |
 
 **Tiebreaker — poller or cron?**
-- If the task is **checking for new data** (new emails, new RSS posts, price changes) → **poller**. It's mechanical, no LLM needed, and runs every 60s for free.
+- If the task is **checking for new data** (new RSS posts, price changes, website status) → **poller**. It's mechanical, no LLM needed, and runs every 60s for free.
 - If the task **needs agent judgment at a specific time** ("summarize my inbox every morning", "remind me at 5pm") → **cron job**. It wakes you up to think, costs tokens.
+
+**Note:** Email and SMS do NOT use the poller — they are delivered automatically via webhooks. Do not create poll.sh hooks for email or SMS monitoring.
 
 To create a cron job, use the cron tool directly — just describe the schedule and what you want to happen. Example: "Set up a cron job that runs every morning at 8am to check for open threads."
 

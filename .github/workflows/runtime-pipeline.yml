@@ -110,10 +110,10 @@ jobs:
           - { suite: lifecycle,    timeout: 900, only: "", fresh: false, poller: false }
           - { suite: convos,       timeout: 900, only: "", fresh: false, poller: false }
           - { suite: models,       timeout: 900, only: openclaw, fresh: false, poller: false }
-          - { suite: async-delegation,   timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: async-cron,         timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: async-poller,       timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: poller-hooks,       timeout: 900, only: "", fresh: false, poller: false }
+          - { suite: delegation,   timeout: 900, only: "", fresh: false, poller: false }
+          - { suite: cron,         timeout: 900, only: "", fresh: false, poller: false }
+          - { suite: webhooks,     timeout: 900, only: "", fresh: false, poller: false }
+          - { suite: poller,       timeout: 900, only: "", fresh: false, poller: false }
           - { suite: memory,             timeout: 900, only: "", fresh: false, poller: false }
           - { suite: silence,            timeout: 900, only: "", fresh: false, poller: false }
           - { suite: provision,          timeout: 900, only: "", fresh: true, poller: false }

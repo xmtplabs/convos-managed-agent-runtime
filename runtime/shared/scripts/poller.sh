@@ -59,12 +59,6 @@ notify() {
   return $_rc
 }
 
-# Reset cursors to "now" so we don't re-report old messages on boot
-_now=$(date +%s)000
-printf "%s" "$_now" > /tmp/.heartbeat-email-cursor
-printf "%s" "$_now" > /tmp/.heartbeat-sms-cursor
-unset _now
-
 log "waiting 15s for startup..."
 sleep 15
 log "started (interval=${POLL_INTERVAL}s)"

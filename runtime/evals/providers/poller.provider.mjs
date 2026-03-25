@@ -1,72 +1,52 @@
 // runtime/evals/poller.provider.mjs
-// E2E eval for the email poller pipeline:
-//   self-send email with attachment → poller detects it → notification in XMTP → agent answers about attachment.
+// E2E eval for the poller pipeline:
+//   agent creates RSS polling skill → poller discovers and runs poll.sh → notification → agent responds.
 
-import { execFileSync, spawn } from 'child_process';
-import { resolve, dirname } from 'path';
+import { spawn } from 'child_process';
+import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHarness, resolveSkillsRoot, resolvePollerScript } from '../lib/convos-harness.mjs';
-import { sleep, elapsed } from '../lib/utils.mjs';
+import { sleep, elapsed, clearSessionsOnce } from '../lib/utils.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const AGENTMAIL_INBOX_ID = process.env.AGENTMAIL_INBOX_ID;
-if (!AGENTMAIL_INBOX_ID) {
-  console.error('[eval:poller] AGENTMAIL_INBOX_ID is required. Set it in runtime/.env.');
-  process.exit(1);
-}
-
-const FIXTURE_PATH = resolve(__dirname, '../fixtures/eval-poller-note.txt');
 const SKILLS_ROOT = resolveSkillsRoot();
 const POLLER_SCRIPT = resolvePollerScript();
-const SERVICES_MJS = resolve(SKILLS_ROOT, 'services/scripts/services.mjs');
 
 let pollerProc = null;
+
+// Clean up custom skills and sessions from previous runs so the agent
+// creates the RSS skill fresh instead of saying "already set up".
+clearSessionsOnce();
 
 const h = createHarness('poller', {
   conversationPrefix: 'Poller Eval',
   cleanup() {
     if (pollerProc) { try { pollerProc.kill('SIGKILL'); } catch {} pollerProc = null; }
   },
-  afterSetup({ sharedConversationId, EVAL_HOME, log }) {
-    // Extra wait for gateway (poller setup needs more time)
-    sleep(3_000);
-
-    log('Starting poller...');
-    pollerProc = spawn('sh', [POLLER_SCRIPT], {
-      env: {
-        ...process.env,
-        HOME: EVAL_HOME,
-        PORT: String(h.gatewayPort),
-        POLL_INTERVAL_SECONDS: '10',
-        DISABLE_POLLER: '0',
-        SKILLS_ROOT,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    pollerProc.stdout.on('data', (d) => { process.stdout.write(d); });
-    pollerProc.stderr.on('data', (d) => { process.stderr.write(d); });
-
-    // Wait for poller startup (15s sleep in poller.sh) + first poll cycle (10s interval)
-    // to complete so the email cursor is set before we send the test email.
-    log('Waiting 30s for poller startup + first poll cycle...');
-    sleep(30_000);
-
-    log(`Sending test email to ${AGENTMAIL_INBOX_ID} with attachment...`);
-    try {
-      execFileSync('node', [
-        SERVICES_MJS, 'email', 'send',
-        '--to', AGENTMAIL_INBOX_ID,
-        '--subject', 'Poller eval test',
-        '--text', 'Hello from poller eval. This is a test email with an attachment.',
-        '--attach', FIXTURE_PATH,
-      ], { encoding: 'utf-8', timeout: 30_000, env: process.env });
-      log('Test email sent.');
-    } catch (err) {
-      log(`WARNING: email send failed: ${err.message}`);
-    }
-  },
 });
+
+function startPoller() {
+  h.log('Starting poller (10s interval)...');
+  pollerProc = spawn('sh', [POLLER_SCRIPT], {
+    env: {
+      ...process.env,
+      HOME: process.env.EVAL_CONVOS_HOME || process.env.HOME,
+      PORT: String(
+        process.env.POOL_SERVER_PORT ||
+        process.env.PORT ||
+        process.env.GATEWAY_INTERNAL_PORT ||
+        '18789',
+      ),
+      POLL_INTERVAL_SECONDS: '10',
+      DISABLE_POLLER: '0',
+      SKILLS_ROOT,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  pollerProc.stdout.on('data', (d) => { process.stdout.write(d); });
+  pollerProc.stderr.on('data', (d) => { process.stderr.write(d); });
+}
 
 export default class PollerProvider {
   id() { return 'poller'; }
@@ -80,42 +60,45 @@ export default class PollerProvider {
 
     h.ensureSetup();
 
-    // Test 1: Wait for poller notification to appear in transcript.
-    // The agent sometimes proactively announces the email, sometimes stays
-    // silent (the system prompt includes "Does this even need a reply?").
-    // If no proactive announcement within 60s, nudge the agent so we still
-    // verify the full pipeline: poller → notify → agent awareness.
-    if (meta.waitForNotification) {
-      const preMsgs = h.fetchMessages();
-      const welcomeEnd = preMsgs.length;
-      h.log(`Baseline before notification wait: ${h.agentCount(preMsgs)} agent msgs, ${welcomeEnd} total`);
+    // Test 1: Ask agent to create the RSS polling skill.
+    // After it responds, start the poller so it discovers the new poll.sh.
+    if (!meta.waitForNotification) {
+      h.log(`[TESTING] Agent creates RSS poll.sh skill — prompt: "${prompt.slice(0, 80)}..."`);
+      const { output } = h.sendAndWait(prompt, meta);
+      h.log(`Done (${elapsed(t)})`);
 
-      // Wait for the agent to mention the email. 120s accounts for external
-      // email delivery latency (agentmail API indexing).
-      const { matched } = h.waitForContent(/email|mail|inbox/i, 120_000);
-
-      if (matched) {
-        h.log('Proactive announcement detected — waiting for agent to settle...');
-        const cur = h.fetchMessages();
-        h.waitForAgent(h.agentCount(cur) - 1, 60_000, 5_000);
-      } else {
-        // Nudge: the notification is in the agent's session history even if it
-        // didn't announce. Ask specifically about emails so the agent checks.
-        h.log('No proactive announcement — nudging agent...');
-        h.sendAndWait('Did any emails or notifications come in? Check your inbox.', {});
+      // Start the poller now that the skill should be created
+      if (!pollerProc) {
+        h.log('[TESTING] Starting poller to discover and run the new poll.sh skill...');
+        sleep(3_000);
+        startPoller();
       }
 
-      const finalMsgs = h.fetchMessages();
-      h.log(`After wait — agent count=${h.agentCount(finalMsgs)} total=${finalMsgs.length}`);
-      const text = h.transcript(finalMsgs, welcomeEnd);
-      h.log(`Transcript (post-welcome):\n${text || '(empty — agent did not respond to notification)'}`);
-      h.log(`Notification test done (${elapsed(t)})`);
-      return { output: text, metadata: { conversationId: h.conversationId } };
+      return { output, metadata: { conversationId: h.conversationId } };
     }
 
-    // Test 2+: Send prompt and wait for agent reply
-    const { output } = h.sendAndWait(prompt, meta);
-    h.log(`Done (${elapsed(t)})`);
-    return { output, metadata: { conversationId: h.conversationId } };
+    // Test 2: Wait for poller to run the skill and deliver a notification.
+    // The poller has a 15s startup delay + 10s interval, so we may need
+    // to wait a while. If no proactive announcement, nudge the agent.
+    const preMsgs = h.fetchMessages();
+    const welcomeEnd = preMsgs.length;
+
+    h.log('[TESTING] Waiting for poller to run poll.sh and deliver RSS notification (up to 90s)...');
+    const { matched } = h.waitForContent(/rss|feed|post|hacker|hnrss|new.*item/i, 90_000);
+
+    if (matched) {
+      h.log('Agent responded to poller notification — settling...');
+      const cur = h.fetchMessages();
+      h.waitForAgent(h.agentCount(cur) - 1, 30_000, 5_000);
+    } else {
+      h.log('No proactive announcement — nudging agent...');
+      h.sendAndWait('Any updates from the RSS feed you set up? Did any new posts come in?', {});
+    }
+
+    const finalMsgs = h.fetchMessages();
+    const text = h.transcript(finalMsgs, welcomeEnd);
+    h.log(`Transcript (post-welcome):\n${text || '(empty)'}`);
+    h.log(`Poller notification test done (${elapsed(t)})`);
+    return { output: text, metadata: { conversationId: h.conversationId } };
   }
 }

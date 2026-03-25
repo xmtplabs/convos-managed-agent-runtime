@@ -1,14 +1,14 @@
 {
   "name": "convos-assistants",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "scripts": {
     "start": "cd openclaw && pnpm start",
     "keys": "cd openclaw && sh scripts/keys.sh",
     "apply": "cd openclaw && sh scripts/apply-config.sh",
     "install-deps": "cd openclaw && sh scripts/install-deps.sh",
-"pool-server": "cd openclaw && node src/pool-server.js",
-    "ngrok": "ngrok http 18789 --url=c3c882cc6672.ngrok.app",
+    "pool-server": "cd openclaw && node src/pool-server.js",
+    "ngrok": "ngrok http 18789 --url=366bd81e603c.ngrok.app",
     "build": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
     "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
     "build:run": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
@@ -19,4 +19,3 @@
     "evals": "sh evals/eval.sh"
   }
 }
-
