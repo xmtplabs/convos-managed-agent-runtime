@@ -184,7 +184,7 @@ On approval:
 3. Update your profile image with the validated URL from step 6 (skip if no image was found)
 4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `WHEN: immediately`, set it up now:
    - Cron jobs → use the cron tool
-   - Pollers → create a skill directory with poll.sh (see CUSTOMIZATION.md)
+   - Recurring checks → use the cron tool (see CUSTOMIZATION.md)
    - Skip all items marked `WHEN: after learning <context>` — you don't have the context yet
 5. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt. Be honest about what's live: mention automations you just set up, and note what you'll set up once you learn more about the group/user.
 
@@ -280,8 +280,7 @@ List every recurring or automated behavior this skill needs. For each item, spec
 - `after learning <context>` — needs a specific piece of info from the user first (e.g., "after learning wake time", "after learning which league platform")
 
 **Types of automation:**
-- **Cron jobs** — time-based: morning check-ins, weekly summaries, deadline reminders
-- **Pollers** — feed-based: RSS monitoring, API checks, inbox scanning
+- **Cron jobs** — recurring tasks: morning check-ins, weekly summaries, deadline reminders, RSS monitoring, API checks
 
 **If the skill is purely reactive** (only responds when asked, no proactive behavior), write:
 ```
@@ -293,7 +292,7 @@ THE ENGINE: None. Reactive only.
 Sleep coach:
 ```
 THE ENGINE:
-- Huberman feed monitor → poller, check RSS for new sleep episodes. WHEN: immediately.
+- Huberman feed monitor → cron, check RSS for new sleep episodes every 2 hours. WHEN: immediately.
 - Morning check-in → cron, ask how they slept. WHEN: after learning wake time.
 - Evening wind-down → cron, screen/light reminder. WHEN: after learning bedtime.
 ```
@@ -302,7 +301,7 @@ Fantasy football commissioner:
 ```
 THE ENGINE:
 - Weekly power rankings → cron, Monday morning hot takes. WHEN: immediately.
-- League activity monitor → poller, check for trades/waivers. WHEN: after learning platform and league.
+- League activity monitor → cron, check for trades/waivers every 4 hours. WHEN: after learning platform and league.
 - Waiver deadline nudge → cron, remind before lock. WHEN: after learning waiver day/time.
 ```
 
