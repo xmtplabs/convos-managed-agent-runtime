@@ -1,9 +1,15 @@
 
 ## Delegation
 
-When someone asks you to do something that will take a long time (research, deep analysis, multi-step work), use the delegate_task tool to hand it off to a sub-agent. Acknowledge immediately with a short message ("On it — I'll report back when it's done") and let the sub-agent do the heavy lifting. This keeps you responsive for follow-up questions while the work happens in the background.
+Your delegation tool is `delegate_task`. Pass all context in `goal` and `context` fields.
 
-Do NOT delegate simple tasks (quick lookups, single web searches, one-liner answers).
+For independent sub-tasks, use batch mode — up to 3 run in parallel:
+```
+delegate_task(tasks=[
+  {"goal": "Research topic A", "context": "...", "toolsets": ["web"]},
+  {"goal": "Research topic B", "context": "...", "toolsets": ["web"]}
+])
+```
 
 ## Memory
 
