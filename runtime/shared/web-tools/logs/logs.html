@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#f5f5f5">
+  <title>logs</title>
+  <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/web-tools/logs/logs.css">
+</head>
+<body>
+  <div class="container">
+    <div class="page-header">
+      <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+        <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+      </svg>
+      <span>agent logs</span>
+    </div>
+
+    <div id="content">
+      <div class="loading-shimmer"></div>
+      <div class="loading-shimmer"></div>
+      <div class="loading-shimmer"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var content = document.getElementById("content");
+
+      // Expose functions for inline onclick handlers
+      function expose(name, fn) { window[name] = fn; }
+
+      // ── Helpers ──────────────────────────────────────────────
+
+      function esc(s) {
+        var d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      function truncate(s, n) {
+        if (!s) return "";
+        return s.length > n ? s.slice(0, n) + "..." : s;
+      }
+
+      function formatTime(ts) {
+        if (!ts) return "";
+        try {
+          var d = new Date(ts);
+          if (isNaN(d)) return ts;
+          return d.toLocaleString("en-US", {
+            month: "short", day: "numeric",
+            hour: "numeric", minute: "2-digit"
+          });
+        } catch (e) { return ts; }
+      }
+
+      // Normalize role names across runtimes:
+      // Hermes (ShareGPT): human, gpt, tool, system
+      // OpenClaw: user, assistant, toolResult
+      // Returns only known safe values (used in class attributes).
+      function normalizeRole(raw) {
+        var r = (raw || "").toLowerCase();
+        if (r === "human" || r === "user") return "user";
+        if (r === "gpt" || r === "assistant") return "assistant";
+        if (r === "tool" || r === "toolresult") return "tool";
+        if (r === "system") return "system";
+        return "unknown";
+      }
+
+      // Extract first user message as summary (stripped of envelope)
+      function extractQuery(conversations) {
+        if (!conversations || !conversations.length) return "(empty)";
+        for (var i = 0; i < conversations.length; i++) {
+          var c = conversations[i];
+          var role = normalizeRole(c.from || c.role);
+          if (role === "user") {
+            var env = parseEnvelope(c.value || c.content || "");
+            return truncate(env.message, 120);
+          }
+        }
+        return truncate(conversations[0].value || conversations[0].content || "", 120);
+      }
+
+      // Return raw JSON for clipboard
+      function trajectoryToJson(entry) {
+        return JSON.stringify(entry);
+      }
+
+      var COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+      var CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 6L9 17l-5-5"/></svg>';
+
+      function flashCopied(btn, label) {
+        var old = btn.innerHTML;
+        btn.innerHTML = CHECK_ICON + (label ? ' copied' : '');
+        btn.classList.add("copied");
+        setTimeout(function () {
+          btn.innerHTML = old;
+          btn.classList.remove("copied");
+        }, 1500);
+      }
+
+      expose("copyTrajectory", copyTrajectory);
+      function copyTrajectory(idx, evt) {
+        if (evt) evt.stopPropagation();
+        var entry = window.__trajectoryEntries[idx];
+        if (!entry) return;
+        navigator.clipboard.writeText(trajectoryToJson(entry)).then(function () {
+          var btn = document.querySelector('[data-copy="' + idx + '"]');
+          if (btn) flashCopied(btn, false);
+        }).catch(function () {});
+      }
+
+      expose("copyTurn", copyTurn);
+      function copyTurn(entryIdx, turnIdx, evt) {
+        if (evt) evt.stopPropagation();
+        var entry = window.__trajectoryEntries[entryIdx];
+        if (!entry) return;
+        var turn = (entry.conversations || [])[turnIdx];
+        if (!turn) return;
+        var text = turn.value || turn.content || "";
+        navigator.clipboard.writeText(text).then(function () {
+          var btn = document.querySelector('[data-turn="' + entryIdx + '-' + turnIdx + '"]');
+          if (btn) flashCopied(btn, false);
+        }).catch(function () {});
+      }
+
+      expose("copyAllTrajectories", copyAllTrajectories);
+      function copyAllTrajectories() {
+        var entries = window.__trajectoryEntries || [];
+        var lines = [];
+        for (var i = 0; i < entries.length; i++) {
+          lines.push(JSON.stringify(entries[i]));
+        }
+        navigator.clipboard.writeText(lines.join("\n")).then(function () {
+          var btn = document.getElementById("copy-all-btn");
+          if (btn) flashCopied(btn, true);
+        }).catch(function () {});
+      }
+
+      // Parse envelope metadata from user messages into { meta, message }.
+      // Hermes format: [Current time: ...]\n[<id> <time>] Name: actual message
+      // OpenClaw format: Conversation info (untrusted metadata): ```json...``` Sender...
+      function parseEnvelope(text) {
+        if (!text) return { meta: null, message: text };
+
+        // Hermes envelope
+        var hermes = text.match(/^\[Current time:\s*([^\]]+)\]\s*\[([a-f0-9]+)\s+([^\]]+)\]\s*([^:]+):\s*([\s\S]*)$/);
+        if (hermes) {
+          return {
+            meta: { time: hermes[1].trim(), id: hermes[2], msgTime: hermes[3].trim(), sender: hermes[4].trim() },
+            message: hermes[5].trim()
+          };
+        }
+
+        // OpenClaw envelope — parse JSON metadata blocks
+        var meta = {};
+        var cleaned = text;
+
+        var convoMatch = cleaned.match(/Conversation info \(untrusted metadata\):\s*```json?\s*([\s\S]*?)```/);
+        if (convoMatch) {
+          try {
+            var ci = JSON.parse(convoMatch[1]);
+            if (ci.sender) meta.sender = ci.sender;
+            if (ci.message_id) meta.id = ci.message_id.slice(0, 12);
+            if (ci.conversation_label) meta.label = ci.conversation_label;
+          } catch (e) {}
+          cleaned = cleaned.replace(convoMatch[0], "");
+        }
+
+        var senderMatch = cleaned.match(/Sender \(untrusted metadata\):\s*```json?\s*([\s\S]*?)```/);
+        if (senderMatch) {
+          try {
+            var si = JSON.parse(senderMatch[1]);
+            if (si.name && !meta.sender) meta.sender = si.name;
+          } catch (e) {}
+          cleaned = cleaned.replace(senderMatch[0], "");
+        }
+
+        // Strip any remaining envelope lines
+        cleaned = cleaned.replace(/\[Current time:[^\]]*\]\s*/g, "");
+        cleaned = cleaned.replace(/\[[a-f0-9]{10,}[^\]]*\]\s*/g, "");
+        cleaned = cleaned.trim();
+
+        if (Object.keys(meta).length > 0) {
+          return { meta: meta, message: cleaned || text };
+        }
+
+        // No envelope found
+        return { meta: null, message: text };
+      }
+
+      // Parse a tool call JSON string into a nice display
+      function formatToolCall(jsonStr) {
+        try {
+          var obj = JSON.parse(jsonStr);
+          var name = obj.name || "unknown";
+          var args = obj.arguments || {};
+          var argParts = [];
+          for (var k in args) {
+            var v = args[k];
+            if (typeof v === "object") v = JSON.stringify(v);
+            argParts.push(esc(k) + '=' + esc(String(v)));
+          }
+          return '<span class="tc-name">' + esc(name) + '</span>' +
+                 (argParts.length ? '<span class="tc-args">' + argParts.join(', ') + '</span>' : '');
+        } catch (e) {
+          return esc(jsonStr);
+        }
+      }
+
+      // Detect actual errors in tool responses (not error-handling code)
+      function hasError(text) {
+        if (!text) return false;
+        // Check for JSON with error/status fields
+        try {
+          var obj = JSON.parse(text.replace(/<\/?tool_response>/g, "").trim());
+          if (obj.status === "error" || obj.error) return true;
+          var c = obj.content;
+          if (c && typeof c === "object" && (c.status === "error" || c.error)) return true;
+          if (c && typeof c === "string" && /^(Error|Traceback)/.test(c)) return true;
+        } catch (e) {}
+        // Only match unambiguous error output patterns (not source code)
+        var stripped = text.replace(/<\/?tool_response>/g, "").trim();
+        if (/^Error:|^Traceback \(most recent/m.test(stripped)) return true;
+        if (/^\s*"?status"?\s*:\s*"error"/m.test(stripped)) return true;
+        return false;
+      }
+
+      // Parse tool response content
+      function formatToolResponse(text) {
+        if (!text) return "";
+        // Strip <tool_response> wrapper
+        var inner = text.replace(/<\/?tool_response>/g, "").trim();
+        try {
+          var obj = JSON.parse(inner);
+          var name = obj.name || "";
+          var content = obj.content;
+          if (typeof content === "string") {
+            return (name ? '<span class="tc-name">' + esc(name) + '</span> ' : '') + esc(content);
+          }
+          if (typeof content === "object") {
+            return (name ? '<span class="tc-name">' + esc(name) + '</span> ' : '') +
+                   esc(JSON.stringify(content, null, 2));
+          }
+          return esc(inner);
+        } catch (e) {
+          return esc(inner);
+        }
+      }
+
+      function renderContent(text, role) {
+        if (!text) return '<span class="empty">(empty)</span>';
+
+        // User messages: parse envelope into metadata + clean message
+        if (role === "user") {
+          var env = parseEnvelope(text);
+          var html = "";
+          if (env.meta) {
+            var parts = [];
+            if (env.meta.sender) parts.push(env.meta.sender);
+            if (env.meta.time || env.meta.msgTime) parts.push(env.meta.time || env.meta.msgTime);
+            if (env.meta.id) parts.push(env.meta.id);
+            if (env.meta.label) parts.push(env.meta.label);
+            html += '<div class="turn-meta">' + esc(parts.join(" · ")) + '</div>';
+          }
+          html += esc(env.message);
+          return html;
+        }
+
+        // Tool responses
+        if (role === "tool") {
+          return formatToolResponse(text);
+        }
+
+        // Assistant messages — may contain think blocks and tool_call blocks
+        var thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/);
+        var thinkHtml = "";
+        var mainText = text;
+        if (thinkMatch) {
+          var thinking = thinkMatch[1].trim();
+          if (thinking) {
+            thinkHtml = '<div class="think-block">' + esc(thinking) + '</div>';
+          }
+          mainText = text.replace(/<think>[\s\S]*?<\/think>\s*/, "");
+        }
+
+        // Parse tool_call XML blocks (Hermes format)
+        var toolCalls = [];
+        mainText = mainText.replace(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g, function(_, body) {
+          toolCalls.push(body.trim());
+          return "";
+        });
+
+        // Check if the remaining text is a raw JSON tool call (OpenClaw format)
+        var remaining = mainText.trim();
+        if (remaining && remaining[0] === "{" && !toolCalls.length) {
+          try {
+            var parsed = JSON.parse(remaining);
+            if (parsed.name && parsed.arguments) {
+              toolCalls.push(remaining);
+              remaining = "";
+            }
+          } catch (e) {}
+        }
+
+        var html = thinkHtml;
+        if (remaining) {
+          html += esc(remaining);
+        }
+        for (var i = 0; i < toolCalls.length; i++) {
+          html += '<div class="tool-call">' + formatToolCall(toolCalls[i]) + '</div>';
+        }
+        return html || '<span class="empty">(empty)</span>';
+      }
+
+      // ── Render entries ──────────────────────────────────────
+
+      function renderEntries(entries) {
+        if (!entries || !entries.length) {
+          content.innerHTML = '<div class="status-msg">no logs yet</div>';
+          return;
+        }
+
+        // Store entries globally for copy
+        window.__trajectoryEntries = entries;
+
+        var DL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        var html = '<div class="copy-all-row">';
+        html += '<a class="copy-all-btn" href="/web-tools/logs/download" download>' + DL_ICON + ' download zip</a>';
+        html += '<button class="copy-all-btn" id="copy-all-btn" onclick="copyAllTrajectories()">' + COPY_ICON + ' copy all</button>';
+        html += '</div>';
+        html += '<div class="entry-list">';
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i];
+          var convos = e.conversations || [];
+          var query = extractQuery(convos);
+          var completed = e.completed !== false;
+
+          html += '<div class="entry" data-idx="' + i + '">';
+          html += '<div class="entry-header">';
+          html += '<svg class="entry-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" onclick="this.closest(\'.entry\').classList.toggle(\'open\')"><path d="M9 18l6-6-6-6"/></svg>';
+          html += '<div class="entry-meta" onclick="this.closest(\'.entry\').classList.toggle(\'open\')">';
+          html += '<div class="entry-query">' + esc(query) + '</div>';
+          html += '<div class="entry-info">';
+          if (e.timestamp) html += '<span>' + esc(formatTime(e.timestamp)) + '</span>';
+          if (e.model) html += '<span>' + esc(e.model) + '</span>';
+          html += '<span>' + convos.length + ' turns</span>';
+          html += '</div></div>';
+          html += '<button class="copy-btn" data-copy="' + i + '" onclick="copyTrajectory(' + i + ', event)" title="Copy trajectory">' + COPY_ICON + '</button>';
+          html += '<span class="entry-status ' + (completed ? 'completed' : 'failed') + '">' + (completed ? 'ok' : 'fail') + '</span>';
+          html += '</div>';
+
+          // Turns
+          html += '<div class="entry-turns">';
+          for (var j = 0; j < convos.length; j++) {
+            var t = convos[j];
+            var role = normalizeRole(t.from || t.role);
+            var val = t.value || t.content || "";
+            var isSystem = role === "system";
+            var rendered = renderContent(val, role);
+            // Detect assistant turns that are purely tool calls (no visible text)
+            var isToolCall = role === "assistant" && rendered.indexOf('tool-call') !== -1 &&
+                             rendered.replace(/<div class="tool-call">[\s\S]*?<\/div>/g, "").replace(/<div class="think-block">[\s\S]*?<\/div>/g, "").trim() === "";
+            var isError = role === "tool" && hasError(val);
+            var isTool = role === "tool" || isToolCall;
+            var turnClass = "turn turn-" + role + (isToolCall ? " turn-assistant-toolcall" : "") + (isError ? " turn-error" : "");
+            html += '<div class="' + turnClass + '">';
+            var roleLabel = isToolCall ? "tool call" : role === "tool" ? "tool response" : role;
+            var turnId = 'turn-' + i + '-' + j;
+            html += '<div class="turn-header">';
+            html += '<div class="turn-role ' + esc(role) + '">' + esc(roleLabel);
+            if (t.timestamp) html += ' <span class="turn-ts">' + esc(formatTime(t.timestamp)) + '</span>';
+            html += '</div>';
+            html += '<button class="copy-btn copy-turn" data-turn="' + i + '-' + j + '" onclick="copyTurn(' + i + ',' + j + ',event)" title="Copy">' + COPY_ICON + '</button>';
+            html += '</div>';
+            var contentClass = 'turn-content';
+            if (isSystem) contentClass += ' collapsed';
+            html += '<div class="' + contentClass + '" id="' + turnId + '"' +
+                     (isSystem ? ' onclick="this.classList.toggle(\'collapsed\')"' : '') + '>';
+            html += rendered;
+            html += '</div></div>';
+          }
+          html += '</div></div>';
+        }
+        html += '</div>';
+        html += '<div class="footer">shared by the assistant owner</div>';
+        content.innerHTML = html;
+
+        // Only collapse tool turns that actually overflow.
+        var toolTurns = content.querySelectorAll('.turn-tool, .turn-assistant-toolcall');
+        for (var k = 0; k < toolTurns.length; k++) {
+          var contentEl = toolTurns[k].querySelector('.turn-content');
+          if (!contentEl) continue;
+          contentEl.classList.add('collapsed');
+          if (contentEl.scrollHeight > contentEl.clientHeight) {
+            contentEl.classList.add('overflowing');
+          } else {
+            contentEl.classList.remove('collapsed');
+          }
+        }
+      }
+
+      // ── Fetch ───────────────────────────────────────────────
+
+      fetch("/web-tools/logs/api")
+        .then(function (r) {
+          if (r.status === 403) {
+            content.innerHTML = '<div class="status-msg">log sharing is not enabled</div>';
+            return null;
+          }
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(function (data) {
+          if (!data) return;
+          renderEntries(data.entries || []);
+        })
+        .catch(function (err) {
+          content.innerHTML = '<div class="status-msg error">failed to load logs</div>';
+        });
+    })();
+  </script>
+</body>
+</html>

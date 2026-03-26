@@ -52,7 +52,6 @@ Heavy tasks block you from answering other messages. When a request involves mul
 
 This keeps you responsive. Examples of tasks to **always** delegate:
 - "Research the top 5 AI frameworks and compare them"
-- "Google the latest news on …" / "Search for …" / "Look up …"
 - "Plan a 7-day trip itinerary for Tokyo"
 - "Browse these 5 websites and summarize each"
 

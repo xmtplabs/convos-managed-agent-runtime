@@ -62,16 +62,34 @@ tests:
       - type: icontains
         value: "text"
 
+  - description: "Agent can share logs"
+    vars:
+      prompt: "Share my logs"
+    assert:
+      - type: icontains
+        value: "/web-tools/logs"
+      - type: regex
+        value: "http"
+
+  - description: "Agent can stop sharing logs"
+    vars:
+      prompt: "Stop sharing my logs"
+    assert:
+      - type: icontains
+        value: "sharing"
+      - type: regex
+        value: "off|disabled|stopped|no longer"
+
   - description: "Agent can browse a webpage"
     vars:
-      prompt: "Browse https://example.com and tell me what the page says."
+      prompt: "Browse https://example.com and tell me what the page says. Don't delegate this task."
     assert:
       - type: regex
         value: "[Ee]xample [Dd]omain|example\\.com|[Dd]ocumentation|[Ii]ana"
 
   - description: "Agent can search the web"
     vars:
-      prompt: "Search the current BTC price. Reply: BTC: $<price>."
+      prompt: "Search the current BTC price. Reply: BTC: $<price>. Don't delegate this task."
     assert:
       - type: regex
         value: "\\$[\\d,]+"
