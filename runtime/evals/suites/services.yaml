@@ -10,6 +10,7 @@ evaluateOptions:
 
 providers:
   - file://../providers/webhook.provider.mjs
+  - file://../providers/prompt.provider.mjs
 
 defaultTest:
   options:
@@ -21,6 +22,8 @@ defaultTest:
 tests:
   # ── Webhook notifications ────────────────────────────────────────────
   - description: "Agent receives webhook email notification"
+    providers:
+      - file://../providers/webhook.provider.mjs
     vars:
       prompt: "(waiting for webhook notification)"
     metadata:
@@ -36,6 +39,8 @@ tests:
           PASS if the AGENT mentions an email, a new message, or inbox activity.
 
   - description: "Agent recalls email details from webhook notification"
+    providers:
+      - file://../providers/webhook.provider.mjs
     vars:
       prompt: "What did that email say? Who was it from?"
     assert:
@@ -51,6 +56,8 @@ tests:
           sender, subject, or body content.
 
   - description: "Agent receives webhook SMS notification"
+    providers:
+      - file://../providers/webhook.provider.mjs
     vars:
       prompt: "(waiting for webhook notification)"
     metadata:
