@@ -921,7 +921,7 @@
       var harness = document.getElementById('runtime-harness').value;
       var rawImage = harness === '__custom__'
         ? (document.getElementById('runtime-image-custom').value || '')
-        : 'ghcr.io/xmtplabs/' + harness + ':' + document.getElementById('runtime-env').value;
+        : (C.harnessImages[harness] || harness) + ':' + document.getElementById('runtime-env').value;
       var image = encodeURIComponent(rawImage.replace(/^https?:\/\//, ''));
       var model = encodeURIComponent(document.getElementById('instance-model').value);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);

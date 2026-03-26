@@ -397,7 +397,7 @@
       var harness = document.getElementById('upgrade-harness').value;
       if (harness === '__custom__') return (document.getElementById('upgrade-image-custom').value || '').replace(/^https?:\/\//, '');
       if (!harness) return ''; // Default (pool config)
-      return 'ghcr.io/xmtplabs/' + harness + ':' + document.getElementById('upgrade-env').value;
+      return (C.harnessImages[harness] || harness) + ':' + document.getElementById('upgrade-env').value;
     }
 
     async function upgradeGroup(ids, btn) {
