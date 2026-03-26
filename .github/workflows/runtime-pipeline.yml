@@ -64,6 +64,11 @@ on:
         required: false
         type: string
         default: "type=gha,mode=max"
+      eval_suites:
+        description: "JSON array of suite names to run, or 'all' for every suite"
+        required: false
+        type: string
+        default: "all"
 
 jobs:
   build:
@@ -112,10 +117,11 @@ jobs:
           - { suite: models,       timeout: 900, only: "", fresh: false }
           - { suite: delegation,   timeout: 900, only: "", fresh: false }
           - { suite: cron,         timeout: 900, only: "", fresh: false }
-          - { suite: webhooks,     timeout: 900, only: "", fresh: false }
+          - { suite: services,     timeout: 900, only: "", fresh: false }
           - { suite: memory,       timeout: 900, only: "", fresh: false }
           - { suite: silence,      timeout: 900, only: "", fresh: false }
           - { suite: provision,    timeout: 900, only: "", fresh: true }
+    if: inputs.eval_suites == 'all' || contains(inputs.eval_suites, matrix.suite)
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
