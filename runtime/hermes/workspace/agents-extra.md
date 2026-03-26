@@ -1,5 +1,5 @@
 
-## Delegation
+## Delegation Tool
 
 Your delegation tool is `delegate_task`. Pass all context in `goal` and `context` fields.
 
