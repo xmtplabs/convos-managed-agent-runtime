@@ -1,9 +1,43 @@
 import { Router, raw } from "express";
+import { verify } from "node:crypto";
 import { Webhook } from "svix";
 import { config } from "./config";
 import { handleRailwayWebhook } from "./webhook";
 import { metricCount } from "./metrics";
 import * as db from "./db/pool";
+
+/**
+ * Ed25519 SPKI DER prefix — fixed 12-byte header for wrapping a raw 32-byte
+ * Ed25519 public key into the SubjectPublicKeyInfo format Node's crypto expects.
+ */
+const ED25519_SPKI_PREFIX = Buffer.from(
+  "302a300506032b6570032100",
+  "hex",
+);
+
+/** Verify a Telnyx webhook signature (Ed25519). Throws on failure. */
+function verifyTelnyxSignature(
+  rawBody: Buffer,
+  signatureHeader: string,
+  timestampHeader: string,
+  publicKeyBase64: string,
+  toleranceSec = 300,
+): void {
+  // Replay protection
+  const ts = Number(timestampHeader);
+  const now = Math.floor(Date.now() / 1000);
+  if (Number.isNaN(ts) || Math.abs(now - ts) > toleranceSec) {
+    throw new Error("Timestamp outside tolerance window");
+  }
+
+  const payload = Buffer.concat([Buffer.from(`${timestampHeader}|`), rawBody]);
+  const signature = Buffer.from(signatureHeader, "base64");
+  const rawKey = Buffer.from(publicKeyBase64, "base64");
+  const spkiKey = Buffer.concat([ED25519_SPKI_PREFIX, rawKey]);
+
+  const valid = verify(null, payload, { key: spkiKey, format: "der", type: "spki" }, signature);
+  if (!valid) throw new Error("Invalid signature");
+}
 
 export const webhookRouter = Router();
 
@@ -137,10 +171,32 @@ webhookRouter.post(
  *
  * Telnyx webhook endpoint. Receives inbound SMS events and forwards
  * notifications to the instance that owns the phone number.
- * Auth: URL secret (same pattern as Railway).
+ * Auth: Ed25519 signature verification (telnyx-signature-ed25519 header).
  */
-webhookRouter.post("/webhooks/telnyx", async (req, res) => {
-  const payload = req.body;
+webhookRouter.post("/webhooks/telnyx", raw({ type: "application/json" }), async (req, res) => {
+  const publicKey = config.telnyxWebhookPublicKey;
+  if (!publicKey) {
+    console.warn("[telnyx-webhook] TELNYX_WEBHOOK_PUBLIC_KEY not set, rejecting");
+    res.status(500).json({ error: "Webhook not configured" });
+    return;
+  }
+
+  const signature = req.headers["telnyx-signature-ed25519"] as string | undefined;
+  const timestamp = req.headers["telnyx-timestamp"] as string | undefined;
+  if (!signature || !timestamp) {
+    res.status(400).json({ error: "Missing telnyx signature headers" });
+    return;
+  }
+
+  try {
+    verifyTelnyxSignature(req.body as Buffer, signature, timestamp, publicKey);
+  } catch (err: any) {
+    console.error("[telnyx-webhook] Signature verification failed:", err.message);
+    res.status(401).json({ error: "Invalid signature" });
+    return;
+  }
+
+  const payload = JSON.parse((req.body as Buffer).toString());
   const eventType = payload?.data?.event_type || "unknown";
   console.log(`[telnyx-webhook] Received event: ${eventType}`);
   metricCount("telnyx_webhook.received", 1, { event: eventType });
