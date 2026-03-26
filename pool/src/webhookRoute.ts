@@ -30,7 +30,7 @@ function verifyTelnyxSignature(
     throw new Error("Timestamp outside tolerance window");
   }
 
-  const payload = Buffer.from(`${timestampHeader}|${rawBody}`);
+  const payload = Buffer.concat([Buffer.from(`${timestampHeader}|`), rawBody]);
   const signature = Buffer.from(signatureHeader, "base64");
   const rawKey = Buffer.from(publicKeyBase64, "base64");
   const spkiKey = Buffer.concat([ED25519_SPKI_PREFIX, rawKey]);
