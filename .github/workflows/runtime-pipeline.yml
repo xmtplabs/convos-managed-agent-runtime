@@ -104,19 +104,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { suite: knows,        timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: skills,       timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: soul,         timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: lifecycle,    timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: convos,       timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: models,       timeout: 900, only: openclaw, fresh: false, poller: false }
-          - { suite: async-delegation,   timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: async-cron,         timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: async-poller,       timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: poller-hooks,       timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: memory,             timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: silence,            timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: provision,          timeout: 900, only: "", fresh: true, poller: false }
+          - { suite: knows,        timeout: 900, only: "", fresh: false }
+          - { suite: skills,       timeout: 900, only: "", fresh: false }
+          - { suite: soul,         timeout: 900, only: "", fresh: false }
+          - { suite: lifecycle,    timeout: 900, only: "", fresh: false }
+          - { suite: convos,       timeout: 900, only: "", fresh: false }
+          - { suite: models,       timeout: 900, only: "", fresh: false }
+          - { suite: delegation,   timeout: 900, only: "", fresh: false }
+          - { suite: cron,         timeout: 900, only: "", fresh: false }
+          - { suite: webhooks,     timeout: 900, only: "", fresh: false }
+          - { suite: memory,       timeout: 900, only: "", fresh: false }
+          - { suite: silence,      timeout: 900, only: "", fresh: false }
+          - { suite: provision,    timeout: 900, only: "", fresh: true }
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
@@ -137,7 +136,6 @@ jobs:
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            ${{ !matrix.poller && '-e DISABLE_POLLER=1' || '' }} \
             ${{ !matrix.fresh && format('-e POOL_URL="{0}"', secrets.POOL_URL) || '' }} \
             ${{ !matrix.fresh && format('-e INSTANCE_ID="{0}"', secrets.INSTANCE_ID) || '' }} \
             ${{ !matrix.fresh && format('-e AGENTMAIL_API_KEY="{0}"', secrets.AGENTMAIL_API_KEY) || '' }} \

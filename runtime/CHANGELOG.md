@@ -1,3 +1,13 @@
+## 0.2.1 — Webhooks
+- Real-time email and SMS: notifications are now pushed instantly via webhooks instead of polling every 60 seconds
+- Recurring tasks use cron jobs: scheduled agent tasks (morning check-ins, RSS feeds) run on proper cron instead of the poller loop
+- On-demand inbox checks still available: agents can manually check email and SMS when asked
+- Interrupt-and-queue: agents stop mid-reply when you send a follow-up — no more duplicate or stale responses from rapid messages
+- Trajectory sharing: agents can share conversation logs via a link — opt-in only, nothing is shared without explicit consent
+- Delegation fix: Hermes agents now properly delegate heavy tasks to sub-agents instead of blocking
+- Cron fix: Hermes scheduled tasks now seed correctly on boot
+- Reply marker fix: restored reply-to context in agent platform prompts
+
 ## 0.2.0 — Skill Builder
 - Skill builder: assistants create custom skills in-conversation — discovery questions, scoping, generation, and approval gate
 - Model failover: three-deep chain across two providers — overloaded errors rewritten to friendly messages

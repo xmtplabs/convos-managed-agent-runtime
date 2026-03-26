@@ -1,6 +1,6 @@
 // runtime/evals/lib/convos-harness.mjs
 // Shared harness for e2e eval providers that interact with the agent via XMTP
-// conversations (convos, poller, poller-hooks). Extracts the duplicated
+// conversations (convos, webhook). Extracts the duplicated
 // setup / messaging / transcript helpers into one place.
 
 import { execFileSync, spawn } from 'child_process';
@@ -24,19 +24,14 @@ export function resolveSkillsRoot() {
     : resolve(__dirname, '../../shared/workspace/skills');
 }
 
-export function resolvePollerScript() {
-  return existsSync('/app/shared-scripts/poller.sh')
-    ? '/app/shared-scripts/poller.sh'
-    : resolve(__dirname, '../../shared/scripts/poller.sh');
-}
 
 // ---------------------------------------------------------------------------
 // Harness factory — each provider calls createHarness() once at module level.
 //
 // Options:
-//   tag                — log prefix (e.g. 'convos', 'poller')
+//   tag                — log prefix (e.g. 'convos', 'webhook')
 //   conversationPrefix — name prefix for the XMTP conversation
-//   cleanup()          — extra teardown (e.g. kill poller process)
+//   cleanup()          — extra teardown (e.g. kill background processes)
 //   afterSetup({ sharedConversationId, EVAL_HOME, log }) — runs after join
 // ---------------------------------------------------------------------------
 

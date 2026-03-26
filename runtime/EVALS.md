@@ -1,6 +1,6 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (13 suites).
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (12 suites).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
@@ -12,10 +12,10 @@
 | **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — join, welcome message, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
-| **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch OpenRouter models |
-| **async-delegation** | `async-delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
-| **async-cron** | `async-cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
-| **async-poller** | `async-poller.yaml` | Sequential (1x) | Email poller — self-send, detect, notify, answer |
+| **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
+| **delegation** | `delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
+| **cron** | `cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
+| **webhooks** | `webhooks.yaml` | Sequential (1x) | Webhook notifications — email and SMS delivered via /convos/notify |
 
 ## Running
 
@@ -72,16 +72,15 @@ evals/
 │   ├── silence.yaml
 │   ├── memory.yaml
 │   ├── models.yaml
-│   ├── async-delegation.yaml
-│   ├── async-cron.yaml
-│   ├── async-poller.yaml
-│   └── async-poller.yaml
+│   ├── delegation.yaml
+│   ├── cron.yaml
+│   └── webhooks.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
 │   ├── convos.provider.mjs
 │   ├── async.provider.mjs
 │   ├── memory.provider.mjs
-│   └── poller.provider.mjs
+│   └── webhook.provider.mjs
 ├── lib/
 │   ├── assertions.mjs
 │   ├── convos-harness.mjs # shared XMTP conversation harness
@@ -93,7 +92,6 @@ evals/
 │   ├── hermes.mjs          # hermes adapter (see comparison table inside)
 │   └── env.sh              # shared env setup per runtime
 └── fixtures/
-    ├── eval-poller-note.txt
     └── test-image.png
 ```
 
@@ -118,4 +116,4 @@ All suites run as parallel matrix jobs in PR and dispatch workflows:
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
 
-All 13 suites auto-discover from `suites/*.yaml` — no matrix config needed.
+All 12 suites auto-discover from `suites/*.yaml` — no matrix config needed.

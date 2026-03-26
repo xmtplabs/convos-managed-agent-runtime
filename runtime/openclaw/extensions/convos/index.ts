@@ -135,6 +135,10 @@ async function factoryReset() {
     try { fs.rmSync(target, { recursive: true, force: true }); } catch {}
   }
 
+  // Clear trajectory sharing flag
+  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
+  try { fs.unlinkSync(path.join(stateDir, ".share-trajectories")); } catch (e: any) { if (e.code !== "ENOENT") console.error(`[convos] Failed to clear share flag: ${e}`); }
+
   const status = buildRuntimeStatus();
   console.log(`[convos] Factory reset complete (clean=${status.clean})`);
   return { ok: true, reset: true, status };
@@ -215,7 +219,9 @@ async function fetchAndApplyAttestation(): Promise<void> {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      console.error(`[convos] Attestation request failed: ${res.status} ${await res.text()}`);
+      const body = await res.text();
+      const preview = body.length > 120 ? body.slice(0, 120) + "…" : body;
+      console.warn(`[convos] Attestation request failed: ${res.status} ${preview}`);
       return;
     }
     const att = await res.json() as { attestation?: string; attestation_ts?: string; attestation_kid?: string };
