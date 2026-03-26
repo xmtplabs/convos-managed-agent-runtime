@@ -38,9 +38,13 @@ function timestamp(): string {
  * sender with a timestamp. No-op for any other phone number.
  */
 export function maybeAutoReplySms({ to, from }: { to: string; from: string }) {
+  console.log(`[auto-reply] SMS check: to=${to} from=${from} match=${to === AUTO_REPLY_PHONE}`);
   if (to !== AUTO_REPLY_PHONE) return;
   if (from === AUTO_REPLY_PHONE) return; // prevent self-reply loop
-  if (!config.telnyxApiKey) return;
+  if (!config.telnyxApiKey) {
+    console.log("[auto-reply] SMS skipped: no telnyxApiKey");
+    return;
+  }
 
   fetch("https://api.telnyx.com/v2/messages", {
     method: "POST",
@@ -75,9 +79,13 @@ export function maybeAutoReplyEmail({
   from: string;
   subject?: string;
 }) {
+  console.log(`[auto-reply] Email check: inboxId=${inboxId} from=${from} match=${inboxId === AUTO_REPLY_INBOX_ID}`);
   if (inboxId !== AUTO_REPLY_INBOX_ID) return;
   if (from === AUTO_REPLY_EMAIL) return; // prevent self-reply loop
-  if (!config.agentmailApiKey) return;
+  if (!config.agentmailApiKey) {
+    console.log("[auto-reply] Email skipped: no agentmailApiKey");
+    return;
+  }
 
   fetch(`https://api.agentmail.to/v0/inboxes/${inboxId}/messages/send`, {
     method: "POST",
