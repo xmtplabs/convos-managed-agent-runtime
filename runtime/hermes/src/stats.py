@@ -54,10 +54,10 @@ class StatsAccumulator:
         self._gauges[metric] = value
 
     def _refresh_memory(self) -> None:
-        # resource.getrusage returns maxrss in bytes on Linux, KB on macOS
+        # resource.getrusage returns maxrss in KB on Linux, bytes on macOS
         rss_bytes = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        if os.uname().sysname == "Darwin":
-            rss_bytes *= 1024  # macOS reports KB
+        if os.uname().sysname != "Darwin":
+            rss_bytes *= 1024  # Linux reports KB
         self._gauges["memory_gb"] = round(rss_bytes / 1_073_741_824, 2)
 
     def _refresh_cron_count(self) -> None:
@@ -66,6 +66,8 @@ class StatsAccumulator:
         try:
             with open(self._cron_jobs_file) as f:
                 data = json.load(f)
+            if not isinstance(data, dict):
+                return
             enabled = [j for j in data.get("jobs", []) if j.get("enabled", True)]
             self._gauges["cron_job_count"] = len(enabled)
         except (OSError, json.JSONDecodeError):
