@@ -86,9 +86,11 @@ jobs:
               - 'runtime/shared/workspace/SOUL.md'
               - 'runtime/shared/workspace/AGENTS-base.md'
             skills:
-              - 'runtime/shared/workspace/skills/**'
-              - '!runtime/shared/workspace/skills/services/**'
               - 'runtime/shared/web-tools/skills/**'
+            skills_maybe:
+              - 'runtime/shared/workspace/skills/**'
+            skills_services_only:
+              - 'runtime/shared/workspace/skills/services/**'
             memory:
               - 'runtime/openclaw/extensions/convos/src/**/memory*'
               - 'runtime/hermes/src/**/memory*'
@@ -121,15 +123,25 @@ jobs:
             exit 0
           fi
 
+          # Resolve skills: web-tools/skills always triggers skills.
+          # workspace/skills/** triggers skills ONLY if non-services files changed.
+          SKILLS="false"
+          if [ "${{ steps.eval-paths.outputs.skills }}" = "true" ]; then
+            SKILLS="true"
+          elif [ "${{ steps.eval-paths.outputs.skills_maybe }}" = "true" ] && [ "${{ steps.eval-paths.outputs.skills_services_only }}" = "false" ]; then
+            SKILLS="true"
+          fi
+
           # Build list from dorny outputs — mapped suites only run when triggered
           SUITES=""
-          for suite in soul skills memory convos lifecycle services cron models; do
-            val="${{ steps.eval-paths.outputs.changes }}"
-            # dorny outputs a JSON array in 'changes', check membership
+          for suite in soul memory convos lifecycle services cron models; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
               SUITES="$SUITES $suite"
             fi
           done
+          if [ "$SKILLS" = "true" ]; then
+            SUITES="$SUITES skills"
+          fi
 
           if [ -z "$SUITES" ]; then
             echo "eval_suites=all" >> "$GITHUB_OUTPUT"
