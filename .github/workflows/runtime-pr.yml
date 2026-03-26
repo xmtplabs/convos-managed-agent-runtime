@@ -10,6 +10,7 @@ on:
     paths:
       - 'runtime/**'
       - '!runtime/*.md'
+      - '!runtime/evals/**'
 
 concurrency:
   group: runtime-pr-${{ github.event.pull_request.number }}
@@ -31,6 +32,7 @@ jobs:
       publish_tags: ${{ steps.meta.outputs.publish_tags }}
       run_openclaw: ${{ steps.changes.outputs.run_openclaw }}
       run_hermes: ${{ steps.changes.outputs.run_hermes }}
+      eval_matrix: ${{ steps.suites.outputs.eval_matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -73,6 +75,73 @@ jobs:
           echo "run_hermes=$HAS_HERMES" >> "$GITHUB_OUTPUT"
           echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | openclaw=$HAS_OPENCLAW hermes=$HAS_HERMES shared=$HAS_SHARED"
 
+      # ── Selective eval triggering (dev branch only) ──────────────────
+      # Only matched suites run. Unmatched files → run all (safe fallback).
+      # Non-dev branches always run all suites (promotion gates).
+      - uses: dorny/paths-filter@v3
+        id: eval-paths
+        with:
+          filters: |
+            soul:
+              - 'runtime/shared/workspace/SOUL.md'
+              - 'runtime/shared/workspace/AGENTS-base.md'
+            skills:
+              - 'runtime/shared/workspace/skills/convos-runtime/**'
+              - 'runtime/shared/workspace/skills/share-logs/**'
+              - 'runtime/shared/workspace/skills/skill-builder/**'
+            memory:
+              - 'runtime/openclaw/extensions/convos/src/**/memory*'
+              - 'runtime/hermes/src/**/memory*'
+            convos:
+              - 'runtime/openclaw/extensions/convos/**'
+              - 'runtime/hermes/src/**'
+              - 'runtime/shared/web-tools/convos/**'
+              - 'runtime/shared/workspace/skills/profile-update/**'
+            lifecycle:
+              - 'runtime/openclaw/scripts/**'
+              - 'runtime/hermes/scripts/**'
+              - 'runtime/shared/scripts/**'
+            services:
+              - 'runtime/shared/workspace/skills/services/**'
+            cron:
+              - 'runtime/shared/web-tools/skills/**'
+            models:
+              - 'runtime/openclaw/openclaw.json'
+              - 'runtime/hermes/workspace/config.yaml'
+      - name: Build eval suite matrix
+        id: suites
+        run: |
+          BASE="${{ github.event.pull_request.base.ref }}"
+
+          # All suites with their config (fresh=true only for provision)
+          ALL='[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
+
+          # Non-dev branches → run all
+          if [ "$BASE" != "dev" ]; then
+            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
+            echo "Eval suites: all (base=$BASE)"
+            exit 0
+          fi
+
+          # Build list from dorny outputs — only matched suites run
+          MATCHED=""
+          for suite in soul skills memory convos lifecycle services cron models; do
+            if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
+              MATCHED="$MATCHED $suite"
+            fi
+          done
+
+          if [ -z "$MATCHED" ]; then
+            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
+            echo "Eval suites: all (no mapped suite matched — safe fallback)"
+            exit 0
+          fi
+
+          # Filter the full matrix to only matched suites
+          MATRIX=$(echo "$ALL" | jq -c "[.[] | select(.suite as \$s | \"$MATCHED\" | split(\" \") | map(select(. != \"\")) | index(\$s) != null)]")
+          echo "eval_matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "Eval suites: $MATCHED"
+
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
     name: OpenClaw
@@ -92,6 +161,7 @@ jobs:
       buildx_driver: docker
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
+      eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
 
   hermes:
     name: Hermes
@@ -106,6 +176,7 @@ jobs:
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
       needs_checkout: true
+      eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
 
   # ── Promote on merge ─────────────────────────────────────────────────
   promote:

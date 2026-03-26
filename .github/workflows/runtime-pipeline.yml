@@ -64,6 +64,11 @@ on:
         required: false
         type: string
         default: "type=gha,mode=max"
+      eval_matrix:
+        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]"
+        required: false
+        type: string
+        default: '[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
 
 jobs:
   build:
@@ -103,19 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { suite: knows,        timeout: 900, only: "", fresh: false }
-          - { suite: skills,       timeout: 900, only: "", fresh: false }
-          - { suite: soul,         timeout: 900, only: "", fresh: false }
-          - { suite: lifecycle,    timeout: 900, only: "", fresh: false }
-          - { suite: convos,       timeout: 900, only: "", fresh: false }
-          - { suite: models,       timeout: 900, only: "", fresh: false }
-          - { suite: delegation,   timeout: 900, only: "", fresh: false }
-          - { suite: cron,         timeout: 900, only: "", fresh: false }
-          - { suite: webhooks,     timeout: 900, only: "", fresh: false }
-          - { suite: memory,       timeout: 900, only: "", fresh: false }
-          - { suite: silence,      timeout: 900, only: "", fresh: false }
-          - { suite: provision,    timeout: 900, only: "", fresh: true }
+        include: ${{ fromJson(inputs.eval_matrix) }}
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
