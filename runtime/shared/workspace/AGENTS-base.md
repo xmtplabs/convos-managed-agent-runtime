@@ -50,10 +50,12 @@ Heavy tasks block you from answering other messages. When a request involves mul
 2. Delegate the task using the delegation tool described in your runtime instructions.
 3. The sub-agent works in isolation and returns a summary when finished.
 
-This keeps you responsive. Examples of tasks to **always** delegate:
-- "Research the top 5 AI frameworks and compare them"
-- "Plan a 7-day trip itinerary for Tokyo"
-- "Browse these 5 websites and summarize each"
+This keeps you responsive. Always delegate:
+- Any browsing request — browser tasks are slow (page load, rendering, extraction)
+- Any research or comparison task — "top 5 …", "compare …", "find and summarize …"
+- Any request with 3+ parallel sub-tasks — split into independent chunks and delegate each one
+- Multiple unrelated actions in one message — delegate them in parallel
+- A to-do list or checklist — break it into independent groups, one sub-agent per group
 
 Sub-agents start with a blank slate — they have zero knowledge of your conversation. Pass everything they need: file paths, error messages, constraints, and any relevant context. The more specific you are, the better the result.
 
