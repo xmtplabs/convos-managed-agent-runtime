@@ -75,8 +75,7 @@ jobs:
           echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | openclaw=$HAS_OPENCLAW hermes=$HAS_HERMES shared=$HAS_SHARED"
 
       # ── Selective eval triggering (dev branch only) ──────────────────
-      # Suites listed here only run when their paths change.
-      # Suites NOT listed (knows, delegation, provision, silence) always run.
+      # Only matched suites run. Unmatched files → run all (safe fallback).
       # Non-dev branches always run all suites (promotion gates).
       - uses: dorny/paths-filter@v3
         id: eval-paths
@@ -86,16 +85,15 @@ jobs:
               - 'runtime/shared/workspace/SOUL.md'
               - 'runtime/shared/workspace/AGENTS-base.md'
             skills:
-              - 'runtime/shared/web-tools/skills/**'
-            skills_maybe:
-              - 'runtime/shared/workspace/skills/**'
-            skills_services_only:
-              - 'runtime/shared/workspace/skills/services/**'
+              - 'runtime/shared/workspace/skills/convos-runtime/**'
+              - 'runtime/shared/workspace/skills/share-logs/**'
+              - 'runtime/shared/workspace/skills/skill-builder/**'
             memory:
               - 'runtime/openclaw/extensions/convos/src/**/memory*'
               - 'runtime/hermes/src/**/memory*'
             convos:
               - 'runtime/openclaw/extensions/convos/**'
+              - 'runtime/hermes/src/**'
               - 'runtime/shared/web-tools/convos/**'
               - 'runtime/shared/workspace/skills/profile-update/**'
             lifecycle:
@@ -109,48 +107,31 @@ jobs:
             models:
               - 'runtime/openclaw/openclaw.json'
               - 'runtime/hermes/workspace/config.yaml'
-            evals:
-              - 'runtime/evals/**'
       - name: Build eval suite list
         id: suites
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
 
-          # Non-dev branches or evals/ changed → run all
-          if [ "$BASE" != "dev" ] || [ "${{ steps.eval-paths.outputs.evals }}" = "true" ]; then
+          # Non-dev branches → run all
+          if [ "$BASE" != "dev" ]; then
             echo "eval_suites=all" >> "$GITHUB_OUTPUT"
-            echo "Eval suites: all (base=$BASE, evals_changed=${{ steps.eval-paths.outputs.evals }})"
+            echo "Eval suites: all (base=$BASE)"
             exit 0
           fi
 
-          # Resolve skills: web-tools/skills always triggers skills.
-          # workspace/skills/** triggers skills ONLY if non-services files changed.
-          SKILLS="false"
-          if [ "${{ steps.eval-paths.outputs.skills }}" = "true" ]; then
-            SKILLS="true"
-          elif [ "${{ steps.eval-paths.outputs.skills_maybe }}" = "true" ] && [ "${{ steps.eval-paths.outputs.skills_services_only }}" = "false" ]; then
-            SKILLS="true"
-          fi
-
-          # Build list from dorny outputs — mapped suites only run when triggered
+          # Build list from dorny outputs — only matched suites run
           SUITES=""
-          for suite in soul memory convos lifecycle services cron models; do
+          for suite in soul skills memory convos lifecycle services cron models; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
               SUITES="$SUITES $suite"
             fi
           done
-          if [ "$SKILLS" = "true" ]; then
-            SUITES="$SUITES skills"
-          fi
 
           if [ -z "$SUITES" ]; then
             echo "eval_suites=all" >> "$GITHUB_OUTPUT"
             echo "Eval suites: all (no mapped suite matched — safe fallback)"
             exit 0
           fi
-
-          # Always include unmapped suites (cheap, no trigger filtering)
-          SUITES="$SUITES knows delegation provision silence"
           echo "eval_suites=$SUITES" >> "$GITHUB_OUTPUT"
           echo "Eval suites:$SUITES"
 
