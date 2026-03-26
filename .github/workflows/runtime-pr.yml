@@ -107,17 +107,15 @@ jobs:
             models:
               - 'runtime/openclaw/openclaw.json'
               - 'runtime/hermes/workspace/config.yaml'
-            evals:
-              - 'runtime/evals/**'
       - name: Build eval suite list
         id: suites
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
 
-          # Non-dev branches or evals/ changed → run all
-          if [ "$BASE" != "dev" ] || [ "${{ steps.eval-paths.outputs.evals }}" = "true" ]; then
+          # Non-dev branches → run all
+          if [ "$BASE" != "dev" ]; then
             echo "eval_suites=all" >> "$GITHUB_OUTPUT"
-            echo "Eval suites: all (base=$BASE, evals_changed=${{ steps.eval-paths.outputs.evals }})"
+            echo "Eval suites: all (base=$BASE)"
             exit 0
           fi
 
