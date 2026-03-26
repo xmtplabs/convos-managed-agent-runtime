@@ -31,7 +31,7 @@ jobs:
       publish_tags: ${{ steps.meta.outputs.publish_tags }}
       run_openclaw: ${{ steps.changes.outputs.run_openclaw }}
       run_hermes: ${{ steps.changes.outputs.run_hermes }}
-      eval_suites: ${{ steps.suites.outputs.eval_suites }}
+      eval_matrix: ${{ steps.suites.outputs.eval_matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -107,33 +107,39 @@ jobs:
             models:
               - 'runtime/openclaw/openclaw.json'
               - 'runtime/hermes/workspace/config.yaml'
-      - name: Build eval suite list
+      - name: Build eval suite matrix
         id: suites
         run: |
           BASE="${{ github.event.pull_request.base.ref }}"
 
+          # All suites with their config (fresh=true only for provision)
+          ALL='[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
+
           # Non-dev branches → run all
           if [ "$BASE" != "dev" ]; then
-            echo "eval_suites=all" >> "$GITHUB_OUTPUT"
+            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
             echo "Eval suites: all (base=$BASE)"
             exit 0
           fi
 
           # Build list from dorny outputs — only matched suites run
-          SUITES=""
+          MATCHED=""
           for suite in soul skills memory convos lifecycle services cron models; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
-              SUITES="$SUITES $suite"
+              MATCHED="$MATCHED $suite"
             fi
           done
 
-          if [ -z "$SUITES" ]; then
-            echo "eval_suites=all" >> "$GITHUB_OUTPUT"
+          if [ -z "$MATCHED" ]; then
+            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
             echo "Eval suites: all (no mapped suite matched — safe fallback)"
             exit 0
           fi
-          echo "eval_suites=$SUITES" >> "$GITHUB_OUTPUT"
-          echo "Eval suites:$SUITES"
+
+          # Filter the full matrix to only matched suites
+          MATRIX=$(echo "$ALL" | jq -c "[.[] | select(.suite as \$s | \"$MATCHED\" | split(\" \") | map(select(. != \"\")) | index(\$s) != null)]")
+          echo "eval_matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "Eval suites: $MATCHED"
 
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
@@ -154,7 +160,7 @@ jobs:
       buildx_driver: docker
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
-      eval_suites: ${{ needs.prepare.outputs.eval_suites }}
+      eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
 
   hermes:
     name: Hermes
@@ -169,7 +175,7 @@ jobs:
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
       needs_checkout: true
-      eval_suites: ${{ needs.prepare.outputs.eval_suites }}
+      eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
 
   # ── Promote on merge ─────────────────────────────────────────────────
   promote:
