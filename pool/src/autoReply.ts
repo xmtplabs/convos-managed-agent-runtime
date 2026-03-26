@@ -38,6 +38,7 @@ function timestamp(): string {
  */
 export function maybeAutoReplySms({ to, from }: { to: string; from: string }) {
   if (to !== AUTO_REPLY_PHONE) return;
+  if (from === AUTO_REPLY_PHONE) return; // prevent self-reply loop
   if (!config.telnyxApiKey) return;
 
   fetch("https://api.telnyx.com/v2/messages", {
@@ -74,6 +75,7 @@ export function maybeAutoReplyEmail({
   subject?: string;
 }) {
   if (inboxId !== AUTO_REPLY_INBOX) return;
+  if (from === AUTO_REPLY_INBOX) return; // prevent self-reply loop
   if (!config.agentmailApiKey) return;
 
   fetch(`https://api.agentmail.to/v0/inboxes/${inboxId}/messages/send`, {
