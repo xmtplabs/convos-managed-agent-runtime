@@ -34,7 +34,8 @@ dist/
 # dmux worktrees
 .dmux/
 
-# Claude design scratch
+# Claude
+.claude/
 .claude-design/
 
 # Flow task tracking (local state)
