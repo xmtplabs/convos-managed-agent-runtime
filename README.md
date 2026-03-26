@@ -59,9 +59,10 @@ Multi-harness architecture — each harness has its own Dockerfile, deps, and sc
 | Skill | Capability |
 |-------|-----------|
 | [`services`](runtime/shared/workspace/skills/services/) | Email, SMS, credits, and account info |
-
-| [`convos-cli`](runtime/shared/workspace/skills/convos-cli/) | Convos client operations |
 | [`convos-runtime`](runtime/shared/workspace/skills/convos-runtime/) | Version check and runtime upgrade |
+| [`profile-update`](runtime/shared/workspace/skills/profile-update/) | Display name, profile photo, and metadata |
+| [`share-logs`](runtime/shared/workspace/skills/share-logs/) | Share agent conversation logs via link |
+| [`skill-builder`](runtime/shared/workspace/skills/skill-builder/) | Create custom skills for a group via conversation |
 
 See [`runtime/README.md`](runtime/README.md) for environment variables, Docker setup, and CI.
 
