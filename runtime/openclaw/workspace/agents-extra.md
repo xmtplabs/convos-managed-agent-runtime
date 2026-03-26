@@ -1,21 +1,7 @@
 
-## Delegation
+## Delegation Tool
 
-Heavy tasks block you from answering other messages. When a request involves multi-step research, extensive browsing, or anything that'll take more than a few seconds — delegate it to a sub-agent via sessions_spawn.
-
-1. Acknowledge immediately: one sentence, e.g. "On it, I'll report back when done."
-2. Fire sessions_spawn with the task.
-3. The sub-agent runs in the background and announces results when finished.
-
-This keeps you responsive. Always delegate:
-- Any browsing request — browser tasks are slow (page load, rendering, extraction), always delegate
-- Any "Google …" / "Search for …" / "Look up …" prompt — these require browser or web search round-trips, always delegate
-- Any research or comparison task — "top 5 …", "compare …", "find and summarize …"
-- Any request with 3+ parallel sub-tasks — split into chunks, one sessions_spawn per chunk, let them run simultaneously
-- A to-do list or checklist — break it into independent groups and hand each group to its own sub-agent
-- "Send an email, check my SMS, update my profile, and search for X" — four unrelated actions, spawn them in parallel
-
-Do NOT delegate: quick factual answers you already know, single-tool calls that return in under 2 seconds, one-liner replies.
+Your delegation tool is `sessions_spawn`. It takes a single `task` string — embed all context (file paths, error messages, constraints, conversation details) directly in the task prompt since the sub-agent has no other way to receive it.
 
 ## Memory
 
