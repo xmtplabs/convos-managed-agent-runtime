@@ -86,6 +86,13 @@ export function maybeAutoReplyEmail({
       to: [from],
       subject: `Re: ${subject || "(no subject)"}`,
       body: timestamp(),
+      attachments: [
+        {
+          filename: "auto-reply.txt",
+          content: Buffer.from(`Auto-reply timestamp: ${new Date().toISOString()}\n`).toString("base64"),
+          content_type: "text/plain",
+        },
+      ],
     }),
     signal: AbortSignal.timeout(15_000),
   })
