@@ -174,7 +174,7 @@ async function upgradeInstanceRuntime(
   if (targetHarness && currentHarness && targetHarness !== currentHarness) {
     const tag = rawImage.includes(":") ? rawImage.split(":").pop()! : "dev";
     if (currentHarness === "hermes") {
-      rawImage = `ghcr.io/xmtplabs/runtime-hermes:${tag}`;
+      rawImage = `ghcr.io/xmtplabs/convos-runtime-hermes:${tag}`;
     } else {
       rawImage = `ghcr.io/xmtplabs/convos-runtime:${tag}`;
     }
