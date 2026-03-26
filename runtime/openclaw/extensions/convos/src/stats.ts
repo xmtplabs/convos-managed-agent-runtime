@@ -9,7 +9,7 @@
  *   await stats.shutdown();
  */
 
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 const SCHEMA_VERSION = 1;
 const FLUSH_INTERVAL_MS = 60_000;
@@ -27,6 +27,7 @@ class StatsAccumulator {
   private environment = "";
   private version = "";
   private cronJobsFile = "";
+  private skillsGeneratedDir = "";
   private timer: ReturnType<typeof setInterval> | null = null;
   private started = false;
 
@@ -57,6 +58,16 @@ class StatsAccumulator {
     }
   }
 
+  private async refreshSkillsCount(): Promise<void> {
+    if (!this.skillsGeneratedDir) return;
+    try {
+      const entries = await readdir(this.skillsGeneratedDir, { withFileTypes: true });
+      this.gauges.skills_created_count = entries.filter((e) => e.isDirectory()).length;
+    } catch {
+      // Directory may not exist yet — ignore
+    }
+  }
+
   private buildPostHogBatch(): Record<string, unknown> {
     const now = Date.now();
     const secondsSince =
@@ -80,6 +91,7 @@ class StatsAccumulator {
           skills_invoked: this.counters.skills_invoked ?? 0,
           group_member_count: this.gauges.group_member_count ?? 0,
           cron_job_count: this.gauges.cron_job_count ?? 0,
+          skills_created_count: this.gauges.skills_created_count ?? 0,
           memory_gb: this.gauges.memory_gb ?? 0,
           environment: this.environment,
           runtime_version: this.version,
@@ -132,6 +144,7 @@ class StatsAccumulator {
     environment?: string;
     version?: string;
     cronJobsFile?: string;
+    skillsDir?: string;
   }): void {
     if (this.started) return;
     this.posthogApiKey = opts.posthogApiKey;
@@ -142,13 +155,15 @@ class StatsAccumulator {
     this.environment = opts.environment || "";
     this.version = opts.version || "";
     this.cronJobsFile = opts.cronJobsFile || "";
+    this.skillsGeneratedDir = opts.skillsDir || "";
     this.started = true;
 
     this.timer = setInterval(async () => {
       this.refreshMemory();
       await this.refreshCronCount();
+      await this.refreshSkillsCount();
       if (!this.hasActivity()) return;
-      console.log(`[stats] flush: msgs_in=${this.counters.messages_in ?? 0} msgs_out=${this.counters.messages_out ?? 0} cron=${this.gauges.cron_job_count ?? 0} mem=${this.gauges.memory_gb ?? 0}gb`);
+      console.log(`[stats] flush: msgs_in=${this.counters.messages_in ?? 0} msgs_out=${this.counters.messages_out ?? 0} cron=${this.gauges.cron_job_count ?? 0} skills=${this.gauges.skills_created_count ?? 0} mem=${this.gauges.memory_gb ?? 0}gb`);
       const batch = this.flush();
       this.send(batch).catch(() => {});
     }, FLUSH_INTERVAL_MS);

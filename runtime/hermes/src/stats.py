@@ -42,6 +42,7 @@ class StatsAccumulator:
         self._environment: str = ""
         self._version: str = ""
         self._cron_jobs_file: str = ""
+        self._skills_dir: str = ""
         self._task: asyncio.Task | None = None
         self._started: bool = False
 
@@ -73,6 +74,17 @@ class StatsAccumulator:
         except (OSError, json.JSONDecodeError):
             pass
 
+    def _refresh_skills_created_count(self) -> None:
+        if not self._skills_dir:
+            return
+        try:
+            entries = os.listdir(self._skills_dir)
+            self._gauges["skills_created_count"] = sum(
+                1 for e in entries if os.path.isdir(os.path.join(self._skills_dir, e))
+            )
+        except OSError:
+            pass
+
     def _build_posthog_batch(self) -> dict:
         now = time.time()
         seconds_since = (
@@ -95,6 +107,7 @@ class StatsAccumulator:
                     "skills_invoked": self._counters.get("skills_invoked", 0),
                     "group_member_count": int(self._gauges.get("group_member_count", 0)),
                     "cron_job_count": int(self._gauges.get("cron_job_count", 0)),
+                    "skills_created_count": int(self._gauges.get("skills_created_count", 0)),
                     "memory_gb": self._gauges.get("memory_gb", 0),
                     "environment": self._environment,
                     "runtime_version": self._version,
@@ -134,13 +147,15 @@ class StatsAccumulator:
             await asyncio.sleep(FLUSH_INTERVAL_S)
             self._refresh_memory()
             self._refresh_cron_count()
+            self._refresh_skills_created_count()
             if not self.has_activity():
                 continue
             logger.info(
-                "[stats] flush: msgs_in=%d msgs_out=%d cron=%d mem=%.2fgb",
+                "[stats] flush: msgs_in=%d msgs_out=%d cron=%d skills=%d mem=%.2fgb",
                 self._counters.get("messages_in", 0),
                 self._counters.get("messages_out", 0),
                 int(self._gauges.get("cron_job_count", 0)),
+                int(self._gauges.get("skills_created_count", 0)),
                 self._gauges.get("memory_gb", 0),
             )
             batch = self.flush()
@@ -157,6 +172,7 @@ class StatsAccumulator:
         environment: str = "",
         version: str = "",
         cron_jobs_file: str = "",
+        skills_dir: str = "",
     ) -> None:
         if self._started:
             return
@@ -168,6 +184,7 @@ class StatsAccumulator:
         self._environment = environment
         self._version = version
         self._cron_jobs_file = cron_jobs_file
+        self._skills_dir = skills_dir
         self._task = asyncio.create_task(self._tick_loop())
         self._started = True
         logger.info("Stats started (instance=%s, interval=%ds)", instance_id, FLUSH_INTERVAL_S)
