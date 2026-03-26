@@ -88,7 +88,6 @@ jobs:
               - 'runtime/shared/workspace/skills/convos-runtime/**'
               - 'runtime/shared/workspace/skills/share-logs/**'
               - 'runtime/shared/workspace/skills/skill-builder/**'
-              - 'runtime/shared/web-tools/skills/**'
             memory:
               - 'runtime/openclaw/extensions/convos/src/**/memory*'
               - 'runtime/hermes/src/**/memory*'
