@@ -1246,7 +1246,8 @@ export async function startWiredInstance(params: {
     const environment = process.env.POOL_ENVIRONMENT || "";
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
     const cronJobsFile = path.join(stateDir, "cron", "jobs.json");
-    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile });
+    const skillsDir = process.env.SKILLS_ROOT || path.join(stateDir, "skills");
+    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile, skillsDir });
   }
 
   // Fire-and-forget: dispatch LLM-generated welcome message.
