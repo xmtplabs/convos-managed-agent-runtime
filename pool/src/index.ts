@@ -165,14 +165,19 @@ async function upgradeInstanceRuntime(
   infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string; runtimeType?: string | null },
   imageOverride?: string,
 ): Promise<string> {
-  const rawImage = imageOverride || config.railwayRuntimeImage;
+  let rawImage = imageOverride || config.railwayRuntimeImage;
   if (!rawImage) throw new Error("No runtime image configured");
 
-  // Guard: don't deploy an openclaw image to a hermes instance or vice versa.
+  // If the configured image doesn't match the instance's harness, derive the correct one.
   const targetHarness = detectHarnessFromImage(rawImage);
   const currentHarness = infra.runtimeType as "openclaw" | "hermes" | null;
   if (targetHarness && currentHarness && targetHarness !== currentHarness) {
-    throw new Error(`Harness mismatch: instance is ${currentHarness} but image is ${targetHarness} (${rawImage})`);
+    const tag = rawImage.includes(":") ? rawImage.split(":").pop()! : "dev";
+    if (currentHarness === "hermes") {
+      rawImage = `ghcr.io/xmtplabs/runtime-hermes:${tag}`;
+    } else {
+      rawImage = `ghcr.io/xmtplabs/convos-runtime:${tag}`;
+    }
   }
 
   const image = await resolveImageDigest(rawImage);
