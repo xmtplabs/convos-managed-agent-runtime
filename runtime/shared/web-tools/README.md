@@ -1,11 +1,21 @@
 # web-tools
 
-OpenClaw plugin that serves public-facing web pages and handles credit management for pool-managed instances.
+Public-facing web pages served by both runtimes — landing page, services dashboard, and skills browser.
+
+## Implementations
+
+| Runtime | Entry point |
+|---------|-------------|
+| OpenClaw | `openclaw/extensions/web-tools/index.ts` (OpenClaw plugin) |
+| Hermes | `hermes/src/web_tools.py` (FastAPI router) |
+
+Both implementations serve the same routes from the shared HTML/CSS in this directory.
 
 ## What it does
 
 1. **Convos landing page** — installable PWA at `/web-tools/convos` with invite link and QR code
 2. **Services page** — shows instance identity (email, phone), credit balance, and coupon redemption at `/web-tools/services`
+3. **Skills pages** — index and detail pages for generated skills at `/web-tools/skills`, backed by a JSON API reading from `$SKILLS_ROOT/generated/skills.json`
 
 ## Routes
 
@@ -20,18 +30,25 @@ OpenClaw plugin that serves public-facing web pages and handles credit managemen
 | `/web-tools/services/api` | GET | JSON API — instance identity + credit balance |
 | `/web-tools/services/topup` | POST | Proxy credit top-up request to pool manager |
 | `/web-tools/services/redeem-coupon` | POST | Proxy coupon redemption to pool manager |
+| `/web-tools/skills` | GET | Skills index page (list all generated skills) |
+| `/web-tools/skills/:slug` | GET | Skill detail page |
+| `/web-tools/skills/skills.css` | GET | Stylesheet for skills pages |
+| `/web-tools/skills/api` | GET | JSON API — list all skills |
+| `/web-tools/skills/api/:slug` | GET | JSON API — single skill by slug |
 
 ## Files
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | Plugin entry — route registration, services API, coupon proxy |
 | `convos/landing.html` | Convos landing page |
 | `convos/landing-manifest.json` | PWA manifest |
 | `convos/sw.js` | Service worker for offline support |
 | `convos/icon.svg` | App icon |
 | `services/services.html` | Services dashboard page |
 | `services/services.css` | Extracted styles for services page |
+| `skills/index.html` | Skills index page |
+| `skills/skill.html` | Skill detail page |
+| `skills/skills.css` | Styles for skills pages |
 
 ## Credit flow
 

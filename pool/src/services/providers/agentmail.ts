@@ -62,6 +62,54 @@ export async function listInboxes(): Promise<{ count: number }> {
   }
 }
 
+/**
+ * Ensure an AgentMail webhook is registered for this pool.
+ * Idempotent via client_id — AgentMail deduplicates.
+ * Called once at pool startup.
+ */
+export async function ensureWebhook(): Promise<void> {
+  const apiKey = config.agentmailApiKey;
+  const poolUrl = config.poolUrl;
+  if (!apiKey) {
+    console.warn("[agentmail] No API key — skipping webhook registration");
+    return;
+  }
+  if (!poolUrl) {
+    console.warn("[agentmail] No POOL_URL — skipping webhook registration");
+    return;
+  }
+
+  const webhookUrl = `${poolUrl}/webhooks/agentmail`;
+  const clientId = `convos-pool-${config.poolEnvironment}`;
+
+  try {
+    const res = await fetch("https://api.agentmail.to/v0/webhooks", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: webhookUrl,
+        event_types: ["message.received"],
+        client_id: clientId,
+      }),
+    });
+    const body = await res.json() as any;
+    if (res.ok || res.status === 409) {
+      const secret = body?.secret;
+      console.log(`[agentmail] Webhook registered: ${webhookUrl} (id=${body?.id || body?.webhook_id || "existing"})`);
+      if (secret && !config.agentmailWebhookSecret) {
+        console.log(`[agentmail] ⚠️  Set AGENTMAIL_WEBHOOK_SECRET=${secret} in your env`);
+      }
+    } else {
+      console.warn(`[agentmail] Webhook registration failed: ${res.status}`, body);
+    }
+  } catch (err: any) {
+    console.warn("[agentmail] Webhook registration error:", err.message);
+  }
+}
+
 /** Delete an AgentMail inbox. Best-effort — logs and swallows errors. */
 export async function deleteInbox(inboxId: string): Promise<boolean> {
   const apiKey = config.agentmailApiKey;

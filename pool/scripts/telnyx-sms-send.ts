@@ -15,7 +15,7 @@ const FROM = "+12163698712";
 const DEFAULT_TO = "+12082288548";
 
 const to = process.argv[2] || DEFAULT_TO;
-const text = process.argv[3] || "Hello from Convos QA!";
+const text = process.argv[3] || "Hello fabri";
 
 const res = await fetch("https://api.telnyx.com/v2/messages", {
   method: "POST",

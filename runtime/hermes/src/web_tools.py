@@ -6,9 +6,11 @@ the same UI at /web-tools/services and /web-tools/convos.
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
+import zipfile
 from pathlib import Path
 
 import httpx
@@ -307,6 +309,103 @@ async def skills_api(slug: str):
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
     )
+
+
+# ── Trajectories / logs ──────────────────────────────────────
+
+
+_TRAJECTORIES_DIR = _SHARED_ROOT / "logs"
+
+
+def _hermes_home() -> Path:
+    return Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+
+
+def _sharing_enabled() -> bool:
+    return (_hermes_home() / ".share-trajectories").exists()
+
+
+def _read_trajectory_jsonl(file_path: Path, max_entries: int = 200) -> list[dict]:
+    """Read a JSONL trajectory file, return most-recent-first."""
+    entries: list[dict] = []
+    if not file_path.exists():
+        return entries
+    try:
+        for line in file_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    except Exception:
+        return entries
+    entries.reverse()
+    return entries[:max_entries]
+
+
+@router.get("/web-tools/logs")
+@router.get("/web-tools/logs/")
+async def trajectories_page():
+    return _serve_static(
+        _TRAJECTORIES_DIR / "logs.html",
+        "text/html; charset=utf-8",
+        cache_control="no-store",
+    )
+
+
+@router.get("/web-tools/logs/logs.css")
+async def trajectories_css():
+    return _serve_static(_TRAJECTORIES_DIR / "logs.css", "text/css")
+
+
+@router.get("/web-tools/logs/api")
+async def trajectories_api():
+    """Return trajectory entries if sharing is enabled."""
+    if not _sharing_enabled():
+        return Response(
+            content=json.dumps({"error": "sharing not enabled"}),
+            status_code=403,
+            media_type="application/json",
+        )
+    home = _hermes_home()
+    entries = _read_trajectory_jsonl(home / "trajectory_samples.jsonl")
+    failed = _read_trajectory_jsonl(home / "failed_trajectories.jsonl")
+    all_entries = [e for e in entries + failed if isinstance(e, dict)]
+    # Sort by timestamp descending
+    all_entries.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
+    return Response(
+        content=json.dumps({"runtime": "hermes", "entries": all_entries[:200]}),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/web-tools/logs/download")
+async def trajectories_download():
+    """Download raw JSONL files as a zip."""
+    if not _sharing_enabled():
+        return Response(status_code=403)
+    home = _hermes_home()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in ("trajectory_samples.jsonl", "failed_trajectories.jsonl"):
+            path = home / name
+            if path.exists() and path.stat().st_size > 0:
+                zf.write(path, name)
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=trajectories.zip",
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+# ── Skills pages ────────────────────────────────────────────
 
 
 @router.get("/web-tools/skills")

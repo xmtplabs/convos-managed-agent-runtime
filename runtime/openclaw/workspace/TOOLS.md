@@ -10,11 +10,18 @@ read_when:
 Primary channel: **Convos** (group chats and DMs for bookings). Full access: all tools are available.
 
 - **FS** — read, write, edit, apply_patch
+  - _Images: To view an image, use `read` on the file path. It returns the image inline as base64 so you can see it directly. Do NOT use the `image` tool — no media-understanding provider is configured and it will fail._
 - **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab.
   - _Headless/cloud (Railway): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`)._
 - **Web Search** — You have `web_search` and `web_fetch` directly.
 - **Cron** — Schedule jobs and wakeups
+  - _Cron jobs have no end time or auto-expiry. They run until explicitly stopped (`cron rm`). If a user asks to "run X for 5 minutes" or "stop at 3pm", explain that cron jobs must be stopped manually — either by the user telling you to stop it, or by you remembering to do it. Do NOT create a second cleanup job to delete the first; that pattern is fragile and fails silently._
+  - _Isolated cron sessions (`sessionTarget: "isolated"`) have no conversation context. Do NOT use the `message` tool — it will fail with "requires a target". Just return your text directly; the cron delivery layer (`delivery.mode: "announce"`) routes it to the right conversation automatically._
 - **Sub-Agents** — Spawn background agents via `sessions_spawn` for parallel or long-running work. They run independently and announce results back. Prefer parallel execution: fire multiple tool calls or sub-agents at once when tasks are independent. Don't narrate each step — just do it and deliver results.
+  - _Example: "Research the top 5 AI frameworks and compare them" → one sessions_spawn that does all the searching, fetching, and comparison._
+  - _Example: "Send an email, check my SMS, update my profile, and search for X" → four independent actions, spawn one sub-agent per action in parallel._
+  - _Example: A 10-item to-do list → split into 3–4 chunks of related items, one sessions_spawn per chunk, all running simultaneously._
+  - _Rule of thumb: 3+ independent tasks = spawn sub-agents. A single web search = stay inline._
 
 # SKILLS
 
@@ -114,7 +121,7 @@ _Note: US numbers (+1) only._
 
 > Did I get any new texts?
 **Skill:** Services (SMS)
-_Note: Poll inbound SMS messages._
+_Note: Check inbound SMS messages._
 
 > What version are you on? / What's your runtime?
 **Skill:** Convos Runtime
@@ -127,8 +134,32 @@ _Note: Always use the convos-runtime skill. Never guess or check openclaw versio
 _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm update`._
 
 
+> Google the top 5 AI frameworks released this year.
+**Tool:** Sub-Agents
+→ Acknowledge, then `sessions_spawn`. "Google …" / "Search for …" / "Look up …" = always delegate.
+_Note: Any prompt that asks you to search or Google something requires web round-trips — delegate it._
+
+> Research the top 5 AI frameworks released this year and compare them.
+**Tool:** Sub-Agents
+→ Acknowledge, then `sessions_spawn` with the full research task. Sub-agent searches, fetches, compares, and announces results.
+_Note: Multi-step research = always delegate. Never do 5+ web searches inline._
+
+> Send an email to X, text Y, update my profile photo, and look up Z.
+**Tool:** Sub-Agents
+→ Acknowledge, then spawn one sub-agent per independent action (4 in parallel). Announce consolidated results.
+_Note: 3+ independent tasks = split into parallel sub-agents._
+
+> Here's my to-do list: [10 items]
+**Tool:** Sub-Agents
+→ Acknowledge, chunk into 3–4 groups of related items, one sessions_spawn per group, announce when all complete.
+
+> Browse https://example.com and summarize the page.
+**Tool:** Sub-Agents
+→ Acknowledge, then `sessions_spawn` — browsing is slow (page load, rendering, extraction). Sub-agent browses and announces the summary.
+_Note: Browser tasks always take multiple seconds. Default to delegating any browsing request._
+
 > Book in Farid restaurant.
-**Tools:** Web Search → Browser
+**Tools:** Sub-Agents (Web Search → Browser)
 
 > Reserve at that place and send me an invite.
 **Tools:** Browser → Services (email)
@@ -150,4 +181,5 @@ _Note: This hits the pool server to redeploy. NEVER run `gateway update` or `npm
 | "What's your URL?" | answer/guess | services info | Must run info to get real URL |
 | "Upgrade yourself" | `gateway update` / `npm update` | convos-runtime skill | Local updates break things; use pool redeploy |
 | "What version?" | answer from memory | convos-runtime skill | Must query live version via skill |
+| "What's in this image?" | `image` tool | `read` on the file path | No media-understanding provider; `read` embeds images inline |
 | "Hi" / "What's 2+2" | web_search | No tools | Answer directly |

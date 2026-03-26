@@ -2,7 +2,7 @@
 name: services
 description: |
   Your managed communication and account services: email, SMS, and credits.
-  USE WHEN: Sending emails, calendar invites, polling inbox, sending/polling SMS, checking credits, topping up credits, asked for your URL/link/page/contact info/services.
+  USE WHEN: Sending emails, calendar invites, reading emails, sending SMS, checking credits, topping up credits, asked for your URL/link/page/contact info/services.
   DON'T USE WHEN: Task is just creating a file without sending it (use fs tools).
   REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID). Email and SMS must be explicitly provisioned before use.
 ---
@@ -38,13 +38,21 @@ The user must acknowledge the disclosure before you run `sms provision`. If they
 
 Inbound STOP, CANCEL, END, QUIT, UNSUBSCRIBE, START, YES, HELP, and INFO messages are handled automatically by the system. You will never see these in poll results. Do **not** attempt to respond to them yourself.
 
+## How inbound messages arrive
+
+Inbound emails and SMS are delivered automatically via webhooks — you do NOT need to poll for them. When a new email or text arrives, the system sends you a notification as a system message. Just respond to these notifications naturally.
+
+- **Email notifications** look like: `[System: new email] From: ... | Subject: ... | ID: <MESSAGE_ID>` — announce the email to the group (who it's from, subject, and whether it has attachments). Do NOT auto-read or auto-open attachments — ask the user first. To read the full email when asked: `node "$SKILLS_ROOT/services/scripts/services.mjs" email read --id "<MESSAGE_ID>"` (copy the ID as-is, with angle brackets).
+- **SMS notifications** look like: `You got a new text. "..." from +1...`
+
+You can still use `email poll` or `sms poll` on demand if the user asks to check their inbox manually.
+
 ## Restrictions
 
 You MUST only use the `services.mjs` script below. You are FORBIDDEN from:
 
 - Calling any external API directly (via curl, fetch, or any SDK) outside of this script
 - Reading, logging, printing, or exposing any API key or token value
-- Using websocket or webhook features
 - Manually creating, deleting, or managing inboxes, phone numbers, API keys, or domains
 
 Your access is limited to **sending and receiving email/SMS through your assigned addresses, and managing your credits**.
@@ -101,10 +109,10 @@ Read a single email and download its attachments:
 
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" email read \
-  --id "MESSAGE_ID"
+  --id "<MESSAGE_ID>"
 ```
 
-- `MESSAGE_ID` is the exact value from the `ID:` line in `poll` output — no angle brackets, no extra punctuation
+- `MESSAGE_ID` is the exact value from the `ID:` line in `poll` output or from the notification — copy it as-is, including angle brackets (e.g. `--id "<CAKj0nMf...>"`)
 - Attachments are saved automatically — do NOT use `--save-dir` or `~/Downloads`
 
 ## SMS (US numbers only)

@@ -4,47 +4,32 @@ You run inside a managed container. Some parts are yours to extend; others are l
 
 ## What you CAN create
 
-### Custom skills with polling hooks
-
-When a user asks you to track, monitor, or periodically check something — RSS feeds, price alerts, API status, website changes — create a skill with a `poll.sh` hook. Never add these to HEARTBEAT.md or try to handle them in conversation.
+### Custom skills
 
 Create a skill directory under `$SKILLS_ROOT`:
 
 ```
 skills/
-  my-tracker/
+  my-skill/
     SKILL.md        <- describe what it does, when to use it
-    poll.sh         <- poller auto-discovers and runs this every 60s
-    scripts/        <- helper scripts called by poll.sh
+    scripts/        <- helper scripts
       check.mjs
     config/         <- any config files (feeds.json, urls.txt, etc.)
 ```
 
-The `poll.sh` contract:
-- Prints text to stdout -> poller sends it as a group notification
-- Prints nothing -> silent, no notification sent
-- Errors (stderr) -> logged by poller, never sent to group
-- Must be a valid shell script (sh-compatible)
-- Must complete in under 10 seconds — a slow script blocks the entire poll cycle
-- No LLM calls, no network-heavy work — keep it mechanical (curl a JSON API, read a file, compare timestamps)
-- Has access to `$SKILLS_ROOT` and all env vars the poller inherits
-
-**Always create a new skill directory** for custom poll hooks. Never add `poll.sh` to existing core skills (services, convos-runtime, profile-update) — those are platform-managed and overwritten on deploy.
+**Always create a new skill directory** for custom work. Never modify existing core skills (services, convos-runtime, profile-update) — those are platform-managed and overwritten on deploy.
 
 ### Choosing the right mechanism
 
 | Need | Use | Why |
 |---|---|---|
-| **Recurring check** (RSS, price, inbox) | **Poller + poll.sh** | No LLM, runs every 60s, cheap and mechanical |
-| **Recurring scheduled task** ("every morning at 8am…") | **Cron job** | Wakes the agent on a cron schedule — use for anything the user wants done repeatedly at a specific time |
+| **Recurring task** (RSS tracking, price alerts, reminders, scheduled checks) | **Cron job** | Runs on a schedule you define — use for anything the user wants done repeatedly |
 | **One-off heavy task** (research, long report) | **Sub-agent** (`sessions_spawn`) | Runs in a background session so you stay responsive |
 | **Proactive nudges, catching cracks** | **Heartbeat** | LLM judgment, 30m cycle — **never touch this; it's managed by the platform** |
 
-**Tiebreaker — poller or cron?**
-- If the task is **checking for new data** (new emails, new RSS posts, price changes) → **poller**. It's mechanical, no LLM needed, and runs every 60s for free.
-- If the task **needs agent judgment at a specific time** ("summarize my inbox every morning", "remind me at 5pm") → **cron job**. It wakes you up to think, costs tokens.
-
 To create a cron job, use the cron tool directly — just describe the schedule and what you want to happen. Example: "Set up a cron job that runs every morning at 8am to check for open threads."
+
+**Note:** Email and SMS are delivered automatically via webhooks — do not create cron jobs to check for new emails or texts. You'll receive notifications as system messages when they arrive.
 
 Never modify HEARTBEAT.md or add tasks to the heartbeat cycle.
 
@@ -62,7 +47,6 @@ These are managed by the platform. They get rebuilt or overwritten on every depl
 ### When users ask you to change how you work
 
 - **"Be more formal" / "Talk like a pirate"** — Adapt your tone. No file changes needed; memory and conversation context handle this.
-- **"Track this RSS feed"** — Create a custom skill with poll.sh.
-
+- **"Track this RSS feed"** — Create a cron job to check the feed on a schedule.
 - **"Change your core instructions"** — Explain that base instructions are managed and rebuilt on each deploy. You can note preferences in memory and honor them, but you can't rewrite AGENTS.md or SOUL.md.
 - **"Install this package"** — Dependencies are baked into the runtime image. Suggest they request it as a platform feature.
