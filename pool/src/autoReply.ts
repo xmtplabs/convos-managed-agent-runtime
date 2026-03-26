@@ -24,7 +24,8 @@ import { config } from "./config";
 
 // ── Protected test instance resources (hardcoded) ───────────────────────────
 const AUTO_REPLY_PHONE = "+12082288548";
-const AUTO_REPLY_INBOX = "convos-agent-ef1apq8i-0uu@mail.convos.org";
+const AUTO_REPLY_INBOX_ID = "convos-agent-ef1apq8i-0uu";
+const AUTO_REPLY_EMAIL = AUTO_REPLY_INBOX_ID + "@mail.convos.org";
 
 function timestamp(): string {
   return `Auto-reply: ${new Date().toISOString()}`;
@@ -74,8 +75,8 @@ export function maybeAutoReplyEmail({
   from: string;
   subject?: string;
 }) {
-  if (inboxId !== AUTO_REPLY_INBOX) return;
-  if (from === AUTO_REPLY_INBOX) return; // prevent self-reply loop
+  if (inboxId !== AUTO_REPLY_INBOX_ID) return;
+  if (from === AUTO_REPLY_EMAIL) return; // prevent self-reply loop
   if (!config.agentmailApiKey) return;
 
   fetch(`https://api.agentmail.to/v0/inboxes/${inboxId}/messages/send`, {
