@@ -64,11 +64,11 @@ on:
         required: false
         type: string
         default: "type=gha,mode=max"
-      eval_suites:
-        description: "JSON array of suite names to run, or 'all' for every suite"
+      eval_matrix:
+        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]"
         required: false
         type: string
-        default: "all"
+        default: '[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
 
 jobs:
   build:
@@ -108,44 +108,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { suite: knows,        timeout: 900, only: "", fresh: false }
-          - { suite: skills,       timeout: 900, only: "", fresh: false }
-          - { suite: soul,         timeout: 900, only: "", fresh: false }
-          - { suite: lifecycle,    timeout: 900, only: "", fresh: false }
-          - { suite: convos,       timeout: 900, only: "", fresh: false }
-          - { suite: models,       timeout: 900, only: "", fresh: false }
-          - { suite: delegation,   timeout: 900, only: "", fresh: false }
-          - { suite: cron,         timeout: 900, only: "", fresh: false }
-          - { suite: services,     timeout: 900, only: "", fresh: false }
-          - { suite: memory,       timeout: 900, only: "", fresh: false }
-          - { suite: silence,      timeout: 900, only: "", fresh: false }
-          - { suite: provision,    timeout: 900, only: "", fresh: true }
+        include: ${{ fromJson(inputs.eval_matrix) }}
     steps:
-      - name: Check if suite should run
-        id: filter
-        run: |
-          SUITES="${{ inputs.eval_suites }}"
-          SUITE="${{ matrix.suite }}"
-          if [ "$SUITES" = "all" ] || echo "$SUITES" | grep -qw "$SUITE"; then
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Skipped — $SUITE not in eval_suites: $SUITES"
-          fi
-
-      - if: steps.filter.outputs.skip != 'true' && inputs.needs_checkout
+      - if: inputs.needs_checkout
         uses: actions/checkout@v5
 
-      - if: steps.filter.outputs.skip != 'true'
-        uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v8
         with: { name: "${{ inputs.runtime }}-image", path: /tmp }
       - name: Load image
-        if: steps.filter.outputs.skip != 'true'
         run: zstd -d /tmp/runtime-image.tar.zst -o /tmp/runtime-image.tar && docker load < /tmp/runtime-image.tar
 
       - name: Start container
-        if: steps.filter.outputs.skip != 'true'
         run: |
           docker run -d --name eval-runtime \
             -p 8080:8080 \
@@ -166,7 +139,6 @@ jobs:
             ${{ inputs.docker_cmd }}
 
       - name: Wait for health
-        if: steps.filter.outputs.skip != 'true'
         run: |
           HEALTH_CURL_ARGS=(-sf)
           if [ -n "${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" ]; then
@@ -181,7 +153,7 @@ jobs:
 
       - name: "Run ${{ matrix.suite }}"
         id: run-eval
-        if: steps.filter.outputs.skip != 'true' && (matrix.only == '' || matrix.only == inputs.runtime)
+        if: matrix.only == '' || matrix.only == inputs.runtime
         run: |
           docker exec \
             -e "EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}" \
@@ -192,21 +164,21 @@ jobs:
 
       - name: "Skip ${{ matrix.suite }} (not for ${{ inputs.runtime }})"
         id: skip-eval
-        if: steps.filter.outputs.skip != 'true' && matrix.only != '' && matrix.only != inputs.runtime
+        if: matrix.only != '' && matrix.only != inputs.runtime
         run: echo "Skipped — ${{ matrix.suite }} only runs on ${{ matrix.only }}"
 
       - name: Dump logs
-        if: always() && steps.filter.outputs.skip != 'true'
+        if: always()
         run: docker logs eval-runtime
 
       - name: Copy eval results from container
-        if: always() && steps.filter.outputs.skip != 'true'
+        if: always()
         run: |
           mkdir -p /tmp/eval-results
           docker cp eval-runtime:/tmp/eval-results/. /tmp/eval-results/ 2>/dev/null || true
 
       - uses: actions/upload-artifact@v7
-        if: always() && steps.filter.outputs.skip != 'true'
+        if: always()
         with:
           name: eval-result-${{ inputs.runtime }}-${{ matrix.suite }}
           path: /tmp/eval-results/
