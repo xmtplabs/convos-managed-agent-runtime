@@ -99,7 +99,7 @@ webhookRouter.post(
 
     // Look up which instance owns this inbox
     const instance = await db.findInstanceByInboxId(inboxId);
-    if (!instance || !instance.url) {
+    if (!instance || !instance.url || !instance.gatewayToken) {
       console.warn(`[agentmail-webhook] No instance found for inbox ${inboxId}`);
       res.status(200).json({ ok: true, ignored: true });
       return;
@@ -172,7 +172,7 @@ webhookRouter.post("/webhooks/telnyx", async (req, res) => {
 
   // Look up which instance owns this phone number
   const instance = await db.findInstanceByPhone(to);
-  if (!instance || !instance.url) {
+  if (!instance || !instance.url || !instance.gatewayToken) {
     console.warn(`[telnyx-webhook] No instance found for phone ${to}`);
     res.status(200).json({ ok: true, ignored: true });
     return;

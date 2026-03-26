@@ -372,7 +372,7 @@ async def trajectories_api():
     home = _hermes_home()
     entries = _read_trajectory_jsonl(home / "trajectory_samples.jsonl")
     failed = _read_trajectory_jsonl(home / "failed_trajectories.jsonl")
-    all_entries = entries + failed
+    all_entries = [e for e in entries + failed if isinstance(e, dict)]
     # Sort by timestamp descending
     all_entries.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
     return Response(
