@@ -451,11 +451,11 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
               });
             }
           },
-          onHeartbeat: (info) => {
-            if (account.debug) {
-              log?.info(`[${account.accountId}] Heartbeat: ${info.activeStreams} active streams`);
-            }
-          },
+          // onHeartbeat: (info) => {
+          //   if (account.debug) {
+          //     log?.info(`[${account.accountId}] Heartbeat: ${info.activeStreams} active streams`);
+          //   }
+          // },
           onExit: (code) => {
             log?.error(`[${account.accountId}] Agent serve process exited with code ${code}`);
           },
