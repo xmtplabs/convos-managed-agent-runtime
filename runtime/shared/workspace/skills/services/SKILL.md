@@ -140,7 +140,7 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" sms status <message-id>
 
 ## Credits
 
-Check your current balance:
+Check your current balance (also tells you the max credit cap):
 
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" credits
