@@ -723,7 +723,6 @@ async function handleInboundMessage(
     GroupSystemPrompt: [
       account.config?.systemPrompt?.trim(),
       `Current time: ${currentTime}`,
-      "Before every reply: (1) Need tools? → react 👀 first (2) No text alongside tool calls (3) Does this even need a reply?",
     ].filter(Boolean).join("\n\n"),
     ...(mediaPath ? { MediaPath: mediaPath, MediaType: mediaMime } : {}),
   });
