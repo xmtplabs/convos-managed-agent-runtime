@@ -10,9 +10,6 @@ brand_ok "HERMES_AGENT_DIR" "$HERMES_AGENT_DIR"
 brand_ok "WORKSPACE_DIR"    "$WORKSPACE_DIR"
 brand_ok "SKILLS_ROOT"      "$SKILLS_ROOT"
 
-# --- Seed cron jobs ---
-CRON_DIR="$HERMES_HOME/cron" . "$SHARED_SCRIPTS_DIR/crons.sh"
-
 brand_section "Server"
 brand_dim "" "start Hermes FastAPI server"
 

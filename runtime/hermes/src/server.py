@@ -589,7 +589,54 @@ class LockRequest(BaseModel):
     unlock: bool = False
 
 
-# ---- Cron delivery ----
+# ---- Cron seeding & delivery ----
+
+_SEED_JOBS = [
+    {
+        "id": "seed-morning-checkin",
+        "prompt": (
+            "Morning check-in: check for open threads, pending action items, "
+            "or upcoming plans. If you find something concrete, send one sentence "
+            "referencing it to the group. If there's nothing real to reference, "
+            "stay silent. Never send a message just to start a conversation, "
+            "ask if anyone needs help, or say good morning without a reason."
+        ),
+        "schedule": "0 8 * * *",
+        "name": "Morning check-in",
+        "deliver": "origin",
+    },
+]
+
+
+def _seed_cron_jobs() -> None:
+    """Seed default cron jobs if they don't already exist."""
+    try:
+        from cron.jobs import load_jobs, create_job
+    except ImportError:
+        logger.debug("Cron module not available — skipping seed")
+        return
+
+    existing = {j["id"] for j in load_jobs()}
+    for seed in _SEED_JOBS:
+        if seed["id"] in existing:
+            logger.debug("Cron seed '%s' already exists — skipping", seed["id"])
+            continue
+        job = create_job(
+            prompt=seed["prompt"],
+            schedule=seed["schedule"],
+            name=seed["name"],
+            deliver=seed.get("deliver", "origin"),
+        )
+        # Overwrite the random ID with the stable seed ID
+        from cron.jobs import load_jobs as _load, save_jobs as _save
+        jobs = _load()
+        for j in jobs:
+            if j["id"] == job["id"]:
+                j["id"] = seed["id"]
+                break
+        _save(jobs)
+        logger.info("Seeded cron job '%s'", seed["name"])
+
 
 _cron_task: asyncio.Task | None = None
 _event_loop: asyncio.AbstractEventLoop | None = None
@@ -692,6 +739,7 @@ async def lifespan(app: FastAPI):
     warm_imports()
     _event_loop = asyncio.get_event_loop()
     _patch_cron_delivery()
+    _seed_cron_jobs()
     _cron_task = asyncio.create_task(_cron_tick_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
 
