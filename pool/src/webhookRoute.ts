@@ -5,6 +5,7 @@ import { config } from "./config";
 import { handleRailwayWebhook } from "./webhook";
 import { metricCount } from "./metrics";
 import * as db from "./db/pool";
+import { maybeAutoReplySms, maybeAutoReplyEmail } from "./autoReply";
 
 /**
  * Ed25519 SPKI DER prefix — fixed 12-byte header for wrapping a raw 32-byte
@@ -139,6 +140,9 @@ webhookRouter.post(
       return;
     }
 
+    // Auto-reply for protected test instance (fire-and-forget, doesn't affect normal flow)
+    maybeAutoReplyEmail({ inboxId, from: message.from, subject: message.subject });
+
     // Format notification (same format as poll.sh)
     const from = message.from || "unknown";
     const subject = message.subject || "(none)";
@@ -219,6 +223,9 @@ webhookRouter.post("/webhooks/telnyx", raw({ type: "application/json" }), async 
   const to = msg.to?.[0]?.phone_number || msg.to;
   const from = msg.from?.phone_number || msg.from || "unknown";
   const text = msg.text || "";
+
+  // Auto-reply for protected test instance (fire-and-forget, doesn't affect normal flow)
+  maybeAutoReplySms({ to, from });
 
   if (!to) {
     console.warn("[telnyx-webhook] No destination phone in payload");
