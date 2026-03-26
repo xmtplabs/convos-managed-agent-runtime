@@ -23,7 +23,7 @@ tests:
   # ── Webhook notifications ────────────────────────────────────────────
   - description: "Agent receives webhook email notification"
     providers:
-      - file://../providers/webhook.provider.mjs
+      - webhook
     vars:
       prompt: "(waiting for webhook notification)"
     metadata:
@@ -40,7 +40,7 @@ tests:
 
   - description: "Agent recalls email details from webhook notification"
     providers:
-      - file://../providers/webhook.provider.mjs
+      - webhook
     vars:
       prompt: "What did that email say? Who was it from?"
     assert:
@@ -57,7 +57,7 @@ tests:
 
   - description: "Agent receives webhook SMS notification"
     providers:
-      - file://../providers/webhook.provider.mjs
+      - webhook
     vars:
       prompt: "(waiting for webhook notification)"
     metadata:
@@ -76,7 +76,7 @@ tests:
   # ── Credits & card balance ────────────────────────────────────────────
   - description: "Agent knows how to top up credits"
     providers:
-      - file://../providers/prompt.provider.mjs
+      - prompt
     vars:
       prompt: "How do I top up my credits?"
     assert:
@@ -92,7 +92,7 @@ tests:
 
   - description: "Agent knows where to check card balance"
     providers:
-      - file://../providers/prompt.provider.mjs
+      - prompt
     vars:
       prompt: "Where can I see my card balance?"
     assert:
@@ -102,7 +102,7 @@ tests:
   # ── Send / receive via prompt ────────────────────────────────────────
   - description: "Agent can send an email with attachment"
     providers:
-      - file://../providers/prompt.provider.mjs
+      - prompt
     vars:
       prompt: "Create a small text file at /tmp/eval-note.txt with the content 'Hello from eval'. Then send an email to fabri@xmtp.com with subject 'Eval Attachment' and text 'See attached note'. Attach /tmp/eval-note.txt. Reply: Email sent with attachment."
     assert:
@@ -111,7 +111,7 @@ tests:
 
   - description: "Agent can read an email and download its attachment"
     providers:
-      - file://../providers/prompt.provider.mjs
+      - prompt
     vars:
       prompt: "Poll my inbox for emails with attachments. Use email read on the most recent one to download the attachment. Reply: Saved: <filename>."
     assert:
@@ -120,7 +120,7 @@ tests:
 
   - description: "Agent can send an SMS"
     providers:
-      - file://../providers/prompt.provider.mjs
+      - prompt
     vars:
       prompt: "Send a short SMS to +16154376139 saying 'QA eval test'. Reply: SMS sent."
     assert:
@@ -129,7 +129,7 @@ tests:
 
   - description: "Agent can poll received SMS"
     providers:
-      - file://../providers/prompt.provider.mjs
+      - prompt
     vars:
       prompt: "Check my latest received SMS. Reply with: From: <number>, Text: <message>."
     assert:
