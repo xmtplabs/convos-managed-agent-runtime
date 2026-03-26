@@ -64,6 +64,7 @@ export const config = {
   // Telnyx (from services)
   telnyxApiKey: getEnv("TELNYX_API_KEY"),
   telnyxMessagingProfileId: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
+  telnyxWebhookPublicKey: getEnv("TELNYX_WEBHOOK_PUBLIC_KEY"),
 
   // Protected instances — cannot be claimed, killed, or drained
   protectedInstances: getEnv("PROTECTED_INSTANCES")
