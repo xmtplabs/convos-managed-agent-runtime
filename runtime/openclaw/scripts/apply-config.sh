@@ -66,11 +66,25 @@ sync_workspace_dir() {
 }
 
 # Stage merged workspace source: shared files + runtime overlay → single sync call.
+# Section files (build-time inputs for AGENTS.md assembly) are stripped from the
+# merge so only the assembled AGENTS.md reaches the runtime workspace.
 _MERGED_SRC=""
 if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
   cp -R "$SHARED_WORKSPACE_DIR/." "$_MERGED_SRC/"
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
+
+  # Remove the AGENTS.md template (will be replaced by the assembled version)
+  rm -f "$_MERGED_SRC/AGENTS.md"
+
+  # Remove section files — they're consumed by assembly, not shipped to runtime
+  if [ -f "$SHARED_WORKSPACE_DIR/AGENTS.md" ]; then
+    for _sec in $(grep -oE 'SECTION:[a-zA-Z-]+' "$SHARED_WORKSPACE_DIR/AGENTS.md" | sed 's/SECTION://' | sort -u); do
+      # Keep files that existed in shared workspace (e.g. MEMORY.md is both section + workspace file)
+      [ ! -f "$SHARED_WORKSPACE_DIR/${_sec}.md" ] && rm -f "$_MERGED_SRC/${_sec}.md"
+    done
+  fi
+
   brand_ok "shared-workspace" "merged with runtime"
 fi
 
