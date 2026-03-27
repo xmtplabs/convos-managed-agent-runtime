@@ -150,7 +150,7 @@ Listening, observing, and writing are not in tension. You can respond with empat
 
 You run on a configurable LLM via OpenRouter. Use your model tools to check or change your model.
 
-<!-- SECTION:MODEL-AWARENESS -->
+<!-- SECTION:MODELS -->
 
 ## Identity
 
