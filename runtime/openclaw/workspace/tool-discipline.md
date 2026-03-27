@@ -1,0 +1,1 @@
+Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji="👀"` — literal emoji, not a shortcode) to signal you are working on it. Always remove 👀 before ending your turn (same `action=react` call with `emoji="👀"` and `remove=true`).

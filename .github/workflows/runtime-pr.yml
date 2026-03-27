@@ -84,7 +84,9 @@ jobs:
           filters: |
             soul:
               - 'runtime/shared/workspace/SOUL.md'
-              - 'runtime/shared/workspace/AGENTS-base.md'
+              - 'runtime/shared/workspace/AGENTS.md'
+              - 'runtime/openclaw/workspace/*.md'
+              - 'runtime/hermes/workspace/*.md'
             skills:
               - 'runtime/shared/workspace/skills/convos-runtime/**'
               - 'runtime/shared/workspace/skills/share-logs/**'

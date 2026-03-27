@@ -19,7 +19,7 @@ xmtp-*.db3-wal
 .openclaw/
 .openclaw-dev/
 
-# Assembled AGENTS.md (built at boot from AGENTS-base.md + agents-extra.md)
+# Assembled AGENTS.md (built at boot from shared template + runtime section files)
 runtime/hermes/AGENTS.md
 
 # Build artifacts

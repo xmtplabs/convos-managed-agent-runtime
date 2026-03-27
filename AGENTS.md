@@ -4,7 +4,7 @@
 **pool/** (Express API + Drizzle/Postgres pool manager), **runtime/** (two agent runtimes + shared workspace + evals), **dashboard/** (Next.js + Tailwind at assistants.convos.org). Use `pnpm` everywhere — never npm/yarn. Never update dependencies.
 
 ## Runtime: Shared Workspace
-Skills, SOUL.md, and AGENTS-base.md live in `runtime/shared/workspace/`. Both runtimes (OpenClaw and Hermes) copy from there at boot. Default to shared — only put files in a runtime's own workspace if they genuinely don't apply to the other. AGENTS.md is assembled from `AGENTS-base.md` + runtime's `agents-extra.md` — never check in a standalone AGENTS.md. Use `$SKILLS_ROOT` in SKILL.md paths. Add deps to both `hermes/package.json` and `openclaw/package.json` when a shared skill needs a Node CLI.
+Skills, SOUL.md, and the AGENTS.md template live in `runtime/shared/workspace/`. Both runtimes (OpenClaw and Hermes) assemble from there at boot. The shared `AGENTS.md` contains `<!-- SECTION:name -->` markers that get replaced with runtime-specific section files from each runtime's `workspace/` folder (e.g. `delegation.md`, `memory.md`). Missing sections are silently removed. Section files map to eval suites. Default to shared — only create section files for runtime-specific wiring. Use `$SKILLS_ROOT` in SKILL.md paths. Add deps to both `hermes/package.json` and `openclaw/package.json` when a shared skill needs a Node CLI.
 
 ## Commands
 - Pool: `cd pool && pnpm dev` / `pnpm build` (tsc) / `pnpm test` / `pnpm db:migrate` / `pnpm db:studio`

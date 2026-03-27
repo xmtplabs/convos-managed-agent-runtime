@@ -1,7 +1,7 @@
 #!/bin/sh
 # Sync workspace (skills, SOUL.md, config, prompts) to HERMES_HOME.
-# Sources: shared workspace (SOUL, base AGENTS, shared skills) then
-#          runtime workspace (config, CONVOS_PLATFORM, agents-extra).
+# Sources: shared workspace (SOUL, AGENTS template, shared skills) then
+#          runtime workspace (config, section files).
 set -e
 . "$(dirname "$0")/init.sh"
 
@@ -42,12 +42,9 @@ for skill_dir in "$WORKSPACE_DIR"/skills/*; do
   _skill_count=$((_skill_count + 1))
 done
 
-# ── AGENTS.md (base + extra) — Hermes auto-loads from CWD ────────────────
+# ── AGENTS.md (shared template + runtime sections) — Hermes auto-loads from CWD
 . "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
-assemble_agents "$SHARED_WORKSPACE_DIR" "$WORKSPACE_DIR/agents-extra.md" "$ROOT/AGENTS.md" "hermes"
-
-# ── Convos platform prompt (hermes-only) ─────────────────────────────────
-[ -f "$WORKSPACE_DIR/CONVOS_PLATFORM.md" ] && cp "$WORKSPACE_DIR/CONVOS_PLATFORM.md" "$HERMES_HOME/CONVOS_PLATFORM.md"
+assemble_agents "$SHARED_WORKSPACE_DIR" "$WORKSPACE_DIR" "$ROOT/AGENTS.md" "hermes"
 
 brand_ok "HERMES_HOME" "$HERMES_HOME"
 brand_done "Workspace ready"

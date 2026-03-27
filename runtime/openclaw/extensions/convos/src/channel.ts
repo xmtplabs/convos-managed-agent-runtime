@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   DEFAULT_ACCOUNT_ID,
   deleteAccountFromConfigSection,
@@ -27,37 +26,6 @@ import { getConvosRuntime } from "./runtime.js";
 import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
 import { clearConvosCredentials } from "./credentials.js";
 import { stats } from "./stats.js";
-
-let _cachedMessagingHints: string[] | null = null;
-
-function loadConvosMessagingHints(): string[] {
-  if (_cachedMessagingHints) return _cachedMessagingHints;
-  let thisDir: string | undefined;
-  try {
-    thisDir = path.dirname(fileURLToPath(import.meta.url));
-  } catch {
-    // jiti or non-file: URL — skip this candidate
-  }
-  const candidates = [
-    path.resolve(process.env.OPENCLAW_STATE_DIR || ".", "workspace", "CONVOS_PLATFORM.md"),
-    ...(thisDir ? [path.resolve(thisDir, "..", "..", "workspace", "CONVOS_PLATFORM.md")] : []),
-  ];
-  for (const hintsPath of candidates) {
-    try {
-      const content = fs.readFileSync(hintsPath, "utf-8");
-      _cachedMessagingHints = content
-        .split("\n---\n")
-        .map((s) => s.split("\n").filter((line) => !line.startsWith("#")).join("\n").trim())
-        .filter((s) => s.length > 0);
-      return _cachedMessagingHints;
-    } catch {
-      continue;
-    }
-  }
-  console.warn("CONVOS_PLATFORM.md not found — agent will lack messaging hints");
-  _cachedMessagingHints = [];
-  return _cachedMessagingHints;
-}
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
@@ -227,9 +195,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   configSchema: convosChannelConfigSchema,
   onboarding: convosOnboardingAdapter,
   actions: convosMessageActions,
-  agentPrompt: {
-    messageToolHints: () => loadConvosMessagingHints(),
-  },
+  agentPrompt: {},
   config: {
     listAccountIds: (cfg) => listConvosAccountIds(cfg as CoreConfig),
     resolveAccount: (cfg, accountId) => resolveConvosAccount({ cfg: cfg as CoreConfig, accountId }),

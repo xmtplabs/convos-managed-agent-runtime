@@ -97,10 +97,10 @@ done
 
 mkdir -p "$STATE_DIR"
 
-# Assemble AGENTS.md (shared base + runtime extra) — after sync so it overwrites the synced copy
+# Assemble AGENTS.md (shared template + runtime sections) — after sync so it overwrites the synced copy
 if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh" ]; then
   . "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
-  assemble_agents "$SHARED_WORKSPACE_DIR" "$RUNTIME_DIR/workspace/agents-extra.md" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
+  assemble_agents "$SHARED_WORKSPACE_DIR" "$RUNTIME_DIR/workspace" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
 else
   echo "⚠ SHARED_SCRIPTS_DIR not set — skipping agents-assemble" >&2
 fi

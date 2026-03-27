@@ -25,7 +25,7 @@ Two agent runtimes as peers — **OpenClaw** (Node.js) and **Hermes** (Python) �
 The `pnpm start` script runs four steps in sequence:
 
 1. **keys.sh** — Displays all env var status. Generates `OPENCLAW_GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
-2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Merges shared workspace (`runtime/shared/workspace/`) with runtime-specific workspace, then assembles `AGENTS.md` from `AGENTS-base.md` + `agents-extra.md`. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
+2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Merges shared workspace (`runtime/shared/workspace/`) with runtime-specific workspace, then assembles `AGENTS.md` from the shared template + runtime section files (marker-based templating). Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
 3. **install-deps.sh** — Runs `pnpm install` in each extension directory (convos, web-tools). Links shared deps.
 4. **start.sh** — Seeds cron jobs (`crons.sh`) and runs `openclaw gateway run` with a restart loop (max 5 rapid crashes in 30s window).
 
@@ -40,7 +40,7 @@ runtime/
 ├── evals/                  # shared eval suite (see evals/README.md)
 ├── shared/                 # shared across both runtimes
 │   ├── workspace/
-│   │   ├── AGENTS-base.md  # shared agent instructions (~80% of AGENTS.md)
+│   │   ├── AGENTS.md       # shared agent template (<!-- SECTION:xxx --> markers)
 │   │   ├── SOUL.md         # personality
 │   │   └── skills/         # services, convos-runtime, profile-update
 │   └── web-tools/          # browser automation, landing page, forms, skills pages
@@ -51,7 +51,8 @@ runtime/
 │   ├── extensions/
 │   │   └── convos/         # XMTP messaging channel
 │   ├── workspace/
-│   │   ├── agents-extra.md # openclaw-specific agent instructions
+│   │   ├── delegation.md   # openclaw-specific section files (injected into AGENTS.md)
+│   │   ├── memory.md, messaging.md, silence.md, cli.md, ...
 │   │   ├── HEARTBEAT.md    # heartbeat nudge config
 │   │   └── (no skills — all moved to shared)
 │   └── scripts/            # keys, gateway, crons, pool-server, etc.
@@ -60,9 +61,9 @@ runtime/
     ├── package.json        # convos-cli dep
     ├── src/                # FastAPI server + XMTP bridge
     ├── workspace/
-    │   ├── agents-extra.md # hermes-specific agent instructions
-    │   ├── config.yaml     # hermes toolset config
-    │   └── CONVOS_PLATFORM.md # platform context (hermes-only)
+    │   ├── delegation.md   # hermes-specific section files (injected into AGENTS.md)
+    │   ├── memory.md, messaging.md, silence.md, cli.md, cron.md, identity.md, ...
+    │   └── config.yaml     # hermes toolset config
     └── scripts/            # entrypoint, apply-config, eval-env, etc.
 ```
 
@@ -74,11 +75,11 @@ runtime/
 
 | File | Purpose | Assembly |
 |------|---------|----------|
-| `AGENTS-base.md` | Shared agent instructions (~80% of final AGENTS.md) | Concatenated with runtime's `agents-extra.md` to produce AGENTS.md |
+| `AGENTS.md` | Shared agent template with `<!-- SECTION:xxx -->` markers | Markers replaced with runtime section files to produce final AGENTS.md |
 | `SOUL.md` | Personality / persona (includes OpenClaw YAML frontmatter, ignored by Hermes) | Copied as-is |
 | `skills/` | All skills (services, convos-runtime, profile-update) | Copied to runtime's skills directory |
 
-**AGENTS.md assembly:** `cat AGENTS-base.md agents-extra.md > AGENTS.md`. Each runtime keeps an `agents-extra.md` in its own workspace with runtime-specific sections (e.g. Delegation, Memory, Identity for Hermes).
+**AGENTS.md assembly:** The shared `AGENTS.md` template contains `<!-- SECTION:name -->` markers. At boot, `agents-assemble.sh` replaces each marker with the contents of `<runtime>/workspace/name.md`. Missing section files cause the marker to be silently removed. Section files map to eval suites (e.g. `delegation.md` → `delegation.yaml`).
 
 **Where files land at runtime:**
 
@@ -91,8 +92,8 @@ runtime/
 ### Adding new capabilities
 
 - **New shared skill** — add a directory under `runtime/shared/workspace/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for script paths in SKILL.md.
-- **New shared instruction** — edit `AGENTS-base.md` for behavior that applies to both runtimes.
-- **Runtime-specific instruction** — edit the runtime's `workspace/agents-extra.md`.
+- **New shared instruction** — edit `shared/workspace/AGENTS.md` for behavior that applies to both runtimes.
+- **Runtime-specific instruction** — add or edit a section file in the runtime's `workspace/` (e.g. `delegation.md`) and add a `<!-- SECTION:name -->` marker in the shared template.
 - **New dependency for a skill** — add it to both `hermes/package.json` and `openclaw/package.json`.
 
 ## Scripts

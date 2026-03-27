@@ -1,0 +1,4 @@
+- **Current model:** call `session_status` with no arguments — the status card shows your active model.
+- **Available models:** read the `agents.defaults.models` keys in `$OPENCLAW_STATE_DIR/openclaw.json`. Only models listed there are supported.
+- **Switch model:** call `session_status` with the `model` parameter set to one of the allowed model IDs. If the model is not in the config, decline and show what's available.
+- **Reset to default:** call `session_status` with `model` set to `"default"`.
