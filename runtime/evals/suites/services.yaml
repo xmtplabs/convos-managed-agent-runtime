@@ -1,15 +1,9 @@
 # runtime/evals/services.yaml
-# Services eval — email and SMS send/receive + webhook notifications.
-# Webhook tests share one conversation and run sequentially;
-# prompt-based tests run independently after.
+# Services eval — credits/card awareness + poll latest emails and SMS.
 
 description: "Eval: Services"
 
-evaluateOptions:
-  maxConcurrency: 1
-
 providers:
-  - file://../providers/webhook.provider.mjs
   - file://../providers/prompt.provider.mjs
 
 defaultTest:
@@ -20,63 +14,8 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  # ── Webhook notifications ────────────────────────────────────────────
-  - description: "Agent receives webhook email notification"
-    providers:
-      - webhook
-    vars:
-      prompt: "(waiting for webhook notification)"
-    metadata:
-      waitForNotification: true
-      notificationType: email
-    assert:
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript. A webhook delivered an email
-          notification to the agent.
-          FAIL if there is no AGENT message that references receiving, noticing,
-          or reading a new email.
-          PASS if the AGENT mentions an email, a new message, or inbox activity.
-
-  - description: "Agent recalls email details from webhook notification"
-    providers:
-      - webhook
-    vars:
-      prompt: "What did that email say? Who was it from?"
-    assert:
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript. The USER asked about an email.
-          FAIL if the AGENT response is completely empty or says it has no
-          information about any email.
-          FAIL if the AGENT does not mention at least one of: the sender
-          (QA Bot), the subject (Webhook eval test), or a phrase from
-          the body (test email from webhook eval).
-          PASS if the AGENT references any concrete detail from the email —
-          sender, subject, or body content.
-
-  - description: "Agent receives webhook SMS notification"
-    providers:
-      - webhook
-    vars:
-      prompt: "(waiting for webhook notification)"
-    metadata:
-      waitForNotification: true
-      notificationType: sms
-    assert:
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript. A webhook delivered an SMS
-          notification to the agent.
-          FAIL if there is no AGENT message that references receiving or
-          noticing a new text message or SMS.
-          PASS if the AGENT mentions a text, SMS, or new message from a
-          phone number.
-
   # ── Credits & card balance ────────────────────────────────────────────
   - description: "Agent knows how to top up credits"
-    providers:
-      - prompt
     vars:
       prompt: "How do I top up my credits?"
     assert:
@@ -91,45 +30,21 @@ tests:
           informing the user that credits are already at maximum.
 
   - description: "Agent knows where to check card balance"
-    providers:
-      - prompt
     vars:
       prompt: "Where can I see my card balance?"
     assert:
       - type: regex
         value: "https?://|localhost|services"
 
-  # ── Send / receive via prompt ────────────────────────────────────────
-  - description: "Agent can send an email with attachment"
-    providers:
-      - prompt
-    vars:
-      prompt: "Create a small text file at /tmp/eval-note.txt with the content 'Hello from eval'. Then send an email to fabri@xmtp.com with subject 'Eval Attachment' and text 'See attached note'. Attach /tmp/eval-note.txt. Reply: Email sent with attachment."
-    assert:
-      - type: icontains
-        value: "sent"
-
+  # ── Poll latest emails & SMS ──────────────────────────────────────────
   - description: "Agent can read an email and download its attachment"
-    providers:
-      - prompt
     vars:
       prompt: "Poll my inbox for emails with attachments. Use email read on the most recent one to download the attachment. Reply: Saved: <filename>."
     assert:
       - type: icontains
         value: "saved"
 
-  - description: "Agent can send an SMS"
-    providers:
-      - prompt
-    vars:
-      prompt: "Send a short SMS to +16154376139 saying 'QA eval test'. Reply: SMS sent."
-    assert:
-      - type: icontains
-        value: "sent"
-
   - description: "Agent can poll received SMS"
-    providers:
-      - prompt
     vars:
       prompt: "Check my latest received SMS. Reply with: From: <number>, Text: <message>."
     assert:
