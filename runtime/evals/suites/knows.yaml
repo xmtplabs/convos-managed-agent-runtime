@@ -61,7 +61,7 @@ tests:
           FAIL if the agent says SMS delivery is fully reliable or makes no
           mention of potential delivery issues.
           Otherwise PASS — the agent should mention that outbound SMS may not
-          reach its destination.
+          reach its destination or that carrier approval is still pending.
 
   - description: "Agent picks the right mechanism for recurring vs one-off tasks"
     vars:

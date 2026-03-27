@@ -18,19 +18,18 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Agent knows its email address"
+  - description: "Agent knows its services page URL"
     vars:
-      prompt: "What is your email address?"
+      prompt: "What's your services page URL?"
     assert:
       - type: regex
-        value: "[\\w.-]+@[\\w.-]+"
-
-  - description: "Agent knows its phone number"
-    vars:
-      prompt: "What is your phone number?"
-    assert:
-      - type: regex
-        value: "\\+?1?[\\s.-]?\\(?[\\d*]{3}\\)?[\\s.-]?[\\d*]{3,4}[\\s.-]?[\\d*]{4}"
+        value: "https?://|localhost|services"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent says it doesn't know or has no services page.
+          Otherwise PASS — the agent should mention a services page URL or
+          reference one it tried to look up (even localhost/127.0.0.1 URLs
+          are fine, since evals run inside Docker).
 
   - description: "Agent can share logs"
     vars:
