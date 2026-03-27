@@ -1103,6 +1103,14 @@ async function dispatchGreeting(
     timestamp: new Date(),
   };
 
+  // Send an instant placeholder so the user sees feedback immediately
+  // while the LLM generates the real greeting.
+  try {
+    await inst.sendMessage("Hi there! Setting things up\u2026");
+  } catch (err) {
+    console.warn("[convos] Instant greeting failed (continuing):", err);
+  }
+
   console.log(`[convos] Dispatching greeting message (skill-builder=${!hasActiveSkill()})`);
   try {
     await handleInboundMessage(account, syntheticMsg, runtime);
