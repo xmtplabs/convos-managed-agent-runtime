@@ -685,8 +685,16 @@ def _patch_cron_delivery() -> None:
             logger.error("Cron job '%s': no event loop for convos delivery", job.get("name", job["id"]))
             return
 
+        async def _policy_then_send(text: str) -> None:
+            from .outbound_policy import apply_outbound_policy
+            policy = await apply_outbound_policy(text)
+            if policy.suppress:
+                logger.info("Cron job '%s': suppressed by outbound policy", job.get("name", job["id"]))
+                return
+            await adapter.send_message(policy.text)
+
         try:
-            future = asyncio.run_coroutine_threadsafe(adapter.send_message(content), loop)
+            future = asyncio.run_coroutine_threadsafe(_policy_then_send(content), loop)
             future.result(timeout=30)
             logger.info("Cron job '%s': delivered to convos", job.get("name", job["id"]))
         except Exception as err:
