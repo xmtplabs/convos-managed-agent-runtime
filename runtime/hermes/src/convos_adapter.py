@@ -815,6 +815,11 @@ class ConvosAdapter:
             logger.info(f"Join accepted: {info.get('joinerInboxId', '')}")
             inst = self._instance
             if inst:
+                if not self._greeting_done.is_set():
+                    try:
+                        await self.send_message("one sec, setting things up\u2026")
+                    except Exception as err:
+                        logger.warning(f"Instant greeting failed: {err}")
                 if name:
                     try:
                         await inst.rename(name)

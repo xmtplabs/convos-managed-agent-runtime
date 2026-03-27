@@ -193,12 +193,13 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         if not adapter.agent or not adapter.instance:
             return
 
-        # Send an instant placeholder so the user sees feedback immediately
-        # while the LLM generates the real greeting.
-        try:
-            await adapter.send_message("Hi there! Setting things up\u2026")
-        except Exception as err:
-            logger.warning("Instant greeting failed (continuing): %s", err)
+        # Send instant greeting if on_member_joined hasn't already sent it
+        # (covers the case where members are already present when the agent starts).
+        if not adapter._greeting_done.is_set():
+            try:
+                await adapter.send_message("one sec, setting things up\u2026")
+            except Exception as err:
+                logger.warning("Instant greeting failed: %s", err)
 
         if _has_active_skill():
             greeting_content = (

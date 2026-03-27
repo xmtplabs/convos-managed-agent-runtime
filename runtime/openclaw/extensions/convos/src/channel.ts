@@ -71,14 +71,17 @@ const SYSTEM_SENDER_ID = "system" as const;
  */
 let _greetingResolve: (() => void) | null = null;
 let _greetingDone: Promise<void> = Promise.resolve(); // pre-resolved for resume path
+let _instantGreetingSent = false;
 
 function resetGreetingGate(): void {
+  _instantGreetingSent = false;
   _greetingDone = new Promise<void>((resolve) => {
     _greetingResolve = resolve;
   });
 }
 
 function signalGreetingDone(): void {
+  _instantGreetingSent = true;
   if (_greetingResolve) {
     _greetingResolve();
     _greetingResolve = null;
@@ -1103,12 +1106,15 @@ async function dispatchGreeting(
     timestamp: new Date(),
   };
 
-  // Send an instant placeholder so the user sees feedback immediately
-  // while the LLM generates the real greeting.
-  try {
-    await inst.sendMessage("Hi there! Setting things up\u2026");
-  } catch (err) {
-    console.warn("[convos] Instant greeting failed (continuing):", err);
+  // Send instant greeting if onMemberJoined hasn't already sent it
+  // (covers the case where members are already present when the agent starts).
+  if (!_instantGreetingSent) {
+    _instantGreetingSent = true;
+    try {
+      await inst.sendMessage("one sec, setting things up\u2026");
+    } catch (err) {
+      console.warn("[convos] Instant greeting failed:", err);
+    }
   }
 
   console.log(`[convos] Dispatching greeting message (skill-builder=${!hasActiveSkill()})`);
@@ -1233,6 +1239,12 @@ export async function startWiredInstance(params: {
     },
     onMemberJoined: (info) => {
       console.log(`[convos] Join accepted: ${info.joinerInboxId}`);
+      if (!_instantGreetingSent) {
+        _instantGreetingSent = true;
+        inst.sendMessage("one sec, setting things up\u2026").catch((err) => {
+          console.warn("[convos] Instant greeting failed:", err);
+        });
+      }
       if (params.name) {
         inst.rename(params.name).catch((err) => {
           console.error(`[convos] Rename after join failed: ${String(err)}`);
