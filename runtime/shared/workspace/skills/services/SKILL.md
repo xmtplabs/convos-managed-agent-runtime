@@ -26,11 +26,31 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" sms provision
 
 **Never provision without asking the user first.** If a user asks to send an email/SMS and the service isn't provisioned, ask them before enabling it.
 
+## How unprovisioning works
+
+Users can remove their email or phone number at any time. When unprovisioned:
+- **Email**: the inbox is permanently deleted (all messages are lost)
+- **SMS**: the phone number is released back to the pool and may be reassigned to another instance
+
+**Before unprovisioning, you MUST:**
+1. Warn the user about what will happen (data loss for email, number loss for SMS)
+2. Only after the user confirms, run the unprovision command
+
+```bash
+# Remove email
+node "$SKILLS_ROOT/services/scripts/services.mjs" email unprovision
+
+# Remove SMS
+node "$SKILLS_ROOT/services/scripts/services.mjs" sms unprovision
+```
+
+**Never unprovision without explicit user confirmation.**
+
 ### SMS disclosure (required before provisioning)
 
 Before provisioning SMS, you **MUST** present the following disclosure to the user and obtain their explicit consent. Do NOT paraphrase — use this exact text:
 
-> By adding an assistant, you agree to receive SMS from your Convos AI assistant. Incoming SMS is reliable, but outbound SMS may not reach its destination — carrier approval is still pending. Full terms: https://learn.convos.org/sms
+> By adding an assistant, you agree to receive SMS from your Convos AI assistant. Incoming SMS is reliable, but outbound SMS may not reach its destination. Full terms: https://learn.convos.org/sms
 
 The user must acknowledge the disclosure before you run `sms provision`. If they decline, do not provision SMS.
 
