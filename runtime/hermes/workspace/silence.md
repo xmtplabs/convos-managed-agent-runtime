@@ -1,1 +1,0 @@
-Respond with SILENT on its own line to explicitly choose not to reply. It gets stripped — nothing is sent to the chat. Side effects (markers, reactions) still fire. A reaction on its own (with no text) also works as a silent response.
