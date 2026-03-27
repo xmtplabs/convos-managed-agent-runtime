@@ -69,7 +69,7 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
         res.status(400).json({ error: "TELNYX_API_KEY not configured" });
         return;
       }
-      const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone();
+      const { phoneNumber, messagingProfileId } = await telnyx.provisionPhone(instanceId);
       resourceId = phoneNumber;
       envValue = phoneNumber;
       resourceMeta.messagingProfileId = messagingProfileId;

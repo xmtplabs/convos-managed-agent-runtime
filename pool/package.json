@@ -15,6 +15,7 @@
     "datadog:test": "tsx --env-file=.env scripts/test-datadog.ts",
     "agentmail:test": "tsx --env-file=.env scripts/test-agentmail.ts",
     "openrouter:test": "tsx --env-file=.env scripts/test-openrouter.ts",
+    "sms:audit": "tsx --env-file=.env scripts/sms-pool-audit.ts",
     "telnyx:test": "tsx --env-file=.env scripts/telnyx-test.ts",
     "telnyx:sms-send": "tsx --env-file=.env scripts/telnyx-sms-send.ts",
     "telnyx:sms-test": "tsx --env-file=.env scripts/telnyx-sms-test.ts",
