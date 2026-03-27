@@ -344,6 +344,28 @@
         "responses": { "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "phone": { "type": "string" }, "provisioned": { "type": "boolean" } } } } } } }
       }
     },
+    "/api/proxy/email/unprovision": {
+      "post": {
+        "tags": ["Proxy"],
+        "summary": "Delete AgentMail inbox and remove email from instance",
+        "security": [{ "GatewayToken": [] }],
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "email": { "type": "string", "nullable": true, "description": "The inbox ID that was removed, or null if not provisioned" }, "unprovisioned": { "type": "boolean" }, "reason": { "type": "string", "nullable": true, "description": "Present when unprovisioned is false (e.g. not_provisioned)" } } } } } },
+          "502": { "description": "Upstream provider error", "content": { "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } }
+        }
+      }
+    },
+    "/api/proxy/sms/unprovision": {
+      "post": {
+        "tags": ["Proxy"],
+        "summary": "Release phone number back to pool and remove SMS from instance",
+        "security": [{ "GatewayToken": [] }],
+        "responses": {
+          "200": { "description": "OK", "content": { "application/json": { "schema": { "type": "object", "properties": { "phone": { "type": "string", "nullable": true, "description": "The phone number that was released, or null if not provisioned" }, "unprovisioned": { "type": "boolean" }, "reason": { "type": "string", "nullable": true, "description": "Present when unprovisioned is false (e.g. not_provisioned)" } } } } } },
+          "502": { "description": "Upstream provider error", "content": { "application/json": { "schema": { "type": "object", "properties": { "error": { "type": "string" } } } } } }
+        }
+      }
+    },
     "/api/proxy/email/send": {
       "post": {
         "tags": ["Proxy"],

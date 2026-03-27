@@ -1,5 +1,6 @@
 # runtime/evals/webhooks.yaml
-# E2E webhook eval — simulate webhook notification → agent receives and responds.
+# E2E webhook eval — send email/SMS to auto-reply addresses, then verify
+# the agent receives and processes the webhook notifications.
 # Sequential — tests share one conversation.
 
 description: "Eval: Webhooks"
@@ -8,6 +9,7 @@ evaluateOptions:
   maxConcurrency: 1
 
 providers:
+  - file://../providers/prompt.provider.mjs
   - file://../providers/webhook.provider.mjs
 
 defaultTest:
@@ -18,7 +20,19 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
+  # ── Email: send → auto-reply → webhook ──────────────────────────────
+  - description: "Agent sends email to trigger auto-reply"
+    providers:
+      - prompt
+    vars:
+      prompt: "Send an email to convos-agent-ef1apq8i-0uu@mail.convos.org with the subject 'QA Test' and body 'Hello from QA mode.' Reply: Email sent."
+    assert:
+      - type: icontains
+        value: "sent"
+
   - description: "Agent receives webhook email notification"
+    providers:
+      - webhook
     vars:
       prompt: "(waiting for webhook notification)"
     metadata:
@@ -34,6 +48,8 @@ tests:
           PASS if the AGENT mentions an email, a new message, or inbox activity.
 
   - description: "Agent recalls email details from webhook notification"
+    providers:
+      - webhook
     vars:
       prompt: "What did that email say? Who was it from?"
     assert:
@@ -48,7 +64,19 @@ tests:
           PASS if the AGENT references any concrete detail from the email —
           sender, subject, or body content.
 
+  # ── SMS: send → auto-reply → webhook ────────────────────────────────
+  - description: "Agent sends SMS to trigger auto-reply"
+    providers:
+      - prompt
+    vars:
+      prompt: "Send an SMS to +12082288548 saying 'QA ping'. Reply: SMS sent."
+    assert:
+      - type: icontains
+        value: "sent"
+
   - description: "Agent receives webhook SMS notification"
+    providers:
+      - webhook
     vars:
       prompt: "(waiting for webhook notification)"
     metadata:

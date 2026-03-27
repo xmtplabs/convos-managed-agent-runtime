@@ -18,7 +18,7 @@ import { config } from "../config";
 import * as db from "../db/pool";
 import { instanceServices, instanceInfra } from "../db/schema";
 import { db as drizzle } from "../db/connection";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import * as agentmail from "../services/providers/agentmail";
 import * as telnyx from "../services/providers/telnyx";
 import { metricCount, metricHistogram } from "../metrics";
@@ -143,6 +143,57 @@ router.post("/api/proxy/sms/provision", requireInstanceOrAdminAuth, async (req, 
     console.error(`[proxy/sms] provision error: instance=${instanceId} err=${err.message}`);
     metricCount("proxy.sms.provision_error");
     res.status(502).json({ error: `SMS provisioning failed: ${err.message}` });
+  }
+});
+
+// ── On-demand unprovisioning ─────────────────────────────────────────────────
+// Removes a service resource from an instance. Accepts instance auth OR admin auth.
+
+// POST /api/proxy/email/unprovision — delete AgentMail inbox and remove from instance
+router.post("/api/proxy/email/unprovision", requireInstanceOrAdminAuth, async (req, res) => {
+  const instanceId = req.instanceId!;
+  const { inboxId } = await getResources(instanceId);
+  if (!inboxId) { res.json({ email: null, unprovisioned: false, reason: "not_provisioned" }); return; }
+
+  try {
+    // Delete the inbox from AgentMail (best-effort)
+    await agentmail.deleteInbox(inboxId);
+    // Remove the instanceServices row
+    await drizzle.delete(instanceServices)
+      .where(and(eq(instanceServices.instanceId, instanceId), eq(instanceServices.toolId, "agentmail")));
+    resourceCache.delete(instanceId);
+    metricCount("proxy.email.unprovision");
+    console.log(`[proxy/email] unprovisioned inbox ${inboxId} for instance=${instanceId}`);
+    updateRuntimeMetadata(instanceId, { email: "" });
+    res.json({ email: inboxId, unprovisioned: true });
+  } catch (err: any) {
+    console.error(`[proxy/email] unprovision error: instance=${instanceId} err=${err.message}`);
+    metricCount("proxy.email.unprovision_error");
+    res.status(502).json({ error: `Email unprovisioning failed: ${err.message}` });
+  }
+});
+
+// POST /api/proxy/sms/unprovision — release phone back to pool and remove from instance
+router.post("/api/proxy/sms/unprovision", requireInstanceOrAdminAuth, async (req, res) => {
+  const instanceId = req.instanceId!;
+  const { phoneNumber } = await getResources(instanceId);
+  if (!phoneNumber) { res.json({ phone: null, unprovisioned: false, reason: "not_provisioned" }); return; }
+
+  try {
+    // Release the phone back to the pool (does not delete from Telnyx)
+    await telnyx.deletePhone(phoneNumber);
+    // Remove the instanceServices row
+    await drizzle.delete(instanceServices)
+      .where(and(eq(instanceServices.instanceId, instanceId), eq(instanceServices.toolId, "telnyx")));
+    resourceCache.delete(instanceId);
+    metricCount("proxy.sms.unprovision");
+    console.log(`[proxy/sms] unprovisioned phone ${phoneNumber} for instance=${instanceId}`);
+    updateRuntimeMetadata(instanceId, { phone: "" });
+    res.json({ phone: phoneNumber, unprovisioned: true });
+  } catch (err: any) {
+    console.error(`[proxy/sms] unprovision error: instance=${instanceId} err=${err.message}`);
+    metricCount("proxy.sms.unprovision_error");
+    res.status(502).json({ error: `SMS unprovisioning failed: ${err.message}` });
   }
 });
 

@@ -8,6 +8,7 @@ import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 import * as railway from "./services/providers/railway";
 import * as openrouter from "./services/providers/openrouter";
+import * as telnyx from "./services/providers/telnyx";
 import { parseRuntimeStatus, type ParsedRuntimeStatus } from "./runtimeStatus";
 
 function isProtected(id: string): boolean {
@@ -38,8 +39,12 @@ async function safeDestroy(instanceId: string, railwayServiceId?: string, projec
           await openrouter.findKeyHash(`assistant-${config.poolEnvironment}-${instanceId}`) ||
           await openrouter.findKeyHash(`convos-agent-${instanceId}`);
         if (keyHash) await openrouter.deleteKey(keyHash).catch(() => {});
+        // Best-effort release any phones assigned to this instance
+        await telnyx.releasePhonesByInstance(instanceId);
       } else {
         console.warn(`[pool] Instance ${instanceId} not in infra DB and no serviceId, skipping`);
+        // Still release any phones assigned to this instance
+        await telnyx.releasePhonesByInstance(instanceId);
       }
       return;
     }

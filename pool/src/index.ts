@@ -146,9 +146,15 @@ app.post("/api/pool/self-info", async (req, res) => {
   }
 });
 
+/** Canonical GHCR repo per harness (single source of truth for image names). */
+const HARNESS_IMAGES: Record<string, string> = {
+  openclaw: "ghcr.io/xmtplabs/convos-runtime",
+  hermes: "ghcr.io/xmtplabs/convos-runtime-hermes",
+};
+
 /** Detect harness type from a container image reference. */
 function detectHarnessFromImage(image: string): "openclaw" | "hermes" | null {
-  if (image.includes("runtime-hermes")) return "hermes";
+  if (image.includes("convos-runtime-hermes")) return "hermes";
   if (image.includes("convos-runtime")) return "openclaw";
   return null;
 }
@@ -165,14 +171,15 @@ async function upgradeInstanceRuntime(
   infra: { providerServiceId: string; providerProjectId: string | null; providerEnvId: string; runtimeType?: string | null },
   imageOverride?: string,
 ): Promise<string> {
-  const rawImage = imageOverride || config.railwayRuntimeImage;
+  let rawImage = imageOverride || config.railwayRuntimeImage;
   if (!rawImage) throw new Error("No runtime image configured");
 
-  // Guard: don't deploy an openclaw image to a hermes instance or vice versa.
+  // If the configured image doesn't match the instance's harness, derive the correct one.
   const targetHarness = detectHarnessFromImage(rawImage);
   const currentHarness = infra.runtimeType as "openclaw" | "hermes" | null;
   if (targetHarness && currentHarness && targetHarness !== currentHarness) {
-    throw new Error(`Harness mismatch: instance is ${currentHarness} but image is ${targetHarness} (${rawImage})`);
+    const tag = rawImage.includes(":") ? rawImage.split(":").pop()! : "dev";
+    rawImage = `${HARNESS_IMAGES[currentHarness]}:${tag}`;
   }
 
   const image = await resolveImageDigest(rawImage);
@@ -760,6 +767,7 @@ app.get("/admin", (req, res) => {
     instanceModel: config.instanceModel,
     adminUrls: POOL_ADMIN_URLS as any,
     protectedInstances: config.protectedInstances,
+    harnessImages: HARNESS_IMAGES,
   }));
 });
 
@@ -774,6 +782,7 @@ app.get("/admin/upgrades", (req, res) => {
     runtimeImage: config.railwayRuntimeImage,
     adminUrls: POOL_ADMIN_URLS as any,
     protectedInstances: config.protectedInstances,
+    harnessImages: HARNESS_IMAGES,
   }));
 });
 

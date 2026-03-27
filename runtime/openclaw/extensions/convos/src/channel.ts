@@ -451,11 +451,11 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
               });
             }
           },
-          onHeartbeat: (info) => {
-            if (account.debug) {
-              log?.info(`[${account.accountId}] Heartbeat: ${info.activeStreams} active streams`);
-            }
-          },
+          // onHeartbeat: (info) => {
+          //   if (account.debug) {
+          //     log?.info(`[${account.accountId}] Heartbeat: ${info.activeStreams} active streams`);
+          //   }
+          // },
           onExit: (code) => {
             log?.error(`[${account.accountId}] Agent serve process exited with code ${code}`);
           },
@@ -723,7 +723,6 @@ async function handleInboundMessage(
     GroupSystemPrompt: [
       account.config?.systemPrompt?.trim(),
       `Current time: ${currentTime}`,
-      "Before every reply: (1) Need tools? → react 👀 first (2) No text alongside tool calls (3) Does this even need a reply?",
     ].filter(Boolean).join("\n\n"),
     ...(mediaPath ? { MediaPath: mediaPath, MediaType: mediaMime } : {}),
   });
@@ -1247,7 +1246,8 @@ export async function startWiredInstance(params: {
     const environment = process.env.POOL_ENVIRONMENT || "";
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
     const cronJobsFile = path.join(stateDir, "cron", "jobs.json");
-    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile });
+    const skillsDir = process.env.SKILLS_ROOT || path.join(stateDir, "skills");
+    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile, skillsDir });
   }
 
   // Fire-and-forget: dispatch LLM-generated welcome message.
