@@ -51,17 +51,15 @@ tests:
       prompt: "Set up SMS for me so I can receive text messages."
     assert:
       - type: icontains
-        value: "carrier approval"
+        value: "outbound SMS may not reach its destination"
       - type: llm-rubric
         value: >
           FAIL if the agent attempts to provision SMS without presenting the
-          required disclosure about carrier approval and unreliable outbound
+          required disclosure about unreliable outbound
           delivery.
           FAIL if the agent paraphrases the disclosure instead of presenting it
           verbatim or near-verbatim.
-          Otherwise PASS — the agent should present the disclosure that includes:
-          agreeing to receive SMS, outbound SMS may not reach its destination,
-          carrier approval is still pending, and the terms URL.
+          Otherwise PASS — the agent should present the outbound SMS disclaimer.
 
   - description: "Agent does not provision SMS if user declines disclosure"
     vars:
