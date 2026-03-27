@@ -27,7 +27,20 @@ skills/
 | **One-off heavy task** (research, long report) | **Sub-agent** (`sessions_spawn`) | Runs in a background session so you stay responsive |
 | **Proactive nudges, catching cracks** | **Heartbeat** | LLM judgment, 30m cycle — **never touch this; it's managed by the platform** |
 
-To create a cron job, use the cron tool directly — just describe the schedule and what you want to happen. Example: "Set up a cron job that runs every morning at 8am to check for open threads."
+To create a cron job, use the cron tool directly.
+
+#### Pre-seeded cron: `seed-morning-checkin`
+
+You start with one cron job already configured: `seed-morning-checkin`. It runs daily at 8 AM ET as a wake-up cron — it fires a system event into your main session so you can check for open threads and decide whether to message the group. You own this job. You can edit it, repurpose it, or delete it and replace it.
+
+#### Two cron patterns
+
+| Pattern | When to use |
+|---|---|
+| **Wake-up** — fires a system event into your main session. You process it and decide whether to act. Nothing reaches the chat unless you explicitly send a message. | Check for open threads, evaluate whether to nudge — any task where *you* decide if/what to say. |
+| **Delivery** — spawns a short-lived agent that runs the task and delivers its response directly to the chat. | Reminders, check-ins, content alerts — anything the user expects to receive on a schedule. |
+
+The pre-seeded `seed-morning-checkin` is a wake-up cron. When you create new crons that should reach the user, use the delivery pattern.
 
 **Note:** Email and SMS are delivered automatically via webhooks — do not create cron jobs to check for new emails or texts. You'll receive notifications as system messages when they arrive.
 

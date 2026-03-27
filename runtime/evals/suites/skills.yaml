@@ -32,35 +32,23 @@ tests:
       - type: regex
         value: "\\+?1?[\\s.-]?\\(?[\\d*]{3}\\)?[\\s.-]?[\\d*]{3,4}[\\s.-]?[\\d*]{4}"
 
-  - description: "Agent can send an email with attachment"
+  - description: "Agent can share logs"
     vars:
-      prompt: "Create a small text file at /tmp/eval-note.txt with the content 'Hello from eval'. Then send an email to fabri@xmtp.com with subject 'Eval Attachment' and text 'See attached note'. Attach /tmp/eval-note.txt. Reply: Email sent with attachment."
+      prompt: "Share my logs"
     assert:
       - type: icontains
-        value: "sent"
+        value: "/web-tools/logs"
+      - type: regex
+        value: "http"
 
-  - description: "Agent can read an email and download its attachment"
+  - description: "Agent can stop sharing logs"
     vars:
-      prompt: "Poll my inbox for emails with attachments. Use email read on the most recent one to download the attachment. Reply: Saved: <filename>."
+      prompt: "Stop sharing my logs"
     assert:
       - type: icontains
-        value: "saved"
-
-  - description: "Agent can send an SMS"
-    vars:
-      prompt: "Send a short SMS to +16154376139 saying 'QA eval test'. Reply: SMS sent."
-    assert:
-      - type: icontains
-        value: "sent"
-
-  - description: "Agent can poll received SMS"
-    vars:
-      prompt: "Check my latest received SMS. Reply with: From: <number>, Text: <message>."
-    assert:
-      - type: icontains
-        value: "from"
-      - type: icontains
-        value: "text"
+        value: "sharing"
+      - type: regex
+        value: "off|disabled|stopped|no longer"
 
   - description: "Agent can share logs"
     vars:

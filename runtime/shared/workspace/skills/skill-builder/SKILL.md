@@ -182,11 +182,8 @@ On approval:
 1. Set `"active": "<slug>"` in `$SKILLS_ROOT/generated/skills.json`
 2. Update your profile name: use your platform's profile update tool with the `agentName`
 3. Update your profile image with the validated URL from step 6 (skip if no image was found)
-4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `WHEN: immediately`, set it up now:
-   - Cron jobs → use the cron tool
-   - Recurring checks → use the cron tool (see CUSTOMIZATION.md)
-   - Skip all items marked `WHEN: after learning <context>` — you don't have the context yet
-5. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt. Be honest about what's live: mention automations you just set up, and note what you'll set up once you learn more about the group/user.
+4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `WHEN: immediately`, create the cron job NOW, before sending any message. Skip items marked `WHEN: after learning <context>` — you don't have the context yet. Do not move to step 5 until every immediate automation is actually running.
+5. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt. Only mention automations you actually set up in step 4. If some are deferred, say what you're waiting to learn. Never claim something is running if you didn't create it.
 
 **After activation, as you converse naturally:** When you learn a piece of context that unlocks a deferred ENGINE item (e.g., the user mentions their wake time), set up that automation right then. Don't ask permission for automations the user already approved in the skill — just set them up and confirm: "Got it, 7:30 wake time — I'll check in with you every morning."
 

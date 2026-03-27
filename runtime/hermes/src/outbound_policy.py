@@ -30,6 +30,7 @@ _OVERLOADED_PATTERNS = [
     "overloaded_error",
     "service unavailable",
     "high demand",
+    "error code: 529",
 ]
 
 _CREDIT_PATTERNS = [
@@ -98,10 +99,8 @@ async def apply_outbound_policy(text: str) -> PolicyResult:
     if _is_context_overflow(text) and await _check_credits_low():
         return PolicyResult(suppress=False, text=_build_credit_message())
 
+    # Suppress provider overloaded errors — don't send anything to the user
     if _is_overloaded(text):
-        return PolicyResult(
-            suppress=False,
-            text="I'm having trouble with my AI provider right now \u2014 please try again in a moment.",
-        )
+        return PolicyResult(suppress=True, text="")
 
     return PolicyResult(suppress=False, text=text)

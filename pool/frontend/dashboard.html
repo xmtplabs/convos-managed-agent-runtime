@@ -116,7 +116,7 @@
               <option value="openai/gpt-oss-20b">gpt-oss-20b</option>
             </optgroup>
             <optgroup label="Google">
-              <option value="google/gemini-3-pro-preview">gemini-3-pro</option>
+              <option value="google/gemini-3.1-pro-preview">gemini-3-pro</option>
               <option value="google/gemini-3-flash-preview">gemini-3-flash</option>
             </optgroup>
             <optgroup label="Other">
@@ -129,8 +129,8 @@
           <div class="image-picker" id="image-picker">
             <div class="image-picker-selects">
               <select class="replenish-select" id="runtime-harness">
-                <option value="convos-runtime">OpenClaw</option>
-                <option value="convos-runtime-hermes">Hermes</option>
+                <option value="openclaw">OpenClaw</option>
+                <option value="hermes">Hermes</option>
                 <option value="__custom__">other...</option>
               </select>
               <select class="replenish-select" id="runtime-env">
@@ -921,7 +921,7 @@
       var harness = document.getElementById('runtime-harness').value;
       var rawImage = harness === '__custom__'
         ? (document.getElementById('runtime-image-custom').value || '')
-        : 'ghcr.io/xmtplabs/' + harness + ':' + document.getElementById('runtime-env').value;
+        : (C.harnessImages[harness] || harness) + ':' + document.getElementById('runtime-env').value;
       var image = encodeURIComponent(rawImage.replace(/^https?:\/\//, ''));
       var model = encodeURIComponent(document.getElementById('instance-model').value);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);

@@ -355,17 +355,52 @@ async function provision() {
   console.log(`SMS provisioned: ${result.phone}`);
 }
 
+async function unprovision() {
+  if (!useProxy) {
+    console.log("SMS unprovisioning is only available in proxy mode (pool-managed instances).");
+    process.exit(1);
+  }
+  // Check if provisioned
+  const infoRes = await fetch(`${POOL_URL}/api/proxy/info`, {
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}` },
+  });
+  if (infoRes.ok) {
+    const info = await infoRes.json();
+    if (!info.phone) {
+      console.log("SMS is not provisioned — nothing to remove.");
+      return;
+    }
+  }
+  // Unprovision
+  const res = await fetch(`${POOL_URL}/api/proxy/sms/unprovision`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${INSTANCE_ID}:${GATEWAY_TOKEN}`, "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    console.error(`SMS unprovisioning failed: ${err.error || res.status}`);
+    process.exit(1);
+  }
+  const result = await res.json();
+  if (result.unprovisioned) {
+    console.log(`SMS removed: ${result.phone}`);
+  } else {
+    console.log("SMS is not provisioned — nothing to remove.");
+  }
+}
+
 export default async function sms(argv) {
   const [action, ...rest] = argv;
 
   switch (action) {
-    case "provision": return provision();
+    case "provision":   return provision();
+    case "unprovision": return unprovision();
     case "send":   return send(rest);
     case "poll":   return poll(rest);
     case "status": return status(rest);
     case "recent": return recent(rest);
     default:
-      console.error("Usage: services.mjs sms <provision|send|poll|status|recent> [options]");
+      console.error("Usage: services.mjs sms <provision|unprovision|send|poll|status|recent> [options]");
       process.exit(1);
   }
 }

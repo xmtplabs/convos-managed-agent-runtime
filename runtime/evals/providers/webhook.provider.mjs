@@ -75,7 +75,6 @@ export default class WebhookProvider {
 
       if (matched) {
         h.log('Agent responded to notification — waiting to settle...');
-        const cur = h.fetchMessages();
         h.waitForAgent(baseline, 30_000, 5_000);
       } else {
         h.log('No proactive response — nudging agent...');
