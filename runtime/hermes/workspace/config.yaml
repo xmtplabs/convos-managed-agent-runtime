@@ -20,10 +20,14 @@ models:
 
 provider_routing:
   only: ["anthropic", "openai", "google", "perplexity"]
-  # allow_fallbacks is not yet wired through to the OpenRouter API call
-  # in the hermes-agent package — this field is currently ignored.
+  # Controls OpenRouter provider-level fallbacks (letting OpenRouter pick
+  # alternative providers for the same model). Separate from the Hermes
+  # fallback_model below.
   allow_fallbacks: false
 
+# Hermes model fallback — switches to this model on 429/500/502/503/401/403/404.
+# Limitations: 529 (overloaded) does NOT trigger fallback, and fallback
+# only works in CLI/messaging sessions — not in cron jobs or subagents.
 fallback_model:
   provider: openrouter
   model: google/gemini-3.1-pro-preview
