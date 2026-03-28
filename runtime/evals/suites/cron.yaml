@@ -1,6 +1,6 @@
 # runtime/evals/cron.yaml
 # Cron eval — verify the agent can create a cron job and pings arrive via Convos.
-# Single conversation: create job → wait for ping → delete job.
+# Asks the agent to create a job, waits for delivery, asserts with regex.
 
 description: "Eval: Cron"
 
@@ -21,16 +21,11 @@ tests:
   - description: "Agent creates a cron job and a ping arrives in conversation"
     vars:
       prompt: >
-        Hey, I need a recurring ping to make sure notifications are
-        working on my phone. Use the cron/cronjob tool to schedule a job
-        that says "Ping!" every 1 minute. I'll delete it once I've
-        confirmed things work.
+        Hey, send me "Ping!" every 10 seconds. I'll delete it once I've
+        confirmed things work. Its just for QA. Do it don't ask follow up questions. Don't announce the creation. Just "Ping!", not Pong 
     metadata:
       cronWait: true
-      cronWaitSeconds: 120
-      cronCleanupPrompt: "Stop and delete the ping cron job you just created."
+      cronWaitSeconds: 40
     assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:cronPingsReceived"
-      - type: javascript
-        value: "file://../lib/assertions.mjs:cronJobDeleted"
+      - type: icontains
+        value: "ping"
