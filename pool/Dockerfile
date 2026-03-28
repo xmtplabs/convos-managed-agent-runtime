@@ -10,6 +10,7 @@ RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src ./src
 COPY frontend ./frontend
+COPY data ./data
 COPY drizzle ./drizzle
 
 ENV PORT=3001

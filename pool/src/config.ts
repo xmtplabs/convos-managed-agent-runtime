@@ -29,7 +29,7 @@ export const config = {
   railwayEnvironmentName: getEnv("RAILWAY_ENVIRONMENT_NAME"),
 
   // Template site
-  templateSiteUrl: getEnv("TEMPLATE_SITE_URL", "https://assistants.convos.org"),
+  templateSiteUrl: getEnv("TEMPLATE_SITE_URL", "https://convos.org/assistants"),
   templateSiteOrigins: getEnv("TEMPLATE_SITE_ORIGINS", "http://localhost:3000"),
 
   // Notion
@@ -54,14 +54,17 @@ export const config = {
   openrouterManagementKey: getEnv("OPENROUTER_MANAGEMENT_KEY"),
   openrouterKeyLimit: parseInt(getEnv("OPENROUTER_KEY_LIMIT", "20"), 10),
   openrouterKeyLimitReset: getEnv("OPENROUTER_KEY_LIMIT_RESET", "monthly"),
+  skillsOpenrouterApiKey: getEnv("SKILLS_OPENROUTER_API_KEY"),
 
   // AgentMail (from services)
   agentmailApiKey: getEnv("AGENTMAIL_API_KEY"),
   agentmailDomain: getEnv("AGENTMAIL_DOMAIN"),
+  agentmailWebhookSecret: getEnv("AGENTMAIL_WEBHOOK_SECRET"),
 
   // Telnyx (from services)
   telnyxApiKey: getEnv("TELNYX_API_KEY"),
   telnyxMessagingProfileId: getEnv("TELNYX_MESSAGING_PROFILE_ID"),
+  telnyxWebhookPublicKey: getEnv("TELNYX_WEBHOOK_PUBLIC_KEY"),
 
   // Protected instances — cannot be claimed, killed, or drained
   protectedInstances: getEnv("PROTECTED_INSTANCES")

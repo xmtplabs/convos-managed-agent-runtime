@@ -94,11 +94,11 @@ unset _gw_busy _relay_busy _cdp_busy
 
 # Service URL
 if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
-  brand_ok "SERVICE_URL" "https://$RAILWAY_PUBLIC_DOMAIN"
+  brand_ok "URL" "https://$RAILWAY_PUBLIC_DOMAIN"
 elif [ -n "$NGROK_URL" ]; then
-  brand_ok "SERVICE_URL" "$NGROK_URL (ngrok)"
+  brand_ok "URL" "$NGROK_URL (ngrok)"
 else
-  brand_dim "SERVICE_URL" "localhost"
+  brand_dim "URL" "localhost"
 fi
 
 # Chrome (read from the patched config)
@@ -156,30 +156,7 @@ fi
 # --- Seed cron jobs ---
 CRON_DIR="$STATE_DIR/cron" . "$SHARED_SCRIPTS_DIR/crons.sh"
 
-# --- Background poller (email/SMS) ---
-# Runs outside the LLM — only pokes the gateway when there's something new.
-# Kill any existing poller (pidfile + pattern match for orphans)
-_poller_pidfile="/tmp/.openclaw-poller.pid"
-if [ -f "$_poller_pidfile" ]; then
-  kill "$(cat "$_poller_pidfile")" 2>/dev/null || true
-fi
-pkill -f "poller.sh" 2>/dev/null || true
-
-if [ -n "$SHARED_SCRIPTS_DIR" ] && [ -f "$SHARED_SCRIPTS_DIR/poller.sh" ]; then
-  SKILLS_ROOT="${SKILLS_ROOT:-$STATE_DIR/workspace/skills}" \
-  sh "$SHARED_SCRIPTS_DIR/poller.sh" &
-  echo $! > "$_poller_pidfile"
-  brand_ok "poller" "started (pid $!, every ${POLL_INTERVAL_SECONDS:-60}s)"
-else
-  brand_dim "poller" "shared poller.sh not found — disabled"
-fi
-_cleanup_poller() {
-  _pf="/tmp/.openclaw-poller.pid"
-  [ -f "$_pf" ] && kill "$(cat "$_pf")" 2>/dev/null || true
-  rm -f "$_pf"
-}
-trap '_cleanup_poller' EXIT INT TERM
-unset _poller_pidfile
+# --- Webhooks handle email/SMS — no cronjob needed ---
 
 brand_done "Gateway ready"
 brand_flush

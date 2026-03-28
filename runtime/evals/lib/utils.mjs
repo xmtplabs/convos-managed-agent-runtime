@@ -36,24 +36,27 @@ export function log(prefix, msg) {
   console.log(`[${prefix}] ${msg}`);
 }
 
-// Wipe agent session files once per eval run so the agent starts fresh.
-// The session key `agent:main:main` maps to the same file regardless of
-// --session-id, so previous eval runs bleed into new ones without this.
+// Wipe agent session files and custom skills once per eval run so the agent
+// starts fresh. Without this, skills created by previous runs cause the agent
+// to say "already set up" instead of creating the skill from scratch.
 export function clearSessionsOnce(agentId = 'main') {
   if (_sessionsCleared) return;
   if (!runtime.needsSessionClear) {
     log('eval', `${runtime.name}: skipping session clear (not needed)`);
-    _sessionsCleared = true;
-    return;
-  }
-  const sessionsDir = join(STATE_DIR, 'agents', agentId, 'sessions');
-  try {
-    for (const f of readdirSync(sessionsDir)) {
-      try { unlinkSync(join(sessionsDir, f)); } catch {}
+  } else {
+    const sessionsDir = join(STATE_DIR, 'agents', agentId, 'sessions');
+    try {
+      for (const f of readdirSync(sessionsDir)) {
+        try { unlinkSync(join(sessionsDir, f)); } catch {}
+      }
+      log('eval', `Cleared sessions in ${sessionsDir}`);
+    } catch {
+      log('eval', `No sessions dir at ${sessionsDir} (ok for Docker)`);
     }
-    log('eval', `Cleared sessions in ${sessionsDir}`);
-  } catch {
-    log('eval', `No sessions dir at ${sessionsDir} (ok for Docker)`);
+  }
+  if (runtime.cleanEvalState) {
+    runtime.cleanEvalState();
+    log('eval', `Cleaned eval state (custom skills, agent cron jobs)`);
   }
   _sessionsCleared = true;
 }

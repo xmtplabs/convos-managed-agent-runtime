@@ -15,6 +15,7 @@ mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "
 _skill_count=0
 if [ -n "$SHARED_WORKSPACE_DIR" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
   [ -f "$SHARED_WORKSPACE_DIR/SOUL.md" ] && cp "$SHARED_WORKSPACE_DIR/SOUL.md" "$HERMES_HOME/SOUL.md"
+  [ -f "$SHARED_WORKSPACE_DIR/CUSTOMIZATION.md" ] && cp "$SHARED_WORKSPACE_DIR/CUSTOMIZATION.md" "$HERMES_HOME/CUSTOMIZATION.md"
   brand_ok "SOUL.md" "synced (shared)"
 
   if [ -d "$SHARED_WORKSPACE_DIR/skills" ]; then

@@ -3,7 +3,7 @@
 set -e
 . "$(dirname "$0")/init.sh"
 
-HERMES_TAG="v2026.3.17"
+HERMES_TAG="v2026.3.23"
 
 brand_section "Dependencies"
 brand_dim "" "install extensions and check toolchain"
@@ -18,7 +18,7 @@ else
   brand_subsection "venv"
   if [ ! -f "$VENV_PYTHON" ]; then
     brand_info "venv" "creating at $VENV_DIR ..."
-    uv venv "$VENV_DIR"
+    uv venv "$VENV_DIR" --python 3.11
     brand_ok "venv" "created"
   else
     brand_ok "venv" "$VENV_DIR"

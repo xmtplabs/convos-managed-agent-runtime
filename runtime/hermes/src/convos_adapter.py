@@ -50,12 +50,17 @@ ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
 CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
 PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
 _last_prune_at = 0.0
+GROUP_EXPIRATION_UPDATE_RE = re.compile(r"\bset conversation expiration to ([^;]+)(?:;|$)", re.IGNORECASE)
+GROUP_EXPIRATION_CLEARED_RE = re.compile(r"\bcleared conversation expiration(?:;|$)", re.IGNORECASE)
+EXPLOSION_IMMEDIATE_SKEW_S = 3.0
+_expiration_timer: asyncio.TimerHandle | None = None
+_expiration_at_s: float | None = None
 
 async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
     instance_id = os.environ.get("INSTANCE_ID")
     pool_url = os.environ.get("POOL_URL")
-    gateway_token = os.environ.get("GATEWAY_TOKEN")
+    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
 
     if not instance_id or not pool_url or not gateway_token:
         logger.info("Self-destruct skipped: not a pool-managed instance")
@@ -213,6 +218,37 @@ def is_member_removal_group_update(content: str) -> bool:
     return False
 
 
+def _parse_conversation_expiration(content: str) -> tuple[str, float] | tuple[str, None] | None:
+    """Parse a group_updated message for expiration info.
+
+    Returns ("cleared", None) if expiration was cleared,
+    (raw_timestamp_str, epoch_seconds) if set, or None if not an expiration update.
+    """
+    if GROUP_EXPIRATION_CLEARED_RE.search(content):
+        return ("cleared", None)
+
+    m = GROUP_EXPIRATION_UPDATE_RE.search(content)
+    if not m:
+        return None
+
+    raw = m.group(1).strip()
+    try:
+        from datetime import datetime
+        expires_at = datetime.fromisoformat(raw.replace("Z", "+00:00")).timestamp()
+    except (ValueError, OverflowError):
+        return None
+
+    return (raw, expires_at)
+
+
+def _clear_expiration_timer() -> None:
+    global _expiration_timer, _expiration_at_s
+    if _expiration_timer is not None:
+        _expiration_timer.cancel()
+        _expiration_timer = None
+    _expiration_at_s = None
+
+
 def is_inactive_group_error(err: Exception) -> bool:
     return bool(re.search(r"\bgroup is inactive\b", str(err), flags=re.IGNORECASE))
 
@@ -296,6 +332,11 @@ class ConvosAdapter:
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
         self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[None], asyncio.Task[None] | None]] = {}
         self._greeting_done = asyncio.Event()  # gates message processing until greeting completes
+        # Interrupt-and-queue: tracks whether an agent call is in-flight and
+        # holds the latest pending message so we can interrupt + replay.
+        self._agent_running = False
+        self._pending_message: InboundMessage | None = None
+        self._skipped_content: list[str] = []  # messages superseded while queued
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -369,6 +410,8 @@ class ConvosAdapter:
                 download_task.cancel()
         self._pending_attachments.clear()
 
+        _clear_expiration_timer()
+
         if self._instance:
             await self._instance.stop()
             self._instance = None
@@ -399,7 +442,13 @@ class ConvosAdapter:
         await self._process_message(msg)
 
     async def _process_message(self, msg: InboundMessage) -> None:
-        """Full message pipeline: eyes -> agent -> parse -> execute -> send -> remove eyes."""
+        """Full message pipeline: eyes -> agent -> parse -> execute -> send -> remove eyes.
+
+        Interrupt-and-queue: if the agent is already processing a message,
+        interrupt it and stash this message as pending.  When the interrupted
+        turn finishes, the pending message is picked up automatically so the
+        agent responds to the latest context instead of racing.
+        """
         if msg.content_type == "reaction":
             return
 
@@ -410,14 +459,26 @@ class ConvosAdapter:
             return
 
         if msg.content_type == "group_updated":
+            parsed = _parse_conversation_expiration(msg.content)
+            if parsed is not None:
+                raw, expires_at = parsed
+                if raw == "cleared":
+                    _clear_expiration_timer()
+                    logger.info("Conversation expiration cleared")
+                elif expires_at is not None:
+                    import time
+                    now = time.time()
+                    if expires_at <= now + EXPLOSION_IMMEDIATE_SKEW_S:
+                        logger.info(f"Conversation exploded, self-destructing (expiration reached at {raw})")
+                        await self._self_destruct_and_exit()
+                        return
+                    else:
+                        self._schedule_expiration_timer(expires_at, raw)
+
             termination_reason = await self._detect_membership_termination_reason(msg)
             if termination_reason:
                 logger.info(f"Membership ended, self-destructing ({termination_reason})")
-                await self.stop()
-                clear_credentials(self._config.hermes_home)
-                await _notify_pool_self_destruct()
-                if not os.environ.get("EVAL_MODE"):
-                    sys.exit(0)
+                await self._self_destruct_and_exit()
                 return
 
         if not msg.catchup:
@@ -426,12 +487,12 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Profile image renewal on inbound activity failed: {err}")
 
-            # Fire-and-forget read receipt for non-catchup messages
-            if msg.content_type not in ("group_updated", "reaction"):
-                try:
-                    await inst.send_read_receipt()
-                except Exception:
-                    pass  # silent
+            # TEMPORARILY DISABLED — read receipts causing issues
+            # if msg.content_type not in ("group_updated", "reaction"):
+            #     try:
+            #         await inst.send_read_receipt()
+            #     except Exception:
+            #         pass  # silent
 
         if msg.content_type == "group_updated":
             return
@@ -440,6 +501,29 @@ class ConvosAdapter:
         # Messages that arrive during the greeting's LLM call queue here
         # so they see the greeting in history instead of empty context.
         await self._greeting_done.wait()
+
+        # ── Interrupt-and-queue: if agent is busy, interrupt and stash ──
+        if self._agent_running:
+            if self._pending_message is not None:
+                # Previous pending is being superseded — preserve its content
+                pm = self._pending_message
+                self._skipped_content.append(
+                    f"[{pm.sender_name or pm.sender_id[:12]}]: {pm.content}"
+                )
+            self._pending_message = msg  # latest wins
+            ai_agent = agent._ensure_agent()
+            ai_agent.interrupt(msg.content)
+            logger.info(f"Interrupted running agent — pending [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}")
+            return
+
+        await self._run_agent_turn(msg)
+
+    async def _run_agent_turn(self, msg: InboundMessage) -> None:
+        """Execute a single agent turn, then drain any pending message."""
+        inst = self._instance
+        agent = self._agent
+        if not inst or not agent:
+            return
 
         # Update member name cache
         if msg.sender_id and msg.sender_name and msg.sender_id != "system":
@@ -452,6 +536,15 @@ class ConvosAdapter:
         if local_path and is_attachment_message(msg):
             content = f"[Image attached: {local_path}] Use your vision_analyze tool with this file path to see the image."
 
+        # Prepend any messages that were skipped while the agent was busy
+        if self._skipped_content:
+            skipped = "\n".join(self._skipped_content)
+            content = (
+                f"[Messages that arrived while you were responding:]\n{skipped}\n\n"
+                f"[Latest message:]\n{content}"
+            )
+            self._skipped_content.clear()
+
         if not msg.catchup:
             stats.increment("messages_in")
             if self._instance:
@@ -461,29 +554,50 @@ class ConvosAdapter:
 
         logger.info(f"Inbound [{msg.message_id[:12]}] from {msg.sender_name or msg.sender_id[:12]}: {content[:80]}")
 
+        # Clear interrupt state from any previous cycle so the agent starts clean.
+        ai_agent = agent._ensure_agent()
+        ai_agent.clear_interrupt()
+        self._agent_running = True
+
         try:
-            response = await agent.handle_message(
-                content=content,
-                sender_name=msg.sender_name,
-                sender_id=msg.sender_id,
-                timestamp=msg.timestamp,
-                conversation_id=msg.conversation_id,
-                message_id=msg.message_id,
-                group_members=inst.get_group_members(),
-            )
-        except Exception as err:
-            logger.error(f"Agent error: {err}")
-            response = "I encountered an error. Please try again."
-
-        if response:
-            await self._dispatch_response(response)
-
-        # Auto-remove eyes reaction after dispatch (agent adds it mid-processing via convos_react)
-        if msg.message_id:
             try:
-                await inst.react(msg.message_id, "\U0001f440", "remove")
-            except Exception:
-                pass  # silently ignore if eyes weren't placed
+                response = await agent.handle_message(
+                    content=content,
+                    sender_name=msg.sender_name,
+                    sender_id=msg.sender_id,
+                    timestamp=msg.timestamp,
+                    conversation_id=msg.conversation_id,
+                    message_id=msg.message_id,
+                    group_members=inst.get_group_members(),
+                )
+            except Exception as err:
+                logger.error(f"Agent error: {err}")
+                response = "I encountered an error. Please try again."
+
+            # If the agent was interrupted, skip sending the partial response —
+            # the pending message will get a fresh turn below.
+            was_interrupted = ai_agent.is_interrupted
+            ai_agent.clear_interrupt()
+
+            if response and not was_interrupted:
+                await self._dispatch_response(response)
+
+            # Auto-remove eyes reaction after dispatch
+            if msg.message_id:
+                try:
+                    await inst.react(msg.message_id, "\U0001f440", "remove")
+                except Exception:
+                    pass  # silently ignore if eyes weren't placed
+
+            # ── Drain pending message ──
+            pending = self._pending_message
+            if pending:
+                self._pending_message = None
+                logger.info(f"Draining pending message [{pending.message_id[:12]}]")
+                await self._run_agent_turn(pending)
+                return  # recursive call handles clearing _agent_running
+        finally:
+            self._agent_running = False
 
     # ---- Attachment download + hold/merge ----
 
@@ -555,6 +669,44 @@ class ConvosAdapter:
         attachment_msg, flush_task, download_task = entry
         flush_task.cancel()
         return attachment_msg, download_task
+
+    async def _self_destruct_and_exit(self) -> None:
+        _clear_expiration_timer()
+        await stats.shutdown()
+        await self.stop()
+        clear_credentials(self._config.hermes_home)
+        await _notify_pool_self_destruct()
+        if not os.environ.get("EVAL_MODE"):
+            sys.exit(0)
+
+    def _schedule_expiration_timer(self, expires_at_s: float, raw: str) -> None:
+        global _expiration_timer, _expiration_at_s
+        # Already scheduled for the same time — no-op
+        if _expiration_at_s == expires_at_s and _expiration_timer is not None:
+            return
+
+        _clear_expiration_timer()
+        _expiration_at_s = expires_at_s
+
+        import time
+        delay = max(0.0, expires_at_s - time.time())
+        logger.info(f"Scheduled conversation expiration check for {raw} (in {delay:.1f}s)")
+
+        loop = asyncio.get_event_loop()
+
+        def _on_expire() -> None:
+            global _expiration_timer, _expiration_at_s
+            _expiration_timer = None
+            _expiration_at_s = None
+
+            import time as _t
+            if expires_at_s > _t.time() + EXPLOSION_IMMEDIATE_SKEW_S:
+                return
+
+            logger.info(f"Conversation expiration reached, self-destructing (expiration reached at {raw})")
+            asyncio.ensure_future(self._self_destruct_and_exit())
+
+        _expiration_timer = loop.call_later(delay, _on_expire)
 
     async def _detect_membership_termination_reason(self, msg: InboundMessage) -> str | None:
         inst = self._instance

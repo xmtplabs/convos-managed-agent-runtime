@@ -88,40 +88,8 @@ async def require_auth(request: Request) -> None:
 
 # ---- Instance lifecycle ----
 
-_poller_proc: asyncio.subprocess.Process | None = None
 
-
-async def _start_poller() -> None:
-    """Launch the shared poller as a background process."""
-    global _poller_proc
-    scripts_dir = os.environ.get("SHARED_SCRIPTS_DIR", "")
-    script = os.path.join(scripts_dir, "poller.sh") if scripts_dir else None
-    if not script or not os.path.isfile(script):
-        logger.info("Poller: shared poller.sh not found — disabled")
-        return
-
-    cfg = get_config()
-    poller_env = {**os.environ, "SKILLS_ROOT": str(Path(cfg.hermes_home) / "skills")}
-
-    _poller_proc = await asyncio.create_subprocess_exec(
-        "sh", script,
-        env=poller_env,
-    )
-    logger.info("Poller: started (pid=%d)", _poller_proc.pid)
-
-
-async def _stop_poller() -> None:
-    global _poller_proc
-    if _poller_proc:
-        try:
-            _poller_proc.terminate()
-            await asyncio.wait_for(_poller_proc.wait(), timeout=5)
-        except Exception:
-            try:
-                _poller_proc.kill()
-            except ProcessLookupError:
-                pass
-        _poller_proc = None
+# Webhooks handle email/SMS — no cronjob needed.
 
 
 async def start_wired_instance(
@@ -165,6 +133,8 @@ async def start_wired_instance(
     _adapter = adapter
 
     if cfg.posthog_api_key and cfg.instance_id:
+        cron_jobs_file = os.path.join(cfg.hermes_home, "cron", "jobs.json")
+        skills_dir = os.environ.get("SKILLS_ROOT", os.path.join(cfg.hermes_home, "skills"))
         stats.start(
             posthog_api_key=cfg.posthog_api_key,
             posthog_host=cfg.posthog_host,
@@ -173,6 +143,8 @@ async def start_wired_instance(
             runtime="hermes",
             environment=os.environ.get("POOL_ENVIRONMENT", ""),
             version=RUNTIME_VERSION or "",
+            cron_jobs_file=cron_jobs_file,
+            skills_dir=skills_dir,
         )
 
     # Fire greeting in background (skip if resuming — caller handles workspace refresh).
@@ -182,9 +154,6 @@ async def start_wired_instance(
         asyncio.create_task(_dispatch_greeting(adapter))
     else:
         adapter._greeting_done.set()
-
-    # Start background email/SMS poller
-    await _start_poller()
 
     return ready_info
 
@@ -201,6 +170,19 @@ def _clear_session_state(hermes_home: str) -> None:
             logger.error("Failed to clear session state: %s", err)
 
 
+def _has_active_skill() -> bool:
+    """Check if the agent has an active skill configured."""
+    skills_root = os.environ.get("SKILLS_ROOT", "")
+    if not skills_root:
+        return False
+    skills_json = Path(skills_root) / "generated" / "skills.json"
+    try:
+        data = json.loads(skills_json.read_text())
+        return bool(data.get("active"))
+    except Exception:
+        return False
+
+
 async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
     """Send an LLM-generated welcome message via the adapter pipeline.
 
@@ -211,11 +193,23 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         if not adapter.agent or not adapter.instance:
             return
 
-        response = await adapter.agent.handle_message(
-            content=(
+        if _has_active_skill():
+            greeting_content = (
                 "[System: You just joined this conversation. Send your welcome message now. "
                 "Follow the 'Welcome message' section in AGENTS.md.]"
-            ),
+            )
+        else:
+            greeting_content = (
+                "[System: You just joined this conversation. You have no skill configured yet. "
+                "Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md and follow it. "
+                "Start with step 1: ask one open-ended question about what this group needs. "
+                "Do NOT send a standard welcome message. Do NOT mention your capabilities or ask for a name. "
+                "Just ask what the group needs help with.]"
+            )
+
+        logger.info("Dispatching greeting (skill-builder=%s)", not _has_active_skill())
+        response = await adapter.agent.handle_message(
+            content=greeting_content,
             sender_name="System",
             sender_id="system",
             timestamp=time.time(),
@@ -416,10 +410,7 @@ async def _factory_reset() -> dict:
             logger.error("Error stopping adapter during reset: %s", err)
         _adapter = None
 
-    # 3. Stop poller
-    await _stop_poller()
-
-    # 4. Clear credentials
+    # 3. Clear credentials
     clear_credentials(hermes_home)
 
     # 5. Clear custom instructions
@@ -438,6 +429,11 @@ async def _factory_reset() -> dict:
     for d in ("media", "profile-image"):
         target = Path(hermes_home) / d
         shutil.rmtree(target, ignore_errors=True)
+
+    # 8b. Clear trajectory files and sharing flag
+    for f in ("trajectory_samples.jsonl", "failed_trajectories.jsonl", ".share-trajectories"):
+        target = Path(hermes_home) / f
+        target.unlink(missing_ok=True)
 
     # 9. Clear XMTP CLI identity
     convos_home = Path.home() / ".convos"
@@ -595,7 +591,54 @@ class LockRequest(BaseModel):
     unlock: bool = False
 
 
-# ---- Cron delivery ----
+# ---- Cron seeding & delivery ----
+
+_SEED_JOBS = [
+    {
+        "id": "seed-morning-checkin",
+        "prompt": (
+            "Morning check-in: check for open threads, pending action items, "
+            "or upcoming plans. If you find something concrete, send one sentence "
+            "referencing it to the group. If there's nothing real to reference, "
+            "stay silent. Never send a message just to start a conversation, "
+            "ask if anyone needs help, or say good morning without a reason."
+        ),
+        "schedule": "0 8 * * *",
+        "name": "Morning check-in",
+        "deliver": "origin",
+    },
+]
+
+
+def _seed_cron_jobs() -> None:
+    """Seed default cron jobs if they don't already exist."""
+    try:
+        from cron.jobs import load_jobs, create_job
+    except ImportError:
+        logger.debug("Cron module not available — skipping seed")
+        return
+
+    existing = {j["id"] for j in load_jobs()}
+    for seed in _SEED_JOBS:
+        if seed["id"] in existing:
+            logger.debug("Cron seed '%s' already exists — skipping", seed["id"])
+            continue
+        job = create_job(
+            prompt=seed["prompt"],
+            schedule=seed["schedule"],
+            name=seed["name"],
+            deliver=seed.get("deliver", "origin"),
+        )
+        # Overwrite the random ID with the stable seed ID
+        from cron.jobs import load_jobs as _load, save_jobs as _save
+        jobs = _load()
+        for j in jobs:
+            if j["id"] == job["id"]:
+                j["id"] = seed["id"]
+                break
+        _save(jobs)
+        logger.info("Seeded cron job '%s'", seed["name"])
+
 
 _cron_task: asyncio.Task | None = None
 _event_loop: asyncio.AbstractEventLoop | None = None
@@ -642,8 +685,16 @@ def _patch_cron_delivery() -> None:
             logger.error("Cron job '%s': no event loop for convos delivery", job.get("name", job["id"]))
             return
 
+        async def _policy_then_send(text: str) -> None:
+            from .outbound_policy import apply_outbound_policy
+            policy = await apply_outbound_policy(text)
+            if policy.suppress:
+                logger.info("Cron job '%s': suppressed by outbound policy", job.get("name", job["id"]))
+                return
+            await adapter.send_message(policy.text)
+
         try:
-            future = asyncio.run_coroutine_threadsafe(adapter.send_message(content), loop)
+            future = asyncio.run_coroutine_threadsafe(_policy_then_send(content), loop)
             future.result(timeout=30)
             logger.info("Cron job '%s': delivered to convos", job.get("name", job["id"]))
         except Exception as err:
@@ -654,15 +705,19 @@ def _patch_cron_delivery() -> None:
 
 
 async def _cron_tick_loop() -> None:
-    """Run the Hermes cron scheduler every 60 seconds.
+    """Run the Hermes cron scheduler periodically.
 
     Jobs are stored in HERMES_HOME/cron/jobs.json. The tick() function
     checks for due jobs, runs them, and saves output. Delivery to the
     active Convos conversation is routed through the adapter via the
     monkey-patched _deliver_result.
+
+    In eval mode the interval is 15s so cron tests don't need to wait
+    a full minute for the first tick.
     """
+    interval = 15 if os.environ.get("EVAL_MODE") == "1" else 60
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(interval)
         try:
             from cron.scheduler import tick
             loop = asyncio.get_event_loop()
@@ -694,6 +749,7 @@ async def lifespan(app: FastAPI):
     warm_imports()
     _event_loop = asyncio.get_event_loop()
     _patch_cron_delivery()
+    _seed_cron_jobs()
     _cron_task = asyncio.create_task(_cron_tick_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
 
@@ -714,7 +770,6 @@ async def lifespan(app: FastAPI):
             await _pending_join_task
         except (asyncio.CancelledError, Exception):
             pass
-    await _stop_poller()
     await stats.shutdown()
     adapter = get_adapter()
     if adapter:
@@ -750,6 +805,35 @@ async def pool_health():
     # or adapter exists with an active instance. Cache permanently.
     _health_cached = True
     return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
+
+
+# ---- /pool/restart ----
+
+@app.post("/pool/restart", dependencies=[Depends(require_auth)])
+async def pool_restart():
+    """Stop the adapter and re-resume from saved credentials.
+
+    Simulates a process restart without killing PID 1 — stops the running
+    conversation, then boots it back up from credentials on disk.  Used by
+    the lifecycle eval to verify restart-resume in CI (Docker).
+    """
+    global _adapter
+    cfg = get_config()
+
+    adapter = get_adapter()
+    if adapter:
+        try:
+            await adapter.stop()
+        except Exception as err:
+            logger.error("Error stopping adapter during restart: %s", err)
+        _adapter = None
+
+    await _try_resume_from_credentials(cfg)
+
+    adapter = get_adapter()
+    if adapter and adapter.instance:
+        return {"ok": True, "conversationId": adapter.instance.conversation_id}
+    raise HTTPException(status_code=500, detail="Resume failed after restart")
 
 
 # ---- /pool/provision ----

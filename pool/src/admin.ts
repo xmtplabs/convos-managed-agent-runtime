@@ -22,6 +22,10 @@ const apiDocsHtmlTemplate = fs.readFileSync(
   path.join(__adminDir, "..", "frontend", "api-docs.html"),
   "utf-8",
 );
+const skillsHtmlTemplate = fs.readFileSync(
+  path.join(__adminDir, "..", "frontend", "skills.html"),
+  "utf-8",
+);
 
 const COOKIE_NAME = "pool_admin_session";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -193,8 +197,9 @@ export function dashboardPage({
   instanceModel = "",
   adminUrls = [],
   protectedInstances = [] as string[],
+  harnessImages = {} as Record<string, string>,
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls, protectedInstances });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls, protectedInstances, harnessImages });
   return dashboardHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
@@ -212,8 +217,9 @@ export function upgradesPage({
   runtimeImage = "",
   adminUrls = [],
   protectedInstances = [] as string[],
+  harnessImages = {} as Record<string, string>,
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, adminUrls, protectedInstances });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, adminUrls, protectedInstances, harnessImages });
   return upgradesHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
@@ -228,6 +234,19 @@ export function apiDocsPage({
 }) {
   const config = JSON.stringify({ poolEnvironment, railwayProjectId, railwayEnvironmentId, adminUrls });
   return apiDocsHtmlTemplate.replace(
+    "<!--__POOL_CONFIG__-->",
+    `<script>window.__POOL_CONFIG__=${config}</script>`,
+  );
+}
+
+export function skillsPage({
+  poolEnvironment,
+  railwayProjectId = "",
+  railwayEnvironmentId = "",
+  adminUrls = [],
+}) {
+  const config = JSON.stringify({ poolEnvironment, railwayProjectId, railwayEnvironmentId, adminUrls });
+  return skillsHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
   );

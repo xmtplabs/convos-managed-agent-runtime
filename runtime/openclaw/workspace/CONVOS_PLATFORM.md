@@ -7,7 +7,7 @@
 
 ---
 
-To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID. In a 2-member conversation, only use `replyTo` when referencing an older message — replying to the most recent message is redundant when there is only one other person.
+To send a Convos message: use `action=send` with `message`. To reply to a specific message, include `replyTo` with the message ID. Use `replyTo` when responding to a specific person's message in a group, or when referencing an earlier message that isn't the most recent one. In a 2-member conversation replying to the latest message is redundant — just respond normally.
 
 ---
 
@@ -43,7 +43,7 @@ CRITICAL — NEVER narrate tool calls: Every text block you produce becomes a se
 
 ---
 
-Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji="👀"` — literal emoji, not a shortcode) to signal you are working on it. After you post the final result, remove the reaction (`action=react`, `remove=true`).
+Signal work with 👀: When you need to use tools before responding, react to the message with 👀 (use `action=react`, `emoji="👀"` — literal emoji, not a shortcode) to signal you are working on it. Always remove 👀 before ending your turn (same `action=react` call with `emoji="👀"` and `remove=true`).
 
 # Cron Sessions
 

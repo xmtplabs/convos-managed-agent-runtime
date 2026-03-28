@@ -10,7 +10,7 @@ import {
   type ChannelPlugin,
   type PluginRuntime,
   type ReplyPayload,
-} from "openclaw/plugin-sdk";
+} from "openclaw/plugin-sdk/core";
 import {
   listConvosAccountIds,
   resolveConvosAccount,
@@ -61,6 +61,29 @@ function loadConvosMessagingHints(): string[] {
 
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
+
+/**
+ * Greeting gate — prevents notifications from being dispatched before the
+ * greeting run completes. Without this, concurrent dispatches compete for the
+ * session lane and the notification gets dropped.
+ *
+ * Mirrors Hermes's `_greeting_done` asyncio.Event.
+ */
+let _greetingResolve: (() => void) | null = null;
+let _greetingDone: Promise<void> = Promise.resolve(); // pre-resolved for resume path
+
+function resetGreetingGate(): void {
+  _greetingDone = new Promise<void>((resolve) => {
+    _greetingResolve = resolve;
+  });
+}
+
+function signalGreetingDone(): void {
+  if (_greetingResolve) {
+    _greetingResolve();
+    _greetingResolve = null;
+  }
+}
 const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
 const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
 const EXPLOSION_IMMEDIATE_SKEW_MS = 3_000;
@@ -379,6 +402,28 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
 
       log?.info(`[${account.accountId}] starting Convos provider (env: ${account.env})`);
 
+      // Clear the OpenClaw delivery queue on restart. XMTP messages are
+      // durable on the network once sent — replaying "pending" deliveries
+      // after a container restart causes verbatim duplicate messages because
+      // the queue entry survived a SIGKILL but the send had already succeeded.
+      const stateDir = process.env.OPENCLAW_STATE_DIR || "";
+      if (stateDir) {
+        const queueDir = path.join(stateDir, "delivery-queue");
+        if (fs.existsSync(queueDir)) {
+          try {
+            const files = fs.readdirSync(queueDir).filter((f) => f.endsWith(".json"));
+            if (files.length > 0) {
+              for (const f of files) {
+                fs.unlinkSync(path.join(queueDir, f));
+              }
+              log?.info(`[${account.accountId}] Cleared ${files.length} stale delivery queue entries`);
+            }
+          } catch (err) {
+            log?.error(`[${account.accountId}] Failed to clear delivery queue: ${String(err)}`);
+          }
+        }
+      }
+
       // Inherit env so exec tool CLI commands use the correct XMTP network
       process.env.CONVOS_ENV = account.env;
       // Expose conversation ID so the agent's exec tool can use $CONVOS_CONVERSATION_ID
@@ -406,11 +451,11 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
               });
             }
           },
-          onHeartbeat: (info) => {
-            if (account.debug) {
-              log?.info(`[${account.accountId}] Heartbeat: ${info.activeStreams} active streams`);
-            }
-          },
+          // onHeartbeat: (info) => {
+          //   if (account.debug) {
+          //     log?.info(`[${account.accountId}] Heartbeat: ${info.activeStreams} active streams`);
+          //   }
+          // },
           onExit: (code) => {
             log?.error(`[${account.accountId}] Agent serve process exited with code ${code}`);
           },
@@ -511,8 +556,8 @@ async function handleInboundMessage(
       errorLog(`[${account.accountId}] Failed to renew profile image on activity: ${String(err)}`);
     }
 
-    // Fire-and-forget read receipt for non-catchup messages
-    inst.sendReadReceipt().catch(() => {});
+    // TEMPORARILY DISABLED — read receipts causing issues
+    // inst.sendReadReceipt().catch(() => {});
   }
 
   const cfg = runtime.config.loadConfig();
@@ -678,7 +723,6 @@ async function handleInboundMessage(
     GroupSystemPrompt: [
       account.config?.systemPrompt?.trim(),
       `Current time: ${currentTime}`,
-      "Before every reply: (1) Need tools? → react 👀 first (2) No text alongside tool calls (3) Does this even need a reply?",
     ].filter(Boolean).join("\n\n"),
     ...(mediaPath ? { MediaPath: mediaPath, MediaType: mediaMime } : {}),
   });
@@ -1017,6 +1061,19 @@ async function deliverConvosReply(params: {
  * prompt through the normal reply pipeline. The agent sees its full context
  * (IDENTITY + SOUL + TOOLS) and crafts a natural greeting per SOUL.md.
  */
+/** Check if the agent has an active skill configured. */
+function hasActiveSkill(): boolean {
+  const skillsRoot = process.env.SKILLS_ROOT || "";
+  if (!skillsRoot) return false;
+  try {
+    const raw = fs.readFileSync(path.join(skillsRoot, "generated", "skills.json"), "utf-8");
+    const data = JSON.parse(raw);
+    return !!data.active;
+  } catch {
+    return false;
+  }
+}
+
 async function dispatchGreeting(
   account: ResolvedConvosAccount,
   runtime: PluginRuntime,
@@ -1027,20 +1084,31 @@ async function dispatchGreeting(
     return;
   }
 
+  const greetingContent = hasActiveSkill()
+    ? "[System: You just joined this conversation. Send your welcome message now. " +
+      "Follow the 'Welcome message' section in AGENTS.md.]"
+    : "[System: You just joined this conversation. You have no skill configured yet. " +
+      "Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md and follow it. " +
+      "Start with step 1: ask one open-ended question about what this group needs. " +
+      "Do NOT send a standard welcome message. Do NOT mention your capabilities or ask for a name. " +
+      "Just ask what the group needs help with.]";
+
   const syntheticMsg: InboundMessage = {
     conversationId: inst.conversationId,
     messageId: `system-greeting-${crypto.randomUUID()}`,
     senderId: SYSTEM_SENDER_ID,
     senderName: "System",
-    content:
-      "[System: You just joined this conversation. Send your welcome message now. " +
-      "Follow the 'Welcome message' section in AGENTS.md.]",
+    content: greetingContent,
     contentType: "text",
     timestamp: new Date(),
   };
 
-  console.log("[convos] Dispatching greeting message");
-  await handleInboundMessage(account, syntheticMsg, runtime);
+  console.log(`[convos] Dispatching greeting message (skill-builder=${!hasActiveSkill()})`);
+  try {
+    await handleInboundMessage(account, syntheticMsg, runtime);
+  } finally {
+    signalGreetingDone();
+  }
 }
 
 /**
@@ -1049,6 +1117,9 @@ async function dispatchGreeting(
  * prompt itself is never sent to the conversation (same as greeting dispatch).
  */
 export async function dispatchNotification(text: string): Promise<void> {
+  // Wait for greeting to complete so the notification doesn't race with the
+  // greeting run for the session lane (mirrors Hermes's _greeting_done gate).
+  await _greetingDone;
   const inst = getConvosInstance();
   if (!inst) {
     throw new Error("No active conversation");
@@ -1144,9 +1215,13 @@ export async function startWiredInstance(params: {
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,
     onMessage: (msg: InboundMessage) => {
-      handleInboundMessage(account, msg, runtime).catch((err) => {
-        console.error(`[convos] Message handling failed: ${String(err)}`);
-      });
+      // Wait for greeting to complete before processing inbound messages so
+      // the greeting is already in session history (mirrors Hermes gate).
+      _greetingDone
+        .then(() => handleInboundMessage(account, msg, runtime))
+        .catch((err) => {
+          console.error(`[convos] Message handling failed: ${String(err)}`);
+        });
     },
     onMemberJoined: (info) => {
       console.log(`[convos] Join accepted: ${info.joinerInboxId}`);
@@ -1169,11 +1244,16 @@ export async function startWiredInstance(params: {
   const instanceId = process.env.INSTANCE_ID || "";
   if (posthogApiKey && instanceId) {
     const environment = process.env.POOL_ENVIRONMENT || "";
-    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "" });
+    const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+    const cronJobsFile = path.join(stateDir, "cron", "jobs.json");
+    const skillsDir = process.env.SKILLS_ROOT || path.join(stateDir, "skills");
+    stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile, skillsDir });
   }
 
   // Fire-and-forget: dispatch LLM-generated welcome message.
   // Does not block startWiredInstance from returning to the pool manager.
+  // Reset the greeting gate so notifications wait until the greeting completes.
+  resetGreetingGate();
   dispatchGreeting(account, runtime).catch((err) => {
     console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
   });

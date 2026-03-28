@@ -138,6 +138,33 @@ function buildServicesUrl(): string {
   return `${base}/web-tools/services`;
 }
 
+/** Resolve the skills data directory ($SKILLS_ROOT/generated/). */
+function getSkillsDataPath(): string {
+  const skillsRoot = process.env.SKILLS_ROOT
+    || path.join(process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"), "workspace", "skills");
+  return path.join(skillsRoot, "generated");
+}
+
+/** Read the full skills.json data. */
+function readSkillsData(): { active: string | null; skills: Record<string, unknown>[] } | null {
+  const jsonPath = path.join(getSkillsDataPath(), "skills.json");
+  try {
+    const raw = fs.readFileSync(jsonPath, "utf-8");
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data.skills)) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/** Read skills.json and return a single skill by slug. */
+function readSkillBySlug(slug: string): Record<string, unknown> | null {
+  const data = readSkillsData();
+  if (!data) return null;
+  return data.skills.find((s: any) => s.slug === slug) as Record<string, unknown> || null;
+}
+
 export default function register(api: OpenClawPluginApi) {
   // Docker: /app/web-tools/. Local: apply-config.sh copies to STATE_DIR/web-tools/.
   const stateWebTools = path.join(process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"), "web-tools");
@@ -146,6 +173,7 @@ export default function register(api: OpenClawPluginApi) {
     : __dirname;
   const agentsDir = path.resolve(sharedRoot, "convos");
   const servicesDir = path.resolve(sharedRoot, "services");
+  const skillsDir = path.resolve(sharedRoot, "skills");
 
   api.registerHttpRoute({
     path: "/web-tools/convos",
@@ -392,6 +420,261 @@ export default function register(api: OpenClawPluginApi) {
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "Failed to reach server" }));
       }
+    },
+  });
+
+  // --- Trajectories / logs ---
+
+  const trajDir = path.resolve(sharedRoot, "logs");
+  const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
+
+  function isSharingEnabled(): boolean {
+    return fs.existsSync(path.join(stateDir, ".share-trajectories"));
+  }
+
+  /** Read OpenClaw session JSONL files and normalize to trajectory format. */
+  function readSessionTrajectories(maxEntries = 200): Record<string, unknown>[] {
+    const sessionsDir = path.join(stateDir, "agents", "main", "sessions");
+    const indexPath = path.join(sessionsDir, "sessions.json");
+    const entries: Record<string, unknown>[] = [];
+
+    // Read the sessions.json index to find session IDs
+    let index: Record<string, { sessionId?: string; updatedAt?: number }>;
+    try {
+      index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+    } catch {
+      return entries;
+    }
+
+    // Collect session IDs and their metadata
+    const sessions: { key: string; sessionId: string; updatedAt: number }[] = [];
+    for (const [key, val] of Object.entries(index)) {
+      if (val && typeof val === "object" && val.sessionId) {
+        sessions.push({
+          key,
+          sessionId: val.sessionId,
+          updatedAt: val.updatedAt || 0,
+        });
+      }
+    }
+
+    // Sort by most recent first
+    sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+
+    // Read each session's JSONL file
+    // Format: each line is {type, ...}. Messages have type:"message" with
+    // message:{role, content}. Content is string or [{type:"text",text:"..."}].
+    for (const sess of sessions.slice(0, maxEntries)) {
+      const jsonlPath = path.join(sessionsDir, `${sess.sessionId}.jsonl`);
+      try {
+        if (!fs.existsSync(jsonlPath)) continue;
+        const lines = fs.readFileSync(jsonlPath, "utf-8").split("\n").filter(Boolean);
+        const conversations: Record<string, unknown>[] = [];
+        let model: string | undefined;
+        for (const line of lines) {
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.type === "model_change" && parsed.modelId) {
+              model = parsed.modelId;
+            }
+            if (parsed.type !== "message") continue;
+            const msg = parsed.message;
+            if (!msg) continue;
+            const role = msg.role || "unknown";
+            let content = msg.content;
+            // content can be string or array of content blocks:
+            //   {type:"text", text:"..."} — text content
+            //   {type:"toolCall", name:"...", arguments:{...}} — tool invocation
+            if (Array.isArray(content)) {
+              const parts: string[] = [];
+              for (const block of content) {
+                const b = block as Record<string, unknown>;
+                if (b.type === "text") {
+                  parts.push(b.text as string);
+                } else if (b.type === "toolCall") {
+                  // Wrap in <tool_call> tags so frontend parser handles them (same as Hermes)
+                  parts.push("<tool_call>\n" + JSON.stringify({ name: b.name, arguments: b.arguments }) + "\n</tool_call>");
+                }
+              }
+              content = parts.join("\n");
+            }
+            conversations.push({
+              from: role,
+              value: content || "",
+              timestamp: parsed.timestamp || undefined,
+            });
+          } catch { /* skip bad lines */ }
+        }
+        if (conversations.length > 0) {
+          entries.push({
+            conversations,
+            timestamp: sess.updatedAt ? new Date(sess.updatedAt).toISOString() : undefined,
+            model,
+            completed: true,
+            sessionKey: sess.key,
+            sessionId: sess.sessionId,
+          });
+        }
+      } catch { /* skip unreadable sessions */ }
+    }
+
+    return entries;
+  }
+
+  api.registerHttpRoute({
+    path: "/web-tools/logs",
+    match: "prefix",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+
+      const url = new URL(req.url || "", "http://localhost");
+      const pathParts = url.pathname.replace(/\/+$/, "").split("/");
+      const lastPart = pathParts[pathParts.length - 1];
+
+      // CSS
+      if (lastPart === "logs.css") {
+        serveFile(res, path.join(trajDir, "logs.css"), "text/css", "max-age=3600");
+        return;
+      }
+
+      // Download raw JSONL as zip
+      if (lastPart === "download") {
+        if (!isSharingEnabled()) {
+          res.statusCode = 403;
+          res.end();
+          return;
+        }
+        const sessionsDir = path.join(stateDir, "agents", "main", "sessions");
+        const indexPath = path.join(sessionsDir, "sessions.json");
+        try {
+          const index = JSON.parse(fs.readFileSync(indexPath, "utf-8"));
+          // Collect JSONL files
+          const files: { name: string; path: string }[] = [];
+          for (const [, val] of Object.entries(index) as [string, Record<string, unknown>][]) {
+            if (val?.sessionId) {
+              const jsonlPath = path.join(sessionsDir, `${val.sessionId}.jsonl`);
+              if (fs.existsSync(jsonlPath)) {
+                files.push({ name: `${val.sessionId}.jsonl`, path: jsonlPath });
+              }
+            }
+          }
+          if (files.length === 0) {
+            res.statusCode = 404;
+            res.end("No JSONL files found");
+            return;
+          }
+          // Create zip using child_process (execFileSync avoids shell injection)
+          const { execFileSync } = require("node:child_process");
+          const os = require("node:os");
+          const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "traj-"));
+          try {
+            const zipPath = path.join(tmpDir, "trajectories.zip");
+            execFileSync("zip", ["-j", zipPath, ...files.map(f => f.path)], { stdio: "ignore" });
+            const zipBuf = fs.readFileSync(zipPath);
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "application/zip");
+            res.setHeader("Content-Disposition", "attachment; filename=trajectories.zip");
+            res.setHeader("Cache-Control", "no-store");
+            res.end(zipBuf);
+          } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          }
+        } catch {
+          res.statusCode = 500;
+          res.end("Failed to create zip");
+        }
+        return;
+      }
+
+      // API
+      if (lastPart === "api") {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        if (!isSharingEnabled()) {
+          res.statusCode = 403;
+          res.end(JSON.stringify({ error: "sharing not enabled" }));
+          return;
+        }
+        const entries = readSessionTrajectories();
+        res.statusCode = 200;
+        res.end(JSON.stringify({ runtime: "openclaw", entries }));
+        return;
+      }
+
+      // Page
+      serveFile(res, path.join(trajDir, "logs.html"), "text/html; charset=utf-8");
+    },
+  });
+
+  // --- Skills pages ---
+
+  // Serve skill page HTML for any slug: /web-tools/skills/<slug>
+  api.registerHttpRoute({
+    path: "/web-tools/skills",
+    match: "prefix",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") {
+        res.statusCode = 405;
+        res.end();
+        return;
+      }
+      // Extract slug from the URL path (everything after /web-tools/skills/)
+      const url = new URL(req.url || "", "http://localhost");
+      const pathParts = url.pathname.replace(/\/+$/, "").split("/");
+      const lastPart = pathParts[pathParts.length - 1];
+
+      // Static asset: skills.css
+      if (lastPart === "skills.css") {
+        serveFile(res, path.join(skillsDir, "skills.css"), "text/css", "max-age=3600");
+        return;
+      }
+
+      // API: /web-tools/skills/api — list all skills
+      if (lastPart === "api" && pathParts[pathParts.length - 2] === "skills") {
+        const data = readSkillsData();
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        res.statusCode = 200;
+        res.end(JSON.stringify(data || { active: null, skills: [] }));
+        return;
+      }
+
+      // API: /web-tools/skills/api/<slug> — single skill
+      if (pathParts.length >= 5 && pathParts[pathParts.length - 2] === "api") {
+        let slug: string;
+        try { slug = decodeURIComponent(lastPart); } catch {
+          res.statusCode = 400;
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ error: "invalid slug" }));
+          return;
+        }
+        const skill = readSkillBySlug(slug);
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        if (skill) {
+          res.statusCode = 200;
+          res.end(JSON.stringify(skill));
+        } else {
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: "skill not found" }));
+        }
+        return;
+      }
+
+      // Index page: /web-tools/skills (no slug or just trailing slash)
+      if (lastPart === "skills") {
+        serveFile(res, path.join(skillsDir, "index.html"), "text/html; charset=utf-8");
+        return;
+      }
+
+      // Skill detail page: /web-tools/skills/<slug>
+      serveFile(res, path.join(skillsDir, "skill.html"), "text/html; charset=utf-8");
     },
   });
 }

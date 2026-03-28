@@ -20,6 +20,12 @@ Use the message ID when you need to react to or reply to a specific message.
 Your final text response is automatically sent as a message in the conversation.
 Write plain text only — no markdown. Keep it short (3 sentences max unless asked for detail).
 
+To reply to a specific message, include this marker on its own line:
+
+  REPLY:messageId                 — send your response as a reply to that message
+
+The remaining text after the marker becomes the reply. Use REPLY when responding to a specific person's message in a group, or when referencing an earlier message that isn't the most recent one. In a 2-member conversation replying to the latest message is redundant — just respond normally.
+
 You also have tools for side effects during processing:
 
 - convos_react: React to a message. Pass `message_id` and `emoji`. Set `remove: true` to remove a reaction.

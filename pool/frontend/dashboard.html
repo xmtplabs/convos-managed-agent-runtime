@@ -37,6 +37,7 @@
         <a href="/admin" class="nav-link active">Dashboard</a>
         <a href="/admin/upgrades" class="nav-link">Upgrades</a>
         <a href="/admin/api-docs" class="nav-link">API</a>
+        <a href="/admin/skills" class="nav-link">Skills</a>
         <a id="railway-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Railway <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
         <a id="playroom-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Playroom <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
         <div class="nav-sep"></div>
@@ -108,21 +109,15 @@
               <option value="anthropic/claude-opus-4-6">claude-opus-4-6</option>
             </optgroup>
             <optgroup label="OpenAI">
-              <option value="openai/gpt-5.2-codex">gpt-5.2-codex</option>
-              <option value="openai/gpt-5.1-codex-mini">gpt-5.1-codex-mini</option>
-              <option value="openai/gpt-4o">gpt-4o</option>
-              <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
+              <option value="openai/gpt-5.4">gpt-5.4</option>
+              <option value="openai/gpt-5.4-mini">gpt-5.4-mini</option>
+              <option value="openai/gpt-oss-20b">gpt-oss-20b</option>
             </optgroup>
             <optgroup label="Google">
+              <option value="google/gemini-3.1-pro-preview">gemini-3-pro</option>
               <option value="google/gemini-3-flash-preview">gemini-3-flash</option>
             </optgroup>
-            <optgroup label="xAI">
-              <option value="x-ai/grok-4.1-fast">grok-4.1-fast</option>
-            </optgroup>
             <optgroup label="Other">
-              <option value="deepseek/deepseek-r1">deepseek-r1</option>
-              <option value="minimax/minimax-m2.5">minimax-m2.5</option>
-              <option value="moonshotai/kimi-k2.5">kimi-k2.5</option>
               <option value="perplexity/sonar">perplexity sonar</option>
             </optgroup>
           </select>
@@ -132,8 +127,8 @@
           <div class="image-picker" id="image-picker">
             <div class="image-picker-selects">
               <select class="replenish-select" id="runtime-harness">
-                <option value="convos-runtime">OpenClaw</option>
-                <option value="convos-runtime-hermes">Hermes</option>
+                <option value="openclaw">OpenClaw</option>
+                <option value="hermes">Hermes</option>
                 <option value="__custom__">other...</option>
               </select>
               <select class="replenish-select" id="runtime-env">
@@ -924,7 +919,7 @@
       var harness = document.getElementById('runtime-harness').value;
       var rawImage = harness === '__custom__'
         ? (document.getElementById('runtime-image-custom').value || '')
-        : 'ghcr.io/xmtplabs/' + harness + ':' + document.getElementById('runtime-env').value;
+        : (C.harnessImages[harness] || harness) + ':' + document.getElementById('runtime-env').value;
       var image = encodeURIComponent(rawImage.replace(/^https?:\/\//, ''));
       var model = encodeURIComponent(document.getElementById('instance-model').value);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);
@@ -1269,8 +1264,8 @@
       });
     });
 
-    // --- Templates count ---
-    fetch('/api/pool/templates').then(function (r) { return r.json(); }).then(function (d) {
+    // --- Skills count ---
+    fetch('/api/skills').then(function (r) { return r.json(); }).then(function (d) {
       document.getElementById('s-templates').textContent = Array.isArray(d) ? d.length : '-';
     }).catch(function () {});
 
