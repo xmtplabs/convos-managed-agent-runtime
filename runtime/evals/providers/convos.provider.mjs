@@ -49,42 +49,75 @@ export default class ConvosProvider {
       return { output, metadata: { conversationId: h.conversationId } };
     }
 
-    // Cron wait: send prompt to create a cron job, wait for pings to arrive
-    // via Convos. Returns all agent messages (setup reply + pings) joined as
-    // plain text so the test can assert with a simple regex.
-    if (meta.cronWait) {
+    // Cron wait: wait for a setup reply, then collect messages over a window.
+    // Returns the total agent message count received during the wait window
+    // (excluding the initial setup reply) so assertions can verify delivery.
+    if (meta.cronWait || meta.cronPing) {
       const existing = h.fetchMessages();
       const baseline = h.agentCount(existing);
+      const msgsBefore = existing.length;
       log(`Sending: "${prompt}"`);
       h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
 
-      // Wait for the agent's confirmation reply
+      // First wait for the agent's confirmation reply
       const setupMsgs = h.waitForAgent(baseline);
       const setupCount = h.agentCount(setupMsgs);
-      log(`Cron setup reply (${setupCount - baseline} msgs)`);
+      const setupReply = h.transcript(setupMsgs, msgsBefore);
+      log(`Cron setup reply (${setupCount - baseline} msgs): ${setupReply.slice(0, 120)}`);
 
-      // Wait for cron-delivered pings
-      const waitSec = meta.cronWaitSeconds || 90;
-      log(`Waiting ${waitSec}s for cron pings...`);
-      const waitDeadline = Date.now() + waitSec * 1000;
+      // Now wait for cron-delivered messages
+      const waitMs = (meta.cronWaitSeconds || 20) * 1000;
+      log(`Waiting ${meta.cronWaitSeconds || 20}s for cron pings...`);
+      const waitDeadline = Date.now() + waitMs;
       while (Date.now() < waitDeadline) {
         sleep(2_000);
       }
-
       const finalMsgs = h.fetchMessages();
+      // Get all new agent messages after setup, then separate pings from noise
       const newAgentTexts = finalMsgs
         .filter(m => m.senderInboxId !== h.userInboxId)
         .slice(setupCount)
         .map(m => m.content || m.text || '')
         .filter(Boolean);
-      log(`Cron delivered ${newAgentTexts.length} messages in ${waitSec}s: ${newAgentTexts.map(t => `"${t.slice(0, 80)}"`).join(', ') || '(none)'}`);
+      // All new agent messages after setup count as cron-delivered. The agent
+      // may respond with just "Ping!" or a longer explanation — both prove
+      // the cron pipeline works.
+      const cronPingTexts = newAgentTexts;
+      const cronPings = cronPingTexts.length;
+      log(`Cron delivered ${cronPings} messages in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 80)}"`).join(', ') || '(none)'}`)
 
-      // Cleanup: remove the eval cron job via the adapter so pings stop
-      runtime.cleanEvalState();
-      log('Cleaned eval cron jobs');
+      // Cleanup: delete the cron job so pings don't interfere with later tests
+      let cleanedUp = false;
+      if (meta.cronCleanupPrompt) {
+        const cleanupBaseline = h.agentCount(finalMsgs);
+        log(`Sending cleanup: "${meta.cronCleanupPrompt}"`);
+        h.convos(['conversation', 'send-text', h.conversationId, meta.cronCleanupPrompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
+        // Wait for deletion reply — pings may interleave so give extra time.
+        const cleanupDeadline = Date.now() + 60_000;
+        while (Date.now() < cleanupDeadline) {
+          sleep(2_000);
+          const msgs = h.fetchMessages();
+          const newMsgs = msgs.filter(m => m.senderInboxId !== h.userInboxId).slice(cleanupBaseline);
+          const hasDeleteConfirm = newMsgs.some(m => {
+            const text = (m.content || m.text || '').toLowerCase();
+            // Match deletion confirmations — agent may say "deleted", "done",
+            // "stopped", or just confirm the action briefly.
+            return /delet|remov|stop|kill|cancel|gone|done|got it|handled/.test(text) && text.length > 3;
+          });
+          if (hasDeleteConfirm) {
+            cleanedUp = true;
+            log('Cron job cleanup confirmed');
+            break;
+          }
+        }
+        if (!cleanedUp) log('Cron job cleanup not confirmed (pings may still fire)');
+      }
 
-      const output = newAgentTexts.join('\n');
-      return { output, metadata: { conversationId: h.conversationId, cronPings: newAgentTexts.length } };
+      const output = h.transcript(h.fetchMessages(), msgsBefore);
+      return {
+        output,
+        metadata: { conversationId: h.conversationId, cronPings, cronPingTexts, setupReply, cleanedUp },
+      };
     }
 
     if (meta.waitForWelcome) {
