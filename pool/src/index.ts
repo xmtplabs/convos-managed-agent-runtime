@@ -187,7 +187,7 @@ async function upgradeInstanceRuntime(
 
   const status = await fetchServiceStatus(infra.providerServiceId, infra.providerEnvId);
   console.log(`[upgrade] ${instanceId}: service=${infra.providerServiceId} env=${infra.providerEnvId} raw=${rawImage} resolved=${image} current=${status?.image ?? "unknown"} status=${status?.deployStatus ?? "unknown"}`);
-  await deployImage(infra.providerServiceId, image, opts);
+  await deployImage(infra.providerServiceId, image, opts, rawImage);
   console.log(`[upgrade] ${instanceId}: deploy committed`);
   await pgDb.update(instanceInfra).set({ runtimeImage: rawImage }).where(eq(instanceInfra.instanceId, instanceId));
   return rawImage;

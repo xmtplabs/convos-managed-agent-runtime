@@ -347,6 +347,7 @@ export async function createService(
   for (const [k, v] of Object.entries(variables)) {
     varEntries[k] = { value: v };
   }
+  varEntries._RUNTIME_IMAGE = { value: imageOverride || config.railwayRuntimeImage };
 
   try {
     await gql(
@@ -497,6 +498,7 @@ export async function deployImage(
   serviceId: string,
   image: string,
   opts?: ProjectEnvOpts,
+  rawImage?: string,
 ): Promise<void> {
   const environmentId = resolveEnvironmentId(opts);
   const patch = {
@@ -508,6 +510,7 @@ export async function deployImage(
         },
         variables: {
           _DEPLOY_TS: { value: Date.now().toString() },
+          _RUNTIME_IMAGE: { value: rawImage || image },
         },
       },
     },

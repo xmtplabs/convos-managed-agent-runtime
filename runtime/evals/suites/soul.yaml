@@ -6,7 +6,7 @@
 description: "Eval: Soul"
 
 evaluateOptions:
-  maxConcurrency: 5
+  maxConcurrency: 1
 
 providers:
   - file://../providers/prompt.provider.mjs
