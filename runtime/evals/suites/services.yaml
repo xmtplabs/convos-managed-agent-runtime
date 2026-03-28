@@ -3,6 +3,9 @@
 
 description: "Eval: Services"
 
+evaluateOptions:
+  maxConcurrency: 1
+
 providers:
   - file://../providers/prompt.provider.mjs
 
