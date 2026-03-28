@@ -14,7 +14,10 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
+import resource
 import time
 
 import httpx
@@ -38,6 +41,8 @@ class StatsAccumulator:
         self._runtime: str = "hermes"
         self._environment: str = ""
         self._version: str = ""
+        self._cron_jobs_file: str = ""
+        self._skills_dir: str = ""
         self._task: asyncio.Task | None = None
         self._started: bool = False
 
@@ -48,6 +53,37 @@ class StatsAccumulator:
 
     def set(self, metric: str, value: float) -> None:
         self._gauges[metric] = value
+
+    def _refresh_memory(self) -> None:
+        # resource.getrusage returns maxrss in KB on Linux, bytes on macOS
+        rss_bytes = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if os.uname().sysname != "Darwin":
+            rss_bytes *= 1024  # Linux reports KB
+        self._gauges["memory_gb"] = round(rss_bytes / 1_073_741_824, 2)
+
+    def _refresh_cron_count(self) -> None:
+        if not self._cron_jobs_file:
+            return
+        try:
+            with open(self._cron_jobs_file) as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                return
+            enabled = [j for j in data.get("jobs", []) if j.get("enabled", True)]
+            self._gauges["cron_job_count"] = len(enabled)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    def _refresh_skills_created_count(self) -> None:
+        if not self._skills_dir:
+            return
+        try:
+            entries = os.listdir(self._skills_dir)
+            self._gauges["skills_created_count"] = sum(
+                1 for e in entries if os.path.isdir(os.path.join(self._skills_dir, e))
+            )
+        except OSError:
+            pass
 
     def _build_posthog_batch(self) -> dict:
         now = time.time()
@@ -70,6 +106,9 @@ class StatsAccumulator:
                     "tools_invoked": self._counters.get("tools_invoked", 0),
                     "skills_invoked": self._counters.get("skills_invoked", 0),
                     "group_member_count": int(self._gauges.get("group_member_count", 0)),
+                    "cron_job_count": int(self._gauges.get("cron_job_count", 0)),
+                    "skills_created_count": int(self._gauges.get("skills_created_count", 0)),
+                    "memory_gb": self._gauges.get("memory_gb", 0),
                     "environment": self._environment,
                     "runtime_version": self._version,
                     "seconds_since_last_message_in": seconds_since,
@@ -106,8 +145,19 @@ class StatsAccumulator:
     async def _tick_loop(self) -> None:
         while True:
             await asyncio.sleep(FLUSH_INTERVAL_S)
+            self._refresh_memory()
+            self._refresh_cron_count()
+            self._refresh_skills_created_count()
             if not self.has_activity():
                 continue
+            logger.info(
+                "[stats] flush: msgs_in=%d msgs_out=%d cron=%d skills=%d mem=%.2fgb",
+                self._counters.get("messages_in", 0),
+                self._counters.get("messages_out", 0),
+                int(self._gauges.get("cron_job_count", 0)),
+                int(self._gauges.get("skills_created_count", 0)),
+                self._gauges.get("memory_gb", 0),
+            )
             batch = self.flush()
             await self._send(batch)
 
@@ -121,6 +171,8 @@ class StatsAccumulator:
         runtime: str = "hermes",
         environment: str = "",
         version: str = "",
+        cron_jobs_file: str = "",
+        skills_dir: str = "",
     ) -> None:
         if self._started:
             return
@@ -131,6 +183,8 @@ class StatsAccumulator:
         self._runtime = runtime
         self._environment = environment
         self._version = version
+        self._cron_jobs_file = cron_jobs_file
+        self._skills_dir = skills_dir
         self._task = asyncio.create_task(self._tick_loop())
         self._started = True
         logger.info("Stats started (instance=%s, interval=%ds)", instance_id, FLUSH_INTERVAL_S)

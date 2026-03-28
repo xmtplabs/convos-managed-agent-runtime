@@ -86,7 +86,7 @@ tests:
       - type: javascript
         value: "file://../lib/assertions.mjs:memoryFileUpdated"
 
-  - description: "Store & recall: poller notification context"
+  - description: "Store & recall: webhook notification context"
     vars:
       prompt: "Earlier you told me about an email notification. Who was it from and what was it about? Don't check my inbox — just tell me from memory."
     metadata:

@@ -1,19 +1,63 @@
 import type { ChannelMessageActionAdapter } from "openclaw/plugin-sdk";
-import { jsonResult, readStringParam, readReactionParams } from "openclaw/plugin-sdk";
 import { listConvosAccountIds, type CoreConfig } from "./accounts.js";
 import { applyOutboundTextPolicy } from "./outbound-policy.js";
 import { getConvosInstance } from "./outbound.js";
 
-export const convosMessageActions: ChannelMessageActionAdapter = {
-  listActions: ({ cfg }) => {
-    const ids = listConvosAccountIds(cfg as CoreConfig);
-    if (ids.length === 0) {
-      return [];
-    }
-    return ["send", "react", "sendAttachment"];
-  },
+// --- Local replacements for helpers dropped from openclaw/plugin-sdk/core ---
 
-  supportsButtons: () => false,
+function toSnakeCaseKey(key: string): string {
+  return key.replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2").replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+}
+
+function readParamRaw(params: Record<string, unknown>, key: string): unknown {
+  if (Object.hasOwn(params, key)) return params[key];
+  const snakeKey = toSnakeCaseKey(key);
+  if (snakeKey !== key && Object.hasOwn(params, snakeKey)) return params[snakeKey];
+}
+
+function readStringParam(
+  params: Record<string, unknown>,
+  key: string,
+  options: { required?: boolean; trim?: boolean; label?: string; allowEmpty?: boolean } = {},
+): string | undefined {
+  const { required = false, trim = true, label = key, allowEmpty = false } = options;
+  const raw = readParamRaw(params, key);
+  if (typeof raw !== "string") {
+    if (required) throw new Error(`${label} required`);
+    return;
+  }
+  const value = trim ? raw.trim() : raw;
+  if (!value && !allowEmpty) {
+    if (required) throw new Error(`${label} required`);
+    return;
+  }
+  return value;
+}
+
+function readReactionParams(
+  params: Record<string, unknown>,
+  options: { emojiKey?: string; removeKey?: string; removeErrorMessage: string },
+): { emoji: string | undefined; remove: boolean; isEmpty: boolean } {
+  const emojiKey = options.emojiKey ?? "emoji";
+  const removeKey = options.removeKey ?? "remove";
+  const remove = typeof params[removeKey] === "boolean" ? (params[removeKey] as boolean) : false;
+  const emoji = readStringParam(params, emojiKey, { required: true, allowEmpty: true });
+  if (remove && !emoji) throw new Error(options.removeErrorMessage);
+  return { emoji, remove, isEmpty: !emoji };
+}
+
+function jsonResult(payload: unknown): { content: { type: "text"; text: string }[]; details: unknown } {
+  return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }], details: payload };
+}
+
+export const convosMessageActions: ChannelMessageActionAdapter = {
+  describeMessageTool: ({ cfg }) => {
+    const ids = listConvosAccountIds(cfg as CoreConfig);
+    if (ids.length === 0) return null;
+    return {
+      actions: ["send", "react", "sendAttachment"],
+    };
+  },
 
   handleAction: async ({ action, params }) => {
     const inst = getConvosInstance();

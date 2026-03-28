@@ -6,6 +6,7 @@
 import { execFileSync } from 'child_process';
 import { createHarness } from '../lib/convos-harness.mjs';
 import { sleep, elapsed, log as _log } from '../lib/utils.mjs';
+import { runtime } from '../lib/runtime.mjs';
 
 const h = createHarness('convos', { conversationPrefix: 'QA Eval' });
 
@@ -23,6 +24,12 @@ export default class ConvosProvider {
     h.ensureSetup();
 
     const meta = context.test?.metadata || {};
+
+    if (meta.restart) {
+      const result = handleRestart(h, prompt);
+      log(`${result.metadata?.restarted ? 'OK' : 'FAIL'} ${desc} (${elapsed(t)})`);
+      return result;
+    }
 
     if (meta.selfDestruct) {
       const result = handleSelfDestruct(h);
@@ -42,76 +49,42 @@ export default class ConvosProvider {
       return { output, metadata: { conversationId: h.conversationId } };
     }
 
-    // Cron wait: wait for a setup reply, then collect messages over a window.
-    // Returns the total agent message count received during the wait window
-    // (excluding the initial setup reply) so assertions can verify delivery.
-    if (meta.cronWait || meta.cronPing) {
+    // Cron wait: send prompt to create a cron job, wait for pings to arrive
+    // via Convos. Returns all agent messages (setup reply + pings) joined as
+    // plain text so the test can assert with a simple regex.
+    if (meta.cronWait) {
       const existing = h.fetchMessages();
       const baseline = h.agentCount(existing);
-      const msgsBefore = existing.length;
       log(`Sending: "${prompt}"`);
       h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
 
-      // First wait for the agent's confirmation reply
+      // Wait for the agent's confirmation reply
       const setupMsgs = h.waitForAgent(baseline);
       const setupCount = h.agentCount(setupMsgs);
-      const setupReply = h.transcript(setupMsgs, msgsBefore);
-      log(`Cron setup reply (${setupCount - baseline} msgs): ${setupReply.slice(0, 120)}`);
+      log(`Cron setup reply (${setupCount - baseline} msgs)`);
 
-      // Now wait for cron-delivered messages
-      const waitMs = (meta.cronWaitSeconds || 20) * 1000;
-      log(`Waiting ${meta.cronWaitSeconds || 20}s for cron pings...`);
-      const waitDeadline = Date.now() + waitMs;
+      // Wait for cron-delivered pings
+      const waitSec = meta.cronWaitSeconds || 90;
+      log(`Waiting ${waitSec}s for cron pings...`);
+      const waitDeadline = Date.now() + waitSec * 1000;
       while (Date.now() < waitDeadline) {
         sleep(2_000);
       }
+
       const finalMsgs = h.fetchMessages();
-      // Get all new agent messages after setup, then separate pings from noise
       const newAgentTexts = finalMsgs
         .filter(m => m.senderInboxId !== h.userInboxId)
         .slice(setupCount)
         .map(m => m.content || m.text || '')
         .filter(Boolean);
-      // Pings are short messages containing "ping" — filter out poller notifications etc.
-      const cronPingTexts = newAgentTexts.filter(t => /ping/i.test(t) && t.length < 100);
-      const cronPings = cronPingTexts.length;
-      log(`Cron delivered ${cronPings} pings in ${meta.cronWaitSeconds || 20}s: ${cronPingTexts.map(t => `"${t.slice(0, 30)}"`).join(', ') || '(none)'}`)
-      if (newAgentTexts.length > cronPings) {
-        log(`  (${newAgentTexts.length - cronPings} non-ping agent messages also arrived)`);
-      }
+      log(`Cron delivered ${newAgentTexts.length} messages in ${waitSec}s: ${newAgentTexts.map(t => `"${t.slice(0, 80)}"`).join(', ') || '(none)'}`);
 
-      // Cleanup: delete the cron job so pings don't interfere with later tests
-      let cleanedUp = false;
-      if (meta.cronCleanupPrompt) {
-        const cleanupBaseline = h.agentCount(finalMsgs);
-        log(`Sending cleanup: "${meta.cronCleanupPrompt}"`);
-        h.convos(['conversation', 'send-text', h.conversationId, meta.cronCleanupPrompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
-        // Wait longer — pings may interleave, we need the actual deletion reply
-        const cleanupDeadline = Date.now() + 30_000;
-        while (Date.now() < cleanupDeadline) {
-          sleep(2_000);
-          const msgs = h.fetchMessages();
-          const newMsgs = msgs.filter(m => m.senderInboxId !== h.userInboxId).slice(cleanupBaseline);
-          const hasDeleteConfirm = newMsgs.some(m => {
-            const text = (m.content || m.text || '').toLowerCase();
-            // Match deletion confirmations — allow "ping" in the text since
-            // "deleted the ping job" is a valid confirmation.
-            return /delet|remov|stop|kill|cancel|gone/.test(text) && text.length > 5;
-          });
-          if (hasDeleteConfirm) {
-            cleanedUp = true;
-            log('Cron job cleanup confirmed');
-            break;
-          }
-        }
-        if (!cleanedUp) log('Cron job cleanup not confirmed (pings may still fire)');
-      }
+      // Cleanup: remove the eval cron job via the adapter so pings stop
+      runtime.cleanEvalState();
+      log('Cleaned eval cron jobs');
 
-      const output = h.transcript(h.fetchMessages(), msgsBefore);
-      return {
-        output,
-        metadata: { conversationId: h.conversationId, cronPings, cronPingTexts, setupReply, cleanedUp },
-      };
+      const output = newAgentTexts.join('\n');
+      return { output, metadata: { conversationId: h.conversationId, cronPings: newAgentTexts.length } };
     }
 
     if (meta.waitForWelcome) {
@@ -129,6 +102,75 @@ export default class ConvosProvider {
     log(`Done (${elapsed(t)})`);
     return { output, metadata: { conversationId: h.conversationId } };
   }
+}
+
+function handleRestart(h, prompt) {
+  const ENV = process.env.XMTP_ENV || 'dev';
+
+  // Both runtimes expose POST /pool/restart which exercises the resume-from-
+  // saved-credentials code path. Hermes stops the adapter and re-resumes;
+  // OpenClaw kills and respawns the gateway child.
+  const restartPath = runtime.restartPath;
+  if (!restartPath) {
+    h.log('SKIP — restart not supported by this runtime');
+    return { output: '[AGENT] (restart test skipped)', metadata: { conversationId: h.conversationId, restarted: true } };
+  }
+
+  h.log(`Calling POST ${restartPath}...`);
+  try {
+    const out = execFileSync('curl', [
+      '-sf', '-X', 'POST',
+      '-H', 'Content-Type: application/json',
+      '-H', `Authorization: Bearer ${h.gatewayToken}`,
+      '-d', '{}',
+      `http://localhost:${h.gatewayPort}${restartPath}`,
+    ], { encoding: 'utf-8', timeout: 90_000 });
+    h.log(`Restart OK: ${(out || '').trim().slice(0, 200)}`);
+  } catch (err) {
+    h.log(`FAIL — ${restartPath} failed: ${err.status || err.message}`);
+    return { output: `RESTART_FAILED: ${restartPath} returned error`, metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+
+  // Wait for the convos adapter to reconnect — the gateway may be up but
+  // the XMTP bridge needs time to re-establish the conversation stream.
+  h.log('Waiting for convos adapter to reconnect...');
+  const statusDeadline = Date.now() + 90_000;
+  let adapterReady = false;
+  while (Date.now() < statusDeadline) {
+    sleep(3_000);
+    try {
+      const statusOut = execFileSync('curl', [
+        '-sf',
+        '-H', `Authorization: Bearer ${h.gatewayToken}`,
+        `http://localhost:${h.gatewayPort}/convos/status`,
+      ], { encoding: 'utf-8', timeout: 5_000 });
+      const status = JSON.parse(statusOut);
+      if (status.conversationId) {
+        h.log(`Adapter reconnected: conversation ${status.conversationId.slice(0, 12)}`);
+        adapterReady = true;
+        break;
+      }
+    } catch {}
+  }
+  if (!adapterReady) {
+    h.log('FAIL — adapter did not reconnect within 90s');
+    return { output: 'RESTART_FAILED: adapter did not reconnect', metadata: { conversationId: h.conversationId, restarted: false } };
+  }
+  // Extra settle time for message streams
+  sleep(3_000);
+
+  const existing = h.fetchMessages();
+  const baseline = h.agentCount(existing);
+  const msgsBefore = existing.length;
+
+  h.log(`Sending post-restart message: "${prompt}"`);
+  h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', ENV], { timeout: 30_000 });
+  const msgs = h.waitForAgent(baseline);
+  const output = h.transcript(msgs, msgsBefore);
+
+  const responded = h.agentCount(msgs) > baseline;
+  h.log(responded ? 'Agent responded after restart' : 'FAIL — agent did not respond after restart');
+  return { output, metadata: { conversationId: h.conversationId, restarted: responded } };
 }
 
 function handleSelfDestruct(h) {

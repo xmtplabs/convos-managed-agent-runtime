@@ -1,6 +1,6 @@
 // runtime/evals/lib/convos-harness.mjs
 // Shared harness for e2e eval providers that interact with the agent via XMTP
-// conversations (convos, poller, poller-hooks). Extracts the duplicated
+// conversations (convos, webhook). Extracts the duplicated
 // setup / messaging / transcript helpers into one place.
 
 import { execFileSync, spawn } from 'child_process';
@@ -24,19 +24,14 @@ export function resolveSkillsRoot() {
     : resolve(__dirname, '../../shared/workspace/skills');
 }
 
-export function resolvePollerScript() {
-  return existsSync('/app/shared-scripts/poller.sh')
-    ? '/app/shared-scripts/poller.sh'
-    : resolve(__dirname, '../../shared/scripts/poller.sh');
-}
 
 // ---------------------------------------------------------------------------
 // Harness factory — each provider calls createHarness() once at module level.
 //
 // Options:
-//   tag                — log prefix (e.g. 'convos', 'poller')
+//   tag                — log prefix (e.g. 'convos', 'webhook')
 //   conversationPrefix — name prefix for the XMTP conversation
-//   cleanup()          — extra teardown (e.g. kill poller process)
+//   cleanup()          — extra teardown (e.g. kill background processes)
 //   afterSetup({ sharedConversationId, EVAL_HOME, log }) — runs after join
 // ---------------------------------------------------------------------------
 
@@ -82,7 +77,10 @@ export function createHarness(tag, opts = {}) {
 
   function checkGateway() {
     try {
-      execFileSync('curl', ['-sf', `http://localhost:${GATEWAY_PORT}${runtime.healthPath}`], {
+      const curlArgs = ['-sf'];
+      if (GATEWAY_TOKEN) curlArgs.push('-H', `Authorization: Bearer ${GATEWAY_TOKEN}`);
+      curlArgs.push(`http://localhost:${GATEWAY_PORT}${runtime.healthPath}`);
+      execFileSync('curl', curlArgs, {
         encoding: 'utf-8',
         timeout: 5_000,
       });
@@ -199,7 +197,8 @@ export function createHarness(tag, opts = {}) {
   function isSystemMsg(m) {
     if (!m.contentType) return false;
     const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
-    return typeId && typeId !== 'text';
+    // text and reply are both valid agent messages — reply is an XMTP quote.
+    return typeId && typeId !== 'text' && typeId !== 'reply';
   }
 
   function isAgentReply(m) {
@@ -246,13 +245,13 @@ export function createHarness(tag, opts = {}) {
         const text = transcript(msgs);
         if (pattern.test(text)) {
           log(`Content matched: ${pattern}`);
-          return { msgs, text };
+          return { msgs, text, matched: true };
         }
       } catch {}
     }
     log(`Content NOT matched within ${timeoutMs / 1000}s: ${pattern}`);
     const msgs = fetchMessages();
-    return { msgs, text: transcript(msgs) };
+    return { msgs, text: transcript(msgs), matched: false };
   }
 
   function transcript(msgs, afterIndex = 0) {
@@ -261,7 +260,7 @@ export function createHarness(tag, opts = {}) {
       .filter((m) => {
         if (!m.contentType) return true;
         const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
-        return typeId === 'text';
+        return typeId === 'text' || typeId === 'reply';
       })
       .map((m) => {
         const who = m.senderInboxId === userInboxId ? 'USER' : 'AGENT';

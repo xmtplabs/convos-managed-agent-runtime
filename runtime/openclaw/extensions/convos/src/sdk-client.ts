@@ -726,9 +726,9 @@ export class ConvosInstance {
 
     const event = data.event as string;
 
-    if (this.options.debug) {
-      console.log(`[convos] event: ${event} ${JSON.stringify(data)}`);
-    }
+    // if (this.options.debug) {
+    //   console.log(`[convos] event: ${event} ${JSON.stringify(data)}`);
+    // }
 
     switch (event) {
       case "ready": {

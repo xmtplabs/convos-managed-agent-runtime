@@ -26,6 +26,7 @@ brand_banner "$_version"
 brand_section "Keys"
 brand_dim "" "validate API keys and write .env"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
+[ -n "$_RUNTIME_IMAGE" ] && brand_ok "IMAGE" "$_RUNTIME_IMAGE" || brand_dim "IMAGE" "unknown"
 
 if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/keys-common.sh" ]; then
   . "$SHARED_SCRIPTS_DIR/lib/keys-common.sh"

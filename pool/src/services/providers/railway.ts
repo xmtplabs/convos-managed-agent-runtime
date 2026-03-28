@@ -342,11 +342,12 @@ export async function createService(
   // (which triggers a deploy when setting an image source) raced against
   // the subsequent upsertVariables call, causing ~10% of instances to boot
   // with missing env vars.
-  const { cpu = 4, memoryGB = 8 } = {};
+  const { cpu = 4, memoryGB = 4 } = {};
   const varEntries: Record<string, { value: string }> = {};
   for (const [k, v] of Object.entries(variables)) {
     varEntries[k] = { value: v };
   }
+  varEntries._RUNTIME_IMAGE = { value: imageOverride || config.railwayRuntimeImage };
 
   try {
     await gql(
@@ -456,7 +457,7 @@ export async function setResourceLimits(
   limits?: { cpu?: number; memoryGB?: number },
   opts?: ProjectEnvOpts,
 ): Promise<void> {
-  const { cpu = 4, memoryGB = 8 } = limits || {};
+  const { cpu = 4, memoryGB = 4 } = limits || {};
   const environmentId = resolveEnvironmentId(opts);
   try {
     await gql(
@@ -497,6 +498,7 @@ export async function deployImage(
   serviceId: string,
   image: string,
   opts?: ProjectEnvOpts,
+  rawImage?: string,
 ): Promise<void> {
   const environmentId = resolveEnvironmentId(opts);
   const patch = {
@@ -508,6 +510,7 @@ export async function deployImage(
         },
         variables: {
           _DEPLOY_TS: { value: Date.now().toString() },
+          _RUNTIME_IMAGE: { value: rawImage || image },
         },
       },
     },

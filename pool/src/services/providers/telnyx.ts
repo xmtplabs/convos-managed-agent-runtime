@@ -164,7 +164,7 @@ export interface ProvisionedPhone {
  * Provision a phone number for an instance.
  * First checks the pool for an available number; if none, purchases a new one.
  */
-export async function provisionPhone(instanceId?: string): Promise<ProvisionedPhone> {
+export async function provisionPhone(instanceId: string): Promise<ProvisionedPhone> {
   if (!config.telnyxApiKey) throw new Error("TELNYX_API_KEY not set");
 
   // 1. Atomically claim one available number from the pool (LIMIT 1)
@@ -174,7 +174,7 @@ export async function provisionPhone(instanceId?: string): Promise<ProvisionedPh
     messaging_profile_id: string;
   }>(sql`
     UPDATE phone_number_pool
-    SET status = 'assigned', instance_id = ${instanceId ?? null}
+    SET status = 'assigned', instance_id = ${instanceId}
     WHERE id = (
       SELECT id FROM phone_number_pool
       WHERE status = 'available'
@@ -213,10 +213,30 @@ export async function provisionPhone(instanceId?: string): Promise<ProvisionedPh
     phoneNumber,
     messagingProfileId,
     status: "assigned",
-    instanceId: instanceId ?? null,
+    instanceId,
   });
 
   return { phoneNumber, messagingProfileId };
+}
+
+/**
+ * Release all phone numbers assigned to an instance back to the pool.
+ * Used as a fallback when instance_services rows are unavailable (e.g. orphaned infra).
+ */
+export async function releasePhonesByInstance(instanceId: string): Promise<number> {
+  if (!instanceId) return 0;
+  try {
+    const result = await db
+      .update(phoneNumberPool)
+      .set({ status: "available" as const, instanceId: null })
+      .where(eq(phoneNumberPool.instanceId, instanceId));
+    const count = result.rowCount ?? 0;
+    if (count > 0) console.log(`[telnyx] Released ${count} phone(s) for instance ${instanceId} back to pool`);
+    return count;
+  } catch (err: any) {
+    console.warn(`[telnyx] Failed to release phones for instance ${instanceId}:`, err.message);
+    return 0;
+  }
 }
 
 /**

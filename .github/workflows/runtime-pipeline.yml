@@ -64,6 +64,11 @@ on:
         required: false
         type: string
         default: "type=gha,mode=max"
+      eval_matrix:
+        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]"
+        required: false
+        type: string
+        default: '[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
 
 jobs:
   build:
@@ -103,19 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { suite: knows,        timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: skills,       timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: soul,         timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: lifecycle,    timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: convos,       timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: models,       timeout: 900, only: openclaw, fresh: false, poller: false }
-          - { suite: async-delegation,   timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: async-cron,         timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: async-poller,       timeout: 900, only: "", fresh: false, poller: true }
-          - { suite: memory,             timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: silence,            timeout: 900, only: "", fresh: false, poller: false }
-          - { suite: provision,          timeout: 900, only: "", fresh: true, poller: false }
+        include: ${{ fromJson(inputs.eval_matrix) }}
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
@@ -136,7 +129,6 @@ jobs:
             -e OPENCLAW_PRIMARY_MODEL="${{ secrets.OPENCLAW_PRIMARY_MODEL }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            ${{ !matrix.poller && '-e DISABLE_POLLER=1' || '' }} \
             ${{ !matrix.fresh && format('-e POOL_URL="{0}"', secrets.POOL_URL) || '' }} \
             ${{ !matrix.fresh && format('-e INSTANCE_ID="{0}"', secrets.INSTANCE_ID) || '' }} \
             ${{ !matrix.fresh && format('-e AGENTMAIL_API_KEY="{0}"', secrets.AGENTMAIL_API_KEY) || '' }} \
@@ -148,8 +140,12 @@ jobs:
 
       - name: Wait for health
         run: |
+          HEALTH_CURL_ARGS=(-sf)
+          if [ -n "${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" ]; then
+            HEALTH_CURL_ARGS+=(-H "Authorization: Bearer ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}")
+          fi
           for i in $(seq 1 120); do
-            if curl -sf http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
+            if curl "${HEALTH_CURL_ARGS[@]}" http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
               echo "Ready after ${i}s"; exit 0
             fi; sleep 1
           done

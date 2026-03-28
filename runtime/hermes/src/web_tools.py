@@ -6,9 +6,11 @@ the same UI at /web-tools/services and /web-tools/convos.
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
+import zipfile
 from pathlib import Path
 
 import httpx
@@ -24,6 +26,7 @@ _SHARED_ROOT = Path("/app/web-tools") if Path("/app/web-tools").exists() else (
 )
 _SERVICES_DIR = _SHARED_ROOT / "services"
 _CONVOS_DIR = _SHARED_ROOT / "convos"
+_SKILLS_DIR = _SHARED_ROOT / "skills"
 
 
 def _gateway_token() -> str:
@@ -241,3 +244,180 @@ async def convos_landing_css():
 @router.get("/web-tools/convos/icon.svg")
 async def convos_icon():
     return _serve_static(_CONVOS_DIR / "icon.svg", "image/svg+xml")
+
+
+# ── Skills pages ────────────────────────────────────────────
+
+
+def _skills_data_path() -> Path:
+    """Resolve the path to $SKILLS_ROOT/generated/skills.json."""
+    skills_root = os.environ.get("SKILLS_ROOT", "")
+    if not skills_root:
+        hermes_home = os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
+        skills_root = str(Path(hermes_home) / "skills")
+    return Path(skills_root) / "generated" / "skills.json"
+
+
+def _read_skill_by_slug(slug: str) -> dict | None:
+    """Read skills.json and return a single skill by slug."""
+    try:
+        data = json.loads(_skills_data_path().read_text())
+        skills = data.get("skills", [])
+        if not isinstance(skills, list):
+            return None
+        return next((s for s in skills if s.get("slug") == slug), None)
+    except Exception:
+        return None
+
+
+def _read_skills_data() -> dict:
+    """Read the full skills.json."""
+    try:
+        return json.loads(_skills_data_path().read_text())
+    except Exception:
+        return {"active": None, "skills": []}
+
+
+@router.get("/web-tools/skills/skills.css")
+async def skills_css():
+    return _serve_static(_SKILLS_DIR / "skills.css", "text/css")
+
+
+@router.get("/web-tools/skills/api")
+async def skills_api_list():
+    """Return the full skills.json (all skills + active marker)."""
+    return Response(
+        content=json.dumps(_read_skills_data()),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/web-tools/skills/api/{slug}")
+async def skills_api(slug: str):
+    """Return a single skill's JSON data by slug."""
+    skill = _read_skill_by_slug(slug)
+    if skill:
+        return Response(
+            content=json.dumps(skill),
+            media_type="application/json",
+            headers={"Cache-Control": "no-store"},
+        )
+    return Response(
+        content=json.dumps({"error": "skill not found"}),
+        status_code=404,
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+# ── Trajectories / logs ──────────────────────────────────────
+
+
+_TRAJECTORIES_DIR = _SHARED_ROOT / "logs"
+
+
+def _hermes_home() -> Path:
+    return Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+
+
+def _sharing_enabled() -> bool:
+    return (_hermes_home() / ".share-trajectories").exists()
+
+
+def _read_trajectory_jsonl(file_path: Path, max_entries: int = 200) -> list[dict]:
+    """Read a JSONL trajectory file, return most-recent-first."""
+    entries: list[dict] = []
+    if not file_path.exists():
+        return entries
+    try:
+        for line in file_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    except Exception:
+        return entries
+    entries.reverse()
+    return entries[:max_entries]
+
+
+@router.get("/web-tools/logs")
+@router.get("/web-tools/logs/")
+async def trajectories_page():
+    return _serve_static(
+        _TRAJECTORIES_DIR / "logs.html",
+        "text/html; charset=utf-8",
+        cache_control="no-store",
+    )
+
+
+@router.get("/web-tools/logs/logs.css")
+async def trajectories_css():
+    return _serve_static(_TRAJECTORIES_DIR / "logs.css", "text/css")
+
+
+@router.get("/web-tools/logs/api")
+async def trajectories_api():
+    """Return trajectory entries if sharing is enabled."""
+    if not _sharing_enabled():
+        return Response(
+            content=json.dumps({"error": "sharing not enabled"}),
+            status_code=403,
+            media_type="application/json",
+        )
+    home = _hermes_home()
+    entries = _read_trajectory_jsonl(home / "trajectory_samples.jsonl")
+    failed = _read_trajectory_jsonl(home / "failed_trajectories.jsonl")
+    all_entries = [e for e in entries + failed if isinstance(e, dict)]
+    # Sort by timestamp descending
+    all_entries.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
+    return Response(
+        content=json.dumps({"runtime": "hermes", "entries": all_entries[:200]}),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.get("/web-tools/logs/download")
+async def trajectories_download():
+    """Download raw JSONL files as a zip."""
+    if not _sharing_enabled():
+        return Response(status_code=403)
+    home = _hermes_home()
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name in ("trajectory_samples.jsonl", "failed_trajectories.jsonl"):
+            path = home / name
+            if path.exists() and path.stat().st_size > 0:
+                zf.write(path, name)
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=trajectories.zip",
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+# ── Skills pages ────────────────────────────────────────────
+
+
+@router.get("/web-tools/skills")
+@router.get("/web-tools/skills/")
+async def skills_index():
+    """Serve the skills index page."""
+    return _serve_static(_SKILLS_DIR / "index.html", "text/html; charset=utf-8",
+                         cache_control="no-store")
+
+
+@router.get("/web-tools/skills/{slug}")
+async def skills_page(slug: str):
+    """Serve the skill page HTML shell for any slug."""
+    return _serve_static(_SKILLS_DIR / "skill.html", "text/html; charset=utf-8",
+                         cache_control="no-store")

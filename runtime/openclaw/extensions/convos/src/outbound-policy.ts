@@ -13,6 +13,7 @@ const OVERLOADED_PATTERNS = [
   "overloaded_error",
   "service unavailable",
   "high demand",
+  "error code: 529",
 ];
 
 function isOverloadedText(text: string): boolean {
@@ -40,12 +41,9 @@ export async function applyOutboundTextPolicy(text: string): Promise<OutboundTex
     return { suppress: false, text: buildCreditErrorMessage() };
   }
 
-  // Rewrite raw provider overloaded errors into a user-friendly message
+  // Suppress provider overloaded errors — don't send anything to the user
   if (isOverloadedText(text)) {
-    return {
-      suppress: false,
-      text: "I'm having trouble with my AI provider right now — please try again in a moment.",
-    };
+    return { suppress: true, text: "" };
   }
 
   return { suppress: false, text };
