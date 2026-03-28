@@ -32,10 +32,14 @@ if [ -n "${EVAL_RESULTS_DIR:-}" ]; then
   JSON_FLAG="--output $EVAL_RESULTS_DIR/${SUITE_NAME}.json"
 fi
 
-npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 $JSON_FLAG "$@" > "$TMPOUT" 2>&1
-EXIT_CODE=$?
-
-cat "$TMPOUT"
+set +e
+npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 $JSON_FLAG "$@" 2>&1 | tee "$TMPOUT"
+# tee always exits 0; derive the real exit code from the results line
+EXIT_CODE=0
+if grep -qE '✗ [0-9]+ failed|[0-9]+ error' "$TMPOUT"; then
+  EXIT_CODE=1
+fi
+set -e
 
 if [ "$EXIT_CODE" -eq 0 ]; then
   rm -f "$TMPOUT"
