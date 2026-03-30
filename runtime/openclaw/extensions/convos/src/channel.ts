@@ -1138,28 +1138,44 @@ async function dispatchGreeting(
     return;
   }
 
-  const greetingContent = hasActiveSkill()
-    ? "[System: You just joined this conversation. Send your welcome message now. " +
-      "Follow the 'Welcome message' section in AGENTS.md.]"
-    : "[System: You just joined this conversation. You have no skill configured yet. " +
-      "Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md and follow it. " +
-      "Start with step 1: ask one open-ended question about what this group needs. " +
-      "Do NOT send a standard welcome message. Do NOT mention your capabilities or ask for a name. " +
-      "Just ask what the group needs help with.]";
+  const skillActive = hasActiveSkill();
 
-  const syntheticMsg: InboundMessage = {
+  // Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
+  // (active skill → THE ENTRANCE, no skill → ask what the group needs).
+  const greetingMsg: InboundMessage = {
     conversationId: inst.conversationId,
     messageId: `system-greeting-${crypto.randomUUID()}`,
     senderId: SYSTEM_SENDER_ID,
     senderName: "System",
-    content: greetingContent,
+    content:
+      "[System: You just joined this conversation. Send your welcome message now. " +
+      "Follow the 'Welcome message' section in AGENTS.md.]",
     contentType: "text",
     timestamp: new Date(),
   };
 
-  console.log(`[convos] Dispatching greeting message (skill-builder=${!hasActiveSkill()})`);
+  console.log(`[convos] Dispatching greeting message (skill-active=${skillActive})`);
   try {
-    await handleInboundMessage(account, syntheticMsg, runtime);
+    await handleInboundMessage(account, greetingMsg, runtime);
+
+    // Phase 2: skill-builder context load — only if no active skill.
+    // Fires after the greeting is already delivered. Response is suppressed —
+    // the agent reads the skill into context but sends nothing.
+    if (!skillActive) {
+      const skillMsg: InboundMessage = {
+        conversationId: inst.conversationId,
+        messageId: `system-skill-builder-${crypto.randomUUID()}`,
+        senderId: SYSTEM_SENDER_ID,
+        senderName: "System",
+        content:
+          "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. " +
+          "You already asked the group what they need — when they respond, follow the skill from step 1.]",
+        contentType: "text",
+        timestamp: new Date(),
+      };
+      console.log("[convos] Dispatching skill-builder context load (silent)");
+      await handleInboundMessage(account, skillMsg, runtime, undefined, undefined, true);
+    }
   } finally {
     signalGreetingDone();
   }
