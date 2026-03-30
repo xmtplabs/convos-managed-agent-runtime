@@ -246,6 +246,16 @@ class AgentRunner:
             logger.error(f"Agent error: {err}")
             return "I encountered an error processing your message. Please try again."
 
+        # Detect credit exhaustion (HTTP 402) — run_conversation() returns
+        # final_response=None on non-retryable errors, so the outbound policy
+        # never sees the error text.  Surface the credit top-up message directly.
+        if result.get("failed"):
+            from .outbound_policy import _is_credit_error, _build_credit_message
+            error_text = result.get("error", "")
+            if _is_credit_error(error_text):
+                logger.warning("Credit error detected in agent response: %s", error_text[:200])
+                return _build_credit_message()
+
         response = result.get("final_response", "")
         was_interrupted = result.get("interrupted", False)
 
