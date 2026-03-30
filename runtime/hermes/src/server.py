@@ -734,8 +734,8 @@ async def _cron_check_credit_errors() -> None:
         if any_credit_error and not _cron_credit_error_notified:
             adapter = get_adapter()
             if adapter and adapter.instance:
-                _cron_credit_error_notified = True
                 await adapter.send_message(_build_credit_message())
+                _cron_credit_error_notified = True
                 logger.info("Sent credit exhaustion notification to user (cron)")
     except ImportError:
         pass
