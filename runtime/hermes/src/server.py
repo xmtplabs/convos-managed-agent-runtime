@@ -704,6 +704,45 @@ def _patch_cron_delivery() -> None:
     logger.info("Patched cron delivery for convos platform")
 
 
+_cron_credit_error_notified = False
+
+
+async def _cron_check_credit_errors() -> None:
+    """After a cron tick, check if any jobs failed due to credit exhaustion.
+
+    Sends a one-shot credit top-up message to the user.  Resets when a
+    job succeeds again (meaning credits were restored).
+    """
+    global _cron_credit_error_notified
+    try:
+        from cron.jobs import load_jobs
+        from .outbound_policy import _is_credit_error, _build_credit_message
+
+        jobs = load_jobs()
+        any_credit_error = False
+        any_success = False
+        for job in jobs:
+            if job.get("last_status") == "error" and _is_credit_error(job.get("last_error", "")):
+                any_credit_error = True
+            if job.get("last_status") == "ok":
+                any_success = True
+
+        # Reset the flag when at least one job succeeds (credits restored)
+        if any_success:
+            _cron_credit_error_notified = False
+
+        if any_credit_error and not _cron_credit_error_notified:
+            adapter = get_adapter()
+            if adapter and adapter.instance:
+                _cron_credit_error_notified = True
+                await adapter.send_message(_build_credit_message())
+                logger.info("Sent credit exhaustion notification to user (cron)")
+    except ImportError:
+        pass
+    except Exception as err:
+        logger.debug("Cron credit check failed: %s", err)
+
+
 async def _cron_tick_loop() -> None:
     """Run the Hermes cron scheduler periodically.
 
@@ -724,6 +763,7 @@ async def _cron_tick_loop() -> None:
             ran = await loop.run_in_executor(None, tick, False)
             if ran:
                 logger.info("Cron tick: %d job(s) executed", ran)
+                await _cron_check_credit_errors()
         except ImportError:
             logger.debug("Cron module not available — skipping tick")
             return
