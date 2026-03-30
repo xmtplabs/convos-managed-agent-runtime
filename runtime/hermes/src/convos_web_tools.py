@@ -42,7 +42,7 @@ def web_search(query: str, limit: int = 5) -> str:
         return json.dumps({"success": False, "error": "OPENROUTER_API_KEY not set"})
 
     try:
-        client = OpenAI(api_key=key, base_url=_OPENROUTER_BASE)
+        client = OpenAI(api_key=key, base_url=_OPENROUTER_BASE, timeout=30.0)
         resp = client.chat.completions.create(
             model=_SEARCH_MODEL,
             messages=[{"role": "user", "content": query}],
