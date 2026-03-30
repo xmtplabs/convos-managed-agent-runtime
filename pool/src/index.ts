@@ -21,7 +21,6 @@ import { stripeRouter } from "./stripeRoute";
 import * as stripe from "./services/providers/stripe";
 import { serviceProxyRouter } from "./routes/serviceProxy";
 import { skillsRouter } from "./routes/skills";
-import { seedCatalog } from "./db/seed";
 
 // Services routes (now local, no HTTP)
 import { infraRouter } from "./services/routes/infra";
@@ -1065,8 +1064,6 @@ runMigrations()
   .then(() => {
     ensureWebhookRule().catch((err) =>
       console.warn("[startup] Webhook rule registration failed:", err.message));
-    // Seed catalog on first boot (after migrations complete)
-    seedCatalog().catch((e) => console.error("[seed] Catalog seed failed:", e));
   })
   .catch((err) => {
     console.error("[startup] Migration failed:", err);
