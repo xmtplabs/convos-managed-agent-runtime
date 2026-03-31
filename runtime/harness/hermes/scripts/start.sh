@@ -5,9 +5,9 @@ set -e
 
 brand_section "Paths"
 brand_dim "" "resolved directories and config"
-brand_ok "HERMES_HOME"      "${HERMES_HOME#"$ROOT"/}"
-brand_ok "HERMES_AGENT_DIR" "${HERMES_AGENT_DIR#"$ROOT"/}"
-brand_ok "SKILLS_ROOT"      "${HERMES_HOME#"$ROOT"/}/skills"
+brand_ok "HERMES_HOME"      "$HERMES_HOME"
+brand_ok "HERMES_AGENT_DIR" "$HERMES_AGENT_DIR"
+brand_ok "SKILLS_ROOT"      "$SKILLS_ROOT"
 
 brand_section "Server"
 brand_dim "" "start Hermes FastAPI server"

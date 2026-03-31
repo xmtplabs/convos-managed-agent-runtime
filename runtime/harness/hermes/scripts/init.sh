@@ -1,10 +1,17 @@
 #!/bin/sh
 # Set ROOT, load .env, derive state paths. Source from scripts: . "$(dirname "$0")/init.sh"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# .env: local at runtime/.env (two levels up), Docker doesn't use file-based .env
 _ENV_FILE="$ROOT/../../.env"
-_init_common="$ROOT/../lib/init-common.sh"
-[ ! -f "$_init_common" ] && _init_common="/app/platform-scripts/init-common.sh"
-. "$_init_common"
+[ ! -f "$_ENV_FILE" ] && _ENV_FILE="$ROOT/.env"
+
+# Platform init (detects Docker vs local internally)
+if [ -d "/app/platform-scripts" ]; then
+  . /app/platform-scripts/init-common.sh
+else
+  . "$ROOT/../lib/init-common.sh"
+fi
 
 # Docker detection — single source of truth
 is_docker() { [ -d "/opt/hermes-agent" ]; }

@@ -33,7 +33,7 @@ const OVERLOADED_PATTERNS: string[] = policy.overloadedPatterns ?? [];
 const CREDIT_PATTERNS: string[] = policy.creditPatterns ?? [];
 const CONTEXT_OVERFLOW_PREFIX: string = policy.contextOverflowPrefix ?? "Context overflow:";
 const SUPPRESS_TOKENS: Set<string> = new Set(policy.suppressTokens ?? []);
-const CREDIT_MSG_TEMPLATE: string = policy.creditMessageTemplate ?? "Hey! I'm out of credits.";
+const CREDIT_MSG_TEMPLATE: string = policy.creditMessageTemplate ?? "Hey! I'm out of credits. You can top up here: {{servicesUrl}}";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 

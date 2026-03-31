@@ -8,7 +8,7 @@ if [ -f "$ENV_FILE" ]; then
   set -a; . "$ENV_FILE" 2>/dev/null || true; set +a
 fi
 
-brand_resolve_version "$ROOT/../../package.json" "$ROOT/../runtime-version.json" "$ROOT/../package.json"
+brand_resolve_version "$ROOT/../../package.json" "$ROOT/../runtime-version.json" "$ROOT/../package.json" "/app/runtime-version.json"
 brand_banner "$_BRAND_VERSION"
 
 brand_section "Keys"

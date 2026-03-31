@@ -34,7 +34,7 @@ _OVERLOADED_PATTERNS = _policy.get("overloadedPatterns", [])
 _CREDIT_PATTERNS = _policy.get("creditPatterns", [])
 _CONTEXT_OVERFLOW_PREFIX = _policy.get("contextOverflowPrefix", "Context overflow:")
 _SUPPRESS_TOKENS = set(_policy.get("suppressTokens", []))
-_CREDIT_MSG_TEMPLATE = _policy.get("creditMessageTemplate", "Hey! I'm out of credits.")
+_CREDIT_MSG_TEMPLATE = _policy.get("creditMessageTemplate", "Hey! I'm out of credits. You can top up here: {{servicesUrl}}")
 
 
 @dataclass

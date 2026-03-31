@@ -91,7 +91,7 @@ for subdir in workspace extensions; do
     rm -rf "${STATE_DIR:?}/$subdir"/*
     cp -r "$RUNTIME_DIR/$subdir/"* "$STATE_DIR/$subdir/" 2>/dev/null || true
   fi
-  brand_ok "$subdir" "${STATE_DIR##*/}/$subdir"
+  brand_ok "$subdir" "$STATE_DIR/$subdir"
 done
 
 [ -n "${_MERGED_SRC:-}" ] && rm -rf "$_MERGED_SRC" && unset _MERGED_SRC
@@ -107,7 +107,7 @@ _SHARED_WT="$CONVOS_PLATFORM_DIR/web-tools"
 if [ -d "$_SHARED_WT" ]; then
   mkdir -p "$STATE_DIR/web-tools"
   cp -r "$_SHARED_WT/"* "$STATE_DIR/web-tools/"
-  brand_ok "web-tools" "${STATE_DIR##*/}/web-tools"
+  brand_ok "web-tools" "$STATE_DIR/web-tools"
 fi
 unset _SHARED_WT
 
@@ -136,6 +136,6 @@ if command -v jq >/dev/null 2>&1; then
   fi
 fi
 
-brand_ok "config" "${STATE_DIR##*/}/openclaw.json"
+brand_ok "config" "$STATE_DIR/openclaw.json"
 brand_done "Workspace ready"
 brand_flush
