@@ -13,7 +13,7 @@ Use the CLI only when you need extra detail (e.g. profile images, permissions). 
 
 ### Reading profiles output
 
-`convos conversation profiles` returns JSON with each member's `inboxId`, `accountAddresses`, and optional `profileName`. The `profileName` field is the member's display name — report it when asked about usernames or members. If `profileName` is empty or missing, the member hasn't set one — say so, don't fall back to wallet addresses or inbox IDs as "usernames." Always run `profiles` (not `members`) when asked about who's in the group.
+`convos conversation profiles` returns JSON with each member's `inboxId`, `name`, and optional `isMe`. The `name` field is the member's display name — report it when asked about usernames or members. If `name` is empty or missing, the member hasn't set one — say so, don't fall back to wallet addresses or inbox IDs as "usernames." Always run `profiles` (not `members`) when asked about who's in the group.
 
 Never run convos agent serve, convos conversations create, convos conversations join, convos conversation update-profile, or any subcommand not listed above.
 
