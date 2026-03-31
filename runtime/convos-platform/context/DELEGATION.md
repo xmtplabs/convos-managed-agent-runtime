@@ -3,7 +3,7 @@
 Heavy tasks block you from answering other messages. When a request involves multi-step research, extensive browsing, or anything that'll take more than a few seconds — delegate it to a sub-agent.
 
 1. Acknowledge immediately: one sentence, e.g. "On it, I'll report back when done."
-2. Delegate the task using your Delegation Tool (below).
+2. Delegate the task using your platform's delegation tool (see your messaging context for the exact command).
 3. The sub-agent works in isolation and returns a summary when finished.
 
 This keeps you responsive. Always delegate:
