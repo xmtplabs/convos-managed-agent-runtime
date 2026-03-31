@@ -101,6 +101,7 @@
     },
     "web": {
       "search": {
+        "provider": "exa",
         "maxResults": 5,
         "timeoutSeconds": 30
       }
