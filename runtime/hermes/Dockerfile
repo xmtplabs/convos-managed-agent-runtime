@@ -24,7 +24,7 @@ RUN curl -LsSf https://astral.sh/uv/0.11.2/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # FastAPI + uvicorn (runtime server deps)
-COPY runtime/hermes/requirements.lock /app/requirements.lock
+COPY runtime/hermes/requirements.txt runtime/hermes/requirements.lock /app/
 RUN uv pip install --system --no-cache -r requirements.lock
 
 # Node dependencies (convos CLI only)
