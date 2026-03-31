@@ -72,6 +72,12 @@ if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
     [ "$_name" = "AGENTS.md" ] && continue  # assembled separately
     cp -R "$_item" "$_MERGED_SRC/"
   done
+  # Copy openclaw-specific workspace files (e.g. TOOLS.md)
+  if [ -d "$CONVOS_PLATFORM_DIR/openclaw" ]; then
+    for _oc_item in "$CONVOS_PLATFORM_DIR/openclaw"/*; do
+      cp -R "$_oc_item" "$_MERGED_SRC/"
+    done
+  fi
   brand_ok "convos-platform" "seeded"
 fi
 
