@@ -4,7 +4,6 @@ import { config } from "../../config";
 export function buildInstanceEnv(): Record<string, string> {
   return {
     DEFAULT_AGENT_NAME: config.defaultAgentName,
-    OPENCLAW_PRIMARY_MODEL: config.openclawPrimaryModel,
     XMTP_ENV: config.xmtpEnv,
     CONVOS_API_KEY: config.convosApiKey,
     POOL_URL: config.poolUrl,

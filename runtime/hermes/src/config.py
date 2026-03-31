@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 class RuntimeConfig:
     # LLM
     openrouter_api_key: str = ""
-    model: str = "anthropic/claude-opus-4-6"
+    model: str = "@preset/assistants-pro"
 
     # XMTP
     xmtp_env: str = "dev"
@@ -42,13 +42,8 @@ class RuntimeConfig:
             gateway_token = secrets.token_hex(32)
             os.environ["OPENCLAW_GATEWAY_TOKEN"] = gateway_token
 
-        model = os.environ.get("OPENCLAW_PRIMARY_MODEL", "")
-        if not model:
-            model = os.environ.get("HERMES_MODEL", "anthropic/claude-opus-4-6")
-        # OpenClaw uses "openrouter/" prefix as provider namespace; Hermes
-        # calls OpenRouter directly and expects bare model IDs.
-        if model.startswith("openrouter/"):
-            model = model.removeprefix("openrouter/")
+        # Model is read from config.yaml at runtime; this is just the initial default.
+        model = os.environ.get("HERMES_MODEL", "@preset/assistants-pro")
 
         hermes_home = os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes"))
         workspace_dir = os.environ.get("HERMES_WORKSPACE", os.path.join(hermes_home, "workspace"))

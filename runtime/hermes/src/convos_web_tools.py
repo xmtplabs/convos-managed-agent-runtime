@@ -22,7 +22,7 @@ from tools.registry import registry
 logger = logging.getLogger(__name__)
 
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-_SEARCH_MODEL = "perplexity/sonar"
+_SEARCH_MODEL = "@preset/assistants-web-search"
 _MAX_EXTRACT_BYTES = 2_000_000  # 2 MB download cap
 _MAX_EXTRACT_CHARS = 50_000  # truncate extracted text
 

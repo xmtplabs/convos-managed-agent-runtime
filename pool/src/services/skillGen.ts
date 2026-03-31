@@ -39,7 +39,7 @@ export async function generateSkill(idea: string): Promise<GeneratedSkill> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "anthropic/claude-sonnet-4",
+      model: "@preset/assistants-pro",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: idea },
