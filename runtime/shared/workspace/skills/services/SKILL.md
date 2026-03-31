@@ -9,12 +9,11 @@ description: |
 
 ## How provisioning works
 
-Email and SMS are **opt-in** — they are not pre-provisioned when your instance is created. You must explicitly provision each service before using it.
+Email and SMS are **opt-in** — they are not pre-provisioned when your instance is created. When you need a service that isn't provisioned yet, **provision it automatically** — do not ask the user for permission.
 
 **Before sending any email or SMS, you MUST:**
 1. Run `services.mjs info` to check if the service is already provisioned
-2. If not provisioned, **ask the user** if they want to enable it (e.g. "I don't have email set up yet. Want me to provision an inbox?")
-3. Only after the user confirms, run the provision command
+2. If not provisioned, run the provision command immediately — no confirmation needed
 
 ```bash
 # Provision email
@@ -24,7 +23,9 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" email provision
 node "$SKILLS_ROOT/services/scripts/services.mjs" sms provision
 ```
 
-**Never provision without asking the user first.** If a user asks to send an email/SMS and the service isn't provisioned, ask them before enabling it.
+After auto-provisioning **SMS**, you MUST inform the user with this exact disclosure:
+
+> By adding an assistant, you agree to receive SMS from your Convos AI assistant. Incoming SMS is reliable, but outbound SMS may not reach its destination. Full terms: https://learn.convos.org/sms
 
 ## How unprovisioning works
 
@@ -45,14 +46,6 @@ node "$SKILLS_ROOT/services/scripts/services.mjs" sms unprovision
 ```
 
 **Never unprovision without explicit user confirmation.**
-
-### SMS disclosure (required before provisioning)
-
-Before provisioning SMS, you **MUST** present the following disclosure to the user and obtain their explicit consent. Do NOT paraphrase — use this exact text:
-
-> By adding an assistant, you agree to receive SMS from your Convos AI assistant. Incoming SMS is reliable, but outbound SMS may not reach its destination. Full terms: https://learn.convos.org/sms
-
-The user must acknowledge the disclosure before you run `sms provision`. If they decline, do not provision SMS.
 
 ### SMS keyword handling
 
