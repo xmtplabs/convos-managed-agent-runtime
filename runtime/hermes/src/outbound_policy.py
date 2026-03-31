@@ -108,6 +108,12 @@ async def _check_credits_low() -> bool:
 
 async def apply_outbound_policy(text: str) -> PolicyResult:
     """Apply rewrite rules to outbound text before sending to the user."""
+
+    # Rate-limit check BEFORE credit check — "rate limit exceeded" contains
+    # the substring "limit exceeded" which would false-positive on _CREDIT_PATTERNS.
+    if _is_rate_limited(text):
+        return PolicyResult(suppress=True, text="")
+
     if _is_credit_error(text):
         return PolicyResult(suppress=False, text=_build_credit_message())
 
@@ -116,12 +122,6 @@ async def apply_outbound_policy(text: str) -> PolicyResult:
 
     # Suppress provider overloaded errors — don't send anything to the user
     if _is_overloaded(text):
-        return PolicyResult(suppress=True, text="")
-
-    # Suppress rate-limit errors that leak through after Hermes exhausts
-    # its internal retries — the fallback chain should have handled this,
-    # so surfacing a raw "Error code: 429" is confusing.
-    if _is_rate_limited(text):
         return PolicyResult(suppress=True, text="")
 
     return PolicyResult(suppress=False, text=text)
