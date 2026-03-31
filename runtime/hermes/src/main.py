@@ -22,7 +22,7 @@ def main() -> None:
     logger.info(f"Starting Hermes runtime on {host}:{port}")
 
     uvicorn.run(
-        "src.server:app",
+        "src.server.server:app",
         host=host,
         port=port,
         log_level="info",
