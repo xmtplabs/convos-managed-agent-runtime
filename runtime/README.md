@@ -44,21 +44,20 @@ runtime/
 │   ├── skills/             # services, convos-runtime, profile-update
 │   ├── openclaw/           # openclaw-specific section files (injected into AGENTS.md)
 │   └── hermes/             # hermes-specific section files + config.yaml
-├── shared/                 # shared scripts and web-tools
-│   ├── scripts/            # agents-assemble.sh, brand.sh, init helpers
-│   └── web-tools/          # browser automation, landing page, forms, skills pages
-├── openclaw/               # OpenClaw runtime
-│   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
-│   ├── package.json        # openclaw deps + runtime scripts
-│   ├── openclaw.json       # config template (${ENV_VAR} placeholders)
-│   ├── extensions/
-│   │   └── convos/         # XMTP messaging channel
-│   └── scripts/            # keys, gateway, crons, pool-server, etc.
-└── hermes/                 # Hermes runtime
-    ├── Dockerfile          # python:3.11 + node 22 + hermes-agent
-    ├── package.json        # convos-cli dep
-    ├── src/                # FastAPI server + XMTP bridge
-    └── scripts/            # entrypoint, apply-config, eval-env, etc.
+├── harness/                # runtime harnesses
+│   ├── scripts/            # shared boot scripts (agents-assemble.sh, brand.sh, init helpers)
+│   ├── openclaw/           # OpenClaw runtime
+│   │   ├── Dockerfile      # node:22-bookworm + chromium + pnpm
+│   │   ├── package.json    # openclaw deps + runtime scripts
+│   │   ├── openclaw.json   # config template (${ENV_VAR} placeholders)
+│   │   ├── extensions/
+│   │   │   └── convos/     # XMTP messaging channel
+│   │   └── scripts/        # keys, gateway, crons, pool-server, etc.
+│   └── hermes/             # Hermes runtime
+│       ├── Dockerfile      # python:3.11 + node 22 + hermes-agent
+│       ├── package.json    # convos-cli dep
+│       ├── src/            # FastAPI server + XMTP bridge
+│       └── scripts/        # entrypoint, apply-config, eval-env, etc.
 ```
 
 ## Convos platform

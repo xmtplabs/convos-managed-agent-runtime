@@ -56,7 +56,7 @@ export default {
   restartPath: '/pool/restart',
   filterLines: (lines) => lines,
   needsSessionClear: true,
-  convosPath: '../../openclaw/node_modules/.bin/convos',
+  convosPath: '../../harness/openclaw/node_modules/.bin/convos',
   cleanEvalState() {
     clearCustomSkills(skillsDir, sharedSkillsDir);
     clearAgentCronJobs(cronFile);

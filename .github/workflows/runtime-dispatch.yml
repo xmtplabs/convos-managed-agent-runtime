@@ -52,7 +52,7 @@ jobs:
     with:
       runtime: openclaw
       image: ghcr.io/xmtplabs/convos-runtime
-      dockerfile: runtime/openclaw/Dockerfile
+      dockerfile: runtime/harness/openclaw/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: "${{ needs.prepare.outputs.sha }} ${{ inputs.tag }}"
       health_path: "/__openclaw__/canvas/"
@@ -71,7 +71,7 @@ jobs:
     with:
       runtime: hermes
       image: ghcr.io/xmtplabs/convos-runtime-hermes
-      dockerfile: runtime/hermes/Dockerfile
+      dockerfile: runtime/harness/hermes/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: "${{ needs.prepare.outputs.sha }} ${{ inputs.tag }}"
       needs_checkout: true

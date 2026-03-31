@@ -24,11 +24,11 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # FastAPI + uvicorn (runtime server deps)
-COPY runtime/hermes/requirements.txt /app/requirements.txt
+COPY runtime/harness/hermes/requirements.txt /app/requirements.txt
 RUN uv pip install --system --no-cache -r requirements.txt
 
 # Node dependencies (convos CLI only)
-COPY runtime/hermes/package.json runtime/hermes/pnpm-lock.yaml* /app/
+COPY runtime/harness/hermes/package.json runtime/harness/hermes/pnpm-lock.yaml* /app/
 RUN CI=true pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 ENV PATH="/app/node_modules/.bin:${PATH}"
@@ -47,10 +47,10 @@ ENV PYTHONPATH="/opt/hermes-agent"
 COPY runtime/package.json /app/runtime-version.json
 
 # Application code
-COPY runtime/hermes/src /app/src
+COPY runtime/harness/hermes/src /app/src
 COPY runtime/convos-platform /app/convos-platform
-COPY runtime/scripts /app/platform-scripts
-COPY runtime/hermes/scripts /app/scripts
+COPY runtime/harness/scripts /app/platform-scripts
+COPY runtime/harness/hermes/scripts /app/scripts
 RUN chmod +x /app/scripts/*.sh
 
 # HERMES_HOME — sync.sh populates this on boot from /app/workspace

@@ -26,7 +26,7 @@ EVAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Match init.sh default: STATE_DIR="${OPENCLAW_STATE_DIR:-$ROOT/.openclaw-dev}"
 # so the eval clears sessions from the same dir the running agent uses.
 if [ -z "$OPENCLAW_STATE_DIR" ] && [ "$RUNTIME" = "openclaw" ]; then
-  export OPENCLAW_STATE_DIR="$EVAL_DIR/../openclaw/.openclaw-dev"
+  export OPENCLAW_STATE_DIR="$EVAL_DIR/../harness/openclaw/.openclaw-dev"
 fi
 
 if [ -n "$SUITE" ]; then

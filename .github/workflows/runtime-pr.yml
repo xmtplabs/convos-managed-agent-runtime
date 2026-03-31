@@ -58,8 +58,8 @@ jobs:
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             case "$f" in
-              runtime/openclaw/*) HAS_OPENCLAW=true ;;
-              runtime/hermes/*)   HAS_HERMES=true ;;
+              runtime/harness/openclaw/*) HAS_OPENCLAW=true ;;
+              runtime/harness/hermes/*)   HAS_HERMES=true ;;
               *)                  HAS_SHARED=true ;;
             esac
           done <<< "$FILES"
@@ -92,28 +92,28 @@ jobs:
               - 'runtime/convos-platform/skills/share-logs/**'
               - 'runtime/convos-platform/skills/skill-builder/**'
             memory:
-              - 'runtime/openclaw/extensions/convos/src/**/memory*'
-              - 'runtime/hermes/src/**/memory*'
+              - 'runtime/harness/openclaw/extensions/convos/src/**/memory*'
+              - 'runtime/harness/hermes/src/**/memory*'
             convos:
-              - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
+              - 'runtime/harness/openclaw/extensions/convos/**'
+              - 'runtime/harness/hermes/src/**'
               - 'runtime/convos-platform/web-tools/convos/**'
               - 'runtime/convos-platform/skills/profile-update/**'
             lifecycle:
-              - 'runtime/openclaw/scripts/**'
-              - 'runtime/hermes/scripts/**'
-              - 'runtime/scripts/**'
+              - 'runtime/harness/openclaw/scripts/**'
+              - 'runtime/harness/hermes/scripts/**'
+              - 'runtime/harness/scripts/**'
             services:
               - 'runtime/convos-platform/skills/services/**'
             webhooks:
               - 'runtime/convos-platform/skills/services/**'
-              - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
+              - 'runtime/harness/openclaw/extensions/convos/**'
+              - 'runtime/harness/hermes/src/**'
             cron:
               - 'runtime/convos-platform/web-tools/skills/**'
             models:
-              - 'runtime/openclaw/openclaw.json'
-              - 'runtime/hermes/config.yaml'
+              - 'runtime/harness/openclaw/openclaw.json'
+              - 'runtime/harness/hermes/config.yaml'
       - name: Build eval suite matrix
         id: suites
         run: |
@@ -158,7 +158,7 @@ jobs:
     with:
       runtime: openclaw
       image: ghcr.io/xmtplabs/convos-runtime
-      dockerfile: runtime/openclaw/Dockerfile
+      dockerfile: runtime/harness/openclaw/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
       health_path: "/__openclaw__/canvas/"
@@ -178,7 +178,7 @@ jobs:
     with:
       runtime: hermes
       image: ghcr.io/xmtplabs/convos-runtime-hermes
-      dockerfile: runtime/hermes/Dockerfile
+      dockerfile: runtime/harness/hermes/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
       needs_checkout: true

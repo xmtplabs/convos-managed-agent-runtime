@@ -19,17 +19,17 @@ RUN npm install -g pnpm@9
 WORKDIR /app
 
 # Install all deps (openclaw now comes from npm via package.json)
-COPY runtime/openclaw/package.json runtime/openclaw/pnpm-lock.yaml /app/
+COPY runtime/harness/openclaw/package.json runtime/harness/openclaw/pnpm-lock.yaml /app/
 RUN pnpm install --no-frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
 # RUNTIME_DIR=$ROOT/openclaw in init.sh — apply-config syncs from here to STATE_DIR (/app)
-COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
-COPY runtime/openclaw/extensions /app/openclaw/extensions
+COPY runtime/harness/openclaw/openclaw.json /app/openclaw/openclaw.json
+COPY runtime/harness/openclaw/extensions /app/openclaw/extensions
 COPY runtime/convos-platform /app/convos-platform
-COPY runtime/scripts /app/platform-scripts
-COPY runtime/openclaw/scripts ./scripts
-COPY runtime/openclaw/src ./src
+COPY runtime/harness/scripts /app/platform-scripts
+COPY runtime/harness/openclaw/scripts ./scripts
+COPY runtime/harness/openclaw/src ./src
 COPY runtime/package.json /app/runtime-version.json
 COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh

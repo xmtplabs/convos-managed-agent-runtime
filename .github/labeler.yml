@@ -8,11 +8,11 @@ runtime:
 
 runtime/openclaw:
   - changed-files:
-      - any-glob-to-any-file: 'runtime/openclaw/**'
+      - any-glob-to-any-file: 'runtime/harness/openclaw/**'
 
 runtime/hermes:
   - changed-files:
-      - any-glob-to-any-file: 'runtime/hermes/**'
+      - any-glob-to-any-file: 'runtime/harness/hermes/**'
 
 convos-platform:
   - changed-files:

@@ -41,8 +41,9 @@ assistants.convos.org          Pool Manager              Railway
 ```
 convos-assistants/
 ├── runtime/           # Agent harnesses, shared evals, shared .env
-│   ├── openclaw/      #   OpenClaw harness (gateway + extensions + skills)
-│   ├── hermes/        #   Hermes harness (Python FastAPI + XMTP bridge)
+│   ├── harness/
+│   │   ├── openclaw/  #   OpenClaw harness (gateway + extensions + skills)
+│   │   └── hermes/    #   Hermes harness (Python FastAPI + XMTP bridge)
 │   └── evals/         #   Shared eval suite (Promptfoo, multi-harness)
 ├── pool/              # Pool manager + provider services (Express API + Postgres)
 ├── workers/           # Cloudflare Workers

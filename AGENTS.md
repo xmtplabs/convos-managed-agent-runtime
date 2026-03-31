@@ -21,4 +21,4 @@ Skills, SOUL.md, and the AGENTS.md template live in `runtime/convos-platform/`. 
 
 ## Critical Rules
 - **Never auto-cleanup/destroy on a schedule** — dead instances are marked in DB, cleaned manually via dashboard.
-- Don't touch the convos extension (`runtime/openclaw/extensions/convos/`). Ask before acting.
+- Don't touch the convos extension (`runtime/harness/openclaw/extensions/convos/`). Ask before acting.

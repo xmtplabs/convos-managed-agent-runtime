@@ -43,9 +43,9 @@ for skill_dir in "$_HERMES_PLATFORM_DIR"/skills/*; do
   _skill_count=$((_skill_count + 1))
 done
 
-# ── AGENTS.md (platform template + runtime sections) — Hermes auto-loads from CWD
+# ── AGENTS.md (platform template + runtime sections) → HERMES_HOME
 . "$PLATFORM_SCRIPTS_DIR/lib/agents-assemble.sh"
-assemble_agents "$CONVOS_PLATFORM_DIR" "$_HERMES_PLATFORM_DIR" "$ROOT/AGENTS.md" "hermes"
+assemble_agents "$CONVOS_PLATFORM_DIR" "$_HERMES_PLATFORM_DIR" "$HERMES_HOME/AGENTS.md" "hermes"
 
 brand_ok "HERMES_HOME" "${HERMES_HOME##*/}"
 brand_done "Workspace ready"

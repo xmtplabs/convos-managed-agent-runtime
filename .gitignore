@@ -1,7 +1,7 @@
 # Node
 node_modules
 extensions/*/node_modules
-runtime/openclaw/extensions/*/pnpm-lock.yaml
+runtime/harness/openclaw/extensions/*/pnpm-lock.yaml
 .yarn
 npm-debug.log*
 # Local env — never commit secrets
@@ -19,8 +19,6 @@ xmtp-*.db3-wal
 .openclaw/
 .openclaw-dev/
 
-# Assembled AGENTS.md (built at boot from shared template + runtime section files)
-runtime/hermes/AGENTS.md
 
 # Build artifacts
 dist/

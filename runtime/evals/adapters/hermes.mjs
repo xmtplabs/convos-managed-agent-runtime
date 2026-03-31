@@ -17,7 +17,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const hermesDir = join(__dirname, '../../hermes');
+const hermesDir = join(__dirname, '../../harness/hermes');
 const hermesHome = process.env.HERMES_HOME || join(hermesDir, '.hermes-dev', 'home');
 const skillsDir = join(hermesHome, 'skills');
 const cronFile = join(hermesHome, 'cron', 'jobs.json');
@@ -70,7 +70,7 @@ export default {
     return true;
   }),
   needsSessionClear: false,
-  convosPath: '../../hermes/node_modules/.bin/convos',
+  convosPath: '../../harness/hermes/node_modules/.bin/convos',
   // Providers use queryUrl to curl the production server's /agent/query endpoint.
   // No eval server, no process management — same path in CI and local dev.
   queryUrl: `http://127.0.0.1:${process.env.PORT || '8080'}`,

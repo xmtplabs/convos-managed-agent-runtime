@@ -5,8 +5,8 @@ Pre-warmed AI assistant containers on XMTP/Convos — Express pool manager, Open
 ## Project map
 
 - `pool/` — Pool manager: Express API + Postgres (instance lifecycle, providers, admin dashboard)
-- `runtime/openclaw/` — OpenClaw harness (Node.js, primary runtime)
-- `runtime/hermes/` — Hermes harness (Python FastAPI, experimental)
+- `runtime/harness/openclaw/` — OpenClaw harness (Node.js, primary runtime)
+- `runtime/harness/hermes/` — Hermes harness (Python FastAPI)
 - `runtime/convos-platform/` — Shared platform files: SOUL.md, AGENTS.md template, skills, per-runtime sections (seeded into each runtime at boot)
 - `workers/credits-sweep/` — Cloudflare Worker: cron-based OpenRouter credit spend tracking → PostHog
 - `dashboard/` — Playroom: Next.js app at assistants.convos.org
@@ -99,7 +99,7 @@ Rules:
 - Runtime-specific wiring goes in a section file in `convos-platform/<runtime>/` and a matching `<!-- SECTION:name -->` marker in the template.
 - Never check in a standalone AGENTS.md in the runtime directories — it's assembled at boot.
 - Use `$SKILLS_ROOT` in SKILL.md paths, not `$OPENCLAW_STATE_DIR` or `$HERMES_HOME`.
-- Add deps to both `hermes/package.json` and `openclaw/package.json` when a shared skill needs a Node CLI.
+- Add deps to both `harness/hermes/package.json` and `harness/openclaw/package.json` when a shared skill needs a Node CLI.
 
 </important>
 
@@ -115,7 +115,7 @@ Manual migration steps:
 
 </important>
 
-<important if="you are modifying runtime boot scripts (runtime/openclaw/scripts/ or runtime/hermes/scripts/)">
+<important if="you are modifying runtime boot scripts (runtime/harness/openclaw/scripts/ or runtime/harness/hermes/scripts/)">
 
 **Do not rename, reorder, or remove boot scripts.** Both runtimes follow the same fixed pipeline: `init.sh` → `apply-config.sh` → `install-deps.sh` → `identity.sh` → `start.sh`. The names and execution order are load-bearing — Dockerfiles, entrypoints, CI workflows, and `pnpm start` all depend on them. Edit script internals when needed, but never change the script names or the sequence.
 

@@ -98,8 +98,8 @@ jobs:
           FAIL=0
           check_lockfile "pool/" || FAIL=1
           check_lockfile "runtime/" || FAIL=1
-          check_lockfile "runtime/openclaw/" || FAIL=1
-          check_lockfile "runtime/hermes/" || FAIL=1
+          check_lockfile "runtime/harness/openclaw/" || FAIL=1
+          check_lockfile "runtime/harness/hermes/" || FAIL=1
           check_lockfile "workers/credits-sweep/" || FAIL=1
           check_lockfile "dashboard/" || FAIL=1
 
