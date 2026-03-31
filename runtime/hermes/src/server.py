@@ -435,6 +435,10 @@ async def _factory_reset() -> dict:
         target = Path(hermes_home) / f
         target.unlink(missing_ok=True)
 
+    # 8c. Clear generated skills data so the next boot enters skill-builder onboarding
+    skills_root = os.environ.get("SKILLS_ROOT", os.path.join(hermes_home, "skills"))
+    shutil.rmtree(Path(skills_root) / "generated", ignore_errors=True)
+
     # 9. Clear XMTP CLI identity
     convos_home = Path.home() / ".convos"
     for entry in ("identities", "db"):
