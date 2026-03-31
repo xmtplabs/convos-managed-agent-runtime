@@ -1,0 +1,7 @@
+{
+  "renewAfterSeconds": 2505600,
+  "credentialsFile": "convos-identity.json",
+  "credentialsDir": "credentials",
+  "profileImageDir": "profile-image",
+  "stateFields": ["sourceUrl", "refreshedAtMs"]
+}

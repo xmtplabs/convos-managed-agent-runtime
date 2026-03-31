@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "eventName": "instance_stats",
+  "distinctIdPattern": "instance:{{instanceId}}",
+  "flushIntervalSeconds": 60,
+  "flushTimeoutSeconds": 5,
+  "metrics": {
+    "messages_in": { "type": "counter", "description": "Inbound messages received" },
+    "messages_out": { "type": "counter", "description": "Outbound messages sent" },
+    "tools_invoked": { "type": "counter", "description": "Tool calls executed" },
+    "skills_invoked": { "type": "counter", "description": "Skills loaded" },
+    "group_member_count": { "type": "gauge", "description": "Current group member count" },
+    "cron_job_count": { "type": "gauge", "description": "Active cron jobs" },
+    "skills_created_count": { "type": "gauge", "description": "Custom skills created" },
+    "memory_gb": { "type": "gauge", "description": "Process memory in GB" }
+  }
+}

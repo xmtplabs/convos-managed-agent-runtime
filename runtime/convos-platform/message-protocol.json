@@ -1,0 +1,17 @@
+{
+  "xmtpMessageLimit": 4000,
+  "markers": {
+    "react":         { "pattern": "REACT:{messageId}:{emoji}", "removePattern": "REACT:{messageId}:{emoji}:remove" },
+    "reply":         { "pattern": "REPLY:{messageId}" },
+    "media":         { "pattern": "MEDIA:{filePath}" },
+    "profile":       { "pattern": "PROFILE:{name}" },
+    "profileImage":  { "pattern": "PROFILEIMAGE:{url}" },
+    "metadata":      { "pattern": "METADATA:{key}:{value}" },
+    "silent":        { "token": "SILENT" },
+    "heartbeatAck":  { "token": "HEARTBEAT_OK" }
+  },
+  "chunking": {
+    "splitOrder": ["paragraph", "newline", "space"],
+    "overflowSuffix": "…"
+  }
+}
