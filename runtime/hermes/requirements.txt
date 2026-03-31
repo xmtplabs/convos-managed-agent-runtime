@@ -2,6 +2,7 @@ fastapi>=0.109.0,<1.0.0
 uvicorn[standard]>=0.27.0,<1.0.0
 pydantic>=2.5.0,<3.0.0
 httpx>=0.27.0,<1.0.0
+readability-lxml>=0.8.1,<1.0.0
 # litellm 1.82.7–1.82.8 were compromised (supply chain attack, credential stealer)
 # Pin to last known-clean version. See: https://github.com/BerriAI/litellm/issues/24512
 litellm==1.82.6
