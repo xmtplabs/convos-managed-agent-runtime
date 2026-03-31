@@ -28,6 +28,8 @@ from .config import RuntimeConfig
 from .convos_adapter import ConvosAdapter
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
+
+DEFAULT_AGENT_NAME = os.environ.get("DEFAULT_AGENT_NAME", "Assistant")
 from .xmtp_bridge import ConvosInstance
 from .stats import stats
 
@@ -435,6 +437,10 @@ async def _factory_reset() -> dict:
         target = Path(hermes_home) / f
         target.unlink(missing_ok=True)
 
+    # 8c. Clear generated skills data so the next boot enters skill-builder onboarding
+    skills_root = os.environ.get("SKILLS_ROOT", os.path.join(hermes_home, "skills"))
+    shutil.rmtree(Path(skills_root) / "generated", ignore_errors=True)
+
     # 9. Clear XMTP CLI identity
     convos_home = Path.home() / ".convos"
     for entry in ("identities", "db"):
@@ -529,7 +535,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
 
         try:
             inst, status, conversation_id = await ConvosInstance.join_conversation(
-                env, invite_url, profile_name="Convos Agent", timeout=30, debug=True,
+                env, invite_url, profile_name=DEFAULT_AGENT_NAME, timeout=30, debug=True,
             )
             if status == "joined" and conversation_id and inst:
                 if generation != _provision_generation:
@@ -558,7 +564,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
 
 
 class ConversationRequest(BaseModel):
-    name: str = "Convos Agent"
+    name: str = DEFAULT_AGENT_NAME
     profileName: str | None = None
     profileImage: str | None = None
     description: str | None = None
@@ -571,7 +577,7 @@ class ConversationRequest(BaseModel):
 
 class JoinRequest(BaseModel):
     inviteUrl: str
-    profileName: str = "Convos Agent"
+    profileName: str = DEFAULT_AGENT_NAME
     profileImage: str | None = None
     metadata: dict[str, str] | None = None
     accountId: str | None = None

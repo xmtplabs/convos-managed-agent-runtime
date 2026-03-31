@@ -225,7 +225,7 @@ class ConvosInstance:
         env: str,
         invite_url: str,
         *,
-        profile_name: str = "Convos Agent",
+        profile_name: str = os.environ.get("DEFAULT_AGENT_NAME", "Assistant"),
         profile_image: str | None = None,
         metadata: dict[str, str] | None = None,
         timeout: int = 60,

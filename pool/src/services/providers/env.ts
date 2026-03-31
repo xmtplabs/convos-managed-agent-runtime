@@ -3,6 +3,7 @@ import { config } from "../../config";
 /** Build the base env var map for new runtime instances. */
 export function buildInstanceEnv(): Record<string, string> {
   return {
+    DEFAULT_AGENT_NAME: config.defaultAgentName,
     XMTP_ENV: config.xmtpEnv,
     CONVOS_API_KEY: config.convosApiKey,
     POOL_URL: config.poolUrl,

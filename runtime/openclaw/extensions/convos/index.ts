@@ -12,6 +12,7 @@ import { ConvosInstance } from "./src/sdk-client.js";
 import { clearConvosCredentials, loadConvosCredentials, saveConvosCredentials } from "./src/credentials.js";
 import { stats } from "./src/stats.js";
 
+const DEFAULT_AGENT_NAME = process.env.DEFAULT_AGENT_NAME || "Assistant";
 const CUSTOM_INSTRUCTIONS_MARKER = "## Custom Instructions";
 
 function convosStateDir(): string {
@@ -138,6 +139,11 @@ async function factoryReset() {
   // Clear trajectory sharing flag
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
   try { fs.unlinkSync(path.join(stateDir, ".share-trajectories")); } catch (e: any) { if (e.code !== "ENOENT") console.error(`[convos] Failed to clear share flag: ${e}`); }
+
+  // Clear generated skills data so the next boot enters skill-builder onboarding
+  const skillsRoot = process.env.SKILLS_ROOT || path.join(stateDir, "workspace", "skills");
+  const generatedDir = path.join(skillsRoot, "generated");
+  try { fs.rmSync(generatedDir, { recursive: true, force: true }); } catch {}
 
   const status = buildRuntimeStatus();
   console.log(`[convos] Factory reset complete (clean=${status.clean})`);
@@ -295,7 +301,7 @@ const plugin = {
 
 
           const body = await readJsonBody(req);
-          const name = typeof body.name === "string" ? body.name : "Convos Agent";
+          const name = typeof body.name === "string" ? body.name : DEFAULT_AGENT_NAME;
           const profileName = typeof body.profileName === "string" ? body.profileName : name;
           const profileImage =
             typeof body.profileImage === "string" ? body.profileImage : undefined;
@@ -398,7 +404,7 @@ const plugin = {
             return;
           }
           const profileName =
-            typeof body.profileName === "string" ? body.profileName : "Convos Agent";
+            typeof body.profileName === "string" ? body.profileName : DEFAULT_AGENT_NAME;
           const profileImage =
             typeof body.profileImage === "string" ? body.profileImage : undefined;
           const accountId = typeof body.accountId === "string" ? body.accountId : undefined;
