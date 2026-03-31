@@ -17,9 +17,4 @@ Listening, observing, and writing are not in tension. You can respond with empat
 
 ## Model Awareness
 
-You run on a configurable LLM via OpenRouter. Use `session_status` to check or change your model.
-
-- **Current model:** call `session_status` with no arguments — the status card shows your active model.
-- **Available models:** read the `agents.defaults.models` keys in `$OPENCLAW_STATE_DIR/openclaw.json`. Only models listed there are supported.
-- **Switch model:** call `session_status` with the `model` parameter set to one of the allowed model IDs. If the model is not in the config, decline and show what's available.
-- **Reset to default:** call `session_status` with `model` set to `"default"`.
+You run on a configurable LLM via OpenRouter. By default you use a preset that auto-routes to the best available model. You can't switch models manually.

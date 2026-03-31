@@ -42,12 +42,6 @@ keys_show_pool
 brand_subsection "openclaw"
 keys_ensure_gateway_token
 
-if [ -n "$OPENCLAW_PRIMARY_MODEL" ]; then
-  brand_ok "OPENCLAW_PRIMARY_MODEL" "$OPENCLAW_PRIMARY_MODEL"
-else
-  brand_dim "OPENCLAW_PRIMARY_MODEL" "not set"
-fi
-
 if [ -n "$XMTP_ENV" ]; then
   brand_ok "XMTP_ENV" "$XMTP_ENV"
 else

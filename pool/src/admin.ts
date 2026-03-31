@@ -194,12 +194,11 @@ export function dashboardPage({
   railwayProjectId = "",
   railwayEnvironmentId = "",
   runtimeImage = "",
-  instanceModel = "",
   adminUrls = [],
   protectedInstances = [] as string[],
   harnessImages = {} as Record<string, string>,
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, instanceModel, adminUrls, protectedInstances, harnessImages });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, railwayProjectId, railwayEnvironmentId, adminUrls, protectedInstances, harnessImages });
   return dashboardHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
