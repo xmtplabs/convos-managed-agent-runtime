@@ -1,43 +1,46 @@
 """Outbound text policy — rewrite or suppress agent text before sending to users.
 
-Mirrors the openclaw outbound-policy.ts layer so both runtimes present
-the same user-facing messages for provider errors, credit exhaustion, etc.
+Rules loaded from convos-platform/outbound-policy.json so both runtimes
+share the same patterns, thresholds, and messages.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-LOW_CREDIT_THRESHOLD = 0.50
+# ── Load shared policy ──────────────────────────────────────────────────
+
+_POLICY_PATHS = [
+    Path("/app/convos-platform/outbound-policy.json"),
+    Path(__file__).resolve().parent.parent.parent.parent / "convos-platform" / "outbound-policy.json",
+]
+
+_policy: dict = {}
+for _p in _POLICY_PATHS:
+    if _p.exists():
+        _policy = json.loads(_p.read_text())
+        break
+
+LOW_CREDIT_THRESHOLD = _policy.get("lowCreditThreshold", 0.50)
+_OVERLOADED_PATTERNS = _policy.get("overloadedPatterns", [])
+_CREDIT_PATTERNS = _policy.get("creditPatterns", [])
+_CONTEXT_OVERFLOW_PREFIX = _policy.get("contextOverflowPrefix", "Context overflow:")
+_SUPPRESS_TOKENS = set(_policy.get("suppressTokens", []))
+_CREDIT_MSG_TEMPLATE = _policy.get("creditMessageTemplate", "Hey! I'm out of credits.")
 
 
 @dataclass
 class PolicyResult:
     suppress: bool
     text: str
-
-
-# ── Pattern lists ────────────────────────────────────────────────────────
-
-_OVERLOADED_PATTERNS = [
-    "temporarily overloaded",
-    "overloaded_error",
-    "service unavailable",
-    "high demand",
-    "error code: 529",
-]
-
-_CREDIT_PATTERNS = [
-    "limit exceeded",
-    "openrouter.ai/settings",
-    "afford",
-]
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -53,7 +56,7 @@ def _is_credit_error(text: str) -> bool:
 
 
 def _is_context_overflow(text: str) -> bool:
-    return text.startswith("Context overflow:")
+    return text.startswith(_CONTEXT_OVERFLOW_PREFIX)
 
 
 def _build_credit_message() -> str:
@@ -66,7 +69,7 @@ def _build_credit_message() -> str:
         base = ngrok.rstrip("/")
     else:
         base = f"http://127.0.0.1:{port}"
-    return f"Hey! I'm out of credits. You can top up here: {base}/web-tools/services"
+    return _CREDIT_MSG_TEMPLATE.replace("{{servicesUrl}}", f"{base}/web-tools/services")
 
 
 async def _check_credits_low() -> bool:
@@ -93,13 +96,17 @@ async def _check_credits_low() -> bool:
 
 async def apply_outbound_policy(text: str) -> PolicyResult:
     """Apply rewrite rules to outbound text before sending to the user."""
+    trimmed = text.strip()
+
+    if trimmed in _SUPPRESS_TOKENS:
+        return PolicyResult(suppress=True, text="")
+
     if _is_credit_error(text):
         return PolicyResult(suppress=False, text=_build_credit_message())
 
     if _is_context_overflow(text) and await _check_credits_low():
         return PolicyResult(suppress=False, text=_build_credit_message())
 
-    # Suppress provider overloaded errors — don't send anything to the user
     if _is_overloaded(text):
         return PolicyResult(suppress=True, text="")
 

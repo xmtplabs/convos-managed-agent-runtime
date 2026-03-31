@@ -1,0 +1,18 @@
+{
+  "lowCreditThreshold": 0.50,
+  "overloadedPatterns": [
+    "temporarily overloaded",
+    "overloaded_error",
+    "service unavailable",
+    "high demand",
+    "error code: 529"
+  ],
+  "creditPatterns": [
+    "limit exceeded",
+    "openrouter.ai/settings",
+    "afford"
+  ],
+  "contextOverflowPrefix": "Context overflow:",
+  "suppressTokens": ["HEARTBEAT_OK", "SILENT"],
+  "creditMessageTemplate": "Hey! I'm out of credits. You can top up here: {{servicesUrl}}"
+}

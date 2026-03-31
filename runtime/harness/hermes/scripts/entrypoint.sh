@@ -22,5 +22,7 @@ fi
 
 export SKILLS_ROOT="$HERMES_HOME/skills"
 
-. "$(dirname "$0")/../../lib/entrypoint-banner.sh"
+_banner="$(dirname "$0")/../../lib/entrypoint-banner.sh"
+[ ! -f "$_banner" ] && _banner="/app/platform-scripts/entrypoint-banner.sh"
+[ -f "$_banner" ] && . "$_banner"
 exec "$@"
