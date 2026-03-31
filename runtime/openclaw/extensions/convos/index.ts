@@ -139,6 +139,11 @@ async function factoryReset() {
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
   try { fs.unlinkSync(path.join(stateDir, ".share-trajectories")); } catch (e: any) { if (e.code !== "ENOENT") console.error(`[convos] Failed to clear share flag: ${e}`); }
 
+  // Clear generated skills data so the next boot enters skill-builder onboarding
+  const skillsRoot = process.env.SKILLS_ROOT || path.join(stateDir, "workspace", "skills");
+  const generatedDir = path.join(skillsRoot, "generated");
+  try { fs.rmSync(generatedDir, { recursive: true, force: true }); } catch {}
+
   const status = buildRuntimeStatus();
   console.log(`[convos] Factory reset complete (clean=${status.clean})`);
   return { ok: true, reset: true, status };
