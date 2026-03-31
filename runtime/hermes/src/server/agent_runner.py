@@ -252,6 +252,8 @@ class AgentRunner:
             if _is_credit_error(error_text):
                 logger.warning("Credit error detected in agent response: %s", error_text[:200])
                 return _build_credit_message()
+            logger.error("Agent failed (non-credit): %s", error_text[:200])
+            return "I hit a temporary issue — give me a moment and try again."
 
         response = result.get("final_response", "")
         was_interrupted = result.get("interrupted", False)
