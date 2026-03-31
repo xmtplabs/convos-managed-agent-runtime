@@ -34,7 +34,7 @@ jobs:
       run_hermes: ${{ steps.changes.outputs.run_hermes }}
       eval_matrix: ${{ steps.suites.outputs.eval_matrix }}
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - id: meta
@@ -78,7 +78,7 @@ jobs:
       # ── Selective eval triggering (dev branch only) ──────────────────
       # Only matched suites run. Unmatched files → run all (safe fallback).
       # Non-dev branches always run all suites (promotion gates).
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+      - uses: dorny/paths-filter@v3
         id: eval-paths
         with:
           filters: |
@@ -191,8 +191,8 @@ jobs:
     if: github.event.action == 'closed' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-      - uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+      - uses: actions/checkout@v5
+      - uses: docker/login-action@v4
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
 
       - name: "Map branch → env tag"
