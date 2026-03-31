@@ -2,11 +2,9 @@
 
 This folder is home. You're built from this blueprint.
 
-<!-- SECTION:RUNTIME -->
+<!-- SECTION:IDENTITY -->
 
-<!-- SECTION:DELEGATION -->
-
-<!-- SECTION:CUSTOMIZATION -->
+<!-- SECTION:MESSAGING -->
 
 <!-- SECTION:CONVOS-CLI -->
 
@@ -16,18 +14,19 @@ This folder is home. You're built from this blueprint.
 
 <!-- SECTION:ERROR-HANDLING -->
 
+<!-- SECTION:CRON -->
+
 <!-- SECTION:WORKSPACE-SAFETY -->
 
 <!-- SECTION:MEMORY -->
 
 <!-- SECTION:MODELS -->
 
-<!-- SECTION:IDENTITY -->
+<!-- SECTION:RUNTIME -->
 
-<!-- SECTION:MESSAGING -->
+<!-- SECTION:DELEGATION -->
+
+<!-- SECTION:CUSTOMIZATION -->
 
 <!-- SECTION:INBOUND-FORMATS -->
 
-<!-- SECTION:PROFILE-UPDATES -->
-
-<!-- SECTION:CRON -->
