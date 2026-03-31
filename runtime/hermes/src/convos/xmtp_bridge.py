@@ -67,7 +67,7 @@ class SentEvent:
 def _resolve_convos_bin() -> str:
     """Find the convos CLI binary."""
     # Check node_modules in our own package
-    here = Path(__file__).resolve().parent.parent
+    here = Path(__file__).resolve().parent.parent.parent
     local_bin = here / "node_modules" / "@xmtp" / "convos-cli" / "bin" / "run.js"
     if local_bin.exists():
         return str(local_bin)

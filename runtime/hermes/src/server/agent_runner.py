@@ -97,7 +97,7 @@ def _load_convos_platform() -> str:
     hermes_home = os.environ.get("HERMES_HOME", "")
     candidates = [
         *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PLATFORM.md"]),
-        Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PLATFORM.md",
+        Path(__file__).resolve().parent.parent.parent / "workspace" / "CONVOS_PLATFORM.md",
     ]
     for path in candidates:
         if path.exists():
