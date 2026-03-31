@@ -125,6 +125,7 @@ jobs:
             -e PORT=8080 \
             -e EVAL_MODE=1 \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
+            -e EXA_API_KEY="${{ secrets.EXA_API_KEY }}" \
             -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
