@@ -1,3 +1,6 @@
+web:
+  backend: exa
+
 model:
   # The active model — updated at runtime via config.yaml edits.
   # Hermes reads this on each turn via _resolve_gateway_model().

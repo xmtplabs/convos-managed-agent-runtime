@@ -37,7 +37,7 @@ ENV PATH="/app/node_modules/.bin:${PATH}"
 # The agent/ package isn't in pyproject.toml's packages.find, so the full
 # source tree must stay on PYTHONPATH.
 # Tag must match HERMES_TAG in scripts/install-deps.sh.
-RUN git clone --recurse-submodules --branch v2026.3.23 --depth 1 https://github.com/NousResearch/hermes-agent.git /opt/hermes-agent \
+RUN git clone --recurse-submodules --branch v2026.3.30 --depth 1 https://github.com/NousResearch/hermes-agent.git /opt/hermes-agent \
   && cd /opt/hermes-agent \
   && uv pip install --system ".[all]" \
   && uv pip install --system "./mini-swe-agent"

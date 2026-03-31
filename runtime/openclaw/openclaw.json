@@ -112,25 +112,32 @@
     },
     "web": {
       "search": {
-        "apiKey": "${OPENROUTER_API_KEY}",
-        "provider": "perplexity",
         "maxResults": 5,
-        "timeoutSeconds": 30,
-        "perplexity": {
-          "apiKey": "${OPENROUTER_API_KEY}",
-          "baseUrl": "https://openrouter.ai/api/v1",
-          "model": "perplexity/sonar"
-        }
+        "timeoutSeconds": 30
       }
     }
   },
  "plugins": {
-    "allow": ["convos", "memory-core", "web-tools"],
+    "allow": ["convos", "memory-core", "web-tools", "exa"],
     "slots": { "memory": "memory-core" },
     "entries": {
       "convos": { "enabled": true },
       "memory-core": { "enabled": true },
-      "web-tools": { "enabled": true }
+      "web-tools": { "enabled": true },
+      "exa": {
+        "enabled": true,
+        "config": {
+          "webSearch": {
+            "apiKey": "${EXA_API_KEY}",
+            "type": "auto",
+            "contents": {
+              "text": {
+                "maxCharacters": 50000
+              }
+            }
+          }
+        }
+      }
     }
   },
   "models": {

@@ -53,6 +53,10 @@ export const config = {
   openrouterKeyLimitReset: getEnv("OPENROUTER_KEY_LIMIT_RESET", "monthly"),
   skillsOpenrouterApiKey: getEnv("SKILLS_OPENROUTER_API_KEY"),
 
+  // Exa (from services)
+  exaServiceKey: getEnv("EXA_SERVICE_KEY"),
+  exaKeyRateLimit: parseInt(getEnv("EXA_KEY_RATE_LIMIT", "10"), 10),
+
   // AgentMail (from services)
   agentmailApiKey: getEnv("AGENTMAIL_API_KEY"),
   agentmailDomain: getEnv("AGENTMAIL_DOMAIN"),
