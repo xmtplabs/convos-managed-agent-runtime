@@ -40,7 +40,6 @@ else
     https://github.com/NousResearch/hermes-agent.git "$HERMES_AGENT_DIR"
   cd "$HERMES_AGENT_DIR"
   uv pip install $PIP_TARGET ".[all]"
-  uv pip install $PIP_TARGET "./mini-swe-agent"
   cd "$ROOT"
   brand_ok "hermes-agent" "$HERMES_TAG (installed)"
 fi
