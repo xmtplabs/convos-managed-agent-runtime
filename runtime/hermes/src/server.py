@@ -605,7 +605,7 @@ _SEED_JOBS = [
         ),
         "schedule": "0 8 * * *",
         "name": "Morning check-in",
-        "deliver": "origin",
+        "deliver": "convos",
     },
 ]
 
