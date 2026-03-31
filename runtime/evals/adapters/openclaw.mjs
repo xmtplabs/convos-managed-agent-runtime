@@ -48,14 +48,20 @@ function clearAgentCronJobs(jobsFile) {
 
 export default {
   name: 'openclaw',
-  bin: process.env.OPENCLAW_ENTRY || resolve(__dirname, '../../harness/openclaw/node_modules/.bin/openclaw'),
+  bin: process.env.OPENCLAW_ENTRY || (
+    existsSync('/app/node_modules/.bin/openclaw')
+      ? '/app/node_modules/.bin/openclaw'
+      : resolve(__dirname, '../../harness/openclaw/node_modules/.bin/openclaw')
+  ),
   args: (prompt, session) => ['agent', '-m', prompt, '--agent', 'main', '--session-id', session],
   defaultPort: '18789',
   healthPath: '/__openclaw__/canvas/',
   restartPath: '/pool/restart',
   filterLines: (lines) => lines,
   needsSessionClear: true,
-  convosPath: '../../harness/openclaw/node_modules/.bin/convos',
+  convosPath: existsSync('/app/node_modules/.bin/convos')
+    ? '/app/node_modules/.bin/convos'
+    : '../../harness/openclaw/node_modules/.bin/convos',
   cleanEvalState() {
     clearCustomSkills(skillsDir, sharedSkillsDir);
     clearAgentCronJobs(cronFile);

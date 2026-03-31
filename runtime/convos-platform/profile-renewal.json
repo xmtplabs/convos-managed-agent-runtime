@@ -3,5 +3,8 @@
   "credentialsFile": "convos-identity.json",
   "credentialsDir": "credentials",
   "profileImageDir": "profile-image",
-  "stateFields": ["sourceUrl", "refreshedAtMs"]
+  "stateFields": {
+    "openclaw": ["sourceUrl", "refreshedAtMs"],
+    "hermes": ["sourceUrl", "refreshedAt"]
+  }
 }

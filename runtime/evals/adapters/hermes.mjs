@@ -70,7 +70,9 @@ export default {
     return true;
   }),
   needsSessionClear: false,
-  convosPath: '../../harness/hermes/node_modules/.bin/convos',
+  convosPath: existsSync('/app/node_modules/.bin/convos')
+    ? '/app/node_modules/.bin/convos'
+    : '../../harness/hermes/node_modules/.bin/convos',
   // Providers use queryUrl to curl the production server's /agent/query endpoint.
   // No eval server, no process management — same path in CI and local dev.
   queryUrl: `http://127.0.0.1:${process.env.PORT || '8080'}`,

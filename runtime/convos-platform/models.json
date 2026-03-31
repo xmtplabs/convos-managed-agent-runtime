@@ -3,7 +3,8 @@
   "baseUrl": "https://openrouter.ai/api/v1",
   "providerRouting": {
     "only": ["anthropic", "openai", "google-ai-studio", "perplexity"],
-    "allowFallbacks": true
+    "allowFallbacks": true,
+    "_note": "Hermes does not yet wire allowFallbacks to the OpenRouter API call"
   },
   "fallbackModel": "google/gemini-3.1-pro-preview",
   "heartbeatModel": "openai/gpt-5.4-mini",

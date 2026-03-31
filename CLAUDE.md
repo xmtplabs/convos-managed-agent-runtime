@@ -76,6 +76,8 @@ Branch flow: `feature-branch → dev → staging → main`
 2. `git merge origin/dev` — resolve conflicts
 3. Push the merge branch and PR from it → `staging`
 
+PR STYLE REFERENCE: https://github.com/xmtplabs/convos-assistants/pull/775
+
 </important>
 
 <important if="you are adding or modifying skills, AGENTS.md, SOUL.md, or runtime workspace files">
