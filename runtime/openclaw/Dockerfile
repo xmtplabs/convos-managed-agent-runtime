@@ -1,5 +1,5 @@
 # Convos agent runtime — single OpenClaw instance on Railway
-FROM node:22-bookworm
+FROM node:22-bookworm@sha256:7e791fc54bd02fc89fd4fb39eb37e5bea753c75679c8022478d81679367d995a
 ENV NODE_ENV=production
 
 RUN apt-get update \
@@ -14,13 +14,13 @@ RUN apt-get update \
     libxkbcommon0 libxrandr2 xdg-utils \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@8.7.5
 
 WORKDIR /app
 
 # Install all deps (openclaw now comes from npm via package.json)
 COPY runtime/openclaw/package.json runtime/openclaw/pnpm-lock.yaml /app/
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 
 # RUNTIME_DIR=$ROOT/openclaw in init.sh — apply-config syncs from here to STATE_DIR (/app)
@@ -33,7 +33,6 @@ COPY runtime/shared/scripts /app/shared-scripts
 COPY runtime/openclaw/scripts ./scripts
 COPY runtime/openclaw/src ./src
 COPY runtime/package.json /app/runtime-version.json
-COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
