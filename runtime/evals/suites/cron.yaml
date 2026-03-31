@@ -22,10 +22,11 @@ tests:
     vars:
       prompt: >
         Hey, send me "Ping!" every 10 seconds. I'll delete it once I've
-        confirmed things work. Its just for QA. Do it don't ask follow up questions. Don't announce the creation. Just "Ping!", not Pong 
+        confirmed things work. Its just for QA. Do it don't ask follow up questions. Don't announce the creation. Just "Ping!", not Pong
     metadata:
       cronWait: true
       cronWaitSeconds: 40
+      cronCleanupPrompt: "Stop and delete the ping cron job you just created."
     assert:
       - type: icontains
         value: "ping"

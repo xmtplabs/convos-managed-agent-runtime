@@ -1,7 +1,8 @@
 # runtime/evals/models.yaml
-# Model eval — can the agent report and switch its model?
+# Model-awareness eval — can the agent identify, list, and switch models?
+# Each test runs independently via the prompt provider (CLI or HTTP per runtime).
 
-description: "Eval: Models"
+description: "Eval: Model Switching"
 
 evaluateOptions:
   maxConcurrency: 1
@@ -17,23 +18,50 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Agent can report its current model"
+  - description: "Agent knows its current model"
     vars:
-      prompt: "What model are you currently running on?"
+      prompt: "What model are you currently running on? Reply with the model name."
     assert:
+      - type: regex
+        value: "[Cc]laude|[Gg][Pp][Tt]|[Gg]emini|[Gg]rok|[Dd]eep[Ss]eek|[Kk]imi|[Mm]ini[Mm]ax|[Oo]pus|[Ss]onnet"
       - type: llm-rubric
         value: >
-          PASS if the agent reports a model name or mentions a preset
-          (e.g. "Claude Sonnet 4.6", "GPT-5.4", "assistants-pro preset").
-          FAIL if it says it doesn't know or can't check.
+          FAIL if the agent says it doesn't know what model it's running or
+          gives a vague non-answer. PASS if the agent names a specific model
+          (e.g. "Claude Opus 4.6", "GPT-5.4 Mini", etc.).
 
-  - description: "Agent can switch to a specific model"
+  - description: "Agent can list available models"
     vars:
-      prompt: "Switch to anthropic/claude-sonnet-4-6, then tell me what model you're now running on."
+      prompt: "Check your config file and list every model I can switch to."
     assert:
       - type: llm-rubric
         value: >
-          PASS if the agent switches (or attempts to switch) to Claude Sonnet 4.6
-          and confirms the change. Minor variations in how it reports the model
-          name are fine.
-          FAIL if the agent says it can't switch models at all.
+          FAIL if the agent says it cannot list models or refuses to check.
+          PASS if the agent names at least two specific model names or IDs
+          (e.g. "Claude Sonnet 4.6", "GPT-4o", "openai/gpt-5.4-mini").
+
+  - description: "Agent confirms the active model after a switch"
+    vars:
+      prompt: "Switch to google/gemini-3.1-pro-preview, then tell me what model you're now running on."
+    assert:
+      - type: regex
+        value: "[Gg]emini|3.*[Pp]ro|model"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent does not confirm what model is now active after
+          the switch, or says it can't switch. PASS if the agent switches
+          (or initiates a switch) to Gemini 3 Pro and then confirms
+          the active model name in its response.
+
+  - description: "Agent refuses to switch to an unsupported model"
+    vars:
+      prompt: "Switch to deepseek/deepseek-r1 please."
+    assert:
+      - type: not-regex
+        value: "[Ss]witched (you |to )|[Ss]uccess(fully)?|[Cc]onfirmed"
+      - type: llm-rubric
+        value: >
+          FAIL if the agent says it switched to DeepSeek, confirms the
+          switch, or pretends to have changed the model. PASS if the agent
+          declines, explains the model is not available or not supported,
+          or offers alternatives from the supported model list.
