@@ -72,7 +72,6 @@ def warm_imports() -> None:
     if not _toolset_registered:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
         from src.convos_tools import register_convos_tools
-        from src.convos_web_tools import register_convos_web_tools
 
         convos_tool_names = ["convos_react", "convos_send_attachment"]
         all_tools = list(_HERMES_CORE_TOOLS) + convos_tool_names
@@ -83,9 +82,6 @@ def warm_imports() -> None:
             includes=[],
         )
         register_convos_tools()
-        # Legacy fallback: override web tools with Sonar + httpx only when
-        # EXA_API_KEY is absent. New instances use upstream Exa backend.
-        register_convos_web_tools()
         _toolset_registered = True
         logger.info("Registered hermes-convos toolset (%d tools)", len(all_tools))
 
