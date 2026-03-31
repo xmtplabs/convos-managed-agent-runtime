@@ -33,6 +33,7 @@ COPY runtime/shared/scripts /app/shared-scripts
 COPY runtime/openclaw/scripts ./scripts
 COPY runtime/openclaw/src ./src
 COPY runtime/package.json /app/runtime-version.json
+COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
