@@ -102,10 +102,6 @@
       </div>
       <div class="replenish-card-body">
         <div class="replenish-field">
-          <label>Model</label>
-          <span class="replenish-select" style="display:inline-block;padding:6px 10px;color:#888;">@preset/assistants-pro (via OpenRouter)</span>
-        </div>
-        <div class="replenish-field">
           <label>Image</label>
           <div class="image-picker" id="image-picker">
             <div class="image-picker-selects">
@@ -1311,7 +1307,6 @@
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var orTool = tools.find(function (t) { return t.tool_id === 'openrouter'; });
-      var instanceModel = (orTool && orTool.resource_meta && orTool.resource_meta.model) || '';
       var hasSections = true;
 
       var instanceUrl = (agent && agent.url) || infra.url || '';
@@ -1321,7 +1316,6 @@
         + (instanceUrl ? '<span class="expand-status-dot active"></span>' : '<span class="expand-status-dot inactive"></span>') + '</div>'
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
-        + '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">@preset/assistants-pro</span></div>'
         + (infra.runtime_type ? '<div class="expand-kv"><span class="expand-label">Runtime</span> <span class="expand-val mono">' + esc(infra.runtime_type) + '</span></div>' : '')
         + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '
