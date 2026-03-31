@@ -47,6 +47,7 @@ ENV PYTHONPATH="/opt/hermes-agent"
 COPY runtime/package.json /app/runtime-version.json
 
 # Application code
+COPY runtime/harness/hermes/config.yaml /app/config.yaml
 COPY runtime/harness/hermes/src /app/src
 COPY runtime/convos-platform /app/convos-platform
 COPY runtime/harness/lib /app/platform-scripts
