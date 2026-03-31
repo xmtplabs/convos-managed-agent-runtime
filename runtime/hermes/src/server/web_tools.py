@@ -22,7 +22,7 @@ router = APIRouter()
 
 # Static files live at /app/web-tools in Docker, fall back for local dev.
 _SHARED_ROOT = Path("/app/web-tools") if Path("/app/web-tools").exists() else (
-    Path(__file__).resolve().parent.parent.parent / "shared" / "web-tools"
+    Path(__file__).resolve().parent.parent.parent.parent / "shared" / "web-tools"
 )
 _SERVICES_DIR = _SHARED_ROOT / "services"
 _CONVOS_DIR = _SHARED_ROOT / "convos"

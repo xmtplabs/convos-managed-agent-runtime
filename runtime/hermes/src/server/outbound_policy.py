@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 _POLICY_PATHS = [
     Path("/app/shared/outbound-policy.json"),
-    Path(__file__).resolve().parent.parent.parent / "shared" / "outbound-policy.json",
+    Path(__file__).resolve().parent.parent.parent.parent / "shared" / "outbound-policy.json",
 ]
 
 _policy: dict = {}
