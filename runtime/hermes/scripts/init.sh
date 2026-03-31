@@ -3,8 +3,8 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_LIB="$(cd "$(dirname "$0")/lib" 2>/dev/null && pwd)" || SCRIPT_LIB="$ROOT/scripts/lib"
 _ENV_FILE="$ROOT/../.env"
-_init_common="$ROOT/../shared/scripts/lib/init-common.sh"
-[ ! -f "$_init_common" ] && _init_common="/app/shared-scripts/lib/init-common.sh"
+_init_common="$ROOT/../scripts/lib/init-common.sh"
+[ ! -f "$_init_common" ] && _init_common="/app/platform-scripts/lib/init-common.sh"
 . "$_init_common"
 
 # Docker detection — single source of truth
@@ -19,7 +19,7 @@ if is_docker; then
 else
   HERMES_AGENT_DIR="$ROOT/.hermes-dev/hermes-agent"
 fi
-WORKSPACE_DIR="$ROOT/workspace"
+WORKSPACE_DIR="${CONVOS_PLATFORM_DIR:-}"
 SKILLS_ROOT="$HERMES_HOME/skills"
 
 export HERMES_HOME HERMES_AGENT_DIR WORKSPACE_DIR SKILLS_ROOT

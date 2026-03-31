@@ -3,8 +3,8 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 _ENV_FILE="$ROOT/.env"
 [ ! -f "$_ENV_FILE" ] && [ -f "$ROOT/../.env" ] && _ENV_FILE="$ROOT/../.env"
-_init_common="$ROOT/../shared/scripts/lib/init-common.sh"
-[ ! -f "$_init_common" ] && _init_common="/app/shared-scripts/lib/init-common.sh"
+_init_common="$ROOT/../scripts/lib/init-common.sh"
+[ ! -f "$_init_common" ] && _init_common="/app/platform-scripts/lib/init-common.sh"
 . "$_init_common"
 
 # ── Paths ────────────────────────────────────────────────────────────────

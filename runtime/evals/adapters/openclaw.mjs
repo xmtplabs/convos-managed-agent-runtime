@@ -11,8 +11,8 @@ const workspaceDir = join(stateDir, 'workspace');
 const skillsDir = join(workspaceDir, 'skills');
 const cronFile = join(stateDir, 'cron', 'jobs.json');
 const sessionsDir = join(stateDir, 'agents', 'main', 'sessions');
-const templateDir = resolve(__dirname, '../../openclaw/workspace');
-const sharedSkillsDir = resolve(__dirname, '../../shared/workspace/skills');
+const templateDir = resolve(__dirname, '../../convos-platform');
+const sharedSkillsDir = resolve(__dirname, '../../convos-platform/skills');
 
 function clearDir(dir) {
   try {

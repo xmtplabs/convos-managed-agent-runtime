@@ -33,12 +33,12 @@ from typing import Any
 import httpx
 
 from .xmtp_bridge import ConvosInstance, InboundMessage
-from .agent_runner import AgentRunner
-from .config import RuntimeConfig
-from .profile_image_renewal import ProfileImageRenewalStore
-from .credentials import clear_credentials
+from ..agent_runner import AgentRunner
+from ..config import RuntimeConfig
+from ..profile_image_renewal import ProfileImageRenewalStore
+from ..credentials import clear_credentials
 from .outbound_policy import apply_outbound_policy
-from .stats import stats
+from ..stats import stats
 
 logger = logging.getLogger(__name__)
 
@@ -381,7 +381,7 @@ class ConvosAdapter:
         )
 
         # Wire convos tools to the bridge so they execute mid-processing
-        from .convos_tools import set_bridge
+        from .tools import set_bridge
         set_bridge(
             react=self._instance.react,
             send_attachment=self._instance.send_attachment,

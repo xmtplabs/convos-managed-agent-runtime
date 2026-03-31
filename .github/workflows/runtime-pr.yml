@@ -64,7 +64,7 @@ jobs:
             esac
           done <<< "$FILES"
 
-          # Shared files (runtime/shared/*, runtime/evals/*, runtime/package.json, etc.)
+          # Platform files (runtime/convos-platform/*, runtime/evals/*, runtime/package.json, etc.)
           # affect both runtimes
           if [ "$HAS_SHARED" = "true" ]; then
             HAS_OPENCLAW=true
@@ -83,37 +83,37 @@ jobs:
         with:
           filters: |
             soul:
-              - 'runtime/shared/workspace/SOUL.md'
-              - 'runtime/shared/workspace/AGENTS.md'
-              - 'runtime/openclaw/workspace/*.md'
-              - 'runtime/hermes/workspace/*.md'
+              - 'runtime/convos-platform/SOUL.md'
+              - 'runtime/convos-platform/AGENTS.md'
+              - 'runtime/convos-platform/openclaw/*.md'
+              - 'runtime/convos-platform/hermes/*.md'
             skills:
-              - 'runtime/shared/workspace/skills/convos-runtime/**'
-              - 'runtime/shared/workspace/skills/share-logs/**'
-              - 'runtime/shared/workspace/skills/skill-builder/**'
+              - 'runtime/convos-platform/skills/convos-runtime/**'
+              - 'runtime/convos-platform/skills/share-logs/**'
+              - 'runtime/convos-platform/skills/skill-builder/**'
             memory:
               - 'runtime/openclaw/extensions/convos/src/**/memory*'
               - 'runtime/hermes/src/**/memory*'
             convos:
               - 'runtime/openclaw/extensions/convos/**'
               - 'runtime/hermes/src/**'
-              - 'runtime/shared/web-tools/convos/**'
-              - 'runtime/shared/workspace/skills/profile-update/**'
+              - 'runtime/convos-platform/web-tools/convos/**'
+              - 'runtime/convos-platform/skills/profile-update/**'
             lifecycle:
               - 'runtime/openclaw/scripts/**'
               - 'runtime/hermes/scripts/**'
-              - 'runtime/shared/scripts/**'
+              - 'runtime/scripts/**'
             services:
-              - 'runtime/shared/workspace/skills/services/**'
+              - 'runtime/convos-platform/skills/services/**'
             webhooks:
-              - 'runtime/shared/workspace/skills/services/**'
+              - 'runtime/convos-platform/skills/services/**'
               - 'runtime/openclaw/extensions/convos/**'
               - 'runtime/hermes/src/**'
             cron:
-              - 'runtime/shared/web-tools/skills/**'
+              - 'runtime/convos-platform/web-tools/skills/**'
             models:
               - 'runtime/openclaw/openclaw.json'
-              - 'runtime/hermes/workspace/config.yaml'
+              - 'runtime/hermes/config.yaml'
       - name: Build eval suite matrix
         id: suites
         run: |

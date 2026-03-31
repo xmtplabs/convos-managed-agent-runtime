@@ -25,10 +25,10 @@ from pydantic import BaseModel
 
 from .agent_runner import warm_imports
 from .config import RuntimeConfig
-from .convos_adapter import ConvosAdapter
+from .convos.adapter import ConvosAdapter
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
-from .xmtp_bridge import ConvosInstance
+from .convos.xmtp_bridge import ConvosInstance
 from .stats import stats
 
 logger = logging.getLogger(__name__)
@@ -686,7 +686,7 @@ def _patch_cron_delivery() -> None:
             return
 
         async def _policy_then_send(text: str) -> None:
-            from .outbound_policy import apply_outbound_policy
+            from .convos.outbound_policy import apply_outbound_policy
             policy = await apply_outbound_policy(text)
             if policy.suppress:
                 logger.info("Cron job '%s': suppressed by outbound policy", job.get("name", job["id"]))

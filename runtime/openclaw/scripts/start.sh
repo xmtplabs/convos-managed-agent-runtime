@@ -6,12 +6,12 @@ cd "$ROOT"
 
 brand_section "Paths"
 brand_dim "" "resolved directories and config"
-brand_ok "RUNTIME_DIR"   "$RUNTIME_DIR"
-brand_ok "STATE_DIR"     "$STATE_DIR"
-brand_ok "WORKSPACE_DIR" "$WORKSPACE_DIR"
-brand_ok "SKILLS_ROOT"   "$SKILLS_ROOT"
-brand_ok "EXTENSIONS_DIR" "$EXTENSIONS_DIR"
-brand_ok "CONFIG"        "$CONFIG"
+brand_ok "RUNTIME_DIR"   "${RUNTIME_DIR##*/}"
+brand_ok "STATE_DIR"     "${RUNTIME_DIR##*/}/${STATE_DIR##*/}"
+brand_ok "WORKSPACE_DIR" "${STATE_DIR##*/}/workspace"
+brand_ok "SKILLS_ROOT"   "${STATE_DIR##*/}/workspace/skills"
+brand_ok "EXTENSIONS_DIR" "${STATE_DIR##*/}/extensions"
+brand_ok "CONFIG"        "${STATE_DIR##*/}/openclaw.json"
 
 PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-18789}}"
 ENTRY="${OPENCLAW_ENTRY:-$(command -v openclaw 2>/dev/null || echo npx openclaw)}"
@@ -154,7 +154,7 @@ fi
 
 
 # --- Seed cron jobs ---
-CRON_DIR="$STATE_DIR/cron" . "$SHARED_SCRIPTS_DIR/crons.sh"
+CRON_DIR="$STATE_DIR/cron" . "$PLATFORM_SCRIPTS_DIR/crons.sh"
 
 # --- Webhooks handle email/SMS — no cronjob needed ---
 

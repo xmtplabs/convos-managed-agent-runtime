@@ -14,9 +14,9 @@ runtime/hermes:
   - changed-files:
       - any-glob-to-any-file: 'runtime/hermes/**'
 
-runtime/shared:
+convos-platform:
   - changed-files:
-      - any-glob-to-any-file: 'runtime/shared/**'
+      - any-glob-to-any-file: 'runtime/convos-platform/**'
 
 dashboard:
   - changed-files:

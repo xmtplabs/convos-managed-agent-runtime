@@ -17,7 +17,7 @@ else
 fi
 
 # ── Identity keys + CLI (shared) ──────────────────────────────────────────
-. "$SHARED_SCRIPTS_DIR/lib/identity-check.sh"
+. "$PLATFORM_SCRIPTS_DIR/lib/identity-check.sh"
 check_identity_keys
 check_convos_cli
 

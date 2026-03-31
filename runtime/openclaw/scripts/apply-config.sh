@@ -65,31 +65,23 @@ sync_workspace_dir() {
   copy_tree_snapshot "$src_dir" "$base_dir"
 }
 
-# Stage merged workspace source: shared files + runtime overlay → single sync call.
-# Section files (build-time inputs for AGENTS.md assembly) are stripped from the
-# merge so only the assembled AGENTS.md reaches the runtime workspace.
+# Stage workspace source from convos-platform (shared files, excluding runtime
+# subdirs and the AGENTS.md template which is assembled separately).
 _MERGED_SRC=""
-if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
+if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
-  cp -R "$SHARED_WORKSPACE_DIR/." "$_MERGED_SRC/"
-  [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
-
-  # Remove the AGENTS.md template (will be replaced by the assembled version)
-  rm -f "$_MERGED_SRC/AGENTS.md"
-
-  # Remove section files — they're consumed by assembly, not shipped to runtime
-  if [ -f "$SHARED_WORKSPACE_DIR/AGENTS.md" ]; then
-    for _sec in $(grep -oE 'SECTION:[a-zA-Z-]+' "$SHARED_WORKSPACE_DIR/AGENTS.md" | sed 's/SECTION://' | sort -u); do
-      # Keep files that existed in shared workspace (e.g. MEMORY.md is both section + workspace file)
-      [ ! -f "$SHARED_WORKSPACE_DIR/${_sec}.md" ] && rm -f "$_MERGED_SRC/${_sec}.md"
-    done
-  fi
-
-  brand_ok "shared-workspace" "merged with runtime"
+  # Copy platform files, skip per-runtime subdirs
+  for _item in "$CONVOS_PLATFORM_DIR"/*; do
+    _name="$(basename "$_item")"
+    case "$_name" in openclaw|hermes) continue ;; esac
+    [ "$_name" = "AGENTS.md" ] && continue  # assembled separately
+    cp -R "$_item" "$_MERGED_SRC/"
+  done
+  brand_ok "convos-platform" "seeded"
 fi
 
 for subdir in workspace extensions; do
-  [ -d "$RUNTIME_DIR/$subdir" ] || { [ "$subdir" = "workspace" ] && [ -n "$_MERGED_SRC" ]; } || continue
+  [ "$subdir" = "workspace" ] && [ -n "$_MERGED_SRC" ] || [ -d "$RUNTIME_DIR/$subdir" ] || continue
   mkdir -p "$STATE_DIR/$subdir"
 
   if [ "$subdir" = "workspace" ]; then
@@ -104,27 +96,27 @@ for subdir in workspace extensions; do
     rm -rf "${STATE_DIR:?}/$subdir"/*
     cp -r "$RUNTIME_DIR/$subdir/"* "$STATE_DIR/$subdir/" 2>/dev/null || true
   fi
-  brand_ok "$subdir" "$STATE_DIR/$subdir"
+  brand_ok "$subdir" "${STATE_DIR##*/}/$subdir"
 done
 
 [ -n "${_MERGED_SRC:-}" ] && rm -rf "$_MERGED_SRC" && unset _MERGED_SRC
 
 mkdir -p "$STATE_DIR"
 
-# Assemble AGENTS.md (shared template + runtime sections) — after sync so it overwrites the synced copy
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
-  assemble_agents "$SHARED_WORKSPACE_DIR" "$RUNTIME_DIR/workspace" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
+# Assemble AGENTS.md (platform template + runtime sections) — after sync so it overwrites the synced copy
+if [ -n "${PLATFORM_SCRIPTS_DIR:-}" ] && [ -f "$PLATFORM_SCRIPTS_DIR/lib/agents-assemble.sh" ]; then
+  . "$PLATFORM_SCRIPTS_DIR/lib/agents-assemble.sh"
+  assemble_agents "$CONVOS_PLATFORM_DIR" "$CONVOS_PLATFORM_DIR/openclaw" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
 else
-  echo "⚠ SHARED_SCRIPTS_DIR not set — skipping agents-assemble" >&2
+  echo "⚠ PLATFORM_SCRIPTS_DIR not set — skipping agents-assemble" >&2
 fi
 
-# Sync shared web-tools assets (Docker copies to /app/web-tools; locally we mirror here)
-_SHARED_WT="$ROOT/../shared/web-tools"
+# Sync web-tools assets (Docker copies to /app/convos-platform/web-tools; locally we mirror here)
+_SHARED_WT="$CONVOS_PLATFORM_DIR/web-tools"
 if [ -d "$_SHARED_WT" ]; then
   mkdir -p "$STATE_DIR/web-tools"
   cp -r "$_SHARED_WT/"* "$STATE_DIR/web-tools/"
-  brand_ok "web-tools" "$STATE_DIR/web-tools"
+  brand_ok "web-tools" "${STATE_DIR##*/}/web-tools"
 fi
 unset _SHARED_WT
 
@@ -159,6 +151,6 @@ if command -v jq >/dev/null 2>&1; then
 fi
 unset _PORT
 
-brand_ok "config" "$CONFIG"
+brand_ok "config" "${STATE_DIR##*/}/openclaw.json"
 brand_done "Workspace ready"
 brand_flush

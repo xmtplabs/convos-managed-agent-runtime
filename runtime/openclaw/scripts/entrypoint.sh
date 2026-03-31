@@ -5,13 +5,13 @@
 # Print banner before pnpm starts so it gets its own timestamp window
 # and Railway's log collector can't shuffle it with script output.
 # Brand helpers — prefer shared copy, fall back to local
-_ent_shared=""
-[ -d "$(dirname "$0")/../shared/scripts" ] && _ent_shared="$(dirname "$0")/../shared/scripts"
-[ -z "$_ent_shared" ] && [ -d "/app/shared-scripts" ] && _ent_shared="/app/shared-scripts"
-if [ -n "$_ent_shared" ] && [ -f "$_ent_shared/lib/brand.sh" ]; then
-  . "$_ent_shared/lib/brand.sh"
+_ent_platform=""
+[ -d "$(dirname "$0")/../scripts" ] && _ent_platform="$(dirname "$0")/../scripts"
+[ -z "$_ent_platform" ] && [ -d "/app/platform-scripts" ] && _ent_platform="/app/platform-scripts"
+if [ -n "$_ent_platform" ] && [ -f "$_ent_platform/lib/brand.sh" ]; then
+  . "$_ent_platform/lib/brand.sh"
 else
-  . "$(dirname "$0")/../../shared/scripts/lib/brand.sh"
+  . "$(dirname "$0")/../../scripts/lib/brand.sh"
 fi
 _version="unknown"
 if command -v jq >/dev/null 2>&1; then
