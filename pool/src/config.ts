@@ -75,6 +75,7 @@ export const config = {
   stripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET"),
 
   // Instance passthrough env vars
+  defaultAgentName: getEnv("DEFAULT_AGENT_NAME", "Assistant"),
   openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   convosApiKey: getEnv("CONVOS_API_KEY"),
