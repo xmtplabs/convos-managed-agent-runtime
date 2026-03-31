@@ -39,6 +39,6 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   assemble_agents "$CONVOS_PLATFORM_DIR" "$HERMES_HOME/AGENTS.md" "hermes"
 fi
 
-brand_ok "HERMES_HOME" "$HERMES_HOME"
+brand_ok "HERMES_HOME" "${HERMES_HOME#"$ROOT"/}"
 brand_done "Workspace ready"
 brand_flush
