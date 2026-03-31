@@ -117,13 +117,7 @@
         "enabled": true,
         "config": {
           "webSearch": {
-            "apiKey": "${EXA_API_KEY}",
-            "type": "auto",
-            "contents": {
-              "text": {
-                "maxCharacters": 50000
-              }
-            }
+            "apiKey": "${EXA_API_KEY}"
           }
         }
       }
