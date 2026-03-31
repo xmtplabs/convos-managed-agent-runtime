@@ -1,13 +1,15 @@
 /**
- * SMS pool audit — find phones that are assigned to dead/missing instances
+ * SMS pool audit — find phones that are assigned but have no live instance,
  * and can be freed back to the available pool.
  *
- * Usage:  pnpm sms:audit
+ * Source of truth for phone→instance mapping is `instance_services` (tool_id='telnyx').
+ * The `phone_number_pool` table only tracks available/assigned status.
  *
- * Dry-run only — prints what would be freed, does not modify anything.
+ * Usage:  pnpm sms:audit          (dry-run)
+ *         pnpm sms:audit --fix    (free orphaned phones)
  */
 
-import { eq, sql, inArray } from "drizzle-orm";
+import { sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { phoneNumberPool, instances, instanceServices } from "../src/db/schema";
@@ -55,7 +57,7 @@ async function main() {
     }
     console.log(`  Total: ${instanceRows.length}`);
 
-    // 3. Instance services with telnyx
+    // 3. Telnyx service bindings (source of truth for phone→instance)
     const telnyxServices = await db.select({
       instanceId: instanceServices.instanceId,
       resourceId: instanceServices.resourceId,
@@ -66,10 +68,10 @@ async function main() {
 
     // 4. Build lookup maps
     const instanceMap = new Map(instanceRows.map((i) => [i.id, i]));
-    const serviceByInstance = new Map(telnyxServices.map((s) => [s.instanceId, s.resourceId]));
     const serviceByPhone = new Map(telnyxServices.map((s) => [s.resourceId, s.instanceId]));
+    const phoneSet = new Set(phoneRows.map((r) => r.phoneNumber));
 
-    // 5. Find phones assigned to dead/missing instances
+    // 5. Find assigned phones whose instance is dead/missing (via instance_services)
     const ALIVE_STATUSES = new Set(["starting", "idle", "claiming", "claimed", "pending_acceptance", "sleeping"]);
 
     console.log("\n=== Audit: Phones That Should Be Freed ===\n");
@@ -77,19 +79,20 @@ async function main() {
     const toFree: Array<{ phone: string; instanceId: string | null; reason: string }> = [];
 
     for (const phone of assigned) {
-      if (!phone.instanceId) {
-        toFree.push({ phone: phone.phoneNumber, instanceId: null, reason: "assigned but no instance_id set" });
+      const instanceId = serviceByPhone.get(phone.phoneNumber);
+      if (!instanceId) {
+        toFree.push({ phone: phone.phoneNumber, instanceId: null, reason: "assigned but no telnyx service binding" });
         continue;
       }
 
-      const inst = instanceMap.get(phone.instanceId);
+      const inst = instanceMap.get(instanceId);
       if (!inst) {
-        toFree.push({ phone: phone.phoneNumber, instanceId: phone.instanceId, reason: "instance not found in DB" });
+        toFree.push({ phone: phone.phoneNumber, instanceId, reason: "instance not found in DB" });
         continue;
       }
 
       if (!ALIVE_STATUSES.has(inst.status)) {
-        toFree.push({ phone: phone.phoneNumber, instanceId: phone.instanceId, reason: `instance status is '${inst.status}'` });
+        toFree.push({ phone: phone.phoneNumber, instanceId, reason: `instance status is '${inst.status}'` });
         continue;
       }
     }
@@ -106,7 +109,6 @@ async function main() {
 
     // 6. Orphaned service bindings (telnyx service exists but phone not in pool)
     console.log("\n=== Orphaned Service Bindings ===\n");
-    const phoneSet = new Set(phoneRows.map((r) => r.phoneNumber));
     const orphanedBindings = telnyxServices.filter((s) => !phoneSet.has(s.resourceId));
     if (orphanedBindings.length === 0) {
       console.log("  None — all telnyx service bindings have a matching pool entry.");
@@ -124,8 +126,7 @@ async function main() {
       console.log("  None — all assigned phones have a telnyx service binding.");
     } else {
       for (const p of noBinding) {
-        const inst = instanceMap.get(p.instanceId!);
-        console.log(`  ${p.phoneNumber}  instance=${p.instanceId} (${inst?.status ?? "missing"})  — no instance_services row`);
+        console.log(`  ${p.phoneNumber}  — no instance_services row`);
       }
     }
 
@@ -137,7 +138,7 @@ async function main() {
       const phonesToFree = toFree.map((e) => e.phone);
       const result = await db
         .update(phoneNumberPool)
-        .set({ status: "available", instanceId: null })
+        .set({ status: "available" })
         .where(inArray(phoneNumberPool.phoneNumber, phonesToFree));
       console.log(`  Updated ${result.rowCount} phone(s) → available`);
     } else if (toFree.length > 0) {

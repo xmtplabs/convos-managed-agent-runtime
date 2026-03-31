@@ -69,7 +69,6 @@ export const phoneNumberPool = pgTable("phone_number_pool", {
   phoneNumber: text("phone_number").unique().notNull(),
   messagingProfileId: text("messaging_profile_id").notNull(),
   status: text("status").$type<PhonePoolStatus>().notNull().default("available"),
-  instanceId: text("instance_id"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
 
