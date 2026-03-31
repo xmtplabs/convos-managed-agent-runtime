@@ -7,7 +7,7 @@ Pre-warmed AI assistant containers on XMTP/Convos — Express pool manager, Open
 - `pool/` — Pool manager: Express API + Postgres (instance lifecycle, providers, admin dashboard)
 - `runtime/harness/openclaw/` — OpenClaw harness (Node.js, primary runtime)
 - `runtime/harness/hermes/` — Hermes harness (Python FastAPI)
-- `runtime/convos-platform/` — Shared platform files: SOUL.md, AGENTS.md template, skills, per-runtime sections (seeded into each runtime at boot)
+- `runtime/convos-platform/` — Shared platform files: SOUL.md, AGENTS.md template, context files, skills (seeded into each runtime at boot)
 - `workers/credits-sweep/` — Cloudflare Worker: cron-based OpenRouter credit spend tracking → PostHog
 - `dashboard/` — Playroom: Next.js app at assistants.convos.org
 
@@ -84,19 +84,20 @@ Agent instructions follow a 3-layer architecture. Each layer has a clear boundar
 
 | Layer | File(s) | Contains | Does NOT contain |
 |---|---|---|---|
-| 1. Personality | `SOUL.md` | Who you are, philosophy, group behavior | Platform mechanics, tool names |
-| 2. Agent Instructions | `convos-platform/AGENTS.md` (template) + per-runtime section files in `convos-platform/<runtime>/` | Shared behavioral rules + `<!-- SECTION:xxx -->` markers. Section files contain runtime-specific wiring (tool names, config paths, platform markers) | Skills |
+| 1. Personality | `SOUL.md` | Who you are, philosophy, boundaries, privacy, silence, proactivity | Platform mechanics, tool names |
+| 2. Agent Instructions | `convos-platform/AGENTS.md` (template) + context files | `<!-- SECTION:xxx -->` markers assembled from `context/` (shared) and `context/<runtime>/` (runtime-specific, appended) | Skills |
 | 3. Skills | `convos-platform/skills/` | Complex behavioral guidance loaded on demand | Platform mechanics (defers to layer 2) |
 
-AGENTS.md templating:
-- `convos-platform/AGENTS.md` is the template with shared prose and `<!-- SECTION:name -->` markers.
-- Each runtime has section files in `convos-platform/<runtime>/` (e.g. `convos-platform/openclaw/DELEGATION.md`) that replace the markers at boot.
-- Missing section files cause the marker line to be silently removed.
-- Section files map to eval suites (e.g. `DELEGATION.md` → `delegation.yaml`).
+AGENTS.md assembly:
+- `convos-platform/AGENTS.md` is a manifest of `<!-- SECTION:name -->` markers.
+- Each marker resolves: `context/NAME.md` (shared) + `context/<runtime>/NAME.md` (appended).
+- Missing context files cause the marker to be silently removed.
+- Context files map to eval suites (e.g. `DELEGATION.md` → `delegation.yaml`).
 
 Rules:
-- Default to shared: new skills go in `runtime/convos-platform/skills/`, new shared instructions go in `convos-platform/AGENTS.md`.
-- Runtime-specific wiring goes in a section file in `convos-platform/<runtime>/` and a matching `<!-- SECTION:name -->` marker in the template.
+- Personality/philosophy goes in `SOUL.md`. Operational/platform rules go in context files.
+- New shared context: add `context/NAME.md` + a `<!-- SECTION:NAME -->` marker in AGENTS.md.
+- Runtime-specific wiring: add `context/<runtime>/NAME.md` — it gets appended after the shared context.
 - Never check in a standalone AGENTS.md in the runtime directories — it's assembled at boot.
 - Use `$SKILLS_ROOT` in SKILL.md paths, not `$OPENCLAW_STATE_DIR` or `$HERMES_HOME`.
 - Add deps to both `harness/hermes/package.json` and `harness/openclaw/package.json` when a shared skill needs a Node CLI.

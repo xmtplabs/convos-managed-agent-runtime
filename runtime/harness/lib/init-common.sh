@@ -6,8 +6,8 @@
 [ -f "$_ENV_FILE" ] && set -a && . "$_ENV_FILE" 2>/dev/null || true && set +a
 
 # Resolve platform dirs
-_resolve="$ROOT/../scripts/lib/resolve-shared.sh"
-[ ! -f "$_resolve" ] && _resolve="/app/platform-scripts/lib/resolve-shared.sh"
+_resolve="$ROOT/../lib/resolve-shared.sh"
+[ ! -f "$_resolve" ] && _resolve="/app/platform-scripts/resolve-shared.sh"
 if [ -f "$_resolve" ]; then
   . "$_resolve"
 else
@@ -16,8 +16,8 @@ else
 fi
 
 # Brand helpers
-if [ -n "${PLATFORM_SCRIPTS_DIR:-}" ] && [ -f "$PLATFORM_SCRIPTS_DIR/lib/brand.sh" ]; then
-  . "$PLATFORM_SCRIPTS_DIR/lib/brand.sh"
+if [ -n "${PLATFORM_SCRIPTS_DIR:-}" ] && [ -f "$PLATFORM_SCRIPTS_DIR/brand.sh" ]; then
+  . "$PLATFORM_SCRIPTS_DIR/brand.sh"
 else
-  . "$ROOT/../scripts/lib/brand.sh"
+  . "$ROOT/../lib/brand.sh"
 fi

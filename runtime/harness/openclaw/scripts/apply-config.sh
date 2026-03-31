@@ -29,9 +29,11 @@ sync_workspace_dir() {
 
   mkdir -p "$dst_dir" "$base_dir"
 
-  bootstrap_sync=0
+  # First run: copy everything and snapshot the base
   if [ -z "$(find "$base_dir" -mindepth 1 -print -quit 2>/dev/null)" ]; then
-    bootstrap_sync=1
+    copy_tree_snapshot "$src_dir" "$dst_dir"
+    copy_tree_snapshot "$src_dir" "$base_dir"
+    return
   fi
 
   find "$src_dir" -type d | while IFS= read -r src_path; do
@@ -48,18 +50,11 @@ sync_workspace_dir() {
     if [ ! -e "$dst_path" ]; then
       mkdir -p "$(dirname "$dst_path")"
       cp -p "$src_path" "$dst_path"
-      continue
-    fi
-
-    if [ ! -e "$base_path" ]; then
-      [ "$bootstrap_sync" = "1" ] && continue
-      continue
-    fi
-
-    if cmp -s "$dst_path" "$base_path"; then
+    elif [ -e "$base_path" ] && cmp -s "$dst_path" "$base_path"; then
       mkdir -p "$(dirname "$dst_path")"
       cp -p "$src_path" "$dst_path"
     fi
+    # Otherwise: user-edited or user-created file — preserve
   done
 
   copy_tree_snapshot "$src_dir" "$base_dir"
@@ -73,7 +68,7 @@ if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   # Copy platform files, skip per-runtime subdirs
   for _item in "$CONVOS_PLATFORM_DIR"/*; do
     _name="$(basename "$_item")"
-    case "$_name" in openclaw|hermes) continue ;; esac
+    case "$_name" in context|openclaw|hermes) continue ;; esac
     [ "$_name" = "AGENTS.md" ] && continue  # assembled separately
     cp -R "$_item" "$_MERGED_SRC/"
   done
@@ -101,15 +96,9 @@ done
 
 [ -n "${_MERGED_SRC:-}" ] && rm -rf "$_MERGED_SRC" && unset _MERGED_SRC
 
-mkdir -p "$STATE_DIR"
-
 # Assemble AGENTS.md (platform template + runtime sections) — after sync so it overwrites the synced copy
-if [ -n "${PLATFORM_SCRIPTS_DIR:-}" ] && [ -f "$PLATFORM_SCRIPTS_DIR/lib/agents-assemble.sh" ]; then
-  . "$PLATFORM_SCRIPTS_DIR/lib/agents-assemble.sh"
-  assemble_agents "$CONVOS_PLATFORM_DIR" "$CONVOS_PLATFORM_DIR/openclaw" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
-else
-  echo "⚠ PLATFORM_SCRIPTS_DIR not set — skipping agents-assemble" >&2
-fi
+. "$PLATFORM_SCRIPTS_DIR/agents-assemble.sh"
+assemble_agents "$CONVOS_PLATFORM_DIR" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
 
 # Sync web-tools assets (Docker copies to /app/convos-platform/web-tools; locally we mirror here)
 _SHARED_WT="$CONVOS_PLATFORM_DIR/web-tools"
@@ -125,31 +114,25 @@ cp "$RUNTIME_DIR/openclaw.json" "$CONFIG"
 
 # Patch config when running in a container (Railway: PORT=8080, OPENCLAW_STATE_DIR=/app)
 if command -v jq >/dev/null 2>&1; then
+  patch_config() { jq "$@" "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"; }
+
   _PORT="${OPENCLAW_PUBLIC_PORT:-${PORT:-}}"
   if [ -n "$_PORT" ] && [ "$_PORT" != "18789" ]; then
-    jq --argjson p "$_PORT" '.gateway.port = $p | .gateway.bind = "lan"' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    patch_config --argjson p "$_PORT" '.gateway.port = $p | .gateway.bind = "lan"'
     brand_ok "gateway" "port $_PORT, bind lan"
   fi
-  # Workspace path must match where we sync; template says ~/.openclaw/workspace but STATE_DIR may differ
-  jq --arg w "$STATE_DIR/workspace" '.agents.defaults.workspace = $w' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-  # Plugin load paths must point at synced extensions
-  jq --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-  # Trust Railway's internal proxy so connections are treated as local,
-  # and whitelist the instance's public domain for the control UI.
+  patch_config --arg w "$STATE_DIR/workspace" '.agents.defaults.workspace = $w'
+  patch_config --arg d "$STATE_DIR/extensions" '.plugins = ((.plugins // {}) | .load = ((.load // {}) | .paths = [$d]))'
   if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
-    jq --arg origin "https://$RAILWAY_PUBLIC_DOMAIN" \
-      '.gateway.trustedProxies = ["100.64.0.0/10"] | .gateway.controlUi.allowedOrigins = [($origin), "http://localhost:8080", "http://127.0.0.1:8080"]' \
-      "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    patch_config --arg origin "https://$RAILWAY_PUBLIC_DOMAIN" \
+      '.gateway.trustedProxies = ["100.64.0.0/10"] | .gateway.controlUi.allowedOrigins = [($origin), "http://localhost:8080", "http://127.0.0.1:8080"]'
     brand_ok "trustedProxies" "$RAILWAY_PUBLIC_DOMAIN"
   fi
-  # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then
-    jq '.browser.executablePath = "/usr/bin/chromium" | .browser.headless = true | .browser.noSandbox = true' \
-      "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    patch_config '.browser.executablePath = "/usr/bin/chromium" | .browser.headless = true | .browser.noSandbox = true'
     brand_ok "browser" "/usr/bin/chromium (headless, no-sandbox)"
   fi
 fi
-unset _PORT
 
 brand_ok "config" "${STATE_DIR##*/}/openclaw.json"
 brand_done "Workspace ready"

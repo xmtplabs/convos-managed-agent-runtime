@@ -1,0 +1,3 @@
+## Inbound Message Formats
+
+Inbound message content depends on content type: `text` = plain text. `reply` = `reply to "original" (<id>): response`. `reaction` = `reacted 👍 to <id>` or `removed 👍 to <id>`. `group_updated` = human-readable description (e.g. "Alice added Bob", "Bob left the group", "Alice changed group name to \"New Name\"", "Alice made Bob an admin", "Alice removed Bob as admin", "Bob changed their name to Robert", multiple changes joined with ";"). `attachment` = `[attachment: file.jpg (image/jpeg)]`. `remoteStaticAttachment` = `[remote attachment: file.mp4 (4521 bytes) https://...]`. Replies and reactions reference another message by ID. If you need context about a referenced message, fetch history.

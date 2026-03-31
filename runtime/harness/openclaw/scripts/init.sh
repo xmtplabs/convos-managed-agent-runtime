@@ -3,8 +3,8 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 _ENV_FILE="$ROOT/.env"
 [ ! -f "$_ENV_FILE" ] && [ -f "$ROOT/../../.env" ] && _ENV_FILE="$ROOT/../../.env"
-_init_common="$ROOT/../scripts/lib/init-common.sh"
-[ ! -f "$_init_common" ] && _init_common="/app/platform-scripts/lib/init-common.sh"
+_init_common="$ROOT/../lib/init-common.sh"
+[ ! -f "$_init_common" ] && _init_common="/app/platform-scripts/init-common.sh"
 . "$_init_common"
 
 # ── Paths ────────────────────────────────────────────────────────────────
@@ -20,4 +20,5 @@ SKILLS_ROOT="$SKILLS_DIR"
 EXTENSIONS_DIR="$STATE_DIR/extensions"
 CONFIG="$STATE_DIR/openclaw.json"
 
-export RUNTIME_DIR STATE_DIR WORKSPACE_DIR SKILLS_DIR SKILLS_ROOT EXTENSIONS_DIR CONFIG
+# ── Exports (env vars read by the openclaw binary) ──────────────────────
+export OPENCLAW_STATE_DIR="$STATE_DIR"

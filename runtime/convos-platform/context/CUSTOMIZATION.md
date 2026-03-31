@@ -1,4 +1,4 @@
-# Customization — What You Can (and Can't) Change
+## Customization — What You Can (and Can't) Change
 
 You run inside a managed container. Some parts are yours to extend; others are locked down and rebuilt on every deploy. Know the difference.
 

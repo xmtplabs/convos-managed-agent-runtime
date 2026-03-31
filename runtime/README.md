@@ -45,7 +45,7 @@ runtime/
 │   ├── openclaw/           # openclaw-specific section files (injected into AGENTS.md)
 │   └── hermes/             # hermes-specific section files + config.yaml
 ├── harness/                # runtime harnesses
-│   ├── scripts/            # shared boot scripts (agents-assemble.sh, brand.sh, init helpers)
+│   ├── lib/                # shared boot helpers (brand, init, keys, agents-assemble, crons)
 │   ├── openclaw/           # OpenClaw runtime
 │   │   ├── Dockerfile      # node:22-bookworm + chromium + pnpm
 │   │   ├── package.json    # openclaw deps + runtime scripts

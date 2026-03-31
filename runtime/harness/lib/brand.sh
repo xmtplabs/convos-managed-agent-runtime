@@ -66,5 +66,15 @@ brand_kv() {
   printf "  ${C_GRAY}%-20s${C_RESET} ${C_WHITE}%s${C_RESET}\n" "$1" "$2"
 }
 
+# Resolve runtime version from nearest package.json. Sets _BRAND_VERSION.
+brand_resolve_version() {
+  _BRAND_VERSION="unknown"
+  if command -v jq >/dev/null 2>&1; then
+    for _pkg in "$@"; do
+      [ -f "$_pkg" ] && _BRAND_VERSION=$(jq -r '.version // "unknown"' "$_pkg") && [ "$_BRAND_VERSION" != "unknown" ] && break
+    done
+  fi
+}
+
 # no-op kept for backwards compat — buffering removed
 brand_flush() { :; }

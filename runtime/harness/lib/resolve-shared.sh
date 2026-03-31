@@ -1,7 +1,7 @@
 #!/bin/sh
 # Resolve CONVOS_PLATFORM_DIR and PLATFORM_SCRIPTS_DIR paths.
 # Requires: ROOT must be set before sourcing.
-# Local: ROOT=harness/<runtime>, convos-platform=runtime/convos-platform, scripts=harness/scripts
+# Local: ROOT=harness/<runtime>, convos-platform=runtime/convos-platform, lib=harness/lib
 # Docker: both at /app/
 
 if [ -d "$ROOT/../../convos-platform" ]; then
@@ -12,8 +12,8 @@ else
   CONVOS_PLATFORM_DIR=""
 fi
 
-if [ -d "$ROOT/../scripts" ]; then
-  PLATFORM_SCRIPTS_DIR="$ROOT/../scripts"
+if [ -d "$ROOT/../lib" ]; then
+  PLATFORM_SCRIPTS_DIR="$ROOT/../lib"
 elif [ -d "/app/platform-scripts" ]; then
   PLATFORM_SCRIPTS_DIR="/app/platform-scripts"
 else

@@ -13,8 +13,6 @@ brand_ok "SKILLS_ROOT"      "${HERMES_HOME##*/}/skills"
 brand_section "Server"
 brand_dim "" "start Hermes FastAPI server"
 
-export PORT="${PORT:-8080}"
-export PLATFORM_SCRIPTS_DIR="${PLATFORM_SCRIPTS_DIR:-}"
 brand_ok "PORT" "$PORT"
 
 cd "$ROOT"

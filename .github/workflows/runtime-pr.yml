@@ -84,14 +84,14 @@ jobs:
           filters: |
             soul:
               - 'runtime/convos-platform/SOUL.md'
-              - 'runtime/convos-platform/AGENTS.md'
-              - 'runtime/convos-platform/openclaw/*.md'
-              - 'runtime/convos-platform/hermes/*.md'
+              - 'runtime/convos-platform/**/IDENTITY.md'
+              - 'runtime/convos-platform/**/WELCOME.md'
+              - 'runtime/convos-platform/**/EMOTIONAL-INTELLIGENCE.md'
             skills:
-              - 'runtime/convos-platform/skills/convos-runtime/**'
-              - 'runtime/convos-platform/skills/share-logs/**'
-              - 'runtime/convos-platform/skills/skill-builder/**'
+              - 'runtime/convos-platform/skills/**'
+              - 'runtime/convos-platform/**/SKILLS.md'
             memory:
+              - 'runtime/convos-platform/**/MEMORY.md'
               - 'runtime/harness/openclaw/extensions/convos/src/**/memory*'
               - 'runtime/harness/hermes/src/**/memory*'
             convos:
@@ -99,21 +99,31 @@ jobs:
               - 'runtime/harness/hermes/src/**'
               - 'runtime/convos-platform/web-tools/convos/**'
               - 'runtime/convos-platform/skills/profile-update/**'
+              - 'runtime/convos-platform/**/CONVOS-CLI.md'
+              - 'runtime/convos-platform/**/INBOUND-FORMATS.md'
             lifecycle:
               - 'runtime/harness/openclaw/scripts/**'
               - 'runtime/harness/hermes/scripts/**'
-              - 'runtime/harness/scripts/**'
+              - 'runtime/harness/lib/**'
             services:
               - 'runtime/convos-platform/skills/services/**'
+              - 'runtime/convos-platform/**/SERVICES.md'
             webhooks:
               - 'runtime/convos-platform/skills/services/**'
               - 'runtime/harness/openclaw/extensions/convos/**'
               - 'runtime/harness/hermes/src/**'
             cron:
+              - 'runtime/convos-platform/**/CRON.md'
               - 'runtime/convos-platform/web-tools/skills/**'
             models:
+              - 'runtime/convos-platform/**/MODELS.md'
               - 'runtime/harness/openclaw/openclaw.json'
               - 'runtime/harness/hermes/config.yaml'
+            delegation:
+              - 'runtime/convos-platform/**/DELEGATION.md'
+            silence:
+              - 'runtime/convos-platform/**/SILENCE.md'
+              - 'runtime/convos-platform/**/TOOL-DISCIPLINE.md'
       - name: Build eval suite matrix
         id: suites
         run: |
@@ -131,7 +141,7 @@ jobs:
 
           # Build list from dorny outputs — only matched suites run
           MATCHED=""
-          for suite in soul skills memory convos lifecycle services webhooks cron models; do
+          for suite in soul skills memory convos lifecycle services webhooks cron models delegation silence; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
               MATCHED="$MATCHED $suite"
             fi

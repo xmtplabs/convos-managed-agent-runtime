@@ -27,7 +27,7 @@ ENV NODE_PATH=/app/node_modules
 COPY runtime/harness/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/harness/openclaw/extensions /app/openclaw/extensions
 COPY runtime/convos-platform /app/convos-platform
-COPY runtime/harness/scripts /app/platform-scripts
+COPY runtime/harness/lib /app/platform-scripts
 COPY runtime/harness/openclaw/scripts ./scripts
 COPY runtime/harness/openclaw/src ./src
 COPY runtime/package.json /app/runtime-version.json

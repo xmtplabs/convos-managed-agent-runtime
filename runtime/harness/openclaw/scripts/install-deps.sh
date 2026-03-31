@@ -5,7 +5,6 @@
 # Skill scripts use REST APIs directly via fetch — no JS library imports needed.
 set -e
 . "$(dirname "$0")/init.sh"
-export OPENCLAW_STATE_DIR="$STATE_DIR"
 
 brand_section "Dependencies"
 brand_dim "" "install extensions and check toolchain"

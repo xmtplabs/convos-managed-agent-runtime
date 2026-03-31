@@ -29,8 +29,7 @@ unset _BIN
 CDP_PORT="${OPENCLAW_CDP_PORT:-18800}"
 RELAY_PORT="${OPENCLAW_RELAY_PORT:-18792}"
 
-# Tell the openclaw binary where state lives (must be set before any openclaw command)
-export OPENCLAW_STATE_DIR="$STATE_DIR"
+# OPENCLAW_STATE_DIR already exported by init.sh
 
 # --- Clean up any previous gateway processes ---
 $ENTRY gateway stop >/dev/null 2>&1 || true
@@ -54,43 +53,33 @@ unset _my_pid _pid _ap _ancestors
 # Kill stale openclaw processes by name so Bonjour registrations are released
 pkill -9 -f "openclaw-gateway" 2>/dev/null || true
 pkill -9 -f "openclaw gateway" 2>/dev/null || true
-# Force-kill anything still holding the ports (lsof can return multiple PIDs)
-lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-# Remove stale lock/pid files and let ports + Bonjour registrations clear
+# Force-kill anything holding the ports; two passes with sleep for respawns
+kill_ports() {
+  for _p in "$PORT" "$RELAY_PORT" "$CDP_PORT"; do
+    lsof -ti "tcp:$_p" 2>/dev/null | xargs kill -9 2>/dev/null || true
+  done
+}
+kill_ports
 rm -f "$STATE_DIR/gateway.pid" "$STATE_DIR/gateway.lock" 2>/dev/null || true
 sleep 2
-# Second pass — kill anything that respawned during the wait
-lsof -ti "tcp:$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$RELAY_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
-lsof -ti "tcp:$CDP_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+kill_ports
 sleep 1
 
 brand_section "Gateway"
 brand_dim "" "ports, services, and background processes"
 
 # Port availability checks
-_gw_busy=$(lsof -ti "tcp:$PORT" 2>/dev/null) || true
-if [ -n "$_gw_busy" ]; then
-  brand_warn "port $PORT" "in use (pid $_gw_busy) — may fail to bind"
-else
-  brand_ok "port $PORT" "available (gateway)"
-fi
-
-_relay_busy=$(lsof -ti "tcp:$RELAY_PORT" 2>/dev/null) || true
-if [ -n "$_relay_busy" ]; then
-  brand_warn "port $RELAY_PORT" "in use (pid $_relay_busy) — relay may conflict"
-else
-  brand_ok "port $RELAY_PORT" "available (browser relay)"
-fi
-_cdp_busy=$(lsof -ti "tcp:$CDP_PORT" 2>/dev/null) || true
-if [ -n "$_cdp_busy" ]; then
-  brand_warn "port $CDP_PORT" "in use (pid $_cdp_busy) — CDP may conflict"
-else
-  brand_ok "port $CDP_PORT" "available (browser CDP)"
-fi
-unset _gw_busy _relay_busy _cdp_busy
+check_port() {
+  _busy=$(lsof -ti "tcp:$1" 2>/dev/null) || true
+  if [ -n "$_busy" ]; then
+    brand_warn "port $1" "in use (pid $_busy) — $2 may conflict"
+  else
+    brand_ok "port $1" "available ($2)"
+  fi
+}
+check_port "$PORT" "gateway"
+check_port "$RELAY_PORT" "browser relay"
+check_port "$CDP_PORT" "browser CDP"
 
 # Service URL
 if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
