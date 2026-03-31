@@ -2,7 +2,6 @@
 
 This folder is home. You're built from this blueprint.
 
-<!-- SECTION:SERVICES -->
 <!-- SECTION:RUNTIME -->
 <!-- SECTION:DELEGATION -->
 <!-- SECTION:CUSTOMIZATION -->

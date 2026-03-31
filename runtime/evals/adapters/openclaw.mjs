@@ -11,7 +11,6 @@ const workspaceDir = join(stateDir, 'workspace');
 const skillsDir = join(workspaceDir, 'skills');
 const cronFile = join(stateDir, 'cron', 'jobs.json');
 const sessionsDir = join(stateDir, 'agents', 'main', 'sessions');
-const templateDir = resolve(__dirname, '../../convos-platform');
 const sharedSkillsDir = resolve(__dirname, '../../convos-platform/skills');
 
 function clearDir(dir) {
@@ -49,7 +48,7 @@ function clearAgentCronJobs(jobsFile) {
 
 export default {
   name: 'openclaw',
-  bin: process.env.OPENCLAW_ENTRY || 'openclaw',
+  bin: process.env.OPENCLAW_ENTRY || resolve(__dirname, '../../harness/openclaw/node_modules/.bin/openclaw'),
   args: (prompt, session) => ['agent', '-m', prompt, '--agent', 'main', '--session-id', session],
   defaultPort: '18789',
   healthPath: '/__openclaw__/canvas/',
@@ -65,8 +64,8 @@ export default {
     extraArgs: ['--local'],
     reset() {
       if (!existsSync(workspaceDir)) mkdirSync(workspaceDir, { recursive: true });
-      writeFileSync(join(workspaceDir, 'MEMORY.md'), readFileSync(join(templateDir, 'MEMORY.md'), 'utf-8'));
-      writeFileSync(join(workspaceDir, 'USER.md'), readFileSync(join(templateDir, 'USER.md'), 'utf-8'));
+      writeFileSync(join(workspaceDir, 'MEMORY.md'), '# MEMORY\n');
+      writeFileSync(join(workspaceDir, 'USER.md'), '# USER\n');
       const dailyDir = join(workspaceDir, 'memory');
       if (existsSync(dailyDir)) {
         for (const f of readdirSync(dailyDir)) {

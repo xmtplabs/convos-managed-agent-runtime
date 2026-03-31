@@ -4,7 +4,7 @@
 **pool/** (Express API + Drizzle/Postgres pool manager), **runtime/** (two agent runtimes + shared workspace + evals), **dashboard/** (Next.js + Tailwind at assistants.convos.org). Use `pnpm` everywhere — never npm/yarn. Never update dependencies.
 
 ## Runtime: Convos Platform
-Skills, SOUL.md, and the AGENTS.md template live in `runtime/convos-platform/`. Both runtimes (OpenClaw and Hermes) are seeded from there at boot. The `AGENTS.md` template contains `<!-- SECTION:name -->` markers that get replaced with runtime-specific section files from `convos-platform/<runtime>/` (e.g. `convos-platform/openclaw/DELEGATION.md`). Missing sections are silently removed. Section files map to eval suites. Default to shared — only create section files for runtime-specific wiring. Use `$SKILLS_ROOT` in SKILL.md paths. Add deps to both `hermes/package.json` and `openclaw/package.json` when a shared skill needs a Node CLI.
+SOUL.md, skills, and the AGENTS.md template live in `runtime/convos-platform/`. Both runtimes (OpenClaw and Hermes) are seeded from there at boot. AGENTS.md is a manifest of `<!-- SECTION:name -->` markers assembled from `convos-platform/context/` (shared) and `convos-platform/context/<runtime>/` (runtime-specific, appended). Missing context files are silently removed. Context files map to eval suites. Personality/philosophy goes in SOUL.md; operational rules go in context files. Use `$SKILLS_ROOT` in SKILL.md paths. Add deps to both `harness/hermes/package.json` and `harness/openclaw/package.json` when a shared skill needs a Node CLI.
 
 ## Commands
 - Pool: `cd pool && pnpm dev` / `pnpm build` (tsc) / `pnpm test` / `pnpm db:migrate` / `pnpm db:studio`

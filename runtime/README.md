@@ -86,9 +86,9 @@ runtime/
 ### Adding new capabilities
 
 - **New shared skill** — add a directory under `runtime/convos-platform/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for script paths in SKILL.md.
-- **New shared instruction** — edit `convos-platform/AGENTS.md` for behavior that applies to both runtimes.
-- **Runtime-specific instruction** — add or edit a section file in `convos-platform/<runtime>/` (e.g. `convos-platform/openclaw/DELEGATION.md`) and add a `<!-- SECTION:name -->` marker in the template.
-- **New dependency for a skill** — add it to both `hermes/package.json` and `openclaw/package.json`.
+- **New shared instruction** — add `convos-platform/context/NAME.md` and a `<!-- SECTION:NAME -->` marker in `AGENTS.md`.
+- **Runtime-specific instruction** — add `convos-platform/context/<runtime>/NAME.md` (appended after shared context during assembly).
+- **New dependency for a skill** — add it to both `harness/hermes/package.json` and `harness/openclaw/package.json`.
 
 ## Scripts
 

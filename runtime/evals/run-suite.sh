@@ -32,10 +32,8 @@ if [ -n "${EVAL_RESULTS_DIR:-}" ]; then
   JSON_FLAG="--output $EVAL_RESULTS_DIR/${SUITE_NAME}.json"
 fi
 
-npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 $JSON_FLAG "$@" > "$TMPOUT" 2>&1
-EXIT_CODE=$?
-
-cat "$TMPOUT"
+npx promptfoo eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 $JSON_FLAG "$@" 2>&1 | tee "$TMPOUT"
+EXIT_CODE=${PIPESTATUS[0]:-$?}
 
 if [ "$EXIT_CODE" -eq 0 ]; then
   rm -f "$TMPOUT"

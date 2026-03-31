@@ -15,9 +15,7 @@ mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "
 _skill_count=0
 if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$HERMES_HOME/SOUL.md"
-  [ -f "$CONVOS_PLATFORM_DIR/MEMORY.md" ] && cp "$CONVOS_PLATFORM_DIR/MEMORY.md" "$HERMES_HOME/MEMORY.md"
-  [ -f "$CONVOS_PLATFORM_DIR/USER.md" ] && cp "$CONVOS_PLATFORM_DIR/USER.md" "$HERMES_HOME/USER.md"
-  brand_ok "platform" "synced (SOUL, MEMORY, USER)"
+  brand_ok "SOUL.md" "synced"
 
   if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
     for skill_dir in "$CONVOS_PLATFORM_DIR"/skills/*; do
