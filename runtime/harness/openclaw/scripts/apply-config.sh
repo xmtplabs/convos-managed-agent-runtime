@@ -82,6 +82,12 @@ for subdir in workspace extensions; do
   if [ "$subdir" = "workspace" ]; then
     if [ -n "$_MERGED_SRC" ]; then
       sync_workspace_dir "$_MERGED_SRC"
+      # Overlay runtime-specific workspace files (e.g. TOOLS.md)
+      if [ -d "$RUNTIME_DIR/workspace" ]; then
+        for _wf in "$RUNTIME_DIR/workspace"/*; do
+          [ -e "$_wf" ] && cp -R "$_wf" "$STATE_DIR/workspace/"
+        done
+      fi
     else
       sync_workspace_dir
     fi
