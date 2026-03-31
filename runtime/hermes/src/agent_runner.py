@@ -115,7 +115,7 @@ class AgentRunner:
     def __init__(
         self,
         *,
-        model: str = "anthropic/claude-opus-4-6",
+        model: str = "@preset/assistants-pro",
         openrouter_api_key: str = "",
         max_iterations: int = 90,
         hermes_home: str = "",
@@ -256,6 +256,42 @@ class AgentRunner:
         response = result.get("final_response", "")
         was_interrupted = result.get("interrupted", False)
 
+        # Extract reasoning texts: assistant messages from tool-calling turns.
+        # These are intermediate narration the model produced alongside tool
+        # calls — e.g. "Let me search for that..." before a web_search call.
+        # The third-party agent runner discards them from final_response but
+        # they're preserved in the messages list.
+        #
+        # To expose reasoning in the UI instead of suppressing it, the
+        # adapter (_dispatch_response in convos_adapter.py) can send these
+        # before the final response using either:
+        #
+        #   (a) <think> tags — wrap text so the Convos client can parse and
+        #       render differently (collapsible, dimmed, italic, etc.):
+        #         for text in agent._last_reasoning_texts:
+        #             await inst.send_message(f"<think>{text}</think>")
+        #
+        #   (b) XMTP content type — send as a distinct content type so the
+        #       client can render a dedicated reasoning bubble:
+        #         await inst.send_content_type("reasoning", text)
+        #       (requires Convos client + protocol support for the new type)
+        reasoning_texts: list[str] = []
+        for msg_entry in result.get("messages", []):
+            if msg_entry.get("role") != "assistant":
+                continue
+            if not msg_entry.get("tool_calls"):
+                continue
+            content = (msg_entry.get("content") or "").strip()
+            if content:
+                reasoning_texts.append(content)
+        if reasoning_texts:
+            logger.info(
+                "[reasoning] %d intermediate text(s) from tool-calling turns: %s",
+                len(reasoning_texts),
+                [t[:60] for t in reasoning_texts],
+            )
+        self._last_reasoning_texts = reasoning_texts
+
         # Normalize SILENT: the agent chose not to reply. Strip the marker
         # so it never appears in conversation history as assistant text.
         is_silent = bool(response and "SILENT" in response.strip().splitlines())
@@ -317,9 +353,7 @@ if __name__ == "__main__":
     parser.add_argument("-q", "--query", required=True)
     args, _ = parser.parse_known_args()
 
-    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-opus-4-6"
-    if model.startswith("openrouter/"):
-        model = model.removeprefix("openrouter/")
+    model = os.environ.get("HERMES_MODEL") or "@preset/assistants-pro"
 
     warm_imports()
     runner = AgentRunner(model=model, hermes_home=os.environ.get("HERMES_HOME", ""))

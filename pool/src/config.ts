@@ -22,7 +22,6 @@ export const config = {
   poolEnvironment:
     getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "local"),
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
-  instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
   railwayProjectId: getEnv("RAILWAY_PROJECT_ID"),
   railwayEnvironmentId: getEnv("RAILWAY_ENVIRONMENT_ID"),
@@ -79,7 +78,7 @@ export const config = {
   stripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET"),
 
   // Instance passthrough env vars
-  openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
+  defaultAgentName: getEnv("DEFAULT_AGENT_NAME", "Assistant"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   convosApiKey: getEnv("CONVOS_API_KEY"),
 

@@ -94,7 +94,6 @@ app.get("/api/pool/info", (_req, res) => {
   res.json({
     environment: config.poolEnvironment,
     branch: config.deployBranch,
-    model: config.instanceModel,
     railwayServiceId: config.railwayServiceId,
   });
 });
@@ -763,7 +762,6 @@ app.get("/admin", (req, res) => {
     railwayProjectId: config.railwayProjectId,
     railwayEnvironmentId: config.railwayEnvironmentId,
     runtimeImage: config.railwayRuntimeImage,
-    instanceModel: config.instanceModel,
     adminUrls: POOL_ADMIN_URLS as any,
     protectedInstances: config.protectedInstances,
     harnessImages: HARNESS_IMAGES,

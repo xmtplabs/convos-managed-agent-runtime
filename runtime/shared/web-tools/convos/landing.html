@@ -215,7 +215,7 @@
         fetch("/convos/conversation", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ name: "Convos Agent" }),
+          body: JSON.stringify({}),
         })
           .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; }); })
           .then(function (_) {
