@@ -257,6 +257,7 @@ async def _try_resume_from_credentials(cfg: RuntimeConfig) -> None:
 
 CUSTOM_INSTRUCTIONS_MARKER = "## Custom Instructions"
 PENDING_JOIN_TIMEOUT_SECONDS = 24 * 60 * 60
+PENDING_JOIN_MAX_RETRIES = 30
 
 
 def _set_provision_state(
@@ -527,7 +528,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
     env = cfg.xmtp_env
     deadline = time.time() + PENDING_JOIN_TIMEOUT_SECONDS
     attempt = 0
-    while time.time() < deadline:
+    while time.time() < deadline and attempt < PENDING_JOIN_MAX_RETRIES:
         attempt += 1
         await asyncio.sleep(min(15 * attempt, 120))  # backoff: 15s, 30s, 45s, ... 120s max
         if generation != _provision_generation:
@@ -551,13 +552,17 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                 await _notify_pool_pending_join("claimed", conversation_id=conversation_id)
                 logger.info("Pending join accepted: conversation %s", conversation_id[:12])
                 return
+            if status == "pending":
+                logger.info("Pending join retry %d: already joined, waiting for acceptance", attempt)
+                continue
         except Exception as err:
             logger.warning("Pending join retry %d failed: %s", attempt, err)
 
-    # Timed out
+    # Timed out or exhausted retries
     if generation == _provision_generation:
-        _set_provision_state("failed", invite_url=invite_url, last_error="Join timed out")
-        await _notify_pool_pending_join("tainted", error="Join timed out")
+        reason = f"Join exhausted {attempt} retries" if attempt >= PENDING_JOIN_MAX_RETRIES else "Join timed out"
+        _set_provision_state("failed", invite_url=invite_url, last_error=reason)
+        await _notify_pool_pending_join("tainted", error=reason)
 
 
 # ---- Pydantic models ----
