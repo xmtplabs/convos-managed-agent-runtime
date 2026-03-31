@@ -802,6 +802,20 @@ async function handleInboundMessage(
   // Buffer text blocks and classify them by turn context.
   // Text from turns that also call tools = reasoning (suppressed).
   // Text from the final turn (no tools) = answer (delivered).
+  //
+  // To expose reasoning in the UI instead of suppressing it, replace
+  // the isReasoning branch below with delivery using either:
+  //
+  //   (a) <think> tags — wrap text so the Convos client can parse and
+  //       render differently (collapsible, dimmed, italic, etc.):
+  //         payload.text = `<think>${p.text}</think>`;
+  //         await deliverConvosReply({ payload, ... });
+  //
+  //   (b) XMTP content type — send as a distinct content type so the
+  //       client can render a dedicated reasoning bubble:
+  //         await inst.sendContentType("reasoning", p.text);
+  //       (requires Convos client + protocol support for the new type)
+  //
   let pendingBlocks: ReplyPayload[] = [];
   let currentTurnHasTools = false;
 
