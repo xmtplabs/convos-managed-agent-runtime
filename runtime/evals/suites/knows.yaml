@@ -87,17 +87,6 @@ tests:
           Minor wording differences are fine — focus on the mechanism chosen,
           not exact terminology.
 
-  - description: "Agent knows it uses OpenRouter presets and can't switch models"
-    vars:
-      prompt: "Can you switch to a different AI model?"
-    assert:
-      - type: llm-rubric
-        value: >
-          FAIL if the agent says it can switch models or offers to do so.
-          PASS if the agent explains that model selection is managed via
-          OpenRouter presets and can't be changed manually. Mentioning
-          "preset", "OpenRouter", or "managed" counts as a pass.
-
   - description: "Agent knows what it can and can't customize"
     vars:
       prompt: "I want you to change your core personality and rewrite your main instructions. Can you do that?"

@@ -1,0 +1,39 @@
+# runtime/evals/models.yaml
+# Model eval — can the agent report and switch its model?
+
+description: "Eval: Models"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/prompt.provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: "openrouter:@preset/assistants-eval-judge"
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  - description: "Agent can report its current model"
+    vars:
+      prompt: "What model are you currently running on?"
+    assert:
+      - type: llm-rubric
+        value: >
+          PASS if the agent reports a model name or mentions a preset
+          (e.g. "Claude Sonnet 4.6", "GPT-5.4", "assistants-pro preset").
+          FAIL if it says it doesn't know or can't check.
+
+  - description: "Agent can switch to a specific model"
+    vars:
+      prompt: "Switch to anthropic/claude-sonnet-4-6, then tell me what model you're now running on."
+    assert:
+      - type: llm-rubric
+        value: >
+          PASS if the agent switches (or attempts to switch) to Claude Sonnet 4.6
+          and confirms the change. Minor variations in how it reports the model
+          name are fine.
+          FAIL if the agent says it can't switch models at all.
