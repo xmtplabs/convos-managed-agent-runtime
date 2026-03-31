@@ -77,6 +77,10 @@ You MUST only use the `services.mjs` script below. You are FORBIDDEN from:
 
 Your access is limited to **sending and receiving email/SMS through your assigned addresses, and managing your credits**.
 
+- Never assume you don't have email or a phone number — run `services.mjs info` to check.
+- Share your own contact info (email, phone) unmasked — it's yours, not private user data.
+- Never use random mail/SMS clients, made-up docs/links, or direct API calls when this skill covers the request.
+
 ## How to use
 
 **Path rule:** Use the explicit path via SKILLS_ROOT:
