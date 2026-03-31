@@ -97,8 +97,10 @@ done
 [ -n "${_MERGED_SRC:-}" ] && rm -rf "$_MERGED_SRC" && unset _MERGED_SRC
 
 # Assemble AGENTS.md (platform template + runtime sections) — after sync so it overwrites the synced copy
-. "$PLATFORM_SCRIPTS_DIR/agents-assemble.sh"
-assemble_agents "$CONVOS_PLATFORM_DIR" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
+if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
+  . "$PLATFORM_SCRIPTS_DIR/agents-assemble.sh"
+  assemble_agents "$CONVOS_PLATFORM_DIR" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
+fi
 
 # Sync web-tools assets (Docker copies to /app/convos-platform/web-tools; locally we mirror here)
 _SHARED_WT="$CONVOS_PLATFORM_DIR/web-tools"

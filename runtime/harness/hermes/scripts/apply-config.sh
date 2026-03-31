@@ -34,8 +34,10 @@ cp "$ROOT/config.yaml" "$HERMES_HOME/config.yaml"
 brand_ok "config.yaml" "synced"
 
 # ── AGENTS.md (platform template + runtime sections) → HERMES_HOME
-. "$PLATFORM_SCRIPTS_DIR/agents-assemble.sh"
-assemble_agents "$CONVOS_PLATFORM_DIR" "$HERMES_HOME/AGENTS.md" "hermes"
+if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
+  . "$PLATFORM_SCRIPTS_DIR/agents-assemble.sh"
+  assemble_agents "$CONVOS_PLATFORM_DIR" "$HERMES_HOME/AGENTS.md" "hermes"
+fi
 
 brand_ok "HERMES_HOME" "${HERMES_HOME#"$ROOT"/}"
 brand_done "Workspace ready"
