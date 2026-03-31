@@ -25,12 +25,12 @@ from pydantic import BaseModel
 
 from .agent_runner import warm_imports
 from .config import RuntimeConfig
-from .convos_adapter import ConvosAdapter
+from ..convos.convos_adapter import ConvosAdapter
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
 
 DEFAULT_AGENT_NAME = os.environ.get("DEFAULT_AGENT_NAME", "Assistant")
-from .xmtp_bridge import ConvosInstance
+from ..convos.xmtp_bridge import ConvosInstance
 from .stats import stats
 
 logger = logging.getLogger(__name__)
