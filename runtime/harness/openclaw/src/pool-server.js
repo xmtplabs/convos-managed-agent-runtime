@@ -399,6 +399,7 @@ function proxyRequest(req, res) {
         proxyRes.pipe(res);
       },
     );
+    proxyReq.setTimeout(120_000, () => { proxyReq.destroy(); json(res, 504, { error: "Gateway timeout" }); });
     proxyReq.on("error", () => json(res, 502, { error: "Gateway unavailable" }));
     req.pipe(proxyReq);
   } catch {
@@ -411,6 +412,7 @@ const net = require("node:net");
 
 server.on("upgrade", (req, socket, head) => {
   const proxySocket = net.connect(INTERNAL_PORT, "localhost", () => {
+    proxySocket.setTimeout(120_000, () => { proxySocket.destroy(); socket.destroy(); });
     // Rebuild the raw HTTP upgrade request to forward to the gateway
     const headers = [`${req.method} ${req.url} HTTP/1.1`];
     for (let i = 0; i < req.rawHeaders.length; i += 2) {
