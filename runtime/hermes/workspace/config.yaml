@@ -18,13 +18,15 @@ models:
 
 provider_routing:
   only: ["anthropic", "openai", "google-ai-studio", "perplexity"]
-  # allow_fallbacks is not yet wired through to the OpenRouter API call
-  # in the hermes-agent package — this field is currently ignored.
-  allow_fallbacks: false
 
-fallback_model:
-  provider: openrouter
-  model: google/gemini-3.1-pro-preview
+# Automatic failover when primary provider returns 429/529/503 or is
+# unreachable.  Hermes tries each entry in order; first success wins.
+# Replaces the old fallback_model field (v2026.3.30+).
+fallback_providers:
+  - provider: openrouter
+    model: google/gemini-3.1-pro-preview
+  - provider: openrouter
+    model: openai/gpt-5.4-mini
 
 platform_toolsets:
   cli: [web, terminal, file, vision, image_gen, browser, skills, todo, memory, session_search, clarify, code_execution, cronjob]

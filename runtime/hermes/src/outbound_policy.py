@@ -29,8 +29,18 @@ _OVERLOADED_PATTERNS = [
     "temporarily overloaded",
     "overloaded_error",
     "service unavailable",
+    "service temporarily unavailable",
     "high demand",
     "error code: 529",
+    "error code: 503",
+]
+
+# Hermes v2026.3.30+ retries 429s internally with backoff, but if retries
+# are exhausted the error leaks through in the new "Error code: 429" format.
+_RATE_LIMIT_PATTERNS = [
+    "error code: 429",
+    "rate limit exceeded",
+    "please retry after",
 ]
 
 _CREDIT_PATTERNS = [
@@ -45,6 +55,11 @@ _CREDIT_PATTERNS = [
 def _is_overloaded(text: str) -> bool:
     lower = text.lower()
     return any(p in lower for p in _OVERLOADED_PATTERNS)
+
+
+def _is_rate_limited(text: str) -> bool:
+    lower = text.lower()
+    return any(p in lower for p in _RATE_LIMIT_PATTERNS)
 
 
 def _is_credit_error(text: str) -> bool:
@@ -101,6 +116,12 @@ async def apply_outbound_policy(text: str) -> PolicyResult:
 
     # Suppress provider overloaded errors — don't send anything to the user
     if _is_overloaded(text):
+        return PolicyResult(suppress=True, text="")
+
+    # Suppress rate-limit errors that leak through after Hermes exhausts
+    # its internal retries — the fallback chain should have handled this,
+    # so surfacing a raw "Error code: 429" is confusing.
+    if _is_rate_limited(text):
         return PolicyResult(suppress=True, text="")
 
     return PolicyResult(suppress=False, text=text)
