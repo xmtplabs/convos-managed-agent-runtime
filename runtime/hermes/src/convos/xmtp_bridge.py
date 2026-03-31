@@ -263,6 +263,8 @@ class ConvosInstance:
                         **kwargs,
                     )
                     return instance, "joined", conv_match.group(1)
+                if identity_match and "(pending)" in msg:
+                    return None, "pending", None
             raise
 
         if data.get("status") == "joined" and data.get("conversationId"):
