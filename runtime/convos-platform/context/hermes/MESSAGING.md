@@ -17,4 +17,4 @@ To update your profile, include these markers on their own line in your text res
   PROFILEIMAGE:https://url        — update your profile image (must be public URL)
   METADATA:key=value              — set a profile metadata field (repeat for multiple)
 
-Markers are side effects — they get stripped from the message and executed by the platform. Do NOT use `convos conversation update-profile` or any CLI command for profile changes — use markers only.
+Markers are side effects — they get stripped from the message and executed by the platform. Always include a brief text confirmation alongside markers (e.g. "Done, updated your name.") so the user sees a response. A response with only markers and no text produces an empty message. Do NOT use `convos conversation update-profile` or any CLI command for profile changes — use markers only.
