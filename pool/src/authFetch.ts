@@ -2,7 +2,7 @@
  * authFetch — fetch wrapper with legacy POOL_API_KEY fallback.
  *
  * New instances authenticate pool-manager requests via their per-instance
- * OPENCLAW_GATEWAY_TOKEN. Old instances (deployed before the token unification)
+ * GATEWAY_TOKEN. Old instances (deployed before the token unification)
  * still expect the shared POOL_API_KEY.
  *
  * This helper tries the per-instance gatewayToken first. If the instance
@@ -36,7 +36,7 @@ export async function authFetch(url: string, opts: AuthFetchOpts = {}): Promise<
   const res = await fetch(url, { ...fetchOpts, headers });
 
   // Legacy fallback: if 401 and we have a shared POOL_API_KEY, retry with it.
-  // Old instances check POOL_API_KEY instead of OPENCLAW_GATEWAY_TOKEN.
+  // Old instances check POOL_API_KEY instead of GATEWAY_TOKEN.
   if (res.status === 401 && config.poolApiKey && config.poolApiKey !== gatewayToken) {
     headers.set("Authorization", `Bearer ${config.poolApiKey}`);
     return fetch(url, { ...fetchOpts, headers });

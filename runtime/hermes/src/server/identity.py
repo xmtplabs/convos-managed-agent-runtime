@@ -43,7 +43,9 @@ def ensure_workspace(workspace_dir: str) -> None:
     ws = Path(workspace_dir)
     ws.mkdir(parents=True, exist_ok=True)
 
-    bundled = Path(__file__).resolve().parent.parent.parent / "workspace"
+    from .paths import HERMES_ROOT
+
+    bundled = HERMES_ROOT / "workspace"
     if bundled.exists():
         for f in bundled.iterdir():
             dest = ws / f.name

@@ -12,10 +12,24 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
 let _sessionsCleared = false;
 
+/** Walk up from *start* to find the nearest directory containing *marker*. */
+function findAncestor(start, marker) {
+  let dir = resolve(start);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, marker))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+const RUNTIME_ROOT = findAncestor(__dirname, 'convos-platform') || resolve(__dirname, '../..');
+
 export function resolveConvos() {
   const candidates = [
     '/app/node_modules/.bin/convos',                          // Docker container
-    resolve(__dirname, runtime.convosPath),                    // runtime-specific local path
+    resolve(RUNTIME_ROOT, runtime.convosPath),                // runtime-specific local path
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;

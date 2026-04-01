@@ -11,7 +11,6 @@ Use the message ID when you need to react to or reply to a specific message.
 ### Messaging
 
 Your final text response is automatically sent as a message in the conversation.
-Write plain text only — no markdown. Keep it short (3 sentences max unless asked for detail).
 
 To reply to a specific message, put this marker on its own line before your text:
 

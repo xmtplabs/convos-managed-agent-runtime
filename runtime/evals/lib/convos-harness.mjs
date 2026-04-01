@@ -15,13 +15,25 @@ const ENV = process.env.XMTP_ENV || 'dev';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
-// Shared path resolution for Docker vs local.
+// Anchor-based path resolution — no parent-counting (#816).
 // ---------------------------------------------------------------------------
 
+/** Walk up from *start* to find the nearest directory containing *marker*. */
+function findAncestor(start, marker) {
+  let dir = resolve(start);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, marker))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+const PLATFORM_ROOT = findAncestor(__dirname, 'convos-platform') || '/app';
+
 export function resolveSkillsRoot() {
-  return existsSync('/app/convos-platform/skills')
-    ? '/app/convos-platform/skills'
-    : resolve(__dirname, '../../convos-platform/skills');
+  return join(PLATFORM_ROOT, 'convos-platform', 'skills');
 }
 
 
