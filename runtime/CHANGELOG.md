@@ -1,3 +1,10 @@
+## 0.2.2
+- 2x faster web search powered by Exa
+- Email and SMS auto-provision on first use — no confirmation prompt
+- Image input — agents can see and respond to photos, screenshots, and diagrams
+- Agents no longer narrate tool use — you just see the result
+- Email and SMS can be removed when no longer needed
+
 ## 0.2.1 — Webhooks
 - Real-time email and SMS: notifications are now pushed instantly via webhooks instead of polling every 60 seconds
 - Recurring tasks use cron jobs: scheduled agent tasks (morning check-ins, RSS feeds) run on proper cron instead of the poller loop
