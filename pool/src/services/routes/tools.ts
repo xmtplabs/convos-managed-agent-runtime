@@ -4,6 +4,7 @@ import { db } from "../../db/connection";
 import { instanceInfra, instanceServices } from "../../db/schema";
 import * as railway from "../providers/railway";
 import * as openrouter from "../providers/openrouter";
+import * as exa from "../providers/exa";
 import * as agentmail from "../providers/agentmail";
 import * as telnyx from "../providers/telnyx";
 import { config } from "../../config";
@@ -55,6 +56,18 @@ toolsRouter.post("/provision/:instanceId/:toolId", async (req, res) => {
       resourceMeta.limit = limit;
       // OpenRouter key is still pushed as env var (instances call OpenRouter directly)
       pushEnvToRailway = { OPENROUTER_API_KEY: key };
+    } else if (toolId === "exa") {
+      if (!config.exaServiceKey) {
+        res.status(400).json({ error: "EXA_SERVICE_KEY not configured" });
+        return;
+      }
+      const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
+      const rateLimit = (toolConfig?.rateLimit as number) ?? config.exaKeyRateLimit;
+      const { id } = await exa.createKey(keyName, rateLimit);
+      resourceId = id;
+      envValue = id; // The UUID IS the API key
+      resourceMeta.rateLimit = rateLimit;
+      pushEnvToRailway = { EXA_API_KEY: id };
     } else if (toolId === "agentmail") {
       if (!config.agentmailApiKey) {
         res.status(400).json({ error: "AGENTMAIL_API_KEY not configured" });
@@ -128,6 +141,8 @@ toolsRouter.delete("/destroy/:instanceId/:toolId/:resourceId", async (req, res) 
     let deleted = false;
     if (toolId === "openrouter") {
       deleted = await openrouter.deleteKey(resourceId);
+    } else if (toolId === "exa") {
+      deleted = await exa.deleteKey(resourceId);
     } else if (toolId === "agentmail") {
       deleted = await agentmail.deleteInbox(resourceId);
     } else if (toolId === "telnyx") {
