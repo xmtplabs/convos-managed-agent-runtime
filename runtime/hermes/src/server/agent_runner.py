@@ -188,7 +188,7 @@ class AgentRunner:
         reasoning_config = None
         try:
             from hermes_constants import parse_reasoning_effort
-            effort = str(cfg.get("agent", {}).get("reasoning_effort", "") or "").strip()
+            effort = str((cfg.get("agent") or {}).get("reasoning_effort", "") or "").strip()
             if not effort:
                 effort = os.environ.get("HERMES_REASONING_EFFORT", "")
             if effort:
@@ -217,25 +217,22 @@ class AgentRunner:
             reasoning_config=reasoning_config,
         )
 
-        # Fix upstream bug: Hermes checks `bool(getattr(client, "is_closed", False))`
-        # but openai SDK's is_closed is a method, not a property — so the bound
-        # method object is always truthy, causing every API call to think the
-        # shared client is closed and recreate it (2 extra TCP+TLS round trips).
+        # Fix upstream bug (NousResearch/hermes-agent#4377): Hermes checks
+        # bool(getattr(client, "is_closed", False)) but openai SDK's is_closed
+        # is a method, not a property — the bound method object is always truthy,
+        # causing every API call to recreate the shared client unnecessarily.
         @staticmethod
         def _is_openai_client_closed_fixed(client):
             from unittest.mock import Mock
             if isinstance(client, Mock):
                 return False
-            is_closed = getattr(client, "is_closed", None)
+            is_closed = getattr(client, "is_closed", False)
             if callable(is_closed):
-                if is_closed():
-                    return True
-            elif bool(is_closed):
+                is_closed = is_closed()
+            if bool(is_closed):
                 return True
             http_client = getattr(client, "_client", None)
-            if http_client is not None:
-                return bool(getattr(http_client, "is_closed", False))
-            return False
+            return bool(getattr(http_client, "is_closed", False))
 
         self._agent._is_openai_client_closed = _is_openai_client_closed_fixed
         return self._agent
