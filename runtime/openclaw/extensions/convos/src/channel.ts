@@ -1199,8 +1199,8 @@ async function dispatchGreeting(
 
 /**
  * Dispatch a background notification (email/SMS) as a synthetic system message.
- * The agent sees it and responds immediately over XMTP, but the notification
- * prompt itself is never sent to the conversation (same as greeting dispatch).
+ * Called by POST /convos/notify — the pool forwards AgentMail/Telnyx webhooks
+ * here. In CI, the runtime is reachable via ngrok tunnel (see lib/ngrok.sh).
  */
 export async function dispatchNotification(text: string): Promise<void> {
   // Wait for greeting to complete so the notification doesn't race with the
