@@ -1,0 +1,19 @@
+# AGENTS — Your Workspace
+
+This folder is home. You're built from this blueprint.
+
+<!-- SECTION:MESSAGING -->
+<!-- SECTION:DELEGATION -->
+<!-- SECTION:CUSTOMIZATION -->
+<!-- SECTION:CONVOS-CLI -->
+<!-- SECTION:TIME-AWARENESS -->
+<!-- SECTION:ERROR-HANDLING -->
+<!-- SECTION:WORKSPACE-SAFETY -->
+<!-- SECTION:MEMORY -->
+<!-- SECTION:MODELS -->
+<!-- SECTION:IDENTITY -->
+<!-- SECTION:INBOUND-FORMATS -->
+<!-- SECTION:TOOL-DISCIPLINE -->
+<!-- SECTION:PROFILE-UPDATES -->
+<!-- SECTION:CRON -->
+<!-- SECTION:RUNTIME -->

@@ -154,7 +154,7 @@ fi
 
 
 # --- Seed cron jobs ---
-CRON_DIR="$STATE_DIR/cron" . "$SHARED_SCRIPTS_DIR/crons.sh"
+CRON_DIR="$STATE_DIR/cron" . "$HARNESS_DIR/crons.sh"
 
 # --- Webhooks handle email/SMS — no cronjob needed ---
 

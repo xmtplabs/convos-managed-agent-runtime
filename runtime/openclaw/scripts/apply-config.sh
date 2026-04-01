@@ -65,13 +65,15 @@ sync_workspace_dir() {
   copy_tree_snapshot "$src_dir" "$base_dir"
 }
 
-# Stage merged workspace source: shared files + runtime overlay → single sync call.
+# Stage merged workspace source: convos-platform files + runtime overlay → single sync call.
 _MERGED_SRC=""
-if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
+if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
-  cp -R "$SHARED_WORKSPACE_DIR/." "$_MERGED_SRC/"
+  cp -R "$CONVOS_PLATFORM_DIR/." "$_MERGED_SRC/"
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
-  brand_ok "shared-workspace" "merged with runtime"
+  # Copy TOOLS.md from harness/openclaw if present
+  [ -n "${HARNESS_DIR:-}" ] && [ -f "$HARNESS_DIR/openclaw/TOOLS.md" ] && cp "$HARNESS_DIR/openclaw/TOOLS.md" "$_MERGED_SRC/TOOLS.md"
+  brand_ok "convos-platform" "merged with runtime"
 fi
 
 for subdir in workspace extensions; do
@@ -97,16 +99,31 @@ done
 
 mkdir -p "$STATE_DIR"
 
-# Assemble AGENTS.md (shared base + runtime extra) — after sync so it overwrites the synced copy
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
-  assemble_agents "$SHARED_WORKSPACE_DIR" "$RUNTIME_DIR/workspace/agents-extra.md" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
+# Assemble AGENTS.md (manifest + context files) — after sync so it overwrites the synced copy
+if [ -n "${HARNESS_DIR:-}" ] && [ -f "$HARNESS_DIR/lib/agents-assemble.sh" ]; then
+  . "$HARNESS_DIR/lib/agents-assemble.sh"
+  assemble_agents "$CONVOS_PLATFORM_DIR" "openclaw" "$STATE_DIR/workspace/AGENTS.md"
 else
-  echo "⚠ SHARED_SCRIPTS_DIR not set — skipping agents-assemble" >&2
+  echo "⚠ HARNESS_DIR not set — skipping agents-assemble" >&2
 fi
 
-# Sync shared web-tools assets (Docker copies to /app/web-tools; locally we mirror here)
-_SHARED_WT="$ROOT/../shared/web-tools"
+# Generate CONVOS_PLATFORM.md for channel.ts backward compat
+_cp="$STATE_DIR/workspace/CONVOS_PLATFORM.md"
+: > "$_cp"
+for _ctx_name in MESSAGING TOOL-DISCIPLINE INBOUND-FORMATS CONVOS-CLI PROFILE-UPDATES CRON; do
+  _ctx_runtime="$CONVOS_PLATFORM_DIR/context/openclaw/$_ctx_name.md"
+  _ctx_shared="$CONVOS_PLATFORM_DIR/context/$_ctx_name.md"
+  if [ -f "$_ctx_runtime" ]; then
+    cat "$_ctx_runtime" >> "$_cp"; printf '\n---\n\n' >> "$_cp"
+  elif [ -f "$_ctx_shared" ]; then
+    cat "$_ctx_shared" >> "$_cp"; printf '\n---\n\n' >> "$_cp"
+  fi
+done
+brand_ok "CONVOS_PLATFORM.md" "generated (openclaw)"
+
+# Sync shared web-tools assets
+_SHARED_WT="${CONVOS_PLATFORM_DIR:-}/web-tools"
+[ ! -d "$_SHARED_WT" ] && _SHARED_WT="$ROOT/../convos-platform/web-tools"
 if [ -d "$_SHARED_WT" ]; then
   mkdir -p "$STATE_DIR/web-tools"
   cp -r "$_SHARED_WT/"* "$STATE_DIR/web-tools/"

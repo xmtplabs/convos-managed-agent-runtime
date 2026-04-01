@@ -7,7 +7,8 @@ Pre-warmed AI assistant containers on XMTP/Convos — Express pool manager, Open
 - `pool/` — Pool manager: Express API + Postgres (instance lifecycle, providers, admin dashboard)
 - `runtime/openclaw/` — OpenClaw harness (Node.js, primary runtime)
 - `runtime/hermes/` — Hermes harness (Python FastAPI, experimental)
-- `runtime/shared/workspace/` — Shared skills, SOUL.md, AGENTS-base.md (both runtimes copy at boot)
+- `runtime/convos-platform/` — Agent instructions (AGENTS.md manifest, SOUL.md, context files, skills, web-tools)
+- `runtime/harness/` — Shared boot helpers and runtime-specific workspace files (TOOLS.md)
 - `workers/credits-sweep/` — Cloudflare Worker: cron-based OpenRouter credit spend tracking → PostHog
 - `dashboard/` — Playroom: Next.js app at assistants.convos.org
 
@@ -80,20 +81,21 @@ Branch flow: `feature-branch → dev → staging → main`
 
 <important if="you are adding or modifying skills, AGENTS.md, SOUL.md, or runtime workspace files">
 
-Agent instructions follow a 5-layer architecture. Each layer has a clear boundary — don't duplicate content across layers:
+Agent instructions are assembled from `runtime/convos-platform/` at boot via `<!-- SECTION:NAME -->` markers:
 
-| Layer | File(s) | Contains | Does NOT contain |
-|---|---|---|---|
-| 1. Personality | `SOUL.md` | Who you are, philosophy, group behavior | Platform mechanics, tool names |
-| 2. Behavioral Rules | `AGENTS-base.md` | Communication limits, boundaries, privacy, capability awareness, proactivity, loop guard, silence concept, emotional intelligence | SILENT marker syntax, message format, platform-specific details |
-| 3. Runtime Rules | `agents-extra.md` | Delegation tool names, memory mechanisms | Shared rules or platform mechanics |
-| 4. Platform Context | `CONVOS_PLATFORM.md` (both runtimes) | Tool names, SILENT/PROFILE markers, CLI commands, message format, don't narrate | Behavioral reasoning (when to be silent, 3-sentence limit) |
-| 5. Skills | `skills/profile-update/`, `skills/services/`, `skills/convos-runtime/` | Complex behavioral guidance loaded on demand | Platform mechanics (defers to layer 4) |
+| Layer | Location | Contains |
+|---|---|---|
+| 1. Personality | `convos-platform/SOUL.md` | Who you are, philosophy, privacy, emotional intelligence |
+| 2. Shared context | `convos-platform/context/*.md` | Behavioral rules, communication limits, delegation, memory philosophy |
+| 3. Runtime context | `convos-platform/context/<runtime>/*.md` | Tool-specific instructions (delegation tool, messaging markers, model switching) |
+| 4. Skills | `convos-platform/skills/` | Complex behavioral guidance loaded on demand |
+
+Assembly: `convos-platform/AGENTS.md` is a manifest of `<!-- SECTION:NAME -->` markers. Each marker resolves `context/NAME.md` (shared) + `context/<runtime>/NAME.md` (appended). Missing files are silently skipped. CONVOS_PLATFORM.md is generated at boot from the relevant context files for backward compat.
 
 Rules:
-- Default to shared: new skills go in `runtime/shared/workspace/skills/`, new agent instructions go in `AGENTS-base.md`.
-- AGENTS.md is assembled (`AGENTS-base.md` + runtime's `agents-extra.md`). Never check in a standalone AGENTS.md.
-- Platform mechanics (tool syntax, markers, CLI commands) go in `CONVOS_PLATFORM.md`, not `AGENTS-base.md`.
+- Default to shared: new skills go in `runtime/convos-platform/skills/`, new shared context in `convos-platform/context/`.
+- Runtime-specific overrides go in `convos-platform/context/openclaw/` or `convos-platform/context/hermes/`.
+- AGENTS.md is assembled at boot from context files. Never check in a standalone AGENTS.md.
 - Use `$SKILLS_ROOT` in SKILL.md paths, not `$OPENCLAW_STATE_DIR` or `$HERMES_HOME`.
 - Add deps to both `hermes/package.json` and `openclaw/package.json` when a shared skill needs a Node CLI.
 

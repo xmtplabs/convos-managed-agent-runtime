@@ -1,7 +1,7 @@
 /**
  * Outbound text policy — rewrite or suppress agent text before sending to users.
  *
- * Rules loaded from shared/outbound-policy.json so both runtimes
+ * Rules loaded from convos-platform/outbound-policy.json so both runtimes
  * share the same patterns, thresholds, and messages.
  */
 
@@ -17,8 +17,8 @@ type OutboundTextPolicyResult = {
 // ── Load shared policy ──────────────────────────────────────────────────
 
 const POLICY_PATHS = [
-  "/app/shared/outbound-policy.json",
-  resolve(__dirname, "../../../../shared/outbound-policy.json"),
+  "/app/convos-platform/outbound-policy.json",
+  resolve(__dirname, "../../../../convos-platform/outbound-policy.json"),
 ];
 
 let policy: Record<string, any> = {};

@@ -25,7 +25,7 @@ const cronOutputDir = join(hermesHome, 'cron', 'output');
 const memoriesDir = join(hermesHome, 'memories');
 const sessionsDir = join(hermesHome, 'sessions');
 const stateDb = join(hermesHome, 'state.db');
-const sharedSkillsDir = resolve(__dirname, '../../shared/workspace/skills');
+const sharedSkillsDir = resolve(__dirname, '../../convos-platform/skills');
 
 function clearDir(dir) {
   if (!existsSync(dir)) return;
