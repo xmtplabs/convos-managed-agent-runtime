@@ -18,6 +18,9 @@ keys_show_pool() {
 keys_show_services() {
   brand_subsection "services"
   [ -n "$OPENROUTER_API_KEY" ] && brand_ok "OPENROUTER_API_KEY" "set" || brand_dim "OPENROUTER_API_KEY" "not set"
+  [ -n "$EXA_API_KEY" ] && brand_ok "EXA_API_KEY" "set" || brand_dim "EXA_API_KEY" "not set"
+  [ -n "$CONVOS_API_KEY" ] && brand_ok "CONVOS_API_KEY" "set" || brand_dim "CONVOS_API_KEY" "not set"
+  [ -n "$POSTHOG_API_KEY" ] && brand_ok "POSTHOG_API_KEY" "set" || brand_dim "POSTHOG_API_KEY" "not set"
 }
 
 keys_ensure_gateway_token() {

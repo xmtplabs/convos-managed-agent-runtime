@@ -5,7 +5,7 @@
 set -e
 
 . "$(dirname "$0")/init.sh"
-ENV_FILE="$ROOT/.env"
+ENV_FILE="${_ENV_FILE:-$ROOT/.env}"
 
 if [ -f "$ENV_FILE" ]; then
   set -a; . "$ENV_FILE" 2>/dev/null || true; set +a
