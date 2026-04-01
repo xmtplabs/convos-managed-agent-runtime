@@ -321,3 +321,15 @@ export function responseTimeBelowThreshold(output, context) {
       : `Response time ${actual}ms exceeds ${threshold}ms threshold`,
   };
 }
+
+export function agentUsedReplyTo(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pass = meta.agentUsedReply === true;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Agent response was sent as a reply (contentType: reply)'
+      : 'Agent response was plain text, not a reply — replyTo pipeline may be broken',
+  };
+}

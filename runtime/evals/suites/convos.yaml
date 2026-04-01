@@ -71,3 +71,13 @@ tests:
           Pass if the AGENT's response mentions or lists any participants, members,
           identities, addresses, or people in the group.
           Fail only if the AGENT refused, said it doesn't know, or gave no answer.
+
+  - description: "Agent uses replyTo when referencing an earlier message"
+    vars:
+      prompt: "What was the secret word I mentioned earlier? Reply to that message."
+    metadata:
+      replyToEarlier: true
+      setupMessage: "Remember this: the secret word is ABRACADABRA"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentUsedReplyTo"
