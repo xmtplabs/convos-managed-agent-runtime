@@ -6,7 +6,8 @@
   },
   "scripts": {
     "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/start.sh",
-    "evals": "sh evals/eval.sh"
+    "evals": "sh evals/eval.sh",
+    "ngrok": "ngrok http 18789 --url=convos-local-runtime.ngrok.app"
   },
   "dependencies": {
     "@xmtp/convos-cli": "0.7.0",
