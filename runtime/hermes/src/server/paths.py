@@ -40,12 +40,12 @@ def _find_ancestor(start: Path, marker: str) -> Path | None:
 
 
 HERMES_ROOT: Path = (
-    Path(os.environ["HERMES_ROOT"]) if "HERMES_ROOT" in os.environ
+    Path(os.environ["HERMES_ROOT"]).resolve() if "HERMES_ROOT" in os.environ
     else _find_ancestor(_HERE, "requirements.txt") or _HERE
 )
 
 PLATFORM_ROOT: Path = (
-    Path(os.environ["PLATFORM_ROOT"]) if "PLATFORM_ROOT" in os.environ
+    Path(os.environ["PLATFORM_ROOT"]).resolve() if "PLATFORM_ROOT" in os.environ
     else _find_ancestor(_HERE, "convos-platform") or HERMES_ROOT
 )
 
