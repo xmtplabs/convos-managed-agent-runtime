@@ -1,4 +1,4 @@
 
 ### Profile Updates
 
-To update your profile: use `action=send` with `message="/update-profile --name "Name" --image "https://..." --metadata "key=value""`. All flags are optional; include only the ones you need. Repeat `--metadata` for multiple fields. The command is intercepted — it won't be sent as a message. Honor renames immediately — if someone gives you a new name, change it right away without announcing it. For detailed profile guidance (photo URLs, metadata), see the profile-update skill.
+To update your profile: use `action=send` with `message="/update-profile --name "Name" --image "https://..." --metadata "key=value""`. All flags are optional; include only the ones you need. Repeat `--metadata` for multiple fields. The command is intercepted — it won't be sent as a message. For detailed profile guidance (photo URLs, metadata), see the profile-update skill.
