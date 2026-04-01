@@ -3,18 +3,18 @@
 # Requires: ROOT must be set before sourcing.
 
 # ── Convos platform (agent instructions, skills, web-tools) ─────────────
-if [ -d "$ROOT/../convos-platform" ]; then
+if [ -f "$ROOT/../convos-platform/AGENTS.md" ]; then
   CONVOS_PLATFORM_DIR="$ROOT/../convos-platform"
-elif [ -d "/app/convos-platform" ]; then
+elif [ -f "/app/convos-platform/AGENTS.md" ]; then
   CONVOS_PLATFORM_DIR="/app/convos-platform"
 else
   CONVOS_PLATFORM_DIR=""
 fi
 
 # ── Lib (shared boot helpers, assembly, crons) ──────────────────────────
-if [ -d "$ROOT/../lib" ]; then
+if [ -f "$ROOT/../lib/brand.sh" ]; then
   LIB_DIR="$ROOT/../lib"
-elif [ -d "/app/lib" ]; then
+elif [ -f "/app/lib/brand.sh" ]; then
   LIB_DIR="/app/lib"
 else
   LIB_DIR=""
