@@ -28,7 +28,7 @@ COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/openclaw/workspace /app/openclaw/workspace
 COPY runtime/openclaw/extensions /app/openclaw/extensions
 COPY runtime/convos-platform /app/convos-platform
-COPY runtime/harness /app/harness
+COPY runtime/lib /app/lib
 COPY runtime/openclaw/scripts ./scripts
 COPY runtime/openclaw/src ./src
 COPY runtime/package.json /app/runtime-version.json

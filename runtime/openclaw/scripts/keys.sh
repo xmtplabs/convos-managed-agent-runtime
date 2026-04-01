@@ -28,10 +28,10 @@ brand_dim "" "validate API keys and write .env"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 [ -n "$_RUNTIME_IMAGE" ] && brand_ok "IMAGE" "$_RUNTIME_IMAGE" || brand_dim "IMAGE" "unknown"
 
-if [ -n "${HARNESS_DIR:-}" ] && [ -f "$HARNESS_DIR/lib/keys-common.sh" ]; then
-  . "$HARNESS_DIR/lib/keys-common.sh"
+if [ -n "${LIB_DIR:-}" ] && [ -f "$LIB_DIR/keys-common.sh" ]; then
+  . "$LIB_DIR/keys-common.sh"
 else
-  echo "⚠ HARNESS_DIR not set — aborting keys.sh" >&2
+  echo "⚠ LIB_DIR not set — aborting keys.sh" >&2
   exit 1
 fi
 

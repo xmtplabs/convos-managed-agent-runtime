@@ -64,7 +64,7 @@ jobs:
             esac
           done <<< "$FILES"
 
-          # Shared files (runtime/convos-platform/*, runtime/harness/*, runtime/evals/*, etc.)
+          # Shared files (runtime/convos-platform/*, runtime/lib/*, runtime/evals/*, etc.)
           # affect both runtimes
           if [ "$HAS_SHARED" = "true" ]; then
             HAS_OPENCLAW=true
@@ -111,7 +111,7 @@ jobs:
             lifecycle:
               - 'runtime/openclaw/scripts/**'
               - 'runtime/hermes/scripts/**'
-              - 'runtime/harness/**'
+              - 'runtime/lib/**'
             services:
               - 'runtime/convos-platform/skills/services/**'
             # webhooks: disabled until ngrok is set up in CI (#773)
@@ -126,7 +126,7 @@ jobs:
               - 'runtime/convos-platform/context/CRON.md'
               - 'runtime/convos-platform/context/*/CRON.md'
               - 'runtime/convos-platform/web-tools/skills/**'
-              - 'runtime/harness/crons.sh'
+              - 'runtime/lib/crons.sh'
             models:
               - 'runtime/openclaw/openclaw.json'
               - 'runtime/hermes/workspace/config.yaml'

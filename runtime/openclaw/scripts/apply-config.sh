@@ -71,8 +71,6 @@ if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
   cp -R "$CONVOS_PLATFORM_DIR/." "$_MERGED_SRC/"
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
-  # Copy TOOLS.md from harness/openclaw if present
-  [ -n "${HARNESS_DIR:-}" ] && [ -f "$HARNESS_DIR/openclaw/TOOLS.md" ] && cp "$HARNESS_DIR/openclaw/TOOLS.md" "$_MERGED_SRC/TOOLS.md"
   brand_ok "convos-platform" "merged with runtime"
 fi
 
@@ -100,12 +98,12 @@ done
 mkdir -p "$STATE_DIR"
 
 # Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests
-if [ -n "${HARNESS_DIR:-}" ] && [ -f "$HARNESS_DIR/lib/agents-assemble.sh" ]; then
-  . "$HARNESS_DIR/lib/agents-assemble.sh"
+if [ -n "${LIB_DIR:-}" ] && [ -f "$LIB_DIR/agents-assemble.sh" ]; then
+  . "$LIB_DIR/agents-assemble.sh"
   assemble_agents "$CONVOS_PLATFORM_DIR" "openclaw" "$STATE_DIR/workspace/AGENTS.md"
   assemble_agents "$CONVOS_PLATFORM_DIR" "openclaw" "$STATE_DIR/workspace/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
 else
-  echo "⚠ HARNESS_DIR not set — skipping agents-assemble" >&2
+  echo "⚠ LIB_DIR not set — skipping agents-assemble" >&2
 fi
 
 # Sync shared web-tools assets

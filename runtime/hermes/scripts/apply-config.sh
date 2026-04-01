@@ -43,7 +43,7 @@ for skill_dir in "$WORKSPACE_DIR"/skills/*; do
 done
 
 # ── Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests ──────
-. "$HARNESS_DIR/lib/agents-assemble.sh"
+. "$LIB_DIR/agents-assemble.sh"
 assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$ROOT/AGENTS.md"
 assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$HERMES_HOME/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
 

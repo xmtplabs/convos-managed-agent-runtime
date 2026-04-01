@@ -18,9 +18,9 @@ runtime/convos-platform:
   - changed-files:
       - any-glob-to-any-file: 'runtime/convos-platform/**'
 
-runtime/harness:
+runtime/lib:
   - changed-files:
-      - any-glob-to-any-file: 'runtime/harness/**'
+      - any-glob-to-any-file: 'runtime/lib/**'
 
 dashboard:
   - changed-files:
