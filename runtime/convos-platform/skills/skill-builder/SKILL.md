@@ -2,7 +2,7 @@
 name: skill-builder
 description: |
   Guides you through creating a custom skill for this group via multi-turn conversation.
-  USE WHEN: You first join a conversation and have no skill configured, OR when the group
+  USE WHEN: The group tells you what they need help with, OR when the group
   asks you to become something new, create a new skill, or change what you do.
   DON'T USE WHEN: You already have an active skill and the group is just chatting normally.
 ---
@@ -13,22 +13,14 @@ Turn a group's needs into a fully formed agent skill through natural conversatio
 
 ## When to activate
 
-- **On greeting** — if no active skill exists (no `active` key in `$SKILLS_ROOT/generated/skills.json`)
+- **After discovery** — the group has told you what they need
 - **On request** — when the group asks you to become something new, add a skill, or change your role
 
 ## The flow
 
 Follow these steps in order. Do NOT skip the approval step.
 
-### 1. Open-ended discovery (one message)
-
-Ask one open-ended question. No choices — you have zero context.
-
-> "Hey! I'm a blank canvas — what does this group need help with?"
-
-Keep it to one sentence. Don't list your capabilities. Don't mention tools.
-
-### 2. Assess scope before drilling in
+### 1. Assess scope before drilling in
 
 Before asking detailed questions, assess what you heard:
 
@@ -36,7 +28,7 @@ Before asking detailed questions, assess what you heard:
 - **If the answer names multiple unrelated things** ("we need a recipe finder AND a budget tracker AND a workout planner") — flag it: "Those sound like different agents. Which one should we start with?" One skill at a time.
 - **If the answer is specific enough** ("we need a fantasy football commissioner") — move to follow-ups.
 
-### 3. Follow-up questions (2-3 messages, one question per message)
+### 2. Follow-up questions (2-3 messages, one question per message)
 
 **One question per message. Never batch questions.** If a topic needs more exploration, break it into multiple questions.
 
@@ -100,15 +92,15 @@ Not every skill needs these. A trivia bot doesn't need to know location. A fanta
 - If someone gives a long, detailed answer — you may not need all 3 follow-ups. 2 might be enough. Don't ask questions you already know the answer to.
 - If multiple group members chime in with different preferences — acknowledge both and find the middle ground, or ask the group to pick.
 
-### 4. Propose the direction before generating
+### 3. Propose the direction before generating
 
 Before you generate the full skill, present a quick direction check — 2-3 sentences max:
 
 > "So here's what I'm thinking: a trash-talking fantasy football commissioner who tracks trades, roasts bad deals, and nudges on waiver deadlines. Competitive but not mean. Sound right, or should I adjust the direction?"
 
-This is lighter than the full summary in step 7. It's a quick "am I on the right track?" before you do the work of generating. If they say yes, generate. If they push back, adjust and re-check.
+This is lighter than the full summary in step 6. It's a quick "am I on the right track?" before you do the work of generating. If they say yes, generate. If they push back, adjust and re-check.
 
-### 5. Generate the skill
+### 4. Generate the skill
 
 Synthesize all the answers into a full skill definition. Use the Agent Blueprint below as your template. You are generating this yourself — no external API call needed.
 
@@ -132,7 +124,7 @@ The output must match this schema (same as the pool `agent_skills` table):
 
 **IMPORTANT: The `prompt` field must contain the entire system prompt as a string — NOT a file path or reference like "See SKILL.md in generated/...". The full prompt text must be inline in the JSON.** This is what gets displayed on the skill page.
 
-### 6. Find a profile image
+### 5. Find a profile image
 
 Search for a profile image that matches the skill's identity. Use the agent name, emoji, and category as search terms (e.g., search for "hiking boots emoji" or "football commissioner icon").
 
@@ -146,9 +138,9 @@ Search for a profile image that matches the skill's identity. Use the agent name
 
 **Validate the URL before proceeding** — fetch it and confirm it returns 200 with an image content type. If you can't find a valid image, skip this step. A missing profile image is fine; a broken one is not.
 
-Store the validated URL — you'll apply it in step 8 (activation). Do NOT set the profile image yet.
+Store the validated URL — you'll apply it in step 7 (activation). Do NOT set the profile image yet.
 
-### 7. Write the skill and share the page
+### 6. Write the skill and share the page
 
 1. Write the skill entry to `$SKILLS_ROOT/generated/skills.json`:
    - If the file exists, read it and append to the `skills` array
@@ -175,19 +167,19 @@ node "$SKILLS_ROOT/skill-builder/scripts/skill-url.mjs" <slug>
 
 **Do NOT apply the skill until the group approves.** This is a hard gate.
 
-### 8. Apply the skill
+### 7. Apply the skill
 
 On approval:
 
 1. Set `"active": "<slug>"` in `$SKILLS_ROOT/generated/skills.json`
 2. Update your profile name: use your platform's profile update tool with the `agentName`
-3. Update your profile image with the validated URL from step 6 (skip if no image was found)
+3. Update your profile image with the validated URL from step 5 (skip if no image was found)
 4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `WHEN: immediately`, create the cron job NOW, before sending any message. Skip items marked `WHEN: after learning <context>` — you don't have the context yet. Do not move to step 5 until every immediate automation is actually running.
 5. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt. Only mention automations you actually set up in step 4. If some are deferred, say what you're waiting to learn. Never claim something is running if you didn't create it.
 
 **After activation, as you converse naturally:** When you learn a piece of context that unlocks a deferred ENGINE item (e.g., the user mentions their wake time), set up that automation right then. Don't ask permission for automations the user already approved in the skill — just set them up and confirm: "Got it, 7:30 wake time — I'll check in with you every morning."
 
-### 9. Group readiness check
+### 8. Group readiness check
 
 After applying the skill, check if the group is ready to use it. Look at the conversation members:
 
@@ -198,7 +190,7 @@ After applying the skill, check if the group is ready to use it. Look at the con
 
 This should feel natural, not like a checklist step. One sentence, then move on. Don't block on it — if the user ignores the suggestion, start being useful immediately.
 
-### 10. Versioned updates
+### 9. Versioned updates
 
 When the group asks to modify the current skill:
 
@@ -209,7 +201,7 @@ When the group asks to modify the current skill:
 5. On approval: update the entry in `skills.json` (same `id` and `slug`, new `updatedAt`), overwrite `$SKILLS_ROOT/generated/<slug>/SKILL.md`, and apply any new ENGINE automations
 6. On rejection: discard the changes — the original skill remains untouched
 
-When asked to become something entirely new: run the full flow from step 1.
+When asked to become something entirely new: ask the group what they need, then run the full flow from step 1.
 
 ---
 

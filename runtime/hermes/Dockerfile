@@ -39,7 +39,7 @@ ENV PATH="/app/node_modules/.bin:${PATH}"
 # Tag must match HERMES_TAG in scripts/install-deps.sh.
 RUN git clone --recurse-submodules --branch v2026.3.30 --depth 1 https://github.com/NousResearch/hermes-agent.git /opt/hermes-agent \
   && cd /opt/hermes-agent \
-  && uv pip install --system ".[all]"
+  && uv pip install --system ".[cron,mcp,pty,homeassistant]"
 ENV PYTHONPATH="/opt/hermes-agent"
 
 # Runtime version (shared root package.json)

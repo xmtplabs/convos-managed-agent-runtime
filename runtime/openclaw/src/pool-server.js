@@ -400,7 +400,9 @@ function proxyRequest(req, res) {
       },
     );
     proxyReq.setTimeout(120_000, () => proxyReq.destroy());
-    proxyReq.on("error", () => json(res, 502, { error: "Gateway unavailable" }));
+    proxyReq.on("error", () => {
+      if (!res.headersSent) json(res, 502, { error: "Gateway unavailable" });
+    });
     req.pipe(proxyReq);
   } catch {
     json(res, 502, { error: "Gateway unavailable" });

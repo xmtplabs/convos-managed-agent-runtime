@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 _POLICY_PATHS = [
     Path("/app/convos-platform/outbound-policy.json"),
-    Path(__file__).resolve().parent.parent.parent / "convos-platform" / "outbound-policy.json",
+    Path(__file__).resolve().parent.parent.parent.parent / "convos-platform" / "outbound-policy.json",
 ]
 
 _policy: dict = {}
