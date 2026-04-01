@@ -30,7 +30,7 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
 fi
 
 # ── Runtime workspace (config, runtime-only skills overlay) ──────────────
-cp "$WORKSPACE_DIR/config.yaml" "$STATE_DIR/workspace/config.yaml"
+cp "$WORKSPACE_DIR/config.yaml" "$STATE_DIR/config.yaml"
 brand_ok "config.yaml" "synced"
 
 for skill_dir in "$WORKSPACE_DIR"/skills/*; do

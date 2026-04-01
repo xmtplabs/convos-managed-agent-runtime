@@ -147,11 +147,10 @@ class AgentRunner:
 
     @staticmethod
     def _load_config_yaml(hermes_home: str) -> dict:
-        """Load config.yaml from HERMES_HOME/workspace."""
+        """Load config.yaml from HERMES_HOME root."""
         try:
             import yaml
-            cfg_path = Path(RuntimeConfig.workspace_path(
-                hermes_home or os.path.expanduser("~/.hermes"), "config.yaml"))
+            cfg_path = Path(hermes_home or os.path.expanduser("~/.hermes")) / "config.yaml"
             if cfg_path.exists():
                 with open(cfg_path, encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}

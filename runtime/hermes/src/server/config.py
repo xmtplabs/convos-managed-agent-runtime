@@ -69,7 +69,7 @@ class RuntimeConfig:
 
     @property
     def config_yaml_path(self) -> str:
-        return os.path.join(self.workspace_dir, "config.yaml")
+        return os.path.join(self.hermes_home, "config.yaml")
 
     @property
     def injected_context_path(self) -> str:
