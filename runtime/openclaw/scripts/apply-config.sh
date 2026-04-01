@@ -99,30 +99,14 @@ done
 
 mkdir -p "$STATE_DIR"
 
-# Assemble AGENTS.md (manifest + context files) — after sync so it overwrites the synced copy
+# Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests
 if [ -n "${HARNESS_DIR:-}" ] && [ -f "$HARNESS_DIR/lib/agents-assemble.sh" ]; then
   . "$HARNESS_DIR/lib/agents-assemble.sh"
   assemble_agents "$CONVOS_PLATFORM_DIR" "openclaw" "$STATE_DIR/workspace/AGENTS.md"
+  assemble_agents "$CONVOS_PLATFORM_DIR" "openclaw" "$STATE_DIR/workspace/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
 else
   echo "⚠ HARNESS_DIR not set — skipping agents-assemble" >&2
 fi
-
-# Generate INJECTED_CONTEXT.md from per-turn injection manifest
-_cp="$STATE_DIR/workspace/INJECTED_CONTEXT.md"
-_injection="$CONVOS_PLATFORM_DIR/injection.json"
-: > "$_cp"
-if [ -f "$_injection" ] && command -v jq >/dev/null 2>&1; then
-  _per_turn=$(jq -r '.per_turn[]' "$_injection")
-else
-  _per_turn="TOOL-DISCIPLINE INBOUND-FORMATS CONVOS-CLI PROFILE-UPDATES CRON"
-fi
-for _ctx_name in $_per_turn; do
-  _ctx_runtime="$CONVOS_PLATFORM_DIR/context/openclaw/$_ctx_name.md"
-  _ctx_shared="$CONVOS_PLATFORM_DIR/context/$_ctx_name.md"
-  [ -f "$_ctx_runtime" ] && cat "$_ctx_runtime" >> "$_cp" && printf '\n---\n\n' >> "$_cp"
-  [ -f "$_ctx_shared" ] && cat "$_ctx_shared" >> "$_cp" && printf '\n---\n\n' >> "$_cp"
-done
-brand_ok "INJECTED_CONTEXT.md" "generated from injection.json (openclaw)"
 
 # Sync shared web-tools assets
 _SHARED_WT="${CONVOS_PLATFORM_DIR:-}/web-tools"

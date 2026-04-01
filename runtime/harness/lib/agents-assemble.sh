@@ -1,19 +1,20 @@
 #!/bin/sh
-# Assemble AGENTS.md from manifest + context files.
-# Usage: assemble_agents <platform_dir> <runtime_name> <output_path>
+# Assemble a markdown file from a manifest + context files.
+# Usage: assemble_agents <platform_dir> <runtime_name> <output_path> [manifest_name]
 #
-# Reads AGENTS.md from platform_dir, replaces each <!-- SECTION:NAME -->
-# marker with context/NAME.md (shared) + context/<runtime>/NAME.md.
-# Missing files are silently skipped; empty markers are removed.
+# Reads the manifest (default: AGENTS.md) from platform_dir, replaces each
+# <!-- SECTION:NAME --> marker with context/NAME.md (shared) +
+# context/<runtime>/NAME.md. Missing files silently skipped; empty markers removed.
 
 assemble_agents() {
   _platform_dir="$1"
   _runtime="$2"
   _out="$3"
+  _manifest_name="${4:-AGENTS.md}"
 
-  _manifest="$_platform_dir/AGENTS.md"
+  _manifest="$_platform_dir/$_manifest_name"
   if [ ! -f "$_manifest" ]; then
-    echo "⚠ AGENTS.md manifest not found at $_manifest" >&2
+    echo "⚠ $_manifest_name not found at $_manifest" >&2
     return 1
   fi
 
@@ -65,5 +66,5 @@ $(cat "$_runtime_ctx")"
   done
 
   mv "$_tmp_out" "$_out"
-  brand_ok "AGENTS.md" "assembled (context + $_runtime)"
+  brand_ok "$_manifest_name" "assembled (context + $_runtime)"
 }

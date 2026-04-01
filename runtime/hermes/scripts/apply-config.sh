@@ -42,26 +42,10 @@ for skill_dir in "$WORKSPACE_DIR"/skills/*; do
   _skill_count=$((_skill_count + 1))
 done
 
-# ── AGENTS.md (manifest + context files) ─────────────────────────────────
+# ── Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests ──────
 . "$HARNESS_DIR/lib/agents-assemble.sh"
 assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$ROOT/AGENTS.md"
-
-# ── Generate INJECTED_CONTEXT.md from per-turn injection manifest ──────────
-_cp="$HERMES_HOME/INJECTED_CONTEXT.md"
-_injection="$CONVOS_PLATFORM_DIR/injection.json"
-: > "$_cp"
-if [ -f "$_injection" ] && command -v jq >/dev/null 2>&1; then
-  _per_turn=$(jq -r '.per_turn[]' "$_injection")
-else
-  _per_turn="TOOL-DISCIPLINE INBOUND-FORMATS CONVOS-CLI PROFILE-UPDATES CRON"
-fi
-for _ctx_name in $_per_turn; do
-  _ctx_runtime="$CONVOS_PLATFORM_DIR/context/hermes/$_ctx_name.md"
-  _ctx_shared="$CONVOS_PLATFORM_DIR/context/$_ctx_name.md"
-  [ -f "$_ctx_runtime" ] && cat "$_ctx_runtime" >> "$_cp" && printf '\n\n' >> "$_cp"
-  [ -f "$_ctx_shared" ] && cat "$_ctx_shared" >> "$_cp" && printf '\n\n' >> "$_cp"
-done
-brand_ok "INJECTED_CONTEXT.md" "generated from injection.json (hermes)"
+assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$HERMES_HOME/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
 
 brand_ok "HERMES_HOME" "$HERMES_HOME"
 brand_done "Workspace ready"
