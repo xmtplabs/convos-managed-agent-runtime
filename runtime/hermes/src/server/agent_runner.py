@@ -29,6 +29,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+from .config import RuntimeConfig
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -96,7 +98,7 @@ def _load_convos_platform() -> str:
     """Load the Convos platform prompt from workspace or HERMES_HOME."""
     hermes_home = os.environ.get("HERMES_HOME", "")
     candidates = [
-        *([] if not hermes_home else [Path(hermes_home) / "INJECTED_CONTEXT.md"]),
+        *([] if not hermes_home else [Path(RuntimeConfig.workspace_path(hermes_home, "INJECTED_CONTEXT.md"))]),
         Path(__file__).resolve().parent.parent.parent / "workspace" / "INJECTED_CONTEXT.md",
     ]
     for path in candidates:
@@ -145,10 +147,11 @@ class AgentRunner:
 
     @staticmethod
     def _load_config_yaml(hermes_home: str) -> dict:
-        """Load config.yaml from HERMES_HOME (same approach as gateway/run.py)."""
+        """Load config.yaml from HERMES_HOME/workspace."""
         try:
             import yaml
-            cfg_path = Path(hermes_home or os.path.expanduser("~/.hermes")) / "config.yaml"
+            cfg_path = Path(RuntimeConfig.workspace_path(
+                hermes_home or os.path.expanduser("~/.hermes"), "config.yaml"))
             if cfg_path.exists():
                 with open(cfg_path, encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}

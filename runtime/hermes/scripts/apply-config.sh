@@ -1,29 +1,28 @@
 #!/bin/sh
-# Sync workspace (skills, SOUL.md, config, prompts) to HERMES_HOME.
+# Sync workspace (skills, SOUL.md, config, prompts) to STATE_DIR.
 # Sources: convos-platform (SOUL, context, shared skills) then
-#          runtime workspace (config, agents-extra).
+#          runtime workspace (config).
 set -e
 . "$(dirname "$0")/init.sh"
 
 brand_section "Workspace"
 brand_dim "" "sync skills, agents, and config"
 
-# ── HERMES_HOME structure ────────────────────────────────────────────────
-mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
+# ── State directory structure ────────────────────────────────────────────
+mkdir -p "$STATE_DIR/workspace" "$STATE_DIR/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron"
 
-# ── Convos platform (SOUL.md, shared skills) ─────────────────────────────
+# ── Convos platform (SOUL.md, shared skills) → STATE_DIR/workspace ──────
 _skill_count=0
 if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
-  [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$HERMES_HOME/SOUL.md"
-  [ -f "$CONVOS_PLATFORM_DIR/context/CUSTOMIZATION.md" ] && cp "$CONVOS_PLATFORM_DIR/context/CUSTOMIZATION.md" "$HERMES_HOME/CUSTOMIZATION.md"
-  brand_ok "SOUL.md" "synced (convos-platform)"
+  [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$STATE_DIR/workspace/SOUL.md"
+  brand_ok "SOUL.md" "$STATE_DIR/workspace/SOUL.md"
 
   if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
     for skill_dir in "$CONVOS_PLATFORM_DIR"/skills/*; do
       [ -d "$skill_dir" ] || continue
       skill_name="$(basename "$skill_dir")"
-      rm -rf "$HERMES_HOME/skills/$skill_name"
-      cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
+      rm -rf "$STATE_DIR/skills/$skill_name"
+      cp -R "$skill_dir" "$STATE_DIR/skills/$skill_name"
       _skill_count=$((_skill_count + 1))
     done
   fi
@@ -31,23 +30,22 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
 fi
 
 # ── Runtime workspace (config, runtime-only skills overlay) ──────────────
-cp "$WORKSPACE_DIR/config.yaml" "$HERMES_HOME/config.yaml"
+cp "$WORKSPACE_DIR/config.yaml" "$STATE_DIR/workspace/config.yaml"
 brand_ok "config.yaml" "synced"
 
 for skill_dir in "$WORKSPACE_DIR"/skills/*; do
   [ -d "$skill_dir" ] || continue
   skill_name="$(basename "$skill_dir")"
-  rm -rf "$HERMES_HOME/skills/$skill_name"
-  cp -R "$skill_dir" "$HERMES_HOME/skills/$skill_name"
+  rm -rf "$STATE_DIR/skills/$skill_name"
+  cp -R "$skill_dir" "$STATE_DIR/skills/$skill_name"
   _skill_count=$((_skill_count + 1))
 done
 
 # ── Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests ──────
 . "$LIB_DIR/agents-assemble.sh"
-mkdir -p "$HERMES_HOME/workspace"
-assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$HERMES_HOME/workspace/AGENTS.md"
-assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$HERMES_HOME/workspace/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
+assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$STATE_DIR/workspace/AGENTS.md"
+assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$STATE_DIR/workspace/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
 
-brand_ok "HERMES_HOME" "$HERMES_HOME"
+brand_ok "STATE_DIR" "$STATE_DIR"
 brand_done "Workspace ready"
 brand_flush

@@ -8,7 +8,7 @@ export CONVOS_REPO_ROOT="/app"
 # Skills are synced by sync.sh on every boot.
 if [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ]; then
   export HERMES_HOME="${RAILWAY_VOLUME_MOUNT_PATH}/hermes"
-  mkdir -p "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
+  mkdir -p "$HERMES_HOME/workspace" "$HERMES_HOME/skills" "$HERMES_HOME/memories" "$HERMES_HOME/sessions" "$HERMES_HOME/cron"
   echo "  HERMES_HOME      -> $HERMES_HOME (volume-backed)"
 
   # Persist convos-cli identity keys on the volume (mirrors OpenClaw pool-server.js).

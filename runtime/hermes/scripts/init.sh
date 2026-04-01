@@ -19,10 +19,11 @@ if is_docker; then
 else
   HERMES_AGENT_DIR="$ROOT/.hermes-dev/hermes-agent"
 fi
+STATE_DIR="$HERMES_HOME"
 WORKSPACE_DIR="$ROOT/workspace"
-SKILLS_ROOT="$HERMES_HOME/skills"
+SKILLS_ROOT="$STATE_DIR/skills"
 
-export HERMES_HOME HERMES_AGENT_DIR WORKSPACE_DIR SKILLS_ROOT
+export HERMES_HOME HERMES_AGENT_DIR STATE_DIR WORKSPACE_DIR SKILLS_ROOT
 
 # ── Node / Python ────────────────────────────────────────────────────────
 export NODE_PATH="${NODE_PATH:-$ROOT/node_modules}"

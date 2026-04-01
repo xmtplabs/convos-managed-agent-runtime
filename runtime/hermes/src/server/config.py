@@ -62,6 +62,48 @@ class RuntimeConfig:
             workspace_dir=workspace_dir,
         )
 
+    # ── Derived paths (all relative to hermes_home) ────────────────────────
+    @property
+    def soul_path(self) -> str:
+        return os.path.join(self.workspace_dir, "SOUL.md")
+
+    @property
+    def config_yaml_path(self) -> str:
+        return os.path.join(self.workspace_dir, "config.yaml")
+
+    @property
+    def injected_context_path(self) -> str:
+        return os.path.join(self.workspace_dir, "INJECTED_CONTEXT.md")
+
+    @property
+    def skills_dir(self) -> str:
+        return os.path.join(self.hermes_home, "skills")
+
+    @property
+    def sessions_dir(self) -> str:
+        return os.path.join(self.hermes_home, "sessions")
+
+    @property
+    def credentials_dir(self) -> str:
+        return os.path.join(self.hermes_home, "credentials")
+
+    @property
+    def cron_dir(self) -> str:
+        return os.path.join(self.hermes_home, "cron")
+
+    @property
+    def media_dir(self) -> str:
+        return os.path.join(self.hermes_home, "media")
+
+    @property
+    def state_db_path(self) -> str:
+        return os.path.join(self.hermes_home, "state.db")
+
+    @staticmethod
+    def workspace_path(hermes_home: str, filename: str) -> str:
+        """Resolve a workspace file path. Use this instead of constructing paths inline."""
+        return os.path.join(hermes_home, "workspace", filename)
+
     def validate(self) -> list[str]:
         errors = []
         if not self.openrouter_api_key:

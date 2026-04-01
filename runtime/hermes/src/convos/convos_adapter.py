@@ -611,7 +611,7 @@ class ConvosAdapter:
         if not inst:
             return
 
-        media_dir = Path(self._config.hermes_home) / "media"
+        media_dir = Path(self._config.media_dir)
         media_dir.mkdir(parents=True, exist_ok=True)
         _prune_stale_convos_images(media_dir)
         ext = Path(filename).suffix.lower() or ".jpg"
