@@ -1,5 +1,5 @@
 # Convos agent runtime — Hermes agent on Railway
-FROM python:3.11-bookworm
+FROM python:3.11-bookworm@sha256:12e6e9b778363eaa84d39ec79d7ee55cc2a5fc6934e1cc89a2f041637c028ba7
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -15,21 +15,21 @@ RUN apt-get update \
   && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@8.7.5
 
 WORKDIR /app
 
 # uv — fast Python package manager (recommended by Hermes project)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN curl -LsSf https://astral.sh/uv/0.11.2/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # FastAPI + uvicorn (runtime server deps)
-COPY runtime/hermes/requirements.txt /app/requirements.txt
-RUN uv pip install --system --no-cache -r requirements.txt
+COPY runtime/hermes/requirements.txt runtime/hermes/requirements.lock /app/
+RUN uv pip install --system --no-cache -r requirements.lock
 
 # Node dependencies (convos CLI only)
-COPY runtime/hermes/package.json runtime/hermes/pnpm-lock.yaml* /app/
-RUN CI=true pnpm install --no-frozen-lockfile
+COPY runtime/hermes/package.json runtime/hermes/pnpm-lock.yaml /app/
+RUN CI=true pnpm install --frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 ENV PATH="/app/node_modules/.bin:${PATH}"
 

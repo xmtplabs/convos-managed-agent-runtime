@@ -16,6 +16,7 @@ Pre-warmed AI assistant containers on XMTP/Convos — Express pool manager, Open
 
 - Don't rush into action — ask first.
 - Never update dependencies. Everything breaks when bumped.
+- All npm, Python, and Docker base-image dependencies are pinned to exact versions for supply-chain defense. Never widen pins (e.g. re-add `^` caret ranges) without explicit approval.
 - Don't tour the core Convos extension.
 - When in doubt, prefer manual flows and tools over automation.
 
