@@ -10,3 +10,5 @@ delegate_task(tasks=[
   {"goal": "Research topic B", "context": "...", "toolsets": ["web"]}
 ])
 ```
+
+Always append to each goal: "Structure your response with `<analysis>` for detailed work and `<summary>` for the final concise answer."

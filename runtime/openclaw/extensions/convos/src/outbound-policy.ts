@@ -36,6 +36,20 @@ const CONTEXT_OVERFLOW_PREFIX: string = policy.contextOverflowPrefix ?? "Context
 const SUPPRESS_TOKENS: Set<string> = new Set(policy.suppressTokens ?? []);
 const CREDIT_MSG_TEMPLATE: string = policy.creditMessageTemplate ?? "Hey! I'm out of credits. You can top up here: {{servicesUrl}}";
 
+// ── Analysis scratchpad stripping ───────────────────────────────────────
+
+/**
+ * Strip `<analysis>…</analysis>` scratchpad blocks from sub-agent output.
+ * Unwrap `<summary>…</summary>` tags (keep inner content).
+ * If neither tag is present, return text unchanged (backward compat).
+ */
+function stripAnalysisScratchpad(text: string): string {
+  if (!text.includes("<analysis>")) return text;
+  let result = text.replace(/<analysis>[\s\S]*?<\/analysis>/g, "");
+  result = result.replace(/<\/?summary>/g, "");
+  return result.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 function isOverloadedText(text: string): boolean {
@@ -92,5 +106,5 @@ export async function applyOutboundTextPolicy(text: string): Promise<OutboundTex
     return { suppress: true, text: "" };
   }
 
-  return { suppress: false, text };
+  return { suppress: false, text: stripAnalysisScratchpad(text) };
 }

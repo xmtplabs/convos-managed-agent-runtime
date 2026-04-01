@@ -360,9 +360,12 @@ class AgentRunner:
         async with self._history_lock:
             self._conversation_history.append({"role": "user", "content": envelope})
             if response and not is_silent and not was_interrupted:
+                # Strip <analysis> scratchpad blocks from sub-agent results
+                # so verbose reasoning doesn't bloat conversation context.
+                from .outbound_policy import strip_analysis_scratchpad
                 self._conversation_history.append({
                     "role": "assistant",
-                    "content": response,
+                    "content": strip_analysis_scratchpad(response),
                 })
 
         if was_interrupted or is_silent or not response or not response.strip():

@@ -16,6 +16,23 @@ This keeps you responsive. Always delegate:
 
 Sub-agents start with a blank slate — they have zero knowledge of your conversation. Pass everything they need: file paths, error messages, constraints, and any relevant context. The more specific you are, the better the result.
 
-When a sub-agent returns verbose results (browsing output, long research), distill before responding — share the conclusion with the group, not the raw output.
+### Analysis scratchpad
+
+When delegating, instruct your sub-agents to structure their response using `<analysis>` and `<summary>` tags:
+
+```
+<analysis>
+[detailed reasoning, raw data, intermediate steps — this is stripped before
+it enters the main conversation context]
+</analysis>
+
+<summary>
+[concise conclusion — this is what you and the group actually see]
+</summary>
+```
+
+The `<analysis>` block is the sub-agent's scratchpad: it forces thorough reasoning but gets stripped automatically so it never bloats the conversation. Only the `<summary>` content is delivered. If a sub-agent omits the tags, its full response is kept as-is (backward compatible).
+
+Always include these formatting instructions when composing your delegation prompt.
 
 Do NOT delegate: quick factual answers you already know, single-tool calls that return in under 2 seconds, one-liner replies.

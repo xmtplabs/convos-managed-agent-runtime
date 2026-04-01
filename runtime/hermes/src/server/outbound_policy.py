@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,6 +43,26 @@ _CREDIT_MSG_TEMPLATE = _policy.get("creditMessageTemplate", "Hey! I'm out of cre
 class PolicyResult:
     suppress: bool
     text: str
+
+
+# ── Analysis scratchpad stripping ────────────────────────────────────────
+
+_ANALYSIS_RE = re.compile(r"<analysis>[\s\S]*?</analysis>")
+_SUMMARY_TAG_RE = re.compile(r"</?summary>")
+_MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
+
+
+def strip_analysis_scratchpad(text: str) -> str:
+    """Strip ``<analysis>…</analysis>`` scratchpad blocks from sub-agent output.
+
+    Unwrap ``<summary>…</summary>`` tags (keep inner content).
+    If neither tag is present, return text unchanged (backward compat).
+    """
+    if "<analysis>" not in text:
+        return text
+    result = _ANALYSIS_RE.sub("", text)
+    result = _SUMMARY_TAG_RE.sub("", result)
+    return _MULTI_NEWLINE_RE.sub("\n\n", result).strip()
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -121,4 +142,4 @@ async def apply_outbound_policy(text: str) -> PolicyResult:
     if _is_overloaded(text):
         return PolicyResult(suppress=True, text="")
 
-    return PolicyResult(suppress=False, text=text)
+    return PolicyResult(suppress=False, text=strip_analysis_scratchpad(text))
