@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 try:
     _candidates = [
         Path(__file__).resolve().parent.parent.parent.parent / "package.json",  # runtime/package.json (local dev)
-        Path(__file__).resolve().parent.parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        Path("/app/runtime-version.json"),                                       # Docker — absolute, immune to src/ moves
     ]
     RUNTIME_VERSION = None
     for _pkg in _candidates:
