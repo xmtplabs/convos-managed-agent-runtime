@@ -176,6 +176,8 @@ export class ConvosInstance {
 
   /** Cached member display names: inboxId → name */
   private memberNames = new Map<string, string>();
+  /** Message IDs sent by this instance — used to detect "own" reactions. */
+  private sentMessageIds = new Set<string>();
   private profileImageRenewal: ProfileImageRenewal;
 
   /** Resolves when the `ready` event is received after start(). */
@@ -492,6 +494,11 @@ export class ConvosInstance {
     return Array.from(this.memberNames.values()).join(", ");
   }
 
+  /** Check if a message ID was sent by this instance (for "own" reaction detection). */
+  hasSentMessage(id: string): boolean {
+    return this.sentMessageIds.has(id);
+  }
+
   // ==== Operations (via stdin commands) ====
 
   async sendMessage(text: string, replyTo?: string): Promise<{ success: boolean; messageId?: string }> {
@@ -797,6 +804,7 @@ export class ConvosInstance {
 
         // Resolve pending send — any confirmation with an id (text, attachment, reaction, etc.)
         if (info.id) {
+          this.sentMessageIds.add(info.id);
           const firstKey = this.pendingSends.keys().next().value;
           if (firstKey !== undefined) {
             const pending = this.pendingSends.get(firstKey);

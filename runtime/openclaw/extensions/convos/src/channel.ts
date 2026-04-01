@@ -765,13 +765,29 @@ async function handleInboundMessage(
     return;
   }
 
-  // System events (group updates, reactions) are recorded in the session above
-  // so the agent has context, but should not trigger a reply.
-  if (msg.contentType === "group_updated" || msg.contentType === "reaction") {
+  // Group updates are recorded in the session above but should not trigger a reply.
+  if (msg.contentType === "group_updated") {
     if (account.debug) {
-      debugLog(`[${account.accountId}] Skipping reply dispatch for ${msg.contentType} message`);
+      debugLog(`[${account.accountId}] Skipping reply dispatch for group_updated message`);
     }
     return;
+  }
+
+  // Reactions to the agent's own messages trigger a full agent turn (e.g. thumbs-up
+  // to answer a yes/no question). Reactions to other users' messages are already
+  // recorded in the session above as passive context — no turn needed.
+  if (msg.contentType === "reaction") {
+    const targetMatch = msg.content.match(/^(?:reacted|removed)\s+\S+\s+to\s+(\S+)$/);
+    const targetId = targetMatch?.[1];
+    if (!targetId || !inst?.hasSentMessage(targetId)) {
+      if (account.debug) {
+        debugLog(`[${account.accountId}] Skipping reply dispatch for non-own reaction`);
+      }
+      return;
+    }
+    if (account.debug) {
+      debugLog(`[${account.accountId}] Own-message reaction — dispatching agent turn`);
+    }
   }
 
   const tableMode = runtime.channel.text.resolveMarkdownTableMode({

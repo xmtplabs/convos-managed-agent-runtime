@@ -253,6 +253,15 @@ def is_inactive_group_error(err: Exception) -> bool:
     return bool(re.search(r"\bgroup is inactive\b", str(err), flags=re.IGNORECASE))
 
 
+_REACTION_TARGET_RE = re.compile(r"^(?:reacted|removed)\s+\S+\s+to\s+(\S+)$")
+
+
+def _parse_reaction_target_id(content: str) -> str | None:
+    """Extract the target message ID from a reaction content string."""
+    m = _REACTION_TARGET_RE.match(content)
+    return m.group(1) if m else None
+
+
 def is_attachment_message(msg: InboundMessage) -> bool:
     return msg.content_type in ("attachment", "remoteStaticAttachment")
 
@@ -337,6 +346,7 @@ class ConvosAdapter:
         self._agent_running = False
         self._pending_message: InboundMessage | None = None
         self._skipped_content: list[str] = []  # messages superseded while queued
+        self._sent_message_ids: set[str] = set()  # tracks agent-sent IDs for "own" reaction detection
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -378,6 +388,7 @@ class ConvosAdapter:
             debug=debug,
             on_message=self._handle_message,
             on_member_joined=self._handle_member_joined(name),
+            on_sent=self._handle_sent,
         )
 
         # Wire convos tools to the bridge so they execute mid-processing
@@ -449,8 +460,16 @@ class ConvosAdapter:
         turn finishes, the pending message is picked up automatically so the
         agent responds to the latest context instead of racing.
         """
+        # Reactions to the agent's own messages trigger a full agent turn (e.g.
+        # thumbs-up to answer a yes/no question). Reactions to other users'
+        # messages are silently dropped — no turn, no history recording.
         if msg.content_type == "reaction":
-            return
+            target_id = _parse_reaction_target_id(msg.content)
+            if target_id and target_id in self._sent_message_ids:
+                logger.info(f"Own-message reaction — dispatching agent turn")
+                # Fall through to normal message processing below
+            else:
+                return
 
         inst = self._instance
         agent = self._agent
@@ -808,6 +827,12 @@ class ConvosAdapter:
                     logger.error(f"Send message failed: {err}")
 
 
+
+    async def _handle_sent(self, info) -> None:
+        """Track all sent message IDs for own-reaction detection."""
+        mid = getattr(info, "id", None)
+        if mid:
+            self._sent_message_ids.add(mid)
 
     def _handle_member_joined(self, name: str | None):
         """Return a member_joined callback that renames + refreshes."""

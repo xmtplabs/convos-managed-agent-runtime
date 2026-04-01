@@ -98,6 +98,32 @@ export default class ConvosProvider {
       return { output, metadata: { conversationId: h.conversationId } };
     }
 
+    // Reaction test: send a prompt, wait for agent reply, react to the agent's
+    // last message, then wait for the agent to respond to the reaction.
+    if (meta.reaction) {
+      const ENV = process.env.XMTP_ENV || 'dev';
+      const { msgs: setupMsgs, baseline: setupBaseline } = h.sendAndWait(prompt, meta);
+
+      // Find the agent's last message ID
+      const agentMsgs = setupMsgs.filter(m => m.senderInboxId !== h.userInboxId);
+      const lastAgentMsg = agentMsgs[agentMsgs.length - 1];
+      if (!lastAgentMsg?.id) {
+        log('FAIL — no agent message to react to');
+        return { output: 'REACTION_FAILED: no agent message', metadata: { conversationId: h.conversationId } };
+      }
+
+      const postReactBaseline = h.agentCount(h.fetchMessages());
+      const msgsBefore = h.fetchMessages().length;
+      log(`Reacting ${meta.reaction} to agent message ${lastAgentMsg.id.slice(0, 12)}`);
+      h.convos(['conversation', 'send-reaction', h.conversationId, lastAgentMsg.id, 'add', meta.reaction, '--env', ENV], { timeout: 30_000 });
+
+      const reactionMsgs = h.waitForAgent(postReactBaseline);
+      const output = h.transcript(reactionMsgs, msgsBefore);
+      const responded = h.agentCount(reactionMsgs) > postReactBaseline;
+      log(`${responded ? 'OK' : 'FAIL'} — agent ${responded ? 'responded to' : 'ignored'} reaction (${elapsed(t)})`);
+      return { output, metadata: { conversationId: h.conversationId, reactionTriggered: responded } };
+    }
+
     if (meta.replyToEarlier) {
       const setupMsg = meta.setupMessage || 'Remember this: the secret word is ABRACADABRA';
       h.sendAndWait(setupMsg);
