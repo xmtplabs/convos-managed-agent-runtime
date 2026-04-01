@@ -44,8 +44,9 @@ done
 
 # ── Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests ──────
 . "$LIB_DIR/agents-assemble.sh"
-assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$ROOT/AGENTS.md"
-assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$HERMES_HOME/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
+mkdir -p "$HERMES_HOME/workspace"
+assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$HERMES_HOME/workspace/AGENTS.md"
+assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$HERMES_HOME/workspace/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
 
 brand_ok "HERMES_HOME" "$HERMES_HOME"
 brand_done "Workspace ready"
