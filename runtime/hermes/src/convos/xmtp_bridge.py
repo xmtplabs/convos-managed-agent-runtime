@@ -66,7 +66,7 @@ class SentEvent:
 
 def _resolve_convos_bin() -> str:
     """Find the convos CLI binary."""
-    from .server.paths import HERMES_ROOT
+    from ..server.paths import HERMES_ROOT
 
     # Check node_modules in our own package (anchor-based, no parent-counting)
     local_bin = HERMES_ROOT / "node_modules" / "@xmtp" / "convos-cli" / "bin" / "run.js"
