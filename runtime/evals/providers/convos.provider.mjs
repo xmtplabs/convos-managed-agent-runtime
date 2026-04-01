@@ -98,6 +98,30 @@ export default class ConvosProvider {
       return { output, metadata: { conversationId: h.conversationId } };
     }
 
+    if (meta.replyToEarlier) {
+      const setupMsg = meta.setupMessage || 'Remember this: the secret word is ABRACADABRA';
+      h.sendAndWait(setupMsg);
+      log('Setup exchange complete');
+
+      const { output, msgs, msgsBefore } = h.sendAndWait(prompt);
+
+      const newAgentMsgs = msgs.slice(msgsBefore).filter(m => m.senderInboxId !== h.userInboxId);
+      const replyMsg = newAgentMsgs.find(m => {
+        const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType?.typeId;
+        return typeId === 'reply';
+      });
+
+      log(`Agent ${replyMsg ? 'used' : 'did not use'} reply-to`);
+      log(`Done (${elapsed(t)})`);
+      return {
+        output,
+        metadata: {
+          conversationId: h.conversationId,
+          agentUsedReply: Boolean(replyMsg),
+        },
+      };
+    }
+
     const { output } = h.sendAndWait(prompt, meta);
     log(`Done (${elapsed(t)})`);
     return { output, metadata: { conversationId: h.conversationId } };
