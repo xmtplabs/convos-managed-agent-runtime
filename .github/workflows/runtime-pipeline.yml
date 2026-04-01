@@ -133,6 +133,7 @@ jobs:
             ${{ !matrix.fresh && format('-e INSTANCE_ID="{0}"', secrets.INSTANCE_ID) || '' }} \
             ${{ !matrix.fresh && format('-e AGENTMAIL_API_KEY="{0}"', secrets.AGENTMAIL_API_KEY) || '' }} \
             ${{ !matrix.fresh && format('-e AGENTMAIL_INBOX_ID="{0}"', secrets.AGENTMAIL_INBOX_ID) || '' }} \
+            ${{ matrix.suite == 'webhooks' && format('-e NGROK_URL="{0}" -e NGROK_AUTHTOKEN="{1}"', secrets.NGROK_URL, secrets.NGROK_AUTHTOKEN) || '' }} \
             ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
             ${{ inputs.docker_run_extra }} \
             ${{ inputs.image }}:${{ inputs.pending_tag }} \
