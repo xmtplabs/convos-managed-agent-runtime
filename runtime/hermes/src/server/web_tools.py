@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Static files live at /app/web-tools in Docker, fall back for local dev.
-_SHARED_ROOT = Path("/app/web-tools") if Path("/app/web-tools").exists() else (
-    Path(__file__).resolve().parent.parent.parent.parent / "shared" / "web-tools"
+# Static files live at /app/convos-platform/web-tools in Docker, fall back for local dev.
+_SHARED_ROOT = Path("/app/convos-platform/web-tools") if Path("/app/convos-platform/web-tools").exists() else (
+    Path(__file__).resolve().parent.parent.parent.parent / "convos-platform" / "web-tools"
 )
 _SERVICES_DIR = _SHARED_ROOT / "services"
 _CONVOS_DIR = _SHARED_ROOT / "convos"
