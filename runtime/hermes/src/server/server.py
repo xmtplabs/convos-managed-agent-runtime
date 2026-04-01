@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 try:
     _candidates = [
         Path(__file__).resolve().parent.parent.parent.parent / "package.json",  # runtime/package.json (local dev)
-        Path(__file__).resolve().parent.parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        Path(__file__).resolve().parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
     ]
     RUNTIME_VERSION = None
     for _pkg in _candidates:
@@ -752,8 +752,8 @@ async def _cron_check_credit_errors() -> None:
             if job.get("last_status") == "ok":
                 any_success = True
 
-        # Reset the flag when at least one job succeeds (credits restored)
-        if any_success:
+        # Reset the flag only when credits are restored (success AND no credit errors)
+        if any_success and not any_credit_error:
             _cron_credit_error_notified = False
 
         if any_credit_error and not _cron_credit_error_notified:
