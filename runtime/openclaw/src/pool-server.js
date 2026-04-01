@@ -89,7 +89,7 @@ function spawnGateway(extraEnv = {}) {
       ...extraEnv,
       PORT: String(INTERNAL_PORT),
       OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-      GATEWAY_TOKEN: process.env.GATEWAY_TOKEN || "",
+      OPENCLAW_GATEWAY_TOKEN: process.env.GATEWAY_TOKEN || "", // binary expects OPENCLAW_ name
       POOL_SERVER_PORT: String(PORT),
     },
   });
@@ -131,7 +131,7 @@ const initialChild = spawn("pnpm", ["start"], {
     ...process.env,
     PORT: String(INTERNAL_PORT),
     OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-    GATEWAY_TOKEN: process.env.GATEWAY_TOKEN || "",
+    OPENCLAW_GATEWAY_TOKEN: process.env.GATEWAY_TOKEN || "", // binary expects OPENCLAW_ name
     POOL_SERVER_PORT: String(PORT),
   },
 });
