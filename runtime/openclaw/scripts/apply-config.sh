@@ -65,13 +65,28 @@ sync_workspace_dir() {
   copy_tree_snapshot "$src_dir" "$base_dir"
 }
 
-# Stage merged workspace source: convos-platform files + runtime overlay → single sync call.
+# Stage merged workspace source: selected convos-platform files + runtime overlay.
+# Only workspace-appropriate files from convos-platform — context/, web-tools/,
+# outbound-policy.json, INJECTED_CONTEXT.md, and AGENTS.md manifest are NOT synced
+# (they're assembled separately or served from their own paths).
 _MERGED_SRC=""
 if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
-  cp -R "$CONVOS_PLATFORM_DIR/." "$_MERGED_SRC/"
+  [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$_MERGED_SRC/"
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
-  brand_ok "convos-platform" "merged with runtime"
+  brand_ok "workspace" "merged (convos-platform + runtime)"
+
+  # Sync skills to STATE_DIR/skills (outside workspace)
+  if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
+    mkdir -p "$STATE_DIR/skills"
+    for _sk in "$CONVOS_PLATFORM_DIR"/skills/*; do
+      [ -d "$_sk" ] || continue
+      _skn="$(basename "$_sk")"
+      rm -rf "$STATE_DIR/skills/$_skn"
+      cp -R "$_sk" "$STATE_DIR/skills/$_skn"
+    done
+    brand_ok "skills" "$STATE_DIR/skills"
+  fi
 fi
 
 for subdir in workspace extensions; do
