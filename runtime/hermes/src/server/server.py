@@ -689,29 +689,24 @@ def _patch_cron_for_convos() -> None:
 
     Two patches:
 
-    1. run_job — convos-targeted jobs get CONVOS_PLATFORM.md as their
-       ephemeral system prompt so the agent knows platform markers (SILENT,
-       REACT, PROFILE, etc.) and trajectories are recorded.
+    1. run_job — convos-targeted jobs fire into the main AgentRunner
+       session (same pattern as /convos/notify) instead of creating a
+       standalone agent.  The agent sees full conversation history and
+       can decide whether to respond or stay SILENT.
 
-    2. _deliver_result — convos delivery routes through the adapter's
-       _dispatch_response() which parses markers and respects SILENT,
-       instead of sending raw text.
+    2. _deliver_result — no-op for convos jobs because delivery already
+       happened through _dispatch_response in the run_job patch.
+       Non-convos jobs use the original delivery.
     """
     try:
         import cron.scheduler as cron_mod
-        import run_agent as _run_agent_mod
     except ImportError:
         logger.debug("Cron module not available — skipping convos patches")
         return
 
-    # -- Patch 1: inject convos platform context into run_job ---------------
-
-    from .agent_runner import CONVOS_EPHEMERAL_PROMPT
-
     _original_run_job = cron_mod.run_job
 
     def _is_convos_targeted(job: dict) -> bool:
-        """Same resolution logic as _patched_deliver."""
         deliver = job.get("deliver", "local")
         if deliver == "origin":
             origin = cron_mod._resolve_origin(job)
@@ -724,56 +719,78 @@ def _patch_cron_for_convos() -> None:
         if not _is_convos_targeted(job):
             return _original_run_job(job)
 
-        # Temporarily swap AIAgent with a subclass that injects convos
-        # context.  run_job() does `from run_agent import AIAgent` on each
-        # call, which resolves to the current module attribute.
-        # tick() runs jobs sequentially under a file lock, so this is safe.
-        _OrigAgent = _run_agent_mod.AIAgent
+        # Wake the main session instead of creating a standalone agent.
+        # Same pattern as the /convos/notify endpoint.
+        adapter = get_adapter()
+        if not adapter or not adapter.instance or not adapter.agent:
+            error = "No active conversation — adapter/agent not ready"
+            logger.warning("Cron job '%s': %s", job.get("name", job["id"]), error)
+            output = f"# Cron Job: {job.get('name', job['id'])} (FAILED)\n\n## Error\n\n{error}"
+            return (False, output, "", error)
 
-        class _ConvosAgent(_OrigAgent):
-            def __init__(self, **kwargs):
-                kwargs.setdefault("ephemeral_system_prompt", CONVOS_EPHEMERAL_PROMPT)
-                kwargs.setdefault("platform", "convos")
-                kwargs.setdefault("save_trajectories", True)
-                super().__init__(**kwargs)
+        loop = _event_loop
+        if not loop or loop.is_closed():
+            error = "No event loop for convos dispatch"
+            logger.error("Cron job '%s': %s", job.get("name", job["id"]), error)
+            output = f"# Cron Job: {job.get('name', job['id'])} (FAILED)\n\n## Error\n\n{error}"
+            return (False, output, "", error)
 
-        _run_agent_mod.AIAgent = _ConvosAgent
+        job_id = job["id"]
+        job_name = job.get("name", job_id)
+        prompt = job["prompt"]
+
+        async def _wake_main_session() -> str | None:
+            await adapter._greeting_done.wait()
+            response = await adapter.agent.handle_message(
+                content=prompt,
+                sender_name="System",
+                sender_id="system",
+                timestamp=time.time(),
+                conversation_id=adapter.instance.conversation_id,
+                message_id=f"cron-{job_id}-{int(time.time() * 1000)}",
+                group_members=adapter.instance.get_group_members(),
+            )
+            if response:
+                await adapter._dispatch_response(response)
+            return response
+
+        future = None
         try:
-            return _original_run_job(job)
-        finally:
-            _run_agent_mod.AIAgent = _OrigAgent
+            future = asyncio.run_coroutine_threadsafe(_wake_main_session(), loop)
+            response = future.result(timeout=120)
+        except Exception as e:
+            if future is not None:
+                future.cancel()
+            error = f"{type(e).__name__}: {e}"
+            output = f"# Cron Job: {job_name} (FAILED)\n\n## Error\n\n{error}"
+            logger.error("Cron job '%s': wake failed: %s", job_name, error)
+            return (False, output, "", error)
+
+        # handle_message returns friendly error strings on internal failures
+        # (credit exhaustion, agent errors).  Detect these so mark_job_run
+        # records an error instead of false-positive success.
+        _ERROR_SENTINELS = ("I encountered an error", "I hit a temporary issue")
+        if response and any(response.startswith(s) for s in _ERROR_SENTINELS):
+            output = f"# Cron Job: {job_name} (FAILED)\n\n## Error\n\n{response}"
+            logger.warning("Cron job '%s': agent returned error response", job_name)
+            return (False, output, "", response)
+
+        final = response or "(silent)"
+        output = f"# Cron Job: {job_name}\n\n## Response\n\n{final}"
+        logger.info("Cron job '%s': woke main session", job_name)
+        return (True, output, final, None)
 
     cron_mod.run_job = _patched_run_job
-    logger.info("Patched cron run_job for convos platform context")
+    logger.info("Patched cron run_job to wake main session")
 
-    # -- Patch 2: route convos delivery through _dispatch_response ----------
+    # -- Delivery: no-op for convos (already dispatched above) -------------
 
     original_deliver = cron_mod._deliver_result
 
     def _patched_deliver(job: dict, content: str) -> None:
-        if not _is_convos_targeted(job):
-            return original_deliver(job, content)
-
-        # Send through the adapter's full response pipeline (parses SILENT,
-        # reactions, profile markers, applies outbound policy, etc.)
-        adapter = get_adapter()
-        if not adapter or not adapter.instance:
-            logger.warning("Cron job '%s': convos adapter not active, skipping delivery", job.get("name", job["id"]))
-            return
-
-        loop = _event_loop
-        if not loop or loop.is_closed():
-            logger.error("Cron job '%s': no event loop for convos delivery", job.get("name", job["id"]))
-            return
-
-        try:
-            future = asyncio.run_coroutine_threadsafe(
-                adapter._dispatch_response(content), loop,
-            )
-            future.result(timeout=30)
-            logger.info("Cron job '%s': delivered to convos", job.get("name", job["id"]))
-        except Exception as err:
-            logger.error("Cron job '%s': convos delivery failed: %s", job.get("name", job["id"]), err)
+        if _is_convos_targeted(job):
+            return  # Already delivered through _dispatch_response in run_job
+        original_deliver(job, content)
 
     cron_mod._deliver_result = _patched_deliver
     logger.info("Patched cron delivery for convos platform")
