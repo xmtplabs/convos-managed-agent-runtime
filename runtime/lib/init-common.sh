@@ -18,8 +18,7 @@ else
 fi
 
 # Brand helpers
-if [ -n "${LIB_DIR:-}" ] && [ -f "$LIB_DIR/brand.sh" ]; then
-  . "$LIB_DIR/brand.sh"
-else
-  . "$ROOT/../lib/brand.sh"
-fi
+_brand="${LIB_DIR:-}/brand.sh"
+[ ! -f "$_brand" ] && _brand="$ROOT/../lib/brand.sh"
+[ ! -f "$_brand" ] && _brand="/app/lib/brand.sh"
+. "$_brand"

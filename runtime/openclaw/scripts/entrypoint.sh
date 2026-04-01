@@ -10,6 +10,8 @@ _ent_lib=""
 [ -z "$_ent_lib" ] && [ -d "/app/lib" ] && _ent_lib="/app/lib"
 if [ -n "$_ent_lib" ] && [ -f "$_ent_lib/brand.sh" ]; then
   . "$_ent_lib/brand.sh"
+elif [ -f "/app/lib/brand.sh" ]; then
+  . "/app/lib/brand.sh"
 else
   . "$(dirname "$0")/../../lib/brand.sh"
 fi
