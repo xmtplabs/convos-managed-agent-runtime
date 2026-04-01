@@ -108,10 +108,6 @@ Since each Convos process is bound to exactly one conversation, target resolutio
 
 This means **any target string works** — the agent doesn't need to know the conversation ID. The `listGroups` directory method also always returns the bound conversation for callers that use directory lookup.
 
-### Heartbeat prompt
-
-The heartbeat prompt is defined in `workspace/HEARTBEAT.md`. The agent stays silent when nothing needs attention, or sends a message to the group when proactive action is warranted.
-
 ## Error Handling
 
 Common scenarios:
