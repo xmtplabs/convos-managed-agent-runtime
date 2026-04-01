@@ -126,7 +126,7 @@ jobs:
             -e EVAL_MODE=1 \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
             -e EXA_API_KEY="${{ secrets.EXA_API_KEY }}" \
-            -e GATEWAY_TOKEN="${{ secrets.GATEWAY_TOKEN }}" \
+            -e GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             ${{ !matrix.fresh && format('-e POOL_URL="{0}"', secrets.POOL_URL) || '' }} \
@@ -141,8 +141,8 @@ jobs:
       - name: Wait for health
         run: |
           HEALTH_CURL_ARGS=(-sf)
-          if [ -n "${{ secrets.GATEWAY_TOKEN }}" ]; then
-            HEALTH_CURL_ARGS+=(-H "Authorization: Bearer ${{ secrets.GATEWAY_TOKEN }}")
+          if [ -n "${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" ]; then
+            HEALTH_CURL_ARGS+=(-H "Authorization: Bearer ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}")
           fi
           for i in $(seq 1 120); do
             if curl "${HEALTH_CURL_ARGS[@]}" http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
