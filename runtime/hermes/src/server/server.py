@@ -636,17 +636,33 @@ _SEED_JOBS = [
 
 
 def _seed_cron_jobs() -> None:
-    """Seed default cron jobs if they don't already exist."""
+    """Seed default cron jobs if they don't already exist.
+
+    Also recomputes next_run_at for existing seeds so a timezone change
+    in config.yaml takes effect immediately instead of firing at the
+    stale UTC-based time first.
+    """
     try:
-        from cron.jobs import load_jobs, create_job
+        from cron.jobs import load_jobs, create_job, save_jobs, compute_next_run
     except ImportError:
         logger.debug("Cron module not available — skipping seed")
         return
 
-    existing = {j["id"] for j in load_jobs()}
+    existing = {j["id"]: j for j in load_jobs()}
     for seed in _SEED_JOBS:
         if seed["id"] in existing:
-            logger.debug("Cron seed '%s' already exists — skipping", seed["id"])
+            # Refresh next_run_at so timezone changes take effect immediately.
+            job = existing[seed["id"]]
+            if job.get("enabled", True) and job.get("schedule"):
+                new_next = compute_next_run(job["schedule"], job.get("last_run_at"))
+                if new_next and new_next != job.get("next_run_at"):
+                    jobs = load_jobs()
+                    for j in jobs:
+                        if j["id"] == seed["id"]:
+                            j["next_run_at"] = new_next
+                            break
+                    save_jobs(jobs)
+                    logger.info("Refreshed next_run_at for '%s': %s", seed["id"], new_next)
             continue
         job = create_job(
             prompt=seed["prompt"],
@@ -655,13 +671,12 @@ def _seed_cron_jobs() -> None:
             deliver=seed.get("deliver", "origin"),
         )
         # Overwrite the random ID with the stable seed ID
-        from cron.jobs import load_jobs as _load, save_jobs as _save
-        jobs = _load()
+        jobs = load_jobs()
         for j in jobs:
             if j["id"] == job["id"]:
                 j["id"] = seed["id"]
                 break
-        _save(jobs)
+        save_jobs(jobs)
         logger.info("Seeded cron job '%s'", seed["name"])
 
 
@@ -669,37 +684,78 @@ _cron_task: asyncio.Task | None = None
 _event_loop: asyncio.AbstractEventLoop | None = None
 
 
-def _patch_cron_delivery() -> None:
-    """Monkey-patch the Hermes cron scheduler to deliver to Convos.
+def _patch_cron_for_convos() -> None:
+    """Monkey-patch the Hermes cron scheduler for Convos integration.
 
-    _deliver_result() has a platform_map that doesn't include "convos",
-    so job output silently drops. This patch intercepts convos delivery
-    and sends through our adapter.
+    Two patches:
+
+    1. run_job — convos-targeted jobs get CONVOS_PLATFORM.md as their
+       ephemeral system prompt so the agent knows platform markers (SILENT,
+       REACT, PROFILE, etc.) and trajectories are recorded.
+
+    2. _deliver_result — convos delivery routes through the adapter's
+       _dispatch_response() which parses markers and respects SILENT,
+       instead of sending raw text.
     """
     try:
         import cron.scheduler as cron_mod
+        import run_agent as _run_agent_mod
     except ImportError:
-        logger.debug("Cron module not available — skipping delivery patch")
+        logger.debug("Cron module not available — skipping convos patches")
         return
+
+    # -- Patch 1: inject convos platform context into run_job ---------------
+
+    from .agent_runner import CONVOS_EPHEMERAL_PROMPT
+
+    _original_run_job = cron_mod.run_job
+
+    def _is_convos_targeted(job: dict) -> bool:
+        """Same resolution logic as _patched_deliver."""
+        deliver = job.get("deliver", "local")
+        if deliver == "origin":
+            origin = cron_mod._resolve_origin(job)
+            return bool(origin and origin.get("platform") == "convos")
+        if ":" in deliver:
+            return deliver.split(":", 1)[0] == "convos"
+        return deliver == "convos"
+
+    def _patched_run_job(job: dict) -> tuple:
+        if not _is_convos_targeted(job):
+            return _original_run_job(job)
+
+        # Temporarily swap AIAgent with a subclass that injects convos
+        # context.  run_job() does `from run_agent import AIAgent` on each
+        # call, which resolves to the current module attribute.
+        # tick() runs jobs sequentially under a file lock, so this is safe.
+        _OrigAgent = _run_agent_mod.AIAgent
+
+        class _ConvosAgent(_OrigAgent):
+            def __init__(self, **kwargs):
+                kwargs.setdefault("ephemeral_system_prompt", CONVOS_EPHEMERAL_PROMPT)
+                kwargs.setdefault("platform", "convos")
+                kwargs.setdefault("save_trajectories", True)
+                super().__init__(**kwargs)
+
+        _run_agent_mod.AIAgent = _ConvosAgent
+        try:
+            return _original_run_job(job)
+        finally:
+            _run_agent_mod.AIAgent = _OrigAgent
+
+    cron_mod.run_job = _patched_run_job
+    logger.info("Patched cron run_job for convos platform context")
+
+    # -- Patch 2: route convos delivery through _dispatch_response ----------
 
     original_deliver = cron_mod._deliver_result
 
     def _patched_deliver(job: dict, content: str) -> None:
-        deliver = job.get("deliver", "local")
-        origin = cron_mod._resolve_origin(job)
-
-        # Resolve platform name from deliver config
-        if deliver == "origin" and origin:
-            platform_name = origin["platform"]
-        elif ":" in deliver:
-            platform_name = deliver.split(":", 1)[0]
-        else:
-            platform_name = deliver
-
-        if platform_name != "convos":
+        if not _is_convos_targeted(job):
             return original_deliver(job, content)
 
-        # Send through our adapter
+        # Send through the adapter's full response pipeline (parses SILENT,
+        # reactions, profile markers, applies outbound policy, etc.)
         adapter = get_adapter()
         if not adapter or not adapter.instance:
             logger.warning("Cron job '%s': convos adapter not active, skipping delivery", job.get("name", job["id"]))
@@ -710,16 +766,10 @@ def _patch_cron_delivery() -> None:
             logger.error("Cron job '%s': no event loop for convos delivery", job.get("name", job["id"]))
             return
 
-        async def _policy_then_send(text: str) -> None:
-            from .outbound_policy import apply_outbound_policy
-            policy = await apply_outbound_policy(text)
-            if policy.suppress:
-                logger.info("Cron job '%s': suppressed by outbound policy", job.get("name", job["id"]))
-                return
-            await adapter.send_message(policy.text)
-
         try:
-            future = asyncio.run_coroutine_threadsafe(_policy_then_send(content), loop)
+            future = asyncio.run_coroutine_threadsafe(
+                adapter._dispatch_response(content), loop,
+            )
             future.result(timeout=30)
             logger.info("Cron job '%s': delivered to convos", job.get("name", job["id"]))
         except Exception as err:
@@ -813,7 +863,7 @@ async def lifespan(app: FastAPI):
     os.environ.setdefault("HERMES_GATEWAY_SESSION", "1")
     warm_imports()
     _event_loop = asyncio.get_event_loop()
-    _patch_cron_delivery()
+    _patch_cron_for_convos()
     _seed_cron_jobs()
     _cron_task = asyncio.create_task(_cron_tick_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
