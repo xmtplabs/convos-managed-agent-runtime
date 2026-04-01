@@ -80,3 +80,13 @@ tests:
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:agentRespondedToReaction"
+
+  - description: "Agent uses replyTo when referencing an earlier message"
+    vars:
+      prompt: "What was the secret word I mentioned earlier? Reply to that message."
+    metadata:
+      replyToEarlier: true
+      setupMessage: "Remember this: the secret word is ABRACADABRA"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentUsedReplyTo"
