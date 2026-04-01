@@ -8,13 +8,11 @@
     "apply": "cd openclaw && sh scripts/apply-config.sh",
     "install-deps": "cd openclaw && sh scripts/install-deps.sh",
     "pool-server": "cd openclaw && node src/pool-server.js",
-    "build": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
-    "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
-    "build:run": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
+    "docker:build:openclaw": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
+    "docker:run:openclaw": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
     "start:hermes": "cd hermes && pnpm start",
-    "build:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local .",
+    "docker:build:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local .",
     "docker:run:hermes": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
-    "build:run:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local . && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
     "evals": "sh evals/eval.sh"
   }
 }
