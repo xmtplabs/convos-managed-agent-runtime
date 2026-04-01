@@ -1,7 +1,6 @@
 ## 0.2.2
 - 2x faster web search powered by Exa
 - Email and SMS auto-provision on first use — no confirmation prompt
-- Image input — agents can see and respond to photos, screenshots, and diagrams
 - Agents no longer narrate tool use — you just see the result
 - Email and SMS can be removed when no longer needed
 
