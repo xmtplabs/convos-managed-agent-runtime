@@ -303,6 +303,18 @@ export function cronJobDeleted(output, context) {
   };
 }
 
+export function agentRespondedToReaction(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pass = meta.reactionTriggered === true;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Agent responded to own-message reaction'
+      : 'FAIL: agent did not respond to reaction on its own message',
+  };
+}
+
 export function responseTimeBelowThreshold(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const actual = meta.responseTimeMs;

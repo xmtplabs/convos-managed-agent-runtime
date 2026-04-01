@@ -71,3 +71,12 @@ tests:
           Pass if the AGENT's response mentions or lists any participants, members,
           identities, addresses, or people in the group.
           Fail only if the AGENT refused, said it doesn't know, or gave no answer.
+
+  - description: "Agent responds to thumbs-up on its own message"
+    vars:
+      prompt: "Should I call you 'Assistant'? Answer yes or no."
+    metadata:
+      reaction: "👍"
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentRespondedToReaction"
