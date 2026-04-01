@@ -67,7 +67,7 @@ class SentEvent:
 def _resolve_convos_bin() -> str:
     """Find the convos CLI binary."""
     # Check node_modules in our own package
-    here = Path(__file__).resolve().parent.parent
+    here = Path(__file__).resolve().parent.parent.parent
     local_bin = here / "node_modules" / "@xmtp" / "convos-cli" / "bin" / "run.js"
     if local_bin.exists():
         return str(local_bin)
@@ -225,7 +225,7 @@ class ConvosInstance:
         env: str,
         invite_url: str,
         *,
-        profile_name: str = "Convos Agent",
+        profile_name: str = os.environ.get("DEFAULT_AGENT_NAME", "Assistant"),
         profile_image: str | None = None,
         metadata: dict[str, str] | None = None,
         timeout: int = 60,
@@ -263,6 +263,8 @@ class ConvosInstance:
                         **kwargs,
                     )
                     return instance, "joined", conv_match.group(1)
+                if identity_match and "(pending)" in msg:
+                    return None, "pending", None
             raise
 
         if data.get("status") == "joined" and data.get("conversationId"):

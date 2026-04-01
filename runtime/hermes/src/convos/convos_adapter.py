@@ -33,12 +33,12 @@ from typing import Any
 import httpx
 
 from .xmtp_bridge import ConvosInstance, InboundMessage
-from .agent_runner import AgentRunner
-from .config import RuntimeConfig
-from .profile_image_renewal import ProfileImageRenewalStore
-from .credentials import clear_credentials
-from .outbound_policy import apply_outbound_policy
-from .stats import stats
+from ..server.agent_runner import AgentRunner
+from ..server.config import RuntimeConfig
+from ..server.profile_image_renewal import ProfileImageRenewalStore
+from ..server.credentials import clear_credentials
+from ..server.outbound_policy import apply_outbound_policy
+from ..server.stats import stats
 
 logger = logging.getLogger(__name__)
 

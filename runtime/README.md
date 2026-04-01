@@ -120,8 +120,6 @@ All values are injected by the pool manager via Railway env vars at instance cre
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENCLAW_PRIMARY_MODEL` | yes | Default LLM model (e.g. `openrouter/anthropic/claude-opus-4-6`) |
-| `EVALS_MODEL` | no | Grader/judge model for evals |
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key for LLM calls |
 | `XMTP_ENV` | yes | XMTP network (`dev` or `production`) |
 | `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |

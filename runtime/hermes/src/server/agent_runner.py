@@ -7,7 +7,7 @@ Used by both production and evals:
     Full XMTP pipeline with envelope formatting, conversation history,
     and async message handling.
 
-  Evals: bin/hermes → python -m src.agent_runner -q "query"
+  Evals: bin/hermes → python -m src.server.agent_runner -q "query"
     Single-turn queries via AgentRunner.run_single_query().
     Same AIAgent config, same toolsets, same skills — no wrapper scripts.
 
@@ -71,8 +71,7 @@ def warm_imports() -> None:
 
     if not _toolset_registered:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
-        from src.convos_tools import register_convos_tools
-        from src.convos_web_tools import register_convos_web_tools
+        from src.convos.convos_tools import register_convos_tools
 
         convos_tool_names = ["convos_react", "convos_send_attachment"]
         all_tools = list(_HERMES_CORE_TOOLS) + convos_tool_names
@@ -83,8 +82,6 @@ def warm_imports() -> None:
             includes=[],
         )
         register_convos_tools()
-        # Overwrite Firecrawl-gated web tools with OpenRouter + local fetch
-        register_convos_web_tools()
         _toolset_registered = True
         logger.info("Registered hermes-convos toolset (%d tools)", len(all_tools))
 
@@ -100,7 +97,7 @@ def _load_convos_platform() -> str:
     hermes_home = os.environ.get("HERMES_HOME", "")
     candidates = [
         *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PLATFORM.md"]),
-        Path(__file__).resolve().parent.parent / "workspace" / "CONVOS_PLATFORM.md",
+        Path(__file__).resolve().parent.parent.parent / "workspace" / "CONVOS_PLATFORM.md",
     ]
     for path in candidates:
         if path.exists():
@@ -118,7 +115,7 @@ class AgentRunner:
     def __init__(
         self,
         *,
-        model: str = "anthropic/claude-opus-4-6",
+        model: str = "@preset/assistants-pro",
         openrouter_api_key: str = "",
         max_iterations: int = 90,
         hermes_home: str = "",
@@ -146,6 +143,19 @@ class AgentRunner:
                 return self._agent
             return self._create_agent()
 
+    @staticmethod
+    def _load_config_yaml(hermes_home: str) -> dict:
+        """Load config.yaml from HERMES_HOME (same approach as gateway/run.py)."""
+        try:
+            import yaml
+            cfg_path = Path(hermes_home or os.path.expanduser("~/.hermes")) / "config.yaml"
+            if cfg_path.exists():
+                with open(cfg_path, encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+        except Exception:
+            pass
+        return {}
+
     def _create_agent(self) -> Any:
         """Create the AIAgent instance. Caller must hold _agent_init_lock."""
         if self._openrouter_api_key:
@@ -165,9 +175,22 @@ class AgentRunner:
             except Exception as err:
                 logger.warning("Failed to initialize SessionDB: %s", err)
 
-        # Honcho session key — enables cross-session user modeling when
-        # HONCHO_API_KEY is set or ~/.honcho/config.json exists.
-        honcho_key = f"convos:{self._conversation_id}" if self._conversation_id else None
+        # Load config.yaml for provider routing, fallback model, and
+        # reasoning config — same sections the gateway passes through.
+        cfg = self._load_config_yaml(self._hermes_home)
+        pr = cfg.get("provider_routing", {}) or {}
+        fallback = cfg.get("fallback_providers") or cfg.get("fallback_model") or None
+
+        reasoning_config = None
+        try:
+            from hermes_constants import parse_reasoning_effort
+            effort = str((cfg.get("agent") or {}).get("reasoning_effort", "") or "").strip()
+            if not effort:
+                effort = os.environ.get("HERMES_REASONING_EFFORT", "")
+            if effort:
+                reasoning_config = parse_reasoning_effort(effort)
+        except Exception:
+            pass
 
         AIAgent = _get_ai_agent_class()
         self._agent = AIAgent(
@@ -178,9 +201,34 @@ class AgentRunner:
             ephemeral_system_prompt=CONVOS_EPHEMERAL_PROMPT,
             quiet_mode=os.path.isfile("/.dockerenv"),
             session_db=self._session_db,
-            honcho_session_key=honcho_key,
             save_trajectories=True,
+            providers_allowed=pr.get("only"),
+            providers_ignored=pr.get("ignore"),
+            providers_order=pr.get("order"),
+            provider_sort=pr.get("sort"),
+            provider_require_parameters=pr.get("require_parameters", False),
+            provider_data_collection=pr.get("data_collection"),
+            fallback_model=fallback,
+            reasoning_config=reasoning_config,
         )
+
+        # Fix upstream bug (NousResearch/hermes-agent#4377): Hermes checks
+        # bool(getattr(client, "is_closed", False)) but openai SDK's is_closed
+        # is a method, not a property — the bound method object is always truthy,
+        # causing every API call to recreate the shared client unnecessarily.
+        def _is_openai_client_closed_fixed(client):
+            from unittest.mock import Mock
+            if isinstance(client, Mock):
+                return False
+            is_closed = getattr(client, "is_closed", False)
+            if callable(is_closed):
+                is_closed = is_closed()
+            if bool(is_closed):
+                return True
+            http_client = getattr(client, "_client", None)
+            return bool(getattr(http_client, "is_closed", False))
+
+        self._agent._is_openai_client_closed = _is_openai_client_closed_fixed
         return self._agent
 
     def _format_envelope(
@@ -246,8 +294,56 @@ class AgentRunner:
             logger.error(f"Agent error: {err}")
             return "I encountered an error processing your message. Please try again."
 
+        # Detect credit exhaustion (HTTP 402) — run_conversation() returns
+        # final_response=None on non-retryable errors, so the outbound policy
+        # never sees the error text.  Surface the credit top-up message directly.
+        if result.get("failed"):
+            from .outbound_policy import _is_credit_error, _build_credit_message
+            error_text = result.get("error", "")
+            if _is_credit_error(error_text):
+                logger.warning("Credit error detected in agent response: %s", error_text[:200])
+                return _build_credit_message()
+            logger.error("Agent failed (non-credit): %s", error_text[:200])
+            return "I hit a temporary issue — give me a moment and try again."
+
         response = result.get("final_response", "")
         was_interrupted = result.get("interrupted", False)
+
+        # Extract reasoning texts: assistant messages from tool-calling turns.
+        # These are intermediate narration the model produced alongside tool
+        # calls — e.g. "Let me search for that..." before a web_search call.
+        # The third-party agent runner discards them from final_response but
+        # they're preserved in the messages list.
+        #
+        # To expose reasoning in the UI instead of suppressing it, the
+        # adapter (_dispatch_response in convos_adapter.py) can send these
+        # before the final response using either:
+        #
+        #   (a) <think> tags — wrap text so the Convos client can parse and
+        #       render differently (collapsible, dimmed, italic, etc.):
+        #         for text in agent._last_reasoning_texts:
+        #             await inst.send_message(f"<think>{text}</think>")
+        #
+        #   (b) XMTP content type — send as a distinct content type so the
+        #       client can render a dedicated reasoning bubble:
+        #         await inst.send_content_type("reasoning", text)
+        #       (requires Convos client + protocol support for the new type)
+        reasoning_texts: list[str] = []
+        for msg_entry in result.get("messages", []):
+            if msg_entry.get("role") != "assistant":
+                continue
+            if not msg_entry.get("tool_calls"):
+                continue
+            content = (msg_entry.get("content") or "").strip()
+            if content:
+                reasoning_texts.append(content)
+        if reasoning_texts:
+            logger.info(
+                "[reasoning] %d intermediate text(s) from tool-calling turns: %s",
+                len(reasoning_texts),
+                [t[:60] for t in reasoning_texts],
+            )
+        self._last_reasoning_texts = reasoning_texts
 
         # Normalize SILENT: the agent chose not to reply. Strip the marker
         # so it never appears in conversation history as assistant text.
@@ -310,9 +406,7 @@ if __name__ == "__main__":
     parser.add_argument("-q", "--query", required=True)
     args, _ = parser.parse_known_args()
 
-    model = os.environ.get("OPENCLAW_PRIMARY_MODEL") or os.environ.get("HERMES_MODEL") or "anthropic/claude-opus-4-6"
-    if model.startswith("openrouter/"):
-        model = model.removeprefix("openrouter/")
+    model = os.environ.get("HERMES_MODEL") or "@preset/assistants-pro"
 
     warm_imports()
     runner = AgentRunner(model=model, hermes_home=os.environ.get("HERMES_HOME", ""))

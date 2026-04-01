@@ -1,4 +1,4 @@
-import { eq, sql, count } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "./connection";
 import { agentSkills } from "./schema";
 import type { SkillRow } from "./schema";
@@ -76,9 +76,4 @@ export async function updateSkill(
 export async function deleteSkill(id: string): Promise<boolean> {
   const result = await db.delete(agentSkills).where(eq(agentSkills.id, id));
   return (result.rowCount ?? 0) > 0;
-}
-
-export async function hasAnySkills(): Promise<boolean> {
-  const [row] = await db.select({ n: count() }).from(agentSkills);
-  return (row?.n ?? 0) > 0;
 }

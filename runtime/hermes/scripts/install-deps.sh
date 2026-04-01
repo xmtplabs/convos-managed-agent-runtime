@@ -3,7 +3,7 @@
 set -e
 . "$(dirname "$0")/init.sh"
 
-HERMES_TAG="v2026.3.23"
+HERMES_TAG="v2026.3.30"
 
 brand_section "Dependencies"
 brand_dim "" "install extensions and check toolchain"
@@ -39,8 +39,7 @@ else
   git clone --recurse-submodules --branch "$HERMES_TAG" --depth 1 \
     https://github.com/NousResearch/hermes-agent.git "$HERMES_AGENT_DIR"
   cd "$HERMES_AGENT_DIR"
-  uv pip install $PIP_TARGET ".[all]"
-  uv pip install $PIP_TARGET "./mini-swe-agent"
+  uv pip install $PIP_TARGET ".[cron,mcp,pty,homeassistant]"
   cd "$ROOT"
   brand_ok "hermes-agent" "$HERMES_TAG (installed)"
 fi
