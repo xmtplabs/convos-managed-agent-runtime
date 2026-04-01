@@ -46,19 +46,22 @@ done
 . "$HARNESS_DIR/lib/agents-assemble.sh"
 assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$ROOT/AGENTS.md"
 
-# ── Generate CONVOS_PLATFORM.md for agent_runner.py backward compat ──────
+# ── Generate CONVOS_PLATFORM.md from per-turn injection manifest ──────────
 _cp="$HERMES_HOME/CONVOS_PLATFORM.md"
+_injection="$CONVOS_PLATFORM_DIR/injection.json"
 : > "$_cp"
-for _ctx_name in IDENTITY MESSAGING TOOL-DISCIPLINE INBOUND-FORMATS CONVOS-CLI PROFILE-UPDATES; do
+if [ -f "$_injection" ] && command -v jq >/dev/null 2>&1; then
+  _per_turn=$(jq -r '.per_turn[]' "$_injection")
+else
+  _per_turn="TOOL-DISCIPLINE INBOUND-FORMATS CONVOS-CLI PROFILE-UPDATES CRON"
+fi
+for _ctx_name in $_per_turn; do
   _ctx_runtime="$CONVOS_PLATFORM_DIR/context/hermes/$_ctx_name.md"
   _ctx_shared="$CONVOS_PLATFORM_DIR/context/$_ctx_name.md"
-  if [ -f "$_ctx_runtime" ]; then
-    cat "$_ctx_runtime" >> "$_cp"; printf '\n\n' >> "$_cp"
-  elif [ -f "$_ctx_shared" ]; then
-    cat "$_ctx_shared" >> "$_cp"; printf '\n\n' >> "$_cp"
-  fi
+  [ -f "$_ctx_runtime" ] && cat "$_ctx_runtime" >> "$_cp" && printf '\n\n' >> "$_cp"
+  [ -f "$_ctx_shared" ] && cat "$_ctx_shared" >> "$_cp" && printf '\n\n' >> "$_cp"
 done
-brand_ok "CONVOS_PLATFORM.md" "generated (hermes)"
+brand_ok "CONVOS_PLATFORM.md" "generated from injection.json (hermes)"
 
 brand_ok "HERMES_HOME" "$HERMES_HOME"
 brand_done "Workspace ready"

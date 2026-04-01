@@ -1,0 +1,9 @@
+{
+  "per_turn": [
+    "TOOL-DISCIPLINE",
+    "INBOUND-FORMATS",
+    "CONVOS-CLI",
+    "PROFILE-UPDATES",
+    "CRON"
+  ]
+}

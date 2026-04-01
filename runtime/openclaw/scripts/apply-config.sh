@@ -107,19 +107,22 @@ else
   echo "⚠ HARNESS_DIR not set — skipping agents-assemble" >&2
 fi
 
-# Generate CONVOS_PLATFORM.md for channel.ts backward compat
+# Generate CONVOS_PLATFORM.md from per-turn injection manifest
 _cp="$STATE_DIR/workspace/CONVOS_PLATFORM.md"
+_injection="$CONVOS_PLATFORM_DIR/injection.json"
 : > "$_cp"
-for _ctx_name in MESSAGING TOOL-DISCIPLINE INBOUND-FORMATS CONVOS-CLI PROFILE-UPDATES CRON; do
+if [ -f "$_injection" ] && command -v jq >/dev/null 2>&1; then
+  _per_turn=$(jq -r '.per_turn[]' "$_injection")
+else
+  _per_turn="TOOL-DISCIPLINE INBOUND-FORMATS CONVOS-CLI PROFILE-UPDATES CRON"
+fi
+for _ctx_name in $_per_turn; do
   _ctx_runtime="$CONVOS_PLATFORM_DIR/context/openclaw/$_ctx_name.md"
   _ctx_shared="$CONVOS_PLATFORM_DIR/context/$_ctx_name.md"
-  if [ -f "$_ctx_runtime" ]; then
-    cat "$_ctx_runtime" >> "$_cp"; printf '\n---\n\n' >> "$_cp"
-  elif [ -f "$_ctx_shared" ]; then
-    cat "$_ctx_shared" >> "$_cp"; printf '\n---\n\n' >> "$_cp"
-  fi
+  [ -f "$_ctx_runtime" ] && cat "$_ctx_runtime" >> "$_cp" && printf '\n---\n\n' >> "$_cp"
+  [ -f "$_ctx_shared" ] && cat "$_ctx_shared" >> "$_cp" && printf '\n---\n\n' >> "$_cp"
 done
-brand_ok "CONVOS_PLATFORM.md" "generated (openclaw)"
+brand_ok "CONVOS_PLATFORM.md" "generated from injection.json (openclaw)"
 
 # Sync shared web-tools assets
 _SHARED_WT="${CONVOS_PLATFORM_DIR:-}/web-tools"
