@@ -14,7 +14,7 @@ brand_section "Server"
 brand_dim "" "start Hermes FastAPI server"
 
 export PORT="${PORT:-8080}"
-export SHARED_SCRIPTS_DIR="${SHARED_SCRIPTS_DIR:-}"
+export LIB_DIR="${LIB_DIR:-}"
 brand_ok "PORT" "$PORT"
 
 cd "$ROOT"

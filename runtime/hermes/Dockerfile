@@ -47,16 +47,15 @@ COPY runtime/package.json /app/runtime-version.json
 
 # Application code
 COPY runtime/hermes/src /app/src
-COPY runtime/shared/web-tools /app/web-tools
-COPY runtime/shared/workspace /app/shared-workspace
-COPY runtime/shared/scripts /app/shared-scripts
-COPY runtime/hermes/workspace /app/workspace
+COPY runtime/hermes/config.yaml /app/config.yaml
+COPY runtime/convos-platform /app/convos-platform
+COPY runtime/lib /app/lib
 COPY runtime/hermes/scripts /app/scripts
 RUN chmod +x /app/scripts/*.sh
 
 # HERMES_HOME — sync.sh populates this on boot from /app/workspace
 ENV HERMES_HOME=/app/.hermes
-ENV SKILLS_ROOT=/app/.hermes/skills
+ENV SKILLS_ROOT=/app/.hermes/workspace/skills
 
 ENV PORT=8080
 

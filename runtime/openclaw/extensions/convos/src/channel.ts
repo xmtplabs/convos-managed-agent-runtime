@@ -39,8 +39,8 @@ function loadConvosMessagingHints(): string[] {
     // jiti or non-file: URL — skip this candidate
   }
   const candidates = [
-    path.resolve(process.env.OPENCLAW_STATE_DIR || ".", "workspace", "CONVOS_PLATFORM.md"),
-    ...(thisDir ? [path.resolve(thisDir, "..", "..", "workspace", "CONVOS_PLATFORM.md")] : []),
+    path.resolve(process.env.OPENCLAW_STATE_DIR || ".", "workspace", "INJECTED_CONTEXT.md"),
+    ...(thisDir ? [path.resolve(thisDir, "..", "..", "workspace", "INJECTED_CONTEXT.md")] : []),
   ];
   for (const hintsPath of candidates) {
     try {
@@ -54,7 +54,7 @@ function loadConvosMessagingHints(): string[] {
       continue;
     }
   }
-  console.warn("CONVOS_PLATFORM.md not found — agent will lack messaging hints");
+  console.warn("INJECTED_CONTEXT.md not found — agent will lack messaging hints");
   _cachedMessagingHints = [];
   return _cachedMessagingHints;
 }

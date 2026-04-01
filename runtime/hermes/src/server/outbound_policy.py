@@ -1,6 +1,6 @@
 """Outbound text policy — rewrite or suppress agent text before sending to users.
 
-Rules loaded from shared/outbound-policy.json so both runtimes
+Rules loaded from convos-platform/outbound-policy.json so both runtimes
 share the same patterns, thresholds, and messages.
 """
 
@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 # ── Load shared policy ──────────────────────────────────────────────────
 
 _POLICY_PATHS = [
-    Path("/app/shared/outbound-policy.json"),
-    Path(__file__).resolve().parent.parent.parent.parent / "shared" / "outbound-policy.json",
+    Path("/app/convos-platform/outbound-policy.json"),
+    Path(__file__).resolve().parent.parent.parent.parent / "convos-platform" / "outbound-policy.json",
 ]
 
 _policy: dict = {}

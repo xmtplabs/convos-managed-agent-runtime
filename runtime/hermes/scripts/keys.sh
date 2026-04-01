@@ -5,7 +5,7 @@
 set -e
 
 . "$(dirname "$0")/init.sh"
-ENV_FILE="$ROOT/.env"
+ENV_FILE="${_ENV_FILE:-$ROOT/.env}"
 
 if [ -f "$ENV_FILE" ]; then
   set -a; . "$ENV_FILE" 2>/dev/null || true; set +a
@@ -26,7 +26,7 @@ brand_dim "" "validate API keys and write .env"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 [ -n "$_RUNTIME_IMAGE" ] && brand_ok "IMAGE" "$_RUNTIME_IMAGE" || brand_dim "IMAGE" "unknown"
 
-. "$SHARED_SCRIPTS_DIR/lib/keys-common.sh"
+. "$LIB_DIR/keys-common.sh"
 
 keys_validate_openrouter
 keys_show_pool

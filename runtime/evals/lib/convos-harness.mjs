@@ -19,9 +19,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------
 
 export function resolveSkillsRoot() {
-  return existsSync('/app/shared-workspace/skills')
-    ? '/app/shared-workspace/skills'
-    : resolve(__dirname, '../../shared/workspace/skills');
+  return existsSync('/app/convos-platform/skills')
+    ? '/app/convos-platform/skills'
+    : resolve(__dirname, '../../convos-platform/skills');
 }
 
 

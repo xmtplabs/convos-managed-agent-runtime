@@ -3,8 +3,8 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPT_LIB="$(cd "$(dirname "$0")/lib" 2>/dev/null && pwd)" || SCRIPT_LIB="$ROOT/scripts/lib"
 _ENV_FILE="$ROOT/../.env"
-_init_common="$ROOT/../shared/scripts/lib/init-common.sh"
-[ ! -f "$_init_common" ] && _init_common="/app/shared-scripts/lib/init-common.sh"
+_init_common="$ROOT/../lib/init-common.sh"
+[ ! -f "$_init_common" ] && _init_common="/app/lib/init-common.sh"
 . "$_init_common"
 
 # Docker detection — single source of truth
@@ -19,10 +19,11 @@ if is_docker; then
 else
   HERMES_AGENT_DIR="$ROOT/.hermes-dev/hermes-agent"
 fi
+STATE_DIR="$HERMES_HOME"
 WORKSPACE_DIR="$ROOT/workspace"
-SKILLS_ROOT="$HERMES_HOME/skills"
+SKILLS_ROOT="$STATE_DIR/workspace/skills"
 
-export HERMES_HOME HERMES_AGENT_DIR WORKSPACE_DIR SKILLS_ROOT
+export HERMES_HOME HERMES_AGENT_DIR STATE_DIR WORKSPACE_DIR SKILLS_ROOT
 
 # ── Node / Python ────────────────────────────────────────────────────────
 export NODE_PATH="${NODE_PATH:-$ROOT/node_modules}"
