@@ -14,8 +14,10 @@ mkdir -p "$STATE_DIR/workspace" "$STATE_DIR/skills" "$STATE_DIR/memories" "$STAT
 # ── Convos platform (SOUL.md, shared skills) → STATE_DIR/workspace ──────
 _skill_count=0
 if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
-  [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$STATE_DIR/SOUL.md"
-  brand_ok "SOUL.md" "$STATE_DIR/SOUL.md"
+  if [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ]; then
+    cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$STATE_DIR/SOUL.md"
+    brand_ok "SOUL.md" "$STATE_DIR/SOUL.md"
+  fi
 
   if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
     for skill_dir in "$CONVOS_PLATFORM_DIR"/skills/*; do
