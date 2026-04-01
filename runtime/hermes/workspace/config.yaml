@@ -1,3 +1,5 @@
+timezone: America/New_York
+
 web:
   backend: exa
 
