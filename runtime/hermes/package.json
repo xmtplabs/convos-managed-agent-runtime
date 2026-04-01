@@ -7,6 +7,6 @@
     "evals": "sh evals/eval.sh"
   },
   "dependencies": {
-    "@xmtp/convos-cli": "^0.7.0"
+    "@xmtp/convos-cli": "0.7.0"
   }
 }
