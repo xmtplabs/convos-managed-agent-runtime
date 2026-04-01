@@ -8,7 +8,7 @@
 
 const POOL_URL = process.env.POOL_URL;
 const INSTANCE_ID = process.env.INSTANCE_ID;
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
 
 const command = process.argv[2];
 
@@ -20,7 +20,7 @@ if (!command) {
 
 async function poolSelfRequest(endpoint) {
   if (!POOL_URL || !INSTANCE_ID || !GATEWAY_TOKEN) {
-    throw new Error("Missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN");
+    throw new Error("Missing POOL_URL, INSTANCE_ID, or GATEWAY_TOKEN");
   }
   const res = await fetch(`${POOL_URL}/api/pool/${endpoint}`, {
     method: "POST",

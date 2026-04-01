@@ -17,7 +17,7 @@ const GATEWAY_PORT =
   process.env.GATEWAY_INTERNAL_PORT ||
   runtime.defaultPort;
 
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
 
 const h = createHarness('webhook', {
   conversationPrefix: 'Webhook Eval',

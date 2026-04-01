@@ -5,7 +5,7 @@ description: |
   USE WHEN: User asks about the runtime, their version, what version they're on, or asks to upgrade/update/redeploy.
   Also USE WHEN: User says "upgrade", "update", "what's your runtime", "runtime version", "redeploy", or any variation.
   NEVER use `gateway update`, `npm update`, `pip install`, or any local package manager command. Those update local tooling, not the Convos runtime. The runtime upgrade path is a container redeploy via the pool server.
-  REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID + OPENCLAW_GATEWAY_TOKEN).
+  REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID + GATEWAY_TOKEN).
 ---
 
 ## Version

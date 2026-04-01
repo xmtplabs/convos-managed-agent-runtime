@@ -13,8 +13,8 @@ case "$EVAL_RUNTIME" in
   openclaw)
     [ -f "$_ENV_RUNTIME_DIR/.env" ] && set -a && . "$_ENV_RUNTIME_DIR/.env" 2>/dev/null || true && set +a
     export PATH="$_ENV_RUNTIME_DIR/node_modules/.bin:$_ENV_RUNTIME_DIR/openclaw/node_modules/.bin:$PATH"
-    if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
-      echo "Error: OPENCLAW_GATEWAY_TOKEN must be set in runtime/.env" >&2
+    if [ -z "$GATEWAY_TOKEN" ]; then
+      echo "Error: GATEWAY_TOKEN must be set in runtime/.env" >&2
       exit 1
     fi
     ;;
@@ -22,8 +22,8 @@ case "$EVAL_RUNTIME" in
     _ENV_HERMES_DIR="$_ENV_REPO_ROOT/runtime/hermes"
     [ -f "$_ENV_RUNTIME_DIR/.env" ] && set -a && . "$_ENV_RUNTIME_DIR/.env" 2>/dev/null || true && set +a
     export PATH="$_ENV_HERMES_DIR/bin:$PATH"
-    if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
-      echo "Error: OPENCLAW_GATEWAY_TOKEN must be set in runtime/.env" >&2
+    if [ -z "$GATEWAY_TOKEN" ]; then
+      echo "Error: GATEWAY_TOKEN must be set in runtime/.env" >&2
       exit 1
     fi
     ;;

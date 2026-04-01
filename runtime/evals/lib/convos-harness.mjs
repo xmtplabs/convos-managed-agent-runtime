@@ -54,9 +54,9 @@ export function createHarness(tag, opts = {}) {
     process.env.GATEWAY_INTERNAL_PORT ||
     runtime.defaultPort;
 
-  const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
   if (!GATEWAY_TOKEN) {
-    console.error(`[eval:${tag}] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.`);
+    console.error(`[eval:${tag}] GATEWAY_TOKEN is required. Set it in runtime/.env.`);
     process.exit(1);
   }
 
