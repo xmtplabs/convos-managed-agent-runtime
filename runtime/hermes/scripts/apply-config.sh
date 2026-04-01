@@ -15,9 +15,6 @@ mkdir -p "$STATE_DIR/workspace" "$STATE_DIR/skills" "$STATE_DIR/memories" "$STAT
 _skill_count=0
 if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$STATE_DIR/workspace/SOUL.md"
-  # Hermes framework writes a default SOUL.md to HERMES_HOME root — replace with symlink
-  rm -f "$STATE_DIR/SOUL.md"
-  ln -sf "$STATE_DIR/workspace/SOUL.md" "$STATE_DIR/SOUL.md"
   brand_ok "SOUL.md" "$STATE_DIR/workspace/SOUL.md"
 
   if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
@@ -32,9 +29,9 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   brand_ok "shared skills" "$_skill_count synced"
 fi
 
-# ── Runtime workspace (config, runtime-only skills overlay) ──────────────
-cp "$WORKSPACE_DIR/config.yaml" "$STATE_DIR/config.yaml"
-brand_ok "config.yaml" "synced"
+# ── Runtime config and skills ────────────────────────────────────────────
+cp "$ROOT/config.yaml" "$STATE_DIR/config.yaml"
+brand_ok "config.yaml" "$STATE_DIR/config.yaml"
 
 for skill_dir in "$WORKSPACE_DIR"/skills/*; do
   [ -d "$skill_dir" ] || continue

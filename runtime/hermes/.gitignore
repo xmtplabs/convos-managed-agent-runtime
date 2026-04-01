@@ -4,3 +4,4 @@ __pycache__/
 scripts/dev-run.sh
 trajectory_samples.jsonl
 failed_trajectories.jsonl
+AGENTS.md
