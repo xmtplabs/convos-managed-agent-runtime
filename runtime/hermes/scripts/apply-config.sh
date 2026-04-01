@@ -46,8 +46,8 @@ done
 . "$HARNESS_DIR/lib/agents-assemble.sh"
 assemble_agents "$CONVOS_PLATFORM_DIR" "hermes" "$ROOT/AGENTS.md"
 
-# ── Generate CONVOS_PLATFORM.md from per-turn injection manifest ──────────
-_cp="$HERMES_HOME/CONVOS_PLATFORM.md"
+# ── Generate INJECTED_CONTEXT.md from per-turn injection manifest ──────────
+_cp="$HERMES_HOME/INJECTED_CONTEXT.md"
 _injection="$CONVOS_PLATFORM_DIR/injection.json"
 : > "$_cp"
 if [ -f "$_injection" ] && command -v jq >/dev/null 2>&1; then
@@ -61,7 +61,7 @@ for _ctx_name in $_per_turn; do
   [ -f "$_ctx_runtime" ] && cat "$_ctx_runtime" >> "$_cp" && printf '\n\n' >> "$_cp"
   [ -f "$_ctx_shared" ] && cat "$_ctx_shared" >> "$_cp" && printf '\n\n' >> "$_cp"
 done
-brand_ok "CONVOS_PLATFORM.md" "generated from injection.json (hermes)"
+brand_ok "INJECTED_CONTEXT.md" "generated from injection.json (hermes)"
 
 brand_ok "HERMES_HOME" "$HERMES_HOME"
 brand_done "Workspace ready"

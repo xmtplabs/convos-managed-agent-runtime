@@ -107,8 +107,8 @@ else
   echo "⚠ HARNESS_DIR not set — skipping agents-assemble" >&2
 fi
 
-# Generate CONVOS_PLATFORM.md from per-turn injection manifest
-_cp="$STATE_DIR/workspace/CONVOS_PLATFORM.md"
+# Generate INJECTED_CONTEXT.md from per-turn injection manifest
+_cp="$STATE_DIR/workspace/INJECTED_CONTEXT.md"
 _injection="$CONVOS_PLATFORM_DIR/injection.json"
 : > "$_cp"
 if [ -f "$_injection" ] && command -v jq >/dev/null 2>&1; then
@@ -122,7 +122,7 @@ for _ctx_name in $_per_turn; do
   [ -f "$_ctx_runtime" ] && cat "$_ctx_runtime" >> "$_cp" && printf '\n---\n\n' >> "$_cp"
   [ -f "$_ctx_shared" ] && cat "$_ctx_shared" >> "$_cp" && printf '\n---\n\n' >> "$_cp"
 done
-brand_ok "CONVOS_PLATFORM.md" "generated from injection.json (openclaw)"
+brand_ok "INJECTED_CONTEXT.md" "generated from injection.json (openclaw)"
 
 # Sync shared web-tools assets
 _SHARED_WT="${CONVOS_PLATFORM_DIR:-}/web-tools"

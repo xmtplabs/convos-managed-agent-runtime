@@ -62,7 +62,7 @@ runtime/
     ├── workspace/
     │   ├── agents-extra.md # hermes-specific agent instructions
     │   ├── config.yaml     # hermes toolset config
-    │   └── CONVOS_PLATFORM.md # platform context (hermes-only)
+    │   └── INJECTED_CONTEXT.md # platform context (hermes-only)
     └── scripts/            # entrypoint, apply-config, eval-env, etc.
 ```
 
