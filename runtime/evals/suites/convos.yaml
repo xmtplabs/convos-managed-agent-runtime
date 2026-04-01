@@ -74,12 +74,14 @@ tests:
 
   - description: "Agent responds to thumbs-up on its own message"
     vars:
-      prompt: "Should I call you 'Assistant'? Answer yes or no."
+      prompt: "When I give a thumbs up reaction to your message, respond with exactly the word CONFIRMED. Do you understand?"
     metadata:
       reaction: "👍"
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:agentRespondedToReaction"
+      - type: icontains
+        value: "CONFIRMED"
 
   - description: "Agent uses replyTo when referencing an earlier message"
     vars:
