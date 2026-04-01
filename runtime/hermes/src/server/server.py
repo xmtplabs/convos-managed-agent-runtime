@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 # Check runtime root package.json (source of truth), then Docker-injected copy, then local hermes.
 try:
     _candidates = [
-        Path(__file__).resolve().parent.parent.parent / "package.json",  # runtime/package.json (local dev)
-        Path(__file__).resolve().parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        Path(__file__).resolve().parent.parent.parent.parent / "package.json",  # runtime/package.json (local dev)
+        Path(__file__).resolve().parent.parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
     ]
     RUNTIME_VERSION = None
     for _pkg in _candidates:
