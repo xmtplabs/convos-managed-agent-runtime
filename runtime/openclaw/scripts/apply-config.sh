@@ -73,20 +73,9 @@ _MERGED_SRC=""
 if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
   [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$_MERGED_SRC/"
+  [ -d "$CONVOS_PLATFORM_DIR/skills" ] && cp -R "$CONVOS_PLATFORM_DIR/skills" "$_MERGED_SRC/"
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
   brand_ok "workspace" "merged (convos-platform + runtime)"
-
-  # Sync skills to STATE_DIR/skills (outside workspace)
-  if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
-    mkdir -p "$STATE_DIR/skills"
-    for _sk in "$CONVOS_PLATFORM_DIR"/skills/*; do
-      [ -d "$_sk" ] || continue
-      _skn="$(basename "$_sk")"
-      rm -rf "$STATE_DIR/skills/$_skn"
-      cp -R "$_sk" "$STATE_DIR/skills/$_skn"
-    done
-    brand_ok "skills" "$STATE_DIR/skills"
-  fi
 fi
 
 for subdir in workspace extensions; do

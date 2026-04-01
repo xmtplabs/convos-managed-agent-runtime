@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const stateDir = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
 const workspaceDir = join(stateDir, 'workspace');
-const skillsDir = join(stateDir, 'skills');
+const skillsDir = join(workspaceDir, 'skills');
 const cronFile = join(stateDir, 'cron', 'jobs.json');
 const sessionsDir = join(stateDir, 'agents', 'main', 'sessions');
 const templateDir = resolve(__dirname, '../../openclaw/workspace');

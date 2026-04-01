@@ -9,9 +9,9 @@ brand_section "Workspace"
 brand_dim "" "sync skills, agents, and config"
 
 # ── State directory structure ────────────────────────────────────────────
-mkdir -p "$STATE_DIR/workspace" "$STATE_DIR/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron"
+mkdir -p "$STATE_DIR/workspace/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron"
 
-# ── Convos platform (SOUL.md, shared skills) → STATE_DIR/workspace ──────
+# ── Convos platform (SOUL.md, shared skills) ─────────────────────────────
 _skill_count=0
 if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   if [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ]; then
@@ -23,25 +23,17 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
     for skill_dir in "$CONVOS_PLATFORM_DIR"/skills/*; do
       [ -d "$skill_dir" ] || continue
       skill_name="$(basename "$skill_dir")"
-      rm -rf "$STATE_DIR/skills/$skill_name"
-      cp -R "$skill_dir" "$STATE_DIR/skills/$skill_name"
+      rm -rf "$STATE_DIR/workspace/skills/$skill_name"
+      cp -R "$skill_dir" "$STATE_DIR/workspace/skills/$skill_name"
       _skill_count=$((_skill_count + 1))
     done
   fi
   brand_ok "shared skills" "$_skill_count synced"
 fi
 
-# ── Runtime config and skills ────────────────────────────────────────────
+# ── Runtime config ───────────────────────────────────────────────────────
 cp "$ROOT/config.yaml" "$STATE_DIR/config.yaml"
 brand_ok "config.yaml" "$STATE_DIR/config.yaml"
-
-for skill_dir in "$WORKSPACE_DIR"/skills/*; do
-  [ -d "$skill_dir" ] || continue
-  skill_name="$(basename "$skill_dir")"
-  rm -rf "$STATE_DIR/skills/$skill_name"
-  cp -R "$skill_dir" "$STATE_DIR/skills/$skill_name"
-  _skill_count=$((_skill_count + 1))
-done
 
 # ── Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests ──────
 . "$LIB_DIR/agents-assemble.sh"

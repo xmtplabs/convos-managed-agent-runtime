@@ -37,7 +37,7 @@ RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
 
 # IMPORTANT: set OPENCLAW_STATE_DIR before running any CLI commands
 ENV OPENCLAW_STATE_DIR=/app
-ENV SKILLS_ROOT=/app/skills
+ENV SKILLS_ROOT=/app/workspace/skills
 
 ENV OPENCLAW_PUBLIC_PORT=8080
 ENV PORT=8080
