@@ -2,6 +2,7 @@
 - 2x faster web search powered by Exa
 - Email and SMS auto-provision on first use and unprovision when no longer needed
 - OpenClaw assistants (really!) no longer narrate tool use — you just see the result
+- Fixed model fallback when Anthropic is overloaded, and credit exhaustion alerts from sub-agents
 
 ## 0.2.1 — Webhooks
 - Real-time email and SMS: notifications are now pushed instantly via webhooks instead of polling every 60 seconds
