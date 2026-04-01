@@ -11,6 +11,7 @@ model:
 
 # Models available for switching. Presets + individual models.
 models:
+  - { id: "openrouter/auto",                      name: "Auto" }
   - { id: "@preset/assistants-pro",              name: "Pro (auto)" }
   - { id: "anthropic/claude-opus-4-6",           name: "Claude Opus 4.6" }
   - { id: "anthropic/claude-sonnet-4-6",         name: "Claude Sonnet 4.6" }
