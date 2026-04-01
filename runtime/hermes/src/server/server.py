@@ -195,21 +195,16 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         if not adapter.agent or not adapter.instance:
             return
 
-        if _has_active_skill():
-            greeting_content = (
-                "[System: You just joined this conversation. Send your welcome message now. "
-                "Follow the 'Welcome message' section in AGENTS.md.]"
-            )
-        else:
-            greeting_content = (
-                "[System: You just joined this conversation. You have no skill configured yet. "
-                "Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md and follow it. "
-                "Start with step 1: ask one open-ended question about what this group needs. "
-                "Do NOT send a standard welcome message. Do NOT mention your capabilities or ask for a name. "
-                "Just ask what the group needs help with.]"
-            )
+        skill_active = _has_active_skill()
 
-        logger.info("Dispatching greeting (skill-builder=%s)", not _has_active_skill())
+        # Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
+        # (active skill → THE ENTRANCE, no skill → ask what the group needs).
+        greeting_content = (
+            "[System: You just joined this conversation. Send your welcome message now. "
+            "Follow the 'Welcome message' section in AGENTS.md.]"
+        )
+
+        logger.info("Dispatching greeting (skill-active=%s)", skill_active)
         response = await adapter.agent.handle_message(
             content=greeting_content,
             sender_name="System",
@@ -221,6 +216,25 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         )
         if response:
             await adapter._dispatch_response(response)
+
+        # Phase 2: skill-builder kickoff — only if no active skill.
+        # Fires after the greeting is already delivered to the conversation.
+        if not skill_active:
+            logger.info("Dispatching skill-builder kickoff (silent)")
+            # Response is intentionally discarded — the agent reads the skill
+            # into context but should not send anything to the conversation.
+            await adapter.agent.handle_message(
+                content=(
+                    "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. "
+                    "You already asked the group what they need — when they respond, follow the skill from step 1.]"
+                ),
+                sender_name="System",
+                sender_id="system",
+                timestamp=time.time(),
+                conversation_id=adapter.instance.conversation_id,
+                message_id="system-skill-builder",
+                group_members=adapter.instance.get_group_members(),
+            )
     except Exception as err:
         logger.error(f"Greeting dispatch failed: {err}")
     finally:
