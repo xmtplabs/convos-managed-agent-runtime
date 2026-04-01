@@ -171,10 +171,12 @@ node "$SKILLS_ROOT/skill-builder/scripts/skill-url.mjs" <slug>
 
 On approval:
 
+**Do NOT narrate your progress to the group.** Steps 1-4 happen silently — no "Setting active...", no "Updating profile...", no status updates. The only text the group sees is the welcome message in step 5.
+
 1. Set `"active": "<slug>"` in `$SKILLS_ROOT/generated/skills.json`
 2. Update your profile name: use your platform's profile update tool with the `agentName`
 3. Update your profile image with the validated URL from step 5 (skip if no image was found)
-4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `WHEN: immediately`, create the cron job NOW, before sending any message. Skip items marked `WHEN: after learning <context>` — you don't have the context yet. Do not move to step 5 until every immediate automation is actually running.
+4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `PROVISION WHEN: immediately`, create the cron job NOW, before sending any message. Skip items marked `PROVISION WHEN: after learning <context>` — you don't have the context yet. Do not move to step 5 until every immediate automation is actually running.
 5. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt. Only mention automations you actually set up in step 4. If some are deferred, say what you're waiting to learn. Never claim something is running if you didn't create it.
 
 **After activation, as you converse naturally:** When you learn a piece of context that unlocks a deferred ENGINE item (e.g., the user mentions their wake time), set up that automation right then. Don't ask permission for automations the user already approved in the skill — just set them up and confirm: "Got it, 7:30 wake time — I'll check in with you every morning."
@@ -264,9 +266,9 @@ Only include tools the skill genuinely needs:
 
 List every recurring or automated behavior this skill needs. For each item, specify WHAT it does and WHEN it should be set up.
 
-**WHEN options:**
-- `immediately` — no user context needed, set up at activation (e.g., RSS feed monitoring, weekly league standings)
-- `after learning <context>` — needs a specific piece of info from the user first (e.g., "after learning wake time", "after learning which league platform")
+**PROVISION WHEN options:**
+- `PROVISION WHEN: immediately` — no user context needed, set up at activation (e.g., RSS feed monitoring, weekly league standings)
+- `PROVISION WHEN: after learning <context>` — needs a specific piece of info from the user first (e.g., "after learning wake time", "after learning which league platform")
 
 **Types of automation:**
 - **Cron jobs** — recurring tasks: morning check-ins, weekly summaries, deadline reminders, RSS monitoring, API checks
@@ -281,17 +283,17 @@ THE ENGINE: None. Reactive only.
 Sleep coach:
 ```
 THE ENGINE:
-- Huberman feed monitor → cron, check RSS for new sleep episodes every 2 hours. WHEN: immediately.
-- Morning check-in → cron, ask how they slept. WHEN: after learning wake time.
-- Evening wind-down → cron, screen/light reminder. WHEN: after learning bedtime.
+- Huberman feed monitor → cron, check RSS for new sleep episodes every 2 hours. PROVISION WHEN: immediately.
+- Morning check-in → cron, ask how they slept. PROVISION WHEN: after learning wake time.
+- Evening wind-down → cron, screen/light reminder. PROVISION WHEN: after learning bedtime.
 ```
 
 Fantasy football commissioner:
 ```
 THE ENGINE:
-- Weekly power rankings → cron, Monday morning hot takes. WHEN: immediately.
-- League activity monitor → cron, check for trades/waivers every 4 hours. WHEN: after learning platform and league.
-- Waiver deadline nudge → cron, remind before lock. WHEN: after learning waiver day/time.
+- Weekly power rankings → cron, Monday morning hot takes. PROVISION WHEN: immediately.
+- League activity monitor → cron, check for trades/waivers every 4 hours. PROVISION WHEN: after learning platform and league.
+- Waiver deadline nudge → cron, remind before lock. PROVISION WHEN: after learning waiver day/time.
 ```
 
 Trivia bot:

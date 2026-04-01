@@ -18,7 +18,7 @@ To reply to a specific message, include this marker on its own line:
 
   REPLY:messageId                 — send your response as a reply to that message
 
-The remaining text after the marker becomes the reply. Use REPLY when responding to a specific person's message in a group, or when referencing an earlier message that isn't the most recent one. In a 2-member conversation replying to the latest message is redundant — just respond normally.
+The remaining text after the marker becomes the reply. Reply to messages in groups — it helps members follow who you're talking to, especially when multiple threads are active or you're responding to a specific person. In any conversation, reply when referencing an earlier message that isn't the most recent. In a 2-member conversation replying to the latest message is redundant — just respond normally.
 
 You also have tools for side effects during processing:
 
