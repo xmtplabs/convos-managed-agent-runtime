@@ -19,7 +19,7 @@ export async function createInbox(instanceId: string): Promise<string> {
       body: JSON.stringify({
         username,
         domain: config.agentmailDomain || undefined,
-        display_name: "Convos Agent",
+        display_name: config.defaultAgentName,
         client_id: clientId,
       }),
     });

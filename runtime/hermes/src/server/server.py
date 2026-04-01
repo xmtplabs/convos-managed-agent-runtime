@@ -25,10 +25,12 @@ from pydantic import BaseModel
 
 from .agent_runner import warm_imports
 from .config import RuntimeConfig
-from .convos_adapter import ConvosAdapter
+from ..convos.convos_adapter import ConvosAdapter
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
-from .xmtp_bridge import ConvosInstance
+
+DEFAULT_AGENT_NAME = os.environ.get("DEFAULT_AGENT_NAME", "Assistant")
+from ..convos.xmtp_bridge import ConvosInstance
 from .stats import stats
 
 logger = logging.getLogger(__name__)
@@ -37,8 +39,8 @@ logger = logging.getLogger(__name__)
 # Check runtime root package.json (source of truth), then Docker-injected copy, then local hermes.
 try:
     _candidates = [
-        Path(__file__).resolve().parent.parent.parent / "package.json",  # runtime/package.json (local dev)
-        Path(__file__).resolve().parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        Path(__file__).resolve().parent.parent.parent.parent / "package.json",  # runtime/package.json (local dev)
+        Path(__file__).resolve().parent.parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
     ]
     RUNTIME_VERSION = None
     for _pkg in _candidates:
@@ -193,21 +195,16 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         if not adapter.agent or not adapter.instance:
             return
 
-        if _has_active_skill():
-            greeting_content = (
-                "[System: You just joined this conversation. Send your welcome message now. "
-                "Follow the 'Welcome message' section in AGENTS.md.]"
-            )
-        else:
-            greeting_content = (
-                "[System: You just joined this conversation. You have no skill configured yet. "
-                "Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md and follow it. "
-                "Start with step 1: ask one open-ended question about what this group needs. "
-                "Do NOT send a standard welcome message. Do NOT mention your capabilities or ask for a name. "
-                "Just ask what the group needs help with.]"
-            )
+        skill_active = _has_active_skill()
 
-        logger.info("Dispatching greeting (skill-builder=%s)", not _has_active_skill())
+        # Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
+        # (active skill → THE ENTRANCE, no skill → ask what the group needs).
+        greeting_content = (
+            "[System: You just joined this conversation. Send your welcome message now. "
+            "Follow the 'Welcome message' section in AGENTS.md.]"
+        )
+
+        logger.info("Dispatching greeting (skill-active=%s)", skill_active)
         response = await adapter.agent.handle_message(
             content=greeting_content,
             sender_name="System",
@@ -219,6 +216,25 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         )
         if response:
             await adapter._dispatch_response(response)
+
+        # Phase 2: skill-builder kickoff — only if no active skill.
+        # Fires after the greeting is already delivered to the conversation.
+        if not skill_active:
+            logger.info("Dispatching skill-builder kickoff (silent)")
+            # Response is intentionally discarded — the agent reads the skill
+            # into context but should not send anything to the conversation.
+            await adapter.agent.handle_message(
+                content=(
+                    "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. "
+                    "You already asked the group what they need — when they respond, follow the skill from step 1.]"
+                ),
+                sender_name="System",
+                sender_id="system",
+                timestamp=time.time(),
+                conversation_id=adapter.instance.conversation_id,
+                message_id="system-skill-builder",
+                group_members=adapter.instance.get_group_members(),
+            )
     except Exception as err:
         logger.error(f"Greeting dispatch failed: {err}")
     finally:
@@ -255,6 +271,7 @@ async def _try_resume_from_credentials(cfg: RuntimeConfig) -> None:
 
 CUSTOM_INSTRUCTIONS_MARKER = "## Custom Instructions"
 PENDING_JOIN_TIMEOUT_SECONDS = 24 * 60 * 60
+PENDING_JOIN_MAX_RETRIES = 30
 
 
 def _set_provision_state(
@@ -435,6 +452,10 @@ async def _factory_reset() -> dict:
         target = Path(hermes_home) / f
         target.unlink(missing_ok=True)
 
+    # 8c. Clear generated skills data so the next boot enters skill-builder onboarding
+    skills_root = os.environ.get("SKILLS_ROOT", os.path.join(hermes_home, "skills"))
+    shutil.rmtree(Path(skills_root) / "generated", ignore_errors=True)
+
     # 9. Clear XMTP CLI identity
     convos_home = Path.home() / ".convos"
     for entry in ("identities", "db"):
@@ -521,7 +542,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
     env = cfg.xmtp_env
     deadline = time.time() + PENDING_JOIN_TIMEOUT_SECONDS
     attempt = 0
-    while time.time() < deadline:
+    while time.time() < deadline and attempt < PENDING_JOIN_MAX_RETRIES:
         attempt += 1
         await asyncio.sleep(min(15 * attempt, 120))  # backoff: 15s, 30s, 45s, ... 120s max
         if generation != _provision_generation:
@@ -529,7 +550,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
 
         try:
             inst, status, conversation_id = await ConvosInstance.join_conversation(
-                env, invite_url, profile_name="Convos Agent", timeout=30, debug=True,
+                env, invite_url, profile_name=DEFAULT_AGENT_NAME, timeout=30, debug=True,
             )
             if status == "joined" and conversation_id and inst:
                 if generation != _provision_generation:
@@ -545,20 +566,24 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                 await _notify_pool_pending_join("claimed", conversation_id=conversation_id)
                 logger.info("Pending join accepted: conversation %s", conversation_id[:12])
                 return
+            if status == "pending":
+                logger.info("Pending join retry %d: already joined, waiting for acceptance", attempt)
+                continue
         except Exception as err:
             logger.warning("Pending join retry %d failed: %s", attempt, err)
 
-    # Timed out
+    # Timed out or exhausted retries
     if generation == _provision_generation:
-        _set_provision_state("failed", invite_url=invite_url, last_error="Join timed out")
-        await _notify_pool_pending_join("tainted", error="Join timed out")
+        reason = f"Join exhausted {attempt} retries" if attempt >= PENDING_JOIN_MAX_RETRIES else "Join timed out"
+        _set_provision_state("failed", invite_url=invite_url, last_error=reason)
+        await _notify_pool_pending_join("tainted", error=reason)
 
 
 # ---- Pydantic models ----
 
 
 class ConversationRequest(BaseModel):
-    name: str = "Convos Agent"
+    name: str = DEFAULT_AGENT_NAME
     profileName: str | None = None
     profileImage: str | None = None
     description: str | None = None
@@ -571,7 +596,7 @@ class ConversationRequest(BaseModel):
 
 class JoinRequest(BaseModel):
     inviteUrl: str
-    profileName: str = "Convos Agent"
+    profileName: str = DEFAULT_AGENT_NAME
     profileImage: str | None = None
     metadata: dict[str, str] | None = None
     accountId: str | None = None
@@ -605,7 +630,7 @@ _SEED_JOBS = [
         ),
         "schedule": "0 8 * * *",
         "name": "Morning check-in",
-        "deliver": "origin",
+        "deliver": "convos",
     },
 ]
 
@@ -704,6 +729,45 @@ def _patch_cron_delivery() -> None:
     logger.info("Patched cron delivery for convos platform")
 
 
+_cron_credit_error_notified = False
+
+
+async def _cron_check_credit_errors() -> None:
+    """After a cron tick, check if any jobs failed due to credit exhaustion.
+
+    Sends a one-shot credit top-up message to the user.  Resets when a
+    job succeeds again (meaning credits were restored).
+    """
+    global _cron_credit_error_notified
+    try:
+        from cron.jobs import load_jobs
+        from .outbound_policy import _is_credit_error, _build_credit_message
+
+        jobs = load_jobs()
+        any_credit_error = False
+        any_success = False
+        for job in jobs:
+            if job.get("last_status") == "error" and _is_credit_error(job.get("last_error", "")):
+                any_credit_error = True
+            if job.get("last_status") == "ok":
+                any_success = True
+
+        # Reset the flag only when credits are restored (success AND no credit errors)
+        if any_success and not any_credit_error:
+            _cron_credit_error_notified = False
+
+        if any_credit_error and not _cron_credit_error_notified:
+            adapter = get_adapter()
+            if adapter and adapter.instance:
+                await adapter.send_message(_build_credit_message())
+                _cron_credit_error_notified = True
+                logger.info("Sent credit exhaustion notification to user (cron)")
+    except ImportError:
+        pass
+    except Exception as err:
+        logger.debug("Cron credit check failed: %s", err)
+
+
 async def _cron_tick_loop() -> None:
     """Run the Hermes cron scheduler periodically.
 
@@ -724,6 +788,7 @@ async def _cron_tick_loop() -> None:
             ran = await loop.run_in_executor(None, tick, False)
             if ran:
                 logger.info("Cron tick: %d job(s) executed", ran)
+                await _cron_check_credit_errors()
         except ImportError:
             logger.debug("Cron module not available — skipping tick")
             return

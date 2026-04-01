@@ -399,7 +399,10 @@ function proxyRequest(req, res) {
         proxyRes.pipe(res);
       },
     );
-    proxyReq.on("error", () => json(res, 502, { error: "Gateway unavailable" }));
+    proxyReq.setTimeout(120_000, () => proxyReq.destroy());
+    proxyReq.on("error", () => {
+      if (!res.headersSent) json(res, 502, { error: "Gateway unavailable" });
+    });
     req.pipe(proxyReq);
   } catch {
     json(res, 502, { error: "Gateway unavailable" });
@@ -422,6 +425,8 @@ server.on("upgrade", (req, socket, head) => {
     socket.pipe(proxySocket);
   });
 
+  proxySocket.setTimeout(120_000, () => proxySocket.destroy());
+  socket.setTimeout(120_000, () => socket.destroy());
   proxySocket.on("error", () => socket.destroy());
   socket.on("error", () => proxySocket.destroy());
 });

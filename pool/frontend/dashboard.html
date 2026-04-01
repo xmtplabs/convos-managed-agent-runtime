@@ -102,27 +102,6 @@
       </div>
       <div class="replenish-card-body">
         <div class="replenish-field">
-          <label>Model</label>
-          <select class="replenish-select" id="instance-model">
-            <optgroup label="Anthropic">
-              <option value="anthropic/claude-sonnet-4-6">claude-sonnet-4-6</option>
-              <option value="anthropic/claude-opus-4-6">claude-opus-4-6</option>
-            </optgroup>
-            <optgroup label="OpenAI">
-              <option value="openai/gpt-5.4">gpt-5.4</option>
-              <option value="openai/gpt-5.4-mini">gpt-5.4-mini</option>
-              <option value="openai/gpt-oss-20b">gpt-oss-20b</option>
-            </optgroup>
-            <optgroup label="Google">
-              <option value="google/gemini-3.1-pro-preview">gemini-3-pro</option>
-              <option value="google/gemini-3-flash-preview">gemini-3-flash</option>
-            </optgroup>
-            <optgroup label="Other">
-              <option value="perplexity/sonar">perplexity sonar</option>
-            </optgroup>
-          </select>
-        </div>
-        <div class="replenish-field">
           <label>Image</label>
           <div class="image-picker" id="image-picker">
             <div class="image-picker-selects">
@@ -330,14 +309,6 @@
       }
     })();
 
-    // Pre-select the current model in the picker
-    (function () {
-      var sel = document.getElementById('instance-model');
-      var cur = (C.instanceModel || '').replace(/^openrouter\//, '');
-      for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === cur) { sel.selectedIndex = i; break; }
-      }
-    })();
 
     var statusFilter = null;
     var searchQuery = '';
@@ -921,8 +892,7 @@
         ? (document.getElementById('runtime-image-custom').value || '')
         : (C.harnessImages[harness] || harness) + ':' + document.getElementById('runtime-env').value;
       var image = encodeURIComponent(rawImage.replace(/^https?:\/\//, ''));
-      var model = encodeURIComponent(document.getElementById('instance-model').value);
-      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image + '&model=' + model);
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=' + parallel + '&image=' + image);
       es.onmessage = function (ev) {
         try {
           var data = JSON.parse(ev.data);
@@ -1337,7 +1307,6 @@
       var mailTool = tools.find(function (t) { return t.tool_id === 'agentmail'; });
       var telnyxTool = tools.find(function (t) { return t.tool_id === 'telnyx'; });
       var orTool = tools.find(function (t) { return t.tool_id === 'openrouter'; });
-      var instanceModel = (orTool && orTool.resource_meta && orTool.resource_meta.model) || '';
       var hasSections = true;
 
       var instanceUrl = (agent && agent.url) || infra.url || '';
@@ -1347,7 +1316,6 @@
         + (instanceUrl ? '<span class="expand-status-dot active"></span>' : '<span class="expand-status-dot inactive"></span>') + '</div>'
         + (instanceUrl ? '<div class="expand-kv"><span class="expand-label">URL</span> <a class="expand-link" href="' + esc(instanceUrl) + '" target="_blank" rel="noopener">' + esc(instanceUrl.replace(/^https?:\/\//, '')) + '</a></div>' : '')
         + (infra.runtime_image ? '<div class="expand-kv"><span class="expand-label">Image</span> <span class="expand-val mono">' + esc(infra.runtime_image.split('/').pop() || infra.runtime_image) + '</span></div>' : '')
-        + (instanceModel ? '<div class="expand-kv"><span class="expand-label">Model</span> <span class="expand-val mono">' + esc(instanceModel) + '</span></div>' : '')
         + (infra.runtime_type ? '<div class="expand-kv"><span class="expand-label">Runtime</span> <span class="expand-val mono">' + esc(infra.runtime_type) + '</span></div>' : '')
         + (infra.runtime_version ? '<div class="expand-kv"><span class="expand-label">Version</span> <span class="expand-val mono">' + esc(infra.runtime_version) + '</span></div>' : '')
         + (infra.provider_service_id ? '<div class="expand-kv"><span class="expand-label">Railway</span> '

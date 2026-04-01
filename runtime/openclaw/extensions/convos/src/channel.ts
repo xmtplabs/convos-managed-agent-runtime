@@ -798,33 +798,87 @@ async function handleInboundMessage(
     return;
   }
 
+  // -- Reasoning lane state --
+  // Buffer text blocks and classify them by turn context.
+  // Text from turns that also call tools = reasoning (suppressed).
+  // Text from the final turn (no tools) = answer (delivered).
+  //
+  // To expose reasoning in the UI instead of suppressing it, replace
+  // the isReasoning branch below with delivery using either:
+  //
+  //   (a) <think> tags — wrap text so the Convos client can parse and
+  //       render differently (collapsible, dimmed, italic, etc.):
+  //         payload.text = `<think>${p.text}</think>`;
+  //         await deliverConvosReply({ payload, ... });
+  //
+  //   (b) XMTP content type — send as a distinct content type so the
+  //       client can render a dedicated reasoning bubble:
+  //         await inst.sendContentType("reasoning", p.text);
+  //       (requires Convos client + protocol support for the new type)
+  //
+  let pendingBlocks: ReplyPayload[] = [];
+  let currentTurnHasTools = false;
+
+  const flushPending = async (isReasoning: boolean) => {
+    if (pendingBlocks.length === 0) return;
+    const blocks = pendingBlocks;
+    pendingBlocks = [];
+    if (isReasoning) {
+      for (const p of blocks) {
+        if (account.debug) {
+          debugLog(`[${account.accountId}] Suppressed reasoning: ${p.text?.substring(0, 80)}`);
+        }
+      }
+      return;
+    }
+    for (const p of blocks) {
+      const policy = await applyOutboundTextPolicy(p.text || "");
+      if (policy.suppress) {
+        log?.info(`[${account.accountId}] Suppressed outbound text reply`);
+        continue;
+      }
+      const delivered = { ...p, text: policy.text };
+      await deliverConvosReply({
+        payload: delivered,
+        accountId: account.accountId,
+        runtime,
+        log,
+        tableMode,
+        triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+          ? msg.messageId
+          : undefined,
+      });
+    }
+  };
+
   await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
     ctx: ctxPayload,
     cfg,
     dispatcherOptions: {
       deliver: async (payload: ReplyPayload) => {
-        const policy = await applyOutboundTextPolicy(payload.text || "");
-        if (policy.suppress) {
-          log?.info(`[${account.accountId}] Suppressed outbound text reply`);
-          return;
-        }
-        payload = { ...payload, text: policy.text };
-        await deliverConvosReply({
-          payload,
-          accountId: account.accountId,
-          runtime,
-          log,
-          tableMode,
-          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
-            ? msg.messageId
-            : undefined,
-        });
+        // Buffer every block — we don't know yet if this turn has tools.
+        pendingBlocks.push(payload);
       },
       onError: async (err, info) => {
         errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
       },
     },
+    replyOptions: {
+      onAssistantMessageStart: async () => {
+        // New turn starting — flush the previous turn's buffer.
+        // If the previous turn had tools, its text was reasoning.
+        await flushPending(currentTurnHasTools);
+        currentTurnHasTools = false;
+      },
+      onToolStart: () => {
+        currentTurnHasTools = true;
+      },
+    },
   });
+
+  // Dispatch ended — flush any remaining buffer.
+  // The last turn (no more onAssistantMessageStart to trigger flush).
+  await flushPending(currentTurnHasTools);
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
@@ -1084,28 +1138,44 @@ async function dispatchGreeting(
     return;
   }
 
-  const greetingContent = hasActiveSkill()
-    ? "[System: You just joined this conversation. Send your welcome message now. " +
-      "Follow the 'Welcome message' section in AGENTS.md.]"
-    : "[System: You just joined this conversation. You have no skill configured yet. " +
-      "Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md and follow it. " +
-      "Start with step 1: ask one open-ended question about what this group needs. " +
-      "Do NOT send a standard welcome message. Do NOT mention your capabilities or ask for a name. " +
-      "Just ask what the group needs help with.]";
+  const skillActive = hasActiveSkill();
 
-  const syntheticMsg: InboundMessage = {
+  // Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
+  // (active skill → THE ENTRANCE, no skill → ask what the group needs).
+  const greetingMsg: InboundMessage = {
     conversationId: inst.conversationId,
     messageId: `system-greeting-${crypto.randomUUID()}`,
     senderId: SYSTEM_SENDER_ID,
     senderName: "System",
-    content: greetingContent,
+    content:
+      "[System: You just joined this conversation. Send your welcome message now. " +
+      "Follow the 'Welcome message' section in AGENTS.md.]",
     contentType: "text",
     timestamp: new Date(),
   };
 
-  console.log(`[convos] Dispatching greeting message (skill-builder=${!hasActiveSkill()})`);
+  console.log(`[convos] Dispatching greeting message (skill-active=${skillActive})`);
   try {
-    await handleInboundMessage(account, syntheticMsg, runtime);
+    await handleInboundMessage(account, greetingMsg, runtime);
+
+    // Phase 2: skill-builder context load — only if no active skill.
+    // Fires after the greeting is already delivered. Response is suppressed —
+    // the agent reads the skill into context but sends nothing.
+    if (!skillActive) {
+      const skillMsg: InboundMessage = {
+        conversationId: inst.conversationId,
+        messageId: `system-skill-builder-${crypto.randomUUID()}`,
+        senderId: SYSTEM_SENDER_ID,
+        senderName: "System",
+        content:
+          "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. " +
+          "You already asked the group what they need — when they respond, follow the skill from step 1.]",
+        contentType: "text",
+        timestamp: new Date(),
+      };
+      console.log("[convos] Dispatching skill-builder context load (silent)");
+      await handleInboundMessage(account, skillMsg, runtime, undefined, undefined, true);
+    }
   } finally {
     signalGreetingDone();
   }

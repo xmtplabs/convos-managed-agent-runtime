@@ -574,7 +574,7 @@ export default function register(api: OpenClawPluginApi) {
           const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "traj-"));
           try {
             const zipPath = path.join(tmpDir, "trajectories.zip");
-            execFileSync("zip", ["-j", zipPath, ...files.map(f => f.path)], { stdio: "ignore" });
+            execFileSync("zip", ["-j", zipPath, ...files.map(f => f.path)], { stdio: "ignore", timeout: 30_000 });
             const zipBuf = fs.readFileSync(zipPath);
             res.statusCode = 200;
             res.setHeader("Content-Type", "application/zip");

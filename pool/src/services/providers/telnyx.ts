@@ -174,7 +174,7 @@ export async function provisionPhone(instanceId: string): Promise<ProvisionedPho
     messaging_profile_id: string;
   }>(sql`
     UPDATE phone_number_pool
-    SET status = 'assigned', instance_id = ${instanceId}
+    SET status = 'assigned'
     WHERE id = (
       SELECT id FROM phone_number_pool
       WHERE status = 'available'
@@ -213,7 +213,6 @@ export async function provisionPhone(instanceId: string): Promise<ProvisionedPho
     phoneNumber,
     messagingProfileId,
     status: "assigned",
-    instanceId,
   });
 
   return { phoneNumber, messagingProfileId };
@@ -221,15 +220,20 @@ export async function provisionPhone(instanceId: string): Promise<ProvisionedPho
 
 /**
  * Release all phone numbers assigned to an instance back to the pool.
- * Used as a fallback when instance_services rows are unavailable (e.g. orphaned infra).
+ * Looks up phones via instance_services (source of truth), then marks them available.
  */
 export async function releasePhonesByInstance(instanceId: string): Promise<number> {
   if (!instanceId) return 0;
   try {
-    const result = await db
-      .update(phoneNumberPool)
-      .set({ status: "available" as const, instanceId: null })
-      .where(eq(phoneNumberPool.instanceId, instanceId));
+    const result = await db.execute(sql`
+      UPDATE phone_number_pool p
+      SET status = 'available'
+      FROM instance_services s
+      WHERE s.instance_id = ${instanceId}
+        AND s.tool_id = 'telnyx'
+        AND s.resource_id = p.phone_number
+      RETURNING p.phone_number
+    `);
     const count = result.rowCount ?? 0;
     if (count > 0) console.log(`[telnyx] Released ${count} phone(s) for instance ${instanceId} back to pool`);
     return count;
@@ -249,7 +253,7 @@ export async function deletePhone(phoneNumber: string): Promise<boolean> {
   try {
     const [updated] = await db
       .update(phoneNumberPool)
-      .set({ status: "available" as const, instanceId: null })
+      .set({ status: "available" as const })
       .where(eq(phoneNumberPool.phoneNumber, phoneNumber))
       .returning();
 
