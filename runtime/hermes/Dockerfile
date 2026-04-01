@@ -47,6 +47,7 @@ COPY runtime/package.json /app/runtime-version.json
 
 # Application code
 COPY runtime/hermes/src /app/src
+COPY runtime/hermes/config.yaml /app/config.yaml
 COPY runtime/convos-platform /app/convos-platform
 COPY runtime/lib /app/lib
 COPY runtime/hermes/scripts /app/scripts
