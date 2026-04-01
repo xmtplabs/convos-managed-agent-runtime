@@ -143,6 +143,19 @@ class AgentRunner:
                 return self._agent
             return self._create_agent()
 
+    @staticmethod
+    def _load_config_yaml(hermes_home: str) -> dict:
+        """Load config.yaml from HERMES_HOME (same approach as gateway/run.py)."""
+        try:
+            import yaml
+            cfg_path = Path(hermes_home or os.path.expanduser("~/.hermes")) / "config.yaml"
+            if cfg_path.exists():
+                with open(cfg_path, encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+        except Exception:
+            pass
+        return {}
+
     def _create_agent(self) -> Any:
         """Create the AIAgent instance. Caller must hold _agent_init_lock."""
         if self._openrouter_api_key:
@@ -166,6 +179,23 @@ class AgentRunner:
         # HONCHO_API_KEY is set or ~/.honcho/config.json exists.
         honcho_key = f"convos:{self._conversation_id}" if self._conversation_id else None
 
+        # Load config.yaml for provider routing, fallback model, and
+        # reasoning config — same sections the gateway passes through.
+        cfg = self._load_config_yaml(self._hermes_home)
+        pr = cfg.get("provider_routing", {}) or {}
+        fallback = cfg.get("fallback_providers") or cfg.get("fallback_model") or None
+
+        reasoning_config = None
+        try:
+            from hermes_constants import parse_reasoning_effort
+            effort = str(cfg.get("agent", {}).get("reasoning_effort", "") or "").strip()
+            if not effort:
+                effort = os.environ.get("HERMES_REASONING_EFFORT", "")
+            if effort:
+                reasoning_config = parse_reasoning_effort(effort)
+        except Exception:
+            pass
+
         AIAgent = _get_ai_agent_class()
         self._agent = AIAgent(
             model=self._model,
@@ -177,7 +207,37 @@ class AgentRunner:
             session_db=self._session_db,
             honcho_session_key=honcho_key,
             save_trajectories=True,
+            providers_allowed=pr.get("only"),
+            providers_ignored=pr.get("ignore"),
+            providers_order=pr.get("order"),
+            provider_sort=pr.get("sort"),
+            provider_require_parameters=pr.get("require_parameters", False),
+            provider_data_collection=pr.get("data_collection"),
+            fallback_model=fallback,
+            reasoning_config=reasoning_config,
         )
+
+        # Fix upstream bug: Hermes checks `bool(getattr(client, "is_closed", False))`
+        # but openai SDK's is_closed is a method, not a property — so the bound
+        # method object is always truthy, causing every API call to think the
+        # shared client is closed and recreate it (2 extra TCP+TLS round trips).
+        @staticmethod
+        def _is_openai_client_closed_fixed(client):
+            from unittest.mock import Mock
+            if isinstance(client, Mock):
+                return False
+            is_closed = getattr(client, "is_closed", None)
+            if callable(is_closed):
+                if is_closed():
+                    return True
+            elif bool(is_closed):
+                return True
+            http_client = getattr(client, "_client", None)
+            if http_client is not None:
+                return bool(getattr(http_client, "is_closed", False))
+            return False
+
+        self._agent._is_openai_client_closed = _is_openai_client_closed_fixed
         return self._agent
 
     def _format_envelope(
