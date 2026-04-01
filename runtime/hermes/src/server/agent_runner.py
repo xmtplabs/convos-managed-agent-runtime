@@ -175,10 +175,6 @@ class AgentRunner:
             except Exception as err:
                 logger.warning("Failed to initialize SessionDB: %s", err)
 
-        # Honcho session key — enables cross-session user modeling when
-        # HONCHO_API_KEY is set or ~/.honcho/config.json exists.
-        honcho_key = f"convos:{self._conversation_id}" if self._conversation_id else None
-
         # Load config.yaml for provider routing, fallback model, and
         # reasoning config — same sections the gateway passes through.
         cfg = self._load_config_yaml(self._hermes_home)
@@ -205,7 +201,6 @@ class AgentRunner:
             ephemeral_system_prompt=CONVOS_EPHEMERAL_PROMPT,
             quiet_mode=os.path.isfile("/.dockerenv"),
             session_db=self._session_db,
-            honcho_session_key=honcho_key,
             save_trajectories=True,
             providers_allowed=pr.get("only"),
             providers_ignored=pr.get("ignore"),
