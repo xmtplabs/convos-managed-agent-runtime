@@ -36,18 +36,23 @@ from .stats import stats
 logger = logging.getLogger(__name__)
 
 # ---- Runtime version (read once at import) ----
-# Check runtime root package.json (source of truth), then Docker-injected copy, then local hermes.
+# Anchor-based resolution — no parent-counting.  See paths.py.
+from .paths import HERMES_ROOT, PLATFORM_ROOT
+
 try:
     _candidates = [
-        Path(__file__).resolve().parent.parent.parent.parent / "package.json",  # runtime/package.json (local dev)
-        Path(__file__).resolve().parent.parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        PLATFORM_ROOT / "package.json",           # runtime/package.json (local dev)
+        HERMES_ROOT / "runtime-version.json",      # /app/runtime-version.json (Docker)
     ]
     RUNTIME_VERSION = None
     for _pkg in _candidates:
         if _pkg.exists():
             RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version")
             if RUNTIME_VERSION:
+                logger.info("Runtime version %s from %s", RUNTIME_VERSION, _pkg)
                 break
+    if not RUNTIME_VERSION:
+        logger.warning("Could not resolve runtime version from: %s", [str(p) for p in _candidates])
 except Exception:
     RUNTIME_VERSION = None
 

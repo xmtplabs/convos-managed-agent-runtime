@@ -18,9 +18,11 @@ logger = logging.getLogger(__name__)
 
 # ── Load shared policy ──────────────────────────────────────────────────
 
+# Anchor-based resolution — no parent-counting.  See paths.py.
+from .paths import PLATFORM_ROOT
+
 _POLICY_PATHS = [
-    Path("/app/convos-platform/outbound-policy.json"),
-    Path(__file__).resolve().parent.parent.parent.parent / "convos-platform" / "outbound-policy.json",
+    PLATFORM_ROOT / "convos-platform" / "outbound-policy.json",
 ]
 
 _policy: dict = {}
