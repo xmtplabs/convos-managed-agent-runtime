@@ -684,34 +684,52 @@ _cron_task: asyncio.Task | None = None
 _event_loop: asyncio.AbstractEventLoop | None = None
 
 
+def _patch_aiagent_for_convos() -> None:
+    """Permanently replace run_agent.AIAgent with a subclass that injects
+    Convos platform defaults (ephemeral_system_prompt, platform, trajectories).
+
+    This ensures ALL agent instances — main AgentRunner, cron jobs, and
+    delegate_task sub-agents — receive INJECTED_CONTEXT.md without needing
+    per-call-site patches.  Uses setdefault so explicit overrides are preserved.
+    """
+    try:
+        import run_agent as _run_agent_mod
+    except ImportError:
+        logger.debug("run_agent module not available — skipping AIAgent patch")
+        return
+
+    from .agent_runner import CONVOS_EPHEMERAL_PROMPT
+
+    _OrigAgent = _run_agent_mod.AIAgent
+
+    class _ConvosAgent(_OrigAgent):
+        def __init__(self, **kwargs):
+            kwargs.setdefault("ephemeral_system_prompt", CONVOS_EPHEMERAL_PROMPT)
+            kwargs.setdefault("platform", "convos")
+            kwargs.setdefault("save_trajectories", True)
+            super().__init__(**kwargs)
+
+    _run_agent_mod.AIAgent = _ConvosAgent
+    logger.info("Patched run_agent.AIAgent with Convos platform defaults")
+
+
 def _patch_cron_for_convos() -> None:
-    """Monkey-patch the Hermes cron scheduler for Convos integration.
+    """Monkey-patch the Hermes cron scheduler for Convos delivery.
 
-    Two patches:
+    Routes convos-targeted cron delivery through the adapter's
+    _dispatch_response() which parses markers and respects SILENT,
+    instead of sending raw text.
 
-    1. run_job — convos-targeted jobs get CONVOS_PLATFORM.md as their
-       ephemeral system prompt so the agent knows platform markers (SILENT,
-       REACT, PROFILE, etc.) and trajectories are recorded.
-
-    2. _deliver_result — convos delivery routes through the adapter's
-       _dispatch_response() which parses markers and respects SILENT,
-       instead of sending raw text.
+    Note: AIAgent context injection is handled globally by
+    _patch_aiagent_for_convos() — cron jobs inherit it automatically.
     """
     try:
         import cron.scheduler as cron_mod
-        import run_agent as _run_agent_mod
     except ImportError:
         logger.debug("Cron module not available — skipping convos patches")
         return
 
-    # -- Patch 1: inject convos platform context into run_job ---------------
-
-    from .agent_runner import CONVOS_EPHEMERAL_PROMPT
-
-    _original_run_job = cron_mod.run_job
-
     def _is_convos_targeted(job: dict) -> bool:
-        """Same resolution logic as _patched_deliver."""
         deliver = job.get("deliver", "local")
         if deliver == "origin":
             origin = cron_mod._resolve_origin(job)
@@ -720,33 +738,7 @@ def _patch_cron_for_convos() -> None:
             return deliver.split(":", 1)[0] == "convos"
         return deliver == "convos"
 
-    def _patched_run_job(job: dict) -> tuple:
-        if not _is_convos_targeted(job):
-            return _original_run_job(job)
-
-        # Temporarily swap AIAgent with a subclass that injects convos
-        # context.  run_job() does `from run_agent import AIAgent` on each
-        # call, which resolves to the current module attribute.
-        # tick() runs jobs sequentially under a file lock, so this is safe.
-        _OrigAgent = _run_agent_mod.AIAgent
-
-        class _ConvosAgent(_OrigAgent):
-            def __init__(self, **kwargs):
-                kwargs.setdefault("ephemeral_system_prompt", CONVOS_EPHEMERAL_PROMPT)
-                kwargs.setdefault("platform", "convos")
-                kwargs.setdefault("save_trajectories", True)
-                super().__init__(**kwargs)
-
-        _run_agent_mod.AIAgent = _ConvosAgent
-        try:
-            return _original_run_job(job)
-        finally:
-            _run_agent_mod.AIAgent = _OrigAgent
-
-    cron_mod.run_job = _patched_run_job
-    logger.info("Patched cron run_job for convos platform context")
-
-    # -- Patch 2: route convos delivery through _dispatch_response ----------
+    # -- Route convos delivery through _dispatch_response ------------------
 
     original_deliver = cron_mod._deliver_result
 
@@ -863,6 +855,7 @@ async def lifespan(app: FastAPI):
     os.environ.setdefault("HERMES_GATEWAY_SESSION", "1")
     warm_imports()
     _event_loop = asyncio.get_event_loop()
+    _patch_aiagent_for_convos()
     _patch_cron_for_convos()
     _seed_cron_jobs()
     _cron_task = asyncio.create_task(_cron_tick_loop())
