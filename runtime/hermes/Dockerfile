@@ -49,7 +49,6 @@ COPY runtime/package.json /app/runtime-version.json
 COPY runtime/hermes/src /app/src
 COPY runtime/convos-platform /app/convos-platform
 COPY runtime/lib /app/lib
-COPY runtime/hermes/workspace /app/workspace
 COPY runtime/hermes/scripts /app/scripts
 RUN chmod +x /app/scripts/*.sh
 
