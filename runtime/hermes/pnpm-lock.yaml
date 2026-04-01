@@ -6,7 +6,7 @@ settings:
 
 dependencies:
   '@xmtp/convos-cli':
-    specifier: 0.7.0
+    specifier: ^0.7.0
     version: 0.7.0
 
 packages:
@@ -331,7 +331,7 @@ packages:
       ansis: 3.17.0
       debug: 4.4.3(supports-color@8.1.1)
       http-call: 5.3.0
-      lodash: 4.17.23
+      lodash: 4.18.0
       registry-auth-token: 5.1.1
     transitivePeerDependencies:
       - supports-color
@@ -819,8 +819,8 @@ packages:
       p-locate: 4.1.0
     dev: false
 
-  /lodash@4.17.23:
-    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+  /lodash@4.18.0:
+    resolution: {integrity: sha512-l1mfj2atMqndAHI3ls7XqPxEjV2J9ZkcNyHpoZA3r2T1LLwDB69jgkMWh71YKwhBbK0G2f4WSn05ahmQXVxupA==}
     dev: false
 
   /long@5.3.2:
