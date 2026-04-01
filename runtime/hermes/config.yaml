@@ -21,6 +21,13 @@ models:
   - { id: "openai/gpt-oss-20b",                 name: "GPT-OSS 20B" }
 
 
+# Core skills are synced to $HERMES_HOME/skills/ on boot.
+# User-created skills live in $HERMES_HOME/workspace/skills/ (SKILLS_ROOT).
+# external_dirs makes both discoverable.
+skills:
+  external_dirs:
+    - ${HERMES_HOME}/skills
+
 platform_toolsets:
   cli: [web, terminal, file, vision, image_gen, browser, skills, todo, memory, session_search, clarify, code_execution, cronjob]
 toolsets:

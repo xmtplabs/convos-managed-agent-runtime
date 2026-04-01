@@ -9,9 +9,9 @@ brand_section "Workspace"
 brand_dim "" "sync skills, agents, and config"
 
 # ── State directory structure ────────────────────────────────────────────
-mkdir -p "$STATE_DIR/workspace/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron"
+mkdir -p "$STATE_DIR/workspace/skills" "$STATE_DIR/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron"
 
-# ── Convos platform (SOUL.md, shared skills) ─────────────────────────────
+# ── Convos platform (SOUL.md, core skills) ───────────────────────────────
 _skill_count=0
 if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   if [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ]; then
@@ -19,16 +19,18 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
     brand_ok "SOUL.md" "$STATE_DIR/SOUL.md"
   fi
 
+  # Core skills → STATE_DIR/skills/ (discovered via config.yaml external_dirs)
+  # User-created skills stay in workspace/skills/ (SKILLS_ROOT, highest priority)
   if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
     for skill_dir in "$CONVOS_PLATFORM_DIR"/skills/*; do
       [ -d "$skill_dir" ] || continue
       skill_name="$(basename "$skill_dir")"
-      rm -rf "$STATE_DIR/workspace/skills/$skill_name"
-      cp -R "$skill_dir" "$STATE_DIR/workspace/skills/$skill_name"
+      rm -rf "$STATE_DIR/skills/$skill_name"
+      cp -R "$skill_dir" "$STATE_DIR/skills/$skill_name"
       _skill_count=$((_skill_count + 1))
     done
   fi
-  brand_ok "shared skills" "$_skill_count synced"
+  brand_ok "core skills" "$_skill_count → $STATE_DIR/skills"
 fi
 
 # ── Runtime config ───────────────────────────────────────────────────────
