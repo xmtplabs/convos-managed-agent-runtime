@@ -322,7 +322,7 @@ def _path_has_state(target: Path) -> bool:
 
 
 def _has_custom_instructions(hermes_home: str) -> bool:
-    soul_path = Path(RuntimeConfig.workspace_path(hermes_home, "SOUL.md"))
+    soul_path = Path(hermes_home) / "SOUL.md"
     try:
         return CUSTOM_INSTRUCTIONS_MARKER in soul_path.read_text()
     except Exception:
@@ -330,7 +330,7 @@ def _has_custom_instructions(hermes_home: str) -> bool:
 
 
 def _clear_custom_instructions(hermes_home: str) -> bool:
-    soul_path = Path(RuntimeConfig.workspace_path(hermes_home, "SOUL.md"))
+    soul_path = Path(hermes_home) / "SOUL.md"
     try:
         content = soul_path.read_text()
     except Exception:

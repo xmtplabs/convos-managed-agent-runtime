@@ -1,4 +1,4 @@
-"""Identity management — writes SOUL.md into HERMES_HOME/workspace for the agent persona."""
+"""Identity management — writes SOUL.md into HERMES_HOME for the agent persona."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ from .config import RuntimeConfig
 
 
 def write_instructions(hermes_home: str, raw_instructions: str | None) -> None:
-    """Write custom instructions into HERMES_HOME/workspace/SOUL.md.
+    """Write custom instructions into HERMES_HOME/SOUL.md.
 
     Hermes reads SOUL.md as the agent's persona and identity.
     """
     if not raw_instructions or not raw_instructions.strip():
         return
 
-    soul_path = Path(RuntimeConfig.workspace_path(hermes_home, "SOUL.md"))
+    soul_path = Path(hermes_home) / "SOUL.md"
     soul_path.parent.mkdir(parents=True, exist_ok=True)
 
     base = ""

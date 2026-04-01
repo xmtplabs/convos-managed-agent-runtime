@@ -65,7 +65,7 @@ class RuntimeConfig:
     # ── Derived paths (all relative to hermes_home) ────────────────────────
     @property
     def soul_path(self) -> str:
-        return os.path.join(self.workspace_dir, "SOUL.md")
+        return os.path.join(self.hermes_home, "SOUL.md")
 
     @property
     def config_yaml_path(self) -> str:
