@@ -216,7 +216,6 @@ class AgentRunner:
         # bool(getattr(client, "is_closed", False)) but openai SDK's is_closed
         # is a method, not a property — the bound method object is always truthy,
         # causing every API call to recreate the shared client unnecessarily.
-        @staticmethod
         def _is_openai_client_closed_fixed(client):
             from unittest.mock import Mock
             if isinstance(client, Mock):
