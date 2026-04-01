@@ -17,7 +17,21 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const hermesDir = join(__dirname, '../../hermes');
+
+/** Walk up from *start* to find the nearest directory containing *marker*. */
+function findAncestor(start, marker) {
+  let dir = resolve(start);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, marker))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+const RUNTIME_ROOT = findAncestor(__dirname, 'convos-platform') || resolve(__dirname, '../..');
+const hermesDir = join(RUNTIME_ROOT, 'hermes');
 const hermesHome = process.env.HERMES_HOME || join(hermesDir, '.hermes-dev', 'home');
 const skillsDir = join(hermesHome, 'skills');
 const cronFile = join(hermesHome, 'cron', 'jobs.json');
@@ -25,7 +39,7 @@ const cronOutputDir = join(hermesHome, 'cron', 'output');
 const memoriesDir = join(hermesHome, 'memories');
 const sessionsDir = join(hermesHome, 'sessions');
 const stateDb = join(hermesHome, 'state.db');
-const sharedSkillsDir = resolve(__dirname, '../../convos-platform/skills');
+const sharedSkillsDir = join(RUNTIME_ROOT, 'convos-platform', 'skills');
 
 function clearDir(dir) {
   if (!existsSync(dir)) return;
@@ -70,7 +84,7 @@ export default {
     return true;
   }),
   needsSessionClear: false,
-  convosPath: '../../hermes/node_modules/.bin/convos',
+  convosPath: 'hermes/node_modules/.bin/convos',
   // Providers use queryUrl to curl the production server's /agent/query endpoint.
   // No eval server, no process management — same path in CI and local dev.
   queryUrl: `http://127.0.0.1:${process.env.PORT || '8080'}`,

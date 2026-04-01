@@ -6,7 +6,7 @@
  */
 
 import { readFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { resolve, dirname, join } from "path";
 import { checkCreditsLow } from "./openrouter.js";
 
 type OutboundTextPolicyResult = {
@@ -14,11 +14,26 @@ type OutboundTextPolicyResult = {
   text: string;
 };
 
+// ── Anchor-based root resolution (#816) ─────────────────────────────────
+
+/** Walk up from *start* to find the nearest directory containing *marker*. */
+function findAncestor(start: string, marker: string): string | null {
+  let dir = resolve(start);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, marker))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+const PLATFORM_ROOT = findAncestor(__dirname, "convos-platform") || "/app";
+
 // ── Load shared policy ──────────────────────────────────────────────────
 
 const POLICY_PATHS = [
-  "/app/convos-platform/outbound-policy.json",
-  resolve(__dirname, "../../../../convos-platform/outbound-policy.json"),
+  join(PLATFORM_ROOT, "convos-platform", "outbound-policy.json"),
 ];
 
 let policy: Record<string, any> = {};
