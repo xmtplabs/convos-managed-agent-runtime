@@ -380,6 +380,30 @@ class AgentRunner:
             conversation_history=history,
         )
 
+    async def record_message(
+        self,
+        *,
+        content: str,
+        sender_name: str,
+        sender_id: str,
+        timestamp: float,
+        message_id: str,
+    ) -> None:
+        """Record an inbound message in conversation history without triggering an agent turn.
+
+        Used for reactions and other events that the agent should see as context
+        but should not reply to — matching OpenClaw's behavior.
+        """
+        envelope = self._format_envelope(
+            content=content,
+            sender_name=sender_name,
+            sender_id=sender_id,
+            timestamp=timestamp,
+            message_id=message_id,
+        )
+        async with self._history_lock:
+            self._conversation_history.append({"role": "user", "content": envelope})
+
     def run_single_query(self, query: str) -> str:
         """Run a single query with no conversation history. Returns response text."""
         result = self._run_agent_sync(query, [])
