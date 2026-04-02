@@ -58,6 +58,8 @@ COPY runtime/hermes/config.yaml /app/config.yaml
 COPY runtime/convos-platform /app/convos-platform
 COPY runtime/lib /app/lib
 COPY runtime/hermes/scripts /app/scripts
+# Shared pool server — compile TypeScript at build time
+RUN cd /app/convos-platform/pool-server && npm install --ignore-scripts && npx tsc && rm -rf node_modules
 RUN chmod +x /app/scripts/*.sh
 
 # HERMES_HOME — sync.sh populates this on boot from /app/workspace

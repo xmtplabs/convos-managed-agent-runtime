@@ -66,12 +66,6 @@ _provision_state: dict | None = None  # {state, startedAt, inviteUrl, watching, 
 _provision_generation: int = 0
 _pending_join_task: asyncio.Task | None = None
 
-# Pool health readiness — tracks whether lifespan startup is complete.
-# OpenClaw has two gates (gatewayReady + convosReady); Hermes collapses them
-# into one because it has no subprocess — lifespan completing is equivalent.
-_server_ready: bool = False
-_health_cached: bool = False
-
 
 def get_config() -> RuntimeConfig:
     assert _config is not None
@@ -872,7 +866,7 @@ async def _cron_tick_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _config, _cron_task, _event_loop, _server_ready
+    global _config, _cron_task, _event_loop
     _config = RuntimeConfig.from_env()
     errors = _config.validate()
     if errors:
@@ -893,7 +887,6 @@ async def lifespan(app: FastAPI):
     # Auto-resume from saved credentials (if any)
     await _try_resume_from_credentials(_config)
 
-    _server_ready = True
     yield
     if _cron_task:
         _cron_task.cancel()
@@ -927,145 +920,6 @@ app.include_router(web_tools_router)
 @app.get("/health")
 async def health():
     return {"ok": True}
-
-
-@app.get("/pool/health")
-async def pool_health():
-    global _health_cached
-    if _health_cached:
-        return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-    if not _server_ready:
-        return {"ready": False, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-    # Server is ready — either no adapter yet (awaiting provision)
-    # or adapter exists with an active instance. Cache permanently.
-    _health_cached = True
-    return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-
-# ---- /pool/restart ----
-
-@app.post("/pool/restart", dependencies=[Depends(require_auth)])
-async def pool_restart():
-    """Stop the adapter and re-resume from saved credentials.
-
-    Simulates a process restart without killing PID 1 — stops the running
-    conversation, then boots it back up from credentials on disk.  Used by
-    the lifecycle eval to verify restart-resume in CI (Docker).
-    """
-    global _adapter
-    cfg = get_config()
-
-    adapter = get_adapter()
-    if adapter:
-        try:
-            await adapter.stop()
-        except Exception as err:
-            logger.error("Error stopping adapter during restart: %s", err)
-        _adapter = None
-
-    await _try_resume_from_credentials(cfg)
-
-    adapter = get_adapter()
-    if adapter and adapter.instance:
-        return {"ok": True, "conversationId": adapter.instance.conversation_id}
-    raise HTTPException(status_code=500, detail="Resume failed after restart")
-
-
-# ---- /pool/provision ----
-
-class ProvisionRequest(BaseModel):
-    agentName: str
-    instructions: str = ""
-    joinUrl: str | None = None
-    profileImage: str | None = None
-    metadata: dict[str, str] | None = None
-
-
-@app.post("/pool/provision", dependencies=[Depends(require_auth)])
-async def pool_provision(body: ProvisionRequest):
-    if get_adapter() and get_adapter().instance:
-        raise HTTPException(
-            status_code=409,
-            detail="Instance already bound to a conversation.",
-        )
-
-    cfg = get_config()
-    env = cfg.xmtp_env
-
-    if body.instructions:
-        write_instructions(cfg.hermes_home, body.instructions)
-
-    instance_id = os.environ.get("INSTANCE_ID")
-    meta = {**(body.metadata or {}), **({"instanceId": instance_id} if instance_id else {})} or None
-
-    try:
-        if body.joinUrl:
-            inst, status, conversation_id = await ConvosInstance.join_conversation(
-                env,
-                body.joinUrl,
-                profile_name=body.agentName,
-                profile_image=body.profileImage,
-                metadata=meta,
-                timeout=55,
-                debug=True,
-            )
-            if status != "joined" or not conversation_id or not inst:
-                # Return pending_acceptance instead of 503 — pool will track the state
-                gen = _set_provision_state("pending_acceptance", invite_url=body.joinUrl, watching=True)
-                global _pending_join_task
-                _pending_join_task = asyncio.create_task(
-                    _watch_pending_join(body.joinUrl, gen, cfg)
-                )
-                return {
-                    "ok": True,
-                    "conversationId": None,
-                    "inviteUrl": body.joinUrl,
-                    "joined": False,
-                    "status": "pending_acceptance",
-                }
-
-            await start_wired_instance(
-                conversation_id=conversation_id,
-                identity_id=inst.identity_id,
-                env=env,
-                debug=True,
-            )
-            await _apply_attestation()
-            return {
-                "ok": True,
-                "conversationId": conversation_id,
-                "inviteUrl": body.joinUrl,
-                "joined": True,
-            }
-        else:
-            inst, result = await ConvosInstance.create_conversation(
-                env,
-                name=body.agentName,
-                profile_name=body.agentName,
-                debug=True,
-            )
-
-            ready_info = await start_wired_instance(
-                conversation_id=result["conversationId"],
-                identity_id=inst.identity_id,
-                env=env,
-                name=body.agentName,
-                debug=True,
-            )
-            await _apply_attestation()
-
-            return {
-                "ok": True,
-                "conversationId": result["conversationId"],
-                "inviteUrl": ready_info.invite_url or result["inviteUrl"],
-                "joined": False,
-            }
-    except HTTPException:
-        raise
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
 
 
 # ---- /convos/status ----
@@ -1153,7 +1007,13 @@ async def convos_join(body: JoinRequest):
         )
 
         if status != "joined" or not conversation_id or not inst:
-            return {"status": "waiting_for_acceptance"}
+            # Start background watcher to retry until accepted
+            gen = _set_provision_state("pending_acceptance", invite_url=body.inviteUrl, watching=True)
+            global _pending_join_task
+            _pending_join_task = asyncio.create_task(
+                _watch_pending_join(body.inviteUrl, gen, cfg)
+            )
+            return {"status": "pending_acceptance"}
 
         await start_wired_instance(
             conversation_id=conversation_id,
