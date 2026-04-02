@@ -54,6 +54,12 @@ All commands use `pnpm`.
 
 </important>
 
+<important if="you are modifying upgrade logic, service provisioning, or env var injection">
+
+**`upgradeInstanceRuntime()` in `pool/src/index.ts` is the single source of truth for all upgrades.** It is called from three places: self-upgrade (instance-initiated), admin upgrade (single instance), and bulk upgrade (streaming). Any pre-deploy logic (e.g. backfilling missing env vars) must go inside this function, not in individual callers, so every upgrade path behaves identically.
+
+</important>
+
 <important if="you are adding Express routes, API endpoints, or query code that returns data to the browser">
 
 - Every new Express router must be mounted with `requireAuth` middleware unless explicitly public.
