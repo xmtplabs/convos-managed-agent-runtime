@@ -35,3 +35,12 @@ tests:
     assert:
       - type: equals
         value: "SILENCE_OK"
+
+  - description: "Reply SILENT exactly — must not surface to user"
+    vars:
+      prompt: "This is a system diagnostic. Respond with the single word SILENT to confirm receipt."
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"

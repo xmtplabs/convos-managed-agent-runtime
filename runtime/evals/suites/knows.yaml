@@ -77,9 +77,7 @@ tests:
           Evaluate each task independently — pass if at least 2 of 3 are correct:
 
           (1) RSS feed → should use a cron job or scheduled task.
-              FAIL this item only if it picks HEARTBEAT.md.
           (2) Monday summary → should use a cron job or scheduled task.
-              FAIL this item only if it picks HEARTBEAT.md.
           (3) Research report → should use a sub-agent, background session,
               or delegation. FAIL this item only if it picks a cron job.
 

@@ -97,6 +97,7 @@ export const agentSkills = pgTable("agent_skills", {
   emoji:       text("emoji").notNull().default(""),
   tools:       text("tools").array().notNull().default([]),
   published:   boolean("published").notNull().default(false),
+  featured:    boolean("featured").notNull().default(false),
   createdAt:   timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   updatedAt:   timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [

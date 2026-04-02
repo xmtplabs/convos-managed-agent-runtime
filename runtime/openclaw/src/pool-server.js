@@ -35,11 +35,27 @@ const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10)
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const POOL_URL = process.env.POOL_URL;
-const ROOT = path.resolve(__dirname, "..");
+/** Walk up from *start* to find the nearest directory containing *marker*. */
+function findAncestor(start, marker) {
+  let dir = path.resolve(start);
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, marker))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+// Anchor-based root resolution — immune to directory-level changes (#816).
+const ROOT = findAncestor(__dirname, "scripts") || path.resolve(__dirname, "..");
+const PLATFORM_ROOT = findAncestor(__dirname, "convos-platform") || ROOT;
+console.log(`[pool-server] Resolved paths: ROOT=${ROOT}  PLATFORM_ROOT=${PLATFORM_ROOT}`);
+
 const RUNTIME_VERSION = (() => {
   const candidates = [
-    path.resolve(__dirname, "../../package.json"),          // runtime/package.json (local dev)
-    path.resolve(__dirname, "../runtime-version.json"),     // /app/runtime-version.json (Docker)
+    path.join(PLATFORM_ROOT, "package.json"),          // runtime/package.json (local dev)
+    path.join(ROOT, "runtime-version.json"),            // /app/runtime-version.json (Docker)
   ];
   for (const p of candidates) {
     try {

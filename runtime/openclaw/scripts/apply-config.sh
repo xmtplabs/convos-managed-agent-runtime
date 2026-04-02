@@ -156,6 +156,11 @@ if command -v jq >/dev/null 2>&1; then
       "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "trustedProxies" "$RAILWAY_PUBLIC_DOMAIN"
   fi
+  # In eval mode, use the CI preset instead of the production model
+  if [ "${EVAL_MODE:-}" = "1" ]; then
+    jq '.agents.defaults.model.primary = "openrouter/@preset/assistants-ci"' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    brand_ok "model" "overridden → @preset/assistants-ci (eval mode)"
+  fi
   # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then
     jq '.browser.executablePath = "/usr/bin/chromium" | .browser.headless = true | .browser.noSandbox = true' \

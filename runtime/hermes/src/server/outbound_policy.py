@@ -18,9 +18,11 @@ logger = logging.getLogger(__name__)
 
 # ── Load shared policy ──────────────────────────────────────────────────
 
+# Anchor-based resolution — no parent-counting.  See paths.py.
+from .paths import PLATFORM_ROOT
+
 _POLICY_PATHS = [
-    Path("/app/convos-platform/outbound-policy.json"),
-    Path(__file__).resolve().parent.parent.parent.parent / "convos-platform" / "outbound-policy.json",
+    PLATFORM_ROOT / "convos-platform" / "outbound-policy.json",
 ]
 
 _policy: dict = {}
@@ -104,7 +106,10 @@ async def apply_outbound_policy(text: str) -> PolicyResult:
     """Apply rewrite rules to outbound text before sending to the user."""
     trimmed = text.strip()
 
-    if trimmed in _SUPPRESS_TOKENS:
+    # Check each line individually — the agent may mix SILENT with other
+    # markers on separate lines, and leading/trailing whitespace on the
+    # SILENT line must not bypass suppression.
+    if any(line.strip() in _SUPPRESS_TOKENS for line in trimmed.splitlines()):
         return PolicyResult(suppress=True, text="")
 
     # Rate-limit check BEFORE credit check — "rate limit exceeded" contains
