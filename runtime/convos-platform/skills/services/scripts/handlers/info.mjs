@@ -47,6 +47,7 @@ export default async function info() {
       ? ngrok.replace(/\/$/, "")
       : `http://127.0.0.1:${port}`;
   const servicesUrl = `${base}/web-tools/services`;
+  const logsUrl = `${base}/web-tools/logs`;
 
-  console.log(JSON.stringify({ email, phone, servicesUrl }, null, 2));
+  console.log(JSON.stringify({ email, phone, servicesUrl, logsUrl }, null, 2));
 }
