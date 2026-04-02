@@ -66,16 +66,12 @@ class SentEvent:
 
 def _resolve_convos_bin() -> str:
     """Find the convos CLI binary."""
-    # Check node_modules in our own package
-    here = Path(__file__).resolve().parent.parent.parent
-    local_bin = here / "node_modules" / "@xmtp" / "convos-cli" / "bin" / "run.js"
+    from ..server.paths import HERMES_ROOT
+
+    # Check node_modules in our own package (anchor-based, no parent-counting)
+    local_bin = HERMES_ROOT / "node_modules" / "@xmtp" / "convos-cli" / "bin" / "run.js"
     if local_bin.exists():
         return str(local_bin)
-
-    # Check /app/node_modules (Docker)
-    docker_bin = Path("/app/node_modules/@xmtp/convos-cli/bin/run.js")
-    if docker_bin.exists():
-        return str(docker_bin)
 
     # Fallback: convos on PATH
     if shutil.which("convos"):

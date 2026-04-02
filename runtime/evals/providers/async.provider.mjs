@@ -31,7 +31,7 @@ function httpGet(port, path, timeoutMs = 5000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const headers = {};
-    const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+    const token = process.env.GATEWAY_TOKEN;
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const req = http.get({ hostname: '127.0.0.1', port, path, headers }, (res) => {
       let data = '';

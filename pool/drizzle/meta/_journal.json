@@ -29,6 +29,20 @@
       "when": 1774284693525,
       "tag": "0003_clever_bloodscream",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775094339382,
+      "tag": "0004_sad_tinkerer",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775137003417,
+      "tag": "0005_famous_northstar",
+      "breakpoints": true
     }
   ]
 }

@@ -6,14 +6,14 @@ settings:
 
 devDependencies:
   '@cloudflare/workers-types':
-    specifier: ^4.20250312.0
+    specifier: 4.20260317.1
     version: 4.20260317.1
   typescript:
-    specifier: ^5.7.0
+    specifier: 5.9.3
     version: 5.9.3
   wrangler:
-    specifier: ^4.0.0
-    version: 4.76.0(@cloudflare/workers-types@4.20260317.1)
+    specifier: 4.75.0
+    version: 4.75.0(@cloudflare/workers-types@4.20260317.1)
 
 packages:
 
@@ -22,8 +22,8 @@ packages:
     engines: {node: '>=18.0.0'}
     dev: true
 
-  /@cloudflare/unenv-preset@2.16.0(unenv@2.0.0-rc.24)(workerd@1.20260317.1):
-    resolution: {integrity: sha512-8ovsRpwzPoEqPUzoErAYVv8l3FMZNeBVQfJTvtzP4AgLSRGZISRfuChFxHWUQd3n6cnrwkuTGxT+2cGo8EsyYg==}
+  /@cloudflare/unenv-preset@2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260317.1):
+    resolution: {integrity: sha512-EGYmJaGZKWl+X8tXxcnx4v2bOZSjQeNI5dWFeXivgX9+YCT69AkzHHwlNbVpqtEUTbew8eQurpyOpeN8fg00nw==}
     peerDependencies:
       unenv: 2.0.0-rc.24
       workerd: 1.20260301.1 || ~1.20260302.1 || ~1.20260303.1 || ~1.20260304.1 || >1.20260305.0 <2.0.0-0
@@ -673,8 +673,8 @@ packages:
     engines: {node: '>=6'}
     dev: true
 
-  /miniflare@4.20260317.1:
-    resolution: {integrity: sha512-A3csI1HXEIfqe3oscgpoRMHdYlkReQKPH/g5JE53vFSjoM6YIAOGAzyDNeYffwd9oQkPWDj9xER8+vpxei8klA==}
+  /miniflare@4.20260317.0:
+    resolution: {integrity: sha512-xuwk5Kjv+shi5iUBAdCrRl9IaWSGnTU8WuTQzsUS2GlSDIMCJuu8DiF/d9ExjMXYiQG5ml+k9SVKnMj8cRkq0w==}
     engines: {node: '>=18.0.0'}
     hasBin: true
     dependencies:
@@ -779,8 +779,8 @@ packages:
       '@cloudflare/workerd-windows-64': 1.20260317.1
     dev: true
 
-  /wrangler@4.76.0(@cloudflare/workers-types@4.20260317.1):
-    resolution: {integrity: sha512-Wan+CU5a0tu4HIxGOrzjNbkmxCT27HUmzrMj6kc7aoAnjSLv50Ggcn2Ant7wNQrD6xW3g31phKupZJgTZ8wZfQ==}
+  /wrangler@4.75.0(@cloudflare/workers-types@4.20260317.1):
+    resolution: {integrity: sha512-Efk1tcnm4eduBYpH1sSjMYydXMnIFPns/qABI3+fsbDrUk5GksNYX8nYGVP4sFygvGPO7kJc36YJKB5ooA7JAg==}
     engines: {node: '>=20.0.0'}
     hasBin: true
     peerDependencies:
@@ -790,11 +790,11 @@ packages:
         optional: true
     dependencies:
       '@cloudflare/kv-asset-handler': 0.4.2
-      '@cloudflare/unenv-preset': 2.16.0(unenv@2.0.0-rc.24)(workerd@1.20260317.1)
+      '@cloudflare/unenv-preset': 2.15.0(unenv@2.0.0-rc.24)(workerd@1.20260317.1)
       '@cloudflare/workers-types': 4.20260317.1
       blake3-wasm: 2.1.5
       esbuild: 0.27.3
-      miniflare: 4.20260317.1
+      miniflare: 4.20260317.0
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
       workerd: 1.20260317.1

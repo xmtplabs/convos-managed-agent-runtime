@@ -104,7 +104,7 @@ export async function handleRailwayWebhook(payload: RailwayWebhookPayload): Prom
     }
 
     case "health_check": {
-      const url = instance.url || infra.url;
+      const url = infra.url;
       if (!url) {
         console.warn(`[webhook] ${instanceId}: no URL available for health check, skipping`);
         break;

@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Static files live at /app/web-tools in Docker, fall back for local dev.
-_SHARED_ROOT = Path("/app/web-tools") if Path("/app/web-tools").exists() else (
-    Path(__file__).resolve().parent.parent.parent.parent / "shared" / "web-tools"
-)
+# Anchor-based resolution — no parent-counting.  See paths.py.
+from .paths import PLATFORM_ROOT
+
+_SHARED_ROOT = PLATFORM_ROOT / "convos-platform" / "web-tools"
 _SERVICES_DIR = _SHARED_ROOT / "services"
 _CONVOS_DIR = _SHARED_ROOT / "convos"
 _SKILLS_DIR = _SHARED_ROOT / "skills"
 
 
 def _gateway_token() -> str:
-    return os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+    return os.environ.get("GATEWAY_TOKEN", "")
 
 
 def _serve_html_with_token(html_path: Path) -> Response:

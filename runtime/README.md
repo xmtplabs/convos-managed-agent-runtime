@@ -24,8 +24,8 @@ Two agent runtimes as peers — **OpenClaw** (Node.js) and **Hermes** (Python) �
 
 The `pnpm start` script runs four steps in sequence:
 
-1. **keys.sh** — Displays all env var status. Generates `OPENCLAW_GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
-2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Merges shared workspace (`runtime/shared/workspace/`) with runtime-specific workspace, then assembles `AGENTS.md` from `AGENTS-base.md` + `agents-extra.md`. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
+1. **keys.sh** — Displays all env var status. Generates `GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
+2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Merges `runtime/convos-platform/` with runtime-specific workspace, then assembles `AGENTS.md` from `<!-- SECTION:NAME -->` markers resolved against `convos-platform/context/` files. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
 3. **install-deps.sh** — Runs `pnpm install` in each extension directory (convos, web-tools). Links shared deps.
 4. **start.sh** — Seeds cron jobs (`crons.sh`) and runs `openclaw gateway run` with a restart loop (max 5 rapid crashes in 30s window).
 
@@ -52,7 +52,6 @@ runtime/
 │   │   └── convos/         # XMTP messaging channel
 │   ├── workspace/
 │   │   ├── agents-extra.md # openclaw-specific agent instructions
-│   │   ├── HEARTBEAT.md    # heartbeat nudge config
 │   │   └── (no skills — all moved to shared)
 │   └── scripts/            # keys, gateway, crons, pool-server, etc.
 └── hermes/                 # Hermes runtime
@@ -62,13 +61,13 @@ runtime/
     ├── workspace/
     │   ├── agents-extra.md # hermes-specific agent instructions
     │   ├── config.yaml     # hermes toolset config
-    │   └── CONVOS_PLATFORM.md # platform context (hermes-only)
+    │   └── INJECTED_CONTEXT.md # platform context (hermes-only)
     └── scripts/            # entrypoint, apply-config, eval-env, etc.
 ```
 
 ## Shared workspace
 
-`runtime/shared/workspace/` contains files used by both runtimes. Each runtime's `apply-config.sh` copies these into the right place at boot.
+`runtime/convos-platform/` contains agent instructions (AGENTS.md manifest, SOUL.md, context files, skills, web-tools) used by both runtimes. Each runtime's `apply-config.sh` assembles AGENTS.md from context files and copies skills into the right place at boot.
 
 ### How it works
 
@@ -90,7 +89,7 @@ runtime/
 
 ### Adding new capabilities
 
-- **New shared skill** — add a directory under `runtime/shared/workspace/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for script paths in SKILL.md.
+- **New shared skill** — add a directory under `runtime/convos-platform/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for script paths in SKILL.md.
 - **New shared instruction** — edit `AGENTS-base.md` for behavior that applies to both runtimes.
 - **Runtime-specific instruction** — edit the runtime's `workspace/agents-extra.md`.
 - **New dependency for a skill** — add it to both `hermes/package.json` and `openclaw/package.json`.
@@ -122,7 +121,7 @@ All values are injected by the pool manager via Railway env vars at instance cre
 |----------|----------|-------------|
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key for LLM calls |
 | `XMTP_ENV` | yes | XMTP network (`dev` or `production`) |
-| `OPENCLAW_GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |
+| `GATEWAY_TOKEN` | no | Gateway auth token — used for all internal and pool manager auth (generated if not set) |
 | `INSTANCE_ID` | no | Pool instance ID (set by pool manager at creation) |
 | `POOL_URL` | no | Pool manager URL — service calls (email, SMS) are proxied through this |
 | `POOL_SERVER_PORT` | no | Port of pool-server.js (set by pool-server for gateway) |

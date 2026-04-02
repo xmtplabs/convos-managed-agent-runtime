@@ -34,7 +34,7 @@ export async function createInstance(
   // Build env vars
   const vars: Record<string, string> = { ...buildInstanceEnv() };
   vars.INSTANCE_ID = instanceId;
-  vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
+  vars.GATEWAY_TOKEN = gatewayToken;
 
   // Provision OpenRouter key
   const services: CreateInstanceResponse["services"] = {};
@@ -119,6 +119,10 @@ export async function createInstance(
     logger.error("create.railway_project_fail", { instanceId, error_class, error_message: error_message.slice(0, 1500) });
     metricCount("instance.create.fail", 1, { phase: "railway_project", error_class });
     onProgress?.("railway-project", "fail", (err as Error).message);
+    if (services.openrouter) {
+      await openrouter.deleteKey(services.openrouter.resourceId).catch((e: any) =>
+        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) }));
+    }
     if (services.exa) {
       await exa.deleteKey(services.exa.resourceId).catch((e: any) =>
         logger.warn("create.rollback_fail", { instanceId, tool: "exa", error_message: e.message?.slice(0, 1500) }));
@@ -139,6 +143,10 @@ export async function createInstance(
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
       logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 1500) });
     });
+    if (services.openrouter) {
+      await openrouter.deleteKey(services.openrouter.resourceId).catch((e: any) =>
+        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) }));
+    }
     if (services.exa) {
       await exa.deleteKey(services.exa.resourceId).catch((e: any) =>
         logger.warn("create.rollback_fail", { instanceId, tool: "exa", error_message: e.message?.slice(0, 1500) }));
@@ -171,6 +179,10 @@ export async function createInstance(
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
       logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 1500) });
     });
+    if (services.openrouter) {
+      await openrouter.deleteKey(services.openrouter.resourceId).catch((e: any) =>
+        logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) }));
+    }
     if (services.exa) {
       await exa.deleteKey(services.exa.resourceId).catch((e: any) =>
         logger.warn("create.rollback_fail", { instanceId, tool: "exa", error_message: e.message?.slice(0, 1500) }));

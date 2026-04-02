@@ -38,16 +38,18 @@ tests:
       - type: icontains
         value: "/web-tools/logs"
       - type: regex
-        value: "http"
+        value: "https?://"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:logSharingEnabled"
 
   - description: "Agent can stop sharing logs"
     vars:
       prompt: "Stop sharing my logs"
     assert:
-      - type: icontains
-        value: "sharing"
       - type: regex
         value: "off|disabled|stopped|no longer"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:logSharingDisabled"
 
   - description: "Agent can browse a webpage"
     vars:
