@@ -171,6 +171,19 @@ def _clear_session_state(hermes_home: str) -> None:
             logger.error("Failed to clear session state: %s", err)
 
 
+def _read_onboarding_prompt(filename: str) -> str | None:
+    """Read an onboarding prompt from $STATE_DIR/onboarding/ or convos-platform/onboarding/."""
+    cfg = _config
+    candidates = []
+    if cfg:
+        candidates.append(Path(cfg.hermes_home) / "onboarding" / filename)
+    candidates.append(PLATFORM_ROOT / "convos-platform" / "onboarding" / filename)
+    for p in candidates:
+        if p.is_file():
+            return p.read_text().strip()
+    return None
+
+
 def _has_active_skill() -> bool:
     """Check if the agent has an active skill configured."""
     skills_root = os.environ.get("SKILLS_ROOT", "")
@@ -198,10 +211,10 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
 
         # Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
         # (active skill → THE ENTRANCE, no skill → ask what the group needs).
-        greeting_content = (
-            "[System: You just joined this conversation. Send your welcome message now. "
-            "Follow the 'Welcome message' section in AGENTS.md.]"
-        )
+        greeting_content = _read_onboarding_prompt("greeting.md")
+        if not greeting_content:
+            logger.error("Onboarding greeting.md not found — cannot dispatch greeting")
+            return
 
         logger.info("Dispatching greeting (skill-active=%s)", skill_active)
         response = await adapter.agent.handle_message(
@@ -222,11 +235,12 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
             logger.info("Dispatching skill-builder kickoff (silent)")
             # Response is intentionally discarded — the agent reads the skill
             # into context but should not send anything to the conversation.
+            kickoff_content = _read_onboarding_prompt("skill-builder-kickoff.md")
+            if not kickoff_content:
+                logger.warning("Onboarding skill-builder-kickoff.md not found — skipping")
+                return
             await adapter.agent.handle_message(
-                content=(
-                    "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. "
-                    "You already asked the group what they need — when they respond, follow the skill from step 1.]"
-                ),
+                content=kickoff_content,
                 sender_name="System",
                 sender_id="system",
                 timestamp=time.time(),

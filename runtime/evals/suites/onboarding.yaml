@@ -1,0 +1,69 @@
+# runtime/evals/onboarding.yaml
+# Onboarding eval — welcome message + skill-builder discovery flow.
+# All tests share one XMTP conversation and must run sequentially.
+
+description: "Eval: Onboarding"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/convos.provider.mjs
+
+defaultTest:
+  options:
+    provider:
+      id: "openrouter:@preset/assistants-eval-judge"
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  # --- Phase 1: greeting ---
+  - description: "Agent sends skill-builder discovery question after joining"
+    vars:
+      prompt: "(waiting for welcome message)"
+    metadata:
+      waitForWelcome: true
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript with lines prefixed [AGENT].
+          The AGENT just joined a group conversation and sent a skill-builder discovery question.
+          Evaluate against ALL requirements:
+
+          1. The message must be 1-2 sentences max. Three or more sentences is a fail.
+          2. It must contain a greeting or friendly opening.
+          3. It must ask what the group needs help with, what they're looking for, or what kind of agent they want.
+          4. It must NOT mention crypto, wallets, tokens, trading, Hermes, or Nous Research.
+          5. It must NOT list capabilities, mention tools, or ask the group for a name.
+
+          Pass if all five requirements are met. Be lenient on exact phrasing — focus on whether the intent of each requirement is satisfied.
+      - type: not-icontains
+        value: "crypto"
+      - type: not-icontains
+        value: "wallet"
+      - type: not-icontains
+        value: "trading"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileHasInstanceId"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileHasAttestation"
+
+  # --- Phase 2: skill-builder kickoff ---
+  - description: "Agent enters skill-builder flow when user describes a need"
+    vars:
+      prompt: "We need help planning our weekly D&D sessions"
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user told the agent what the group needs help with.
+          The AGENT should now be in skill-builder mode — asking follow-up questions to refine the skill.
+          Evaluate against ALL requirements:
+
+          1. The agent must acknowledge what the user said (D&D session planning).
+          2. The agent must ask a follow-up question to refine scope — either assessing scope, asking about preferences, or offering choices.
+          3. The agent must NOT just say "sure I can help with that" and stop — it must actively drive the conversation forward.
+          4. The agent must NOT list generic capabilities.
+          5. The message must be conversational, not robotic.
+
+          FAIL if any requirement is not met, otherwise PASS.
