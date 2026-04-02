@@ -106,7 +106,10 @@ async def apply_outbound_policy(text: str) -> PolicyResult:
     """Apply rewrite rules to outbound text before sending to the user."""
     trimmed = text.strip()
 
-    if trimmed in _SUPPRESS_TOKENS:
+    # Check each line individually — the agent may mix SILENT with other
+    # markers on separate lines, and leading/trailing whitespace on the
+    # SILENT line must not bypass suppression.
+    if any(line.strip() in _SUPPRESS_TOKENS for line in trimmed.splitlines()):
         return PolicyResult(suppress=True, text="")
 
     # Rate-limit check BEFORE credit check — "rate limit exceeded" contains

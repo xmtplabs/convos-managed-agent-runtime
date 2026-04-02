@@ -122,6 +122,7 @@ jobs:
               - 'runtime/convos-platform/outbound-policy.json'
               - 'runtime/convos-platform/context/TOOL-DISCIPLINE.md'
               - 'runtime/convos-platform/context/*/TOOL-DISCIPLINE.md'
+              - 'runtime/hermes/src/**'
             cron:
               - 'runtime/convos-platform/context/CRON.md'
               - 'runtime/convos-platform/context/*/CRON.md'

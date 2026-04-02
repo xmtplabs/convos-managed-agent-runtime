@@ -1,20 +1,9 @@
 "use client";
 
-import {
-  useState,
-  useMemo,
-  useCallback,
-  useRef,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
+import { useState, useMemo } from "react";
+import Link from "next/link";
 import type { AgentSkill } from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const PS_LIMIT = 10;
+import { ShareButton } from "@/components/share-button";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,267 +11,103 @@ const PS_LIMIT = 10;
 
 interface SkillBrowserProps {
   skills: AgentSkill[];
-  onOpenModal: (prompt: string, name: string) => void;
-  activeStep: number;
-  setActiveStep: (step: number) => void;
-}
-
-interface CategoryInfo {
-  name: string;
-  emoji: string;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export const SkillBrowser = forwardRef<HTMLDivElement, SkillBrowserProps>(
-  function SkillBrowser({ skills: rawSkills, onOpenModal, activeStep, setActiveStep }, ref) {
-    const [category, setCategory] = useState("All");
-    const [search, setSearch] = useState("");
-    const [expanded, setExpanded] = useState(false);
+export function SkillBrowser({ skills }: SkillBrowserProps) {
+  const [search, setSearch] = useState("");
 
-    // Inner div ref for forwarding
-    const innerRef = useRef<HTMLDivElement>(null);
-    useImperativeHandle(ref, () => innerRef.current as HTMLDivElement);
-
-    const skills = rawSkills;
-
-    // ------------------------------------------------------------------
-    // Derived data
-    // ------------------------------------------------------------------
-
-    // Unique categories in insertion order (preserving catalog order)
-    const categories = useMemo<CategoryInfo[]>(() => {
-      const seen = new Set<string>();
-      const result: CategoryInfo[] = [];
-      for (const skill of skills) {
-        if (!seen.has(skill.category)) {
-          seen.add(skill.category);
-          result.push({ name: skill.category, emoji: skill.emoji });
-        }
-      }
-      return result;
-    }, [skills]);
-
-    // Filtered list
-    const filteredList = useMemo(() => {
-      const q = search.toLowerCase();
-      return skills.filter((a) => {
-        if (category !== "All" && a.category !== category) return false;
-        if (
-          q &&
-          a.agentName.toLowerCase().indexOf(q) === -1 &&
-          a.description.toLowerCase().indexOf(q) === -1
-        )
-          return false;
-        return true;
-      });
-    }, [skills, category, search]);
-
-    // Shown list (limited to PS_LIMIT unless expanded/filtering/searching)
-    const shownList = useMemo(() => {
-      if (search || category !== "All" || expanded) return filteredList;
-      return filteredList.slice(0, PS_LIMIT);
-    }, [filteredList, search, category, expanded]);
-
-    // Show more button visibility + text
-    const showMoreVisible = useMemo(() => {
-      if (search || category !== "All") return false;
-      if (!expanded && filteredList.length > PS_LIMIT) return true;
-      if (expanded) return true;
-      return false;
-    }, [search, category, expanded, filteredList.length]);
-
-    const showMoreText = useMemo(() => {
-      if (!expanded && filteredList.length > PS_LIMIT) {
-        return `Show all ${filteredList.length} assistants`;
-      }
-      return "Show less";
-    }, [expanded, filteredList.length]);
-
-    // No results
-    const noResults = shownList.length === 0;
-
-    // ------------------------------------------------------------------
-    // Handlers
-    // ------------------------------------------------------------------
-
-    const handleSearchChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearch(e.target.value.trim());
-      },
-      [],
-    );
-
-    const handleFilterClick = useCallback(
-      (e: React.MouseEvent<HTMLDivElement>) => {
-        const pill = (e.target as HTMLElement).closest(
-          ".ps-filter-pill",
-        ) as HTMLButtonElement | null;
-        if (!pill) return;
-        setCategory(pill.dataset.cat || "All");
-      },
-      [],
-    );
-
-    const handleShowMore = useCallback(() => {
-      setExpanded((prev) => !prev);
-    }, []);
-
-    const handleCopy = useCallback(
-      async (prompt: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        try {
-          await navigator.clipboard.writeText(prompt);
-          if (activeStep === 2) setActiveStep(3);
-        } catch {}
-      },
-      [activeStep, setActiveStep],
-    );
-
-    const handleView = useCallback(
-      (prompt: string, name: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        onOpenModal(prompt, name);
-      },
-      [onOpenModal],
-    );
-
-    const handleRowClick = useCallback(
-      (prompt: string, name: string) => {
-        if (prompt) onOpenModal(prompt, name);
-      },
-      [onOpenModal],
-    );
-
-    // Build the list with category headers interspersed
-    const listElements: React.ReactNode[] = [];
-    let lastCat = "";
-    for (const agent of shownList) {
-      if (agent.category !== lastCat) {
-        lastCat = agent.category;
-        listElements.push(
-          <div key={`cat-${agent.category}`} className="ps-cat-header">
-            {agent.emoji} {agent.category}
-          </div>,
-        );
-      }
-      listElements.push(
-        <div
-          key={agent.slug}
-          className="ps-agent-row"
-          onClick={() => handleRowClick(agent.prompt, agent.agentName)}
-        >
-          <div className="ps-agent-info">
-            <div className="ps-agent-name">{agent.agentName}</div>
-            <div className="ps-agent-desc">{agent.description}</div>
-          </div>
-          <div className="ps-agent-actions">
-            {agent.prompt && (
-              <>
-                <button
-                  className="ps-btn ps-view-btn"
-                  onClick={(e) =>
-                    handleView(agent.prompt, agent.agentName, e)
-                  }
-                >
-                  View
-                </button>
-                <button
-                  className="ps-btn primary ps-copy-btn"
-                  onClick={(e) => handleCopy(agent.prompt, e)}
-                >
-                  Copy
-                </button>
-              </>
-            )}
-          </div>
-        </div>,
+  // Group skills by category
+  const grouped = useMemo(() => {
+    const q = search.toLowerCase();
+    const filtered = skills.filter((s) => {
+      if (!q) return true;
+      return (
+        s.agentName.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q)
       );
+    });
+
+    const groups: { category: string; emoji: string; skills: AgentSkill[] }[] = [];
+    const catMap = new Map<string, AgentSkill[]>();
+
+    for (const s of filtered) {
+      if (!catMap.has(s.category)) catMap.set(s.category, []);
+      catMap.get(s.category)!.push(s);
     }
 
-    // ------------------------------------------------------------------
-    // Render
-    // ------------------------------------------------------------------
+    for (const [cat, catSkills] of catMap) {
+      groups.push({ category: cat, emoji: catSkills[0].emoji, skills: catSkills });
+    }
 
-    if (!skills.length) return null;
+    return groups;
+  }, [skills, search]);
 
-    return (
-      <div className="prompt-store" id="prompt-store" ref={innerRef}>
-        <div className="ps-header">
-          <span className="ps-title">Try out assistant skills</span>
-        </div>
-        <p className="ps-intro">
-          Copy any of our {skills.length} favorite skills into the chat, tweak
-          it however you want, or write your own from scratch. Go crazy, try
-          anything &mdash; if it doesn&rsquo;t work, just tell it to forget and
-          start over.
-        </p>
-        <div className="ps-search-wrap">
-          <span className="ps-search-icon">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-          </span>
-          <input
-            className="ps-search"
-            placeholder="Search assistants..."
-            id="ps-search"
-            aria-label="Search assistants"
-            onChange={handleSearchChange}
-          />
-        </div>
-        <div
-          className="ps-filters"
-          id="ps-filters"
-          onClick={handleFilterClick}
-        >
-          <button
-            className={`ps-filter-pill${category === "All" ? " active" : ""}`}
-            data-cat="All"
-          >
-            All
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.name}
-              className={`ps-filter-pill${category === c.name ? " active" : ""}`}
-              data-cat={c.name}
-            >
-              {c.emoji} {c.name}
-            </button>
-          ))}
-        </div>
-        <div
-          className="ps-no-results"
-          id="ps-no-results"
-          style={{ display: noResults ? "block" : "none" }}
-        >
-          No assistants match your search
-        </div>
-        <div className="ps-list" id="ps-list">
-          {listElements}
-        </div>
-        <button
-          className="ps-show-more"
-          id="ps-show-more"
-          style={{ display: showMoreVisible ? "block" : "none" }}
-          onClick={handleShowMore}
-        >
-          {showMoreText}
-        </button>
+  if (!skills.length) return null;
+
+  return (
+    <div className="skill-browser">
+      {/* Search */}
+      <div className="ps-search-wrap">
+        <span className="ps-search-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+        </span>
+        <input
+          className="ps-search"
+          placeholder="Search skills..."
+          aria-label="Search skills"
+          onChange={(e) => setSearch(e.target.value.trim())}
+        />
       </div>
-    );
-  },
-);
+
+      {/* Category groups */}
+      {grouped.map((group) => (
+        <div key={group.category} className="skill-group">
+          <div className="skill-group-header">
+            <span className="skill-group-emoji">{group.emoji}</span>
+            <h2 className="skill-group-name">{group.category}</h2>
+            <span className="skill-group-count">{group.skills.length}</span>
+          </div>
+
+          <div className="skill-group-list">
+            {group.skills.map((skill) => (
+              <div key={skill.slug} className="skill-row">
+                <div className="skill-row-info">
+                  <Link href={`/${skill.slug}`} className="skill-row-name">
+                    {skill.agentName}
+                  </Link>
+                  <div className="skill-row-desc">{skill.description}</div>
+                  {skill.tools.length > 0 && (
+                    <div className="skill-row-tools">
+                      {skill.tools.map((t) => (
+                        <span key={t} className="skill-tool-badge">{t}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="skill-row-actions">
+                  <Link href={`/${skill.slug}`} className="skill-details-btn">
+                    Details
+                  </Link>
+                  <ShareButton slug={skill.slug} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {grouped.length === 0 && (
+        <div className="ps-no-results" style={{ display: "block" }}>
+          No skills match your search
+        </div>
+      )}
+    </div>
+  );
+}

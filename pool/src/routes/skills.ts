@@ -86,7 +86,7 @@ skillsRouter.get("/api/skills/:idOrSlug", async (req, res) => {
 /** Create a skill. */
 skillsRouter.post("/api/skills", requireAuth, async (req, res) => {
   try {
-    const { agentName, prompt, description, category, emoji, tools, published } = req.body || {};
+    const { agentName, prompt, description, category, emoji, tools, published, featured } = req.body || {};
 
     if (!agentName || typeof agentName !== "string") {
       res.status(400).json({ error: "agentName is required" }); return;
@@ -124,6 +124,7 @@ skillsRouter.post("/api/skills", requireAuth, async (req, res) => {
       emoji,
       tools: Array.isArray(tools) ? tools : undefined,
       published: published === true,
+      featured: featured === true,
     });
     res.status(201).json(skill);
   } catch (err: any) {
@@ -139,7 +140,7 @@ skillsRouter.put("/api/skills/:id", requireAuth, async (req, res) => {
     const existing = await skills.findById(id);
     if (!existing) { res.status(404).json({ error: "Skill not found" }); return; }
 
-    const { agentName, prompt, description, category, emoji, tools, published } = req.body || {};
+    const { agentName, prompt, description, category, emoji, tools, published, featured } = req.body || {};
     const updates: Record<string, any> = {};
 
     if (agentName !== undefined) {
@@ -178,6 +179,7 @@ skillsRouter.put("/api/skills/:id", requireAuth, async (req, res) => {
       updates.tools = tools;
     }
     if (published !== undefined) updates.published = published === true;
+    if (featured !== undefined) updates.featured = featured === true;
 
     if (Object.keys(updates).length === 0) {
       res.status(400).json({ error: "No fields to update" }); return;
