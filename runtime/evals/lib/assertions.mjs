@@ -3,6 +3,7 @@
 
 import { execFileSync } from 'child_process';
 import { resolveConvos, sleep } from './utils.mjs';
+import { runtime } from './runtime.mjs';
 
 const CONVOS = resolveConvos();
 const ENV = process.env.XMTP_ENV || 'dev';
@@ -344,4 +345,48 @@ export function agentUsedReplyTo(output, context) {
       ? 'Agent response was sent as a reply (contentType: reply)'
       : 'Agent response was plain text, not a reply — replyTo pipeline may be broken',
   };
+}
+
+export function logSharingEnabled(output) {
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
+  const url = `http://localhost:${port}/web-tools/logs/api`;
+  try {
+    sleep(2_000);
+    const res = execFileSync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', url], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+    }).trim();
+    const pass = res === '200';
+    return {
+      pass,
+      score: pass ? 1 : 0,
+      reason: pass
+        ? `Logs endpoint returned 200 — sharing is enabled`
+        : `Logs endpoint returned ${res} — sharing not enabled (expected 200)`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to curl logs endpoint: ${err.message}` };
+  }
+}
+
+export function logSharingDisabled(output) {
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
+  const url = `http://localhost:${port}/web-tools/logs/api`;
+  try {
+    sleep(2_000);
+    const res = execFileSync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', url], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+    }).trim();
+    const pass = res === '403';
+    return {
+      pass,
+      score: pass ? 1 : 0,
+      reason: pass
+        ? `Logs endpoint returned 403 — sharing is disabled`
+        : `Logs endpoint returned ${res} — expected 403 (sharing should be off)`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to curl logs endpoint: ${err.message}` };
+  }
 }
