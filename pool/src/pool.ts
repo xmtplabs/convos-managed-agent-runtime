@@ -69,7 +69,6 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
     await db.upsertInstance({
       id,
       name,
-      url: result.url,
       status: "starting",
       createdAt: new Date().toISOString(),
     });

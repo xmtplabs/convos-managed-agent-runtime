@@ -16,7 +16,6 @@ export type InstanceStatus =
 export const instances = pgTable("instances", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  url: text("url"),
   status: text("status").$type<InstanceStatus>().notNull().default("starting"),
   agentName: text("agent_name"),
   conversationId: text("conversation_id"),
