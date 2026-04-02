@@ -35,8 +35,7 @@ keys_show_pool
 brand_subsection "hermes"
 keys_ensure_gateway_token
 
-_model="${OPENCLAW_PRIMARY_MODEL:-${HERMES_MODEL:-anthropic/claude-sonnet-4-6}}"
-brand_ok "MODEL" "$_model"
+brand_ok "MODEL" "@preset/assistants-pro"
 brand_ok "XMTP_ENV" "${XMTP_ENV:-dev}"
 
 keys_show_services

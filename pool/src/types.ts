@@ -12,6 +12,7 @@ export interface CreateInstanceResponse {
   url: string | null;
   services: {
     openrouter?: { resourceId: string };
+    exa?: { resourceId: string };
     agentmail?: { resourceId: string };
     telnyx?: { resourceId: string; messagingProfileId?: string };
   };
@@ -21,6 +22,7 @@ export interface DestroyResult {
   instanceId: string;
   destroyed: {
     openrouter: boolean;
+    exa: boolean;
     agentmail: boolean;
     telnyx: boolean;
     volumes: boolean;

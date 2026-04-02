@@ -1,4 +1,4 @@
-Run all of these. One message back with results. Some items need my input — ask me and wait.
+Run all of these. One message back with results. Some items need my input — ask me and wait. Use ✅ and ❌ to mark items as complete or incomplete.
 
 1. What runtime version are you running?
 2. What model are you currently using?

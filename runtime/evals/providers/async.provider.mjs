@@ -56,7 +56,10 @@ export default class AsyncProvider {
 
     const heavyPrompt = meta.heavyPrompt;
     const ackTimeoutMs = (meta.ackTimeout || 30) * 1000;
-    const followUpTimeoutMs = (meta.followUpTimeout || 15) * 1000;
+    // Hermes follow-ups go through HTTP → OpenRouter (full round-trip);
+    // OpenClaw follow-ups use a local CLI session. Give HTTP more time.
+    const defaultFollowUp = runtime.queryUrl ? 45 : 15;
+    const followUpTimeoutMs = (meta.followUpTimeout || defaultFollowUp) * 1000;
 
     if (!heavyPrompt) {
       return { output: '', error: 'metadata.heavyPrompt is required' };
