@@ -31,6 +31,13 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
     done
   fi
   brand_ok "core skills" "$_skill_count → $STATE_DIR/skills"
+
+  # Onboarding prompts → STATE_DIR/onboarding/
+  if [ -d "$CONVOS_PLATFORM_DIR/onboarding" ]; then
+    mkdir -p "$STATE_DIR/onboarding"
+    cp "$CONVOS_PLATFORM_DIR"/onboarding/*.md "$STATE_DIR/onboarding/"
+    brand_ok "onboarding" "$STATE_DIR/onboarding"
+  fi
 fi
 
 # ── Runtime config ───────────────────────────────────────────────────────

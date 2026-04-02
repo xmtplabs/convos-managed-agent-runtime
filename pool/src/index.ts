@@ -9,9 +9,10 @@ import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upg
 import { eq, and, inArray } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
-import { deployImage, redeployService, fetchServiceStatus } from "./services/providers/railway";
+import { deployImage, redeployService, fetchServiceStatus, upsertVariables } from "./services/providers/railway";
 import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
+import * as exa from "./services/providers/exa";
 
 import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
@@ -158,7 +159,11 @@ function detectHarnessFromImage(image: string): "openclaw" | "hermes" | null {
 }
 
 /**
- * Upgrade an instance's runtime image on Railway.
+ * Single source of truth for all runtime upgrades.
+ *
+ * Called from three places: self-upgrade, admin single-instance, and bulk upgrade.
+ * All pre-deploy logic (env var backfills, image resolution, harness detection)
+ * MUST live here so every upgrade path behaves identically.
  *
  * Resolves the tag to a sha256 digest and deploys via environmentPatchCommit
  * (the same atomic mechanism used by createService). This ensures Railway
@@ -180,6 +185,28 @@ async function upgradeInstanceRuntime(
     rawImage = `${HARNESS_IMAGES[currentHarness]}:${tag}`;
   }
 
+  // Backfill missing service keys before deploying so the new container has them
+  const backfilled: string[] = [];
+  try {
+    const existingServices = await pgDb.select({ toolId: instanceServices.toolId })
+      .from(instanceServices)
+      .where(eq(instanceServices.instanceId, instanceId));
+    const hasService = (id: string) => existingServices.some((s) => s.toolId === id);
+
+    if (!hasService("exa") && config.exaServiceKey) {
+      const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
+      const { id } = await exa.createKey(keyName, config.exaKeyRateLimit);
+      await upsertVariables(infra.providerServiceId, { EXA_API_KEY: id });
+      await pgDb.insert(instanceServices).values({
+        instanceId, toolId: "exa", resourceId: id, envKey: "exa", envValue: id, resourceMeta: {},
+      });
+      backfilled.push("exa");
+      console.log(`[upgrade] Backfilled EXA_API_KEY for ${instanceId}`);
+    }
+  } catch (err) {
+    console.warn(`[upgrade] Service backfill failed for ${instanceId} (non-fatal):`, (err as Error).message);
+  }
+
   const image = await resolveImageDigest(rawImage);
   const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
 
@@ -193,6 +220,7 @@ async function upgradeInstanceRuntime(
 
 // Self-upgrade — instance requests a runtime image update for itself.
 // Auth: instance sends its own ID + gateway token (same as self-destruct).
+// Delegates to upgradeInstanceRuntime() — do not add upgrade logic here.
 app.post("/api/pool/self-upgrade", async (req, res) => {
   try {
     const { instanceId, gatewayToken } = req.body || {};
@@ -561,6 +589,8 @@ app.post("/api/pool/re-attest-all", requireAuth, async (req, res) => {
   }
 });
 
+// Admin single-instance upgrade.
+// Delegates to upgradeInstanceRuntime() — do not add upgrade logic here.
 app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
@@ -579,7 +609,8 @@ app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   }
 });
 
-// --- SSE streaming endpoint for mass runtime upgrade ---
+// Bulk upgrade (SSE streaming).
+// Delegates to upgradeInstanceRuntime() — do not add upgrade logic here.
 app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
   const idList = ((req.query.ids as string) || "").split(",").filter(Boolean);
   const imageOverride = (req.query.image as string) || "";
