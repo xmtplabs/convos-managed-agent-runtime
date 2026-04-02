@@ -960,6 +960,8 @@
         '<div class="skill-form-checkbox-row" style="margin-bottom:14px">' +
           '<input type="checkbox" id="' + formId + '-pub"' + (skill.published ? ' checked' : '') + ' />' +
           '<label class="skill-form-checkbox-label" for="' + formId + '-pub">Published</label>' +
+          '<input type="checkbox" id="' + formId + '-feat"' + (skill.featured ? ' checked' : '') + ' style="margin-left:18px" />' +
+          '<label class="skill-form-checkbox-label" for="' + formId + '-feat">Featured</label>' +
         '</div>' +
         '<div class="skill-form-actions">' +
           (isNew
@@ -1015,6 +1017,7 @@
       var toolsEl = document.getElementById(formId + '-tools');
       var promptEl = document.getElementById(formId + '-prompt');
       var pubEl = document.getElementById(formId + '-pub');
+      var featEl = document.getElementById(formId + '-feat');
 
       var toolsRaw = toolsEl ? toolsEl.value : '';
       var tools = toolsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
@@ -1026,7 +1029,8 @@
         category: catEl ? catEl.value : '',
         tools: tools,
         prompt: promptEl ? promptEl.value : '',
-        published: pubEl ? pubEl.checked : false
+        published: pubEl ? pubEl.checked : false,
+        featured: featEl ? featEl.checked : false
       };
     }
 
