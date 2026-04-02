@@ -351,7 +351,12 @@ class AgentRunner:
 
         # Normalize SILENT: the agent chose not to reply. Strip the marker
         # so it never appears in conversation history as assistant text.
-        is_silent = bool(response and "SILENT" in response.strip().splitlines())
+        # Strip each line individually so leading/trailing whitespace on the
+        # SILENT line doesn't cause a missed detection.
+        is_silent = bool(
+            response
+            and "SILENT" in [l.strip() for l in response.strip().splitlines()]
+        )
 
         # Append to shared history after the call completes.
         # Hermes handles context window management internally via
