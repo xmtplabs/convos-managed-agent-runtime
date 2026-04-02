@@ -161,6 +161,10 @@ if command -v jq >/dev/null 2>&1; then
     jq '.agents.defaults.model.primary = "openrouter/@preset/assistants-ci"' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "model" "overridden → @preset/assistants-ci (eval mode)"
   fi
+  # Disable Exa plugin when EXA_API_KEY is not set to prevent crash loop
+  if [ -z "${EXA_API_KEY:-}" ]; then
+    jq '.plugins.entries.exa.enabled = false' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+  fi
   # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then
     jq '.browser.executablePath = "/usr/bin/chromium" | .browser.headless = true | .browser.noSandbox = true' \
