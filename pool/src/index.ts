@@ -185,6 +185,8 @@ async function upgradeInstanceRuntime(
     rawImage = `${HARNESS_IMAGES[currentHarness]}:${tag}`;
   }
 
+  const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+
   // Backfill missing service keys before deploying so the new container has them
   const backfilled: string[] = [];
   try {
@@ -196,7 +198,7 @@ async function upgradeInstanceRuntime(
     if (!hasService("exa") && config.exaServiceKey) {
       const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
       const { id } = await exa.createKey(keyName, config.exaKeyRateLimit);
-      await upsertVariables(infra.providerServiceId, { EXA_API_KEY: id });
+      await upsertVariables(infra.providerServiceId, { EXA_API_KEY: id }, { skipDeploys: true }, opts);
       await pgDb.insert(instanceServices).values({
         instanceId, toolId: "exa", resourceId: id, envKey: "exa", envValue: id, resourceMeta: {},
       });
@@ -208,7 +210,6 @@ async function upgradeInstanceRuntime(
   }
 
   const image = await resolveImageDigest(rawImage);
-  const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
 
   const status = await fetchServiceStatus(infra.providerServiceId, infra.providerEnvId);
   console.log(`[upgrade] ${instanceId}: service=${infra.providerServiceId} env=${infra.providerEnvId} raw=${rawImage} resolved=${image} current=${status?.image ?? "unknown"} status=${status?.deployStatus ?? "unknown"}`);
