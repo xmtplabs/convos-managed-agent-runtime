@@ -479,7 +479,7 @@ async def _notify_pool_pending_join(event: str, *, conversation_id: str | None =
     """Callback to the pool manager when a pending join resolves."""
     pool_url = os.environ.get("POOL_URL", "")
     instance_id = os.environ.get("INSTANCE_ID", "")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+    gateway_token = os.environ.get("GATEWAY_TOKEN", "")
     if not pool_url or not instance_id or not gateway_token:
         return
 
@@ -501,9 +501,9 @@ async def _fetch_attestation(inbox_id: str) -> dict[str, str] | None:
     """Fetch a signed attestation from the pool manager."""
     pool_url = os.environ.get("POOL_URL")
     instance_id = os.environ.get("INSTANCE_ID")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
+    gateway_token = os.environ.get("GATEWAY_TOKEN")
     if not pool_url or not instance_id or not gateway_token:
-        logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN")
+        logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or GATEWAY_TOKEN")
         return None
     try:
         async with httpx.AsyncClient(timeout=10) as client:

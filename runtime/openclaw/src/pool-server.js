@@ -32,7 +32,7 @@ if (VOLUME_MOUNT) {
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const INTERNAL_PORT = parseInt(process.env.GATEWAY_INTERNAL_PORT || "18789", 10);
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
 const INSTANCE_ID = process.env.INSTANCE_ID;
 const POOL_URL = process.env.POOL_URL;
 /** Walk up from *start* to find the nearest directory containing *marker*. */
@@ -89,7 +89,7 @@ function spawnGateway(extraEnv = {}) {
       ...extraEnv,
       PORT: String(INTERNAL_PORT),
       OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-      OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
+      OPENCLAW_GATEWAY_TOKEN: process.env.GATEWAY_TOKEN || "", // binary expects OPENCLAW_ name
       POOL_SERVER_PORT: String(PORT),
     },
   });
@@ -131,7 +131,7 @@ const initialChild = spawn("pnpm", ["start"], {
     ...process.env,
     PORT: String(INTERNAL_PORT),
     OPENCLAW_PUBLIC_PORT: String(INTERNAL_PORT),
-    OPENCLAW_GATEWAY_TOKEN: process.env.OPENCLAW_GATEWAY_TOKEN || "",
+    OPENCLAW_GATEWAY_TOKEN: process.env.GATEWAY_TOKEN || "", // binary expects OPENCLAW_ name
     POOL_SERVER_PORT: String(PORT),
   },
 });

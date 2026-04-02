@@ -39,7 +39,7 @@ pnpm evals hermes convos -- --filter-pattern "welcome"
 
 Required in `runtime/.env` (shared by all runtimes):
 
-- `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
+- `GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`

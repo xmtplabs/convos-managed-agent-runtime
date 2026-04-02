@@ -1369,7 +1369,7 @@ export async function selfDestruct(reason?: string): Promise<void> {
   clearConversationExpirationCheck(DEFAULT_ACCOUNT_ID, undefined, false);
   await stats.shutdown();
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
-  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const gatewayToken = process.env.GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (gatewayToken) headers["Authorization"] = `Bearer ${gatewayToken}`;
   let poolSelfDestructAck = false;

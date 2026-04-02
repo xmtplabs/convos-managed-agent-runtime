@@ -199,7 +199,7 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown) {
 }
 
 function checkPoolAuth(req: IncomingMessage): boolean {
-  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const token = process.env.GATEWAY_TOKEN;
   if (!token) return true; // No gateway token configured — allow all
   const authHeader = req.headers.authorization;
   return authHeader === `Bearer ${token}`;
@@ -212,9 +212,9 @@ async function fetchAndApplyAttestation(): Promise<void> {
 
   const poolUrl = process.env.POOL_URL;
   const instanceId = process.env.INSTANCE_ID;
-  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const gatewayToken = process.env.GATEWAY_TOKEN;
   if (!poolUrl || !instanceId || !gatewayToken) {
-    console.warn("[convos] Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN");
+    console.warn("[convos] Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or GATEWAY_TOKEN");
     return;
   }
   try {
