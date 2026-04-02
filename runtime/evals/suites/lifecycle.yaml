@@ -8,7 +8,9 @@ evaluateOptions:
   maxConcurrency: 1
 
 providers:
-  - file://../providers/convos.provider.mjs
+  - id: file://../providers/convos.provider.mjs
+    config:
+      skipGreeting: false
 
 defaultTest:
   options:
