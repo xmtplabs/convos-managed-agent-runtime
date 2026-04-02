@@ -4,9 +4,77 @@ description: |
   Manage the Convos runtime (the Railway-deployed Docker container you run inside).
   USE WHEN: User asks about the runtime, their version, what version they're on, or asks to upgrade/update/redeploy.
   Also USE WHEN: User says "upgrade", "update", "what's your runtime", "runtime version", "redeploy", or any variation.
+  Also USE WHEN: User asks for their URL, link, page, services page, logs link, or anything about their public-facing address.
+  Also USE WHEN: User says "share my logs", "share my trajectories", "share my conversations", "give me a link to my logs", "stop sharing my logs", or anything about sharing/unsharing conversation history.
   NEVER use `gateway update`, `npm update`, `pip install`, or any local package manager command. Those update local tooling, not the Convos runtime. The runtime upgrade path is a container redeploy via the pool server.
   REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID + GATEWAY_TOKEN).
 ---
+
+## Info
+
+Check your public URLs (services page, logs page) and what services are provisioned:
+
+```bash
+node "$SKILLS_ROOT/services/scripts/services.mjs" info
+```
+
+Returns JSON: `{ email, phone, servicesUrl, logsUrl }`
+
+**You MUST run this command when someone asks:**
+- "what's your URL / link / page"
+- "share your services / contact info"
+- "can I see your services"
+- anything about your public-facing address or dashboard
+
+The `servicesUrl` is your public services page. The `logsUrl` is the logs/trajectories page. Always share these as-is — never make up a URL.
+
+## Share logs
+
+A `.share-trajectories` flag file controls whether the logs page is publicly accessible.
+When the file exists, anyone with the link can view the agent's conversation logs.
+When removed, the page returns 403.
+
+### Enable sharing
+
+1. Get the logs URL:
+
+```bash
+node "$SKILLS_ROOT/services/scripts/services.mjs" info
+```
+
+Use the `logsUrl` field from the JSON output.
+
+2. Create the flag file:
+
+```bash
+touch "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
+```
+
+### Disable sharing
+
+```bash
+rm -f "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
+```
+
+### Response templates
+
+**When enabling:**
+> Your logs are now shared. Anyone with this link can view your conversation history:
+>
+> {logsUrl from services.mjs info}
+>
+> Say "stop sharing my logs" to disable access.
+
+Never make up a URL. Always use the `logsUrl` returned by `services.mjs info`.
+
+**When disabling:**
+> Log sharing is off. The link no longer works.
+
+### Important
+
+- Always tell the user that the link is **public** — anyone with it can see full conversation logs including tool calls.
+- If the user just asks about logs without clearly requesting sharing, explain what it does and ask if they want to proceed.
+- The logs page shows the most recent conversations with full tool call details.
 
 ## Version
 
