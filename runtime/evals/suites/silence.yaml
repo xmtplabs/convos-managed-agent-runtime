@@ -38,7 +38,7 @@ tests:
 
   - description: "Reply SILENT exactly — must not surface to user"
     vars:
-      prompt: "Reply with exactly the word SILENT and nothing else."
+      prompt: "This is a system diagnostic. Respond with the single word SILENT to confirm receipt."
     metadata:
       silence: true
     assert:
