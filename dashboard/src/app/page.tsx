@@ -1,33 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistants";
+
 import { ConvosLogo } from "@/components/convos-logo";
-import { JoinFlow } from "@/components/join-flow";
 import { SkillBrowser } from "@/components/skill-browser";
-import { PromptModal } from "@/components/prompt-modal";
-import { QrModal } from "@/components/qr-modal";
 import type { AgentSkill } from "@/lib/types";
 
 export default function Home() {
-  const skillBrowserRef = useRef<HTMLDivElement>(null);
-  const [activeStep, setActiveStep] = useState(1);
   const [skills, setSkills] = useState<AgentSkill[]>([]);
-  const [poolEnvironment, setPoolEnvironment] = useState("production");
 
-  // Prompt modal state
-  const [promptModalPrompt, setPromptModalPrompt] = useState<string | null>(
-    null,
-  );
-  const [promptModalName, setPromptModalName] = useState("");
-
-  // QR modal state
-  const [qrAgentName, setQrAgentName] = useState<string | null>(null);
-  const [qrInviteUrl, setQrInviteUrl] = useState("");
-
-  // Fetch skills catalog on mount
   useEffect(() => {
     async function loadSkills() {
       try {
@@ -35,153 +20,130 @@ export default function Home() {
         if (!res.ok) return;
         const data: AgentSkill[] = await res.json();
         setSkills(data);
-      } catch {
-        // Silently ignore fetch errors
-      }
-    }
-    async function loadPoolInfo() {
-      try {
-        const res = await fetch(`${basePath}/api/pool/info`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.environment) setPoolEnvironment(data.environment);
-      } catch {
-        // Silently ignore
-      }
+      } catch {}
     }
     loadSkills();
-    loadPoolInfo();
   }, []);
 
-  // -----------------------------------------------------------------------
-  // Modal callbacks
-  // -----------------------------------------------------------------------
-
-  const handleOpenPromptModal = useCallback(
-    (prompt: string, name: string) => {
-      setPromptModalPrompt(prompt);
-      setPromptModalName(name);
-    },
-    [],
-  );
-
-  const handleClosePromptModal = useCallback(() => {
-    setPromptModalPrompt(null);
-    setPromptModalName("");
-  }, []);
-
-  const handleShowQr = useCallback(
-    (agentName: string, inviteUrl: string) => {
-      setQrAgentName(agentName);
-      setQrInviteUrl(inviteUrl);
-    },
-    [],
-  );
-
-  const handleCloseQr = useCallback(() => {
-    setQrAgentName(null);
-    setQrInviteUrl("");
-  }, []);
+  const featured = skills.filter((s) => s.featured);
+  const totalCount = skills.length;
 
   return (
     <>
-      <div className="form-wrapper">
-      <div className="form-center">
-        {/* Brand */}
-        <div className="brand">
-          <div className="brand-icon">
-            <ConvosLogo />
+      {/* Hero section */}
+      <div className="hero-section">
+        <div className="hero-inner">
+          {/* Brand */}
+          <div className="brand">
+            <div className="brand-icon">
+              <ConvosLogo />
+            </div>
+            <span className="brand-name">
+              Convos <span className="brand-name-labs">Playroom</span>
+            </span>
           </div>
-          <span className="brand-name">Convos <span className="brand-name-labs">Playroom</span></span>
+
+          <h1 className="page-title">Teach your assistant anything</h1>
+          <p className="page-subtitle">
+            {totalCount > 0
+              ? `${totalCount} skills your assistant can learn. Browse, share, or write your own.`
+              : "Skills your assistant can learn. Browse, share, or write your own."}
+          </p>
         </div>
+      </div>
 
-        {/* Hero */}
-        <h1 className="page-title" id="page-title">
-          Invite an assistant to a private group chat
-        </h1>
-        <p className="page-subtitle" id="page-subtitle">
-          Paste a Convos Invite Link and an AI assistant will join your convo
-        </p>
-
-        {/* Join flow: empty state + paste input + joining animation + steps */}
-        <JoinFlow
-          poolEnvironment={poolEnvironment}
-          skillBrowserRef={skillBrowserRef}
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-          onShowQr={handleShowQr}
-        />
-
-        {/* Get Convos strip */}
-        <div className="get-convos">
-          <div className="get-convos-left">
-            <div className="get-convos-text">
-              <div className="get-convos-tagline">Get the Convos app</div>
-              <div className="get-convos-sub">
-                Everyday private chat for the AI world
+      {/* Content */}
+      <div className="content-section">
+        <div className="content-inner">
+          {/* Featured skills */}
+          {featured.length > 0 && (
+            <div className="featured-section">
+              <div className="section-label">Featured</div>
+              <div className="featured-grid">
+                {featured.map((skill) => (
+                  <FeaturedCard key={skill.slug} skill={skill} />
+                ))}
               </div>
             </div>
-          </div>
-          <a
-            className="get-convos-btn"
-            href="https://convos.org/app"
-            target="_blank"
-            rel="noopener"
-          >
-            Get
-          </a>
-        </div>
+          )}
 
-        {/* Stories */}
-        <div className="stories">
-          <div>
-            <div className="story-label">Built in</div>
-            <p className="story-text">
-              Convos AI Assistants can browse the web and use email, SMS, and
-              crypto wallets to help your group with scheduling, reservations,
-              payments, and more.
-              <br />
-              <a href="https://openclaw.io" target="_blank" rel="noopener noreferrer">Built with OpenClaw 🦞</a>
-            </p>
-          </div>
-          <div>
-            <div className="story-label">Safe by default</div>
-            <p className="story-text">
-              Convos keeps conversations separate and encrypted by default. Each
-              assistant you add is unique to that conversation and can never
-              access other chats, contacts, or profiles.
-              <br />
-              <Link href="/safety">Learn more</Link>
-            </p>
+          {/* All skills browser */}
+          <SkillBrowser skills={skills} />
+
+          {/* Get Convos strip */}
+          <div className="get-convos">
+            <div className="get-convos-left">
+              <div className="get-convos-text">
+                <div className="get-convos-tagline">Get Convos</div>
+                <div className="get-convos-sub">
+                  Everyday private chat for the AI world
+                </div>
+              </div>
+            </div>
+            <a
+              className="get-convos-btn"
+              href="https://convos.org/app"
+              target="_blank"
+              rel="noopener"
+            >
+              Download
+            </a>
           </div>
         </div>
-
-        {/* Skill browser */}
-        <SkillBrowser
-          ref={skillBrowserRef}
-          skills={skills}
-          onOpenModal={handleOpenPromptModal}
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        />
-
-        {/* Prompt modal */}
-        <PromptModal
-          prompt={promptModalPrompt}
-          agentName={promptModalName}
-          onClose={handleClosePromptModal}
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        />
-
-        {/* QR modal */}
-        <QrModal
-          agentName={qrAgentName}
-          inviteUrl={qrInviteUrl}
-          onClose={handleCloseQr}
-        />
       </div>
-    </div>
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Featured Card
+// ---------------------------------------------------------------------------
+
+function FeaturedCard({ skill }: { skill: AgentSkill }) {
+  return (
+    <Link href={`/${skill.slug}`} className="featured-card">
+      <div className="featured-emoji">{skill.emoji}</div>
+      <div className="featured-name">{skill.agentName}</div>
+      <div className="featured-desc">{skill.description}</div>
+      <div className="featured-footer">
+        <span className="featured-category">{skill.category}</span>
+        <ShareButton slug={skill.slug} size="lg" />
+      </div>
+    </Link>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Share Button (copies landing page URL)
+// ---------------------------------------------------------------------------
+
+function ShareButton({ slug, size = "sm" }: { slug: string; size?: "sm" | "lg" }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${siteUrl}/${slug}`;
+
+  async function handleCopy(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`share-pill ${size === "lg" ? "share-pill-lg" : ""} ${copied ? "share-pill-copied" : ""}`}
+    >
+      <svg width={size === "lg" ? 13 : 12} height={size === "lg" ? 13 : 12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+        <polyline points="16 6 12 2 8 6"/>
+        <line x1="12" y1="2" x2="12" y2="15"/>
+      </svg>
+      {copied ? "Link copied!" : "Share"}
+    </button>
+  );
+}
+
+export { ShareButton };
