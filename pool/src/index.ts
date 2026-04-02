@@ -9,9 +9,10 @@ import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upg
 import { eq, and, inArray } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
-import { deployImage, redeployService, fetchServiceStatus } from "./services/providers/railway";
+import { deployImage, redeployService, fetchServiceStatus, upsertVariables } from "./services/providers/railway";
 import { resolveImageDigest } from "./services/providers/ghcr";
 import * as openrouter from "./services/providers/openrouter";
+import * as exa from "./services/providers/exa";
 
 import { initMetrics } from "./metrics";
 import { webhookRouter } from "./webhookRoute";
@@ -208,9 +209,31 @@ app.post("/api/pool/self-upgrade", async (req, res) => {
     if (!infra) {
       res.status(404).json({ error: `Instance ${instanceId} infra not found` }); return;
     }
+    // Backfill missing service keys before deploying so the new container has them
+    const backfilled: string[] = [];
+    try {
+      const existingServices = await pgDb.select({ toolId: instanceServices.toolId })
+        .from(instanceServices)
+        .where(eq(instanceServices.instanceId, instanceId));
+      const hasService = (id: string) => existingServices.some((s) => s.toolId === id);
+
+      if (!hasService("exa") && config.exaServiceKey) {
+        const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
+        const { id } = await exa.createKey(keyName, config.exaKeyRateLimit);
+        await upsertVariables(infra.providerServiceId, { EXA_API_KEY: id });
+        await pgDb.insert(instanceServices).values({
+          instanceId, toolId: "exa", resourceId: id, envKey: "exa", envValue: id, resourceMeta: {},
+        });
+        backfilled.push("exa");
+        console.log(`[upgrade] Backfilled EXA_API_KEY for ${instanceId}`);
+      }
+    } catch (err) {
+      console.warn(`[upgrade] Service backfill failed for ${instanceId} (non-fatal):`, (err as Error).message);
+    }
+
     const image = await upgradeInstanceRuntime(instanceId, infra);
     console.log(`[pool] Self-upgrade requested by instance ${instanceId} → ${image}`);
-    res.json({ ok: true, instanceId, image });
+    res.json({ ok: true, instanceId, image, backfilled });
   } catch (err: any) {
     console.error("[api] Self-upgrade failed:", err);
     res.status(500).json({ error: err.message });
