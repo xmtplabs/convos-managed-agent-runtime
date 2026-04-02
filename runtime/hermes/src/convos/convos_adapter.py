@@ -109,7 +109,9 @@ def parse_response(raw: str) -> ParsedResponse:
         stripped = line.strip()
 
         # SILENT — agent explicitly chose not to reply
-        if stripped == "SILENT":
+        # Also catch markdown-wrapped variants like **SILENT**, `SILENT`, etc.
+        bare = re.sub(r"[\*_`~]+", "", stripped)
+        if bare == "SILENT":
             result.silent = True
             continue
 
