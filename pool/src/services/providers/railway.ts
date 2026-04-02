@@ -348,6 +348,7 @@ export async function createService(
     varEntries[k] = { value: v };
   }
   varEntries._RUNTIME_IMAGE = { value: imageOverride || config.railwayRuntimeImage };
+  varEntries.RUNTIME_TYPE = { value: image.includes("runtime-hermes") ? "hermes" : "openclaw" };
 
   try {
     await gql(
@@ -361,7 +362,7 @@ export async function createService(
             [serviceId]: {
               source: { image },
               deploy: {
-                ...(image.includes("runtime-hermes") ? {} : { startCommand: "node src/pool-server.js" }),
+                startCommand: "node convos-platform/pool-server/dist/index.js",
                 limitOverride: {
                   containers: {
                     cpu,
@@ -506,11 +507,12 @@ export async function deployImage(
       [serviceId]: {
         source: { image },
         deploy: {
-          ...(image.includes("runtime-hermes") ? {} : { startCommand: "node src/pool-server.js" }),
+          startCommand: "node convos-platform/pool-server/dist/index.js",
         },
         variables: {
           _DEPLOY_TS: { value: Date.now().toString() },
           _RUNTIME_IMAGE: { value: rawImage || image },
+          RUNTIME_TYPE: { value: image.includes("runtime-hermes") ? "hermes" : "openclaw" },
         },
       },
     },
