@@ -1,4 +1,5 @@
 export type { InstanceStatus, InstanceRow, InfraRow, ServiceRow } from "./db/schema";
+export type { InstanceView } from "./db/pool";
 
 export interface CreateInstanceRequest {
   instanceId: string;

@@ -1,13 +1,15 @@
-import { eq, and, sql, notInArray, inArray } from "drizzle-orm";
+import { eq, and, sql, notInArray, inArray, getTableColumns } from "drizzle-orm";
 import { db } from "./connection";
 import { instances, instanceInfra, instanceServices } from "./schema";
 import type { InstanceRow, InstanceStatus } from "./schema";
 import { config } from "../config";
 
+/** InstanceRow + url resolved from instance_infra. */
+export type InstanceView = InstanceRow & { url: string | null };
+
 interface UpsertInstanceOpts {
   id: string;
   name: string;
-  url?: string | null;
   status: InstanceStatus;
   agentName?: string | null;
   conversationId?: string | null;
@@ -17,11 +19,10 @@ interface UpsertInstanceOpts {
   claimedAt?: string | null;
 }
 
-export async function upsertInstance({ id, name, url, status, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt }: UpsertInstanceOpts) {
+export async function upsertInstance({ id, name, status, agentName, conversationId, inviteUrl, instructions, createdAt, claimedAt }: UpsertInstanceOpts) {
   await db.insert(instances).values({
     id,
     name,
-    url: url || null,
     status,
     agentName: agentName || null,
     conversationId: conversationId || null,
@@ -33,7 +34,6 @@ export async function upsertInstance({ id, name, url, status, agentName, convers
     target: instances.id,
     set: {
       name: sql`EXCLUDED.name`,
-      url: sql`COALESCE(EXCLUDED.url, ${instances.url})`,
       status: sql`EXCLUDED.status`,
       agentName: sql`COALESCE(EXCLUDED.agent_name, ${instances.agentName})`,
       conversationId: sql`COALESCE(EXCLUDED.conversation_id, ${instances.conversationId})`,
@@ -44,18 +44,26 @@ export async function upsertInstance({ id, name, url, status, agentName, convers
   });
 }
 
-export async function findById(id: string): Promise<InstanceRow | null> {
-  const rows = await db.select().from(instances).where(eq(instances.id, id));
+const instanceWithUrl = { ...getTableColumns(instances), url: instanceInfra.url };
+
+export async function findById(id: string): Promise<InstanceView | null> {
+  const rows = await db.select(instanceWithUrl).from(instances)
+    .leftJoin(instanceInfra, eq(instances.id, instanceInfra.instanceId))
+    .where(eq(instances.id, id));
   return rows[0] ?? null;
 }
 
-export async function listAll(): Promise<InstanceRow[]> {
-  return db.select().from(instances).orderBy(instances.createdAt);
+export async function listAll(): Promise<InstanceView[]> {
+  return db.select(instanceWithUrl).from(instances)
+    .leftJoin(instanceInfra, eq(instances.id, instanceInfra.instanceId))
+    .orderBy(instances.createdAt);
 }
 
-export async function getByStatus(statuses: InstanceStatus | InstanceStatus[]): Promise<InstanceRow[]> {
+export async function getByStatus(statuses: InstanceStatus | InstanceStatus[]): Promise<InstanceView[]> {
   const list = Array.isArray(statuses) ? statuses : [statuses];
-  return db.select().from(instances).where(inArray(instances.status, list)).orderBy(instances.createdAt);
+  return db.select(instanceWithUrl).from(instances)
+    .leftJoin(instanceInfra, eq(instances.id, instanceInfra.instanceId))
+    .where(inArray(instances.status, list)).orderBy(instances.createdAt);
 }
 
 export async function getCounts(): Promise<Record<InstanceStatus, number>> {
@@ -77,7 +85,7 @@ export async function getCounts(): Promise<Record<InstanceStatus, number>> {
 /** Atomically claim one idle instance using FOR UPDATE SKIP LOCKED.
  *  When inviteUrl is provided, aborts if another instance is already
  *  claiming/claimed for that URL (dedup within the same transaction). */
-export async function claimIdle(inviteUrl?: string | null): Promise<InstanceRow | null> {
+export async function claimIdle(inviteUrl?: string | null): Promise<InstanceView | null> {
   return db.transaction(async (tx) => {
     // Dedup: if an instance is already handling this inviteUrl, don't claim another
     if (inviteUrl) {
@@ -107,16 +115,17 @@ export async function claimIdle(inviteUrl?: string | null): Promise<InstanceRow 
         FOR UPDATE SKIP LOCKED
       )
       RETURNING
-        id, name, url, status,
+        id, name, status,
         agent_name    AS "agentName",
         conversation_id AS "conversationId",
         invite_url    AS "inviteUrl",
         instructions,
         created_at    AS "createdAt",
-        claimed_at    AS "claimedAt"
+        claimed_at    AS "claimedAt",
+        (SELECT url FROM instance_infra WHERE instance_id = instances.id) AS url
     `);
     const row = result.rows[0];
-    return (row as InstanceRow) ?? null;
+    return (row as InstanceView) ?? null;
   });
 }
 
@@ -178,10 +187,9 @@ export async function failClaim(instanceId: string, status: InstanceStatus = "cr
   return (result.rowCount ?? 0) > 0;
 }
 
-export async function updateStatus(instanceId: string, { status, url }: { status?: string | null; url?: string | null }) {
+export async function updateStatus(instanceId: string, { status }: { status?: string | null }) {
   await db.update(instances).set({
     status: sql`COALESCE(${status || null}, ${instances.status})`,
-    url: sql`COALESCE(${url || null}, ${instances.url})`,
   }).where(eq(instances.id, instanceId));
 }
 
