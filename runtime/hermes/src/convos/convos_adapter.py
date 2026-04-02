@@ -96,7 +96,6 @@ class ParsedResponse:
     profile_name: str | None = None
     profile_image: str | None = None
     profile_metadata: dict[str, str] = field(default_factory=dict)
-    silent: bool = False  # agent explicitly chose not to reply
 
 
 def parse_response(raw: str) -> ParsedResponse:
@@ -107,13 +106,6 @@ def parse_response(raw: str) -> ParsedResponse:
 
     for line in lines:
         stripped = line.strip()
-
-        # SILENT — agent explicitly chose not to reply
-        # Also catch markdown-wrapped variants like **SILENT**, `SILENT`, etc.
-        bare = re.sub(r"[\*_`~]+", "", stripped)
-        if bare == "SILENT":
-            result.silent = True
-            continue
 
         # REACT:messageId:emoji or REACT:messageId:emoji:remove
         m = re.match(r'^REACT:([^:\s]+):([^:\s]+)(?::(remove))?$', stripped)
@@ -799,7 +791,7 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Send attachment failed: {err}")
 
-        # Renew profile image on any outbound activity (before SILENT check
+        # Renew profile image on any outbound activity (before suppress check
         # so media-only sends still trigger renewal)
         raw_text = strip_markdown(parsed.text)
         policy = await apply_outbound_policy(raw_text)
@@ -809,11 +801,6 @@ class ConvosAdapter:
                 await self._renew_profile_image_on_activity()
             except Exception as err:
                 logger.error(f"Profile image renewal on outbound activity failed: {err}")
-
-        # Agent explicitly chose silence — side effects above still fire, but no text
-        if parsed.silent:
-            logger.info("Agent chose SILENT — suppressing text reply")
-            return
 
         if policy.suppress:
             logger.info("Outbound policy suppressed text reply")

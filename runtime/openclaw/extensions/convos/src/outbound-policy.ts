@@ -82,34 +82,46 @@ function buildCreditMessage(): string {
 
 // ── Public API ──────────────────────────────────────────────────────────
 
-export async function applyOutboundTextPolicy(text: string): Promise<OutboundTextPolicyResult> {
-  const trimmed = text.trim();
+/**
+ * Strip lines that consist solely of a suppress token (e.g. SILENT, HEARTBEAT_OK).
+ * Handles markdown-wrapped variants like **SILENT**, `SILENT`, etc.
+ */
+export function stripSuppressLines(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => {
+      const bare = line.trim().replace(/[\*_`~]+/g, "");
+      return !SUPPRESS_TOKENS.has(bare);
+    })
+    .join("\n")
+    .trim();
+}
 
-  // Check each line individually — the agent may mix SILENT with other
-  // markers on separate lines, and leading/trailing whitespace on the
-  // SILENT line must not bypass suppression.
-  const lines = trimmed.split("\n").map((l) => l.trim());
-  if (lines.some((l) => SUPPRESS_TOKENS.has(l))) {
+export async function applyOutboundTextPolicy(text: string): Promise<OutboundTextPolicyResult> {
+  // Strip suppress-token lines (e.g. SILENT, HEARTBEAT_OK).
+  // If real content remains, deliver it.  Only suppress when nothing is left.
+  const cleaned = stripSuppressLines(text);
+  if (!cleaned) {
     return { suppress: true, text: "" };
   }
 
   // Rate-limit check BEFORE credit check — "rate limit exceeded" contains
   // the substring "limit exceeded" which would false-positive on creditPatterns.
-  if (isRateLimited(text)) {
+  if (isRateLimited(cleaned)) {
     return { suppress: true, text: "" };
   }
 
-  if (isCreditError(text)) {
+  if (isCreditError(cleaned)) {
     return { suppress: false, text: buildCreditMessage() };
   }
 
-  if (text.startsWith(CONTEXT_OVERFLOW_PREFIX) && await checkCreditsLow()) {
+  if (cleaned.startsWith(CONTEXT_OVERFLOW_PREFIX) && await checkCreditsLow()) {
     return { suppress: false, text: buildCreditMessage() };
   }
 
-  if (isOverloadedText(text)) {
+  if (isOverloadedText(cleaned)) {
     return { suppress: true, text: "" };
   }
 
-  return { suppress: false, text };
+  return { suppress: false, text: cleaned };
 }

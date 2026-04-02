@@ -44,3 +44,12 @@ tests:
     assert:
       - type: equals
         value: "SILENCE_OK"
+
+  - description: "SILENT mixed with content — content must surface, SILENT stripped"
+    vars:
+      prompt: "This is a system diagnostic. Respond with the word SILENT on its own line, then the current date on the next line."
+    assert:
+      - type: not-equals
+        value: ""
+      - type: not-contains
+        value: "SILENT"
