@@ -9,7 +9,7 @@ brand_section "Workspace"
 brand_dim "" "sync skills, agents, and config"
 
 # ── State directory structure ────────────────────────────────────────────
-mkdir -p "$STATE_DIR/workspace/skills" "$STATE_DIR/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron"
+mkdir -p "$STATE_DIR/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron"
 
 # ── Convos platform (SOUL.md, core skills) ───────────────────────────────
 _skill_count=0

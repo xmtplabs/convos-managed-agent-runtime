@@ -17,6 +17,8 @@ case "$EVAL_RUNTIME" in
       echo "Error: GATEWAY_TOKEN must be set in runtime/.env" >&2
       exit 1
     fi
+    # OpenClaw binary expects OPENCLAW_GATEWAY_TOKEN
+    export OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$GATEWAY_TOKEN}"
     ;;
   hermes)
     _ENV_HERMES_DIR="$_ENV_REPO_ROOT/runtime/hermes"
