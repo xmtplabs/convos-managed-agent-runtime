@@ -156,10 +156,10 @@ if command -v jq >/dev/null 2>&1; then
       "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "trustedProxies" "$RAILWAY_PUBLIC_DOMAIN"
   fi
-  # Override primary model (e.g. CI_MODEL=google/gemini-3-flash-preview)
-  if [ -n "${CI_MODEL:-}" ]; then
-    jq --arg m "openrouter/$CI_MODEL" '.agents.defaults.model.primary = $m' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
-    brand_ok "model" "overridden → $CI_MODEL"
+  # In eval mode, use the CI preset instead of the production model
+  if [ "${EVAL_MODE:-}" = "1" ]; then
+    jq '.agents.defaults.model.primary = "openrouter/@preset/assistants-ci"' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    brand_ok "model" "overridden → @preset/assistants-ci (eval mode)"
   fi
   # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then
