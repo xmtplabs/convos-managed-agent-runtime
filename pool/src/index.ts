@@ -197,10 +197,20 @@ async function upgradeInstanceRuntime(
 
     if (!hasService("exa") && config.exaServiceKey) {
       const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
-      const { id } = await exa.createKey(keyName, config.exaKeyRateLimit);
-      await upsertVariables(infra.providerServiceId, { EXA_API_KEY: id }, { skipDeploys: true }, opts);
+      let keyId: string;
+      try {
+        ({ id: keyId } = await exa.createKey(keyName, config.exaKeyRateLimit));
+      } catch {
+        // Key may already exist from a previous failed attempt — look it up
+        const all = await exa.listKeys();
+        const existing = all.find((k: any) => k.name === keyName);
+        if (!existing?.id) throw new Error(`Exa key "${keyName}" not found after create failed`);
+        keyId = existing.id;
+        console.log(`[upgrade] Found existing Exa key for ${instanceId}: ${keyId}`);
+      }
+      await upsertVariables(infra.providerServiceId, { EXA_API_KEY: keyId }, { skipDeploys: true }, opts);
       await pgDb.insert(instanceServices).values({
-        instanceId, toolId: "exa", resourceId: id, envKey: "exa", envValue: id, resourceMeta: {},
+        instanceId, toolId: "exa", resourceId: keyId, envKey: "exa", envValue: keyId, resourceMeta: {},
       });
       backfilled.push("exa");
       console.log(`[upgrade] Backfilled EXA_API_KEY for ${instanceId}`);
