@@ -1281,6 +1281,8 @@ export async function startWiredInstance(params: {
   debug?: boolean;
   /** If set, rename the conversation profile when a joiner is accepted. */
   name?: string;
+  /** Skip the LLM-generated greeting dispatch (used by evals). */
+  skipGreeting?: boolean;
 }): Promise<void> {
   const runtime = getConvosRuntime();
   const cfg = runtime.config.loadConfig();
@@ -1350,10 +1352,14 @@ export async function startWiredInstance(params: {
   // Fire-and-forget: dispatch LLM-generated welcome message.
   // Does not block startWiredInstance from returning to the pool manager.
   // Reset the greeting gate so notifications wait until the greeting completes.
-  resetGreetingGate();
-  dispatchGreeting(account, runtime).catch((err) => {
-    console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
-  });
+  if (params.skipGreeting) {
+    console.log("[convos] Greeting dispatch skipped (skipGreeting=true)");
+  } else {
+    resetGreetingGate();
+    dispatchGreeting(account, runtime).catch((err) => {
+      console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
+    });
+  }
 }
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {

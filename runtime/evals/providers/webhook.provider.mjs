@@ -19,11 +19,7 @@ const GATEWAY_PORT =
 
 const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
 
-const h = createHarness('webhook', {
-  conversationPrefix: 'Webhook Eval',
-});
-
-function sendNotify(text) {
+function sendNotify(h, text) {
   const res = execFileSync('curl', [
     '-s', '-w', '%{http_code}',
     '-X', 'POST',
@@ -39,9 +35,18 @@ function sendNotify(text) {
 }
 
 export default class WebhookProvider {
+  constructor(options) {
+    this.config = options?.config || {};
+    this.h = createHarness('webhook', {
+      conversationPrefix: 'Webhook Eval',
+      skipGreeting: this.config.skipGreeting !== false, // default true
+    });
+  }
+
   id() { return 'webhook'; }
 
   async callApi(prompt, context) {
+    const h = this.h;
     const idx = h.nextTest();
     const desc = context.test?.description || `Test ${idx}`;
     const meta = context.test?.metadata || {};
@@ -63,11 +68,11 @@ export default class WebhookProvider {
       const type = meta.notificationType || 'email';
       if (type === 'both' || type === 'email') {
         h.log(`[TESTING] Email webhook → /convos/notify: "${emailPayload}"`);
-        sendNotify(emailPayload);
+        sendNotify(h, emailPayload);
       }
       if (type === 'both' || type === 'sms') {
         h.log(`[TESTING] SMS webhook → /convos/notify: "${smsPayload}"`);
-        sendNotify(smsPayload);
+        sendNotify(h, smsPayload);
       }
 
       // Wait for agent to respond to the notification(s)

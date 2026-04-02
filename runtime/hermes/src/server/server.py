@@ -101,6 +101,7 @@ async def start_wired_instance(
     name: str | None = None,
     debug: bool = False,
     resuming: bool = False,
+    skip_greeting: bool = False,
 ):
     """Create and start a ConvosAdapter with full message pipeline.
 
@@ -148,10 +149,13 @@ async def start_wired_instance(
             skills_dir=skills_dir,
         )
 
-    # Fire greeting in background (skip if resuming — caller handles workspace refresh).
+    # Fire greeting in background (skip if resuming or explicitly suppressed).
     # The adapter gates _process_message behind greeting_done so early inbound
     # messages queue until the greeting populates history.
-    if not resuming:
+    if skip_greeting:
+        logger.info("Greeting dispatch skipped (skip_greeting=True)")
+        adapter._greeting_done.set()
+    elif not resuming:
         asyncio.create_task(_dispatch_greeting(adapter))
     else:
         adapter._greeting_done.set()
@@ -414,9 +418,14 @@ def _build_runtime_status() -> dict:
     }
 
 
-async def _factory_reset() -> dict:
+_skip_greeting: bool = False
+"""When True, the next start_wired_instance call will skip the greeting dispatch."""
+
+
+async def _factory_reset(*, skip_greeting: bool = False) -> dict:
     """Full factory reset: stop adapter, clear all state, return post-reset status."""
-    global _adapter, _pending_join_task
+    global _adapter, _pending_join_task, _skip_greeting
+    _skip_greeting = skip_greeting
     cfg = get_config()
     hermes_home = cfg.hermes_home
     logger.info("Factory reset started (hermes_home=%s)", hermes_home)
@@ -573,6 +582,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                     identity_id=inst.identity_id,
                     env=env,
                     debug=True,
+                    skip_greeting=_skip_greeting,
                 )
                 _clear_provision_state(generation)
                 await _apply_attestation()
@@ -978,6 +988,7 @@ async def convos_conversation(body: ConversationRequest):
             env=env,
             name=body.name,
             debug=True,
+            skip_greeting=_skip_greeting,
         )
         await _apply_attestation()
 
@@ -1034,6 +1045,7 @@ async def convos_join(body: JoinRequest):
             identity_id=inst.identity_id,
             env=env,
             debug=True,
+            skip_greeting=_skip_greeting,
         )
         await _apply_attestation()
 
@@ -1193,9 +1205,13 @@ async def convos_explode():
 
 # ---- /convos/reset ----
 
+class ResetBody(BaseModel):
+    skipGreeting: bool = False
+
+
 @app.post("/convos/reset", dependencies=[Depends(require_auth)])
-async def convos_reset():
-    return await _factory_reset()
+async def convos_reset(body: ResetBody = ResetBody()):
+    return await _factory_reset(skip_greeting=body.skipGreeting)
 
 
 # ---- /agent/query and /agent/reset-history (eval surface) ----
