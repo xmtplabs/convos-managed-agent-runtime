@@ -156,6 +156,11 @@ if command -v jq >/dev/null 2>&1; then
       "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "trustedProxies" "$RAILWAY_PUBLIC_DOMAIN"
   fi
+  # Override primary model (e.g. CI_MODEL=google/gemini-3-flash-preview)
+  if [ -n "${CI_MODEL:-}" ]; then
+    jq --arg m "openrouter/$CI_MODEL" '.agents.defaults.model.primary = $m' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    brand_ok "model" "overridden → $CI_MODEL"
+  fi
   # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then
     jq '.browser.executablePath = "/usr/bin/chromium" | .browser.headless = true | .browser.noSandbox = true' \

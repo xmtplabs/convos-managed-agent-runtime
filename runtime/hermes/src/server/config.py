@@ -43,7 +43,8 @@ class RuntimeConfig:
             os.environ["OPENCLAW_GATEWAY_TOKEN"] = gateway_token
 
         # Model is read from config.yaml at runtime; this is just the initial default.
-        model = os.environ.get("HERMES_MODEL", "@preset/assistants-pro")
+        # CI_MODEL overrides both runtimes (e.g. CI_MODEL=google/gemini-3-flash-preview).
+        model = os.environ.get("CI_MODEL") or os.environ.get("HERMES_MODEL") or "@preset/assistants-pro"
 
         hermes_home = os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes"))
         workspace_dir = os.environ.get("HERMES_WORKSPACE", os.path.join(hermes_home, "workspace"))
