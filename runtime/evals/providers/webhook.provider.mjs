@@ -55,34 +55,33 @@ export default class WebhookProvider {
       const welcomeEnd = preMsgs.length;
       const baseline = h.agentCount(preMsgs);
 
-      // Send the appropriate notification via /convos/notify (simulates what the pool
-      // webhook handler does when AgentMail or Telnyx pushes an event).
-      if (meta.notificationType === 'sms') {
-        const smsPayload = 'You got a new text. "Hey, are you available for a call tomorrow?" from +15551234567';
-        h.log(`[TESTING] SMS webhook → /convos/notify: "${smsPayload}"`);
-        sendNotify(smsPayload);
-      } else {
-        const emailPayload = '[System: new email] From: QA Bot <qa@example.com> | Subject: Webhook eval test — Read the full email with: email read --id eval-test-001';
+      const emailPayload = '[System: new email] From: QA Bot <qa@example.com> | Subject: Webhook eval test — Read the full email with: email read --id eval-test-001';
+      const smsPayload = 'You got a new text. "Hey, are you available for a call tomorrow?" from +15551234567';
+
+      // Send the appropriate notification(s) via /convos/notify (simulates what
+      // the pool webhook handler does when AgentMail or Telnyx pushes an event).
+      const type = meta.notificationType || 'email';
+      if (type === 'both' || type === 'email') {
         h.log(`[TESTING] Email webhook → /convos/notify: "${emailPayload}"`);
         sendNotify(emailPayload);
       }
+      if (type === 'both' || type === 'sms') {
+        h.log(`[TESTING] SMS webhook → /convos/notify: "${smsPayload}"`);
+        sendNotify(smsPayload);
+      }
 
-      // Wait for agent to respond to the notification
-      const { matched } = h.waitForContent(
-        meta.notificationType === 'sms' ? /text|sms|message.*from/i : /email|mail|inbox/i,
-        60_000,
-      );
+      // Wait for agent to respond to the notification(s)
+      const contentPattern = type === 'both'
+        ? /email|mail|inbox|text|sms|message.*from/i
+        : type === 'sms' ? /text|sms|message.*from/i : /email|mail|inbox/i;
+      const { matched } = h.waitForContent(contentPattern, 60_000);
 
       if (matched) {
         h.log('Agent responded to notification — waiting to settle...');
         h.waitForAgent(baseline, 30_000, 5_000);
       } else {
         h.log('No proactive response — nudging agent...');
-        if (meta.notificationType === 'sms') {
-          h.sendAndWait('Did any texts come in?', {});
-        } else {
-          h.sendAndWait('Did any emails or notifications come in?', {});
-        }
+        h.sendAndWait('Did any emails or texts come in?', {});
       }
 
       const finalMsgs = h.fetchMessages();
