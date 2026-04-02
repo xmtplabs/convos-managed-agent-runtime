@@ -131,11 +131,12 @@ process.env.RUNTIME_VERSION = RUNTIME_VERSION;
 // ---------------------------------------------------------------------------
 
 function buildRuntimeConfig(): RuntimeConfig {
-  const runtimeRoot = findAncestor(POOL_SERVER_DIR, RUNTIME_TYPE)
+  // In Docker both runtimes live at /app (scripts/ at /app/scripts/).
+  // In local dev the runtime dirs sit alongside convos-platform/ (e.g. runtime/openclaw/).
+  // RUNTIME_CWD env var allows explicit override for non-standard layouts.
+  const runtimeRoot = process.env.RUNTIME_CWD
+    || (fs.existsSync("/app/scripts/start.sh") ? "/app" : null)
     || path.resolve(PLATFORM_ROOT, RUNTIME_TYPE);
-
-  // In Docker, both runtimes live at /app with scripts/ in that dir.
-  // The pnpm start command cds into the runtime dir automatically.
   const cwd = runtimeRoot;
 
   if (RUNTIME_TYPE === "openclaw") {

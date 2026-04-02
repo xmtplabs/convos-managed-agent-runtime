@@ -37,8 +37,8 @@ COPY runtime/openclaw/extensions /app/openclaw/extensions
 COPY runtime/convos-platform /app/convos-platform
 COPY runtime/lib /app/lib
 COPY runtime/openclaw/scripts ./scripts
-# Shared pool server — compile TypeScript at build time
-RUN cd /app/convos-platform/pool-server && npm install --ignore-scripts && npx tsc && rm -rf node_modules
+# Shared pool server — compile TypeScript at build time (needs devDeps despite NODE_ENV=production)
+RUN cd /app/convos-platform/pool-server && NODE_ENV=development npm install --ignore-scripts && npx tsc && rm -rf node_modules
 COPY runtime/package.json /app/runtime-version.json
 COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh
