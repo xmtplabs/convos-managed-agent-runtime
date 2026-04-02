@@ -436,6 +436,29 @@
       padding-right: 28px;
       cursor: pointer;
     }
+    .cat-combo { position: relative; }
+    .cat-combo input { width: 100%; padding-right: 32px; }
+    .cat-combo-toggle {
+      position: absolute; right: 1px; top: 1px; bottom: 1px;
+      width: 30px; border: none; background: transparent;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--color-foreground-tertiary); border-radius: 0 7px 7px 0;
+    }
+    .cat-combo-toggle:hover { background: var(--color-surface-muted); }
+    .cat-combo-dropdown {
+      display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+      margin-top: 4px; background: var(--color-surface); border: 1px solid var(--color-edge);
+      border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      max-height: 200px; overflow-y: auto;
+    }
+    .cat-combo-dropdown.open { display: block; }
+    .cat-combo-option {
+      padding: 7px 12px; font-size: 13px; cursor: pointer;
+      color: var(--color-foreground);
+    }
+    .cat-combo-option:hover { background: var(--color-surface-muted); }
+    .cat-combo-option:first-child { border-radius: 7px 7px 0 0; }
+    .cat-combo-option:last-child { border-radius: 0 0 7px 7px; }
     .skill-form-textarea {
       resize: vertical;
       min-height: 80px;
@@ -977,15 +1000,58 @@
     }
 
     function renderCategorySelect(id, selected) {
-      var listId = id + '-list';
-      var html = '<input type="text" class="skill-form-input" id="' + id + '" list="' + listId + '" value="' + esc(selected) + '" placeholder="Type or select\u2026" />';
-      html += '<datalist id="' + listId + '">';
+      var dropId = id + '-drop';
+      var html = '<div class="cat-combo">';
+      html += '<input type="text" class="skill-form-input" id="' + id + '" value="' + esc(selected) + '" placeholder="Type a category\u2026" autocomplete="off" onfocus="openCatDrop(\'' + dropId + '\')" oninput="filterCatDrop(\'' + dropId + '\', this.value)" />';
+      html += '<button type="button" class="cat-combo-toggle" onclick="toggleCatDrop(\'' + dropId + '\')" tabindex="-1">';
+      html += '<svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      html += '</button>';
+      html += '<div class="cat-combo-dropdown" id="' + dropId + '">';
       for (var i = 0; i < CATEGORIES.length; i++) {
-        html += '<option value="' + esc(CATEGORIES[i]) + '">';
+        html += '<div class="cat-combo-option" data-value="' + esc(CATEGORIES[i]) + '" onmousedown="pickCat(\'' + id + '\', \'' + dropId + '\', this)">' + esc(CATEGORIES[i]) + '</div>';
       }
-      html += '</datalist>';
+      html += '</div></div>';
       return html;
     }
+
+    function toggleCatDrop(dropId) {
+      var drop = document.getElementById(dropId);
+      if (!drop) return;
+      drop.classList.toggle('open');
+      // Show all options when toggling via button
+      var opts = drop.querySelectorAll('.cat-combo-option');
+      for (var i = 0; i < opts.length; i++) opts[i].style.display = '';
+    }
+    function openCatDrop(dropId) {
+      var drop = document.getElementById(dropId);
+      if (drop) drop.classList.add('open');
+    }
+    function filterCatDrop(dropId, query) {
+      var drop = document.getElementById(dropId);
+      if (!drop) return;
+      drop.classList.add('open');
+      var q = query.toLowerCase();
+      var opts = drop.querySelectorAll('.cat-combo-option');
+      for (var i = 0; i < opts.length; i++) {
+        opts[i].style.display = opts[i].getAttribute('data-value').toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+      }
+    }
+    function pickCat(inputId, dropId, el) {
+      var input = document.getElementById(inputId);
+      var drop = document.getElementById(dropId);
+      if (input) input.value = el.getAttribute('data-value');
+      if (drop) drop.classList.remove('open');
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+      var combos = document.querySelectorAll('.cat-combo-dropdown.open');
+      for (var i = 0; i < combos.length; i++) {
+        if (!combos[i].parentElement.contains(e.target)) {
+          combos[i].classList.remove('open');
+        }
+      }
+    });
 
     function toggleRow(idx) {
       var skill = filteredSkills[idx];
