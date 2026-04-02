@@ -105,8 +105,12 @@ function buildRuntimeStatus() {
   };
 }
 
-async function factoryReset() {
-  console.log("[convos] Factory reset started");
+/** When true, the next startWiredInstance call will skip the greeting dispatch. */
+let _skipGreeting = false;
+
+async function factoryReset(opts?: { skipGreeting?: boolean }) {
+  _skipGreeting = opts?.skipGreeting ?? false;
+  console.log(`[convos] Factory reset started (skipGreeting=${_skipGreeting})`);
   await stats.shutdown();
   // Stop active instance
   const inst = getConvosInstance();
@@ -356,6 +360,7 @@ const plugin = {
             conversationId: result.conversationId,
             identityId: instance.identityId,
             env,
+            skipGreeting: _skipGreeting,
           });
 
           // Sign and apply attestation (non-fatal if pool unreachable)
@@ -463,6 +468,7 @@ const plugin = {
             conversationId,
             identityId: instance.identityId,
             env,
+            skipGreeting: _skipGreeting,
           });
 
           // Sign and apply attestation (non-fatal if pool unreachable)
@@ -743,7 +749,9 @@ const plugin = {
           return;
         }
         try {
-          const result = await factoryReset();
+          const body = await readJsonBody(req);
+          const skipGreeting = body.skipGreeting === true;
+          const result = await factoryReset({ skipGreeting });
           jsonResponse(res, 200, result);
         } catch (err) {
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });
