@@ -20,3 +20,4 @@ Run all of these. One message back with results. Some items need my input — as
 17. Share your logs
 18. Unprovision your email and SMS (if you confirmed you received the email and SMS).
 19. Check on the whole list status. anounce missing / pending items.
+20. Send "SILENT" to the group.
