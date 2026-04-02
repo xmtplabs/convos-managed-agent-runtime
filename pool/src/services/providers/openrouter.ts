@@ -6,7 +6,6 @@ export async function createKey(name: string, limit?: number): Promise<{ key: st
   if (!mgmtKey) throw new Error("OPENROUTER_MANAGEMENT_KEY not set");
 
   const keyLimit = limit ?? config.openrouterKeyLimit;
-  const limitReset = config.openrouterKeyLimitReset;
 
   const res = await fetch("https://openrouter.ai/api/v1/keys", {
     method: "POST",
@@ -14,7 +13,7 @@ export async function createKey(name: string, limit?: number): Promise<{ key: st
       Authorization: `Bearer ${mgmtKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ name, limit: keyLimit, limit_reset: limitReset }),
+    body: JSON.stringify({ name, limit: keyLimit }),
   });
   const body = await res.json() as any;
   const key = body?.key;
