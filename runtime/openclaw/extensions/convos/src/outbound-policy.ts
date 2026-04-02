@@ -85,7 +85,11 @@ function buildCreditMessage(): string {
 export async function applyOutboundTextPolicy(text: string): Promise<OutboundTextPolicyResult> {
   const trimmed = text.trim();
 
-  if (SUPPRESS_TOKENS.has(trimmed)) {
+  // Check each line individually — the agent may mix SILENT with other
+  // markers on separate lines, and leading/trailing whitespace on the
+  // SILENT line must not bypass suppression.
+  const lines = trimmed.split("\n").map((l) => l.trim());
+  if (lines.some((l) => SUPPRESS_TOKENS.has(l))) {
     return { suppress: true, text: "" };
   }
 
