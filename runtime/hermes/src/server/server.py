@@ -202,56 +202,32 @@ def _has_active_skill() -> bool:
 
 
 async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
-    """Send an LLM-generated welcome message via the adapter pipeline.
+    """Send a static welcome message directly via XMTP — no LLM, no gate.
 
-    Signals adapter._greeting_done when complete so queued inbound
-    messages can proceed with the greeting already in history.
+    Skill-builder context is injected lazily on the first real user message
+    (see _skill_builder_pending flag in ConvosAdapter._process_message).
     """
     try:
-        if not adapter.agent or not adapter.instance:
+        if not adapter.instance:
             return
 
         skill_active = _has_active_skill()
 
-        # Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
-        # (active skill → THE ENTRANCE, no skill → ask what the group needs).
-        greeting_content = _read_onboarding_prompt("greeting.md")
-        if not greeting_content:
-            logger.error("Onboarding greeting.md not found — cannot dispatch greeting")
-            return
+        # Static greeting — sent directly via XMTP, no LLM involved.
+        greeting = "Hey! What would you like to build today?"
+        logger.info("Sending static greeting (skill-active=%s)", skill_active)
+        await adapter.send_message(greeting)
 
-        logger.info("Dispatching greeting (skill-active=%s)", skill_active)
-        response = await adapter.agent.handle_message(
-            content=greeting_content,
-            sender_name="System",
-            sender_id="system",
-            timestamp=time.time(),
-            conversation_id=adapter.instance.conversation_id,
-            message_id="system-greeting",
-            group_members=adapter.instance.get_group_members(),
-        )
-        if response:
-            await adapter._dispatch_response(response)
-
-        # Phase 2: skill-builder kickoff — only if no active skill.
-        # Fires after the greeting is already delivered to the conversation.
+        # Skill-builder context is injected lazily: if no active skill, the
+        # first real user message will be prefixed with the skill-builder
+        # kickoff prompt so the agent learns the onboarding flow alongside
+        # the user's first reply.
         if not skill_active:
-            logger.info("Dispatching skill-builder kickoff (silent)")
-            # Response is intentionally discarded — the agent reads the skill
-            # into context but should not send anything to the conversation.
-            kickoff_content = _read_onboarding_prompt("skill-builder-kickoff.md")
-            if not kickoff_content:
-                logger.warning("Onboarding skill-builder-kickoff.md not found — skipping")
-                return
-            await adapter.agent.handle_message(
-                content=kickoff_content,
-                sender_name="System",
-                sender_id="system",
-                timestamp=time.time(),
-                conversation_id=adapter.instance.conversation_id,
-                message_id="system-skill-builder",
-                group_members=adapter.instance.get_group_members(),
-            )
+            kickoff = _read_onboarding_prompt("skill-builder-kickoff.md")
+            if kickoff:
+                adapter._skill_builder_kickoff = kickoff
+                adapter._skill_builder_pending = True
+                logger.info("Skill-builder context will be injected on first user message")
     except Exception as err:
         logger.error(f"Greeting dispatch failed: {err}")
     finally:

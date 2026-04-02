@@ -62,28 +62,6 @@ function loadConvosMessagingHints(): string[] {
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
 
-/**
- * Greeting gate — prevents notifications from being dispatched before the
- * greeting run completes. Without this, concurrent dispatches compete for the
- * session lane and the notification gets dropped.
- *
- * Mirrors Hermes's `_greeting_done` asyncio.Event.
- */
-let _greetingResolve: (() => void) | null = null;
-let _greetingDone: Promise<void> = Promise.resolve(); // pre-resolved for resume path
-
-function resetGreetingGate(): void {
-  _greetingDone = new Promise<void>((resolve) => {
-    _greetingResolve = resolve;
-  });
-}
-
-function signalGreetingDone(): void {
-  if (_greetingResolve) {
-    _greetingResolve();
-    _greetingResolve = null;
-  }
-}
 const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
 const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
 const EXPLOSION_IMMEDIATE_SKEW_MS = 3_000;
@@ -1127,9 +1105,9 @@ async function deliverConvosReply(params: {
 }
 
 /**
- * Send an LLM-generated welcome message by dispatching a synthetic system
- * prompt through the normal reply pipeline. The agent sees its full context
- * (IDENTITY + SOUL + TOOLS) and crafts a natural greeting per SOUL.md.
+ * Send a static welcome message directly via XMTP — no LLM, no gate.
+ * Skill-builder context is injected lazily on the first real user message
+ * (see _skillBuilderPending flag in startWiredInstance).
  */
 /** Read an onboarding prompt from $STATE_DIR/onboarding/ or convos-platform/onboarding/. */
 function readOnboardingPrompt(filename: string): string {
@@ -1159,9 +1137,12 @@ function hasActiveSkill(): boolean {
   }
 }
 
+/** Whether the skill-builder kickoff still needs to be injected into the first real user message. */
+let _skillBuilderPending = false;
+
 async function dispatchGreeting(
-  account: ResolvedConvosAccount,
-  runtime: PluginRuntime,
+  _account: ResolvedConvosAccount,
+  _runtime: PluginRuntime,
 ): Promise<void> {
   const inst = getConvosInstance();
   if (!inst) {
@@ -1171,40 +1152,21 @@ async function dispatchGreeting(
 
   const skillActive = hasActiveSkill();
 
-  // Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
-  // (active skill → THE ENTRANCE, no skill → ask what the group needs).
-  const greetingMsg: InboundMessage = {
-    conversationId: inst.conversationId,
-    messageId: `system-greeting-${crypto.randomUUID()}`,
-    senderId: SYSTEM_SENDER_ID,
-    senderName: "System",
-    content: readOnboardingPrompt("greeting.md"),
-    contentType: "text",
-    timestamp: new Date(),
-  };
-
-  console.log(`[convos] Dispatching greeting message (skill-active=${skillActive})`);
+  // Static greeting — sent directly via XMTP, no LLM involved.
+  const greeting = "Hey! What would you like to build today?";
+  console.log(`[convos] Sending static greeting (skill-active=${skillActive})`);
   try {
-    await handleInboundMessage(account, greetingMsg, runtime);
+    await inst.sendMessage(greeting);
+  } catch (err) {
+    console.error(`[convos] Static greeting send failed: ${String(err)}`);
+  }
 
-    // Phase 2: skill-builder context load — only if no active skill.
-    // Fires after the greeting is already delivered. Response is suppressed —
-    // the agent reads the skill into context but sends nothing.
-    if (!skillActive) {
-      const skillMsg: InboundMessage = {
-        conversationId: inst.conversationId,
-        messageId: `system-skill-builder-${crypto.randomUUID()}`,
-        senderId: SYSTEM_SENDER_ID,
-        senderName: "System",
-        content: readOnboardingPrompt("skill-builder-kickoff.md"),
-        contentType: "text",
-        timestamp: new Date(),
-      };
-      console.log("[convos] Dispatching skill-builder context load (silent)");
-      await handleInboundMessage(account, skillMsg, runtime, undefined, undefined, true);
-    }
-  } finally {
-    signalGreetingDone();
+  // Skill-builder context is injected lazily: if no active skill, the first
+  // real user message will be prefixed with the skill-builder kickoff prompt
+  // so the agent learns the onboarding flow alongside the user's first reply.
+  _skillBuilderPending = !skillActive;
+  if (_skillBuilderPending) {
+    console.log("[convos] Skill-builder context will be injected on first user message");
   }
 }
 
@@ -1214,9 +1176,6 @@ async function dispatchGreeting(
  * here. In CI, the runtime is reachable via ngrok tunnel (see lib/ngrok.sh).
  */
 export async function dispatchNotification(text: string): Promise<void> {
-  // Wait for greeting to complete so the notification doesn't race with the
-  // greeting run for the session lane (mirrors Hermes's _greeting_done gate).
-  await _greetingDone;
   const inst = getConvosInstance();
   if (!inst) {
     throw new Error("No active conversation");
@@ -1314,13 +1273,22 @@ export async function startWiredInstance(params: {
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,
     onMessage: (msg: InboundMessage) => {
-      // Wait for greeting to complete before processing inbound messages so
-      // the greeting is already in session history (mirrors Hermes gate).
-      _greetingDone
-        .then(() => handleInboundMessage(account, msg, runtime))
-        .catch((err) => {
-          console.error(`[convos] Message handling failed: ${String(err)}`);
-        });
+      // Inject skill-builder context on the first real user message so the
+      // agent learns the onboarding flow alongside the user's first reply —
+      // no separate LLM turn needed (replaces the old Phase 2 greeting gate).
+      if (_skillBuilderPending && msg.senderId !== SYSTEM_SENDER_ID) {
+        _skillBuilderPending = false;
+        try {
+          const kickoff = readOnboardingPrompt("skill-builder-kickoff.md");
+          msg = { ...msg, content: `${kickoff}\n\n${msg.content}` };
+          console.log("[convos] Injected skill-builder context into first user message");
+        } catch (err) {
+          console.error(`[convos] Failed to read skill-builder kickoff: ${String(err)}`);
+        }
+      }
+      handleInboundMessage(account, msg, runtime).catch((err) => {
+        console.error(`[convos] Message handling failed: ${String(err)}`);
+      });
     },
     onMemberJoined: (info) => {
       console.log(`[convos] Join accepted: ${info.joinerInboxId}`);
@@ -1349,13 +1317,11 @@ export async function startWiredInstance(params: {
     stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile, skillsDir });
   }
 
-  // Fire-and-forget: dispatch LLM-generated welcome message.
-  // Does not block startWiredInstance from returning to the pool manager.
-  // Reset the greeting gate so notifications wait until the greeting completes.
+  // Fire-and-forget: send static welcome message directly via XMTP.
+  // No LLM involved, no greeting gate needed — completes in <500ms.
   if (params.skipGreeting) {
     console.log("[convos] Greeting dispatch skipped (skipGreeting=true)");
   } else {
-    resetGreetingGate();
     dispatchGreeting(account, runtime).catch((err) => {
       console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
     });

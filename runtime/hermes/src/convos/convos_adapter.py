@@ -26,7 +26,7 @@ import logging
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -335,6 +335,8 @@ class ConvosAdapter:
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
         self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[None], asyncio.Task[None] | None]] = {}
         self._greeting_done = asyncio.Event()  # gates message processing until greeting completes
+        self._skill_builder_pending = False  # inject skill-builder kickoff on first real user message
+        self._skill_builder_kickoff: str = ""  # set by _dispatch_greeting if no active skill
         # Interrupt-and-queue: tracks whether an agent call is in-flight and
         # holds the latest pending message so we can interrupt + replay.
         self._agent_running = False
@@ -510,10 +512,17 @@ class ConvosAdapter:
         if msg.content_type == "group_updated":
             return
 
-        # Wait for greeting to finish before processing real messages.
-        # Messages that arrive during the greeting's LLM call queue here
-        # so they see the greeting in history instead of empty context.
+        # Wait for the static greeting to be sent before processing messages.
         await self._greeting_done.wait()
+
+        # Inject skill-builder context on the first real user message so the
+        # agent learns the onboarding flow alongside the user's first reply —
+        # no separate LLM turn needed.
+        if self._skill_builder_pending and msg.sender_id != "system":
+            self._skill_builder_pending = False
+            if self._skill_builder_kickoff:
+                msg = replace(msg, content=f"{self._skill_builder_kickoff}\n\n{msg.content}")
+                logger.info("Injected skill-builder context into first user message")
 
         # ── Interrupt-and-queue: if agent is busy, interrupt and stash ──
         if self._agent_running:
