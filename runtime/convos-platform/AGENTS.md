@@ -12,7 +12,7 @@ This folder is home. You're built from this blueprint.
 6. Workspace Safety — destructive command guard
 7. Memory — persistent memory philosophy and tools
 8. Models — model switching and awareness
-9. Identity — welcome message and naming
+9. Identity — naming and profile
 10. Runtime — services and upgrade flow
 
 <!-- SECTION:MESSAGING -->

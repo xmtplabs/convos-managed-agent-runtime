@@ -1131,6 +1131,21 @@ async function deliverConvosReply(params: {
  * prompt through the normal reply pipeline. The agent sees its full context
  * (IDENTITY + SOUL + TOOLS) and crafts a natural greeting per SOUL.md.
  */
+/** Read an onboarding prompt from $STATE_DIR/onboarding/ or convos-platform/onboarding/. */
+function readOnboardingPrompt(filename: string): string {
+  const stateDir = process.env.OPENCLAW_STATE_DIR || "";
+  const candidates = [
+    stateDir ? path.join(stateDir, "onboarding", filename) : "",
+    path.resolve(__dirname, "..", "..", "..", "..", "..", "convos-platform", "onboarding", filename),
+  ].filter(Boolean);
+  for (const p of candidates) {
+    try {
+      return fs.readFileSync(p, "utf-8").trim();
+    } catch {}
+  }
+  throw new Error(`[convos] Onboarding prompt ${filename} not found`);
+}
+
 /** Check if the agent has an active skill configured. */
 function hasActiveSkill(): boolean {
   const skillsRoot = process.env.SKILLS_ROOT || "";
@@ -1163,9 +1178,7 @@ async function dispatchGreeting(
     messageId: `system-greeting-${crypto.randomUUID()}`,
     senderId: SYSTEM_SENDER_ID,
     senderName: "System",
-    content:
-      "[System: You just joined this conversation. Send your welcome message now. " +
-      "Follow the 'Welcome message' section in AGENTS.md.]",
+    content: readOnboardingPrompt("greeting.md"),
     contentType: "text",
     timestamp: new Date(),
   };
@@ -1183,9 +1196,7 @@ async function dispatchGreeting(
         messageId: `system-skill-builder-${crypto.randomUUID()}`,
         senderId: SYSTEM_SENDER_ID,
         senderName: "System",
-        content:
-          "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. " +
-          "You already asked the group what they need — when they respond, follow the skill from step 1.]",
+        content: readOnboardingPrompt("skill-builder-kickoff.md"),
         contentType: "text",
         timestamp: new Date(),
       };
