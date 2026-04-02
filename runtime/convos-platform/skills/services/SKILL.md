@@ -2,8 +2,9 @@
 name: services
 description: |
   Your managed communication and account services: email, SMS, and credits.
-  USE WHEN: Sending emails, calendar invites, reading emails, sending SMS, checking credits, topping up credits, asked for your URL/link/page/contact info/services.
+  USE WHEN: Sending emails, calendar invites, reading emails, sending SMS, checking credits, topping up credits.
   DON'T USE WHEN: Task is just creating a file without sending it (use fs tools).
+  DON'T USE WHEN: User asks for their URL, link, page, or logs — use the convos-runtime skill instead.
   REQUIRES: Pool proxy (POOL_URL + INSTANCE_ID). Email and SMS must be explicitly provisioned before use.
 ---
 
@@ -75,24 +76,6 @@ Your access is limited to **sending and receiving email/SMS through your assigne
 **Path rule:** Use the explicit path via SKILLS_ROOT:
 
 `node "$SKILLS_ROOT/services/scripts/services.mjs" <command> [options]`
-
-## Info
-
-Check what services you have and get your public URL:
-
-```bash
-node "$SKILLS_ROOT/services/scripts/services.mjs" info
-```
-
-Returns JSON: `{ email, phone, servicesUrl }`
-
-**You MUST run this command when someone asks:**
-- "what's your URL / link / page"
-- "share your services / contact info"
-- "can I see your services"
-- anything about your public-facing address or dashboard
-
-The `servicesUrl` is your public services page. Always share it as-is — never make up a URL.
 
 ## Email
 
