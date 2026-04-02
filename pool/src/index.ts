@@ -159,7 +159,11 @@ function detectHarnessFromImage(image: string): "openclaw" | "hermes" | null {
 }
 
 /**
- * Upgrade an instance's runtime image on Railway.
+ * Single source of truth for all runtime upgrades.
+ *
+ * Called from three places: self-upgrade, admin single-instance, and bulk upgrade.
+ * All pre-deploy logic (env var backfills, image resolution, harness detection)
+ * MUST live here so every upgrade path behaves identically.
  *
  * Resolves the tag to a sha256 digest and deploys via environmentPatchCommit
  * (the same atomic mechanism used by createService). This ensures Railway
@@ -216,6 +220,7 @@ async function upgradeInstanceRuntime(
 
 // Self-upgrade — instance requests a runtime image update for itself.
 // Auth: instance sends its own ID + gateway token (same as self-destruct).
+// Delegates to upgradeInstanceRuntime() — do not add upgrade logic here.
 app.post("/api/pool/self-upgrade", async (req, res) => {
   try {
     const { instanceId, gatewayToken } = req.body || {};
@@ -584,6 +589,8 @@ app.post("/api/pool/re-attest-all", requireAuth, async (req, res) => {
   }
 });
 
+// Admin single-instance upgrade.
+// Delegates to upgradeInstanceRuntime() — do not add upgrade logic here.
 app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
@@ -602,7 +609,8 @@ app.post("/api/pool/update-runtime/:id", requireAuth, async (req, res) => {
   }
 });
 
-// --- SSE streaming endpoint for mass runtime upgrade ---
+// Bulk upgrade (SSE streaming).
+// Delegates to upgradeInstanceRuntime() — do not add upgrade logic here.
 app.get("/api/pool/upgrade/stream", requireAuth, async (req, res) => {
   const idList = ((req.query.ids as string) || "").split(",").filter(Boolean);
   const imageOverride = (req.query.image as string) || "";
