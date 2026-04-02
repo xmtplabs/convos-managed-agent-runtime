@@ -691,7 +691,7 @@ def _patch_cron_for_convos() -> None:
     1. run_job — convos-targeted jobs fire into the main AgentRunner
        session (same pattern as /convos/notify) instead of creating a
        standalone agent.  The agent sees full conversation history and
-       can decide whether to respond or stay SILENT.
+       can decide whether to respond or stay silent.
 
     2. _deliver_result — no-op for convos jobs because delivery already
        happened through _dispatch_response in the run_job patch.

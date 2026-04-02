@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,6 +45,38 @@ _CREDIT_MSG_TEMPLATE = _policy.get("creditMessageTemplate", "Hey! I'm out of cre
 class PolicyResult:
     suppress: bool
     text: str
+
+
+# ── Suppress-token helpers ─────────────────────────────────────────────
+
+_MD_FORMATTING_RE = re.compile(r"[\*_`~]+")
+
+
+def strip_suppress_lines(text: str, tokens: set[str] | None = None) -> str:
+    """Strip suppress tokens from text.
+
+    - Lines consisting solely of a token are removed entirely.
+    - Inline occurrences (token as a standalone word) are stripped from within lines.
+    Handles markdown-wrapped variants like ``**SILENT**``, `` `SILENT` ``, etc.
+    Returns the remaining text (may be empty).
+    """
+    if tokens is None:
+        tokens = _SUPPRESS_TOKENS
+    if not tokens:
+        return text
+
+    escaped = [re.escape(t) for t in tokens]
+    token_pattern = re.compile(
+        r"[\*_`~]*\b(?:" + "|".join(escaped) + r")\b[\*_`~]*"
+    )
+
+    kept: list[str] = []
+    for line in text.split("\n"):
+        cleaned = token_pattern.sub("", line).strip()
+        if cleaned:
+            kept.append(cleaned)
+
+    return "\n".join(kept).strip()
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -104,26 +137,25 @@ async def _check_credits_low() -> bool:
 
 async def apply_outbound_policy(text: str) -> PolicyResult:
     """Apply rewrite rules to outbound text before sending to the user."""
-    trimmed = text.strip()
 
-    # Check each line individually — the agent may mix SILENT with other
-    # markers on separate lines, and leading/trailing whitespace on the
-    # SILENT line must not bypass suppression.
-    if any(line.strip() in _SUPPRESS_TOKENS for line in trimmed.splitlines()):
+    # Strip suppress-token lines (e.g. SILENT, HEARTBEAT_OK).
+    # If real content remains, deliver it.  Only suppress when nothing is left.
+    cleaned = strip_suppress_lines(text)
+    if not cleaned:
         return PolicyResult(suppress=True, text="")
 
     # Rate-limit check BEFORE credit check — "rate limit exceeded" contains
     # the substring "limit exceeded" which would false-positive on creditPatterns.
-    if _is_rate_limited(text):
+    if _is_rate_limited(cleaned):
         return PolicyResult(suppress=True, text="")
 
-    if _is_credit_error(text):
+    if _is_credit_error(cleaned):
         return PolicyResult(suppress=False, text=_build_credit_message())
 
-    if _is_context_overflow(text) and await _check_credits_low():
+    if _is_context_overflow(cleaned) and await _check_credits_low():
         return PolicyResult(suppress=False, text=_build_credit_message())
 
-    if _is_overloaded(text):
+    if _is_overloaded(cleaned):
         return PolicyResult(suppress=True, text="")
 
-    return PolicyResult(suppress=False, text=text)
+    return PolicyResult(suppress=False, text=cleaned)

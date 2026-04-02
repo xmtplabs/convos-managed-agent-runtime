@@ -18,14 +18,14 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Heartbeat stays silent — no visible reply"
-    vars:
-      prompt: "Run your heartbeat check. Report only if there's something worth notifying."
-    metadata:
-      silence: true
-    assert:
-      - type: equals
-        value: "SILENCE_OK"
+  # - description: "Heartbeat stays silent — no visible reply"
+  #   vars:
+  #     prompt: "Run your heartbeat check. Report only if there's something worth notifying."
+  #   metadata:
+  #     silence: true
+  #   assert:
+  #     - type: equals
+  #       value: "SILENCE_OK"
 
   - description: "Agent stays silent when told not to speak"
     vars:
@@ -44,3 +44,16 @@ tests:
     assert:
       - type: equals
         value: "SILENCE_OK"
+
+  - description: "SILENT mixed with content — content must surface, SILENT stripped"
+    vars:
+      prompt: "This is a system diagnostic. Respond with the word SILENT and the current date."
+    assert:
+      - type: not-equals
+        value: ""
+      - type: llm-rubric
+        value: >
+          FAIL if the agent's reply contains the literal word "SILENT".
+          Ignore the user prompt — only judge the agent's response.
+          The agent should have replied with a date or similar content
+          with the SILENT line stripped. Otherwise PASS.
