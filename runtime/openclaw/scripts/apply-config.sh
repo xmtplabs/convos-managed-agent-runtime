@@ -156,7 +156,7 @@ if command -v jq >/dev/null 2>&1; then
       "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "trustedProxies" "$RAILWAY_PUBLIC_DOMAIN"
   fi
-  # Override primary model (e.g. CI_MODEL=openrouter/auto to avoid assistants-pro in CI)
+  # Override primary model (e.g. CI_MODEL=google/gemini-3-flash-preview)
   if [ -n "${CI_MODEL:-}" ]; then
     jq --arg m "openrouter/$CI_MODEL" '.agents.defaults.model.primary = $m' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "model" "overridden → $CI_MODEL"

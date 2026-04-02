@@ -23,7 +23,7 @@ tests:
       prompt: "What model are you currently running on? Reply with the model name."
     assert:
       - type: regex
-        value: "@preset/assistants-pro|openrouter/auto"
+        value: "@preset/assistants-pro|gemini|pro"
 
   - description: "Agent can list available models"
     vars:

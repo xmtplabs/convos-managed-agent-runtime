@@ -6,12 +6,11 @@ web:
 model:
   # The active model — updated at runtime via config.yaml edits.
   # Presets are managed on OpenRouter — no per-request provider routing needed.
-  default: "@preset/assistants-pro"
+  default: google/gemini-3.1-pro-preview
   provider: openrouter
 
 # Models available for switching. Presets + individual models.
 models:
-  - { id: "openrouter/auto",                      name: "Auto" }
   - { id: "@preset/assistants-pro",              name: "Pro (auto)" }
   - { id: "anthropic/claude-opus-4-6",           name: "Claude Opus 4.6" }
   - { id: "anthropic/claude-sonnet-4-6",         name: "Claude Sonnet 4.6" }
