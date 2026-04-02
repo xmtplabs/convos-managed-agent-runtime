@@ -17,7 +17,7 @@ import { readFileSync, writeFileSync } from "fs";
 // Proxy mode: route through pool manager
 const POOL_URL = process.env.POOL_URL;
 const INSTANCE_ID = process.env.INSTANCE_ID;
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
 const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
 
 // 10DLC compliance: keywords handled by the system — filter from poll results

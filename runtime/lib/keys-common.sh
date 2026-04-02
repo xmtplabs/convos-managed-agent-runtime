@@ -24,14 +24,20 @@ keys_show_services() {
 }
 
 keys_ensure_gateway_token() {
-  if [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
-    gateway_token="$OPENCLAW_GATEWAY_TOKEN"
+  # Resolve from GATEWAY_TOKEN (preferred) or legacy OPENCLAW_GATEWAY_TOKEN
+  if [ -n "$GATEWAY_TOKEN" ]; then
+    gateway_token="$GATEWAY_TOKEN"
     brand_ok "GATEWAY_TOKEN" "from env"
+  elif [ -n "$OPENCLAW_GATEWAY_TOKEN" ]; then
+    gateway_token="$OPENCLAW_GATEWAY_TOKEN"
+    brand_ok "GATEWAY_TOKEN" "from env (legacy name)"
   else
     gateway_token=$(openssl rand -hex 32)
-    export OPENCLAW_GATEWAY_TOKEN="$gateway_token"
     brand_info "GATEWAY_TOKEN" "generated"
   fi
+  export GATEWAY_TOKEN="$gateway_token"
+  # Backward compat: old pool managers / runtime code may still read this
+  export OPENCLAW_GATEWAY_TOKEN="$gateway_token"
 }
 
 keys_write_env() {
@@ -43,8 +49,8 @@ keys_write_env() {
 
     touch "$ENV_FILE"
     tmp=$(mktemp)
-    grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^POOL_URL=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
-    echo "OPENCLAW_GATEWAY_TOKEN=$gateway_token" >> "$tmp"
+    grep -v '^OPENROUTER_API_KEY=' "$ENV_FILE" 2>/dev/null | grep -v '^GATEWAY_TOKEN=' | grep -v '^OPENCLAW_GATEWAY_TOKEN=' | grep -v '^POOL_URL=' | grep -v '^INSTANCE_ID=' > "$tmp" || true
+    echo "GATEWAY_TOKEN=$gateway_token" >> "$tmp"
     if [ -n "$key" ]; then echo "OPENROUTER_API_KEY=$key" >> "$tmp"; fi
     if [ -n "$pool_url" ]; then echo "POOL_URL=$pool_url" >> "$tmp"; fi
     if [ -n "$instance_id" ]; then echo "INSTANCE_ID=$instance_id" >> "$tmp"; fi

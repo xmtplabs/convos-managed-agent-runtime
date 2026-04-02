@@ -87,7 +87,7 @@ export function clearSessionsOnce(agentId = 'main') {
 // ---------------------------------------------------------------------------
 
 const _queryUrl = runtime.queryUrl || null;
-const _gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const _gatewayToken = process.env.GATEWAY_TOKEN || '';
 
 export function queryAgent(prompt, sessionId, opts = {}) {
   const timeoutMs = opts.timeout || 60_000;

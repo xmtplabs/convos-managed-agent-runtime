@@ -30,7 +30,7 @@ _SKILLS_DIR = _SHARED_ROOT / "skills"
 
 
 def _gateway_token() -> str:
-    return os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+    return os.environ.get("GATEWAY_TOKEN", "")
 
 
 def _serve_html_with_token(html_path: Path) -> Response:

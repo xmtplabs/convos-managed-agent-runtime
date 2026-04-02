@@ -82,7 +82,7 @@ def _build_credit_message() -> str:
 
 async def _check_credits_low() -> bool:
     instance_id = os.environ.get("INSTANCE_ID", "")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+    gateway_token = os.environ.get("GATEWAY_TOKEN", "")
     pool_url = os.environ.get("POOL_URL", "")
     if not instance_id or not gateway_token or not pool_url:
         return False
