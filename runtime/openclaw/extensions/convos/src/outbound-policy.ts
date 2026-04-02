@@ -83,16 +83,25 @@ function buildCreditMessage(): string {
 // ── Public API ──────────────────────────────────────────────────────────
 
 /**
- * Strip lines that consist solely of a suppress token (e.g. SILENT, HEARTBEAT_OK).
+ * Strip suppress tokens (e.g. SILENT, HEARTBEAT_OK) from text.
+ * - Lines consisting solely of a token are removed entirely.
+ * - Inline occurrences (token as a standalone word) are stripped from within lines.
  * Handles markdown-wrapped variants like **SILENT**, `SILENT`, etc.
  */
 export function stripSuppressLines(text: string): string {
+  // Build a regex that matches any suppress token as a standalone word,
+  // optionally wrapped in markdown formatting characters.
+  if (SUPPRESS_TOKENS.size === 0) return text;
+  const escaped = [...SUPPRESS_TOKENS].map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const tokenPattern = new RegExp(
+    `[\\*_\`~]*\\b(?:${escaped.join("|")})\\b[\\*_\`~]*`,
+    "g",
+  );
+
   return text
     .split("\n")
-    .filter((line) => {
-      const bare = line.trim().replace(/[\*_`~]+/g, "");
-      return !SUPPRESS_TOKENS.has(bare);
-    })
+    .map((line) => line.replace(tokenPattern, "").trim())
+    .filter((line) => line.length > 0)
     .join("\n")
     .trim();
 }

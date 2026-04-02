@@ -53,8 +53,10 @@ _MD_FORMATTING_RE = re.compile(r"[\*_`~]+")
 
 
 def strip_suppress_lines(text: str, tokens: set[str] | None = None) -> str:
-    """Remove lines that consist solely of a suppress token.
+    """Strip suppress tokens from text.
 
+    - Lines consisting solely of a token are removed entirely.
+    - Inline occurrences (token as a standalone word) are stripped from within lines.
     Handles markdown-wrapped variants like ``**SILENT**``, `` `SILENT` ``, etc.
     Returns the remaining text (may be empty).
     """
@@ -63,12 +65,16 @@ def strip_suppress_lines(text: str, tokens: set[str] | None = None) -> str:
     if not tokens:
         return text
 
+    escaped = [re.escape(t) for t in tokens]
+    token_pattern = re.compile(
+        r"[\*_`~]*\b(?:" + "|".join(escaped) + r")\b[\*_`~]*"
+    )
+
     kept: list[str] = []
     for line in text.split("\n"):
-        bare = _MD_FORMATTING_RE.sub("", line.strip())
-        if bare in tokens:
-            continue
-        kept.append(line)
+        cleaned = token_pattern.sub("", line).strip()
+        if cleaned:
+            kept.append(cleaned)
 
     return "\n".join(kept).strip()
 
