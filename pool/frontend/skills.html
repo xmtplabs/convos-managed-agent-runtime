@@ -977,13 +977,13 @@
     }
 
     function renderCategorySelect(id, selected) {
-      var html = '<select class="skill-form-select" id="' + id + '">';
-      html += '<option value="">-- select --</option>';
+      var listId = id + '-list';
+      var html = '<input type="text" class="skill-form-input" id="' + id + '" list="' + listId + '" value="' + esc(selected) + '" placeholder="Type or select\u2026" />';
+      html += '<datalist id="' + listId + '">';
       for (var i = 0; i < CATEGORIES.length; i++) {
-        var c = CATEGORIES[i];
-        html += '<option' + (c === selected ? ' selected' : '') + '>' + esc(c) + '</option>';
+        html += '<option value="' + esc(CATEGORIES[i]) + '">';
       }
-      html += '</select>';
+      html += '</datalist>';
       return html;
     }
 
