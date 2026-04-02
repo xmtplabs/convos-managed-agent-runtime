@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { AgentSkill } from "@/lib/types";
-import { ShareButton } from "@/app/page";
+import { ShareButton } from "@/components/share-button";
 
 // ---------------------------------------------------------------------------
 // Types
