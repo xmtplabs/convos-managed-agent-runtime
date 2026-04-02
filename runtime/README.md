@@ -52,7 +52,6 @@ runtime/
 │   │   └── convos/         # XMTP messaging channel
 │   ├── workspace/
 │   │   ├── agents-extra.md # openclaw-specific agent instructions
-│   │   ├── HEARTBEAT.md    # heartbeat nudge config
 │   │   └── (no skills — all moved to shared)
 │   └── scripts/            # keys, gateway, crons, pool-server, etc.
 └── hermes/                 # Hermes runtime

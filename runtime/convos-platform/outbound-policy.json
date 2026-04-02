@@ -17,7 +17,9 @@
   "creditPatterns": [
     "limit exceeded",
     "openrouter.ai/settings",
-    "afford"
+    "afford",
+    "error code: 402",
+    "payment required"
   ],
   "contextOverflowPrefix": "Context overflow:",
   "suppressTokens": ["HEARTBEAT_OK", "SILENT"],
