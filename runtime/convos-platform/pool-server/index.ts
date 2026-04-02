@@ -224,7 +224,18 @@ async function pollReadiness(): Promise<void> {
         gatewayReady = true;
         return;
       }
-    } catch {}
+      // Any HTTP response means the gateway is listening — accept it as ready
+      // even if the specific endpoint returns 404 (e.g. empty canvas directory).
+      console.log(`[pool-server] Runtime responded with ${res.status} after ${i}s — accepting as ready`);
+      gatewayReady = true;
+      return;
+    } catch (err) {
+      // Only log periodically to avoid spam (every 15s)
+      if (i % 15 === 0) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log(`[pool-server] Readiness poll attempt ${i}/120: ${msg}`);
+      }
+    }
     await new Promise((r) => setTimeout(r, 1000));
   }
   console.error("[pool-server] Runtime failed to start within 120s");
