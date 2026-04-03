@@ -484,16 +484,16 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
   /* Content */
   .content { padding: 10px; }
 
-  /* Overview card: compact rows */
+  /* Overview card: 2-col grid */
   .overview-card { padding: 12px 14px; margin-bottom: 12px; border-radius: 10px; }
   .overview-section-title { font-size: 9px; margin-bottom: 6px; }
-  .overview-row { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .overview-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
   .overview-item { gap: 4px; }
-  .overview-item-drain { margin-left: auto; }
+  .overview-item-drain { grid-column: 1 / -1; margin-left: 0; border-top: 1px solid var(--color-edge-muted); padding-top: 6px; margin-top: 2px; }
   .overview-label { font-size: 11px; }
   .overview-value { font-size: 14px; font-weight: 700; }
   .overview-divider { margin: 10px 0; }
-  .btn-drain-sm { min-height: 28px; font-size: 10px; padding: 3px 10px; }
+  .btn-drain-sm { min-height: 28px; font-size: 10px; padding: 3px 10px; margin-left: auto; }
 
   /* Replenish: stacked fields, full-width button */
   .replenish-card { margin-bottom: 12px; border-radius: 10px; }
