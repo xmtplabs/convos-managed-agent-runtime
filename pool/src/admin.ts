@@ -176,8 +176,8 @@ export function loginPage(error) {
     </div>
     <div class="login-title">Sign in</div>
     <div class="login-sub">Enter API key to continue</div>
-    <form method="POST" action="/admin/login">
-      <input class="login-input" type="password" name="password" placeholder="API key" autofocus required />
+    <form method="POST" action="/admin/login" autocomplete="off">
+      <input class="login-input" type="password" name="password" placeholder="API key" autofocus required autocomplete="off" />
       <button class="login-btn" type="submit">Sign in</button>
       <div class="login-error">${error || ""}</div>
     </form>
