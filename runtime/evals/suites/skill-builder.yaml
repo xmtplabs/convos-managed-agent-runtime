@@ -1,5 +1,5 @@
 # runtime/evals/skill-builder.yaml
-# Skill-builder eval — full creation, activation, and profile flow.
+# Skill-builder eval — optimistic build flow: describe → build + activate.
 # All tests share one XMTP conversation and must run sequentially.
 
 description: "Eval: Skill Builder"
@@ -20,8 +20,8 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  # --- Phase 1: follow-up questions ---
-  - description: "Agent asks follow-up questions when user requests a new skill"
+  # --- Step 1: user describes need, agent asks ONE quick question max ---
+  - description: "Agent asks at most one quick question before building"
     vars:
       prompt: "Create a skill that helps us plan weekend hiking trips"
     assert:
@@ -29,30 +29,20 @@ tests:
         value: >
           The output is a chat transcript. The user asked for a hiking skill.
 
-          FAIL if the agent immediately generates or creates a full skill
-          without asking any clarifying questions.
+          FAIL if the agent asks more than one follow-up question
+          (e.g. multiple messages asking about tone, group size, tools, etc.).
 
-          PASS if the agent asks at least one follow-up question to refine
-          scope or preferences (e.g. location, group size, vibe, experience).
+          FAIL if the agent immediately generates a full skill without
+          asking about location (critical for a hiking skill).
 
-  # --- Phase 2: direction proposal ---
-  - description: "Agent proposes direction after user provides details"
+          PASS if the agent asks at most one quick question to fill in
+          critical missing context (like location), OR if it makes a
+          reasonable assumption and proceeds to build.
+
+  # --- Step 2: user answers, agent builds + activates in one shot ---
+  - description: "Agent builds skill and activates immediately — no confirmations"
     vars:
-      prompt: "We're 6 people based near Denver, mostly casual day hikes on weekends. Fun and laid-back vibe, we just want trail suggestions and weather checks. No need for gear lists or hardcore stuff."
-    assert:
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript. The user provided details.
-
-          FAIL if the agent generates the full skill without proposing a
-          direction summary and asking for confirmation first.
-
-          PASS if the agent proposes a direction and asks if it sounds right.
-
-  # --- Phase 3: skill generation + activation ---
-  - description: "Agent generates skill, activates, and sends welcome message"
-    vars:
-      prompt: "Yes that direction is spot on, build it"
+      prompt: "We're 6 people based near Denver, mostly casual day hikes on weekends. Fun and laid-back vibe."
     metadata:
       waitForPattern: "/web-tools/skills/"
       waitForPatternTimeout: 300
@@ -65,13 +55,19 @@ tests:
         value: "file://../lib/assertions.mjs:skillActivated"
       - type: llm-rubric
         value: >
-          The output is a chat transcript. The user approved the direction.
+          The output is a chat transcript. The user provided details about
+          their hiking group.
 
-          FAIL if the agent asks for another confirmation before activating
-          (e.g. "Want me to become this?", "Should I activate?", "Ready to go?").
+          FAIL if the agent asks for confirmation before building
+          (e.g. "Sound right?", "Should I build this?", "Want me to
+          become this?", "Here's what I'm thinking...").
 
-          FAIL if the agent does not include a welcome message or identity
-          introduction in the same turn as the skill page URL.
+          FAIL if the agent proposes a direction and waits for approval
+          instead of just building.
 
-          PASS if the agent generates the skill, shares the URL, AND activates
-          with a welcome message — all in one turn, no extra approval step.
+          FAIL if the agent shares the skill page URL but does NOT activate
+          and send a welcome message in the same turn.
+
+          PASS if the agent goes straight to building — generates the skill,
+          shares the URL, activates (new identity/name), AND sends a welcome
+          message — all in one turn with zero approval steps.

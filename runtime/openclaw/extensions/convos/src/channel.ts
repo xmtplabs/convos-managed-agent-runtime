@@ -1126,10 +1126,10 @@ function readOnboardingPrompt(filename: string): string {
 
 /** Check if the agent has an active skill configured. */
 function hasActiveSkill(): boolean {
-  const skillsRoot = process.env.SKILLS_ROOT || "";
-  if (!skillsRoot) return false;
+  const wsSkills = process.env.WORKSPACE_SKILLS || "";
+  if (!wsSkills) return false;
   try {
-    const raw = fs.readFileSync(path.join(skillsRoot, "generated", "skills.json"), "utf-8");
+    const raw = fs.readFileSync(path.join(wsSkills, "generated", "skills.json"), "utf-8");
     const data = JSON.parse(raw);
     return !!data.active;
   } catch {
@@ -1313,7 +1313,7 @@ export async function startWiredInstance(params: {
     const environment = process.env.POOL_ENVIRONMENT || "";
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
     const cronJobsFile = path.join(stateDir, "cron", "jobs.json");
-    const skillsDir = process.env.SKILLS_ROOT || path.join(stateDir, "skills");
+    const skillsDir = process.env.WORKSPACE_SKILLS || path.join(stateDir, "workspace", "skills");
     stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile, skillsDir });
   }
 

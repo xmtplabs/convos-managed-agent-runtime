@@ -21,18 +21,4 @@ Run all of these. One message back with results. Some items need my input — as
 18. Ask for unprovisioning your email and SMS (if you confirmed you received the email and SMS).
 19. Check on the whole list status. anounce missing / pending items.
 20. Send "SILENT" to the group.
-
----
-
-## Skill Builder E2E
-
-Run these messages sequentially. After each message, wait for the agent to reply before sending the next one.
-
-1. "We need a wake surf crew coordinator — manages RSVPs, weather checks, snack duties, the whole thing"
-   - Agent should ask follow-up questions (group size, location, vibe, etc.) — not immediately generate a skill.
-
-2. "6 people max, we're in Malibu. Laid-back surfer vibe but strict on the rules — show up on time, no early exits. We rotate snacks and soda water duties."
-   - Agent should propose a direction summary and ask if it sounds right before building.
-
-3. "Build it"
-   - Agent should generate the skill, share the skill page URL, activate (new identity/name), and send a welcome message — all in one turn, no second confirmation.
+21. Create a skill that helps us plan weekend hiking trips. We're 6 people based near Denver, mostly casual day hikes on weekends. Fun and laid-back vibe

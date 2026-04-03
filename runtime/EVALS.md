@@ -11,7 +11,7 @@
 | **services** | `services.yaml` | Parallel (5x) | Services page and integration management |
 | **convos** | `convos.yaml` | Sequential (1x) | Convos capabilities — profile updates, vision, group awareness |
 | **onboarding** | `onboarding.yaml` | Sequential (1x) | Onboarding — greeting + skill-builder discovery flow |
-| **skill-builder** | `skill-builder.yaml` | Sequential (1x) | Skill builder — full creation, activation, and profile flow |
+| **skill-builder** | `skill-builder.yaml` | Sequential (1x) | Skill builder — optimistic build: describe → build + activate |
 | **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — restart resilience, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
