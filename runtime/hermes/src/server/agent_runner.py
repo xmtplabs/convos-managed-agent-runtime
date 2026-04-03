@@ -318,6 +318,24 @@ class AgentRunner:
         response = result.get("final_response", "")
         was_interrupted = result.get("interrupted", False)
 
+        # Extract reasoning texts: assistant messages from tool-calling turns.
+        # Logged for observability — not suppressed from delivery.
+        reasoning_texts: list[str] = []
+        for msg_entry in result.get("messages", []):
+            if msg_entry.get("role") != "assistant":
+                continue
+            if not msg_entry.get("tool_calls"):
+                continue
+            content = (msg_entry.get("content") or "").strip()
+            if content:
+                reasoning_texts.append(content)
+        if reasoning_texts:
+            logger.info(
+                "[reasoning] %d intermediate text(s) from tool-calling turns: %s",
+                len(reasoning_texts),
+                [t[:60] for t in reasoning_texts],
+            )
+        self._last_reasoning_texts = reasoning_texts
 
         # Append to shared history after the call completes.
         # Hermes handles context window management internally via
