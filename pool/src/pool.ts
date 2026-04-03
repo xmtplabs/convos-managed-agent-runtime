@@ -105,17 +105,30 @@ export async function autoReplenish(claimedInstanceId: string) {
 
     const runtimeImage = await db.getRuntimeImage(claimedInstanceId);
     const deficit = target - available;
+    metricCount("pool.auto_replenish.triggered", 1, { deficit: String(deficit) });
+    logger.info("auto_replenish.triggered", { claimedInstanceId, available, target, deficit, runtimeImage });
     console.log(`[pool] Auto-replenish: ${available} idle+starting < ${target} target, creating ${deficit} instance(s) (image=${runtimeImage || "default"})`);
 
+    let created = 0;
     for (let i = 0; i < deficit; i++) {
       try {
         const inst = await createInstance(undefined, runtimeImage || undefined);
+        created++;
         console.log(`[pool] Auto-replenish: created ${inst.id}`);
       } catch (err) {
+        const { error_class, error_message } = classifyError(err);
+        metricCount("pool.auto_replenish.create_fail", 1, { error_class });
+        logger.error("auto_replenish.create_fail", { claimedInstanceId, error_class, error_message: error_message.slice(0, 1500) });
         console.error(`[pool] Auto-replenish: failed to create instance:`, err);
       }
     }
+
+    metricCount("pool.auto_replenish.complete", 1, { created: String(created), deficit: String(deficit) });
+    logger.info("auto_replenish.complete", { claimedInstanceId, created, deficit });
   } catch (err) {
+    const { error_class, error_message } = classifyError(err);
+    metricCount("pool.auto_replenish.error", 1, { error_class });
+    logger.error("auto_replenish.error", { claimedInstanceId, error_class, error_message: error_message.slice(0, 1500) });
     console.error(`[pool] Auto-replenish check failed:`, err);
   }
 }
