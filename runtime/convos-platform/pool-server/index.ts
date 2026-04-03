@@ -85,7 +85,8 @@ function setupHermesVolume(mountPath: string): void {
   for (const sub of ["workspace/skills", "memories", "sessions", "cron"]) {
     fs.mkdirSync(path.join(hermesHome, sub), { recursive: true });
   }
-  process.env.SKILLS_ROOT = path.join(hermesHome, "workspace", "skills");
+  process.env.SKILLS_ROOT = path.join(hermesHome, "skills");
+  process.env.WORKSPACE_SKILLS = path.join(hermesHome, "workspace", "skills");
 
   // Persist convos-cli identity keys on the volume (same as entrypoint.sh).
   const convosVolDir = path.join(mountPath, "convos");

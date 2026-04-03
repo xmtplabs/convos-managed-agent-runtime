@@ -138,11 +138,11 @@ function buildServicesUrl(): string {
   return `${base}/web-tools/services`;
 }
 
-/** Resolve the skills data directory ($SKILLS_ROOT/generated/). */
+/** Resolve the skills data directory ($WORKSPACE_SKILLS/generated/). */
 function getSkillsDataPath(): string {
-  const skillsRoot = process.env.SKILLS_ROOT
+  const wsSkills = process.env.WORKSPACE_SKILLS
     || path.join(process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"), "workspace", "skills");
-  return path.join(skillsRoot, "generated");
+  return path.join(wsSkills, "generated");
 }
 
 /** Read the full skills.json data. */

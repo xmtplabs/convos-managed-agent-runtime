@@ -58,8 +58,8 @@ jobs:
       docker_run_extra: "-e OPENCLAW_STATE_DIR=/app -e RUNTIME_TYPE=openclaw"
       docker_cmd: "node convos-platform/pool-server/dist/index.js"
       buildx_driver: docker
-      cache_from: type=gha
-      cache_to: "type=gha,mode=max"
+      cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:${{ inputs.tag }}"
+      cache_to: type=inline
 
   hermes:
     name: Hermes
