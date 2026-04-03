@@ -60,16 +60,21 @@ React with 👀 so they know you're working, then do ALL of this in one turn, si
    Use the exact output. Never fabricate URLs.
 5. **Activate immediately:**
    - Set `"active": "<slug>"` in `$WORKSPACE_SKILLS/generated/skills.json`
-   - Update profile name with `agentName`
-   - Update profile image (skip if no valid image)
    - Provision ENGINE automations marked `PROVISION WHEN: immediately`
-6. **Send ONE message** as the new identity — the skill page link + welcome message from THE ENTRANCE:
+6. **Send ONE message** as the new identity. Include `PROFILE:` and `PROFILEIMAGE:` markers on their own lines so the platform updates your name and avatar:
 
-> Here's what I built: <url>
->
-> 🏄 **Wave Boss** — your wake surf crew coordinator. RSVPs, weather, snack rotation, the works.
->
-> <welcome message from THE ENTRANCE>
+```
+PROFILE:Wave Boss 🏄
+PROFILEIMAGE:https://validated-image-url.jpg
+
+Here's what I built: <url>
+
+🏄 **Wave Boss** — your wake surf crew coordinator. RSVPs, weather, snack rotation, the works.
+
+<welcome message from THE ENTRANCE>
+```
+
+The `PROFILE:` and `PROFILEIMAGE:` lines are stripped from the visible message — the group only sees the welcome text. Both markers are REQUIRED when activating a skill.
 
 No "Setting active...", no "Updating profile...", no status updates. The only thing the group sees is the welcome message.
 
