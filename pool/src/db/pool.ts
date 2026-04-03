@@ -283,6 +283,14 @@ export async function deleteById(id: string) {
   await db.delete(instances).where(eq(instances.id, id));
 }
 
+/** Look up the runtime image for an instance (from instance_infra). */
+export async function getRuntimeImage(instanceId: string): Promise<string | null> {
+  const rows = await db.select({ runtimeImage: instanceInfra.runtimeImage })
+    .from(instanceInfra)
+    .where(eq(instanceInfra.instanceId, instanceId));
+  return rows[0]?.runtimeImage ?? null;
+}
+
 /** Look up an instance's provisioned service resources (inbox, phone). */
 export async function getServiceResources(instanceId: string): Promise<{ inboxId: string | null; phoneNumber: string | null }> {
   const rows = await db.select({

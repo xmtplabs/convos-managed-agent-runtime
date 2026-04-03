@@ -86,6 +86,40 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 
 export { provision } from "./provision";
 
+/**
+ * Auto-replenish the pool after a claim if idle + starting drops below POOL_TARGET_IDLE.
+ * Creates one instance with the same runtime image as the instance that was just claimed.
+ * Fire-and-forget — errors are logged but never propagated.
+ */
+export async function autoReplenish(claimedInstanceId: string) {
+  const target = config.poolTargetIdle;
+  if (target <= 0) return;
+
+  try {
+    const counts = await db.getCounts();
+    const available = counts.idle + counts.starting;
+    if (available >= target) {
+      console.log(`[pool] Auto-replenish: ${available} idle+starting >= ${target} target, skipping`);
+      return;
+    }
+
+    const runtimeImage = await db.getRuntimeImage(claimedInstanceId);
+    const deficit = target - available;
+    console.log(`[pool] Auto-replenish: ${available} idle+starting < ${target} target, creating ${deficit} instance(s) (image=${runtimeImage || "default"})`);
+
+    for (let i = 0; i < deficit; i++) {
+      try {
+        const inst = await createInstance(undefined, runtimeImage || undefined);
+        console.log(`[pool] Auto-replenish: created ${inst.id}`);
+      } catch (err) {
+        console.error(`[pool] Auto-replenish: failed to create instance:`, err);
+      }
+    }
+  } catch (err) {
+    console.error(`[pool] Auto-replenish check failed:`, err);
+  }
+}
+
 export type HealthCheckResult = { ready: boolean; version?: string; runtime?: string };
 export type HealthCheckOutcome =
   | { ok: true; data: HealthCheckResult }
