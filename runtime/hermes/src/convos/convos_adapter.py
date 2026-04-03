@@ -512,6 +512,28 @@ class ConvosAdapter:
         if msg.content_type == "group_updated":
             return
 
+        # Profile snapshots (sent after adding members) and profile updates
+        # (sent when a member changes their name) contain structured member
+        # data. Update the cache directly and suppress — these aren't chat.
+        if msg.content_type in ("profile_snapshot", "profile_update") and inst:
+            try:
+                import json
+                data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                if msg.content_type == "profile_snapshot":
+                    for p in data.get("profiles", []):
+                        iid = p.get("inboxId", "")
+                        name = p.get("name", "")
+                        if iid and name:
+                            inst.set_member_name(iid, name)
+                elif msg.content_type == "profile_update":
+                    # profile_update is self-authored — sender_id is the member
+                    name = data.get("name", "")
+                    if msg.sender_id and name:
+                        inst.set_member_name(msg.sender_id, name)
+            except Exception as err:
+                logger.debug(f"Failed to parse {msg.content_type}: {err}")
+            return
+
         # Wait for the static greeting to be sent before processing messages.
         await self._greeting_done.wait()
 
@@ -833,17 +855,19 @@ class ConvosAdapter:
             self._sent_message_ids.add(mid)
 
     def _handle_member_joined(self, name: str | None):
-        """Return a member_joined callback that renames + refreshes."""
+        """Return a member_joined callback that renames on first join.
+
+        Member name cache is updated by profile_snapshot messages
+        (sent automatically after adding members), not here.
+        """
         async def on_member_joined(info: dict) -> None:
             logger.info(f"Join accepted: {info.get('joinerInboxId', '')}")
             inst = self._instance
-            if inst:
-                if name:
-                    try:
-                        await inst.rename(name)
-                    except Exception as err:
-                        logger.error(f"Rename after join failed: {err}")
-                await inst.refresh_member_names()
+            if inst and name:
+                try:
+                    await inst.rename(name)
+                except Exception as err:
+                    logger.error(f"Rename after join failed: {err}")
 
         return on_member_joined
 

@@ -3,8 +3,11 @@
 > Hi! / What's 2 + 2? / Tell me a joke
 → No tools. Answer directly.
 
-> Who's in this group? / What did we talk about earlier?
-→ Convos CLI. Read members or message history.
+> Who's in this group?
+→ No tools. Member names are in your Participants context.
+
+> What did we talk about earlier?
+→ Convos CLI. Read message history.
 
 > React with a thumbs up / Send a photo to the group
 → Messaging. React or send attachment.
