@@ -115,6 +115,16 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hel
 .replenish-input { width: 56px; padding: 7px 10px; font-size: 13px; font-family: inherit; border: 1px solid var(--color-edge); border-radius: 8px; text-align: center; background: var(--color-surface); transition: border-color 0.15s; }
 .replenish-input:hover { border-color: var(--color-foreground-tertiary); }
 .replenish-input:focus { outline: none; border-color: var(--color-foreground-secondary); }
+/* Qty stepper */
+.qty-stepper { display: flex; align-items: center; gap: 0; }
+.qty-stepper .replenish-input { border-radius: 0; border-left: none; border-right: none; width: 44px; -moz-appearance: textfield; }
+.qty-stepper .replenish-input::-webkit-inner-spin-button,
+.qty-stepper .replenish-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.qty-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 34px; font-size: 18px; font-weight: 500; font-family: inherit; border: 1px solid var(--color-edge); background: var(--color-surface-muted); color: var(--color-foreground); cursor: pointer; transition: all 0.15s; user-select: none; }
+.qty-btn:first-child { border-radius: 8px 0 0 8px; }
+.qty-btn:last-child { border-radius: 0 8px 8px 0; }
+.qty-btn:hover { background: var(--color-edge); }
+.qty-btn:active { background: var(--color-edge-muted); }
 /* Image picker — harness + env selects side by side */
 .image-picker { position: relative; }
 .image-picker-selects { display: flex; gap: 6px; }
@@ -505,6 +515,9 @@ tr[data-expand].expanded td { border-bottom: none; background: var(--color-surfa
   .replenish-select { width: 100%; padding: 10px 28px 10px 10px; font-size: 13px; min-height: 44px; }
   .replenish-select-sm { min-width: unset; }
   .replenish-input { width: 100%; padding: 10px; font-size: 13px; min-height: 44px; }
+  .qty-stepper { width: 100%; }
+  .qty-stepper .replenish-input { flex: 1; width: auto; }
+  .qty-btn { width: 48px; height: 44px; font-size: 22px; }
   .replenish-actions { grid-column: 1 / -1; margin-left: 0; }
   .replenish-actions .btn { width: 100%; min-height: 44px; font-size: 14px; padding: 12px; }
 

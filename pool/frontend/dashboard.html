@@ -152,7 +152,11 @@
         </div>
         <div class="replenish-field">
           <label>Qty</label>
-          <input class="replenish-input" id="replenish-count" type="number" min="1" max="20" value="1" />
+          <div class="qty-stepper">
+            <button type="button" class="qty-btn" onclick="var i=document.getElementById('replenish-count');i.value=Math.max(1,+i.value-1)">-</button>
+            <input class="replenish-input" id="replenish-count" type="number" min="1" max="20" value="1" />
+            <button type="button" class="qty-btn" onclick="var i=document.getElementById('replenish-count');i.value=Math.min(20,+i.value+1)">+</button>
+          </div>
         </div>
         <div class="replenish-actions">
           <button class="btn btn-primary" id="replenish-btn">+ Add</button>
