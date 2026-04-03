@@ -52,7 +52,7 @@ tests:
   # --- Phase 3: skill generation ---
   - description: "Agent generates skill and shares skill page URL"
     vars:
-      prompt: "Yes, sounds perfect. Build it."
+      prompt: "Yes that direction is spot on, build it"
     metadata:
       waitForPattern: "/web-tools/skills/"
       waitForPatternTimeout: 240
