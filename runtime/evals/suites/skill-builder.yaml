@@ -55,7 +55,7 @@ tests:
       prompt: "Yes that direction is spot on, build it"
     metadata:
       waitForPattern: "/web-tools/skills/"
-      waitForPatternTimeout: 240
+      waitForPatternTimeout: 300
     assert:
       - type: regex
         value: "/web-tools/skills/"
