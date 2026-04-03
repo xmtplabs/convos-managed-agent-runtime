@@ -1272,6 +1272,7 @@ export async function startWiredInstance(params: {
 
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,
+    heartbeatSeconds: 30,
     onMessage: (msg: InboundMessage) => {
       // Inject skill-builder context on the first real user message so the
       // agent learns the onboarding flow alongside the user's first reply —

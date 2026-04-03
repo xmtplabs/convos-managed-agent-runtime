@@ -1,0 +1,111 @@
+# runtime/evals/skill-builder.yaml
+# Skill-builder eval — full creation, activation, and profile flow.
+# All tests share one XMTP conversation and must run sequentially.
+
+description: "Eval: Skill Builder"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - id: file://../providers/convos.provider.mjs
+    config:
+      skipGreeting: true
+
+defaultTest:
+  options:
+    provider:
+      id: "openrouter:@preset/assistants-eval-judge"
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  # --- Phase 1: follow-up questions ---
+  - description: "Agent asks follow-up questions when user requests a new skill"
+    vars:
+      prompt: "Create a skill that helps us plan weekend hiking trips"
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user asked the agent to create
+          a hiking trip planning skill.
+
+          FAIL if the agent immediately generates a full skill without asking
+          any clarifying questions.
+          FAIL if the agent gives a generic "sure I can help" without driving
+          the conversation forward.
+          FAIL if the agent lists generic capabilities.
+
+          PASS if the agent asks at least one follow-up question to refine
+          scope, vibe, or preferences (e.g. location, group size, difficulty,
+          tone, proactivity). The question should include numbered options or
+          an open-ended prompt. Be lenient on exact phrasing.
+
+  # --- Phase 2: direction proposal ---
+  - description: "Agent proposes direction after receiving user preferences"
+    vars:
+      prompt: "We're based in Colorado, about 6 people, mostly day hikes. Keep it casual and fun."
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user provided specific
+          preferences for the hiking skill.
+
+          FAIL if the agent asks more than two additional follow-up questions
+          without acknowledging what the user said.
+          FAIL if the agent immediately generates the full skill JSON without
+          proposing a direction first.
+
+          PASS if the agent either:
+          (a) Proposes a direction summary and asks for confirmation, OR
+          (b) Asks one more targeted question before proposing direction.
+          The agent must acknowledge the user's input (Colorado, 6 people,
+          day hikes, casual). Otherwise PASS.
+
+  # --- Phase 3: skill generation ---
+  - description: "Agent generates skill and shares skill page URL"
+    vars:
+      prompt: "Yes, that sounds great. Build it."
+    metadata:
+      waitForPattern: "/web-tools/skills/"
+      waitForPatternTimeout: 180
+    assert:
+      - type: regex
+        value: "/web-tools/skills/"
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user approved the direction and
+          told the agent to build the skill.
+
+          FAIL if the agent does not share a URL containing /web-tools/skills/.
+          FAIL if the agent does not provide a summary of what the skill does.
+          FAIL if the agent automatically activates without asking for approval.
+
+          PASS if the agent shares a skill page URL AND provides a short
+          summary AND asks for approval before becoming the new identity.
+          Otherwise PASS.
+      - type: javascript
+        value: "file://../lib/assertions.mjs:skillJsonWritten"
+
+  # --- Phase 4: activation ---
+  - description: "Agent activates skill and updates profile on approval"
+    vars:
+      prompt: "Yes, become this!"
+    metadata:
+      waitForPattern: "ready|here to|let.s|trail|hik|welcome|crew|camp|mountain"
+      waitForPatternTimeout: 120
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user approved the skill and
+          told the agent to activate it.
+
+          FAIL if the agent asks for confirmation again instead of activating.
+          FAIL if the agent narrates each setup step ("Setting active...",
+          "Updating profile...", "Step 1...", "Step 2...").
+
+          PASS if the agent sends a welcome/entrance message as its new
+          identity. The message should reflect the hiking skill personality.
+          Otherwise PASS.
+      - type: javascript
+        value: "file://../lib/assertions.mjs:skillActivated"

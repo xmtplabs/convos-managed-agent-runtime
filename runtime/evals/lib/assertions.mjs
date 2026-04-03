@@ -347,6 +347,71 @@ export function agentUsedReplyTo(output, context) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Skill-builder assertions — verify skill creation and activation via the
+// /web-tools/skills/api endpoint (reads $SKILLS_ROOT/generated/skills.json).
+// ---------------------------------------------------------------------------
+
+function curlSkillsApi() {
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
+  const token = process.env.GATEWAY_TOKEN;
+  const url = `http://localhost:${port}/web-tools/skills/api`;
+  const curlArgs = ['-sf', url];
+  if (token) curlArgs.splice(1, 0, '-H', `Authorization: Bearer ${token}`);
+  const res = execFileSync('curl', curlArgs, {
+    encoding: 'utf-8',
+    timeout: 10_000,
+  }).trim();
+  return JSON.parse(res);
+}
+
+export function skillJsonWritten() {
+  try {
+    sleep(3_000);
+    const data = curlSkillsApi();
+    const skills = data.skills || [];
+    if (skills.length === 0) {
+      return { pass: false, score: 0, reason: 'skills.json has no skill entries' };
+    }
+    const entry = skills[skills.length - 1];
+    const required = ['id', 'slug', 'agentName', 'description', 'prompt', 'category', 'emoji'];
+    const missing = required.filter(k => !entry[k]);
+    if (missing.length > 0) {
+      return { pass: false, score: 0, reason: `Skill entry missing required fields: ${missing.join(', ')}` };
+    }
+    if (entry.prompt.length < 200) {
+      return { pass: false, score: 0, reason: `Skill prompt too short (${entry.prompt.length} chars, expected 200+)` };
+    }
+    return {
+      pass: true,
+      score: 1,
+      reason: `Skill "${entry.agentName}" (${entry.slug}) written — ${entry.prompt.length}-char prompt, category=${entry.category}`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to read /web-tools/skills/api: ${err.message}` };
+  }
+}
+
+export function skillActivated() {
+  try {
+    sleep(5_000);
+    const data = curlSkillsApi();
+    if (!data.active) {
+      return { pass: false, score: 0, reason: 'skills.json "active" field is null — skill was not activated' };
+    }
+    const entry = (data.skills || []).find(s => s.slug === data.active);
+    return {
+      pass: true,
+      score: 1,
+      reason: entry
+        ? `Skill activated: "${entry.agentName}" (${data.active})`
+        : `Skill activated: slug="${data.active}"`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to read /web-tools/skills/api: ${err.message}` };
+  }
+}
+
 export function logSharingEnabled(output) {
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
   const url = `http://localhost:${port}/web-tools/logs/api`;
