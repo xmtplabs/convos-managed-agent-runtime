@@ -423,11 +423,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
           },
           onMemberJoined: (info) => {
             log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}${info.catchup ? " (catchup)" : ""}`);
-            if (!info.catchup) {
-              inst.refreshMemberNames().catch((err) => {
-                log?.error(`[${account.accountId}] Failed to refresh members after join: ${String(err)}`);
-              });
-            }
+            // Member name cache is updated by profile_snapshot messages
+            // (sent automatically after adding members), not here.
           },
           // onHeartbeat: (info) => {
           //   if (account.debug) {
@@ -744,9 +741,34 @@ async function handleInboundMessage(
   }
 
   // Group updates are recorded in the session above but should not trigger a reply.
+  // Name changes are handled by profile_update messages, not here.
   if (msg.contentType === "group_updated") {
     if (account.debug) {
       debugLog(`[${account.accountId}] Skipping reply dispatch for group_updated message`);
+    }
+    return;
+  }
+
+  // Profile snapshots (sent after adding members) and profile updates (sent when
+  // a member changes their name) contain structured member data. Update the cache
+  // directly and suppress — these aren't chat messages.
+  if ((msg.contentType === "profile_snapshot" || msg.contentType === "profile_update") && inst) {
+    try {
+      const data = typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
+      if (msg.contentType === "profile_snapshot") {
+        for (const p of data.profiles ?? []) {
+          if (p.inboxId && p.name) {
+            inst.setMemberName(p.inboxId, p.name);
+          }
+        }
+      } else if (msg.contentType === "profile_update" && msg.senderId) {
+        // profile_update is self-authored — senderId is the member
+        if (data.name) {
+          inst.setMemberName(msg.senderId, data.name);
+        }
+      }
+    } catch {
+      // Non-fatal: cache will catch up on next message or refresh
     }
     return;
   }
@@ -1153,12 +1175,12 @@ async function dispatchGreeting(
   const skillActive = hasActiveSkill();
 
   // Static greeting — sent directly via XMTP, no LLM involved.
-  const greeting = "Hey! What would you like to build today?";
-  console.log(`[convos] Sending static greeting (skill-active=${skillActive})`);
   try {
+    const greeting = readOnboardingPrompt("static-greeting.md");
+    console.log(`[convos] Sending static greeting (skill-active=${skillActive})`);
     await inst.sendMessage(greeting);
   } catch (err) {
-    console.error(`[convos] Static greeting send failed: ${String(err)}`);
+    console.error(`[convos] Greeting failed: ${String(err)}`);
   }
 
   // Skill-builder context is injected lazily: if no active skill, the first
@@ -1272,6 +1294,7 @@ export async function startWiredInstance(params: {
 
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,
+    heartbeatSeconds: 30,
     onMessage: (msg: InboundMessage) => {
       // Inject skill-builder context on the first real user message so the
       // agent learns the onboarding flow alongside the user's first reply —
@@ -1297,9 +1320,8 @@ export async function startWiredInstance(params: {
           console.error(`[convos] Rename after join failed: ${String(err)}`);
         });
       }
-      inst.refreshMemberNames().catch((err) => {
-        console.error(`[convos] Failed to refresh members after join: ${String(err)}`);
-      });
+      // Member name cache is updated by profile_snapshot messages
+      // (sent automatically after adding members), not here.
     },
   });
 
@@ -1321,6 +1343,12 @@ export async function startWiredInstance(params: {
   // No LLM involved, no greeting gate needed — completes in <500ms.
   if (params.skipGreeting) {
     console.log("[convos] Greeting dispatch skipped (skipGreeting=true)");
+    // Still set the skill-builder pending flag so the kickoff context is
+    // injected on the first user message — even without a greeting.
+    _skillBuilderPending = !hasActiveSkill();
+    if (_skillBuilderPending) {
+      console.log("[convos] Skill-builder context will be injected on first user message");
+    }
   } else {
     dispatchGreeting(account, runtime).catch((err) => {
       console.error(`[convos] Greeting dispatch failed: ${String(err)}`);

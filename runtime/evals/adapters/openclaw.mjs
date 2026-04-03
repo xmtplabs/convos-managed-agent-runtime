@@ -74,6 +74,11 @@ export default {
   cleanEvalState() {
     clearCustomSkills(skillsDir, sharedSkillsDir);
     clearAgentCronJobs(cronFile);
+    // Remove generated skills (skill-builder output) so eval state doesn't bleed.
+    const generatedDir = join(skillsDir, 'generated');
+    if (existsSync(generatedDir)) {
+      try { rmSync(generatedDir, { recursive: true, force: true }); } catch {}
+    }
   },
   memory: {
     extraArgs: ['--local'],

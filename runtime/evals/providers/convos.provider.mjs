@@ -47,6 +47,41 @@ export default class ConvosProvider {
       return result;
     }
 
+    // Long-running flow: send prompt, wait for a NEW agent message matching
+    // a regex pattern. Only checks messages that arrive after the prompt is
+    // sent — prior transcript is excluded to avoid false matches from earlier
+    // tests. Useful for skill generation (30-60s of tool calls with no output).
+    if (meta.waitForPattern) {
+      const existing = h.fetchMessages();
+      const msgsBefore = existing.length;
+      log(`Sending: "${prompt}"`);
+      h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
+      const timeoutMs = (meta.waitForPatternTimeout || 120) * 1000;
+      const pattern = new RegExp(meta.waitForPattern);
+      log(`Waiting up to ${timeoutMs / 1000}s for pattern: ${meta.waitForPattern}`);
+      const deadline = Date.now() + timeoutMs;
+      let matched = false;
+      let msgs;
+      while (Date.now() < deadline) {
+        sleep(3_000);
+        try {
+          msgs = h.fetchMessages();
+          const newAgentText = msgs.slice(msgsBefore)
+            .filter(m => m.senderInboxId !== h.userInboxId)
+            .map(m => m.content || m.text || '')
+            .join('\n');
+          if (newAgentText && pattern.test(newAgentText)) {
+            matched = true;
+            break;
+          }
+        } catch {}
+      }
+      if (!msgs) msgs = h.fetchMessages();
+      const output = h.transcript(msgs, msgsBefore);
+      log(`${matched ? 'OK' : 'TIMEOUT'} — pattern /${meta.waitForPattern}/ (${elapsed(t)})`);
+      return { output, metadata: { conversationId: h.conversationId, patternMatched: matched } };
+    }
+
     if (meta.silence) {
       const existing = h.fetchMessages();
       const baseline = h.agentCount(existing);

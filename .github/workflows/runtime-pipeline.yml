@@ -159,6 +159,7 @@ jobs:
           docker exec \
             -e "EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}" \
             -e "EVAL_RESULTS_DIR=/tmp/eval-results" \
+            -e "EVAL_MAX_FAILURES=${{ matrix.maxFailures || '1' }}" \
             eval-runtime timeout ${{ matrix.timeout }} \
               pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
 
