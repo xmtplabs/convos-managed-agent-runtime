@@ -1322,6 +1322,12 @@ export async function startWiredInstance(params: {
   // No LLM involved, no greeting gate needed — completes in <500ms.
   if (params.skipGreeting) {
     console.log("[convos] Greeting dispatch skipped (skipGreeting=true)");
+    // Still set the skill-builder pending flag so the kickoff context is
+    // injected on the first user message — even without a greeting.
+    _skillBuilderPending = !hasActiveSkill();
+    if (_skillBuilderPending) {
+      console.log("[convos] Skill-builder context will be injected on first user message");
+    }
   } else {
     dispatchGreeting(account, runtime).catch((err) => {
       console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
