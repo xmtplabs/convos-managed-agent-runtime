@@ -49,8 +49,8 @@ tests:
 
           PASS if the agent proposes a direction and asks if it sounds right.
 
-  # --- Phase 3: skill generation ---
-  - description: "Agent generates skill and shares skill page URL"
+  # --- Phase 3: skill generation + activation ---
+  - description: "Agent generates skill, activates, and sends welcome message"
     vars:
       prompt: "Yes that direction is spot on, build it"
     metadata:
@@ -61,14 +61,17 @@ tests:
         value: "/web-tools/skills/"
       - type: javascript
         value: "file://../lib/assertions.mjs:skillJsonWritten"
-
-  # --- Phase 4: activation ---
-  - description: "Agent activates skill on approval"
-    vars:
-      prompt: "Yes, become this!"
-    metadata:
-      waitForPattern: "ready|here to|let.s|trail|hik|welcome|crew|camp|mountain|scout|planner|region|vibe"
-      waitForPatternTimeout: 90
-    assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:skillActivated"
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user approved the direction.
+
+          FAIL if the agent asks for another confirmation before activating
+          (e.g. "Want me to become this?", "Should I activate?", "Ready to go?").
+
+          FAIL if the agent does not include a welcome message or identity
+          introduction in the same turn as the skill page URL.
+
+          PASS if the agent generates the skill, shares the URL, AND activates
+          with a welcome message — all in one turn, no extra approval step.
