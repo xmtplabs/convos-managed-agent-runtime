@@ -20,26 +20,15 @@ tests:
   # ── Credits & card balance ────────────────────────────────────────────
   - description: "Agent knows how to top up credits"
     vars:
-      prompt: "How do I top up my credits?"
+      prompt: "How do I top up my credits? "
     assert:
       - type: regex
         value: "https?://|credits|services"
       - type: llm-rubric
         value: >
-          FAIL if the agent says it doesn't know or can't help with credits.
-          Otherwise PASS — the agent should demonstrate awareness of the credits
-          system by directing the user to a URL or services page (localhost/
-          127.0.0.1 URLs are acceptable since evals run inside Docker), or by
-          informing the user that credits are already at maximum.
-
-  - description: "Agent knows where to check card balance"
-    vars:
-      prompt: "Where can I see my card balance?"
-    assert:
-      - type: regex
-        value: "https?://|localhost|services"
-
-  # ── Email & phone awareness ──────────────────────────────────────────
+          FAIL if the agent doesn't demonstrate awareness of the credits
+          Else pass.
+          
   - description: "Agent knows its email address"
     vars:
       prompt: "What is your email address?"

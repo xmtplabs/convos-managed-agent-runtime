@@ -65,10 +65,9 @@ on:
         type: string
         default: "type=gha,mode=max"
       eval_matrix:
-        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]"
+        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]. Defaults to .github/eval-matrix.json"
         required: false
         type: string
-        default: '[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
 
 jobs:
   build:
@@ -100,15 +99,32 @@ jobs:
           retention-days: 1
           compression-level: 0
 
-  eval:
-    name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
+  resolve-matrix:
+    name: Resolve eval matrix
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { sparse-checkout: '.github/eval-matrix.json', sparse-checkout-cone-mode: false }
+      - id: resolve
+        run: |
+          if [ -n '${{ inputs.eval_matrix }}' ]; then
+            echo "matrix=${{ inputs.eval_matrix }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=$(jq -c . .github/eval-matrix.json)" >> "$GITHUB_OUTPUT"
+          fi
+
+  eval:
+    name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
+    needs: [build, resolve-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(inputs.eval_matrix) }}
+        include: ${{ fromJson(needs.resolve-matrix.outputs.matrix) }}
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
