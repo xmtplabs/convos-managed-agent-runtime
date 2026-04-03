@@ -37,13 +37,17 @@ class RuntimeConfig:
 
     @classmethod
     def from_env(cls) -> RuntimeConfig:
-        gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+        gateway_token = os.environ.get("GATEWAY_TOKEN", "")
         if not gateway_token:
             gateway_token = secrets.token_hex(32)
-            os.environ["OPENCLAW_GATEWAY_TOKEN"] = gateway_token
+            os.environ["GATEWAY_TOKEN"] = gateway_token
 
         # Model is read from config.yaml at runtime; this is just the initial default.
-        model = os.environ.get("HERMES_MODEL", "@preset/assistants-pro")
+        # In eval mode, use the CI preset instead of the production model.
+        if os.environ.get("EVAL_MODE") == "1":
+            model = "@preset/assistants-ci"
+        else:
+            model = os.environ.get("HERMES_MODEL") or "@preset/assistants-pro"
 
         hermes_home = os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes"))
         workspace_dir = os.environ.get("HERMES_WORKSPACE", os.path.join(hermes_home, "workspace"))

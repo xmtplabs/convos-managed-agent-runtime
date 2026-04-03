@@ -90,6 +90,13 @@ if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
     done
     brand_ok "core skills" "$_skill_count → $STATE_DIR/skills"
   fi
+
+  # Onboarding prompts → STATE_DIR/onboarding/
+  if [ -d "$CONVOS_PLATFORM_DIR/onboarding" ]; then
+    mkdir -p "$STATE_DIR/onboarding"
+    cp "$CONVOS_PLATFORM_DIR"/onboarding/*.md "$STATE_DIR/onboarding/"
+    brand_ok "onboarding" "$STATE_DIR/onboarding"
+  fi
 fi
 
 for subdir in workspace extensions; do
@@ -155,6 +162,11 @@ if command -v jq >/dev/null 2>&1; then
       '.gateway.trustedProxies = ["100.64.0.0/10"] | .gateway.controlUi.allowedOrigins = [($origin), "http://localhost:8080", "http://127.0.0.1:8080"]' \
       "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "trustedProxies" "$RAILWAY_PUBLIC_DOMAIN"
+  fi
+  # In eval mode, use the CI preset instead of the production model
+  if [ "${EVAL_MODE:-}" = "1" ]; then
+    jq '.agents.defaults.model.primary = "openrouter/@preset/assistants-ci"' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    brand_ok "model" "overridden → @preset/assistants-ci (eval mode)"
   fi
   # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then

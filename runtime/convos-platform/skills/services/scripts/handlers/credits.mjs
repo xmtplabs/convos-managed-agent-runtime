@@ -5,11 +5,11 @@
  *   node services.mjs credits          (check balance)
  *   node services.mjs credits topup    (request top-up)
  *
- * Env: INSTANCE_ID, OPENCLAW_GATEWAY_TOKEN, POOL_URL (set for pool-managed instances)
+ * Env: INSTANCE_ID, GATEWAY_TOKEN, POOL_URL (set for pool-managed instances)
  */
 
 const INSTANCE_ID = process.env.INSTANCE_ID;
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
 const POOL_URL = process.env.POOL_URL;
 
 function requirePoolEnv() {

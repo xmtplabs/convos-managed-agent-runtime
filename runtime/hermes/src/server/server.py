@@ -66,12 +66,6 @@ _provision_state: dict | None = None  # {state, startedAt, inviteUrl, watching, 
 _provision_generation: int = 0
 _pending_join_task: asyncio.Task | None = None
 
-# Pool health readiness — tracks whether lifespan startup is complete.
-# OpenClaw has two gates (gatewayReady + convosReady); Hermes collapses them
-# into one because it has no subprocess — lifespan completing is equivalent.
-_server_ready: bool = False
-_health_cached: bool = False
-
 
 def get_config() -> RuntimeConfig:
     assert _config is not None
@@ -107,6 +101,7 @@ async def start_wired_instance(
     name: str | None = None,
     debug: bool = False,
     resuming: bool = False,
+    skip_greeting: bool = False,
 ):
     """Create and start a ConvosAdapter with full message pipeline.
 
@@ -154,10 +149,13 @@ async def start_wired_instance(
             skills_dir=skills_dir,
         )
 
-    # Fire greeting in background (skip if resuming — caller handles workspace refresh).
+    # Fire greeting in background (skip if resuming or explicitly suppressed).
     # The adapter gates _process_message behind greeting_done so early inbound
     # messages queue until the greeting populates history.
-    if not resuming:
+    if skip_greeting:
+        logger.info("Greeting dispatch skipped (skip_greeting=True)")
+        adapter._greeting_done.set()
+    elif not resuming:
         asyncio.create_task(_dispatch_greeting(adapter))
     else:
         adapter._greeting_done.set()
@@ -177,6 +175,19 @@ def _clear_session_state(hermes_home: str) -> None:
             logger.error("Failed to clear session state: %s", err)
 
 
+def _read_onboarding_prompt(filename: str) -> str | None:
+    """Read an onboarding prompt from $STATE_DIR/onboarding/ or convos-platform/onboarding/."""
+    cfg = _config
+    candidates = []
+    if cfg:
+        candidates.append(Path(cfg.hermes_home) / "onboarding" / filename)
+    candidates.append(PLATFORM_ROOT / "convos-platform" / "onboarding" / filename)
+    for p in candidates:
+        if p.is_file():
+            return p.read_text().strip()
+    return None
+
+
 def _has_active_skill() -> bool:
     """Check if the agent has an active skill configured."""
     skills_root = os.environ.get("SKILLS_ROOT", "")
@@ -191,55 +202,32 @@ def _has_active_skill() -> bool:
 
 
 async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
-    """Send an LLM-generated welcome message via the adapter pipeline.
+    """Send a static welcome message directly via XMTP — no LLM, no gate.
 
-    Signals adapter._greeting_done when complete so queued inbound
-    messages can proceed with the greeting already in history.
+    Skill-builder context is injected lazily on the first real user message
+    (see _skill_builder_pending flag in ConvosAdapter._process_message).
     """
     try:
-        if not adapter.agent or not adapter.instance:
+        if not adapter.instance:
             return
 
         skill_active = _has_active_skill()
 
-        # Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
-        # (active skill → THE ENTRANCE, no skill → ask what the group needs).
-        greeting_content = (
-            "[System: You just joined this conversation. Send your welcome message now. "
-            "Follow the 'Welcome message' section in AGENTS.md.]"
-        )
+        # Static greeting — sent directly via XMTP, no LLM involved.
+        greeting = "Hey! What would you like to build today?"
+        logger.info("Sending static greeting (skill-active=%s)", skill_active)
+        await adapter.send_message(greeting)
 
-        logger.info("Dispatching greeting (skill-active=%s)", skill_active)
-        response = await adapter.agent.handle_message(
-            content=greeting_content,
-            sender_name="System",
-            sender_id="system",
-            timestamp=time.time(),
-            conversation_id=adapter.instance.conversation_id,
-            message_id="system-greeting",
-            group_members=adapter.instance.get_group_members(),
-        )
-        if response:
-            await adapter._dispatch_response(response)
-
-        # Phase 2: skill-builder kickoff — only if no active skill.
-        # Fires after the greeting is already delivered to the conversation.
+        # Skill-builder context is injected lazily: if no active skill, the
+        # first real user message will be prefixed with the skill-builder
+        # kickoff prompt so the agent learns the onboarding flow alongside
+        # the user's first reply.
         if not skill_active:
-            logger.info("Dispatching skill-builder kickoff (silent)")
-            # Response is intentionally discarded — the agent reads the skill
-            # into context but should not send anything to the conversation.
-            await adapter.agent.handle_message(
-                content=(
-                    "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. "
-                    "You already asked the group what they need — when they respond, follow the skill from step 1.]"
-                ),
-                sender_name="System",
-                sender_id="system",
-                timestamp=time.time(),
-                conversation_id=adapter.instance.conversation_id,
-                message_id="system-skill-builder",
-                group_members=adapter.instance.get_group_members(),
-            )
+            kickoff = _read_onboarding_prompt("skill-builder-kickoff.md")
+            if kickoff:
+                adapter._skill_builder_kickoff = kickoff
+                adapter._skill_builder_pending = True
+                logger.info("Skill-builder context will be injected on first user message")
     except Exception as err:
         logger.error(f"Greeting dispatch failed: {err}")
     finally:
@@ -406,9 +394,14 @@ def _build_runtime_status() -> dict:
     }
 
 
-async def _factory_reset() -> dict:
+_skip_greeting: bool = False
+"""When True, the next start_wired_instance call will skip the greeting dispatch."""
+
+
+async def _factory_reset(*, skip_greeting: bool = False) -> dict:
     """Full factory reset: stop adapter, clear all state, return post-reset status."""
-    global _adapter, _pending_join_task
+    global _adapter, _pending_join_task, _skip_greeting
+    _skip_greeting = skip_greeting
     cfg = get_config()
     hermes_home = cfg.hermes_home
     logger.info("Factory reset started (hermes_home=%s)", hermes_home)
@@ -479,7 +472,7 @@ async def _notify_pool_pending_join(event: str, *, conversation_id: str | None =
     """Callback to the pool manager when a pending join resolves."""
     pool_url = os.environ.get("POOL_URL", "")
     instance_id = os.environ.get("INSTANCE_ID", "")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+    gateway_token = os.environ.get("GATEWAY_TOKEN", "")
     if not pool_url or not instance_id or not gateway_token:
         return
 
@@ -501,9 +494,9 @@ async def _fetch_attestation(inbox_id: str) -> dict[str, str] | None:
     """Fetch a signed attestation from the pool manager."""
     pool_url = os.environ.get("POOL_URL")
     instance_id = os.environ.get("INSTANCE_ID")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
+    gateway_token = os.environ.get("GATEWAY_TOKEN")
     if not pool_url or not instance_id or not gateway_token:
-        logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN")
+        logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or GATEWAY_TOKEN")
         return None
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -565,6 +558,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                     identity_id=inst.identity_id,
                     env=env,
                     debug=True,
+                    skip_greeting=_skip_greeting,
                 )
                 _clear_provision_state(generation)
                 await _apply_attestation()
@@ -697,7 +691,7 @@ def _patch_cron_for_convos() -> None:
     1. run_job — convos-targeted jobs fire into the main AgentRunner
        session (same pattern as /convos/notify) instead of creating a
        standalone agent.  The agent sees full conversation history and
-       can decide whether to respond or stay SILENT.
+       can decide whether to respond or stay silent.
 
     2. _deliver_result — no-op for convos jobs because delivery already
        happened through _dispatch_response in the run_job patch.
@@ -872,7 +866,7 @@ async def _cron_tick_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _config, _cron_task, _event_loop, _server_ready
+    global _config, _cron_task, _event_loop
     _config = RuntimeConfig.from_env()
     errors = _config.validate()
     if errors:
@@ -893,7 +887,6 @@ async def lifespan(app: FastAPI):
     # Auto-resume from saved credentials (if any)
     await _try_resume_from_credentials(_config)
 
-    _server_ready = True
     yield
     if _cron_task:
         _cron_task.cancel()
@@ -927,145 +920,6 @@ app.include_router(web_tools_router)
 @app.get("/health")
 async def health():
     return {"ok": True}
-
-
-@app.get("/pool/health")
-async def pool_health():
-    global _health_cached
-    if _health_cached:
-        return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-    if not _server_ready:
-        return {"ready": False, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-    # Server is ready — either no adapter yet (awaiting provision)
-    # or adapter exists with an active instance. Cache permanently.
-    _health_cached = True
-    return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-
-# ---- /pool/restart ----
-
-@app.post("/pool/restart", dependencies=[Depends(require_auth)])
-async def pool_restart():
-    """Stop the adapter and re-resume from saved credentials.
-
-    Simulates a process restart without killing PID 1 — stops the running
-    conversation, then boots it back up from credentials on disk.  Used by
-    the lifecycle eval to verify restart-resume in CI (Docker).
-    """
-    global _adapter
-    cfg = get_config()
-
-    adapter = get_adapter()
-    if adapter:
-        try:
-            await adapter.stop()
-        except Exception as err:
-            logger.error("Error stopping adapter during restart: %s", err)
-        _adapter = None
-
-    await _try_resume_from_credentials(cfg)
-
-    adapter = get_adapter()
-    if adapter and adapter.instance:
-        return {"ok": True, "conversationId": adapter.instance.conversation_id}
-    raise HTTPException(status_code=500, detail="Resume failed after restart")
-
-
-# ---- /pool/provision ----
-
-class ProvisionRequest(BaseModel):
-    agentName: str
-    instructions: str = ""
-    joinUrl: str | None = None
-    profileImage: str | None = None
-    metadata: dict[str, str] | None = None
-
-
-@app.post("/pool/provision", dependencies=[Depends(require_auth)])
-async def pool_provision(body: ProvisionRequest):
-    if get_adapter() and get_adapter().instance:
-        raise HTTPException(
-            status_code=409,
-            detail="Instance already bound to a conversation.",
-        )
-
-    cfg = get_config()
-    env = cfg.xmtp_env
-
-    if body.instructions:
-        write_instructions(cfg.hermes_home, body.instructions)
-
-    instance_id = os.environ.get("INSTANCE_ID")
-    meta = {**(body.metadata or {}), **({"instanceId": instance_id} if instance_id else {})} or None
-
-    try:
-        if body.joinUrl:
-            inst, status, conversation_id = await ConvosInstance.join_conversation(
-                env,
-                body.joinUrl,
-                profile_name=body.agentName,
-                profile_image=body.profileImage,
-                metadata=meta,
-                timeout=55,
-                debug=True,
-            )
-            if status != "joined" or not conversation_id or not inst:
-                # Return pending_acceptance instead of 503 — pool will track the state
-                gen = _set_provision_state("pending_acceptance", invite_url=body.joinUrl, watching=True)
-                global _pending_join_task
-                _pending_join_task = asyncio.create_task(
-                    _watch_pending_join(body.joinUrl, gen, cfg)
-                )
-                return {
-                    "ok": True,
-                    "conversationId": None,
-                    "inviteUrl": body.joinUrl,
-                    "joined": False,
-                    "status": "pending_acceptance",
-                }
-
-            await start_wired_instance(
-                conversation_id=conversation_id,
-                identity_id=inst.identity_id,
-                env=env,
-                debug=True,
-            )
-            await _apply_attestation()
-            return {
-                "ok": True,
-                "conversationId": conversation_id,
-                "inviteUrl": body.joinUrl,
-                "joined": True,
-            }
-        else:
-            inst, result = await ConvosInstance.create_conversation(
-                env,
-                name=body.agentName,
-                profile_name=body.agentName,
-                debug=True,
-            )
-
-            ready_info = await start_wired_instance(
-                conversation_id=result["conversationId"],
-                identity_id=inst.identity_id,
-                env=env,
-                name=body.agentName,
-                debug=True,
-            )
-            await _apply_attestation()
-
-            return {
-                "ok": True,
-                "conversationId": result["conversationId"],
-                "inviteUrl": ready_info.invite_url or result["inviteUrl"],
-                "joined": False,
-            }
-    except HTTPException:
-        raise
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
 
 
 # ---- /convos/status ----
@@ -1110,6 +964,7 @@ async def convos_conversation(body: ConversationRequest):
             env=env,
             name=body.name,
             debug=True,
+            skip_greeting=_skip_greeting,
         )
         await _apply_attestation()
 
@@ -1153,13 +1008,20 @@ async def convos_join(body: JoinRequest):
         )
 
         if status != "joined" or not conversation_id or not inst:
-            return {"status": "waiting_for_acceptance"}
+            # Start background watcher to retry until accepted
+            gen = _set_provision_state("pending_acceptance", invite_url=body.inviteUrl, watching=True)
+            global _pending_join_task
+            _pending_join_task = asyncio.create_task(
+                _watch_pending_join(body.inviteUrl, gen, cfg)
+            )
+            return {"status": "pending_acceptance"}
 
         await start_wired_instance(
             conversation_id=conversation_id,
             identity_id=inst.identity_id,
             env=env,
             debug=True,
+            skip_greeting=_skip_greeting,
         )
         await _apply_attestation()
 
@@ -1319,9 +1181,13 @@ async def convos_explode():
 
 # ---- /convos/reset ----
 
+class ResetBody(BaseModel):
+    skipGreeting: bool = False
+
+
 @app.post("/convos/reset", dependencies=[Depends(require_auth)])
-async def convos_reset():
-    return await _factory_reset()
+async def convos_reset(body: ResetBody = ResetBody()):
+    return await _factory_reset(skip_greeting=body.skipGreeting)
 
 
 # ---- /agent/query and /agent/reset-history (eval surface) ----

@@ -26,7 +26,7 @@ import logging
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,7 @@ async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
     instance_id = os.environ.get("INSTANCE_ID")
     pool_url = os.environ.get("POOL_URL")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
+    gateway_token = os.environ.get("GATEWAY_TOKEN")
 
     if not instance_id or not pool_url or not gateway_token:
         logger.info("Self-destruct skipped: not a pool-managed instance")
@@ -96,7 +96,6 @@ class ParsedResponse:
     profile_name: str | None = None
     profile_image: str | None = None
     profile_metadata: dict[str, str] = field(default_factory=dict)
-    silent: bool = False  # agent explicitly chose not to reply
 
 
 def parse_response(raw: str) -> ParsedResponse:
@@ -107,11 +106,6 @@ def parse_response(raw: str) -> ParsedResponse:
 
     for line in lines:
         stripped = line.strip()
-
-        # SILENT — agent explicitly chose not to reply
-        if stripped == "SILENT":
-            result.silent = True
-            continue
 
         # REACT:messageId:emoji or REACT:messageId:emoji:remove
         m = re.match(r'^REACT:([^:\s]+):([^:\s]+)(?::(remove))?$', stripped)
@@ -341,6 +335,8 @@ class ConvosAdapter:
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
         self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[None], asyncio.Task[None] | None]] = {}
         self._greeting_done = asyncio.Event()  # gates message processing until greeting completes
+        self._skill_builder_pending = False  # inject skill-builder kickoff on first real user message
+        self._skill_builder_kickoff: str = ""  # set by _dispatch_greeting if no active skill
         # Interrupt-and-queue: tracks whether an agent call is in-flight and
         # holds the latest pending message so we can interrupt + replay.
         self._agent_running = False
@@ -538,10 +534,17 @@ class ConvosAdapter:
                 logger.debug(f"Failed to parse {msg.content_type}: {err}")
             return
 
-        # Wait for greeting to finish before processing real messages.
-        # Messages that arrive during the greeting's LLM call queue here
-        # so they see the greeting in history instead of empty context.
+        # Wait for the static greeting to be sent before processing messages.
         await self._greeting_done.wait()
+
+        # Inject skill-builder context on the first real user message so the
+        # agent learns the onboarding flow alongside the user's first reply —
+        # no separate LLM turn needed.
+        if self._skill_builder_pending and msg.sender_id != "system":
+            self._skill_builder_pending = False
+            if self._skill_builder_kickoff:
+                msg = replace(msg, content=f"{self._skill_builder_kickoff}\n\n{msg.content}")
+                logger.info("Injected skill-builder context into first user message")
 
         # ── Interrupt-and-queue: if agent is busy, interrupt and stash ──
         if self._agent_running:
@@ -819,7 +822,7 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Send attachment failed: {err}")
 
-        # Renew profile image on any outbound activity (before SILENT check
+        # Renew profile image on any outbound activity (before suppress check
         # so media-only sends still trigger renewal)
         raw_text = strip_markdown(parsed.text)
         policy = await apply_outbound_policy(raw_text)
@@ -829,11 +832,6 @@ class ConvosAdapter:
                 await self._renew_profile_image_on_activity()
             except Exception as err:
                 logger.error(f"Profile image renewal on outbound activity failed: {err}")
-
-        # Agent explicitly chose silence — side effects above still fire, but no text
-        if parsed.silent:
-            logger.info("Agent chose SILENT — suppressing text reply")
-            return
 
         if policy.suppress:
             logger.info("Outbound policy suppressed text reply")

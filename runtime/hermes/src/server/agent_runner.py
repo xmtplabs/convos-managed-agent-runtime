@@ -354,10 +354,6 @@ class AgentRunner:
             )
         self._last_reasoning_texts = reasoning_texts
 
-        # Normalize SILENT: the agent chose not to reply. Strip the marker
-        # so it never appears in conversation history as assistant text.
-        is_silent = bool(response and "SILENT" in response.strip().splitlines())
-
         # Append to shared history after the call completes.
         # Hermes handles context window management internally via
         # ContextCompressor and session splitting.
@@ -366,13 +362,13 @@ class AgentRunner:
         # "Operation interrupted" diagnostic is not a real reply.
         async with self._history_lock:
             self._conversation_history.append({"role": "user", "content": envelope})
-            if response and not is_silent and not was_interrupted:
+            if response and not was_interrupted:
                 self._conversation_history.append({
                     "role": "assistant",
                     "content": response,
                 })
 
-        if was_interrupted or is_silent or not response or not response.strip():
+        if was_interrupted or not response or not response.strip():
             return None
 
         return response

@@ -8,10 +8,17 @@ RUN apt-get update \
     git \
     jq \
     ripgrep \
-    chromium \
+    chromium curl \
     fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
     libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 \
     libxkbcommon0 libxrandr2 xdg-utils \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSf https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+      | tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
+      > /etc/apt/sources.list.d/ngrok.list \
+  && apt-get update && apt-get install -y --no-install-recommends ngrok \
   && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm@8.7.5
@@ -30,7 +37,8 @@ COPY runtime/openclaw/extensions /app/openclaw/extensions
 COPY runtime/convos-platform /app/convos-platform
 COPY runtime/lib /app/lib
 COPY runtime/openclaw/scripts ./scripts
-COPY runtime/openclaw/src ./src
+# Shared pool server — compile TypeScript at build time (needs devDeps despite NODE_ENV=production)
+RUN cd /app/convos-platform/pool-server && NODE_ENV=development npm install --ignore-scripts && npx tsc && rm -rf node_modules
 COPY runtime/package.json /app/runtime-version.json
 COPY runtime/evals ./evals
 RUN chmod +x /app/scripts/*.sh /app/scripts/entrypoint.sh

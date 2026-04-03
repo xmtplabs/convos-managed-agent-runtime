@@ -35,7 +35,6 @@ export async function createInstance(
   const vars: Record<string, string> = { ...buildInstanceEnv() };
   vars.INSTANCE_ID = instanceId;
   vars.GATEWAY_TOKEN = gatewayToken;
-  vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken; // backward compat with old runtime images
 
   // Provision OpenRouter key
   const services: CreateInstanceResponse["services"] = {};

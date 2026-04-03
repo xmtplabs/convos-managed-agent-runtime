@@ -11,7 +11,7 @@
 
 const POOL_URL = process.env.POOL_URL;
 const INSTANCE_ID = process.env.INSTANCE_ID;
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
 const useProxy = !!(POOL_URL && INSTANCE_ID && GATEWAY_TOKEN);
 
 async function getProxyInfo() {
@@ -47,6 +47,7 @@ export default async function info() {
       ? ngrok.replace(/\/$/, "")
       : `http://127.0.0.1:${port}`;
   const servicesUrl = `${base}/web-tools/services`;
+  const logsUrl = `${base}/web-tools/logs`;
 
-  console.log(JSON.stringify({ email, phone, servicesUrl }, null, 2));
+  console.log(JSON.stringify({ email, phone, servicesUrl, logsUrl }, null, 2));
 }

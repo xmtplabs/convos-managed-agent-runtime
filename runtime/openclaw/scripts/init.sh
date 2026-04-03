@@ -13,6 +13,9 @@ if [ -f "$ROOT/openclaw.json" ]; then
 else
   RUNTIME_DIR="$ROOT/openclaw"
 fi
+# Alias GATEWAY_TOKEN → OPENCLAW_GATEWAY_TOKEN for the openclaw binary
+[ -n "$GATEWAY_TOKEN" ] && export OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$GATEWAY_TOKEN}"
+
 STATE_DIR="${OPENCLAW_STATE_DIR:-$ROOT/.openclaw-dev}"
 WORKSPACE_DIR="$STATE_DIR/workspace"
 SKILLS_DIR="$STATE_DIR/workspace/skills"

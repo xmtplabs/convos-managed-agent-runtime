@@ -158,6 +158,9 @@ CRON_DIR="$STATE_DIR/cron" . "$LIB_DIR/crons.sh"
 
 # --- Webhooks handle email/SMS — no cronjob needed ---
 
+# --- ngrok tunnel (when NGROK_URL is set) ---
+. "$LIB_DIR/ngrok.sh"
+
 brand_done "Gateway ready"
 brand_flush
 

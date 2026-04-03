@@ -2,20 +2,30 @@
 // E2e eval provider for XMTP conversations.
 // Creates a conversation, joins the runtime, sends messages via convos-cli,
 // waits for the agent, then returns the transcript for assertion.
+//
+// Suite-level config (via YAML):
+//   skipGreeting: false   — keep the greeting (default: true)
 
 import { execFileSync } from 'child_process';
 import { createHarness } from '../lib/convos-harness.mjs';
 import { sleep, elapsed, log as _log } from '../lib/utils.mjs';
 import { runtime } from '../lib/runtime.mjs';
 
-const h = createHarness('convos', { conversationPrefix: 'QA Eval' });
-
 function log(msg) { _log('eval', msg); }
 
 export default class ConvosProvider {
+  constructor(options) {
+    this.config = options?.config || {};
+    this.h = createHarness('convos', {
+      conversationPrefix: 'QA Eval',
+      skipGreeting: this.config.skipGreeting !== false, // default true
+    });
+  }
+
   id() { return 'convos'; }
 
   async callApi(prompt, context) {
+    const h = this.h;
     const idx = h.nextTest();
     const desc = context.test?.description || `Test ${idx}`;
     const t = Date.now();

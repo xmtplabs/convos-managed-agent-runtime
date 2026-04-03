@@ -8,7 +8,7 @@ const LOW_CREDIT_THRESHOLD = 0.50;
 
 export async function checkCreditsLow(): Promise<boolean> {
   const instanceId = process.env.INSTANCE_ID;
-  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const gatewayToken = process.env.GATEWAY_TOKEN;
   const poolUrl = process.env.POOL_URL;
   if (!instanceId || !gatewayToken || !poolUrl) return false;
 

@@ -74,7 +74,7 @@ function clearAgentCronJobs(jobsFile) {
 export default {
   name: 'hermes',
   defaultPort: '8080',
-  healthPath: '/pool/health',
+  healthPath: '/health',
   restartPath: '/pool/restart',
   filterLines: (lines) => lines.filter((l) => {
     if (l.match(/^session_id:\s/)) return false;

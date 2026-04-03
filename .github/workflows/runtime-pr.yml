@@ -108,20 +108,28 @@ jobs:
               - 'runtime/convos-platform/context/INBOUND-FORMATS.md'
               - 'runtime/convos-platform/context/*/MESSAGING.md'
               - 'runtime/convos-platform/context/*/PROFILE-UPDATES.md'
+            onboarding:
+              - 'runtime/convos-platform/onboarding/**'
+              - 'runtime/convos-platform/context/IDENTITY.md'
+              - 'runtime/convos-platform/context/*/IDENTITY.md'
+              - 'runtime/convos-platform/skills/skill-builder/**'
+              - 'runtime/openclaw/extensions/convos/src/channel.ts'
+              - 'runtime/hermes/src/server/server.py'
             lifecycle:
               - 'runtime/openclaw/scripts/**'
               - 'runtime/hermes/scripts/**'
               - 'runtime/lib/**'
             services:
               - 'runtime/convos-platform/skills/services/**'
-            # webhooks: disabled until ngrok is set up in CI (#773)
-            #   - 'runtime/convos-platform/skills/services/**'
-            #   - 'runtime/openclaw/extensions/convos/**'
-            #   - 'runtime/hermes/src/**'
+            webhooks:
+              - 'runtime/convos-platform/skills/services/**'
+              - 'runtime/openclaw/extensions/convos/**'
+              - 'runtime/hermes/src/**'
             silence:
               - 'runtime/convos-platform/outbound-policy.json'
               - 'runtime/convos-platform/context/TOOL-DISCIPLINE.md'
               - 'runtime/convos-platform/context/*/TOOL-DISCIPLINE.md'
+              - 'runtime/hermes/src/**'
             cron:
               - 'runtime/convos-platform/context/CRON.md'
               - 'runtime/convos-platform/context/*/CRON.md'
@@ -140,7 +148,7 @@ jobs:
           BASE="${{ github.event.pull_request.base.ref }}"
 
           # All suites with their config (fresh=true only for provision)
-          ALL='[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
+          ALL='[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"onboarding","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"webhooks","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
 
           # Non-dev branches → run all
           if [ "$BASE" != "dev" ]; then
@@ -151,7 +159,7 @@ jobs:
 
           # Build list from dorny outputs — only matched suites run
           MATCHED=""
-          for suite in soul knows skills memory convos lifecycle services silence cron models delegation; do
+          for suite in soul knows skills memory convos onboarding lifecycle services silence cron models delegation webhooks; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
               MATCHED="$MATCHED $suite"
             fi
@@ -181,9 +189,8 @@ jobs:
       dockerfile: runtime/openclaw/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
-      health_path: "/__openclaw__/canvas/"
-      docker_run_extra: "-e OPENCLAW_STATE_DIR=/app"
-      docker_cmd: "node src/pool-server.js"
+      docker_run_extra: "-e OPENCLAW_STATE_DIR=/app -e RUNTIME_TYPE=openclaw"
+      docker_cmd: "node convos-platform/pool-server/dist/index.js"
       buildx_driver: docker
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
@@ -202,6 +209,8 @@ jobs:
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: ${{ needs.prepare.outputs.publish_tags }}
       needs_checkout: true
+      docker_run_extra: "-e RUNTIME_TYPE=hermes"
+      docker_cmd: "node convos-platform/pool-server/dist/index.js"
       eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
 
   # ── Promote on merge ─────────────────────────────────────────────────

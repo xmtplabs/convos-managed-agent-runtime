@@ -82,30 +82,55 @@ function buildCreditMessage(): string {
 
 // ── Public API ──────────────────────────────────────────────────────────
 
-export async function applyOutboundTextPolicy(text: string): Promise<OutboundTextPolicyResult> {
-  const trimmed = text.trim();
+/**
+ * Strip suppress tokens (e.g. SILENT, HEARTBEAT_OK) from text.
+ * - Lines consisting solely of a token are removed entirely.
+ * - Inline occurrences (token as a standalone word) are stripped from within lines.
+ * Handles markdown-wrapped variants like **SILENT**, `SILENT`, etc.
+ */
+export function stripSuppressLines(text: string): string {
+  // Build a regex that matches any suppress token as a standalone word,
+  // optionally wrapped in markdown formatting characters.
+  if (SUPPRESS_TOKENS.size === 0) return text;
+  const escaped = [...SUPPRESS_TOKENS].map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const tokenPattern = new RegExp(
+    `[\\*_\`~]*\\b(?:${escaped.join("|")})\\b[\\*_\`~]*`,
+    "g",
+  );
 
-  if (SUPPRESS_TOKENS.has(trimmed)) {
+  return text
+    .split("\n")
+    .map((line) => line.replace(tokenPattern, "").trim())
+    .filter((line) => line.length > 0)
+    .join("\n")
+    .trim();
+}
+
+export async function applyOutboundTextPolicy(text: string): Promise<OutboundTextPolicyResult> {
+  // Strip suppress-token lines (e.g. SILENT, HEARTBEAT_OK).
+  // If real content remains, deliver it.  Only suppress when nothing is left.
+  const cleaned = stripSuppressLines(text);
+  if (!cleaned) {
     return { suppress: true, text: "" };
   }
 
   // Rate-limit check BEFORE credit check — "rate limit exceeded" contains
   // the substring "limit exceeded" which would false-positive on creditPatterns.
-  if (isRateLimited(text)) {
+  if (isRateLimited(cleaned)) {
     return { suppress: true, text: "" };
   }
 
-  if (isCreditError(text)) {
+  if (isCreditError(cleaned)) {
     return { suppress: false, text: buildCreditMessage() };
   }
 
-  if (text.startsWith(CONTEXT_OVERFLOW_PREFIX) && await checkCreditsLow()) {
+  if (cleaned.startsWith(CONTEXT_OVERFLOW_PREFIX) && await checkCreditsLow()) {
     return { suppress: false, text: buildCreditMessage() };
   }
 
-  if (isOverloadedText(text)) {
+  if (isOverloadedText(cleaned)) {
     return { suppress: true, text: "" };
   }
 
-  return { suppress: false, text };
+  return { suppress: false, text: cleaned };
 }

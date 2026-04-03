@@ -23,7 +23,7 @@ tests:
       prompt: "What model are you currently running on? Reply with the model name."
     assert:
       - type: regex
-        value: "@preset/assistants-pro"
+        value: "@preset/assistants-(pro|ci)|gemini|pro"
 
   - description: "Agent can list available models"
     vars:

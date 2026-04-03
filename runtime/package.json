@@ -7,7 +7,7 @@
     "keys": "cd openclaw && sh scripts/keys.sh",
     "apply": "cd openclaw && sh scripts/apply-config.sh",
     "install-deps": "cd openclaw && sh scripts/install-deps.sh",
-    "pool-server": "cd openclaw && node src/pool-server.js",
+    "pool-server": "node convos-platform/pool-server/dist/index.js",
     "docker:build:openclaw": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
     "docker:run:openclaw": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
     "start:hermes": "cd hermes && pnpm start",

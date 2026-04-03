@@ -15,21 +15,19 @@ When removed, the page returns 403.
 
 ## Enable sharing
 
-1. Get the URL:
+1. Get the logs URL:
 
 ```bash
 node "$SKILLS_ROOT/services/scripts/services.mjs" info
 ```
 
-This returns JSON with a `servicesUrl` field. Replace `/services` with `/logs` to get the logs URL.
+Use the `logsUrl` field from the JSON output.
 
 2. Create the flag file:
 
 ```bash
 touch "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
 ```
-
-`HERMES_HOME` is always set on Hermes, `OPENCLAW_STATE_DIR` is always set on OpenClaw. One will always resolve.
 
 ## Disable sharing
 
@@ -42,11 +40,11 @@ rm -f "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
 **When enabling:**
 > Your logs are now shared. Anyone with this link can view your conversation history:
 >
-> {servicesUrl with /services replaced by /logs}
+> {logsUrl from services.mjs info}
 >
 > Say "stop sharing my logs" to disable access.
 
-Never make up a URL. Always derive it from the `servicesUrl` returned by `services.mjs info`.
+Never make up a URL. Always use the `logsUrl` returned by `services.mjs info`.
 
 **When disabling:**
 > Log sharing is off. The link no longer works.
