@@ -3,6 +3,7 @@
 
 import { execFileSync } from 'child_process';
 import { resolveConvos, sleep } from './utils.mjs';
+import { runtime } from './runtime.mjs';
 
 const CONVOS = resolveConvos();
 const ENV = process.env.XMTP_ENV || 'dev';
@@ -303,6 +304,18 @@ export function cronJobDeleted(output, context) {
   };
 }
 
+export function agentRespondedToReaction(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pass = meta.reactionTriggered === true;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Agent responded to own-message reaction'
+      : 'FAIL: agent did not respond to reaction on its own message',
+  };
+}
+
 export function responseTimeBelowThreshold(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const actual = meta.responseTimeMs;
@@ -320,4 +333,130 @@ export function responseTimeBelowThreshold(output, context) {
       ? `Response time ${actual}ms is within ${threshold}ms threshold`
       : `Response time ${actual}ms exceeds ${threshold}ms threshold`,
   };
+}
+
+export function agentUsedReplyTo(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pass = meta.agentUsedReply === true;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Agent response was sent as a reply (contentType: reply)'
+      : 'Agent response was plain text, not a reply — replyTo pipeline may be broken',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Skill-builder assertions — verify skill creation and activation via the
+// /web-tools/skills/api endpoint (reads $WORKSPACE_SKILLS/generated/skills.json).
+// ---------------------------------------------------------------------------
+
+function curlSkillsApi() {
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
+  const token = process.env.GATEWAY_TOKEN;
+  const url = `http://localhost:${port}/web-tools/skills/api`;
+  const curlArgs = ['-s', url];
+  if (token) curlArgs.splice(1, 0, '-H', `Authorization: Bearer ${token}`);
+  const res = execFileSync('curl', curlArgs, {
+    encoding: 'utf-8',
+    timeout: 10_000,
+  }).trim();
+  if (!res) throw new Error(`Empty response from ${url}`);
+  try {
+    return JSON.parse(res);
+  } catch {
+    throw new Error(`Invalid JSON from ${url}: ${res.slice(0, 200)}`);
+  }
+}
+
+export function skillJsonWritten() {
+  try {
+    sleep(3_000);
+    const data = curlSkillsApi();
+    const skills = data.skills || [];
+    if (skills.length === 0) {
+      return { pass: false, score: 0, reason: 'skills.json has no skill entries' };
+    }
+    const entry = skills[skills.length - 1];
+    const required = ['id', 'slug', 'agentName', 'description', 'prompt', 'category', 'emoji'];
+    const missing = required.filter(k => !entry[k]);
+    if (missing.length > 0) {
+      return { pass: false, score: 0, reason: `Skill entry missing required fields: ${missing.join(', ')}` };
+    }
+    if (entry.prompt.length < 200) {
+      return { pass: false, score: 0, reason: `Skill prompt too short (${entry.prompt.length} chars, expected 200+)` };
+    }
+    return {
+      pass: true,
+      score: 1,
+      reason: `Skill "${entry.agentName}" (${entry.slug}) written — ${entry.prompt.length}-char prompt, category=${entry.category}`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to read /web-tools/skills/api: ${err.message}` };
+  }
+}
+
+export function skillActivated() {
+  try {
+    sleep(5_000);
+    const data = curlSkillsApi();
+    if (!data.active) {
+      return { pass: false, score: 0, reason: 'skills.json "active" field is null — skill was not activated' };
+    }
+    const entry = (data.skills || []).find(s => s.slug === data.active);
+    return {
+      pass: true,
+      score: 1,
+      reason: entry
+        ? `Skill activated: "${entry.agentName}" (${data.active})`
+        : `Skill activated: slug="${data.active}"`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to read /web-tools/skills/api: ${err.message}` };
+  }
+}
+
+export function logSharingEnabled(output) {
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
+  const url = `http://localhost:${port}/web-tools/logs/api`;
+  try {
+    sleep(2_000);
+    const res = execFileSync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', url], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+    }).trim();
+    const pass = res === '200';
+    return {
+      pass,
+      score: pass ? 1 : 0,
+      reason: pass
+        ? `Logs endpoint returned 200 — sharing is enabled`
+        : `Logs endpoint returned ${res} — sharing not enabled (expected 200)`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to curl logs endpoint: ${err.message}` };
+  }
+}
+
+export function logSharingDisabled(output) {
+  const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
+  const url = `http://localhost:${port}/web-tools/logs/api`;
+  try {
+    sleep(2_000);
+    const res = execFileSync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', url], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+    }).trim();
+    const pass = res === '403';
+    return {
+      pass,
+      score: pass ? 1 : 0,
+      reason: pass
+        ? `Logs endpoint returned 403 — sharing is disabled`
+        : `Logs endpoint returned ${res} — expected 403 (sharing should be off)`,
+    };
+  } catch (err) {
+    return { pass: false, score: 0, reason: `Failed to curl logs endpoint: ${err.message}` };
+  }
 }

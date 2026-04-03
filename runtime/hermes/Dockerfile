@@ -1,5 +1,5 @@
 # Convos agent runtime — Hermes agent on Railway
-FROM python:3.11-bookworm
+FROM python:3.11-bookworm@sha256:12e6e9b778363eaa84d39ec79d7ee55cc2a5fc6934e1cc89a2f041637c028ba7
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -15,21 +15,28 @@ RUN apt-get update \
   && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g pnpm@9
+RUN curl -sSf https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+      | tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
+      > /etc/apt/sources.list.d/ngrok.list \
+  && apt-get update && apt-get install -y --no-install-recommends ngrok \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g pnpm@8.7.5
 
 WORKDIR /app
 
 # uv — fast Python package manager (recommended by Hermes project)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN curl -LsSf https://astral.sh/uv/0.11.2/install.sh | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 # FastAPI + uvicorn (runtime server deps)
-COPY runtime/hermes/requirements.txt /app/requirements.txt
-RUN uv pip install --system --no-cache -r requirements.txt
+COPY runtime/hermes/requirements.txt runtime/hermes/requirements.lock /app/
+RUN uv pip install --system --no-cache -r requirements.lock
 
 # Node dependencies (convos CLI only)
-COPY runtime/hermes/package.json runtime/hermes/pnpm-lock.yaml* /app/
-RUN CI=true pnpm install --no-frozen-lockfile
+COPY runtime/hermes/package.json runtime/hermes/pnpm-lock.yaml /app/
+RUN CI=true pnpm install --frozen-lockfile
 ENV NODE_PATH=/app/node_modules
 ENV PATH="/app/node_modules/.bin:${PATH}"
 
@@ -47,16 +54,18 @@ COPY runtime/package.json /app/runtime-version.json
 
 # Application code
 COPY runtime/hermes/src /app/src
-COPY runtime/shared/web-tools /app/web-tools
-COPY runtime/shared/workspace /app/shared-workspace
-COPY runtime/shared/scripts /app/shared-scripts
-COPY runtime/hermes/workspace /app/workspace
+COPY runtime/hermes/config.yaml /app/config.yaml
+COPY runtime/convos-platform /app/convos-platform
+COPY runtime/lib /app/lib
 COPY runtime/hermes/scripts /app/scripts
+# Shared pool server — compile TypeScript at build time
+RUN cd /app/convos-platform/pool-server && npm install --ignore-scripts && npx tsc && rm -rf node_modules
 RUN chmod +x /app/scripts/*.sh
 
 # HERMES_HOME — sync.sh populates this on boot from /app/workspace
 ENV HERMES_HOME=/app/.hermes
 ENV SKILLS_ROOT=/app/.hermes/skills
+ENV WORKSPACE_SKILLS=/app/.hermes/workspace/skills
 
 ENV PORT=8080
 

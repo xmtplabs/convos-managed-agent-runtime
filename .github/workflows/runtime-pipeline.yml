@@ -65,10 +65,9 @@ on:
         type: string
         default: "type=gha,mode=max"
       eval_matrix:
-        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]"
+        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]. Defaults to .github/eval-matrix.json"
         required: false
         type: string
-        default: '[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
 
 jobs:
   build:
@@ -100,15 +99,34 @@ jobs:
           retention-days: 1
           compression-level: 0
 
-  eval:
-    name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
+  resolve-matrix:
+    name: Resolve eval matrix
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with: { sparse-checkout: '.github/eval-matrix.json', sparse-checkout-cone-mode: false }
+      - id: resolve
+        env:
+          EVAL_MATRIX_INPUT: ${{ inputs.eval_matrix }}
+        run: |
+          if [ -n "$EVAL_MATRIX_INPUT" ]; then
+            echo "matrix=$EVAL_MATRIX_INPUT" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix=$(jq -c . .github/eval-matrix.json)" >> "$GITHUB_OUTPUT"
+          fi
+
+  eval:
+    name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
+    needs: [build, resolve-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJson(inputs.eval_matrix) }}
+        include: ${{ fromJson(needs.resolve-matrix.outputs.matrix) }}
     steps:
       - if: inputs.needs_checkout
         uses: actions/checkout@v5
@@ -126,13 +144,14 @@ jobs:
             -e EVAL_MODE=1 \
             -e OPENROUTER_API_KEY="${{ secrets.OPENROUTER_API_KEY }}" \
             -e EXA_API_KEY="${{ secrets.EXA_API_KEY }}" \
-            -e OPENCLAW_GATEWAY_TOKEN="${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" \
+            -e GATEWAY_TOKEN="${{ secrets.GATEWAY_TOKEN }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
             ${{ !matrix.fresh && format('-e POOL_URL="{0}"', secrets.POOL_URL) || '' }} \
             ${{ !matrix.fresh && format('-e INSTANCE_ID="{0}"', secrets.INSTANCE_ID) || '' }} \
             ${{ !matrix.fresh && format('-e AGENTMAIL_API_KEY="{0}"', secrets.AGENTMAIL_API_KEY) || '' }} \
             ${{ !matrix.fresh && format('-e AGENTMAIL_INBOX_ID="{0}"', secrets.AGENTMAIL_INBOX_ID) || '' }} \
+            ${{ matrix.suite == 'webhooks' && format('-e NGROK_URL="{0}" -e NGROK_AUTHTOKEN="{1}"', secrets.NGROK_URL, secrets.NGROK_AUTHTOKEN) || '' }} \
             ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
             ${{ inputs.docker_run_extra }} \
             ${{ inputs.image }}:${{ inputs.pending_tag }} \
@@ -141,8 +160,8 @@ jobs:
       - name: Wait for health
         run: |
           HEALTH_CURL_ARGS=(-sf)
-          if [ -n "${{ secrets.OPENCLAW_GATEWAY_TOKEN }}" ]; then
-            HEALTH_CURL_ARGS+=(-H "Authorization: Bearer ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}")
+          if [ -n "${{ secrets.GATEWAY_TOKEN }}" ]; then
+            HEALTH_CURL_ARGS+=(-H "Authorization: Bearer ${{ secrets.GATEWAY_TOKEN }}")
           fi
           for i in $(seq 1 120); do
             if curl "${HEALTH_CURL_ARGS[@]}" http://localhost:8080${{ inputs.health_path }} > /dev/null 2>&1; then
@@ -158,6 +177,7 @@ jobs:
           docker exec \
             -e "EVAL_OPENROUTER_API_KEY=${{ secrets.EVAL_OPENROUTER_API_KEY }}" \
             -e "EVAL_RESULTS_DIR=/tmp/eval-results" \
+            -e "EVAL_MAX_FAILURES=${{ matrix.maxFailures || '1' }}" \
             eval-runtime timeout ${{ matrix.timeout }} \
               pnpm evals ${{ inputs.runtime }} ${{ matrix.suite }}
 

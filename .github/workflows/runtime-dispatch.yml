@@ -55,12 +55,11 @@ jobs:
       dockerfile: runtime/openclaw/Dockerfile
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: "${{ needs.prepare.outputs.sha }} ${{ inputs.tag }}"
-      health_path: "/__openclaw__/canvas/"
-      docker_run_extra: "-e OPENCLAW_STATE_DIR=/app"
-      docker_cmd: "node src/pool-server.js"
+      docker_run_extra: "-e OPENCLAW_STATE_DIR=/app -e RUNTIME_TYPE=openclaw"
+      docker_cmd: "node convos-platform/pool-server/dist/index.js"
       buildx_driver: docker
-      cache_from: type=gha
-      cache_to: "type=gha,mode=max"
+      cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:${{ inputs.tag }}"
+      cache_to: type=inline
 
   hermes:
     name: Hermes
@@ -75,3 +74,5 @@ jobs:
       pending_tag: ${{ needs.prepare.outputs.pending }}
       publish_tags: "${{ needs.prepare.outputs.sha }} ${{ inputs.tag }}"
       needs_checkout: true
+      docker_run_extra: "-e RUNTIME_TYPE=hermes"
+      docker_cmd: "node convos-platform/pool-server/dist/index.js"

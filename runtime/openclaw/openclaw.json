@@ -45,12 +45,6 @@
       "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
       "userTimezone": "America/New_York",
-    
-      "heartbeat": {
-        "every": "30m",
-        "model": "openrouter/@preset/assistants-lite",
-        "target": "convos"
-      },
       "subagents": {},
       "model": {
         "primary": "openrouter/@preset/assistants-pro"

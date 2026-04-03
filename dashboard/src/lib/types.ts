@@ -8,6 +8,7 @@ export interface AgentSkill {
   emoji: string;
   tools: string[];
   published: boolean;
+  featured: boolean;
   createdAt: string;
   updatedAt: string;
 }

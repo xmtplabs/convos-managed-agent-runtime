@@ -1,6 +1,6 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (12 suites).
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (14 suites).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
@@ -8,8 +8,11 @@
 | **skills** | `skills.yaml` | Parallel (5x) | Services — email, SMS, browse, search |
 | **soul** | `soul.yaml` | Parallel (5x) | Personality & values — brevity, privacy, empathy, identity |
 | **provision** | `provision.yaml` | Parallel (5x) | Provisioning protocol — check-first, ask-consent, SMS disclosure |
+| **services** | `services.yaml` | Parallel (5x) | Services page and integration management |
 | **convos** | `convos.yaml` | Sequential (1x) | Convos capabilities — profile updates, vision, group awareness |
-| **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — join, welcome message, self-destruct |
+| **onboarding** | `onboarding.yaml` | Sequential (1x) | Onboarding — greeting + skill-builder discovery flow |
+| **skill-builder** | `skill-builder.yaml` | Sequential (1x) | Skill builder — optimistic build: describe → build + activate |
+| **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — restart resilience, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
 | **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
@@ -39,7 +42,7 @@ pnpm evals hermes convos -- --filter-pattern "welcome"
 
 Required in `runtime/.env` (shared by all runtimes):
 
-- `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
+- `GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`
@@ -74,7 +77,9 @@ evals/
 │   ├── models.yaml
 │   ├── delegation.yaml
 │   ├── cron.yaml
-│   └── webhooks.yaml
+│   ├── webhooks.yaml
+│   ├── skill-builder.yaml
+│   └── services.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
 │   ├── convos.provider.mjs
@@ -116,4 +121,4 @@ All suites run as parallel matrix jobs in PR and dispatch workflows:
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
 
-All 12 suites auto-discover from `suites/*.yaml` — no matrix config needed.
+All 14 suites auto-discover from `suites/*.yaml` — no matrix config needed.

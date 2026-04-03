@@ -15,13 +15,25 @@ const ENV = process.env.XMTP_ENV || 'dev';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
-// Shared path resolution for Docker vs local.
+// Anchor-based path resolution — no parent-counting (#816).
 // ---------------------------------------------------------------------------
 
+/** Walk up from *start* to find the nearest directory containing *marker*. */
+function findAncestor(start, marker) {
+  let dir = resolve(start);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, marker))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+const PLATFORM_ROOT = findAncestor(__dirname, 'convos-platform') || '/app';
+
 export function resolveSkillsRoot() {
-  return existsSync('/app/shared-workspace/skills')
-    ? '/app/shared-workspace/skills'
-    : resolve(__dirname, '../../shared/workspace/skills');
+  return join(PLATFORM_ROOT, 'convos-platform', 'skills');
 }
 
 
@@ -42,9 +54,9 @@ export function createHarness(tag, opts = {}) {
     process.env.GATEWAY_INTERNAL_PORT ||
     runtime.defaultPort;
 
-  const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const GATEWAY_TOKEN = process.env.GATEWAY_TOKEN;
   if (!GATEWAY_TOKEN) {
-    console.error(`[eval:${tag}] OPENCLAW_GATEWAY_TOKEN is required. Set it in runtime/.env.`);
+    console.error(`[eval:${tag}] GATEWAY_TOKEN is required. Set it in runtime/.env.`);
     process.exit(1);
   }
 
@@ -111,13 +123,14 @@ export function createHarness(tag, opts = {}) {
   function setup() {
     const t = Date.now();
 
-    log('Resetting agent identity...');
+    const skipGreeting = opts.skipGreeting !== false; // default true
+    log(`Resetting agent identity (skipGreeting=${skipGreeting})...`);
     execFileSync('curl', [
       '-s', '-X', 'POST',
       `http://localhost:${GATEWAY_PORT}/convos/reset`,
       '-H', 'Content-Type: application/json',
       '-H', `Authorization: Bearer ${GATEWAY_TOKEN}`,
-      '-d', '{}',
+      '-d', JSON.stringify({ skipGreeting }),
     ], { encoding: 'utf-8', timeout: 30_000 });
 
     log('Waiting for gateway to reinitialise...');
@@ -168,15 +181,16 @@ export function createHarness(tag, opts = {}) {
       try { watcher.kill(); } catch {}
     }
 
-    // Wait for the agent's welcome message so the first test gets a clean
-    // baseline. Without this, the welcome can arrive mid-test and be counted
-    // as the response, shifting every subsequent result by one message.
-    // This replaces the old fixed sleep(2_000) — it polls every 1.5s and
-    // returns once the message arrives and stabilises (~3s), adapting to
-    // actual network timing instead of hoping 2s is enough.
-    log('Waiting for agent welcome message...');
-    waitForAgent(0, 30_000);
-    log(`Welcome drained (${agentCount(fetchMessages())} agent msgs)`);
+    if (skipGreeting) {
+      log('Greeting skipped — no welcome drain needed.');
+    } else {
+      // Wait for the agent's welcome message so the first test gets a clean
+      // baseline. Without this, the welcome can arrive mid-test and be counted
+      // as the response, shifting every subsequent result by one message.
+      log('Waiting for agent welcome message...');
+      waitForAgent(0, 30_000);
+      log(`Welcome drained (${agentCount(fetchMessages())} agent msgs)`);
+    }
 
     if (opts.afterSetup) opts.afterSetup({ sharedConversationId, EVAL_HOME, log });
 

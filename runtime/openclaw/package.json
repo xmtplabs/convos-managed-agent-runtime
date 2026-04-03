@@ -6,13 +6,14 @@
   },
   "scripts": {
     "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/start.sh",
-    "evals": "sh evals/eval.sh"
+    "evals": "sh evals/eval.sh",
+    "ngrok": "ngrok http 18789 --url=convos-local-runtime.ngrok.app"
   },
   "dependencies": {
-    "@xmtp/convos-cli": "^0.7.0",
-    "dotenv": "^16.4.5",
-    "ethers": "^6.13.4",
+    "@xmtp/convos-cli": "0.7.0",
+    "dotenv": "16.6.1",
+    "ethers": "6.16.0",
     "openclaw": "2026.3.23",
-    "pg": "^8.18.0"
+    "pg": "8.20.0"
   }
 }

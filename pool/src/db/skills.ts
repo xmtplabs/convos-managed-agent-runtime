@@ -16,6 +16,7 @@ export async function createSkill(data: {
   emoji?: string;
   tools?: string[];
   published?: boolean;
+  featured?: boolean;
 }): Promise<SkillRow> {
   const id = crypto.randomUUID();
   const slug = data.slug || slugify(data.agentName) || `skill-${id.slice(0, 8)}`;
@@ -29,6 +30,7 @@ export async function createSkill(data: {
     emoji: data.emoji ?? "",
     tools: data.tools ?? [],
     published: data.published ?? false,
+    featured: data.featured ?? false,
   }).returning();
   return rows[0];
 }
@@ -64,6 +66,7 @@ export async function updateSkill(
     emoji: string;
     tools: string[];
     published: boolean;
+    featured: boolean;
   }>,
 ): Promise<SkillRow | null> {
   const rows = await db.update(agentSkills).set({

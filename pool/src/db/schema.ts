@@ -16,7 +16,6 @@ export type InstanceStatus =
 export const instances = pgTable("instances", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  url: text("url"),
   status: text("status").$type<InstanceStatus>().notNull().default("starting"),
   agentName: text("agent_name"),
   conversationId: text("conversation_id"),
@@ -97,6 +96,7 @@ export const agentSkills = pgTable("agent_skills", {
   emoji:       text("emoji").notNull().default(""),
   tools:       text("tools").array().notNull().default([]),
   published:   boolean("published").notNull().default(false),
+  featured:    boolean("featured").notNull().default(false),
   createdAt:   timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   updatedAt:   timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 }, (table) => [

@@ -157,10 +157,13 @@
         errorEl.style.display = msg ? "block" : "none";
       }
 
-      function showTwoModes() {
+      function showJoinScreen() {
         hideAllScreens();
+        showGatewayTipIfNeeded();
+        if (joinOpenLink) { joinOpenLink.style.display = "none"; }
+        if (joinBtn) { joinBtn.style.display = "block"; }
         placeholder.style.display = "flex";
-        screenModes.style.display = "flex";
+        screenJoin.style.display = "flex";
       }
 
       function showLoading() {
@@ -178,7 +181,7 @@
           .then(function (_) {
             if (!_.ok) {
               setStatus("error", "error: " + (_.data.error || "status " + _.data.status));
-              showTwoModes();
+              showJoinScreen();
               return;
             }
             var d = _.data;
@@ -186,12 +189,12 @@
               showConnected(d.conversationId, false);
             } else {
               setStatus(null, "no conversation bound");
-              showTwoModes();
+              showJoinScreen();
             }
           })
           .catch(function (err) {
             setStatus("error", "unreachable");
-            showTwoModes();
+            showJoinScreen();
           });
       }
 
@@ -228,14 +231,14 @@
                 return;
               }
               showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
-              showTwoModes();
+              showJoinScreen();
               setStatus("error", "create failed");
               return;
             }
             var inviteUrl = _.data.inviteUrl;
             if (!inviteUrl) {
               showError("No inviteUrl in response: " + JSON.stringify(_.data));
-              showTwoModes();
+              showJoinScreen();
               return;
             }
             setStatus("connected", "created — scan QR to join");
@@ -250,7 +253,7 @@
           .catch(function (err) {
             placeholder.classList.remove("loading");
             showError("Network error: " + (err.message || err));
-            showTwoModes();
+            showJoinScreen();
             setStatus("error", "network error");
           });
       }
@@ -330,7 +333,7 @@
             if (_.ok) {
               showSuccess("Identity reset.");
               setStatus(null, "no conversation bound");
-              showTwoModes();
+              showJoinScreen();
             } else {
               showError("[" + _.status + "] " + (_.data.error || JSON.stringify(_.data)));
               setStatus("error", "reset failed");
