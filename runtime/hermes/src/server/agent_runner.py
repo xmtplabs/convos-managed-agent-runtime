@@ -319,8 +319,24 @@ class AgentRunner:
         was_interrupted = result.get("interrupted", False)
 
         # Extract reasoning texts: assistant messages from tool-calling turns.
-        # The agent SDK strips these from final_response but they're in the
-        # messages list. The adapter dispatches them before the final response.
+        # These are intermediate narration the model produced alongside tool
+        # calls — e.g. "Let me search for that..." before a web_search call.
+        # The third-party agent runner discards them from final_response but
+        # they're preserved in the messages list.
+        #
+        # To expose reasoning in the UI instead of suppressing it, the
+        # adapter (_dispatch_response in convos_adapter.py) can send these
+        # before the final response using either:
+        #
+        #   (a) <think> tags — wrap text so the Convos client can parse and
+        #       render differently (collapsible, dimmed, italic, etc.):
+        #         for text in agent._last_reasoning_texts:
+        #             await inst.send_message(f"<think>{text}</think>")
+        #
+        #   (b) XMTP content type — send as a distinct content type so the
+        #       client can render a dedicated reasoning bubble:
+        #         await inst.send_content_type("reasoning", text)
+        #       (requires Convos client + protocol support for the new type)
         reasoning_texts: list[str] = []
         for msg_entry in result.get("messages", []):
             if msg_entry.get("role") != "assistant":
