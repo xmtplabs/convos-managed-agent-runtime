@@ -1274,7 +1274,7 @@
     function refreshPhones() {
       fetch('/dashboard/phones', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.total != null) {
-          document.getElementById('s-phones').innerHTML = d.total + '<div style="font-size:0.5em;opacity:0.6;margin-top:2px">' + (d.available || 0) + ' free</div>';
+          document.getElementById('s-phones').innerHTML = d.total + ' <span style="font-size:0.6em;opacity:0.5;font-weight:500">' + (d.available || 0) + ' free</span>';
         } else {
           document.getElementById('s-phones').textContent = '-';
         }
