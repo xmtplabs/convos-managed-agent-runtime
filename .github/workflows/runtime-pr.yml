@@ -115,6 +115,12 @@ jobs:
               - 'runtime/convos-platform/skills/skill-builder/**'
               - 'runtime/openclaw/extensions/convos/src/channel.ts'
               - 'runtime/hermes/src/server/server.py'
+            skill-builder:
+              - 'runtime/convos-platform/skills/skill-builder/**'
+              - 'runtime/evals/suites/skill-builder.yaml'
+              - 'runtime/evals/lib/assertions.mjs'
+              - 'runtime/evals/providers/convos.provider.mjs'
+              - 'runtime/openclaw/extensions/convos/src/channel.ts'
             lifecycle:
               - 'runtime/openclaw/scripts/**'
               - 'runtime/hermes/scripts/**'
@@ -148,7 +154,7 @@ jobs:
           BASE="${{ github.event.pull_request.base.ref }}"
 
           # All suites with their config (fresh=true only for provision)
-          ALL='[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"onboarding","timeout":900,"only":"","fresh":false},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"webhooks","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
+          ALL='[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"onboarding","timeout":900,"only":"","fresh":false},{"suite":"skill-builder","timeout":1200,"only":"","fresh":false,"maxFailures":2},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"webhooks","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
 
           # Non-dev branches → run all
           if [ "$BASE" != "dev" ]; then
@@ -159,7 +165,7 @@ jobs:
 
           # Build list from dorny outputs — only matched suites run
           MATCHED=""
-          for suite in soul knows skills memory convos onboarding lifecycle services silence cron models delegation webhooks; do
+          for suite in soul knows skills memory convos onboarding skill-builder lifecycle services silence cron models delegation webhooks; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
               MATCHED="$MATCHED $suite"
             fi

@@ -94,13 +94,19 @@ Not every skill needs these. A trivia bot doesn't need to know location. A fanta
 
 ### 3. Propose the direction before generating
 
-Before you generate the full skill, present a quick direction check — 2-3 sentences max:
+**MANDATORY — never skip this step.** Even if the user gave extremely detailed input, you must pause here and confirm before generating. Do NOT run any write/exec tools until the user approves the direction.
+
+Present a quick direction check — 2-3 sentences max:
 
 > "So here's what I'm thinking: a trash-talking fantasy football commissioner who tracks trades, roasts bad deals, and nudges on waiver deadlines. Competitive but not mean. Sound right, or should I adjust the direction?"
 
 This is lighter than the full summary in step 6. It's a quick "am I on the right track?" before you do the work of generating. If they say yes, generate. If they push back, adjust and re-check.
 
+**Wait for a reply before proceeding to step 4.** Do not generate in the same turn as the direction proposal.
+
 ### 4. Generate the skill
+
+**Before generating, react to the user's approval message with 👀 so they know you're working.** Generation takes 30-60 seconds with no visible output — the reaction prevents a dead silence.
 
 Synthesize all the answers into a full skill definition. Use the Agent Blueprint below as your template. You are generating this yourself — no external API call needed.
 
@@ -150,11 +156,13 @@ Store the validated URL — you'll apply it in step 7 (activation). Do NOT set t
 
 2. Also write the generated prompt to `$SKILLS_ROOT/generated/<slug>/SKILL.md` (a copy for the agent's own use)
 
-3. Get the skill page URL:
+3. Get the skill page URL by running this command — **do NOT guess or hardcode the URL**:
 
 ```bash
 node "$SKILLS_ROOT/skill-builder/scripts/skill-url.mjs" <slug>
 ```
+
+The script prints the correct URL to stdout. Use that exact output. Never fabricate a URL like `https://convos.ai/skills/...` — the real URL depends on the runtime environment and is only known by the script.
 
 4. Share the link with a plain-text summary:
 

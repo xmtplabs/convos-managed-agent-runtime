@@ -155,6 +155,14 @@ async def start_wired_instance(
     if skip_greeting:
         logger.info("Greeting dispatch skipped (skip_greeting=True)")
         adapter._greeting_done.set()
+        # Still set the skill-builder pending flag so the kickoff context is
+        # injected on the first user message — even without a greeting.
+        if not _has_active_skill():
+            kickoff = _read_onboarding_prompt("skill-builder-kickoff.md")
+            if kickoff:
+                adapter._skill_builder_kickoff = kickoff
+                adapter._skill_builder_pending = True
+                logger.info("Skill-builder context will be injected on first user message")
     elif not resuming:
         asyncio.create_task(_dispatch_greeting(adapter))
     else:
