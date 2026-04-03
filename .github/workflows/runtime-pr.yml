@@ -60,6 +60,7 @@ jobs:
             case "$f" in
               runtime/openclaw/*) HAS_OPENCLAW=true ;;
               runtime/hermes/*)   HAS_HERMES=true ;;
+              runtime/package.json|runtime/*.md) ;; # version bumps and docs — skip
               *)                  HAS_SHARED=true ;;
             esac
           done <<< "$FILES"
