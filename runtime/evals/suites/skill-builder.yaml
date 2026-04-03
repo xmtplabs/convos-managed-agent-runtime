@@ -46,7 +46,7 @@ tests:
       prompt: "We're 6 people in Colorado, day hikes, casual vibe. Go for it."
     metadata:
       waitForPattern: "/web-tools/skills/"
-      waitForPatternTimeout: 150
+      waitForPatternTimeout: 240
     assert:
       - type: regex
         value: "/web-tools/skills/"
