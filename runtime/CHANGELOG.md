@@ -1,3 +1,40 @@
+## 0.3.0
+
+### Highlights
+
+- **Shared pool server** — single Node.js entrypoint fronts both OpenClaw and Hermes runtimes, replacing separate per-runtime endpoints
+- **Context-based agent assembly** — agent instructions are now assembled at boot from modular context files, replacing the monolithic checked-in manifest
+- **Exa-powered web tools** — faster, more accurate web search and content extraction
+- **Skills-first homepage** — redesigned dashboard with featured skills and grouped skill browser
+
+### Features
+
+- Fast-adopt skills — pre-built skills can be adopted in one step without the full builder flow
+- Static greeting + lazy onboarding — greeting is instant; skill-builder kickoff only fires on the first real user message
+- Reaction routing — agents respond only to reactions on their own messages
+- Image input — agents can now receive and process images (model-dependent)
+- Cron jobs into main session (Hermes) — scheduled tasks fire into the main conversation instead of spawning standalone agents
+- Category picker for skills — proper combo box when assigning skill categories
+
+### Improvements
+
+- `GATEWAY_TOKEN` rename — simplified env var naming across both runtimes
+- Reorganized shared workspace — skills, context, and web-tools now live under `convos-platform/` with clear separation between shared and runtime-specific files
+- Pinned all dependencies for supply-chain defense
+- Hermes `group_members` wired into agent message envelope
+- Credit errors (402) now surfaced to user in Hermes
+
+### Fixes
+
+- Web-tools: skip mode selection, go straight to join screen
+- Web-tools: deduplicate snapshots and render logs as flat transcript
+- Delegation: strengthened instructions and moved to shared context
+- SILENT marker no longer leaks through in Hermes
+- Factory reset now clears generated skills
+- Default agent name changed to "Assistant"
+- Heartbeat debug logs muted
+- Ghost phone assignments prevented
+
 ## 0.2.2
 - 2x faster web search powered by Exa
 - Email and SMS auto-provision on first use and unprovision when no longer needed
