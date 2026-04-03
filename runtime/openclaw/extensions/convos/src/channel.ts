@@ -814,33 +814,65 @@ async function handleInboundMessage(
     return;
   }
 
+  // -- Reasoning lane tracking --
+  // Buffer text blocks per turn and classify by context.
+  // Text from turns that also call tools = reasoning.
+  // Text from the final turn (no tools) = answer.
+  // All text is delivered — reasoning is logged for observability.
+  let pendingBlocks: ReplyPayload[] = [];
+  let currentTurnHasTools = false;
+
+  const flushPending = async (isReasoning: boolean) => {
+    if (pendingBlocks.length === 0) return;
+    const blocks = pendingBlocks;
+    pendingBlocks = [];
+    for (const p of blocks) {
+      if (isReasoning && account.debug) {
+        debugLog(`[${account.accountId}] Reasoning text: ${p.text?.substring(0, 80)}`);
+      }
+      const policy = await applyOutboundTextPolicy(p.text || "");
+      if (policy.suppress) {
+        log?.info(`[${account.accountId}] Suppressed outbound text reply`);
+        continue;
+      }
+      const delivered = { ...p, text: policy.text };
+      await deliverConvosReply({
+        payload: delivered,
+        accountId: account.accountId,
+        runtime,
+        log,
+        tableMode,
+        triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+          ? msg.messageId
+          : undefined,
+      });
+    }
+  };
+
   await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
     ctx: ctxPayload,
     cfg,
     dispatcherOptions: {
       deliver: async (payload: ReplyPayload) => {
-        const policy = await applyOutboundTextPolicy(payload.text || "");
-        if (policy.suppress) {
-          log?.info(`[${account.accountId}] Suppressed outbound text reply`);
-          return;
-        }
-        payload = { ...payload, text: policy.text };
-        await deliverConvosReply({
-          payload,
-          accountId: account.accountId,
-          runtime,
-          log,
-          tableMode,
-          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
-            ? msg.messageId
-            : undefined,
-        });
+        pendingBlocks.push(payload);
       },
       onError: async (err, info) => {
         errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
       },
     },
+    replyOptions: {
+      onAssistantMessageStart: async () => {
+        await flushPending(currentTurnHasTools);
+        currentTurnHasTools = false;
+      },
+      onToolStart: () => {
+        currentTurnHasTools = true;
+      },
+    },
   });
+
+  // Flush remaining buffer from the last turn.
+  await flushPending(currentTurnHasTools);
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
