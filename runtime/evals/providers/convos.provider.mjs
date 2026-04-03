@@ -63,7 +63,7 @@ export default class ConvosProvider {
       let matched = false;
       let msgs;
       while (Date.now() < deadline) {
-        sleep(5_000);
+        sleep(3_000);
         try {
           msgs = h.fetchMessages();
           const newAgentText = msgs.slice(msgsBefore)
