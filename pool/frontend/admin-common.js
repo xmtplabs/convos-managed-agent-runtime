@@ -188,10 +188,13 @@
       }
     }
 
-    // Close env dropdown on outside click
+    // Close env dropdown and mobile menu on outside click
     document.addEventListener('click', function (e) {
       var switcher = document.querySelector('.env-switcher');
       if (switcher && !switcher.contains(e.target)) switcher.classList.remove('open');
+      var menu = document.getElementById('mobile-menu');
+      var burger = document.getElementById('hamburger-btn');
+      if (menu && burger && !menu.contains(e.target) && !burger.contains(e.target)) menu.classList.remove('open');
     });
 
     // Confirm modal wiring
