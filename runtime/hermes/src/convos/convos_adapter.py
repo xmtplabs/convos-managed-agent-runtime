@@ -623,8 +623,11 @@ class ConvosAdapter:
             was_interrupted = ai_agent.is_interrupted
             ai_agent.clear_interrupt()
 
-            if response and not was_interrupted:
-                await self._dispatch_response(response)
+            if not was_interrupted:
+                for text in getattr(ai_agent, "_last_reasoning_texts", []):
+                    await self._dispatch_response(text)
+                if response:
+                    await self._dispatch_response(response)
 
             # Auto-remove eyes reaction after dispatch
             if msg.message_id:

@@ -15,7 +15,7 @@ Both implementations serve the same routes from the shared HTML/CSS in this dire
 
 1. **Convos landing page** — installable PWA at `/web-tools/convos` with invite link and QR code
 2. **Services page** — shows instance identity (email, phone), credit balance, and coupon redemption at `/web-tools/services`
-3. **Skills pages** — index and detail pages for generated skills at `/web-tools/skills`, backed by a JSON API reading from `$SKILLS_ROOT/generated/skills.json`
+3. **Skills pages** — index and detail pages for generated skills at `/web-tools/skills`, backed by a JSON API reading from `$WORKSPACE_SKILLS/generated/skills.json`
 
 ## Routes
 
