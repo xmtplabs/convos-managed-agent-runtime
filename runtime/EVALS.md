@@ -1,6 +1,6 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (15 suites).
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (14 suites).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
@@ -12,7 +12,6 @@
 | **convos** | `convos.yaml` | Sequential (1x) | Convos capabilities — profile updates, vision, group awareness |
 | **onboarding** | `onboarding.yaml` | Sequential (1x) | Onboarding — greeting + skill-builder discovery flow |
 | **skill-builder** | `skill-builder.yaml` | Sequential (1x) | Skill builder — full creation, activation, and profile flow |
-| **ux-e2e** | `ux-e2e.yaml` | Sequential (1x) | UX E2E — full skill-builder flow from first message to activation |
 | **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — restart resilience, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
@@ -80,8 +79,7 @@ evals/
 │   ├── cron.yaml
 │   ├── webhooks.yaml
 │   ├── skill-builder.yaml
-│   ├── services.yaml
-│   └── ux-e2e.yaml
+│   └── services.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
 │   ├── convos.provider.mjs
@@ -123,4 +121,4 @@ All suites run as parallel matrix jobs in PR and dispatch workflows:
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
 
-All 15 suites auto-discover from `suites/*.yaml` — no matrix config needed.
+All 14 suites auto-discover from `suites/*.yaml` — no matrix config needed.
