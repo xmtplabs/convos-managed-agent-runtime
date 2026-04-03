@@ -36,18 +36,23 @@ from .stats import stats
 logger = logging.getLogger(__name__)
 
 # ---- Runtime version (read once at import) ----
-# Check runtime root package.json (source of truth), then Docker-injected copy, then local hermes.
+# Anchor-based resolution — no parent-counting.  See paths.py.
+from .paths import HERMES_ROOT, PLATFORM_ROOT
+
 try:
     _candidates = [
-        Path(__file__).resolve().parent.parent.parent.parent / "package.json",  # runtime/package.json (local dev)
-        Path(__file__).resolve().parent.parent.parent / "runtime-version.json",  # /app/runtime-version.json (Docker)
+        PLATFORM_ROOT / "package.json",           # runtime/package.json (local dev)
+        HERMES_ROOT / "runtime-version.json",      # /app/runtime-version.json (Docker)
     ]
     RUNTIME_VERSION = None
     for _pkg in _candidates:
         if _pkg.exists():
             RUNTIME_VERSION = json.loads(_pkg.read_text()).get("version")
             if RUNTIME_VERSION:
+                logger.info("Runtime version %s from %s", RUNTIME_VERSION, _pkg)
                 break
+    if not RUNTIME_VERSION:
+        logger.warning("Could not resolve runtime version from: %s", [str(p) for p in _candidates])
 except Exception:
     RUNTIME_VERSION = None
 
@@ -60,12 +65,6 @@ _adapter: ConvosAdapter | None = None
 _provision_state: dict | None = None  # {state, startedAt, inviteUrl, watching, lastError}
 _provision_generation: int = 0
 _pending_join_task: asyncio.Task | None = None
-
-# Pool health readiness — tracks whether lifespan startup is complete.
-# OpenClaw has two gates (gatewayReady + convosReady); Hermes collapses them
-# into one because it has no subprocess — lifespan completing is equivalent.
-_server_ready: bool = False
-_health_cached: bool = False
 
 
 def get_config() -> RuntimeConfig:
@@ -102,6 +101,7 @@ async def start_wired_instance(
     name: str | None = None,
     debug: bool = False,
     resuming: bool = False,
+    skip_greeting: bool = False,
 ):
     """Create and start a ConvosAdapter with full message pipeline.
 
@@ -149,10 +149,21 @@ async def start_wired_instance(
             skills_dir=skills_dir,
         )
 
-    # Fire greeting in background (skip if resuming — caller handles workspace refresh).
+    # Fire greeting in background (skip if resuming or explicitly suppressed).
     # The adapter gates _process_message behind greeting_done so early inbound
     # messages queue until the greeting populates history.
-    if not resuming:
+    if skip_greeting:
+        logger.info("Greeting dispatch skipped (skip_greeting=True)")
+        adapter._greeting_done.set()
+        # Still set the skill-builder pending flag so the kickoff context is
+        # injected on the first user message — even without a greeting.
+        if not _has_active_skill():
+            kickoff = _read_onboarding_prompt("skill-builder-kickoff.md")
+            if kickoff:
+                adapter._skill_builder_kickoff = kickoff
+                adapter._skill_builder_pending = True
+                logger.info("Skill-builder context will be injected on first user message")
+    elif not resuming:
         asyncio.create_task(_dispatch_greeting(adapter))
     else:
         adapter._greeting_done.set()
@@ -172,6 +183,19 @@ def _clear_session_state(hermes_home: str) -> None:
             logger.error("Failed to clear session state: %s", err)
 
 
+def _read_onboarding_prompt(filename: str) -> str | None:
+    """Read an onboarding prompt from $STATE_DIR/onboarding/ or convos-platform/onboarding/."""
+    cfg = _config
+    candidates = []
+    if cfg:
+        candidates.append(Path(cfg.hermes_home) / "onboarding" / filename)
+    candidates.append(PLATFORM_ROOT / "convos-platform" / "onboarding" / filename)
+    for p in candidates:
+        if p.is_file():
+            return p.read_text().strip()
+    return None
+
+
 def _has_active_skill() -> bool:
     """Check if the agent has an active skill configured."""
     skills_root = os.environ.get("SKILLS_ROOT", "")
@@ -186,55 +210,35 @@ def _has_active_skill() -> bool:
 
 
 async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
-    """Send an LLM-generated welcome message via the adapter pipeline.
+    """Send a static welcome message directly via XMTP — no LLM, no gate.
 
-    Signals adapter._greeting_done when complete so queued inbound
-    messages can proceed with the greeting already in history.
+    Skill-builder context is injected lazily on the first real user message
+    (see _skill_builder_pending flag in ConvosAdapter._process_message).
     """
     try:
-        if not adapter.agent or not adapter.instance:
+        if not adapter.instance:
             return
 
         skill_active = _has_active_skill()
 
-        # Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
-        # (active skill → THE ENTRANCE, no skill → ask what the group needs).
-        greeting_content = (
-            "[System: You just joined this conversation. Send your welcome message now. "
-            "Follow the 'Welcome message' section in AGENTS.md.]"
-        )
+        # Static greeting — sent directly via XMTP, no LLM involved.
+        greeting = _read_onboarding_prompt("static-greeting.md")
+        if not greeting:
+            logger.error("static-greeting.md not found — skipping greeting")
+            return
+        logger.info("Sending static greeting (skill-active=%s)", skill_active)
+        await adapter.send_message(greeting)
 
-        logger.info("Dispatching greeting (skill-active=%s)", skill_active)
-        response = await adapter.agent.handle_message(
-            content=greeting_content,
-            sender_name="System",
-            sender_id="system",
-            timestamp=time.time(),
-            conversation_id=adapter.instance.conversation_id,
-            message_id="system-greeting",
-            group_members=adapter.instance.get_group_members(),
-        )
-        if response:
-            await adapter._dispatch_response(response)
-
-        # Phase 2: skill-builder kickoff — only if no active skill.
-        # Fires after the greeting is already delivered to the conversation.
+        # Skill-builder context is injected lazily: if no active skill, the
+        # first real user message will be prefixed with the skill-builder
+        # kickoff prompt so the agent learns the onboarding flow alongside
+        # the user's first reply.
         if not skill_active:
-            logger.info("Dispatching skill-builder kickoff (silent)")
-            # Response is intentionally discarded — the agent reads the skill
-            # into context but should not send anything to the conversation.
-            await adapter.agent.handle_message(
-                content=(
-                    "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. "
-                    "You already asked the group what they need — when they respond, follow the skill from step 1.]"
-                ),
-                sender_name="System",
-                sender_id="system",
-                timestamp=time.time(),
-                conversation_id=adapter.instance.conversation_id,
-                message_id="system-skill-builder",
-                group_members=adapter.instance.get_group_members(),
-            )
+            kickoff = _read_onboarding_prompt("skill-builder-kickoff.md")
+            if kickoff:
+                adapter._skill_builder_kickoff = kickoff
+                adapter._skill_builder_pending = True
+                logger.info("Skill-builder context will be injected on first user message")
     except Exception as err:
         logger.error(f"Greeting dispatch failed: {err}")
     finally:
@@ -401,9 +405,14 @@ def _build_runtime_status() -> dict:
     }
 
 
-async def _factory_reset() -> dict:
+_skip_greeting: bool = False
+"""When True, the next start_wired_instance call will skip the greeting dispatch."""
+
+
+async def _factory_reset(*, skip_greeting: bool = False) -> dict:
     """Full factory reset: stop adapter, clear all state, return post-reset status."""
-    global _adapter, _pending_join_task
+    global _adapter, _pending_join_task, _skip_greeting
+    _skip_greeting = skip_greeting
     cfg = get_config()
     hermes_home = cfg.hermes_home
     logger.info("Factory reset started (hermes_home=%s)", hermes_home)
@@ -474,7 +483,7 @@ async def _notify_pool_pending_join(event: str, *, conversation_id: str | None =
     """Callback to the pool manager when a pending join resolves."""
     pool_url = os.environ.get("POOL_URL", "")
     instance_id = os.environ.get("INSTANCE_ID", "")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+    gateway_token = os.environ.get("GATEWAY_TOKEN", "")
     if not pool_url or not instance_id or not gateway_token:
         return
 
@@ -496,9 +505,9 @@ async def _fetch_attestation(inbox_id: str) -> dict[str, str] | None:
     """Fetch a signed attestation from the pool manager."""
     pool_url = os.environ.get("POOL_URL")
     instance_id = os.environ.get("INSTANCE_ID")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
+    gateway_token = os.environ.get("GATEWAY_TOKEN")
     if not pool_url or not instance_id or not gateway_token:
-        logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN")
+        logger.warning("Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or GATEWAY_TOKEN")
         return None
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -560,6 +569,7 @@ async def _watch_pending_join(invite_url: str, generation: int, cfg: RuntimeConf
                     identity_id=inst.identity_id,
                     env=env,
                     debug=True,
+                    skip_greeting=_skip_greeting,
                 )
                 _clear_provision_state(generation)
                 await _apply_attestation()
@@ -636,17 +646,33 @@ _SEED_JOBS = [
 
 
 def _seed_cron_jobs() -> None:
-    """Seed default cron jobs if they don't already exist."""
+    """Seed default cron jobs if they don't already exist.
+
+    Also recomputes next_run_at for existing seeds so a timezone change
+    in config.yaml takes effect immediately instead of firing at the
+    stale UTC-based time first.
+    """
     try:
-        from cron.jobs import load_jobs, create_job
+        from cron.jobs import load_jobs, create_job, save_jobs, compute_next_run
     except ImportError:
         logger.debug("Cron module not available — skipping seed")
         return
 
-    existing = {j["id"] for j in load_jobs()}
+    existing = {j["id"]: j for j in load_jobs()}
     for seed in _SEED_JOBS:
         if seed["id"] in existing:
-            logger.debug("Cron seed '%s' already exists — skipping", seed["id"])
+            # Refresh next_run_at so timezone changes take effect immediately.
+            job = existing[seed["id"]]
+            if job.get("enabled", True) and job.get("schedule"):
+                new_next = compute_next_run(job["schedule"], job.get("last_run_at"))
+                if new_next and new_next != job.get("next_run_at"):
+                    jobs = load_jobs()
+                    for j in jobs:
+                        if j["id"] == seed["id"]:
+                            j["next_run_at"] = new_next
+                            break
+                    save_jobs(jobs)
+                    logger.info("Refreshed next_run_at for '%s': %s", seed["id"], new_next)
             continue
         job = create_job(
             prompt=seed["prompt"],
@@ -655,13 +681,12 @@ def _seed_cron_jobs() -> None:
             deliver=seed.get("deliver", "origin"),
         )
         # Overwrite the random ID with the stable seed ID
-        from cron.jobs import load_jobs as _load, save_jobs as _save
-        jobs = _load()
+        jobs = load_jobs()
         for j in jobs:
             if j["id"] == job["id"]:
                 j["id"] = seed["id"]
                 break
-        _save(jobs)
+        save_jobs(jobs)
         logger.info("Seeded cron job '%s'", seed["name"])
 
 
@@ -669,61 +694,113 @@ _cron_task: asyncio.Task | None = None
 _event_loop: asyncio.AbstractEventLoop | None = None
 
 
-def _patch_cron_delivery() -> None:
-    """Monkey-patch the Hermes cron scheduler to deliver to Convos.
+def _patch_cron_for_convos() -> None:
+    """Monkey-patch the Hermes cron scheduler for Convos integration.
 
-    _deliver_result() has a platform_map that doesn't include "convos",
-    so job output silently drops. This patch intercepts convos delivery
-    and sends through our adapter.
+    Two patches:
+
+    1. run_job — convos-targeted jobs fire into the main AgentRunner
+       session (same pattern as /convos/notify) instead of creating a
+       standalone agent.  The agent sees full conversation history and
+       can decide whether to respond or stay silent.
+
+    2. _deliver_result — no-op for convos jobs because delivery already
+       happened through _dispatch_response in the run_job patch.
+       Non-convos jobs use the original delivery.
     """
     try:
         import cron.scheduler as cron_mod
     except ImportError:
-        logger.debug("Cron module not available — skipping delivery patch")
+        logger.debug("Cron module not available — skipping convos patches")
         return
+
+    _original_run_job = cron_mod.run_job
+
+    def _is_convos_targeted(job: dict) -> bool:
+        deliver = job.get("deliver", "local")
+        if deliver == "origin":
+            origin = cron_mod._resolve_origin(job)
+            return bool(origin and origin.get("platform") == "convos")
+        if ":" in deliver:
+            return deliver.split(":", 1)[0] == "convos"
+        return deliver == "convos"
+
+    def _patched_run_job(job: dict) -> tuple:
+        if not _is_convos_targeted(job):
+            return _original_run_job(job)
+
+        # Wake the main session instead of creating a standalone agent.
+        # Same pattern as the /convos/notify endpoint.
+        adapter = get_adapter()
+        if not adapter or not adapter.instance or not adapter.agent:
+            error = "No active conversation — adapter/agent not ready"
+            logger.warning("Cron job '%s': %s", job.get("name", job["id"]), error)
+            output = f"# Cron Job: {job.get('name', job['id'])} (FAILED)\n\n## Error\n\n{error}"
+            return (False, output, "", error)
+
+        loop = _event_loop
+        if not loop or loop.is_closed():
+            error = "No event loop for convos dispatch"
+            logger.error("Cron job '%s': %s", job.get("name", job["id"]), error)
+            output = f"# Cron Job: {job.get('name', job['id'])} (FAILED)\n\n## Error\n\n{error}"
+            return (False, output, "", error)
+
+        job_id = job["id"]
+        job_name = job.get("name", job_id)
+        prompt = job["prompt"]
+
+        async def _wake_main_session() -> str | None:
+            await adapter._greeting_done.wait()
+            response = await adapter.agent.handle_message(
+                content=prompt,
+                sender_name="System",
+                sender_id="system",
+                timestamp=time.time(),
+                conversation_id=adapter.instance.conversation_id,
+                message_id=f"cron-{job_id}-{int(time.time() * 1000)}",
+                group_members=adapter.instance.get_group_members(),
+            )
+            if response:
+                await adapter._dispatch_response(response)
+            return response
+
+        future = None
+        try:
+            future = asyncio.run_coroutine_threadsafe(_wake_main_session(), loop)
+            response = future.result(timeout=120)
+        except Exception as e:
+            if future is not None:
+                future.cancel()
+            error = f"{type(e).__name__}: {e}"
+            output = f"# Cron Job: {job_name} (FAILED)\n\n## Error\n\n{error}"
+            logger.error("Cron job '%s': wake failed: %s", job_name, error)
+            return (False, output, "", error)
+
+        # handle_message returns friendly error strings on internal failures
+        # (credit exhaustion, agent errors).  Detect these so mark_job_run
+        # records an error instead of false-positive success.
+        _ERROR_SENTINELS = ("I encountered an error", "I hit a temporary issue")
+        if response and any(response.startswith(s) for s in _ERROR_SENTINELS):
+            output = f"# Cron Job: {job_name} (FAILED)\n\n## Error\n\n{response}"
+            logger.warning("Cron job '%s': agent returned error response", job_name)
+            return (False, output, "", response)
+
+        final = response or "(silent)"
+        output = f"# Cron Job: {job_name}\n\n## Response\n\n{final}"
+        logger.info("Cron job '%s': woke main session", job_name)
+        return (True, output, final, None)
+
+    cron_mod.run_job = _patched_run_job
+    logger.info("Patched cron run_job to wake main session")
+
+    # -- Delivery: no-op for convos (already dispatched above) -------------
 
     original_deliver = cron_mod._deliver_result
 
     def _patched_deliver(job: dict, content: str) -> None:
-        deliver = job.get("deliver", "local")
-        origin = cron_mod._resolve_origin(job)
-
-        # Resolve platform name from deliver config
-        if deliver == "origin" and origin:
-            platform_name = origin["platform"]
-        elif ":" in deliver:
-            platform_name = deliver.split(":", 1)[0]
-        else:
-            platform_name = deliver
-
-        if platform_name != "convos":
-            return original_deliver(job, content)
-
-        # Send through our adapter
-        adapter = get_adapter()
-        if not adapter or not adapter.instance:
-            logger.warning("Cron job '%s': convos adapter not active, skipping delivery", job.get("name", job["id"]))
-            return
-
-        loop = _event_loop
-        if not loop or loop.is_closed():
-            logger.error("Cron job '%s': no event loop for convos delivery", job.get("name", job["id"]))
-            return
-
-        async def _policy_then_send(text: str) -> None:
-            from .outbound_policy import apply_outbound_policy
-            policy = await apply_outbound_policy(text)
-            if policy.suppress:
-                logger.info("Cron job '%s': suppressed by outbound policy", job.get("name", job["id"]))
-                return
-            await adapter.send_message(policy.text)
-
-        try:
-            future = asyncio.run_coroutine_threadsafe(_policy_then_send(content), loop)
-            future.result(timeout=30)
-            logger.info("Cron job '%s': delivered to convos", job.get("name", job["id"]))
-        except Exception as err:
-            logger.error("Cron job '%s': convos delivery failed: %s", job.get("name", job["id"]), err)
+        if _is_convos_targeted(job):
+            return  # Already delivered through _dispatch_response in run_job
+        original_deliver(job, content)
 
     cron_mod._deliver_result = _patched_deliver
     logger.info("Patched cron delivery for convos platform")
@@ -800,7 +877,7 @@ async def _cron_tick_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _config, _cron_task, _event_loop, _server_ready
+    global _config, _cron_task, _event_loop
     _config = RuntimeConfig.from_env()
     errors = _config.validate()
     if errors:
@@ -813,7 +890,7 @@ async def lifespan(app: FastAPI):
     os.environ.setdefault("HERMES_GATEWAY_SESSION", "1")
     warm_imports()
     _event_loop = asyncio.get_event_loop()
-    _patch_cron_delivery()
+    _patch_cron_for_convos()
     _seed_cron_jobs()
     _cron_task = asyncio.create_task(_cron_tick_loop())
     logger.info(f"Hermes runtime starting (model={_config.model}, port={_config.port})")
@@ -821,7 +898,6 @@ async def lifespan(app: FastAPI):
     # Auto-resume from saved credentials (if any)
     await _try_resume_from_credentials(_config)
 
-    _server_ready = True
     yield
     if _cron_task:
         _cron_task.cancel()
@@ -855,145 +931,6 @@ app.include_router(web_tools_router)
 @app.get("/health")
 async def health():
     return {"ok": True}
-
-
-@app.get("/pool/health")
-async def pool_health():
-    global _health_cached
-    if _health_cached:
-        return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-    if not _server_ready:
-        return {"ready": False, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-    # Server is ready — either no adapter yet (awaiting provision)
-    # or adapter exists with an active instance. Cache permanently.
-    _health_cached = True
-    return {"ready": True, "version": RUNTIME_VERSION, "runtime": "hermes"}
-
-
-# ---- /pool/restart ----
-
-@app.post("/pool/restart", dependencies=[Depends(require_auth)])
-async def pool_restart():
-    """Stop the adapter and re-resume from saved credentials.
-
-    Simulates a process restart without killing PID 1 — stops the running
-    conversation, then boots it back up from credentials on disk.  Used by
-    the lifecycle eval to verify restart-resume in CI (Docker).
-    """
-    global _adapter
-    cfg = get_config()
-
-    adapter = get_adapter()
-    if adapter:
-        try:
-            await adapter.stop()
-        except Exception as err:
-            logger.error("Error stopping adapter during restart: %s", err)
-        _adapter = None
-
-    await _try_resume_from_credentials(cfg)
-
-    adapter = get_adapter()
-    if adapter and adapter.instance:
-        return {"ok": True, "conversationId": adapter.instance.conversation_id}
-    raise HTTPException(status_code=500, detail="Resume failed after restart")
-
-
-# ---- /pool/provision ----
-
-class ProvisionRequest(BaseModel):
-    agentName: str
-    instructions: str = ""
-    joinUrl: str | None = None
-    profileImage: str | None = None
-    metadata: dict[str, str] | None = None
-
-
-@app.post("/pool/provision", dependencies=[Depends(require_auth)])
-async def pool_provision(body: ProvisionRequest):
-    if get_adapter() and get_adapter().instance:
-        raise HTTPException(
-            status_code=409,
-            detail="Instance already bound to a conversation.",
-        )
-
-    cfg = get_config()
-    env = cfg.xmtp_env
-
-    if body.instructions:
-        write_instructions(cfg.hermes_home, body.instructions)
-
-    instance_id = os.environ.get("INSTANCE_ID")
-    meta = {**(body.metadata or {}), **({"instanceId": instance_id} if instance_id else {})} or None
-
-    try:
-        if body.joinUrl:
-            inst, status, conversation_id = await ConvosInstance.join_conversation(
-                env,
-                body.joinUrl,
-                profile_name=body.agentName,
-                profile_image=body.profileImage,
-                metadata=meta,
-                timeout=55,
-                debug=True,
-            )
-            if status != "joined" or not conversation_id or not inst:
-                # Return pending_acceptance instead of 503 — pool will track the state
-                gen = _set_provision_state("pending_acceptance", invite_url=body.joinUrl, watching=True)
-                global _pending_join_task
-                _pending_join_task = asyncio.create_task(
-                    _watch_pending_join(body.joinUrl, gen, cfg)
-                )
-                return {
-                    "ok": True,
-                    "conversationId": None,
-                    "inviteUrl": body.joinUrl,
-                    "joined": False,
-                    "status": "pending_acceptance",
-                }
-
-            await start_wired_instance(
-                conversation_id=conversation_id,
-                identity_id=inst.identity_id,
-                env=env,
-                debug=True,
-            )
-            await _apply_attestation()
-            return {
-                "ok": True,
-                "conversationId": conversation_id,
-                "inviteUrl": body.joinUrl,
-                "joined": True,
-            }
-        else:
-            inst, result = await ConvosInstance.create_conversation(
-                env,
-                name=body.agentName,
-                profile_name=body.agentName,
-                debug=True,
-            )
-
-            ready_info = await start_wired_instance(
-                conversation_id=result["conversationId"],
-                identity_id=inst.identity_id,
-                env=env,
-                name=body.agentName,
-                debug=True,
-            )
-            await _apply_attestation()
-
-            return {
-                "ok": True,
-                "conversationId": result["conversationId"],
-                "inviteUrl": ready_info.invite_url or result["inviteUrl"],
-                "joined": False,
-            }
-    except HTTPException:
-        raise
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
 
 
 # ---- /convos/status ----
@@ -1038,6 +975,7 @@ async def convos_conversation(body: ConversationRequest):
             env=env,
             name=body.name,
             debug=True,
+            skip_greeting=_skip_greeting,
         )
         await _apply_attestation()
 
@@ -1081,13 +1019,20 @@ async def convos_join(body: JoinRequest):
         )
 
         if status != "joined" or not conversation_id or not inst:
-            return {"status": "waiting_for_acceptance"}
+            # Start background watcher to retry until accepted
+            gen = _set_provision_state("pending_acceptance", invite_url=body.inviteUrl, watching=True)
+            global _pending_join_task
+            _pending_join_task = asyncio.create_task(
+                _watch_pending_join(body.inviteUrl, gen, cfg)
+            )
+            return {"status": "pending_acceptance"}
 
         await start_wired_instance(
             conversation_id=conversation_id,
             identity_id=inst.identity_id,
             env=env,
             debug=True,
+            skip_greeting=_skip_greeting,
         )
         await _apply_attestation()
 
@@ -1247,9 +1192,13 @@ async def convos_explode():
 
 # ---- /convos/reset ----
 
+class ResetBody(BaseModel):
+    skipGreeting: bool = False
+
+
 @app.post("/convos/reset", dependencies=[Depends(require_auth)])
-async def convos_reset():
-    return await _factory_reset()
+async def convos_reset(body: ResetBody = ResetBody()):
+    return await _factory_reset(skip_greeting=body.skipGreeting)
 
 
 # ---- /agent/query and /agent/reset-history (eval surface) ----

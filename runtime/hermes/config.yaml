@@ -1,0 +1,46 @@
+timezone: America/New_York
+
+web:
+  backend: exa
+
+model:
+  # The active model — updated at runtime via config.yaml edits.
+  # Presets are managed on OpenRouter — no per-request provider routing needed.
+  default: "@preset/assistants-pro"
+  provider: openrouter
+
+# Models available for switching. Presets + individual models.
+models:
+  - { id: "@preset/assistants-pro",              name: "Pro (auto)" }
+  - { id: "anthropic/claude-opus-4-6",           name: "Claude Opus 4.6" }
+  - { id: "anthropic/claude-sonnet-4-6",         name: "Claude Sonnet 4.6" }
+  - { id: "google/gemini-3.1-pro-preview",       name: "Gemini 3 Pro" }
+  - { id: "google/gemini-3-flash-preview",       name: "Gemini 3 Flash" }
+  - { id: "openai/gpt-5.4",                      name: "GPT-5.4" }
+  - { id: "openai/gpt-5.4-mini",                name: "GPT-5.4 Mini" }
+  - { id: "openai/gpt-oss-20b",                 name: "GPT-OSS 20B" }
+
+
+# Core skills are synced to $HERMES_HOME/skills/ on boot.
+# User-created skills live in $HERMES_HOME/workspace/skills/ (SKILLS_ROOT).
+# external_dirs makes both discoverable.
+skills:
+  external_dirs:
+    - ${HERMES_HOME}/skills
+
+platform_toolsets:
+  cli: [web, terminal, file, vision, image_gen, browser, skills, todo, memory, session_search, clarify, code_execution, cronjob]
+toolsets:
+  - web
+  - terminal
+  - file
+  - vision
+  - image_gen
+  - browser
+  - skills
+  - todo
+  - memory
+  - session_search
+  - clarify
+  - code_execution
+  - cronjob

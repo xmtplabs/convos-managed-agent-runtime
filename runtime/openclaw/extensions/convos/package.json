@@ -4,7 +4,7 @@
   "description": "OpenClaw Convos channel plugin (E2E encrypted messaging via XMTP)",
   "type": "module",
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "4.3.6"
   },
   "openclaw": {
     "extensions": [

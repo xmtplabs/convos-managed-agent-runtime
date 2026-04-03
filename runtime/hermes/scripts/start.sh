@@ -14,7 +14,7 @@ brand_section "Server"
 brand_dim "" "start Hermes FastAPI server"
 
 export PORT="${PORT:-8080}"
-export SHARED_SCRIPTS_DIR="${SHARED_SCRIPTS_DIR:-}"
+export LIB_DIR="${LIB_DIR:-}"
 brand_ok "PORT" "$PORT"
 
 cd "$ROOT"
@@ -29,5 +29,8 @@ for _traj_file in trajectory_samples.jsonl failed_trajectories.jsonl; do
     brand_ok "TRAJECTORY" "$_traj_file -> $_vol_path"
   fi
 done
+
+# --- ngrok tunnel (when NGROK_URL is set) ---
+. "$LIB_DIR/ngrok.sh"
 
 exec python3 -m src.main

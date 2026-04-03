@@ -65,13 +65,38 @@ sync_workspace_dir() {
   copy_tree_snapshot "$src_dir" "$base_dir"
 }
 
-# Stage merged workspace source: shared files + runtime overlay → single sync call.
+# Stage merged workspace source: selected convos-platform files + runtime overlay.
+# Only workspace-appropriate files from convos-platform — context/, web-tools/,
+# outbound-policy.json, INJECTED_CONTEXT.md, and AGENTS.md manifest are NOT synced
+# (they're assembled separately or served from their own paths).
 _MERGED_SRC=""
-if [ -n "${SHARED_WORKSPACE_DIR:-}" ] && [ -d "$SHARED_WORKSPACE_DIR" ]; then
+if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
-  cp -R "$SHARED_WORKSPACE_DIR/." "$_MERGED_SRC/"
+  [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$_MERGED_SRC/"
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
-  brand_ok "shared-workspace" "merged with runtime"
+  brand_ok "workspace" "merged (convos-platform + runtime)"
+
+  # Core skills → STATE_DIR/skills/ (managed level in OpenClaw's precedence)
+  # User-created skills stay in workspace/skills/ (highest priority)
+  _skill_count=0
+  if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
+    mkdir -p "$STATE_DIR/skills"
+    for _sk in "$CONVOS_PLATFORM_DIR"/skills/*; do
+      [ -d "$_sk" ] || continue
+      _skn="$(basename "$_sk")"
+      rm -rf "$STATE_DIR/skills/$_skn"
+      cp -R "$_sk" "$STATE_DIR/skills/$_skn"
+      _skill_count=$((_skill_count + 1))
+    done
+    brand_ok "core skills" "$_skill_count → $STATE_DIR/skills"
+  fi
+
+  # Onboarding prompts → STATE_DIR/onboarding/
+  if [ -d "$CONVOS_PLATFORM_DIR/onboarding" ]; then
+    mkdir -p "$STATE_DIR/onboarding"
+    cp "$CONVOS_PLATFORM_DIR"/onboarding/*.md "$STATE_DIR/onboarding/"
+    brand_ok "onboarding" "$STATE_DIR/onboarding"
+  fi
 fi
 
 for subdir in workspace extensions; do
@@ -97,16 +122,18 @@ done
 
 mkdir -p "$STATE_DIR"
 
-# Assemble AGENTS.md (shared base + runtime extra) — after sync so it overwrites the synced copy
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/agents-assemble.sh"
-  assemble_agents "$SHARED_WORKSPACE_DIR" "$RUNTIME_DIR/workspace/agents-extra.md" "$STATE_DIR/workspace/AGENTS.md" "openclaw"
+# Assemble AGENTS.md + INJECTED_CONTEXT.md from section manifests
+if [ -n "${LIB_DIR:-}" ] && [ -f "$LIB_DIR/agents-assemble.sh" ]; then
+  . "$LIB_DIR/agents-assemble.sh"
+  assemble_agents "$CONVOS_PLATFORM_DIR" "openclaw" "$STATE_DIR/workspace/AGENTS.md"
+  assemble_agents "$CONVOS_PLATFORM_DIR" "openclaw" "$STATE_DIR/workspace/INJECTED_CONTEXT.md" "INJECTED_CONTEXT.md"
 else
-  echo "⚠ SHARED_SCRIPTS_DIR not set — skipping agents-assemble" >&2
+  echo "⚠ LIB_DIR not set — skipping agents-assemble" >&2
 fi
 
-# Sync shared web-tools assets (Docker copies to /app/web-tools; locally we mirror here)
-_SHARED_WT="$ROOT/../shared/web-tools"
+# Sync shared web-tools assets
+_SHARED_WT="${CONVOS_PLATFORM_DIR:-}/web-tools"
+[ ! -d "$_SHARED_WT" ] && _SHARED_WT="$ROOT/../convos-platform/web-tools"
 if [ -d "$_SHARED_WT" ]; then
   mkdir -p "$STATE_DIR/web-tools"
   cp -r "$_SHARED_WT/"* "$STATE_DIR/web-tools/"
@@ -135,6 +162,11 @@ if command -v jq >/dev/null 2>&1; then
       '.gateway.trustedProxies = ["100.64.0.0/10"] | .gateway.controlUi.allowedOrigins = [($origin), "http://localhost:8080", "http://127.0.0.1:8080"]' \
       "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
     brand_ok "trustedProxies" "$RAILWAY_PUBLIC_DOMAIN"
+  fi
+  # In eval mode, use the CI preset instead of the production model
+  if [ "${EVAL_MODE:-}" = "1" ]; then
+    jq '.agents.defaults.model.primary = "openrouter/@preset/assistants-ci"' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+    brand_ok "model" "overridden → @preset/assistants-ci (eval mode)"
   fi
   # Inject browser config when running in a container with chromium installed
   if [ -x /usr/bin/chromium ]; then

@@ -6,6 +6,8 @@ import os
 import shutil
 from pathlib import Path
 
+from .config import RuntimeConfig
+
 
 def write_instructions(hermes_home: str, raw_instructions: str | None) -> None:
     """Write custom instructions into HERMES_HOME/SOUL.md.
@@ -15,9 +17,8 @@ def write_instructions(hermes_home: str, raw_instructions: str | None) -> None:
     if not raw_instructions or not raw_instructions.strip():
         return
 
-    home = Path(hermes_home)
-    home.mkdir(parents=True, exist_ok=True)
-    soul_path = home / "SOUL.md"
+    soul_path = Path(hermes_home) / "SOUL.md"
+    soul_path.parent.mkdir(parents=True, exist_ok=True)
 
     base = ""
     if soul_path.exists():
@@ -42,7 +43,9 @@ def ensure_workspace(workspace_dir: str) -> None:
     ws = Path(workspace_dir)
     ws.mkdir(parents=True, exist_ok=True)
 
-    bundled = Path(__file__).resolve().parent.parent.parent / "workspace"
+    from .paths import HERMES_ROOT
+
+    bundled = HERMES_ROOT / "workspace"
     if bundled.exists():
         for f in bundled.iterdir():
             dest = ws / f.name

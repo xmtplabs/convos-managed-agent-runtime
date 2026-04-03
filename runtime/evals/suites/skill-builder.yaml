@@ -1,0 +1,74 @@
+# runtime/evals/skill-builder.yaml
+# Skill-builder eval — full creation, activation, and profile flow.
+# All tests share one XMTP conversation and must run sequentially.
+
+description: "Eval: Skill Builder"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - id: file://../providers/convos.provider.mjs
+    config:
+      skipGreeting: true
+
+defaultTest:
+  options:
+    provider:
+      id: "openrouter:@preset/assistants-eval-judge"
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
+
+tests:
+  # --- Phase 1: follow-up questions ---
+  - description: "Agent asks follow-up questions when user requests a new skill"
+    vars:
+      prompt: "Create a skill that helps us plan weekend hiking trips"
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user asked for a hiking skill.
+
+          FAIL if the agent immediately generates or creates a full skill
+          without asking any clarifying questions.
+
+          PASS if the agent asks at least one follow-up question to refine
+          scope or preferences (e.g. location, group size, vibe, experience).
+
+  # --- Phase 2: direction proposal ---
+  - description: "Agent proposes direction after user provides details"
+    vars:
+      prompt: "We're 6 people based near Denver, mostly casual day hikes on weekends. Fun and laid-back vibe, we just want trail suggestions and weather checks. No need for gear lists or hardcore stuff."
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user provided details.
+
+          FAIL if the agent generates the full skill without proposing a
+          direction summary and asking for confirmation first.
+
+          PASS if the agent proposes a direction and asks if it sounds right.
+
+  # --- Phase 3: skill generation ---
+  - description: "Agent generates skill and shares skill page URL"
+    vars:
+      prompt: "Yes that direction is spot on, build it"
+    metadata:
+      waitForPattern: "/web-tools/skills/"
+      waitForPatternTimeout: 300
+    assert:
+      - type: regex
+        value: "/web-tools/skills/"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:skillJsonWritten"
+
+  # --- Phase 4: activation ---
+  - description: "Agent activates skill on approval"
+    vars:
+      prompt: "Yes, become this!"
+    metadata:
+      waitForPattern: "ready|here to|let.s|trail|hik|welcome|crew|camp|mountain|scout|planner|region|vibe"
+      waitForPatternTimeout: 90
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:skillActivated"

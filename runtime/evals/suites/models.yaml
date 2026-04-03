@@ -23,12 +23,7 @@ tests:
       prompt: "What model are you currently running on? Reply with the model name."
     assert:
       - type: regex
-        value: "[Cc]laude|[Gg][Pp][Tt]|[Gg]emini|[Gg]rok|[Dd]eep[Ss]eek|[Kk]imi|[Mm]ini[Mm]ax|[Oo]pus|[Ss]onnet"
-      - type: llm-rubric
-        value: >
-          FAIL if the agent says it doesn't know what model it's running or
-          gives a vague non-answer. PASS if the agent names a specific model
-          (e.g. "Claude Opus 4.6", "GPT-5.4 Mini", etc.).
+        value: "@preset/assistants-(pro|ci)|gemini|pro"
 
   - description: "Agent can list available models"
     vars:

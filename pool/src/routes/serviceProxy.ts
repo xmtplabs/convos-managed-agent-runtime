@@ -3,7 +3,7 @@
  *
  * Instances no longer hold API keys for AgentMail or Telnyx.
  * Instead they call these proxy endpoints, authenticated with their
- * per-instance OPENCLAW_GATEWAY_TOKEN. The pool manager injects the
+ * per-instance GATEWAY_TOKEN. The pool manager injects the
  * real API key and forwards to the upstream service.
  *
  * Security: email and SMS routes enforce per-instance isolation — an instance

@@ -9,7 +9,8 @@
 | **soul** | `soul.yaml` | Parallel (5x) | Personality & values — brevity, privacy, empathy, identity |
 | **provision** | `provision.yaml` | Parallel (5x) | Provisioning protocol — check-first, ask-consent, SMS disclosure |
 | **convos** | `convos.yaml` | Sequential (1x) | Convos capabilities — profile updates, vision, group awareness |
-| **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — join, welcome message, self-destruct |
+| **onboarding** | `onboarding.yaml` | Sequential (1x) | Onboarding — greeting + skill-builder discovery flow |
+| **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — restart resilience, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
 | **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
@@ -39,7 +40,7 @@ pnpm evals hermes convos -- --filter-pattern "welcome"
 
 Required in `runtime/.env` (shared by all runtimes):
 
-- `OPENCLAW_GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
+- `GATEWAY_TOKEN` — must be set explicitly; hermes auto-generates one if missing, but the eval runner needs to know it
 - `OPENROUTER_API_KEY` (or `EVAL_OPENROUTER_API_KEY`)
 - `AGENTMAIL_API_KEY`
 - `TELNYX_API_KEY`

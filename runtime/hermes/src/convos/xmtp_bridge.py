@@ -66,16 +66,12 @@ class SentEvent:
 
 def _resolve_convos_bin() -> str:
     """Find the convos CLI binary."""
-    # Check node_modules in our own package
-    here = Path(__file__).resolve().parent.parent.parent
-    local_bin = here / "node_modules" / "@xmtp" / "convos-cli" / "bin" / "run.js"
+    from ..server.paths import HERMES_ROOT
+
+    # Check node_modules in our own package (anchor-based, no parent-counting)
+    local_bin = HERMES_ROOT / "node_modules" / "@xmtp" / "convos-cli" / "bin" / "run.js"
     if local_bin.exists():
         return str(local_bin)
-
-    # Check /app/node_modules (Docker)
-    docker_bin = Path("/app/node_modules/@xmtp/convos-cli/bin/run.js")
-    if docker_bin.exists():
-        return str(docker_bin)
 
     # Fallback: convos on PATH
     if shutil.which("convos"):
@@ -385,7 +381,11 @@ class ConvosInstance:
     def get_group_members(self) -> str | None:
         if not self._member_names:
             return None
-        return ", ".join(name or "anonymous" for name in self._member_names.values())
+        # Mark the agent's own entry with "(you)" so it knows which member is itself
+        return ", ".join(
+            f"{name or 'anonymous'} (you)" if iid == self.inbox_id else (name or "anonymous")
+            for iid, name in self._member_names.items()
+        )
 
     # ---- Operations (via stdin commands) ----
 

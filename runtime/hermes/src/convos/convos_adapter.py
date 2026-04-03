@@ -26,7 +26,7 @@ import logging
 import os
 import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,7 @@ async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
     instance_id = os.environ.get("INSTANCE_ID")
     pool_url = os.environ.get("POOL_URL")
-    gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN")
+    gateway_token = os.environ.get("GATEWAY_TOKEN")
 
     if not instance_id or not pool_url or not gateway_token:
         logger.info("Self-destruct skipped: not a pool-managed instance")
@@ -96,7 +96,6 @@ class ParsedResponse:
     profile_name: str | None = None
     profile_image: str | None = None
     profile_metadata: dict[str, str] = field(default_factory=dict)
-    silent: bool = False  # agent explicitly chose not to reply
 
 
 def parse_response(raw: str) -> ParsedResponse:
@@ -107,11 +106,6 @@ def parse_response(raw: str) -> ParsedResponse:
 
     for line in lines:
         stripped = line.strip()
-
-        # SILENT — agent explicitly chose not to reply
-        if stripped == "SILENT":
-            result.silent = True
-            continue
 
         # REACT:messageId:emoji or REACT:messageId:emoji:remove
         m = re.match(r'^REACT:([^:\s]+):([^:\s]+)(?::(remove))?$', stripped)
@@ -253,6 +247,15 @@ def is_inactive_group_error(err: Exception) -> bool:
     return bool(re.search(r"\bgroup is inactive\b", str(err), flags=re.IGNORECASE))
 
 
+_REACTION_TARGET_RE = re.compile(r"^(?:reacted|removed)\s+\S+\s+to\s+(\S+)$")
+
+
+def _parse_reaction_target_id(content: str) -> str | None:
+    """Extract the target message ID from a reaction content string."""
+    m = _REACTION_TARGET_RE.match(content)
+    return m.group(1) if m else None
+
+
 def is_attachment_message(msg: InboundMessage) -> bool:
     return msg.content_type in ("attachment", "remoteStaticAttachment")
 
@@ -332,11 +335,14 @@ class ConvosAdapter:
         self._profile_image_renewal: ProfileImageRenewalStore | None = None
         self._pending_attachments: dict[str, tuple[InboundMessage, asyncio.Task[None], asyncio.Task[None] | None]] = {}
         self._greeting_done = asyncio.Event()  # gates message processing until greeting completes
+        self._skill_builder_pending = False  # inject skill-builder kickoff on first real user message
+        self._skill_builder_kickoff: str = ""  # set by _dispatch_greeting if no active skill
         # Interrupt-and-queue: tracks whether an agent call is in-flight and
         # holds the latest pending message so we can interrupt + replay.
         self._agent_running = False
         self._pending_message: InboundMessage | None = None
         self._skipped_content: list[str] = []  # messages superseded while queued
+        self._sent_message_ids: set[str] = set()  # tracks agent-sent IDs for "own" reaction detection
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -378,6 +384,7 @@ class ConvosAdapter:
             debug=debug,
             on_message=self._handle_message,
             on_member_joined=self._handle_member_joined(name),
+            on_sent=self._handle_sent,
         )
 
         # Wire convos tools to the bridge so they execute mid-processing
@@ -449,8 +456,16 @@ class ConvosAdapter:
         turn finishes, the pending message is picked up automatically so the
         agent responds to the latest context instead of racing.
         """
+        # Reactions to the agent's own messages trigger a full agent turn (e.g.
+        # thumbs-up to answer a yes/no question). Reactions to other users'
+        # messages are silently dropped — no turn, no history recording.
         if msg.content_type == "reaction":
-            return
+            target_id = _parse_reaction_target_id(msg.content)
+            if target_id and target_id in self._sent_message_ids:
+                logger.info(f"Own-message reaction — dispatching agent turn")
+                # Fall through to normal message processing below
+            else:
+                return
 
         inst = self._instance
         agent = self._agent
@@ -497,10 +512,39 @@ class ConvosAdapter:
         if msg.content_type == "group_updated":
             return
 
-        # Wait for greeting to finish before processing real messages.
-        # Messages that arrive during the greeting's LLM call queue here
-        # so they see the greeting in history instead of empty context.
+        # Profile snapshots (sent after adding members) and profile updates
+        # (sent when a member changes their name) contain structured member
+        # data. Update the cache directly and suppress — these aren't chat.
+        if msg.content_type in ("profile_snapshot", "profile_update") and inst:
+            try:
+                import json
+                data = json.loads(msg.content) if isinstance(msg.content, str) else msg.content
+                if msg.content_type == "profile_snapshot":
+                    for p in data.get("profiles", []):
+                        iid = p.get("inboxId", "")
+                        name = p.get("name", "")
+                        if iid and name:
+                            inst.set_member_name(iid, name)
+                elif msg.content_type == "profile_update":
+                    # profile_update is self-authored — sender_id is the member
+                    name = data.get("name", "")
+                    if msg.sender_id and name:
+                        inst.set_member_name(msg.sender_id, name)
+            except Exception as err:
+                logger.debug(f"Failed to parse {msg.content_type}: {err}")
+            return
+
+        # Wait for the static greeting to be sent before processing messages.
         await self._greeting_done.wait()
+
+        # Inject skill-builder context on the first real user message so the
+        # agent learns the onboarding flow alongside the user's first reply —
+        # no separate LLM turn needed.
+        if self._skill_builder_pending and msg.sender_id != "system":
+            self._skill_builder_pending = False
+            if self._skill_builder_kickoff:
+                msg = replace(msg, content=f"{self._skill_builder_kickoff}\n\n{msg.content}")
+                logger.info("Injected skill-builder context into first user message")
 
         # ── Interrupt-and-queue: if agent is busy, interrupt and stash ──
         if self._agent_running:
@@ -611,7 +655,7 @@ class ConvosAdapter:
         if not inst:
             return
 
-        media_dir = Path(self._config.hermes_home) / "media"
+        media_dir = Path(self._config.media_dir)
         media_dir.mkdir(parents=True, exist_ok=True)
         _prune_stale_convos_images(media_dir)
         ext = Path(filename).suffix.lower() or ".jpg"
@@ -778,7 +822,7 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Send attachment failed: {err}")
 
-        # Renew profile image on any outbound activity (before SILENT check
+        # Renew profile image on any outbound activity (before suppress check
         # so media-only sends still trigger renewal)
         raw_text = strip_markdown(parsed.text)
         policy = await apply_outbound_policy(raw_text)
@@ -788,11 +832,6 @@ class ConvosAdapter:
                 await self._renew_profile_image_on_activity()
             except Exception as err:
                 logger.error(f"Profile image renewal on outbound activity failed: {err}")
-
-        # Agent explicitly chose silence — side effects above still fire, but no text
-        if parsed.silent:
-            logger.info("Agent chose SILENT — suppressing text reply")
-            return
 
         if policy.suppress:
             logger.info("Outbound policy suppressed text reply")
@@ -809,18 +848,26 @@ class ConvosAdapter:
 
 
 
+    async def _handle_sent(self, info) -> None:
+        """Track all sent message IDs for own-reaction detection."""
+        mid = getattr(info, "id", None)
+        if mid:
+            self._sent_message_ids.add(mid)
+
     def _handle_member_joined(self, name: str | None):
-        """Return a member_joined callback that renames + refreshes."""
+        """Return a member_joined callback that renames on first join.
+
+        Member name cache is updated by profile_snapshot messages
+        (sent automatically after adding members), not here.
+        """
         async def on_member_joined(info: dict) -> None:
             logger.info(f"Join accepted: {info.get('joinerInboxId', '')}")
             inst = self._instance
-            if inst:
-                if name:
-                    try:
-                        await inst.rename(name)
-                    except Exception as err:
-                        logger.error(f"Rename after join failed: {err}")
-                await inst.refresh_member_names()
+            if inst and name:
+                try:
+                    await inst.rename(name)
+                except Exception as err:
+                    logger.error(f"Rename after join failed: {err}")
 
         return on_member_joined
 

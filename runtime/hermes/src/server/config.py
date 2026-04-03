@@ -37,13 +37,17 @@ class RuntimeConfig:
 
     @classmethod
     def from_env(cls) -> RuntimeConfig:
-        gateway_token = os.environ.get("OPENCLAW_GATEWAY_TOKEN", "")
+        gateway_token = os.environ.get("GATEWAY_TOKEN", "")
         if not gateway_token:
             gateway_token = secrets.token_hex(32)
-            os.environ["OPENCLAW_GATEWAY_TOKEN"] = gateway_token
+            os.environ["GATEWAY_TOKEN"] = gateway_token
 
         # Model is read from config.yaml at runtime; this is just the initial default.
-        model = os.environ.get("HERMES_MODEL", "@preset/assistants-pro")
+        # In eval mode, use the CI preset instead of the production model.
+        if os.environ.get("EVAL_MODE") == "1":
+            model = "@preset/assistants-ci"
+        else:
+            model = os.environ.get("HERMES_MODEL") or "@preset/assistants-pro"
 
         hermes_home = os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes"))
         workspace_dir = os.environ.get("HERMES_WORKSPACE", os.path.join(hermes_home, "workspace"))
@@ -61,6 +65,48 @@ class RuntimeConfig:
             hermes_home=hermes_home,
             workspace_dir=workspace_dir,
         )
+
+    # ── Derived paths (all relative to hermes_home) ────────────────────────
+    @property
+    def soul_path(self) -> str:
+        return os.path.join(self.hermes_home, "SOUL.md")
+
+    @property
+    def config_yaml_path(self) -> str:
+        return os.path.join(self.hermes_home, "config.yaml")
+
+    @property
+    def injected_context_path(self) -> str:
+        return os.path.join(self.workspace_dir, "INJECTED_CONTEXT.md")
+
+    @property
+    def skills_dir(self) -> str:
+        return os.path.join(self.hermes_home, "skills")
+
+    @property
+    def sessions_dir(self) -> str:
+        return os.path.join(self.hermes_home, "sessions")
+
+    @property
+    def credentials_dir(self) -> str:
+        return os.path.join(self.hermes_home, "credentials")
+
+    @property
+    def cron_dir(self) -> str:
+        return os.path.join(self.hermes_home, "cron")
+
+    @property
+    def media_dir(self) -> str:
+        return os.path.join(self.hermes_home, "media")
+
+    @property
+    def state_db_path(self) -> str:
+        return os.path.join(self.hermes_home, "state.db")
+
+    @staticmethod
+    def workspace_path(hermes_home: str, filename: str) -> str:
+        """Resolve a workspace file path. Use this instead of constructing paths inline."""
+        return os.path.join(hermes_home, "workspace", filename)
 
     def validate(self) -> list[str]:
         errors = []

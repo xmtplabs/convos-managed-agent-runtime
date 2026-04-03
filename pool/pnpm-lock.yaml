@@ -6,45 +6,45 @@ settings:
 
 dependencies:
   datadog-metrics:
-    specifier: ^0.12.0
+    specifier: 0.12.1
     version: 0.12.1
   drizzle-orm:
-    specifier: ^0.45.1
+    specifier: 0.45.1
     version: 0.45.1(@types/pg@8.16.0)(pg@8.18.0)
   express:
-    specifier: ^5.1.0
+    specifier: 5.2.1
     version: 5.2.1
   nanoid:
-    specifier: ^5.1.5
+    specifier: 5.1.6
     version: 5.1.6
   pg:
-    specifier: ^8.18.0
+    specifier: 8.18.0
     version: 8.18.0
   stripe:
-    specifier: ^17.7.0
+    specifier: 17.7.0
     version: 17.7.0
   svix:
-    specifier: ^1.89.0
+    specifier: 1.89.0
     version: 1.89.0
 
 devDependencies:
   '@types/express':
-    specifier: ^5.0.0
+    specifier: 5.0.6
     version: 5.0.6
   '@types/node':
-    specifier: ^22.0.0
+    specifier: 22.19.11
     version: 22.19.11
   '@types/pg':
-    specifier: ^8.11.0
+    specifier: 8.16.0
     version: 8.16.0
   drizzle-kit:
-    specifier: ^0.31.9
+    specifier: 0.31.9
     version: 0.31.9
   tsx:
-    specifier: ^4.21.0
+    specifier: 4.21.0
     version: 4.21.0
   typescript:
-    specifier: ^5.7.0
+    specifier: 5.9.3
     version: 5.9.3
 
 packages:

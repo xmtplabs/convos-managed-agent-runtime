@@ -6,13 +6,27 @@ import { homedir } from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** Walk up from *start* to find the nearest directory containing *marker*. */
+function findAncestor(start, marker) {
+  let dir = resolve(start);
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, marker))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+}
+
+const RUNTIME_ROOT = findAncestor(__dirname, 'convos-platform') || resolve(__dirname, '../..');
 const stateDir = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw');
 const workspaceDir = join(stateDir, 'workspace');
 const skillsDir = join(workspaceDir, 'skills');
 const cronFile = join(stateDir, 'cron', 'jobs.json');
 const sessionsDir = join(stateDir, 'agents', 'main', 'sessions');
-const templateDir = resolve(__dirname, '../../openclaw/workspace');
-const sharedSkillsDir = resolve(__dirname, '../../shared/workspace/skills');
+const templateDir = join(RUNTIME_ROOT, 'openclaw', 'workspace');
+const sharedSkillsDir = join(RUNTIME_ROOT, 'convos-platform', 'skills');
 
 function clearDir(dir) {
   try {
@@ -56,10 +70,15 @@ export default {
   restartPath: '/pool/restart',
   filterLines: (lines) => lines,
   needsSessionClear: true,
-  convosPath: '../../openclaw/node_modules/.bin/convos',
+  convosPath: 'openclaw/node_modules/.bin/convos',
   cleanEvalState() {
     clearCustomSkills(skillsDir, sharedSkillsDir);
     clearAgentCronJobs(cronFile);
+    // Remove generated skills (skill-builder output) so eval state doesn't bleed.
+    const generatedDir = join(skillsDir, 'generated');
+    if (existsSync(generatedDir)) {
+      try { rmSync(generatedDir, { recursive: true, force: true }); } catch {}
+    }
   },
   memory: {
     extraArgs: ['--local'],
