@@ -381,7 +381,11 @@ class ConvosInstance:
     def get_group_members(self) -> str | None:
         if not self._member_names:
             return None
-        return ", ".join(name or "anonymous" for name in self._member_names.values())
+        # Mark the agent's own entry with "(you)" so it knows which member is itself
+        return ", ".join(
+            f"{name or 'anonymous'} (you)" if iid == self.inbox_id else (name or "anonymous")
+            for iid, name in self._member_names.items()
+        )
 
     # ---- Operations (via stdin commands) ----
 

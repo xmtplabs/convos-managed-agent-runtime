@@ -488,10 +488,12 @@ export class ConvosInstance {
     }
   }
 
-  /** Return comma-separated display names of all cached members. */
+  /** Return comma-separated display names of all cached members, marking the agent's own entry with "(you)". */
   getGroupMembers(): string | undefined {
     if (this.memberNames.size === 0) return undefined;
-    return Array.from(this.memberNames.values()).join(", ");
+    return Array.from(this.memberNames.entries())
+      .map(([id, name]) => id === this.inboxId ? `${name} (you)` : name)
+      .join(", ");
   }
 
   /** Check if a message ID was sent by this instance (for "own" reaction detection). */

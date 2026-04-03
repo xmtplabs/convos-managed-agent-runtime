@@ -445,11 +445,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
           },
           onMemberJoined: (info) => {
             log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}${info.catchup ? " (catchup)" : ""}`);
-            if (!info.catchup) {
-              inst.refreshMemberNames().catch((err) => {
-                log?.error(`[${account.accountId}] Failed to refresh members after join: ${String(err)}`);
-              });
-            }
+            // Member name cache is updated by profile_snapshot messages
+            // (sent automatically after adding members), not here.
           },
           // onHeartbeat: (info) => {
           //   if (account.debug) {
@@ -766,9 +763,34 @@ async function handleInboundMessage(
   }
 
   // Group updates are recorded in the session above but should not trigger a reply.
+  // Name changes are handled by profile_update messages, not here.
   if (msg.contentType === "group_updated") {
     if (account.debug) {
       debugLog(`[${account.accountId}] Skipping reply dispatch for group_updated message`);
+    }
+    return;
+  }
+
+  // Profile snapshots (sent after adding members) and profile updates (sent when
+  // a member changes their name) contain structured member data. Update the cache
+  // directly and suppress — these aren't chat messages.
+  if ((msg.contentType === "profile_snapshot" || msg.contentType === "profile_update") && inst) {
+    try {
+      const data = typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
+      if (msg.contentType === "profile_snapshot") {
+        for (const p of data.profiles ?? []) {
+          if (p.inboxId && p.name) {
+            inst.setMemberName(p.inboxId, p.name);
+          }
+        }
+      } else if (msg.contentType === "profile_update" && msg.senderId) {
+        // profile_update is self-authored — senderId is the member
+        if (data.name) {
+          inst.setMemberName(msg.senderId, data.name);
+        }
+      }
+    } catch {
+      // Non-fatal: cache will catch up on next message or refresh
     }
     return;
   }
@@ -1316,9 +1338,8 @@ export async function startWiredInstance(params: {
           console.error(`[convos] Rename after join failed: ${String(err)}`);
         });
       }
-      inst.refreshMemberNames().catch((err) => {
-        console.error(`[convos] Failed to refresh members after join: ${String(err)}`);
-      });
+      // Member name cache is updated by profile_snapshot messages
+      // (sent automatically after adding members), not here.
     },
   });
 
