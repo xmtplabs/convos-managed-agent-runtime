@@ -1175,12 +1175,12 @@ async function dispatchGreeting(
   const skillActive = hasActiveSkill();
 
   // Static greeting — sent directly via XMTP, no LLM involved.
-  const greeting = "Hey! What would you like to build today?";
-  console.log(`[convos] Sending static greeting (skill-active=${skillActive})`);
   try {
+    const greeting = readOnboardingPrompt("static-greeting.md");
+    console.log(`[convos] Sending static greeting (skill-active=${skillActive})`);
     await inst.sendMessage(greeting);
   } catch (err) {
-    console.error(`[convos] Static greeting send failed: ${String(err)}`);
+    console.error(`[convos] Greeting failed: ${String(err)}`);
   }
 
   // Skill-builder context is injected lazily: if no active skill, the first

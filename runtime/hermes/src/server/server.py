@@ -222,7 +222,10 @@ async def _dispatch_greeting(adapter: ConvosAdapter) -> None:
         skill_active = _has_active_skill()
 
         # Static greeting — sent directly via XMTP, no LLM involved.
-        greeting = "Hey! What would you like to build today?"
+        greeting = _read_onboarding_prompt("static-greeting.md")
+        if not greeting:
+            logger.error("static-greeting.md not found — skipping greeting")
+            return
         logger.info("Sending static greeting (skill-active=%s)", skill_active)
         await adapter.send_message(greeting)
 
