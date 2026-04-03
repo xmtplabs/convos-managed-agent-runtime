@@ -26,7 +26,7 @@ from .paths import PLATFORM_ROOT
 _SHARED_ROOT = PLATFORM_ROOT / "convos-platform" / "web-tools"
 _SERVICES_DIR = _SHARED_ROOT / "services"
 _CONVOS_DIR = _SHARED_ROOT / "convos"
-_SKILLS_DIR = _SHARED_ROOT / "skills"
+_SKILLS_STATIC = _SHARED_ROOT / "skills"
 
 
 def _gateway_token() -> str:
@@ -250,12 +250,12 @@ async def convos_icon():
 
 
 def _skills_data_path() -> Path:
-    """Resolve the path to $SKILLS_ROOT/generated/skills.json."""
-    skills_root = os.environ.get("SKILLS_ROOT", "")
-    if not skills_root:
+    """Resolve the path to $WORKSPACE_SKILLS/generated/skills.json."""
+    ws_skills = os.environ.get("WORKSPACE_SKILLS", "")
+    if not ws_skills:
         hermes_home = os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
-        skills_root = str(Path(hermes_home) / "skills")
-    return Path(skills_root) / "generated" / "skills.json"
+        ws_skills = str(Path(hermes_home) / "workspace" / "skills")
+    return Path(ws_skills) / "generated" / "skills.json"
 
 
 def _read_skill_by_slug(slug: str) -> dict | None:
@@ -280,7 +280,7 @@ def _read_skills_data() -> dict:
 
 @router.get("/web-tools/skills/skills.css")
 async def skills_css():
-    return _serve_static(_SKILLS_DIR / "skills.css", "text/css")
+    return _serve_static(_SKILLS_STATIC / "skills.css", "text/css")
 
 
 @router.get("/web-tools/skills/api")
@@ -412,12 +412,12 @@ async def trajectories_download():
 @router.get("/web-tools/skills/")
 async def skills_index():
     """Serve the skills index page."""
-    return _serve_static(_SKILLS_DIR / "index.html", "text/html; charset=utf-8",
+    return _serve_static(_SKILLS_STATIC / "index.html", "text/html; charset=utf-8",
                          cache_control="no-store")
 
 
 @router.get("/web-tools/skills/{slug}")
 async def skills_page(slug: str):
     """Serve the skill page HTML shell for any slug."""
-    return _serve_static(_SKILLS_DIR / "skill.html", "text/html; charset=utf-8",
+    return _serve_static(_SKILLS_STATIC / "skill.html", "text/html; charset=utf-8",
                          cache_control="no-store")

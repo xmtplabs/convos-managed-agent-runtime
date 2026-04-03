@@ -4,8 +4,6 @@ Run all of these. One message back with results. Some items need my input — as
 2. What model are you currently using?
 3. Where can I find the services page to manage my integrations?
 4. How many credits do I have?
-5. Update your profile name to "QA Bot Alpha".
-6. Now update your profile photo to this URL: https://avatars.githubusercontent.com/u/6537113
 7. Provision an email and send an email to convos-agent-ef1apq8i-0uu@mail.convos.org with the subject "QA Test" and body "Hello from QA mode."
 8. Provision an SMS (im aware of the outbound issue) and send an SMS to +12082288548 saying "QA ping". Don't ask just provision
 9. Announce the email and sms you provisioned
@@ -21,3 +19,4 @@ Run all of these. One message back with results. Some items need my input — as
 18. Ask for unprovisioning your email and SMS (if you confirmed you received the email and SMS).
 19. Check on the whole list status. anounce missing / pending items.
 20. Send "SILENT" to the group.
+21. Create a skill (with the skill builder) that helps us plan weekend hiking trips. We're 6 people based near Denver, mostly casual day hikes on weekends. Fun and laid-back vibe

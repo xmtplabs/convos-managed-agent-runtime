@@ -349,7 +349,7 @@ export function agentUsedReplyTo(output, context) {
 
 // ---------------------------------------------------------------------------
 // Skill-builder assertions — verify skill creation and activation via the
-// /web-tools/skills/api endpoint (reads $SKILLS_ROOT/generated/skills.json).
+// /web-tools/skills/api endpoint (reads $WORKSPACE_SKILLS/generated/skills.json).
 // ---------------------------------------------------------------------------
 
 function curlSkillsApi() {

@@ -145,8 +145,8 @@ async function factoryReset(opts?: { skipGreeting?: boolean }) {
   try { fs.unlinkSync(path.join(stateDir, ".share-trajectories")); } catch (e: any) { if (e.code !== "ENOENT") console.error(`[convos] Failed to clear share flag: ${e}`); }
 
   // Clear generated skills data so the next boot enters skill-builder onboarding
-  const skillsRoot = process.env.SKILLS_ROOT || path.join(stateDir, "workspace", "skills");
-  const generatedDir = path.join(skillsRoot, "generated");
+  const wsSkills = process.env.WORKSPACE_SKILLS || path.join(stateDir, "workspace", "skills");
+  const generatedDir = path.join(wsSkills, "generated");
   try { fs.rmSync(generatedDir, { recursive: true, force: true }); } catch {}
 
   const status = buildRuntimeStatus();
