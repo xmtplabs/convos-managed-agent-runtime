@@ -243,6 +243,7 @@ class AgentRunner:
         sender_id: str,
         timestamp: float,
         message_id: str,
+        group_members: str | None = None,
     ) -> str:
         """Format an inbound message with current time and full message ID.
 
@@ -255,7 +256,10 @@ class AgentRunner:
         # Produce "Thu, Mar 20, 2026, 10:30 AM EDT" — matches OpenClaw's Intl output.
         now_str = now.strftime("%a, %b %-d, %Y, %-I:%M %p %Z")
         name = sender_name or sender_id[:12]
-        return f"[Current time: {now_str}]\n[{message_id} {msg_ts}] {name}: {content}"
+        header = f"[Current time: {now_str}]"
+        if group_members:
+            header += f"\n[Group members: {group_members}]"
+        return f"{header}\n[{message_id} {msg_ts}] {name}: {content}"
 
     async def handle_message(
         self,
@@ -279,6 +283,7 @@ class AgentRunner:
             sender_id=sender_id,
             timestamp=timestamp,
             message_id=message_id,
+            group_members=group_members,
         )
 
         # Snapshot history before the (potentially long) agent call so
