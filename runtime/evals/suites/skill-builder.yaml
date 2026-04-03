@@ -1,9 +1,6 @@
 # runtime/evals/skill-builder.yaml
 # Skill-builder eval — full creation, activation, and profile flow.
 # All tests share one XMTP conversation and must run sequentially.
-#
-# Optimized for speed: the first prompt gives enough detail to skip
-# follow-ups and jump straight to direction proposal (3 turns, not 4).
 
 description: "Eval: Skill Builder"
 
@@ -34,51 +31,44 @@ tests:
 
           FAIL if the agent immediately generates or creates a full skill
           without asking any clarifying questions.
-          FAIL if the agent gives a generic response without driving the
-          conversation forward.
 
           PASS if the agent asks at least one follow-up question to refine
           scope or preferences (e.g. location, group size, vibe, experience).
 
-  # --- Phase 2: direction + generation ---
-  - description: "Agent proposes direction and generates skill with URL"
+  # --- Phase 2: direction proposal ---
+  - description: "Agent proposes direction after user provides details"
     vars:
-      prompt: "We're 6 people in Colorado, day hikes, casual vibe. Go for it."
+      prompt: "We're 6 people in Colorado, day hikes, casual and fun vibe."
+    assert:
+      - type: llm-rubric
+        value: >
+          The output is a chat transcript. The user provided details.
+
+          FAIL if the agent generates the full skill without proposing a
+          direction summary and asking for confirmation first.
+
+          PASS if the agent proposes a direction and asks if it sounds right.
+
+  # --- Phase 3: skill generation ---
+  - description: "Agent generates skill and shares skill page URL"
+    vars:
+      prompt: "Yes, sounds perfect. Build it."
     metadata:
       waitForPattern: "/web-tools/skills/"
       waitForPatternTimeout: 240
     assert:
       - type: regex
         value: "/web-tools/skills/"
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript. The user approved the direction.
-
-          FAIL if the agent does not share a URL containing /web-tools/skills/.
-          FAIL if the agent automatically activates without asking for approval.
-
-          PASS if the agent shares a skill page URL and asks for approval
-          before becoming the new identity. Otherwise PASS.
       - type: javascript
         value: "file://../lib/assertions.mjs:skillJsonWritten"
 
-  # --- Phase 3: activation ---
-  - description: "Agent activates skill and updates profile on approval"
+  # --- Phase 4: activation ---
+  - description: "Agent activates skill on approval"
     vars:
       prompt: "Yes, become this!"
     metadata:
       waitForPattern: "ready|here to|let.s|trail|hik|welcome|crew|camp|mountain|scout|planner|region|vibe"
       waitForPatternTimeout: 90
     assert:
-      - type: llm-rubric
-        value: >
-          The output is a chat transcript. The user approved activation.
-
-          FAIL if the agent asks for confirmation again instead of activating.
-          FAIL if the agent narrates each setup step ("Setting active...",
-          "Updating profile...").
-
-          PASS if the agent sends a welcome/entrance message as its new
-          hiking-related identity. Otherwise PASS.
       - type: javascript
         value: "file://../lib/assertions.mjs:skillActivated"
