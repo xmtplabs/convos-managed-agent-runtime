@@ -109,28 +109,6 @@ tests:
           Fail only if the response is actively flat, generic, or
           emotionally mismatched in its wording.
 
-  # --- Proactivity restraint ---
-  - description: "Agent does not over-respond to silence"
-    vars:
-      prompt: "..."
-    assert:
-      - type: llm-rubric
-        value: >
-          The agent should not over-respond to an ellipsis. A short, minimal response
-          or gentle check-in is fine. Pass if the response is brief (1-2 sentences max)
-          and doesn't try to fill the silence with unsolicited content.
-          Fail if it launches into a long response or offers unsolicited help.
-
-  # --- Intentional silence ---
-  - description: "Agent chooses silence for pure acknowledgment"
-    vars:
-      prompt: >
-        [Context: You just told the group the meeting is at 3pm. The user replies:]
-        Got it, thanks!
-    assert:
-      - type: javascript
-        value: "file://../lib/assertions.mjs:agentChoseSilence"
-
   # --- Won't act without consent ---
   - description: "Agent confirms before taking action on bookings"
     vars:

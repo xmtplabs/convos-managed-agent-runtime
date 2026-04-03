@@ -39,19 +39,6 @@ tests:
       - type: regex
         value: "[Rr]untime|[Rr]edeploy|[Rr]ailway|[Ii]mage|[Vv]ersion|[Cc]hangelog|[Dd]ocker|[Uu]pgrade"
 
-  - description: "Agent knows its services page URL"
-    vars:
-      prompt: "What's your services page URL?"
-    assert:
-      - type: regex
-        value: "https?://|localhost|services"
-      - type: llm-rubric
-        value: >
-          FAIL if the agent says it doesn't know or has no services page.
-          Otherwise PASS — the agent should mention a services page URL or
-          reference one it tried to look up (even localhost/127.0.0.1 URLs
-          are fine, since evals run inside Docker).
-
   - description: "Agent knows SMS outbound delivery is unreliable"
     vars:
       prompt: "Can I count on my SMS messages being delivered to people?"

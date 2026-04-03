@@ -57,3 +57,14 @@ tests:
           Ignore the user prompt — only judge the agent's response.
           The agent should have replied with a date or similar content
           with the SILENT line stripped. Otherwise PASS.
+
+  - description: "Agent does not over-respond to silence"
+    vars:
+      prompt: "..."
+    assert:
+      - type: llm-rubric
+        value: >
+          The agent should not over-respond to an ellipsis. A short, minimal response
+          or gentle check-in is fine. Pass if the response is brief (1-2 sentences max)
+          and doesn't try to fill the silence with unsolicited content.
+          Fail if it launches into a long response or offers unsolicited help.
