@@ -6,7 +6,6 @@ description: "Eval: Skill Builder"
 
 evaluateOptions:
   maxConcurrency: 1
-  maxFailures: 2
 
 providers:
   - id: file://../providers/convos.provider.mjs
