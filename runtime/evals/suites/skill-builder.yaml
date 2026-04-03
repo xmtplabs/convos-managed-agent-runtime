@@ -23,30 +23,27 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  # --- Phase 1: direction proposal (detailed prompt skips follow-ups) ---
-  - description: "Agent proposes direction when given detailed skill request"
+  # --- Phase 1: follow-up questions ---
+  - description: "Agent asks follow-up questions when user requests a new skill"
     vars:
-      prompt: "Create a skill that helps us plan weekend hiking trips. We're 6 people based in Colorado, mostly day hikes, casual and fun vibe."
+      prompt: "Create a skill that helps us plan weekend hiking trips"
     assert:
       - type: llm-rubric
         value: >
-          The output is a chat transcript. The user asked the agent to create
-          a hiking skill with specific details (Colorado, 6 people, day hikes,
-          casual vibe).
+          The output is a chat transcript. The user asked for a hiking skill.
 
-          FAIL if the agent immediately generates a full skill without proposing
-          a direction or asking any questions first.
-          FAIL if the agent lists generic capabilities.
+          FAIL if the agent immediately generates or creates a full skill
+          without asking any clarifying questions.
+          FAIL if the agent gives a generic response without driving the
+          conversation forward.
 
-          PASS if the agent either:
-          (a) Proposes a direction summary and asks for confirmation, OR
-          (b) Asks one targeted follow-up question to refine the skill.
-          The agent must acknowledge the user's details.
+          PASS if the agent asks at least one follow-up question to refine
+          scope or preferences (e.g. location, group size, vibe, experience).
 
-  # --- Phase 2: skill generation ---
-  - description: "Agent generates skill and shares skill page URL"
+  # --- Phase 2: direction + generation ---
+  - description: "Agent proposes direction and generates skill with URL"
     vars:
-      prompt: "Yes, perfect. Build it."
+      prompt: "We're 6 people in Colorado, day hikes, casual vibe. Go for it."
     metadata:
       waitForPattern: "/web-tools/skills/"
       waitForPatternTimeout: 150
