@@ -1,39 +1,39 @@
 ## 0.3.0
 
-### Highlights
+### Big changes
 
-- **Shared pool server** — single Node.js entrypoint fronts both OpenClaw and Hermes runtimes, replacing separate per-runtime endpoints
-- **Context-based agent assembly** — agent instructions are now assembled at boot from modular context files, replacing the monolithic checked-in manifest
-- **Exa-powered web tools** — faster, more accurate web search and content extraction
-- **Skills-first homepage** — redesigned dashboard with featured skills and grouped skill browser
+- **Unified pool server** — One server now manages both OpenClaw and Hermes instead of each runtime running its own endpoints
+- **Modular agent instructions** — Agent personality and behavior are assembled from small, composable context files at boot instead of one giant file
+- **Better web search** — Switched to Exa for faster, more relevant web results
+- **New homepage** — Dashboard redesigned around featured skills with a browsable skill directory
 
-### Features
+### New stuff
 
-- Fast-adopt skills — pre-built skills can be adopted in one step without the full builder flow
-- Static greeting + lazy onboarding — greeting is instant; skill-builder kickoff only fires on the first real user message
-- Reaction routing — agents respond only to reactions on their own messages
-- Image input — agents can now receive and process images (model-dependent)
-- Cron jobs into main session (Hermes) — scheduled tasks fire into the main conversation instead of spawning standalone agents
-- Category picker for skills — proper combo box when assigning skill categories
+- **One-tap skill adopt** — Users can grab pre-built skills instantly, no builder flow needed
+- **Instant greeting** — Welcome message shows immediately; onboarding only kicks in when the user actually talks
+- **Smarter reactions** — Agents only respond to reactions on their own messages, not everyone's
+- **Image support** — Agents can now see and process images (depends on the model)
+- **Hermes cron in-session** — Scheduled tasks run inside the main conversation instead of spinning up separate agents
+- **Skill categories** — New category picker when tagging skills
 
-### Improvements
+### Under the hood
 
-- `GATEWAY_TOKEN` rename — simplified env var naming across both runtimes
-- Reorganized shared workspace — skills, context, and web-tools now live under `convos-platform/` with clear separation between shared and runtime-specific files
-- Pinned all dependencies for supply-chain defense
-- Hermes `group_members` wired into agent message envelope
-- Credit errors (402) now surfaced to user in Hermes
+- Simplified env vars — `GATEWAY_TOKEN` replaces the old runtime-prefixed name
+- Reorganized `convos-platform/` — cleaner split between shared and runtime-specific files
+- All dependencies pinned to exact versions
+- Hermes now passes group member info to the agent
+- Hermes surfaces credit exhaustion errors to users instead of failing silently
 
 ### Fixes
 
-- Web-tools: skip mode selection, go straight to join screen
-- Web-tools: deduplicate snapshots and render logs as flat transcript
-- Delegation: strengthened instructions and moved to shared context
-- SILENT marker no longer leaks through in Hermes
-- Factory reset now clears generated skills
-- Default agent name changed to "Assistant"
-- Heartbeat debug logs muted
-- Ghost phone assignments prevented
+- Web viewer goes straight to the conversation (no more mode selection screen)
+- Cleaner web-tool logs — no duplicate snapshots, flat transcript view
+- Better delegation behavior
+- Hermes no longer leaks internal SILENT markers
+- Factory reset properly clears generated skills
+- Default agent name is now "Assistant"
+- Quieter debug logs
+- Fixed orphaned phone number assignments
 
 ## 0.2.2
 - 2x faster web search powered by Exa
