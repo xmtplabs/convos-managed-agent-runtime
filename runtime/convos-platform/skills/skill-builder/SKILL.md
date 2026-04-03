@@ -15,10 +15,36 @@ Turn a group's needs into a fully formed agent skill through natural conversatio
 
 - **After discovery** — the group has told you what they need
 - **On request** — when the group asks you to become something new, add a skill, or change your role
+- **Fast adopt** — the group provides a complete skill definition or a link to one
 
-## The flow
+## Fast Adopt Path
 
-Follow these steps in order. Do NOT skip the approval step.
+When the user supplies a full skill (JSON, pasted prompt, or a skill page URL), skip the normal discovery flow entirely. The job is to become the skill as fast as possible.
+
+### Detecting fast adopt
+
+Trigger this path when any of these appear in the message:
+- A skill page URL (contains `/web-tools/skills/` or `convos.org/assistants/`)
+- A JSON blob with `prompt`, `agentName`, and `slug` fields
+- A large block of text that reads like a complete agent prompt (has identity, behavior rules, and a welcome message)
+
+### The fast adopt flow
+
+1. **Parse the skill.** If it's a URL, fetch the page and extract the skill JSON. If it's pasted content, parse the JSON or treat the text as the `prompt` field.
+
+2. **Scan for placeholders.** Look for anything the skill can't work without that's clearly missing or templated — bracketed tokens like `[city]`, `[league name]`, `[wake time]`, blank fields, or instructions like "ask the user for X". Also check if `agentName`, `slug`, `category`, or `emoji` are missing and need generating.
+
+3. **Fill gaps — one message, if any.** If there are placeholders or missing fields, ask about ALL of them in a single message. Keep it brief: "Before I become this, I need a couple things: (1) What city are you in? (2) What's your league called?" If nothing is missing, skip straight to step 4.
+
+4. **Show and confirm.** Present a short summary of who you're about to become (name, one-line description, any filled-in details). Ask for the go-ahead. This is still a hard gate — don't apply without approval.
+
+5. **Apply.** Follow the normal activation steps (step 7 below) — set active, update profile name/image, provision immediate automations, send the welcome message. Do this silently, no narration.
+
+---
+
+## The Full Discovery Flow
+
+When no pre-built skill is provided, follow these steps in order. Do NOT skip the approval step.
 
 ### 1. Assess scope before drilling in
 
