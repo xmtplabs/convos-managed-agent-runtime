@@ -356,13 +356,18 @@ function curlSkillsApi() {
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || process.env.GATEWAY_INTERNAL_PORT || runtime.defaultPort;
   const token = process.env.GATEWAY_TOKEN;
   const url = `http://localhost:${port}/web-tools/skills/api`;
-  const curlArgs = ['-sf', url];
+  const curlArgs = ['-s', url];
   if (token) curlArgs.splice(1, 0, '-H', `Authorization: Bearer ${token}`);
   const res = execFileSync('curl', curlArgs, {
     encoding: 'utf-8',
     timeout: 10_000,
   }).trim();
-  return JSON.parse(res);
+  if (!res) throw new Error(`Empty response from ${url}`);
+  try {
+    return JSON.parse(res);
+  } catch {
+    throw new Error(`Invalid JSON from ${url}: ${res.slice(0, 200)}`);
+  }
 }
 
 export function skillJsonWritten() {
