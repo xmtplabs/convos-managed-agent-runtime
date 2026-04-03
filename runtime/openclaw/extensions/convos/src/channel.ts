@@ -814,87 +814,33 @@ async function handleInboundMessage(
     return;
   }
 
-  // -- Reasoning lane state --
-  // Buffer text blocks and classify them by turn context.
-  // Text from turns that also call tools = reasoning (suppressed).
-  // Text from the final turn (no tools) = answer (delivered).
-  //
-  // To expose reasoning in the UI instead of suppressing it, replace
-  // the isReasoning branch below with delivery using either:
-  //
-  //   (a) <think> tags — wrap text so the Convos client can parse and
-  //       render differently (collapsible, dimmed, italic, etc.):
-  //         payload.text = `<think>${p.text}</think>`;
-  //         await deliverConvosReply({ payload, ... });
-  //
-  //   (b) XMTP content type — send as a distinct content type so the
-  //       client can render a dedicated reasoning bubble:
-  //         await inst.sendContentType("reasoning", p.text);
-  //       (requires Convos client + protocol support for the new type)
-  //
-  let pendingBlocks: ReplyPayload[] = [];
-  let currentTurnHasTools = false;
-
-  const flushPending = async (isReasoning: boolean) => {
-    if (pendingBlocks.length === 0) return;
-    const blocks = pendingBlocks;
-    pendingBlocks = [];
-    if (isReasoning) {
-      for (const p of blocks) {
-        if (account.debug) {
-          debugLog(`[${account.accountId}] Suppressed reasoning: ${p.text?.substring(0, 80)}`);
-        }
-      }
-      return;
-    }
-    for (const p of blocks) {
-      const policy = await applyOutboundTextPolicy(p.text || "");
-      if (policy.suppress) {
-        log?.info(`[${account.accountId}] Suppressed outbound text reply`);
-        continue;
-      }
-      const delivered = { ...p, text: policy.text };
-      await deliverConvosReply({
-        payload: delivered,
-        accountId: account.accountId,
-        runtime,
-        log,
-        tableMode,
-        triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
-          ? msg.messageId
-          : undefined,
-      });
-    }
-  };
-
   await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
     ctx: ctxPayload,
     cfg,
     dispatcherOptions: {
       deliver: async (payload: ReplyPayload) => {
-        // Buffer every block — we don't know yet if this turn has tools.
-        pendingBlocks.push(payload);
+        const policy = await applyOutboundTextPolicy(payload.text || "");
+        if (policy.suppress) {
+          log?.info(`[${account.accountId}] Suppressed outbound text reply`);
+          return;
+        }
+        payload = { ...payload, text: policy.text };
+        await deliverConvosReply({
+          payload,
+          accountId: account.accountId,
+          runtime,
+          log,
+          tableMode,
+          triggerMessageId: msg.contentType === "text" || msg.contentType === "reply"
+            ? msg.messageId
+            : undefined,
+        });
       },
       onError: async (err, info) => {
         errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
       },
     },
-    replyOptions: {
-      onAssistantMessageStart: async () => {
-        // New turn starting — flush the previous turn's buffer.
-        // If the previous turn had tools, its text was reasoning.
-        await flushPending(currentTurnHasTools);
-        currentTurnHasTools = false;
-      },
-      onToolStart: () => {
-        currentTurnHasTools = true;
-      },
-    },
   });
-
-  // Dispatch ended — flush any remaining buffer.
-  // The last turn (no more onAssistantMessageStart to trigger flush).
-  await flushPending(currentTurnHasTools);
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
