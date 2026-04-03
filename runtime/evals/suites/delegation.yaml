@@ -16,7 +16,7 @@ providers:
 defaultTest:
   options:
     provider:
-      id: "openrouter:{{ env.EVALS_MODEL | default('openai/gpt-5.4-mini') }}"
+      id: "openrouter:@preset/assistants-eval-judge"
       config:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
@@ -27,7 +27,6 @@ tests:
     metadata:
       heavyPrompt: "Google the top 5 AI frameworks released this year"
       ackTimeout: 30
-      followUpTimeout: 15
     assert:
       - type: regex
         value: "\\b\\d{1,2}:\\d{2}\\s*([APap][Mm])?\\b"

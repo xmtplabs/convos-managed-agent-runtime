@@ -3,6 +3,7 @@ import { db } from "../db/connection";
 import { instanceInfra, instanceServices } from "../db/schema";
 import * as railway from "./providers/railway";
 import * as openrouter from "./providers/openrouter";
+import * as exa from "./providers/exa";
 import * as agentmail from "./providers/agentmail";
 import * as telnyx from "./providers/telnyx";
 import * as wallet from "./providers/wallet";
@@ -32,7 +33,6 @@ export async function createInstance(
 
   // Build env vars
   const vars: Record<string, string> = { ...buildInstanceEnv() };
-  if (model) vars.OPENCLAW_PRIMARY_MODEL = model.startsWith("openrouter/") ? model : `openrouter/${model}`;
   vars.INSTANCE_ID = instanceId;
   vars.OPENCLAW_GATEWAY_TOKEN = gatewayToken;
 
@@ -72,6 +72,35 @@ export async function createInstance(
     throw err;
   }
 
+  // Provision Exa key (web search + extract)
+  try {
+    if (config.exaServiceKey) {
+      onProgress?.("exa", "active");
+      const t0 = Date.now();
+      const keyName = `assistant-${config.poolEnvironment}-${instanceId}`;
+      const { id } = await exa.createKey(keyName, config.exaKeyRateLimit);
+      metricHistogram("provider.exa.duration_ms", Date.now() - t0, { step: "create_key" });
+      metricCount("provider.exa.provisioned");
+      vars.EXA_API_KEY = id;
+      services.exa = { resourceId: id };
+      onProgress?.("exa", "ok");
+    } else {
+      onProgress?.("exa", "skip", "Not configured");
+    }
+  } catch (err) {
+    // Exa is non-fatal — instance can function without web tools
+    const { error_class, error_message } = classifyError(err);
+    console.warn(`[infra] Exa key provisioning failed for ${instanceId} (non-fatal):`, (err as Error).message);
+    logger.warn("create.provider_warn", {
+      instanceId,
+      failed_step: "exa",
+      error_class,
+      error_message: error_message.slice(0, 1500),
+    });
+    metricCount("provider.exa.fail", 1, { error_class });
+    onProgress?.("exa", "fail", (err as Error).message);
+  }
+
   // ── Sharded: create a dedicated Railway project for this instance ──
   if (!config.railwayTeamId) throw new Error("RAILWAY_TEAM_ID not set — required for instance creation");
 
@@ -90,6 +119,10 @@ export async function createInstance(
     logger.error("create.railway_project_fail", { instanceId, error_class, error_message: error_message.slice(0, 1500) });
     metricCount("instance.create.fail", 1, { phase: "railway_project", error_class });
     onProgress?.("railway-project", "fail", (err as Error).message);
+    if (services.exa) {
+      await exa.deleteKey(services.exa.resourceId).catch((e: any) =>
+        logger.warn("create.rollback_fail", { instanceId, tool: "exa", error_message: e.message?.slice(0, 1500) }));
+    }
     throw err;
   }
   onProgress?.("railway-project", "ok", projectId);
@@ -106,6 +139,10 @@ export async function createInstance(
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
       logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 1500) });
     });
+    if (services.exa) {
+      await exa.deleteKey(services.exa.resourceId).catch((e: any) =>
+        logger.warn("create.rollback_fail", { instanceId, tool: "exa", error_message: e.message?.slice(0, 1500) }));
+    }
     throw err;
   }
 
@@ -134,6 +171,10 @@ export async function createInstance(
       console.warn(`[infra] Orphan project cleanup failed: ${e.message}`);
       logger.warn("create.orphan_cleanup_fail", { instanceId, projectId, error_message: e.message?.slice(0, 1500) });
     });
+    if (services.exa) {
+      await exa.deleteKey(services.exa.resourceId).catch((e: any) =>
+        logger.warn("create.rollback_fail", { instanceId, tool: "exa", error_message: e.message?.slice(0, 1500) }));
+    }
     throw err;
   }
 
@@ -167,7 +208,17 @@ export async function createInstance(
         resourceId: services.openrouter.resourceId,
         envKey: "OPENROUTER_API_KEY",
         envValue: vars.OPENROUTER_API_KEY,
-        resourceMeta: { model: vars.OPENCLAW_PRIMARY_MODEL || "" },
+        resourceMeta: {},
+      });
+    }
+
+    if (services.exa) {
+      await db.insert(instanceServices).values({
+        instanceId,
+        toolId: "exa",
+        resourceId: services.exa.resourceId,
+        envKey: "EXA_API_KEY",
+        envValue: vars.EXA_API_KEY,
       });
     }
   } catch (err) {
@@ -187,6 +238,10 @@ export async function createInstance(
     if (services.openrouter) {
       await openrouter.deleteKey(services.openrouter.resourceId).catch((e: any) =>
         logger.warn("create.rollback_fail", { instanceId, tool: "openrouter", error_message: e.message?.slice(0, 1500) }));
+    }
+    if (services.exa) {
+      await exa.deleteKey(services.exa.resourceId).catch((e: any) =>
+        logger.warn("create.rollback_fail", { instanceId, tool: "exa", error_message: e.message?.slice(0, 1500) }));
     }
     throw err;
   }
@@ -214,6 +269,7 @@ export async function destroyInstance(instanceId: string, onProgress?: ProgressC
 
   const destroyed: DestroyResult["destroyed"] = {
     openrouter: false,
+    exa: false,
     agentmail: false,
     telnyx: false,
     volumes: false,
@@ -227,6 +283,10 @@ export async function destroyInstance(instanceId: string, onProgress?: ProgressC
         onProgress?.("openrouter", "active");
         destroyed.openrouter = await openrouter.deleteKey(svc.resourceId);
         onProgress?.("openrouter", destroyed.openrouter ? "ok" : "skip", destroyed.openrouter ? undefined : "No key found");
+      } else if (svc.toolId === "exa") {
+        onProgress?.("exa", "active");
+        destroyed.exa = await exa.deleteKey(svc.resourceId);
+        onProgress?.("exa", destroyed.exa ? "ok" : "skip", destroyed.exa ? undefined : "No key found");
       } else if (svc.toolId === "agentmail") {
         onProgress?.("agentmail", "active");
         destroyed.agentmail = await agentmail.deleteInbox(svc.resourceId);
@@ -245,6 +305,7 @@ export async function destroyInstance(instanceId: string, onProgress?: ProgressC
   // Report skip for tools that had no service rows
   const svcToolIds = new Set(svcRows.map((s) => s.toolId));
   if (!svcToolIds.has("openrouter")) onProgress?.("openrouter", "skip", "Not provisioned");
+  if (!svcToolIds.has("exa")) onProgress?.("exa", "skip", "Not provisioned");
   if (!svcToolIds.has("agentmail")) onProgress?.("agentmail", "skip", "Not provisioned");
   if (!svcToolIds.has("telnyx")) onProgress?.("telnyx", "skip", "Not provisioned");
 

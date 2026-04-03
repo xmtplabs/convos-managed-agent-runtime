@@ -1,5 +1,12 @@
 # Pool Manager Changelog
 
+## 0.9.0
+- Telnyx webhook auth: Ed25519 signature verification — rejects forged SMS events
+- Email/SMS unprovision endpoints: agents can release their inbox or phone number
+- Exa API key added to on-demand tool provisioning
+- Ghost phone prevention: guards against assigning the same number to multiple instances
+- Runtime image traceability: `_RUNTIME_IMAGE` env var injected at deploy time
+
 ## 0.8.0
 - Drizzle Kit migrations: replaced hand-written idempotent SQL in `migrate.ts` with Drizzle Kit's migration system — `schema.ts` is now the single source of truth for both queries and migrations, eliminating schema drift between the two files
 - New workflow: edit `schema.ts` → run `pnpm db:generate` → commit the migration file → deploy

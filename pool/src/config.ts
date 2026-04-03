@@ -22,7 +22,6 @@ export const config = {
   poolEnvironment:
     getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "local"),
   deployBranch: getEnv("RAILWAY_SOURCE_BRANCH") || getEnv("RAILWAY_GIT_BRANCH", "unknown"),
-  instanceModel: getEnv("OPENCLAW_PRIMARY_MODEL", "unknown"),
   railwayServiceId: getEnv("RAILWAY_SERVICE_ID"),
   railwayProjectId: getEnv("RAILWAY_PROJECT_ID"),
   railwayEnvironmentId: getEnv("RAILWAY_ENVIRONMENT_ID"),
@@ -31,9 +30,6 @@ export const config = {
   // Template site
   templateSiteUrl: getEnv("TEMPLATE_SITE_URL", "https://convos.org/assistants"),
   templateSiteOrigins: getEnv("TEMPLATE_SITE_ORIGINS", "http://localhost:3000"),
-
-  // Notion
-  notionApiKey: getEnv("NOTION_API_KEY"),
 
   // Admin dashboard
   poolAdminUrls: getEnv("POOL_ADMIN_URLS", "vibe=https://convos-agents-vibe.up.railway.app,dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
@@ -55,6 +51,10 @@ export const config = {
   openrouterKeyLimit: parseInt(getEnv("OPENROUTER_KEY_LIMIT", "20"), 10),
   openrouterKeyLimitReset: getEnv("OPENROUTER_KEY_LIMIT_RESET", "monthly"),
   skillsOpenrouterApiKey: getEnv("SKILLS_OPENROUTER_API_KEY"),
+
+  // Exa (from services)
+  exaServiceKey: getEnv("EXA_SERVICE_KEY"),
+  exaKeyRateLimit: parseInt(getEnv("EXA_KEY_RATE_LIMIT", "10"), 10),
 
   // AgentMail (from services)
   agentmailApiKey: getEnv("AGENTMAIL_API_KEY"),
@@ -78,7 +78,7 @@ export const config = {
   stripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET"),
 
   // Instance passthrough env vars
-  openclawPrimaryModel: getEnv("OPENCLAW_PRIMARY_MODEL"),
+  defaultAgentName: getEnv("DEFAULT_AGENT_NAME", "Assistant"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   convosApiKey: getEnv("CONVOS_API_KEY"),
 

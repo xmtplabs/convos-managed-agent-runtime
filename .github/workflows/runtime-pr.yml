@@ -97,6 +97,7 @@ jobs:
               - 'runtime/hermes/src/**'
               - 'runtime/shared/web-tools/convos/**'
               - 'runtime/shared/workspace/skills/profile-update/**'
+              - 'runtime/shared/outbound-policy.json'
             lifecycle:
               - 'runtime/openclaw/scripts/**'
               - 'runtime/hermes/scripts/**'
@@ -107,6 +108,8 @@ jobs:
             #   - 'runtime/shared/workspace/skills/services/**'
             #   - 'runtime/openclaw/extensions/convos/**'
             #   - 'runtime/hermes/src/**'
+            silence:
+              - 'runtime/shared/outbound-policy.json'
             cron:
               - 'runtime/shared/web-tools/skills/**'
             models:
@@ -129,7 +132,7 @@ jobs:
 
           # Build list from dorny outputs — only matched suites run
           MATCHED=""
-          for suite in soul skills memory convos lifecycle services cron models; do
+          for suite in soul skills memory convos lifecycle services silence cron models; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
               MATCHED="$MATCHED $suite"
             fi
