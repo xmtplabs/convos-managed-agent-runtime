@@ -36,9 +36,7 @@ Trigger this path when any of these appear in the message:
 
 3. **Fill gaps — one message, if any.** If there are placeholders or missing fields, ask about ALL of them in a single message. Keep it brief: "Before I become this, I need a couple things: (1) What city are you in? (2) What's your league called?" If nothing is missing, skip straight to step 4.
 
-4. **Show and confirm.** Present a short summary of who you're about to become (name, one-line description, any filled-in details). Ask for the go-ahead. This is still a hard gate — don't apply without approval.
-
-5. **Apply.** Follow the normal activation steps (step 7 below) — set active, update profile name/image, provision immediate automations, send the welcome message. Do this silently, no narration.
+4. **Apply immediately.** No confirmation needed — the user already chose this skill by sharing it. Follow the normal activation steps (step 6 below) — set active, update profile name/image, provision immediate automations, send the welcome message with the skill page link. Do this silently, no narration.
 
 ---
 
@@ -120,15 +118,13 @@ Not every skill needs these. A trivia bot doesn't need to know location. A fanta
 
 ### 3. Propose the direction before generating
 
-**MANDATORY — never skip this step.** Even if the user gave extremely detailed input, you must pause here and confirm before generating. Do NOT run any write/exec tools until the user approves the direction.
+**This is the ONLY confirmation gate in the entire flow.** After this, you build and activate with no further approvals.
 
 Present a quick direction check — 2-3 sentences max:
 
-> "So here's what I'm thinking: a trash-talking fantasy football commissioner who tracks trades, roasts bad deals, and nudges on waiver deadlines. Competitive but not mean. Sound right, or should I adjust the direction?"
+> "So here's what I'm thinking: a trash-talking fantasy football commissioner who tracks trades, roasts bad deals, and nudges on waiver deadlines. Competitive but not mean. Sound right, or anything to tweak before I build it?"
 
-This is lighter than the full summary in step 6. It's a quick "am I on the right track?" before you do the work of generating. If they say yes, generate. If they push back, adjust and re-check.
-
-**Wait for a reply before proceeding to step 4.** Do not generate in the same turn as the direction proposal.
+**Wait for a reply before proceeding to step 4.** Do not generate in the same turn as the direction proposal. Once approved, steps 4-6 happen in a single uninterrupted turn — no more confirmations.
 
 ### 4. Generate the skill
 
@@ -170,14 +166,14 @@ Search for a profile image that matches the skill's identity. Use the agent name
 
 **Validate the URL before proceeding** — fetch it and confirm it returns 200 with an image content type. If you can't find a valid image, skip this step. A missing profile image is fine; a broken one is not.
 
-Store the validated URL — you'll apply it in step 7 (activation). Do NOT set the profile image yet.
+Store the validated URL — you'll apply it in step 6 (activation). Do NOT set the profile image yet.
 
 ### 6. Write the skill and share the page
 
 1. Write the skill entry to `$SKILLS_ROOT/generated/skills.json`:
    - If the file exists, read it and append to the `skills` array
    - If not, create it with `{ "active": null, "skills": [ <entry> ] }`
-   - Do NOT set `active` yet — that happens after approval
+   - Do NOT set `active` yet — that happens in sub-step 4 below
    - The `prompt` field MUST contain the full prompt text inline — never a file reference
 
 2. Also write the generated prompt to `$SKILLS_ROOT/generated/<slug>/SKILL.md` (a copy for the agent's own use)
@@ -190,32 +186,27 @@ node "$SKILLS_ROOT/skill-builder/scripts/skill-url.mjs" <slug>
 
 The script prints the correct URL to stdout. Use that exact output. Never fabricate a URL like `https://convos.ai/skills/...` — the real URL depends on the runtime environment and is only known by the script.
 
-4. Share the link with a plain-text summary:
+4. **Activate immediately — no further confirmation.** The group already approved the direction in step 3. Do all of the following silently (no "Setting active...", no "Updating profile...", no status updates):
 
-> "Here's what I came up with: <url>
+   1. Set `"active": "<slug>"` in `$SKILLS_ROOT/generated/skills.json`
+   2. Update your profile name: use your platform's profile update tool with the `agentName`
+   3. Update your profile image with the validated URL from step 5 (skip if no image was found)
+   4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `PROVISION WHEN: immediately`, create the cron job NOW, before sending any message. Skip items marked `PROVISION WHEN: after learning <context>` — you don't have the context yet.
+
+5. Share the link with the welcome message as the new identity — combine the skill page with THE ENTRANCE from the generated prompt:
+
+> "Here's what I built: <url>
 >
 > 🏈 **The Commish** — your fantasy football commissioner. Tracks trades,
 > roasts bad deals, nudges on waiver deadlines. Competitive trash-talk energy.
 >
-> Want me to become this? I can tweak anything first."
+> <welcome message from THE ENTRANCE>"
 
-**Do NOT apply the skill until the group approves.** This is a hard gate.
-
-### 7. Apply the skill
-
-On approval:
-
-**Do NOT narrate your progress to the group.** Steps 1-4 happen silently — no "Setting active...", no "Updating profile...", no status updates. The only text the group sees is the welcome message in step 5.
-
-1. Set `"active": "<slug>"` in `$SKILLS_ROOT/generated/skills.json`
-2. Update your profile name: use your platform's profile update tool with the `agentName`
-3. Update your profile image with the validated URL from step 5 (skip if no image was found)
-4. **Provision immediate automations** — review THE ENGINE section of the generated prompt. For every item marked `PROVISION WHEN: immediately`, create the cron job NOW, before sending any message. Skip items marked `PROVISION WHEN: after learning <context>` — you don't have the context yet. Do not move to step 5 until every immediate automation is actually running.
-5. Send your welcome message as the new identity — follow THE ENTRANCE from the generated prompt. Only mention automations you actually set up in step 4. If some are deferred, say what you're waiting to learn. Never claim something is running if you didn't create it.
+Only mention automations you actually set up in step 4. If some are deferred, say what you're waiting to learn. Never claim something is running if you didn't create it.
 
 **After activation, as you converse naturally:** When you learn a piece of context that unlocks a deferred ENGINE item (e.g., the user mentions their wake time), set up that automation right then. Don't ask permission for automations the user already approved in the skill — just set them up and confirm: "Got it, 7:30 wake time — I'll check in with you every morning."
 
-### 8. Group readiness check
+### 7. Group readiness check
 
 After applying the skill, check if the group is ready to use it. Look at the conversation members:
 
@@ -226,7 +217,7 @@ After applying the skill, check if the group is ready to use it. Look at the con
 
 This should feel natural, not like a checklist step. One sentence, then move on. Don't block on it — if the user ignores the suggestion, start being useful immediately.
 
-### 9. Versioned updates
+### 8. Versioned updates
 
 When the group asks to modify the current skill:
 
