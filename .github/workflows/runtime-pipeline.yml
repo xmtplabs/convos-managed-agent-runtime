@@ -104,7 +104,7 @@ jobs:
     name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
