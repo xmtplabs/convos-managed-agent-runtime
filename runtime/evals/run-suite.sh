@@ -33,7 +33,7 @@ if [ -n "${EVAL_RESULTS_DIR:-}" ]; then
 fi
 
 set +e
-npx promptfoo@0.121.3 eval -c "$EVAL_DIR/suites/$SUITE" --table-cell-max-length 1000 $JSON_FLAG "$@" 2>&1 | tee "$TMPOUT"
+npx promptfoo@0.121.3 eval -c "$EVAL_DIR/suites/$SUITE" --grader "openrouter:@preset/assistants-ci" --table-cell-max-length 1000 $JSON_FLAG "$@" 2>&1 | tee "$TMPOUT"
 # tee always exits 0; derive the real exit code from the results line
 EXIT_CODE=0
 if grep -qE '✗ [0-9]+ failed|[0-9]+ error' "$TMPOUT"; then

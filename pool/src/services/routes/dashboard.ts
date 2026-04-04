@@ -4,6 +4,7 @@ import { db } from "../../db/connection";
 import { destroyInstance } from "../infra";
 import * as openrouter from "../providers/openrouter";
 import * as agentmail from "../providers/agentmail";
+import { config } from "../../config";
 
 export const dashboardRouter = Router();
 
@@ -137,6 +138,46 @@ dashboardRouter.delete("/dashboard/kill/:instanceId", async (req, res) => {
       return;
     }
     console.error("[dashboard] kill failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /dashboard/invite-codes
+ * Proxy to the Convos invite-codes API to generate codes.
+ * Body: { count: number }
+ */
+dashboardRouter.post("/dashboard/invite-codes", async (req, res) => {
+  try {
+    const apiUrl = config.convosInviteApiUrl;
+    const apiToken = config.convosInviteApiToken;
+    if (!apiUrl || !apiToken) {
+      res.status(500).json({ error: "Invite codes API not configured" });
+      return;
+    }
+    const { count } = req.body || {};
+    if (!count || typeof count !== "number" || count < 1 || count > 50) {
+      res.status(400).json({ error: "count must be between 1 and 50" });
+      return;
+    }
+    const upstream = await fetch(`${apiUrl}/generate`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ count }),
+    });
+    if (!upstream.ok) {
+      const text = await upstream.text();
+      console.error(`[dashboard] invite-codes: non-JSON response: ${upstream.status} ${text.slice(0, 200)}`);
+      res.status(upstream.status).json({ error: `Upstream error: ${upstream.status}` });
+      return;
+    }
+    const data = await upstream.json();
+    res.json(data);
+  } catch (err: any) {
+    console.error("[dashboard] invite-codes failed:", err);
     res.status(500).json({ error: err.message });
   }
 });
