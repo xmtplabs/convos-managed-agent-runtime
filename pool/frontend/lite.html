@@ -224,8 +224,8 @@
         <div class="env-dropdown" id="env-dropdown"></div>
       </div>
     </div>
-    <form method="POST" action="/admin/lite/logout" style="display:contents">
-      <button class="full-link" type="submit" style="border:none;background:none;cursor:pointer;font:inherit;padding:0">Logout</button>
+    <form method="POST" action="/admin/lite/logout">
+      <button class="full-link" type="submit" style="border:none;background:none;cursor:pointer;font:inherit;padding:0;font-size:11px">Logout</button>
     </form>
   </div>
 
@@ -316,6 +316,7 @@
         var h = '';
         if (urls.length) {
           urls.forEach(function (e) {
+            if (e.env === 'dev' || e.env === 'vibe') return;
             h += e.env === env
               ? '<a class="current"><span class="env-dot ' + e.env + '"></span>' + e.env + '</a>'
               : '<a href="' + e.url + currentPath + '"><span class="env-dot ' + e.env + '"></span>' + e.env + '</a>';
