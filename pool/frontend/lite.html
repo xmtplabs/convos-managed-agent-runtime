@@ -272,7 +272,7 @@
         <div class="replenish-row">
           <div class="qty-stepper">
             <button type="button" class="qty-btn" id="qty-minus">-</button>
-            <input class="qty-input" id="qty" type="number" min="1" max="10" value="1" inputmode="numeric" />
+            <input class="qty-input" id="qty" type="number" min="1" max="5" value="3" inputmode="numeric" />
             <button type="button" class="qty-btn" id="qty-plus">+</button>
           </div>
           <button class="add-btn" id="add-btn">+ Add</button>
@@ -286,7 +286,7 @@
       <div class="card-header">Invite Codes</div>
       <div class="card-body">
         <div class="invite-row">
-          <input class="invite-qty" id="invite-qty" type="number" min="1" max="50" value="5" inputmode="numeric" />
+          <input class="invite-qty" id="invite-qty" type="number" min="1" max="50" value="3" inputmode="numeric" />
           <button class="gen-btn" id="gen-btn">Generate</button>
         </div>
         <div class="invite-error" id="invite-error"></div>
@@ -366,17 +366,17 @@
       qtyInput.value = Math.max(1, +qtyInput.value - 1);
     });
     document.getElementById('qty-plus').addEventListener('click', function () {
-      qtyInput.value = Math.min(10, +qtyInput.value + 1);
+      qtyInput.value = Math.min(5, +qtyInput.value + 1);
     });
     qtyInput.addEventListener('change', function () {
       var v = parseInt(qtyInput.value) || 1;
-      qtyInput.value = Math.max(1, Math.min(10, v));
+      qtyInput.value = Math.max(1, Math.min(5, v));
     });
 
     // --- Replenish ---
     document.getElementById('add-btn').addEventListener('click', function () {
       var btn = this;
-      var n = Math.min(10, Math.max(1, parseInt(qtyInput.value) || 1));
+      var n = Math.min(5, Math.max(1, parseInt(qtyInput.value) || 1));
       btn.disabled = true; btn.textContent = 'Adding...';
 
       var log = document.getElementById('prov-log');
