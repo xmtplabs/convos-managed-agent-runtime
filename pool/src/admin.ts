@@ -347,23 +347,32 @@ export function liteLoginPage(error) {
     <div class="title">Sign in</div>
     <div class="sub">Enter password to continue</div>
     <div id="login-box">
-      <input class="input" id="code" type="text" placeholder="Password" autofocus autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" style="-webkit-text-security:disc" />
+      <input class="input" id="code" type="text" placeholder="Password" autofocus autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" />
       <button class="btn" id="go">Sign in</button>
       <div class="error">${error || ""}</div>
     </div>
     <script>
       var inp = document.getElementById('code');
       var btn = document.getElementById('go');
+      var real = '';
+      inp.addEventListener('input', function () {
+        var cur = inp.value;
+        if (cur.length > real.length) {
+          real += cur.slice(real.length);
+        } else {
+          real = real.slice(0, cur.length);
+        }
+        inp.value = '\u2022'.repeat(real.length);
+      });
       function submit() {
-        var v = inp.value;
-        if (!v) return;
+        if (!real) return;
         btn.disabled = true;
         var x = new XMLHttpRequest();
         x.open('POST', '/admin/lite/login');
         x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
         x.onload = function () { window.location.href = '/admin/lite'; };
         x.onerror = function () { btn.disabled = false; };
-        x.send('password=' + encodeURIComponent(v));
+        x.send('password=' + encodeURIComponent(real));
       }
       btn.addEventListener('click', submit);
       inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
