@@ -3,7 +3,7 @@
   {"suite":"skills","timeout":600,"only":"","fresh":false},
   {"suite":"soul","timeout":600,"only":"","fresh":false},
   {"suite":"onboarding","timeout":600,"only":"","fresh":false},
-  {"suite":"skill-builder","timeout":600,"only":"","fresh":false,"maxFailures":"2"},
+  {"suite":"skill-builder","timeout":600,"only":"","fresh":false},
   {"suite":"lifecycle","timeout":600,"only":"","fresh":false},
   {"suite":"convos","timeout":600,"only":"","fresh":false},
   {"suite":"models","timeout":600,"only":"","fresh":false},
