@@ -842,6 +842,7 @@ app.get("/admin/lite", (req, res) => {
   res.type("html").send(litePage({
     poolEnvironment: config.poolEnvironment,
     runtimeImage: config.railwayRuntimeImage,
+    adminUrls: POOL_ADMIN_URLS as any,
   }));
 });
 

@@ -49,14 +49,42 @@
     .brand svg { width: 18px; height: 23px; }
     .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
     .brand-sub { font-weight: 400; color: var(--color-fg2); }
-    .env-badge {
+    .env-switcher { position: relative; display: inline-flex; }
+    .env-switcher-btn {
       font-size: 9px; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.5px; padding: 3px 8px; border-radius: 5px; border: none;
+      cursor: pointer; display: flex; align-items: center; gap: 4px;
+      -webkit-tap-highlight-color: transparent;
     }
-    .env-badge.dev { background: #DBEAFE; color: #1D4ED8; }
-    .env-badge.staging { background: #FEF3C7; color: #92400E; }
-    .env-badge.production { background: #FEE2E2; color: #991B1B; }
-    .env-badge.vibe { background: #F3E8FF; color: #6B21A8; }
+    .env-switcher-btn::after {
+      content: ''; border-left: 3px solid transparent; border-right: 3px solid transparent;
+      border-top: 4px solid currentColor; opacity: 0.6;
+    }
+    .env-switcher-btn.env-dev { background: #DBEAFE; color: #1D4ED8; }
+    .env-switcher-btn.env-staging { background: #FEF3C7; color: #92400E; }
+    .env-switcher-btn.env-production { background: #FEE2E2; color: #991B1B; }
+    .env-switcher-btn.env-vibe { background: #F3E8FF; color: #6B21A8; }
+    .env-dropdown {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0;
+      background: var(--color-surface); border: 1px solid var(--color-edge);
+      border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      min-width: 120px; z-index: 20; overflow: hidden;
+    }
+    .env-switcher.open .env-dropdown { display: block; }
+    .env-dropdown a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; font-size: 12px; font-weight: 600;
+      color: var(--color-fg); text-decoration: none;
+    }
+    .env-dropdown a:not(.current):active { background: var(--color-muted); }
+    .env-dropdown a.current { color: var(--color-fg3); cursor: default; }
+    .env-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .env-dot.dev { background: #3B82F6; }
+    .env-dot.staging { background: #F59E0B; }
+    .env-dot.production { background: #EF4444; }
+    .env-dot.vibe { background: #8B5CF6; }
     .full-link { font-size: 12px; color: var(--color-fg2); text-decoration: none; }
     .full-link:hover { color: var(--color-fg); }
 
@@ -191,7 +219,10 @@
         </svg>
         <span class="brand-name">Pool <span class="brand-sub">Lite</span></span>
       </div>
-      <span class="env-badge" id="env-badge"></span>
+      <div class="env-switcher" id="env-switcher" onclick="this.classList.toggle('open')">
+        <button class="env-switcher-btn" id="env-switcher-btn"></button>
+        <div class="env-dropdown" id="env-dropdown"></div>
+      </div>
     </div>
     <form method="POST" action="/admin/lite/logout" style="display:contents">
       <button class="full-link" type="submit" style="border:none;background:none;cursor:pointer;font:inherit;padding:0">Logout</button>
@@ -268,14 +299,37 @@
     var C = window.__POOL_CONFIG__ || {};
     var authHeaders = { 'Content-Type': 'application/json' };
 
-    // Env badge
+    // Env switcher
     (function () {
       var env = C.poolEnvironment || 'local';
       var envCap = env.charAt(0).toUpperCase() + env.slice(1);
       document.title = 'Pool ' + envCap;
-      var badge = document.getElementById('env-badge');
-      badge.textContent = env;
-      badge.className = 'env-badge ' + env;
+      var btn = document.getElementById('env-switcher-btn');
+      if (btn) {
+        btn.className = 'env-switcher-btn env-' + env;
+        btn.textContent = env;
+      }
+      var dropdown = document.getElementById('env-dropdown');
+      if (dropdown) {
+        var urls = C.adminUrls || [];
+        var currentPath = window.location.pathname;
+        var h = '';
+        if (urls.length) {
+          urls.forEach(function (e) {
+            h += e.env === env
+              ? '<a class="current"><span class="env-dot ' + e.env + '"></span>' + e.env + '</a>'
+              : '<a href="' + e.url + currentPath + '"><span class="env-dot ' + e.env + '"></span>' + e.env + '</a>';
+          });
+        } else {
+          h = '<a class="current"><span class="env-dot ' + env + '"></span>' + env + '</a>';
+        }
+        dropdown.innerHTML = h;
+      }
+      // Close dropdown when tapping outside
+      document.addEventListener('click', function (e) {
+        var sw = document.getElementById('env-switcher');
+        if (sw && !sw.contains(e.target)) sw.classList.remove('open');
+      });
     })();
 
     // --- Status ---
