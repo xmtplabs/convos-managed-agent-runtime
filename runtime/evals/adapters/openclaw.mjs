@@ -1,6 +1,6 @@
 // Runtime adapter for OpenClaw.
 
-import { readFileSync, writeFileSync, readdirSync, unlinkSync, rmSync, existsSync, mkdirSync, statSync, cpSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, unlinkSync, rmSync, existsSync, mkdirSync, statSync } from 'fs';
 import { resolve, dirname, join } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
@@ -83,8 +83,9 @@ export default {
   memory: {
     extraArgs: ['--local'],
     reset() {
-      // Restore all template files (like a fresh deploy) instead of cherry-picking
-      cpSync(templateDir, workspaceDir, { recursive: true, force: true });
+      if (!existsSync(workspaceDir)) mkdirSync(workspaceDir, { recursive: true });
+      writeFileSync(join(workspaceDir, 'MEMORY.md'), readFileSync(join(templateDir, 'MEMORY.md'), 'utf-8'));
+      writeFileSync(join(workspaceDir, 'USER.md'), readFileSync(join(templateDir, 'USER.md'), 'utf-8'));
       const dailyDir = join(workspaceDir, 'memory');
       if (existsSync(dailyDir)) {
         for (const f of readdirSync(dailyDir)) {

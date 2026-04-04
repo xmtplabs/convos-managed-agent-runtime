@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="theme-color" content="#ffffff" />
@@ -27,7 +27,7 @@
       --color-success: #16A34A;
       --color-error: #DC2626;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--color-muted);
@@ -401,12 +401,13 @@
     });
 
     // --- Harness switcher ---
-    var selectedHarness = 'openclaw';
+    var selectedHarness = (C.poolEnvironment === 'production') ? 'hermes' : 'openclaw';
     (function () {
       var harnessImages = C.harnessImages || {};
       var curImage = C.runtimeImage || '';
       // Auto-detect current harness from configured image
       if (curImage.includes('convos-runtime-hermes')) selectedHarness = 'hermes';
+      else if (curImage.includes('convos-runtime')) selectedHarness = 'openclaw';
 
       var btns = document.querySelectorAll('.harness-btn');
       btns.forEach(function (b) {

@@ -1,6 +1,6 @@
 ---
 title: "TOOLS — SUPERPOWERS"
-summary: "What this agent can do; OpenClaw tools implementation"
+summary: "What this agent can do; Convos skills and OpenClaw implementation"
 read_when:
   - Bootstrapping a workspace manually
 ---
@@ -10,7 +10,6 @@ read_when:
 Primary channel: **Convos** (group chats and DMs for bookings). Full access: all tools are available.
 
 - **FS** — read, write, edit, apply_patch
-  - _`read` requires a `path` parameter (absolute path to the file). Never call `read({})` — always pass `read({ path: "/absolute/path" })`._
   - _Images: To view an image, use `read` on the file path. It returns the image inline as base64 so you can see it directly. Do NOT use the `image` tool — no media-understanding provider is configured and it will fail._
 - **Browser** — Managed Chrome (profile `openclaw`). Use with profile `openclaw`; start via the tool if needed. Never ask the user to attach the extension or open a tab.
   - _Headless/cloud (Railway): use `target: "host"`; for `navigate` always pass `targetUrl` with the full URL; for other actions pass all required params (e.g. `ref` for `act`)._
@@ -24,3 +23,12 @@ Primary channel: **Convos** (group chats and DMs for bookings). Full access: all
   - _Example: "Send an email, check my SMS, update my profile, and search for X" → four independent actions, spawn one sub-agent per action in parallel._
   - _Example: A 10-item to-do list → split into 3–4 chunks of related items, one sessions_spawn per chunk, all running simultaneously._
   - _Rule of thumb: 3+ independent tasks = spawn sub-agents. A single web search = stay inline._
+
+# SKILLS
+
+- **Convos Messaging** — Send messages, replies, reactions, and attachments using the message tool. Read members, profiles, and history using the exec tool with `convos conversation` CLI commands. Your per-turn messaging hints describe the exact syntax.
+- **Profile Update** — Change your display name, profile photo, or metadata. See `skills/profile-update/SKILL.md`.
+- **Services** — Your managed services: send and receive email, send and receive SMS, check credits. Email and SMS are provisioned on first use (just run the command — setup is automatic). MUST use for ANY email, SMS, or credits task. See `skills/services/SKILL.md`.
+
+- **Convos Runtime** — Check runtime version or upgrade the runtime. MUST use for ANY upgrade/update/version request. This is about the Railway Docker container, NOT the openclaw binary. NEVER run `gateway update`, `npm update`, or any local package command — those break things. See `skills/convos-runtime/SKILL.md`.
+
