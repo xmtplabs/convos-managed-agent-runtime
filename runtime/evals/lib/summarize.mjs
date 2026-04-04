@@ -237,7 +237,7 @@ async function generateLlmSummary(summary) {
     return '';
   }
 
-  const model = '@preset/assistants-eval-judge';
+  const model = '@preset/assistants-ci';
   const payload = {
     model,
     temperature: 0,
