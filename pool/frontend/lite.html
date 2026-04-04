@@ -182,7 +182,12 @@
       </div>
       <span class="env-badge" id="env-badge"></span>
     </div>
-    <a class="full-link" href="/admin">Full dashboard</a>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a class="full-link" href="/admin">Full dashboard</a>
+      <form method="POST" action="/admin/lite/logout" style="display:contents">
+        <button class="full-link" type="submit" style="border:none;background:none;cursor:pointer;font:inherit;padding:0">Logout</button>
+      </form>
+    </div>
   </div>
 
   <div class="content">
