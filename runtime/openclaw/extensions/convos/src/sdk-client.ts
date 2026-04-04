@@ -531,6 +531,41 @@ export class ConvosInstance {
       return { success: false, messageId: undefined };
     }
 
+    // Strip PROFILE: and PROFILEIMAGE: markers from any line in the message.
+    // The agent may embed them anywhere (first line, middle, end, or standalone).
+    let profileName: string | undefined;
+    let profileImage: string | undefined;
+    const lines = text.split("\n");
+    const kept: string[] = [];
+    for (const line of lines) {
+      const pm = line.match(/\.?PROFILE:(.+)$/);
+      if (pm && !/PROFILEIMAGE:/.test(line)) { profileName = pm[1].trim(); continue; }
+      const im = line.match(/\.?PROFILEIMAGE:(https?:\/\/\S+)\s*$/);
+      if (im) { profileImage = im[1]; continue; }
+      kept.push(line);
+    }
+    // Auto-generate profile image from the emoji in the name (twemoji CDN).
+    if (profileName && !profileImage) {
+      const emojiMatch = profileName.match(/\p{Extended_Pictographic}/u);
+      if (emojiMatch) {
+        const codepoints = [...emojiMatch[0]]
+          .map((c) => c.codePointAt(0)!.toString(16))
+          .join("-");
+        profileImage = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${codepoints}.png`;
+      }
+    }
+    // Send name and image as separate commands so a bad image can't block the name.
+    if (profileName) {
+      await this.updateProfile(profileName);
+    }
+    if (profileImage) {
+      await this.updateProfile(undefined, profileImage);
+    }
+    text = kept.join("\n").trim();
+    if (!text) {
+      return { success: true, messageId: undefined };
+    }
+
     await this.renewProfileImageOnActivity();
 
     const cmd: Record<string, unknown> = { type: "send", text };
