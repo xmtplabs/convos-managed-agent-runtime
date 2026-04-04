@@ -346,8 +346,9 @@ export function liteLoginPage(error) {
     </div>
     <div class="title">Sign in</div>
     <div class="sub">Enter password to continue</div>
-    <form method="POST" action="/admin/lite/login" autocomplete="off">
-      <input class="input" type="password" name="password" placeholder="Password" autofocus required autocomplete="off" />
+    <form method="POST" action="/admin/lite/login" autocomplete="off" data-lpignore="true">
+      <input type="text" name="username" style="display:none" aria-hidden="true" tabindex="-1" />
+      <input class="input" type="text" name="password" placeholder="Password" autofocus required autocomplete="off" inputmode="text" data-lpignore="true" data-1p-ignore style="-webkit-text-security:disc;-moz-text-security:disc;text-security:disc" />
       <button class="btn" type="submit">Sign in</button>
       <div class="error">${error || ""}</div>
     </form>
