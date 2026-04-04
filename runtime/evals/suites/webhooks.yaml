@@ -11,12 +11,6 @@ evaluateOptions:
 providers:
   - file://../providers/webhook.provider.mjs
 
-defaultTest:
-  options:
-    provider:
-      id: "openrouter:@preset/assistants-ci"
-      config:
-        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
   # ── Phase 1: fire both sends ───────────────────────────────────────
