@@ -4,8 +4,8 @@ import { dirname, join } from "node:path";
 import * as pool from "./pool";
 import * as db from "./db/pool";
 import { config } from "./config";
-import { requireAuth } from "./middleware/auth";
-import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upgradesPage, apiDocsPage, skillsPage } from "./admin";
+import { requireAuth, requireLiteAuth } from "./middleware/auth";
+import { adminLogin, adminLogout, isAuthenticated, loginPage, dashboardPage, upgradesPage, apiDocsPage, skillsPage, liteLogin, liteLogout, isLiteAuthenticated, liteLoginPage, litePage } from "./admin";
 import { eq, and, inArray } from "drizzle-orm";
 import { db as pgDb } from "./db/connection";
 import { instanceInfra, instanceServices } from "./db/schema";
@@ -836,6 +836,43 @@ app.post("/admin/logout", (req, res) => {
   res.redirect(302, "/admin");
 });
 
+// --- Lite dashboard ---
+app.get("/admin/lite", (req, res) => {
+  if (!isLiteAuthenticated(req)) { res.type("html").send(liteLoginPage(null)); return; }
+  res.type("html").send(litePage({
+    poolEnvironment: config.poolEnvironment,
+    runtimeImage: config.railwayRuntimeImage,
+  }));
+});
+
+app.post("/admin/lite/login", (req, res) => {
+  const { password } = req.body || {};
+  if (liteLogin(password, res)) { res.redirect(302, "/admin/lite"); return; }
+  res.type("html").send(liteLoginPage("Invalid password"));
+});
+
+app.post("/admin/lite/logout", (req, res) => {
+  liteLogout(req, res);
+  res.redirect(302, "/admin/lite");
+});
+
+app.get("/admin/lite/manifest.json", (_req, res) => {
+  const env = config.poolEnvironment || "local";
+  const envCap = env.charAt(0).toUpperCase() + env.slice(1);
+  res.json({
+    name: `Pool ${envCap}`,
+    short_name: `Pool ${envCap}`,
+    start_url: "/admin/lite",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
+    icons: [
+      { src: "/admin/assets/pwa-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/admin/assets/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    ],
+  });
+});
+
 app.get("/admin/api-docs", (req, res) => {
   if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
   res.type("html").send(apiDocsPage({
@@ -967,7 +1004,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
 });
 
 // --- SSE streaming endpoint for provisioning with real-time progress ---
-app.get("/api/pool/replenish/stream", requireAuth, async (req, res) => {
+app.get("/api/pool/replenish/stream", requireLiteAuth, async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 1, 20);
   const image = (req.query.image as string) || "";
   const model = (req.query.model as string) || "";
@@ -1042,7 +1079,7 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/pool/check-starting", requireAuth, async (_req, res) => {
+app.post("/api/pool/check-starting", requireLiteAuth, async (_req, res) => {
   try {
     const result = await pool.checkStarting();
     res.json({ ok: true, counts: await db.getCounts(), ...result });
@@ -1088,7 +1125,7 @@ app.post("/api/pool/drain", requireAuth, async (req, res) => {
 
 // --- Services routes (previously separate service, now local) ---
 app.use(registryRouter); // registry is public
-app.use(requireAuth, dashboardRouter);
+app.use(requireLiteAuth, dashboardRouter);
 app.use(requireAuth, infraRouter);
 app.use(requireAuth, statusRouter);
 app.use(requireAuth, configureRouter);

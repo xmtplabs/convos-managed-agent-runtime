@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>Pool</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/admin/assets/pwa-icon-180.png">
+  <link rel="manifest" href="/admin/lite/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!--__POOL_CONFIG__-->
+  <style>
+    :root {
+      --color-brand: #FC4F37;
+      --color-brand-hover: #D9412D;
+      --color-fg: #000;
+      --color-fg2: #666;
+      --color-fg3: #B2B2B2;
+      --color-surface: #FFF;
+      --color-muted: #F5F5F5;
+      --color-edge: #EBEBEB;
+      --color-success: #16A34A;
+      --color-error: #DC2626;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--color-muted);
+      color: var(--color-fg);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100dvh;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    /* Header */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--color-surface);
+      border-bottom: 1px solid var(--color-edge);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .header-left { display: flex; align-items: center; gap: 8px; }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .brand svg { width: 18px; height: 23px; }
+    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+    .brand-sub { font-weight: 400; color: var(--color-fg2); }
+    .env-badge {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 3px 8px; border-radius: 5px; border: none;
+    }
+    .env-badge.dev { background: #DBEAFE; color: #1D4ED8; }
+    .env-badge.staging { background: #FEF3C7; color: #92400E; }
+    .env-badge.production { background: #FEE2E2; color: #991B1B; }
+    .env-badge.vibe { background: #F3E8FF; color: #6B21A8; }
+    .full-link { font-size: 12px; color: var(--color-fg2); text-decoration: none; }
+    .full-link:hover { color: var(--color-fg); }
+
+    /* Main content */
+    .content { max-width: 480px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* Card */
+    .card {
+      background: var(--color-surface); border-radius: 14px;
+      border: 1px solid var(--color-edge); overflow: hidden;
+    }
+    .card-header {
+      padding: 14px 16px; font-size: 14px; font-weight: 700;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--color-edge);
+    }
+    .card-body { padding: 16px; }
+
+    /* Status grid */
+    .status-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .status-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px; background: var(--color-muted);
+      border-radius: 10px;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.green { background: var(--color-success); }
+    .status-dot.orange { background: #F59E0B; }
+    .status-dot.blue { background: #3B82F6; }
+    .status-dot.red { background: var(--color-error); }
+    .status-label { font-size: 12px; color: var(--color-fg2); flex: 1; }
+    .status-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* Replenish */
+    .replenish-row { display: flex; align-items: center; gap: 12px; }
+    .qty-stepper {
+      display: flex; align-items: center; border: 1.5px solid var(--color-edge);
+      border-radius: 10px; overflow: hidden; flex: 1;
+    }
+    .qty-btn {
+      width: 44px; height: 44px; border: none; background: var(--color-muted);
+      font-size: 18px; font-weight: 600; color: var(--color-fg); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .qty-btn:active { background: var(--color-edge); }
+    .qty-input {
+      width: 50px; text-align: center; border: none; font-size: 18px;
+      font-weight: 700; font-family: inherit; background: transparent;
+      -moz-appearance: textfield;
+    }
+    .qty-input::-webkit-inner-spin-button,
+    .qty-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .add-btn {
+      height: 44px; padding: 0 24px; border: none; border-radius: 10px;
+      background: var(--color-brand); color: #FFF; font-size: 15px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; white-space: nowrap;
+    }
+    .add-btn:active { background: var(--color-brand-hover); }
+    .add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Provision log */
+    .prov-log { display: none; margin-top: 12px; }
+    .prov-log.active { display: block; }
+    .prov-entry {
+      font-size: 12px; color: var(--color-fg2); padding: 4px 0;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .prov-entry .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .prov-entry .dot.pending { background: #F59E0B; }
+    .prov-entry .dot.ok { background: var(--color-success); }
+    .prov-entry .dot.fail { background: var(--color-error); }
+
+    /* Invite codes */
+    .invite-row { display: flex; gap: 12px; align-items: center; }
+    .invite-qty {
+      width: 60px; height: 44px; text-align: center; border: 1.5px solid var(--color-edge);
+      border-radius: 10px; font-size: 16px; font-weight: 600; font-family: inherit;
+      -moz-appearance: textfield;
+    }
+    .invite-qty::-webkit-inner-spin-button,
+    .invite-qty::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .gen-btn {
+      height: 44px; padding: 0 20px; border: none; border-radius: 10px;
+      background: #111; color: #FFF; font-size: 14px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; white-space: nowrap;
+    }
+    .gen-btn:active { opacity: 0.8; }
+    .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .codes-list {
+      margin-top: 12px; display: none; flex-direction: column; gap: 6px;
+    }
+    .codes-list.active { display: flex; }
+    .code-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; background: var(--color-muted);
+      border-radius: 8px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .code-text { word-break: break-all; flex: 1; }
+    .copy-btn {
+      font-size: 11px; font-weight: 600; color: var(--color-brand);
+      background: none; border: none; cursor: pointer; padding: 4px 8px;
+      font-family: inherit; white-space: nowrap;
+    }
+    .invite-error { font-size: 12px; color: var(--color-error); margin-top: 8px; display: none; }
+    .invite-error.active { display: block; }
+
+    /* Sync button */
+    .sync-btn {
+      width: 28px; height: 28px; border: none; border-radius: 6px;
+      background: var(--color-muted); color: var(--color-fg2); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    }
+    .sync-btn:active { background: var(--color-edge); }
+    .sync-btn.syncing svg { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Updated timestamp */
+    .updated { font-size: 11px; color: var(--color-fg3); font-weight: 400; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="brand">
+        <svg viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="var(--color-brand)"/>
+          <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="var(--color-brand)"/>
+        </svg>
+        <span class="brand-name">Pool <span class="brand-sub">Lite</span></span>
+      </div>
+      <span class="env-badge" id="env-badge"></span>
+    </div>
+    <form method="POST" action="/admin/lite/logout" style="display:contents">
+      <button class="full-link" type="submit" style="border:none;background:none;cursor:pointer;font:inherit;padding:0">Logout</button>
+    </form>
+  </div>
+
+  <div class="content">
+    <!-- Status card -->
+    <div class="card">
+      <div class="card-header">
+        <span>Pool Status</span>
+        <span class="updated" id="updated"></span>
+      </div>
+      <div class="card-body">
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="status-dot green"></span>
+            <span class="status-label">Ready</span>
+            <span class="status-value" id="s-idle">-</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot orange"></span>
+            <span class="status-label">Starting</span>
+            <span class="status-value" id="s-starting">-</span>
+            <button class="sync-btn" id="check-starting-btn" title="Check starting instances">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            </button>
+          </div>
+          <div class="status-item">
+            <span class="status-dot blue"></span>
+            <span class="status-label">Claimed</span>
+            <span class="status-value" id="s-claimed">-</span>
+          </div>
+          <div class="status-item">
+            <span class="status-dot red"></span>
+            <span class="status-label">Crashed</span>
+            <span class="status-value" id="s-crashed">-</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Replenish card -->
+    <div class="card">
+      <div class="card-header">Replenish</div>
+      <div class="card-body">
+        <div class="replenish-row">
+          <div class="qty-stepper">
+            <button type="button" class="qty-btn" id="qty-minus">-</button>
+            <input class="qty-input" id="qty" type="number" min="1" max="10" value="1" inputmode="numeric" />
+            <button type="button" class="qty-btn" id="qty-plus">+</button>
+          </div>
+          <button class="add-btn" id="add-btn">+ Add</button>
+        </div>
+        <div class="prov-log" id="prov-log"></div>
+      </div>
+    </div>
+
+    <!-- Invite codes card -->
+    <div class="card">
+      <div class="card-header">Invite Codes</div>
+      <div class="card-body">
+        <div class="invite-row">
+          <input class="invite-qty" id="invite-qty" type="number" min="1" max="50" value="5" inputmode="numeric" />
+          <button class="gen-btn" id="gen-btn">Generate</button>
+        </div>
+        <div class="invite-error" id="invite-error"></div>
+        <div class="codes-list" id="codes-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var C = window.__POOL_CONFIG__ || {};
+    var authHeaders = { 'Content-Type': 'application/json' };
+
+    // Env badge
+    (function () {
+      var env = C.poolEnvironment || 'local';
+      var envCap = env.charAt(0).toUpperCase() + env.slice(1);
+      document.title = 'Pool ' + envCap;
+      var badge = document.getElementById('env-badge');
+      badge.textContent = env;
+      badge.className = 'env-badge ' + env;
+    })();
+
+    // --- Status ---
+    async function refreshCounts() {
+      try {
+        var res = await fetch('/api/pool/counts');
+        var c = await res.json();
+        document.getElementById('s-idle').textContent = c.idle || 0;
+        document.getElementById('s-starting').textContent = c.starting || 0;
+        document.getElementById('s-claimed').textContent = c.claimed || 0;
+        document.getElementById('s-crashed').textContent = c.crashed || 0;
+        document.getElementById('updated').textContent = new Date().toLocaleTimeString();
+      } catch (e) { console.warn('refreshCounts failed:', e); }
+    }
+    refreshCounts();
+    setInterval(refreshCounts, 15000);
+
+    // --- Check starting ---
+    document.getElementById('check-starting-btn').addEventListener('click', async function () {
+      var btn = this;
+      if (btn.classList.contains('syncing')) return;
+      btn.classList.add('syncing');
+      try {
+        await fetch('/api/pool/check-starting', { method: 'POST', headers: authHeaders });
+        await refreshCounts();
+      } catch (e) { console.warn('check-starting failed:', e); }
+      btn.classList.remove('syncing');
+    });
+
+    // --- Qty stepper ---
+    var qtyInput = document.getElementById('qty');
+    document.getElementById('qty-minus').addEventListener('click', function () {
+      qtyInput.value = Math.max(1, +qtyInput.value - 1);
+    });
+    document.getElementById('qty-plus').addEventListener('click', function () {
+      qtyInput.value = Math.min(10, +qtyInput.value + 1);
+    });
+    qtyInput.addEventListener('change', function () {
+      var v = parseInt(qtyInput.value) || 1;
+      qtyInput.value = Math.max(1, Math.min(10, v));
+    });
+
+    // --- Replenish ---
+    document.getElementById('add-btn').addEventListener('click', function () {
+      var btn = this;
+      var n = Math.min(10, Math.max(1, parseInt(qtyInput.value) || 1));
+      btn.disabled = true; btn.textContent = 'Adding...';
+
+      var log = document.getElementById('prov-log');
+      log.innerHTML = '';
+      log.classList.add('active');
+      for (var i = 1; i <= n; i++) {
+        log.innerHTML += '<div class="prov-entry" id="prov-' + i + '"><span class="dot pending"></span><span>Instance ' + i + ' — provisioning...</span></div>';
+      }
+
+      var image = encodeURIComponent(C.runtimeImage || '');
+      var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=1&image=' + image);
+      es.onmessage = function (ev) {
+        try {
+          var data = JSON.parse(ev.data);
+          if (data.type === 'step') {
+            var el = document.getElementById('prov-' + data.instanceNum);
+            if (!el) return;
+            if (data.step === 'done') {
+              el.querySelector('.dot').className = 'dot ok';
+              el.querySelector('span:last-child').textContent = 'Instance ' + data.instanceNum + ' — done';
+            } else if (data.step === 'error') {
+              el.querySelector('.dot').className = 'dot fail';
+              el.querySelector('span:last-child').textContent = 'Instance ' + data.instanceNum + ' — failed';
+            } else {
+              el.querySelector('span:last-child').textContent = 'Instance ' + data.instanceNum + ' — ' + (data.message || data.step);
+            }
+          } else if (data.type === 'complete') {
+            es.close();
+            btn.disabled = false;
+            btn.textContent = '+ Add';
+            refreshCounts();
+          }
+        } catch (e) {}
+      };
+      es.onerror = function () {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = '+ Add';
+        refreshCounts();
+      };
+    });
+
+    // --- Invite codes ---
+    document.getElementById('gen-btn').addEventListener('click', async function () {
+      var btn = this;
+      var qty = Math.max(1, Math.min(50, parseInt(document.getElementById('invite-qty').value) || 1));
+      var errEl = document.getElementById('invite-error');
+      var listEl = document.getElementById('codes-list');
+      errEl.classList.remove('active');
+      btn.disabled = true; btn.textContent = 'Generating...';
+
+      try {
+        var res = await fetch('/dashboard/invite-codes', {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ count: qty }),
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to generate codes');
+        var codes = (data.data && data.data.codes) || data.codes || data.inviteCodes || [];
+        if (!codes.length) throw new Error('No codes returned');
+        listEl.innerHTML = '';
+        codes.forEach(function (code) {
+          var c = typeof code === 'string' ? code : (code.code || code.inviteCode || JSON.stringify(code));
+          var row = document.createElement('div');
+          row.className = 'code-row';
+          row.innerHTML = '<span class="code-text">' + esc(c) + '</span><button class="copy-btn" data-code="' + esc(c) + '">Copy</button>';
+          listEl.appendChild(row);
+        });
+        listEl.classList.add('active');
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.classList.add('active');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate';
+      }
+    });
+
+    // Copy handler
+    document.getElementById('codes-list').addEventListener('click', function (e) {
+      var btn = e.target.closest('.copy-btn');
+      if (!btn) return;
+      var code = btn.getAttribute('data-code');
+      navigator.clipboard.writeText(code).then(function () {
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+      });
+    });
+
+    function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+  </script>
+</body>
+</html>

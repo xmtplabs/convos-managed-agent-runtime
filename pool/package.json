@@ -20,6 +20,7 @@
     "telnyx:sms-send": "tsx --env-file=.env scripts/telnyx-sms-send.ts",
     "telnyx:sms-test": "tsx --env-file=.env scripts/telnyx-sms-test.ts",
     "railway:test": "tsx --env-file=.env scripts/test-railway.ts",
+    "invite:test": "tsx --env-file=.env scripts/test-invite-codes.ts",
     "stripe:listen": "stripe listen --forward-to http://localhost:3001/webhooks/stripe",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
