@@ -401,12 +401,13 @@
     });
 
     // --- Harness switcher ---
-    var selectedHarness = 'openclaw';
+    var selectedHarness = (C.poolEnvironment === 'production') ? 'hermes' : 'openclaw';
     (function () {
       var harnessImages = C.harnessImages || {};
       var curImage = C.runtimeImage || '';
       // Auto-detect current harness from configured image
       if (curImage.includes('convos-runtime-hermes')) selectedHarness = 'hermes';
+      else if (curImage.includes('convos-runtime')) selectedHarness = 'openclaw';
 
       var btns = document.querySelectorAll('.harness-btn');
       btns.forEach(function (b) {
