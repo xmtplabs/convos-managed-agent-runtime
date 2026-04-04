@@ -15,7 +15,7 @@ providers:
 defaultTest:
   options:
     provider:
-      id: "openrouter:@preset/assistants-eval-judge"
+      id: "openrouter:@preset/assistants-ci"
       config:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 

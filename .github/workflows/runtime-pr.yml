@@ -137,6 +137,13 @@ jobs:
               - 'runtime/convos-platform/context/TOOL-DISCIPLINE.md'
               - 'runtime/convos-platform/context/*/TOOL-DISCIPLINE.md'
               - 'runtime/hermes/src/**'
+            verbosity:
+              - 'runtime/convos-platform/SOUL.md'
+              - 'runtime/convos-platform/context/MESSAGING.md'
+              - 'runtime/convos-platform/context/BREVITY-EXAMPLES.md'
+              - 'runtime/convos-platform/context/*/MESSAGING.md'
+              - 'runtime/convos-platform/INJECTED_CONTEXT.md'
+              - 'runtime/evals/suites/verbosity.yaml'
             cron:
               - 'runtime/convos-platform/context/CRON.md'
               - 'runtime/convos-platform/context/*/CRON.md'
@@ -166,7 +173,7 @@ jobs:
 
           # Build list from dorny outputs — only matched suites run
           MATCHED=""
-          for suite in soul knows skills memory convos onboarding skill-builder lifecycle services silence cron models delegation webhooks; do
+          for suite in soul knows skills memory convos onboarding skill-builder lifecycle services silence verbosity cron models delegation webhooks; do
             if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
               MATCHED="$MATCHED $suite"
             fi
