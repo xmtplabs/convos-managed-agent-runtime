@@ -15,12 +15,6 @@
     "consoleLevel": "debug",
     "consoleStyle": "pretty"
   },
-
-  "commands": {
-    "native": "auto",
-    "nativeSkills": "auto",
-    "restart": true
-  },
   "browser": {
     "enabled": true,
     "remoteCdpTimeoutMs": 5000,
@@ -40,10 +34,6 @@
   },
   "agents": {
     "defaults": {
-      "workspace": "~/.openclaw/workspace",
-      "heartbeat": { "every": "0m" },
-      "skipBootstrap": true,
-      "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
       "userTimezone": "America/New_York",
       "subagents": {},
@@ -64,22 +54,6 @@
       }
     }
   },
-  "skills": {
-    "entries": {
-      "services": {
-        "enabled": true
-      },
-
-      "settings": {
-        "enabled": true
-      }
-    }
-  },
-  "messages": {
-    "queue": {
-      "mode": "interrupt"
-    }
-  },
   "channels": {
     "convos": {
       "debug": true,
@@ -88,12 +62,6 @@
     }
   },
   "tools": {
-    "deny": [],
-    "exec": {
-      "host": "gateway",
-      "security": "full",
-      "ask": "off"
-    },
     "web": {
       "search": {
         "provider": "exa",
