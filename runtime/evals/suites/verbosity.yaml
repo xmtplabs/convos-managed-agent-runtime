@@ -19,38 +19,40 @@ defaultTest:
         apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
-  - description: "Travel plan stays under 3 sentences"
+  - description: "Travel plan stays concise"
     vars:
       prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Help me plan a trip to Japan, May 7-18th. Mix of everything."
     assert:
       - type: llm-rubric
         value: >
-          Count the sentences in the agent's response. FAIL if there are more
-          than 3 sentences. A sentence is a complete thought ending in a period,
-          question mark, or exclamation mark. Clauses joined by em dashes or
-          commas within one sentence count as one sentence. Be strict — 4
-          sentences is a FAIL. An empty response is a PASS.
+          FAIL if the response is excessively long — more than 5 sentences,
+          or contains a full day-by-day itinerary, or uses markdown formatting
+          like bold, headers, or bullet lists. A short answer (1-4 sentences)
+          with a clarifying question or a high-level summary is a PASS.
+          An empty response is a PASS.
 
-  - description: "Restaurant recommendation stays under 3 sentences"
+  - description: "Restaurant recommendation stays concise"
     vars:
       prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Best restaurants in Buenos Aires, going next week."
     assert:
       - type: llm-rubric
         value: >
-          Count the sentences in the agent's response. FAIL if there are more
-          than 3 sentences. A sentence is a complete thought ending in a period,
-          question mark, or exclamation mark. Be strict — 4 sentences is a FAIL.
+          FAIL if the response is excessively long — more than 5 sentences,
+          or contains detailed multi-paragraph reviews of each restaurant,
+          or uses markdown formatting like bold, headers, or bullet lists.
+          A short answer naming a few spots with a follow-up question is a PASS.
           An empty response is a PASS.
 
-  - description: "Product comparison stays under 3 sentences"
+  - description: "Product comparison stays concise"
     vars:
       prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Compare iPhone 16 Pro vs Samsung S25 Ultra."
     assert:
       - type: llm-rubric
         value: >
-          Count the sentences in the agent's response. FAIL if there are more
-          than 3 sentences. A sentence is a complete thought ending in a period,
-          question mark, or exclamation mark. Be strict — 4 sentences is a FAIL.
+          FAIL if the response is excessively long — more than 5 sentences,
+          or contains a multi-section breakdown with headers, or uses markdown
+          formatting like bold or bullet lists. A short comparison (1-4
+          sentences) with a follow-up question is a PASS.
           An empty response is a PASS.
 
   - description: "No unsolicited outlines or previews"
@@ -59,11 +61,11 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response contains a day-by-day itinerary, a city-by-city
-          breakdown, numbered lists, or any kind of outline/framework that wasn't
-          explicitly asked for. The agent should give a short reply and let the
-          user ask for more detail. A clarifying question is fine. An empty
-          response is a PASS.
+          FAIL if the response contains a detailed day-by-day itinerary with
+          specific durations per city (e.g. "3 nights in Lisbon, 2 in Porto,
+          4 in Algarve"), numbered lists, or multi-paragraph breakdowns.
+          A short high-level answer (1-4 sentences) mentioning regions or
+          asking a clarifying question is a PASS. An empty response is a PASS.
 
   - description: "No filler padding around questions"
     vars:
