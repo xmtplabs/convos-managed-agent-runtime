@@ -118,6 +118,21 @@
     .status-label { font-size: 12px; color: var(--color-fg2); flex: 1; }
     .status-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+    /* Harness switcher */
+    .harness-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .harness-btn {
+      flex: 1; height: 38px; border: 1.5px solid var(--color-edge);
+      border-radius: 10px; background: var(--color-surface); color: var(--color-fg2);
+      font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .harness-btn.active {
+      border-color: var(--color-brand); color: var(--color-brand);
+      background: #FFF5F4;
+    }
+    .harness-btn:not(.active):active { background: var(--color-muted); }
+
     /* Replenish */
     .replenish-row { display: flex; align-items: center; gap: 12px; }
     .qty-stepper {
@@ -273,6 +288,10 @@
     <div class="card">
       <div class="card-header">Replenish</div>
       <div class="card-body">
+        <div class="harness-row" id="harness-row">
+          <button type="button" class="harness-btn active" data-harness="openclaw">OpenClaw</button>
+          <button type="button" class="harness-btn" data-harness="hermes">Hermes</button>
+        </div>
         <div class="replenish-row">
           <div class="qty-stepper">
             <button type="button" class="qty-btn" id="qty-minus">-</button>
@@ -381,6 +400,29 @@
       qtyInput.value = Math.max(1, Math.min(5, v));
     });
 
+    // --- Harness switcher ---
+    var selectedHarness = 'openclaw';
+    (function () {
+      var harnessImages = C.harnessImages || {};
+      var curImage = C.runtimeImage || '';
+      // Auto-detect current harness from configured image
+      if (curImage.includes('convos-runtime-hermes')) selectedHarness = 'hermes';
+
+      var btns = document.querySelectorAll('.harness-btn');
+      btns.forEach(function (b) {
+        if (b.getAttribute('data-harness') === selectedHarness) {
+          b.classList.add('active');
+        } else {
+          b.classList.remove('active');
+        }
+        b.addEventListener('click', function () {
+          selectedHarness = this.getAttribute('data-harness');
+          btns.forEach(function (x) { x.classList.remove('active'); });
+          this.classList.add('active');
+        });
+      });
+    })();
+
     // --- Replenish ---
     document.getElementById('add-btn').addEventListener('click', function () {
       var btn = this;
@@ -394,7 +436,11 @@
         log.innerHTML += '<div class="prov-entry" id="prov-' + i + '"><span class="dot pending"></span><span>Instance ' + i + ' — provisioning...</span></div>';
       }
 
-      var image = encodeURIComponent(C.runtimeImage || '');
+      // Build image from selected harness + tag from current config
+      var harnessImages = C.harnessImages || {};
+      var baseImage = harnessImages[selectedHarness] || C.runtimeImage || '';
+      var tag = (C.runtimeImage || '').split(':').pop() || 'production';
+      var image = encodeURIComponent(baseImage.includes(':') ? baseImage : baseImage + ':' + tag);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=1&image=' + image);
       es.onmessage = function (ev) {
         try {
