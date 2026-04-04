@@ -393,8 +393,9 @@ export function litePage({
   poolEnvironment,
   runtimeImage = "",
   adminUrls = [],
+  harnessImages = {} as Record<string, string>,
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage, adminUrls });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, adminUrls, harnessImages });
   return liteHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
