@@ -1,0 +1,9 @@
+# Shared defaults for all eval suites.
+# The judge/grader model used by llm-rubric assertions.
+
+defaultTest:
+  options:
+    provider:
+      id: "openrouter:@preset/assistants-ci"
+      config:
+        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"

@@ -12,12 +12,6 @@ providers:
     config:
       skipGreeting: true
 
-defaultTest:
-  options:
-    provider:
-      id: "openrouter:@preset/assistants-ci"
-      config:
-        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
   # --- Step 1: user describes need, agent asks ONE quick question max ---
