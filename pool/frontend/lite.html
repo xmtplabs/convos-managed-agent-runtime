@@ -351,7 +351,7 @@
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to generate codes');
-        var codes = data.codes || data.inviteCodes || [];
+        var codes = (data.data && data.data.codes) || data.codes || data.inviteCodes || [];
         if (!codes.length) throw new Error('No codes returned');
         listEl.innerHTML = '';
         codes.forEach(function (code) {

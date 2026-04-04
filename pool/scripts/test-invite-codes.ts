@@ -34,7 +34,7 @@ async function main() {
   const data = await res.json();
   console.log("Response:", JSON.stringify(data, null, 2));
 
-  const codes = data.codes || data.inviteCodes || [];
+  const codes = data.data?.codes || data.codes || data.inviteCodes || [];
   if (codes.length > 0) {
     console.log(`\nGenerated ${codes.length} code(s)`);
   } else {
