@@ -287,6 +287,12 @@ export function liteLogout(req, res) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });
+  // Also clear full admin cookie so isAuthenticated() doesn't keep granting access
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 }
 
 // --- Lite login page ---
