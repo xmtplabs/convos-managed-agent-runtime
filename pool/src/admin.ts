@@ -346,12 +346,28 @@ export function liteLoginPage(error) {
     </div>
     <div class="title">Sign in</div>
     <div class="sub">Enter password to continue</div>
-    <form method="POST" action="/admin/lite/login" autocomplete="off" data-lpignore="true">
-      <input type="text" name="username" style="display:none" aria-hidden="true" tabindex="-1" />
-      <input class="input" type="text" name="password" placeholder="Password" autofocus required autocomplete="off" inputmode="text" data-lpignore="true" data-1p-ignore style="-webkit-text-security:disc;-moz-text-security:disc;text-security:disc" />
-      <button class="btn" type="submit">Sign in</button>
+    <div id="login-box">
+      <input class="input" id="code" type="text" placeholder="Password" autofocus autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" style="-webkit-text-security:disc" />
+      <button class="btn" id="go">Sign in</button>
       <div class="error">${error || ""}</div>
-    </form>
+    </div>
+    <script>
+      var inp = document.getElementById('code');
+      var btn = document.getElementById('go');
+      function submit() {
+        var v = inp.value;
+        if (!v) return;
+        btn.disabled = true;
+        var x = new XMLHttpRequest();
+        x.open('POST', '/admin/lite/login');
+        x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        x.onload = function () { window.location.href = '/admin/lite'; };
+        x.onerror = function () { btn.disabled = false; };
+        x.send('password=' + encodeURIComponent(v));
+      }
+      btn.addEventListener('click', submit);
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+    </script>
   </div>
 </body>
 </html>`;
