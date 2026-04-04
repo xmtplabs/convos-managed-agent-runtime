@@ -161,9 +161,13 @@
 
     /* Invite codes */
     .invite-row { display: flex; gap: 12px; align-items: center; }
+    .invite-stepper {
+      display: flex; align-items: center; border: 1.5px solid var(--color-edge);
+      border-radius: 10px; overflow: hidden;
+    }
     .invite-qty {
-      width: 60px; height: 44px; text-align: center; border: 1.5px solid var(--color-edge);
-      border-radius: 10px; font-size: 16px; font-weight: 600; font-family: inherit;
+      width: 50px; text-align: center; border: none; font-size: 18px;
+      font-weight: 700; font-family: inherit; background: transparent;
       -moz-appearance: textfield;
     }
     .invite-qty::-webkit-inner-spin-button,
@@ -286,7 +290,11 @@
       <div class="card-header">Invite Codes</div>
       <div class="card-body">
         <div class="invite-row">
-          <input class="invite-qty" id="invite-qty" type="number" min="1" max="50" value="3" inputmode="numeric" />
+          <div class="invite-stepper">
+            <button type="button" class="qty-btn" id="invite-minus">-</button>
+            <input class="invite-qty" id="invite-qty" type="number" min="1" max="50" value="3" inputmode="numeric" />
+            <button type="button" class="qty-btn" id="invite-plus">+</button>
+          </div>
           <button class="gen-btn" id="gen-btn">Generate</button>
         </div>
         <div class="invite-error" id="invite-error"></div>
@@ -417,6 +425,19 @@
         btn.textContent = '+ Add';
         refreshCounts();
       };
+    });
+
+    // --- Invite qty stepper ---
+    var inviteInput = document.getElementById('invite-qty');
+    document.getElementById('invite-minus').addEventListener('click', function () {
+      inviteInput.value = Math.max(1, +inviteInput.value - 1);
+    });
+    document.getElementById('invite-plus').addEventListener('click', function () {
+      inviteInput.value = Math.min(50, +inviteInput.value + 1);
+    });
+    inviteInput.addEventListener('change', function () {
+      var v = parseInt(inviteInput.value) || 1;
+      inviteInput.value = Math.max(1, Math.min(50, v));
     });
 
     // --- Invite codes ---
