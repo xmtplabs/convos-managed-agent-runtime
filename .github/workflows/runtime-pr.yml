@@ -20,6 +20,56 @@ permissions:
   packages: write
 
 jobs:
+  # ── Check eval stamp ────────────────────────────────────────────────
+  # On promotion branches (staging, main) the same SHA was already built
+  # and eval'd on dev.  If the published image exists in GHCR, skip the
+  # entire build→eval pipeline — the image only gets published after all
+  # evals pass, so its presence IS the green stamp.
+  check-stamp:
+    name: Check eval stamp
+    if: github.event.action != 'closed' && github.event.pull_request.base.ref != 'dev'
+    runs-on: ubuntu-latest
+    outputs:
+      openclaw_stamped: ${{ steps.check.outputs.openclaw }}
+      hermes_stamped: ${{ steps.check.outputs.hermes }}
+    steps:
+      - uses: docker/login-action@v4
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Check for published images
+        id: check
+        run: |
+          SHA="sha-$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
+          AUTH="$HOME/.docker/config.json"
+
+          for runtime in openclaw hermes; do
+            if [ "$runtime" = "openclaw" ]; then
+              IMAGE="ghcr.io/xmtplabs/convos-runtime"
+            else
+              IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
+            fi
+
+            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:$SHA" > /dev/null 2>&1; then
+              echo "$runtime=true" >> "$GITHUB_OUTPUT"
+              echo "✓ $runtime image $SHA exists — evals already passed"
+            else
+              echo "$runtime=false" >> "$GITHUB_OUTPUT"
+              echo "✗ $runtime image $SHA not found — will run evals"
+            fi
+          done
+
+      - name: Annotate skipped evals
+        if: steps.check.outputs.openclaw == 'true' || steps.check.outputs.hermes == 'true'
+        run: |
+          SHA="sha-$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
+          echo "## ⏭️ Eval stamp found" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image \`$SHA\` already passed evals on \`dev\`. Skipping redundant eval runs." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ steps.check.outputs.openclaw }}" = "true" ] && echo "- **OpenClaw**: stamped ✓" >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ steps.check.outputs.hermes }}" = "true" ] && echo "- **Hermes**: stamped ✓" >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ steps.check.outputs.openclaw }}" = "false" ] && echo "- **OpenClaw**: not found — will eval" >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ steps.check.outputs.hermes }}" = "false" ] && echo "- **Hermes**: not found — will eval" >> "$GITHUB_STEP_SUMMARY"
+
   # ── Prepare ──────────────────────────────────────────────────────────
   prepare:
     name: Prepare
@@ -193,8 +243,12 @@ jobs:
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
     name: OpenClaw
-    needs: prepare
-    if: needs.prepare.outputs.run_openclaw == 'true'
+    needs: [prepare, check-stamp]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.prepare.outputs.run_openclaw == 'true' &&
+      needs.check-stamp.outputs.openclaw_stamped != 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
@@ -212,8 +266,12 @@ jobs:
 
   hermes:
     name: Hermes
-    needs: prepare
-    if: needs.prepare.outputs.run_hermes == 'true'
+    needs: [prepare, check-stamp]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.prepare.outputs.run_hermes == 'true' &&
+      needs.check-stamp.outputs.hermes_stamped != 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
