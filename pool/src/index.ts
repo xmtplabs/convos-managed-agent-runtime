@@ -843,6 +843,7 @@ app.get("/admin/lite", (req, res) => {
     poolEnvironment: config.poolEnvironment,
     runtimeImage: config.railwayRuntimeImage,
     adminUrls: POOL_ADMIN_URLS as any,
+    harnessImages: HARNESS_IMAGES,
   }));
 });
 
