@@ -19,7 +19,4 @@ Run all of these. One message back with results. Some items need my input — as
 18. Ask for unprovisioning your email and SMS (if you confirmed you received the email and SMS).
 19. Check on the whole list status. anounce missing / pending items.
 20. Send "SILENT" to the group.
-
-
-# Skill builder
 21. Create a skill (with the skill builder) that helps us plan weekend hiking trips. We're 6 people based near Denver, mostly casual day hikes on weekends. Fun and laid-back vibe
