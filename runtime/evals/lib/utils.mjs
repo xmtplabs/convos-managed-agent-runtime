@@ -153,7 +153,7 @@ export function queryAgentAsync(prompt, sessionId, opts = {}) {
     });
 
     proc.stdout.on('data', (d) => { stdout += d.toString(); });
-    proc.stderr.on('data', () => {});
+    proc.stderr.on('data', (d) => { process.stderr.write(d); });
 
     const timer = setTimeout(() => {
       if (!settled) {
