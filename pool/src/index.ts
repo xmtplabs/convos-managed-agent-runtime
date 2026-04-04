@@ -1062,7 +1062,7 @@ app.post("/api/pool/replenish", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/pool/check-starting", requireAuth, async (_req, res) => {
+app.post("/api/pool/check-starting", requireLiteAuth, async (_req, res) => {
   try {
     const result = await pool.checkStarting();
     res.json({ ok: true, counts: await db.getCounts(), ...result });
