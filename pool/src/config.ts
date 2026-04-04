@@ -81,6 +81,11 @@ export const config = {
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   convosApiKey: getEnv("CONVOS_API_KEY"),
 
+  // Lite dashboard
+  litePassword: getEnv("LITE_PASSWORD"),
+  convosInviteApiUrl: getEnv("CONVOS_INVITE_API_URL"),
+  convosInviteApiToken: getEnv("CONVOS_INVITE_API_TOKEN"),
+
   // Telemetry
   posthogApiKey: getEnv("POSTHOG_API_KEY"),
   posthogHost: getEnv("POSTHOG_HOST", "https://us.i.posthog.com"),
