@@ -41,6 +41,7 @@
   "agents": {
     "defaults": {
       "workspace": "~/.openclaw/workspace",
+      "heartbeat": { "every": "0m" },
       "skipBootstrap": true,
       "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
