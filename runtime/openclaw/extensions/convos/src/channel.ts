@@ -39,8 +39,8 @@ function loadConvosMessagingHints(): string[] {
     // jiti or non-file: URL — skip this candidate
   }
   const candidates = [
-    path.resolve(process.env.OPENCLAW_STATE_DIR || ".", "workspace", "CONVOS_PLATFORM.md"),
-    ...(thisDir ? [path.resolve(thisDir, "..", "..", "workspace", "CONVOS_PLATFORM.md")] : []),
+    path.resolve(process.env.OPENCLAW_STATE_DIR || ".", "workspace", "INJECTED_CONTEXT.md"),
+    ...(thisDir ? [path.resolve(thisDir, "..", "..", "workspace", "INJECTED_CONTEXT.md")] : []),
   ];
   for (const hintsPath of candidates) {
     try {
@@ -54,7 +54,7 @@ function loadConvosMessagingHints(): string[] {
       continue;
     }
   }
-  console.warn("CONVOS_PLATFORM.md not found — agent will lack messaging hints");
+  console.warn("INJECTED_CONTEXT.md not found — agent will lack messaging hints");
   _cachedMessagingHints = [];
   return _cachedMessagingHints;
 }
@@ -62,28 +62,6 @@ function loadConvosMessagingHints(): string[] {
 /** Sender ID for synthetic system messages (greeting dispatch, etc.). */
 const SYSTEM_SENDER_ID = "system" as const;
 
-/**
- * Greeting gate — prevents notifications from being dispatched before the
- * greeting run completes. Without this, concurrent dispatches compete for the
- * session lane and the notification gets dropped.
- *
- * Mirrors Hermes's `_greeting_done` asyncio.Event.
- */
-let _greetingResolve: (() => void) | null = null;
-let _greetingDone: Promise<void> = Promise.resolve(); // pre-resolved for resume path
-
-function resetGreetingGate(): void {
-  _greetingDone = new Promise<void>((resolve) => {
-    _greetingResolve = resolve;
-  });
-}
-
-function signalGreetingDone(): void {
-  if (_greetingResolve) {
-    _greetingResolve();
-    _greetingResolve = null;
-  }
-}
 const GROUP_EXPIRATION_UPDATE_RE = /\bset conversation expiration to ([^;]+)(?:;|$)/i;
 const GROUP_EXPIRATION_CLEARED_RE = /\bcleared conversation expiration(?:;|$)/i;
 const EXPLOSION_IMMEDIATE_SKEW_MS = 3_000;
@@ -445,11 +423,8 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
           },
           onMemberJoined: (info) => {
             log?.info(`[${account.accountId}] Join accepted: ${info.joinerInboxId}${info.catchup ? " (catchup)" : ""}`);
-            if (!info.catchup) {
-              inst.refreshMemberNames().catch((err) => {
-                log?.error(`[${account.accountId}] Failed to refresh members after join: ${String(err)}`);
-              });
-            }
+            // Member name cache is updated by profile_snapshot messages
+            // (sent automatically after adding members), not here.
           },
           // onHeartbeat: (info) => {
           //   if (account.debug) {
@@ -765,13 +740,54 @@ async function handleInboundMessage(
     return;
   }
 
-  // System events (group updates, reactions) are recorded in the session above
-  // so the agent has context, but should not trigger a reply.
-  if (msg.contentType === "group_updated" || msg.contentType === "reaction") {
+  // Group updates are recorded in the session above but should not trigger a reply.
+  // Name changes are handled by profile_update messages, not here.
+  if (msg.contentType === "group_updated") {
     if (account.debug) {
-      debugLog(`[${account.accountId}] Skipping reply dispatch for ${msg.contentType} message`);
+      debugLog(`[${account.accountId}] Skipping reply dispatch for group_updated message`);
     }
     return;
+  }
+
+  // Profile snapshots (sent after adding members) and profile updates (sent when
+  // a member changes their name) contain structured member data. Update the cache
+  // directly and suppress — these aren't chat messages.
+  if ((msg.contentType === "profile_snapshot" || msg.contentType === "profile_update") && inst) {
+    try {
+      const data = typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
+      if (msg.contentType === "profile_snapshot") {
+        for (const p of data.profiles ?? []) {
+          if (p.inboxId && p.name) {
+            inst.setMemberName(p.inboxId, p.name);
+          }
+        }
+      } else if (msg.contentType === "profile_update" && msg.senderId) {
+        // profile_update is self-authored — senderId is the member
+        if (data.name) {
+          inst.setMemberName(msg.senderId, data.name);
+        }
+      }
+    } catch {
+      // Non-fatal: cache will catch up on next message or refresh
+    }
+    return;
+  }
+
+  // Reactions to the agent's own messages trigger a full agent turn (e.g. thumbs-up
+  // to answer a yes/no question). Reactions to other users' messages are already
+  // recorded in the session above as passive context — no turn needed.
+  if (msg.contentType === "reaction") {
+    const targetMatch = msg.content.match(/^(?:reacted|removed)\s+\S+\s+to\s+(\S+)$/);
+    const targetId = targetMatch?.[1];
+    if (!targetId || !inst?.hasSentMessage(targetId)) {
+      if (account.debug) {
+        debugLog(`[${account.accountId}] Skipping reply dispatch for non-own reaction`);
+      }
+      return;
+    }
+    if (account.debug) {
+      debugLog(`[${account.accountId}] Own-message reaction — dispatching agent turn`);
+    }
   }
 
   const tableMode = runtime.channel.text.resolveMarkdownTableMode({
@@ -798,24 +814,11 @@ async function handleInboundMessage(
     return;
   }
 
-  // -- Reasoning lane state --
-  // Buffer text blocks and classify them by turn context.
-  // Text from turns that also call tools = reasoning (suppressed).
-  // Text from the final turn (no tools) = answer (delivered).
-  //
-  // To expose reasoning in the UI instead of suppressing it, replace
-  // the isReasoning branch below with delivery using either:
-  //
-  //   (a) <think> tags — wrap text so the Convos client can parse and
-  //       render differently (collapsible, dimmed, italic, etc.):
-  //         payload.text = `<think>${p.text}</think>`;
-  //         await deliverConvosReply({ payload, ... });
-  //
-  //   (b) XMTP content type — send as a distinct content type so the
-  //       client can render a dedicated reasoning bubble:
-  //         await inst.sendContentType("reasoning", p.text);
-  //       (requires Convos client + protocol support for the new type)
-  //
+  // -- Reasoning lane tracking --
+  // Buffer text blocks per turn and classify by context.
+  // Text from turns that also call tools = reasoning.
+  // Text from the final turn (no tools) = answer.
+  // All text is delivered — reasoning is logged for observability.
   let pendingBlocks: ReplyPayload[] = [];
   let currentTurnHasTools = false;
 
@@ -823,15 +826,10 @@ async function handleInboundMessage(
     if (pendingBlocks.length === 0) return;
     const blocks = pendingBlocks;
     pendingBlocks = [];
-    if (isReasoning) {
-      for (const p of blocks) {
-        if (account.debug) {
-          debugLog(`[${account.accountId}] Suppressed reasoning: ${p.text?.substring(0, 80)}`);
-        }
-      }
-      return;
-    }
     for (const p of blocks) {
+      if (isReasoning && account.debug) {
+        debugLog(`[${account.accountId}] Reasoning text: ${p.text?.substring(0, 80)}`);
+      }
       const policy = await applyOutboundTextPolicy(p.text || "");
       if (policy.suppress) {
         log?.info(`[${account.accountId}] Suppressed outbound text reply`);
@@ -856,7 +854,6 @@ async function handleInboundMessage(
     cfg,
     dispatcherOptions: {
       deliver: async (payload: ReplyPayload) => {
-        // Buffer every block — we don't know yet if this turn has tools.
         pendingBlocks.push(payload);
       },
       onError: async (err, info) => {
@@ -865,8 +862,6 @@ async function handleInboundMessage(
     },
     replyOptions: {
       onAssistantMessageStart: async () => {
-        // New turn starting — flush the previous turn's buffer.
-        // If the previous turn had tools, its text was reasoning.
         await flushPending(currentTurnHasTools);
         currentTurnHasTools = false;
       },
@@ -876,8 +871,7 @@ async function handleInboundMessage(
     },
   });
 
-  // Dispatch ended — flush any remaining buffer.
-  // The last turn (no more onAssistantMessageStart to trigger flush).
+  // Flush remaining buffer from the last turn.
   await flushPending(currentTurnHasTools);
 }
 
@@ -1111,16 +1105,31 @@ async function deliverConvosReply(params: {
 }
 
 /**
- * Send an LLM-generated welcome message by dispatching a synthetic system
- * prompt through the normal reply pipeline. The agent sees its full context
- * (IDENTITY + SOUL + TOOLS) and crafts a natural greeting per SOUL.md.
+ * Send a static welcome message directly via XMTP — no LLM, no gate.
+ * Skill-builder context is injected lazily on the first real user message
+ * (see _skillBuilderPending flag in startWiredInstance).
  */
+/** Read an onboarding prompt from $STATE_DIR/onboarding/ or convos-platform/onboarding/. */
+function readOnboardingPrompt(filename: string): string {
+  const stateDir = process.env.OPENCLAW_STATE_DIR || "";
+  const candidates = [
+    stateDir ? path.join(stateDir, "onboarding", filename) : "",
+    path.resolve(__dirname, "..", "..", "..", "..", "..", "convos-platform", "onboarding", filename),
+  ].filter(Boolean);
+  for (const p of candidates) {
+    try {
+      return fs.readFileSync(p, "utf-8").trim();
+    } catch {}
+  }
+  throw new Error(`[convos] Onboarding prompt ${filename} not found`);
+}
+
 /** Check if the agent has an active skill configured. */
 function hasActiveSkill(): boolean {
-  const skillsRoot = process.env.SKILLS_ROOT || "";
-  if (!skillsRoot) return false;
+  const wsSkills = process.env.WORKSPACE_SKILLS || "";
+  if (!wsSkills) return false;
   try {
-    const raw = fs.readFileSync(path.join(skillsRoot, "generated", "skills.json"), "utf-8");
+    const raw = fs.readFileSync(path.join(wsSkills, "generated", "skills.json"), "utf-8");
     const data = JSON.parse(raw);
     return !!data.active;
   } catch {
@@ -1128,9 +1137,12 @@ function hasActiveSkill(): boolean {
   }
 }
 
+/** Whether the skill-builder kickoff still needs to be injected into the first real user message. */
+let _skillBuilderPending = false;
+
 async function dispatchGreeting(
-  account: ResolvedConvosAccount,
-  runtime: PluginRuntime,
+  _account: ResolvedConvosAccount,
+  _runtime: PluginRuntime,
 ): Promise<void> {
   const inst = getConvosInstance();
   if (!inst) {
@@ -1140,56 +1152,30 @@ async function dispatchGreeting(
 
   const skillActive = hasActiveSkill();
 
-  // Phase 1: greeting — unconditional. AGENTS-base.md handles both paths
-  // (active skill → THE ENTRANCE, no skill → ask what the group needs).
-  const greetingMsg: InboundMessage = {
-    conversationId: inst.conversationId,
-    messageId: `system-greeting-${crypto.randomUUID()}`,
-    senderId: SYSTEM_SENDER_ID,
-    senderName: "System",
-    content:
-      "[System: You just joined this conversation. Send your welcome message now. " +
-      "Follow the 'Welcome message' section in AGENTS.md.]",
-    contentType: "text",
-    timestamp: new Date(),
-  };
-
-  console.log(`[convos] Dispatching greeting message (skill-active=${skillActive})`);
+  // Static greeting — sent directly via XMTP, no LLM involved.
   try {
-    await handleInboundMessage(account, greetingMsg, runtime);
+    const greeting = readOnboardingPrompt("static-greeting.md");
+    console.log(`[convos] Sending static greeting (skill-active=${skillActive})`);
+    await inst.sendMessage(greeting);
+  } catch (err) {
+    console.error(`[convos] Greeting failed: ${String(err)}`);
+  }
 
-    // Phase 2: skill-builder context load — only if no active skill.
-    // Fires after the greeting is already delivered. Response is suppressed —
-    // the agent reads the skill into context but sends nothing.
-    if (!skillActive) {
-      const skillMsg: InboundMessage = {
-        conversationId: inst.conversationId,
-        messageId: `system-skill-builder-${crypto.randomUUID()}`,
-        senderId: SYSTEM_SENDER_ID,
-        senderName: "System",
-        content:
-          "[System: Read your skill-builder skill at $SKILLS_ROOT/skill-builder/SKILL.md now. " +
-          "You already asked the group what they need — when they respond, follow the skill from step 1.]",
-        contentType: "text",
-        timestamp: new Date(),
-      };
-      console.log("[convos] Dispatching skill-builder context load (silent)");
-      await handleInboundMessage(account, skillMsg, runtime, undefined, undefined, true);
-    }
-  } finally {
-    signalGreetingDone();
+  // Skill-builder context is injected lazily: if no active skill, the first
+  // real user message will be prefixed with the skill-builder kickoff prompt
+  // so the agent learns the onboarding flow alongside the user's first reply.
+  _skillBuilderPending = !skillActive;
+  if (_skillBuilderPending) {
+    console.log("[convos] Skill-builder context will be injected on first user message");
   }
 }
 
 /**
  * Dispatch a background notification (email/SMS) as a synthetic system message.
- * The agent sees it and responds immediately over XMTP, but the notification
- * prompt itself is never sent to the conversation (same as greeting dispatch).
+ * Called by POST /convos/notify — the pool forwards AgentMail/Telnyx webhooks
+ * here. In CI, the runtime is reachable via ngrok tunnel (see lib/ngrok.sh).
  */
 export async function dispatchNotification(text: string): Promise<void> {
-  // Wait for greeting to complete so the notification doesn't race with the
-  // greeting run for the session lane (mirrors Hermes's _greeting_done gate).
-  await _greetingDone;
   const inst = getConvosInstance();
   if (!inst) {
     throw new Error("No active conversation");
@@ -1254,6 +1240,8 @@ export async function startWiredInstance(params: {
   debug?: boolean;
   /** If set, rename the conversation profile when a joiner is accepted. */
   name?: string;
+  /** Skip the LLM-generated greeting dispatch (used by evals). */
+  skipGreeting?: boolean;
 }): Promise<void> {
   const runtime = getConvosRuntime();
   const cfg = runtime.config.loadConfig();
@@ -1284,14 +1272,24 @@ export async function startWiredInstance(params: {
 
   const inst = ConvosInstance.fromExisting(params.conversationId, params.identityId, params.env, {
     debug: params.debug ?? account.debug,
+    heartbeatSeconds: 30,
     onMessage: (msg: InboundMessage) => {
-      // Wait for greeting to complete before processing inbound messages so
-      // the greeting is already in session history (mirrors Hermes gate).
-      _greetingDone
-        .then(() => handleInboundMessage(account, msg, runtime))
-        .catch((err) => {
-          console.error(`[convos] Message handling failed: ${String(err)}`);
-        });
+      // Inject skill-builder context on the first real user message so the
+      // agent learns the onboarding flow alongside the user's first reply —
+      // no separate LLM turn needed (replaces the old Phase 2 greeting gate).
+      if (_skillBuilderPending && msg.senderId !== SYSTEM_SENDER_ID) {
+        _skillBuilderPending = false;
+        try {
+          const kickoff = readOnboardingPrompt("skill-builder-kickoff.md");
+          msg = { ...msg, content: `${kickoff}\n\n${msg.content}` };
+          console.log("[convos] Injected skill-builder context into first user message");
+        } catch (err) {
+          console.error(`[convos] Failed to read skill-builder kickoff: ${String(err)}`);
+        }
+      }
+      handleInboundMessage(account, msg, runtime).catch((err) => {
+        console.error(`[convos] Message handling failed: ${String(err)}`);
+      });
     },
     onMemberJoined: (info) => {
       console.log(`[convos] Join accepted: ${info.joinerInboxId}`);
@@ -1300,9 +1298,8 @@ export async function startWiredInstance(params: {
           console.error(`[convos] Rename after join failed: ${String(err)}`);
         });
       }
-      inst.refreshMemberNames().catch((err) => {
-        console.error(`[convos] Failed to refresh members after join: ${String(err)}`);
-      });
+      // Member name cache is updated by profile_snapshot messages
+      // (sent automatically after adding members), not here.
     },
   });
 
@@ -1316,17 +1313,25 @@ export async function startWiredInstance(params: {
     const environment = process.env.POOL_ENVIRONMENT || "";
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
     const cronJobsFile = path.join(stateDir, "cron", "jobs.json");
-    const skillsDir = process.env.SKILLS_ROOT || path.join(stateDir, "skills");
+    const skillsDir = process.env.WORKSPACE_SKILLS || path.join(stateDir, "workspace", "skills");
     stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile, skillsDir });
   }
 
-  // Fire-and-forget: dispatch LLM-generated welcome message.
-  // Does not block startWiredInstance from returning to the pool manager.
-  // Reset the greeting gate so notifications wait until the greeting completes.
-  resetGreetingGate();
-  dispatchGreeting(account, runtime).catch((err) => {
-    console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
-  });
+  // Fire-and-forget: send static welcome message directly via XMTP.
+  // No LLM involved, no greeting gate needed — completes in <500ms.
+  if (params.skipGreeting) {
+    console.log("[convos] Greeting dispatch skipped (skipGreeting=true)");
+    // Still set the skill-builder pending flag so the kickoff context is
+    // injected on the first user message — even without a greeting.
+    _skillBuilderPending = !hasActiveSkill();
+    if (_skillBuilderPending) {
+      console.log("[convos] Skill-builder context will be injected on first user message");
+    }
+  } else {
+    dispatchGreeting(account, runtime).catch((err) => {
+      console.error(`[convos] Greeting dispatch failed: ${String(err)}`);
+    });
+  }
 }
 
 async function stopInstance(accountId: string, log?: RuntimeLogger) {
@@ -1353,7 +1358,7 @@ export async function selfDestruct(reason?: string): Promise<void> {
   clearConversationExpirationCheck(DEFAULT_ACCOUNT_ID, undefined, false);
   await stats.shutdown();
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "8080";
-  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const gatewayToken = process.env.GATEWAY_TOKEN;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (gatewayToken) headers["Authorization"] = `Bearer ${gatewayToken}`;
   let poolSelfDestructAck = false;

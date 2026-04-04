@@ -49,7 +49,6 @@ export const config = {
   // OpenRouter (from services)
   openrouterManagementKey: getEnv("OPENROUTER_MANAGEMENT_KEY"),
   openrouterKeyLimit: parseInt(getEnv("OPENROUTER_KEY_LIMIT", "20"), 10),
-  openrouterKeyLimitReset: getEnv("OPENROUTER_KEY_LIMIT_RESET", "monthly"),
   skillsOpenrouterApiKey: getEnv("SKILLS_OPENROUTER_API_KEY"),
 
   // Exa (from services)

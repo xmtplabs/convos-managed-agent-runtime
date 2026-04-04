@@ -105,8 +105,12 @@ function buildRuntimeStatus() {
   };
 }
 
-async function factoryReset() {
-  console.log("[convos] Factory reset started");
+/** When true, the next startWiredInstance call will skip the greeting dispatch. */
+let _skipGreeting = false;
+
+async function factoryReset(opts?: { skipGreeting?: boolean }) {
+  _skipGreeting = opts?.skipGreeting ?? false;
+  console.log(`[convos] Factory reset started (skipGreeting=${_skipGreeting})`);
   await stats.shutdown();
   // Stop active instance
   const inst = getConvosInstance();
@@ -141,8 +145,8 @@ async function factoryReset() {
   try { fs.unlinkSync(path.join(stateDir, ".share-trajectories")); } catch (e: any) { if (e.code !== "ENOENT") console.error(`[convos] Failed to clear share flag: ${e}`); }
 
   // Clear generated skills data so the next boot enters skill-builder onboarding
-  const skillsRoot = process.env.SKILLS_ROOT || path.join(stateDir, "workspace", "skills");
-  const generatedDir = path.join(skillsRoot, "generated");
+  const wsSkills = process.env.WORKSPACE_SKILLS || path.join(stateDir, "workspace", "skills");
+  const generatedDir = path.join(wsSkills, "generated");
   try { fs.rmSync(generatedDir, { recursive: true, force: true }); } catch {}
 
   const status = buildRuntimeStatus();
@@ -199,7 +203,7 @@ function jsonResponse(res: ServerResponse, status: number, body: unknown) {
 }
 
 function checkPoolAuth(req: IncomingMessage): boolean {
-  const token = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const token = process.env.GATEWAY_TOKEN;
   if (!token) return true; // No gateway token configured — allow all
   const authHeader = req.headers.authorization;
   return authHeader === `Bearer ${token}`;
@@ -212,9 +216,9 @@ async function fetchAndApplyAttestation(): Promise<void> {
 
   const poolUrl = process.env.POOL_URL;
   const instanceId = process.env.INSTANCE_ID;
-  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const gatewayToken = process.env.GATEWAY_TOKEN;
   if (!poolUrl || !instanceId || !gatewayToken) {
-    console.warn("[convos] Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or OPENCLAW_GATEWAY_TOKEN");
+    console.warn("[convos] Cannot fetch attestation: missing POOL_URL, INSTANCE_ID, or GATEWAY_TOKEN");
     return;
   }
   try {
@@ -356,6 +360,7 @@ const plugin = {
             conversationId: result.conversationId,
             identityId: instance.identityId,
             env,
+            skipGreeting: _skipGreeting,
           });
 
           // Sign and apply attestation (non-fatal if pool unreachable)
@@ -463,6 +468,7 @@ const plugin = {
             conversationId,
             identityId: instance.identityId,
             env,
+            skipGreeting: _skipGreeting,
           });
 
           // Sign and apply attestation (non-fatal if pool unreachable)
@@ -743,7 +749,9 @@ const plugin = {
           return;
         }
         try {
-          const result = await factoryReset();
+          const body = await readJsonBody(req);
+          const skipGreeting = body.skipGreeting === true;
+          const result = await factoryReset({ skipGreeting });
           jsonResponse(res, 200, result);
         } catch (err) {
           jsonResponse(res, 500, { error: err instanceof Error ? err.message : String(err) });

@@ -5,7 +5,7 @@
 set -e
 
 . "$(dirname "$0")/init.sh"
-ENV_FILE="$ROOT/.env"
+ENV_FILE="${_ENV_FILE:-$ROOT/.env}"
 
 if [ -f "$ENV_FILE" ]; then
   set -a; . "$ENV_FILE" 2>/dev/null || true; set +a
@@ -28,10 +28,10 @@ brand_dim "" "validate API keys and write .env"
 [ -n "$RAILWAY_VOLUME_MOUNT_PATH" ] && brand_ok "VOLUME" "$RAILWAY_VOLUME_MOUNT_PATH" || brand_dim "VOLUME" "none"
 [ -n "$_RUNTIME_IMAGE" ] && brand_ok "IMAGE" "$_RUNTIME_IMAGE" || brand_dim "IMAGE" "unknown"
 
-if [ -n "${SHARED_SCRIPTS_DIR:-}" ] && [ -f "$SHARED_SCRIPTS_DIR/lib/keys-common.sh" ]; then
-  . "$SHARED_SCRIPTS_DIR/lib/keys-common.sh"
+if [ -n "${LIB_DIR:-}" ] && [ -f "$LIB_DIR/keys-common.sh" ]; then
+  . "$LIB_DIR/keys-common.sh"
 else
-  echo "⚠ SHARED_SCRIPTS_DIR not set — aborting keys.sh" >&2
+  echo "⚠ LIB_DIR not set — aborting keys.sh" >&2
   exit 1
 fi
 

@@ -2,20 +2,30 @@
 // E2e eval provider for XMTP conversations.
 // Creates a conversation, joins the runtime, sends messages via convos-cli,
 // waits for the agent, then returns the transcript for assertion.
+//
+// Suite-level config (via YAML):
+//   skipGreeting: false   — keep the greeting (default: true)
 
 import { execFileSync } from 'child_process';
 import { createHarness } from '../lib/convos-harness.mjs';
 import { sleep, elapsed, log as _log } from '../lib/utils.mjs';
 import { runtime } from '../lib/runtime.mjs';
 
-const h = createHarness('convos', { conversationPrefix: 'QA Eval' });
-
 function log(msg) { _log('eval', msg); }
 
 export default class ConvosProvider {
+  constructor(options) {
+    this.config = options?.config || {};
+    this.h = createHarness('convos', {
+      conversationPrefix: 'QA Eval',
+      skipGreeting: this.config.skipGreeting !== false, // default true
+    });
+  }
+
   id() { return 'convos'; }
 
   async callApi(prompt, context) {
+    const h = this.h;
     const idx = h.nextTest();
     const desc = context.test?.description || `Test ${idx}`;
     const t = Date.now();
@@ -35,6 +45,41 @@ export default class ConvosProvider {
       const result = handleSelfDestruct(h);
       log(`${result.output === 'SELF_DESTRUCT_CONFIRMED' ? 'OK' : 'FAIL'} ${desc} (${elapsed(t)})`);
       return result;
+    }
+
+    // Long-running flow: send prompt, wait for a NEW agent message matching
+    // a regex pattern. Only checks messages that arrive after the prompt is
+    // sent — prior transcript is excluded to avoid false matches from earlier
+    // tests. Useful for skill generation (30-60s of tool calls with no output).
+    if (meta.waitForPattern) {
+      const existing = h.fetchMessages();
+      const msgsBefore = existing.length;
+      log(`Sending: "${prompt}"`);
+      h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
+      const timeoutMs = (meta.waitForPatternTimeout || 120) * 1000;
+      const pattern = new RegExp(meta.waitForPattern);
+      log(`Waiting up to ${timeoutMs / 1000}s for pattern: ${meta.waitForPattern}`);
+      const deadline = Date.now() + timeoutMs;
+      let matched = false;
+      let msgs;
+      while (Date.now() < deadline) {
+        sleep(3_000);
+        try {
+          msgs = h.fetchMessages();
+          const newAgentText = msgs.slice(msgsBefore)
+            .filter(m => m.senderInboxId !== h.userInboxId)
+            .map(m => m.content || m.text || '')
+            .join('\n');
+          if (newAgentText && pattern.test(newAgentText)) {
+            matched = true;
+            break;
+          }
+        } catch {}
+      }
+      if (!msgs) msgs = h.fetchMessages();
+      const output = h.transcript(msgs, msgsBefore);
+      log(`${matched ? 'OK' : 'TIMEOUT'} — pattern /${meta.waitForPattern}/ (${elapsed(t)})`);
+      return { output, metadata: { conversationId: h.conversationId, patternMatched: matched } };
     }
 
     if (meta.silence) {
@@ -96,6 +141,56 @@ export default class ConvosProvider {
       }
       const output = h.transcript(msgs);
       return { output, metadata: { conversationId: h.conversationId } };
+    }
+
+    // Reaction test: send a prompt, wait for agent reply, react to the agent's
+    // last message, then wait for the agent to respond to the reaction.
+    if (meta.reaction) {
+      const ENV = process.env.XMTP_ENV || 'dev';
+      const { msgs: setupMsgs, baseline: setupBaseline } = h.sendAndWait(prompt, meta);
+
+      // Find the agent's last message ID
+      const agentMsgs = setupMsgs.filter(m => m.senderInboxId !== h.userInboxId);
+      const lastAgentMsg = agentMsgs[agentMsgs.length - 1];
+      if (!lastAgentMsg?.id) {
+        log('FAIL — no agent message to react to');
+        return { output: 'REACTION_FAILED: no agent message', metadata: { conversationId: h.conversationId } };
+      }
+
+      const postReactBaseline = h.agentCount(h.fetchMessages());
+      const msgsBefore = h.fetchMessages().length;
+      log(`Reacting ${meta.reaction} to agent message ${lastAgentMsg.id.slice(0, 12)}`);
+      h.convos(['conversation', 'send-reaction', h.conversationId, lastAgentMsg.id, 'add', meta.reaction, '--env', ENV], { timeout: 30_000 });
+
+      const reactionMsgs = h.waitForAgent(postReactBaseline);
+      const output = h.transcript(reactionMsgs, msgsBefore);
+      const responded = h.agentCount(reactionMsgs) > postReactBaseline;
+      log(`${responded ? 'OK' : 'FAIL'} — agent ${responded ? 'responded to' : 'ignored'} reaction (${elapsed(t)})`);
+      return { output, metadata: { conversationId: h.conversationId, reactionTriggered: responded } };
+    }
+
+    if (meta.replyToEarlier) {
+      const setupMsg = meta.setupMessage || 'Remember this: the secret word is ABRACADABRA';
+      h.sendAndWait(setupMsg);
+      log('Setup exchange complete');
+
+      const { output, msgs, msgsBefore } = h.sendAndWait(prompt);
+
+      const newAgentMsgs = msgs.slice(msgsBefore).filter(m => m.senderInboxId !== h.userInboxId);
+      const replyMsg = newAgentMsgs.find(m => {
+        const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType?.typeId;
+        return typeId === 'reply';
+      });
+
+      log(`Agent ${replyMsg ? 'used' : 'did not use'} reply-to`);
+      log(`Done (${elapsed(t)})`);
+      return {
+        output,
+        metadata: {
+          conversationId: h.conversationId,
+          agentUsedReply: Boolean(replyMsg),
+        },
+      };
     }
 
     const { output } = h.sendAndWait(prompt, meta);

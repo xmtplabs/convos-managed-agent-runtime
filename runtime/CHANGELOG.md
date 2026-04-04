@@ -1,3 +1,40 @@
+## 0.3.0
+
+### Big changes
+
+- **Unified pool server** — One server now manages both OpenClaw and Hermes instead of each runtime running its own endpoints
+- **Modular agent instructions** — Agent personality and behavior are assembled from small, composable context files at boot instead of one giant file
+- **Better web search** — Switched to Exa for faster, more relevant web results
+- **New homepage** — Dashboard redesigned around featured skills with a browsable skill directory
+
+### New stuff
+
+- **One-tap skill adopt** — Users can grab pre-built skills instantly, no builder flow needed
+- **Instant greeting** — Welcome message shows immediately; onboarding only kicks in when the user actually talks
+- **Smarter reactions** — Agents only respond to reactions on their own messages, not everyone's
+- **Image support** — Agents can now see and process images (depends on the model)
+- **Hermes cron in-session** — Scheduled tasks run inside the main conversation instead of spinning up separate agents
+- **Skill categories** — New category picker when tagging skills
+
+### Under the hood
+
+- Simplified env vars — `GATEWAY_TOKEN` replaces the old runtime-prefixed name
+- Reorganized `convos-platform/` — cleaner split between shared and runtime-specific files
+- All dependencies pinned to exact versions
+- Hermes now passes group member info to the agent
+- Hermes surfaces credit exhaustion errors to users instead of failing silently
+
+### Fixes
+
+- Web viewer goes straight to the conversation (no more mode selection screen)
+- Cleaner web-tool logs — no duplicate snapshots, flat transcript view
+- Better delegation behavior
+- Hermes no longer leaks internal SILENT markers
+- Factory reset properly clears generated skills
+- Default agent name is now "Assistant"
+- Quieter debug logs
+- Fixed orphaned phone number assignments
+
 ## 0.2.2
 - 2x faster web search powered by Exa
 - Email and SMS auto-provision on first use and unprovision when no longer needed

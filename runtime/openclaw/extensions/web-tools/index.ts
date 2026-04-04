@@ -21,9 +21,9 @@ function serveFile(
   }
 }
 
-/** Read OPENCLAW_GATEWAY_TOKEN from env so pages can auth to convos endpoints. */
+/** Read GATEWAY_TOKEN from env so pages can auth to convos endpoints. */
 function getGatewayToken(): string {
-  return process.env.OPENCLAW_GATEWAY_TOKEN || "";
+  return process.env.GATEWAY_TOKEN || "";
 }
 
 /** Serve an HTML page with the gateway token injected as a JS variable. */
@@ -53,7 +53,7 @@ function serveLandingPage(agentsDir: string, res: ServerResponse) {
 async function getServicesData(): Promise<Record<string, unknown>> {
   const servicesUrl = buildServicesUrl();
   const instanceId = process.env.INSTANCE_ID || null;
-  const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+  const gatewayToken = process.env.GATEWAY_TOKEN;
   const poolUrl = process.env.POOL_URL;
 
   let email: string | null = null;
@@ -138,11 +138,11 @@ function buildServicesUrl(): string {
   return `${base}/web-tools/services`;
 }
 
-/** Resolve the skills data directory ($SKILLS_ROOT/generated/). */
+/** Resolve the skills data directory ($WORKSPACE_SKILLS/generated/). */
 function getSkillsDataPath(): string {
-  const skillsRoot = process.env.SKILLS_ROOT
+  const wsSkills = process.env.WORKSPACE_SKILLS
     || path.join(process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"), "workspace", "skills");
-  return path.join(skillsRoot, "generated");
+  return path.join(wsSkills, "generated");
 }
 
 /** Read the full skills.json data. */
@@ -339,7 +339,7 @@ export default function register(api: OpenClawPluginApi) {
       }
 
       const instanceId = process.env.INSTANCE_ID;
-      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const gatewayToken = process.env.GATEWAY_TOKEN;
       const poolUrl = process.env.POOL_URL;
 
       if (!instanceId || !gatewayToken || !poolUrl) {
@@ -383,7 +383,7 @@ export default function register(api: OpenClawPluginApi) {
       }
 
       const instanceId = process.env.INSTANCE_ID;
-      const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+      const gatewayToken = process.env.GATEWAY_TOKEN;
       const poolUrl = process.env.POOL_URL;
 
       if (!instanceId || !gatewayToken || !poolUrl) {

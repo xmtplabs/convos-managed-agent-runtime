@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <!--__POOL_CONFIG__-->
   <link rel="stylesheet" href="/admin/assets/admin.css">
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.32.1/swagger-ui.css" integrity="sha384-F7uqyyVZgBbuOv+8gNy6ZGJB8Rf12CczPWm130Pxrau0cyZlj1Dl18cDOWpQSrGh" crossorigin="anonymous" />
   <style>
     /* Undo admin.css global reset inside Swagger — let swagger-ui.css own its styles */
     .swagger-ui * { margin: revert; padding: revert; box-sizing: revert; }
@@ -47,7 +47,10 @@
       </div>
     </div>
     <div class="header-right">
-      <nav class="top-nav">
+      <button class="hamburger-btn" id="hamburger-btn" onclick="document.getElementById('mobile-menu').classList.toggle('open')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <nav class="top-nav" id="mobile-menu">
         <a href="/admin" class="nav-link">Dashboard</a>
         <a href="/admin/upgrades" class="nav-link">Upgrades</a>
         <a href="/admin/api-docs" class="nav-link active">API</a>
@@ -66,7 +69,7 @@
     <div id="swagger-ui"></div>
   </div>
 
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.32.1/swagger-ui-bundle.js" integrity="sha384-SlhRXPBpOIwNajIYH/STl3rsa6P/qCR82bZVQk1pDmWr/+Mh9g/RhaUJ1JBmM99R" crossorigin="anonymous"></script>
   <script>
     var C = window.__POOL_CONFIG__ || {};
 

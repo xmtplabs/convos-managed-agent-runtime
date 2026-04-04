@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#f5f5f5">
+  <title>logs</title>
+  <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/web-tools/logs/logs.css">
+</head>
+<body>
+  <div class="container">
+    <div class="page-header">
+      <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+        <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+      </svg>
+      <span>agent logs</span>
+    </div>
+
+    <div id="content">
+      <div class="loading-shimmer"></div>
+      <div class="loading-shimmer"></div>
+      <div class="loading-shimmer"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var content = document.getElementById("content");
+
+      function expose(name, fn) { window[name] = fn; }
+
+      // ── Helpers ──────────────────────────────────────────────
+
+      function esc(s) {
+        var d = document.createElement("div");
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      function formatTime(ts) {
+        if (!ts) return "";
+        try {
+          var d = new Date(ts);
+          if (isNaN(d)) return ts;
+          return d.toLocaleString("en-US", {
+            month: "short", day: "numeric",
+            hour: "numeric", minute: "2-digit"
+          });
+        } catch (e) { return ts; }
+      }
+
+      function normalizeRole(raw) {
+        var r = (raw || "").toLowerCase();
+        if (r === "human" || r === "user") return "user";
+        if (r === "gpt" || r === "assistant") return "assistant";
+        if (r === "tool" || r === "toolresult") return "tool";
+        if (r === "system") return "system";
+        return "unknown";
+      }
+
+      var COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+      var CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 6L9 17l-5-5"/></svg>';
+
+      function flashCopied(btn, label) {
+        var old = btn.innerHTML;
+        btn.innerHTML = CHECK_ICON + (label ? ' copied' : '');
+        btn.classList.add("copied");
+        setTimeout(function () {
+          btn.innerHTML = old;
+          btn.classList.remove("copied");
+        }, 1500);
+      }
+
+      expose("copyTurn", copyTurn);
+      function copyTurn(idx, evt) {
+        if (evt) evt.stopPropagation();
+        var turn = window.__flatTurns && window.__flatTurns[idx];
+        if (!turn) return;
+        var text = turn.value || turn.content || "";
+        navigator.clipboard.writeText(text).then(function () {
+          var btn = document.querySelector('[data-turn="' + idx + '"]');
+          if (btn) flashCopied(btn, false);
+        }).catch(function () {});
+      }
+
+      expose("copyAll", copyAll);
+      function copyAll() {
+        var entries = window.__rawTrajectoryEntries || [];
+        var lines = [];
+        for (var i = 0; i < entries.length; i++) {
+          lines.push(JSON.stringify(entries[i]));
+        }
+        navigator.clipboard.writeText(lines.join("\n")).then(function () {
+          var btn = document.getElementById("copy-all-btn");
+          if (btn) flashCopied(btn, true);
+        }).catch(function () {});
+      }
+
+      // ── Envelope parsing ────────────────────────────────────
+
+      function parseEnvelope(text) {
+        if (!text) return { meta: null, message: text };
+
+        var hermes = text.match(/^\[Current time:\s*([^\]]+)\]\s*\[([a-f0-9]+)\s+([^\]]+)\]\s*([^:]+):\s*([\s\S]*)$/);
+        if (hermes) {
+          return {
+            meta: { time: hermes[1].trim(), id: hermes[2], msgTime: hermes[3].trim(), sender: hermes[4].trim() },
+            message: hermes[5].trim()
+          };
+        }
+
+        var meta = {};
+        var cleaned = text;
+
+        var convoMatch = cleaned.match(/Conversation info \(untrusted metadata\):\s*```json?\s*([\s\S]*?)```/);
+        if (convoMatch) {
+          try {
+            var ci = JSON.parse(convoMatch[1]);
+            if (ci.sender) meta.sender = ci.sender;
+            if (ci.message_id) meta.id = ci.message_id.slice(0, 12);
+            if (ci.conversation_label) meta.label = ci.conversation_label;
+          } catch (e) {}
+          cleaned = cleaned.replace(convoMatch[0], "");
+        }
+
+        var senderMatch = cleaned.match(/Sender \(untrusted metadata\):\s*```json?\s*([\s\S]*?)```/);
+        if (senderMatch) {
+          try {
+            var si = JSON.parse(senderMatch[1]);
+            if (si.name && !meta.sender) meta.sender = si.name;
+          } catch (e) {}
+          cleaned = cleaned.replace(senderMatch[0], "");
+        }
+
+        cleaned = cleaned.replace(/\[Current time:[^\]]*\]\s*/g, "");
+        cleaned = cleaned.replace(/\[[a-f0-9]{10,}[^\]]*\]\s*/g, "");
+        cleaned = cleaned.trim();
+
+        if (Object.keys(meta).length > 0) {
+          return { meta: meta, message: cleaned || text };
+        }
+        return { meta: null, message: text };
+      }
+
+      // ── Content rendering ───────────────────────────────────
+
+      function formatToolCall(jsonStr) {
+        try {
+          var obj = JSON.parse(jsonStr);
+          var name = obj.name || "unknown";
+          var args = obj.arguments || {};
+          var argParts = [];
+          for (var k in args) {
+            var v = args[k];
+            if (typeof v === "object") v = JSON.stringify(v);
+            argParts.push(esc(k) + '=' + esc(String(v)));
+          }
+          return '<span class="tc-name">' + esc(name) + '</span>' +
+                 (argParts.length ? '<span class="tc-args">' + argParts.join(', ') + '</span>' : '');
+        } catch (e) {
+          return esc(jsonStr);
+        }
+      }
+
+      function hasError(text) {
+        if (!text) return false;
+        try {
+          var obj = JSON.parse(text.replace(/<\/?tool_response>/g, "").trim());
+          if (obj.status === "error" || obj.error) return true;
+          var c = obj.content;
+          if (c && typeof c === "object" && (c.status === "error" || c.error)) return true;
+          if (c && typeof c === "string" && /^(Error|Traceback)/.test(c)) return true;
+        } catch (e) {}
+        var stripped = text.replace(/<\/?tool_response>/g, "").trim();
+        if (/^Error:|^Traceback \(most recent/m.test(stripped)) return true;
+        if (/^\s*"?status"?\s*:\s*"error"/m.test(stripped)) return true;
+        return false;
+      }
+
+      function formatToolResponse(text) {
+        if (!text) return "";
+        var inner = text.replace(/<\/?tool_response>/g, "").trim();
+        try {
+          var obj = JSON.parse(inner);
+          var name = obj.name || "";
+          var content = obj.content;
+          if (typeof content === "string") {
+            return (name ? '<span class="tc-name">' + esc(name) + '</span> ' : '') + esc(content);
+          }
+          if (typeof content === "object") {
+            return (name ? '<span class="tc-name">' + esc(name) + '</span> ' : '') +
+                   esc(JSON.stringify(content, null, 2));
+          }
+          return esc(inner);
+        } catch (e) {
+          return esc(inner);
+        }
+      }
+
+      function renderContent(text, role) {
+        if (!text) return '<span class="empty">(empty)</span>';
+
+        if (role === "user") {
+          var env = parseEnvelope(text);
+          var html = "";
+          if (env.meta) {
+            var parts = [];
+            if (env.meta.sender) parts.push(env.meta.sender);
+            if (env.meta.time || env.meta.msgTime) parts.push(env.meta.time || env.meta.msgTime);
+            if (env.meta.id) parts.push(env.meta.id);
+            if (env.meta.label) parts.push(env.meta.label);
+            html += '<div class="turn-meta">' + esc(parts.join(" · ")) + '</div>';
+          }
+          html += esc(env.message);
+          return html;
+        }
+
+        if (role === "tool") {
+          return formatToolResponse(text);
+        }
+
+        var thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/);
+        var thinkHtml = "";
+        var mainText = text;
+        if (thinkMatch) {
+          var thinking = thinkMatch[1].trim();
+          if (thinking) {
+            thinkHtml = '<div class="think-block">' + esc(thinking) + '</div>';
+          }
+          mainText = text.replace(/<think>[\s\S]*?<\/think>\s*/, "");
+        }
+
+        var toolCalls = [];
+        mainText = mainText.replace(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g, function(_, body) {
+          toolCalls.push(body.trim());
+          return "";
+        });
+
+        var remaining = mainText.trim();
+        if (remaining && remaining[0] === "{" && !toolCalls.length) {
+          try {
+            var parsed = JSON.parse(remaining);
+            if (parsed.name && parsed.arguments) {
+              toolCalls.push(remaining);
+              remaining = "";
+            }
+          } catch (e) {}
+        }
+
+        var html = thinkHtml;
+        if (remaining) html += esc(remaining);
+        for (var i = 0; i < toolCalls.length; i++) {
+          html += '<div class="tool-call">' + formatToolCall(toolCalls[i]) + '</div>';
+        }
+        return html || '<span class="empty">(empty)</span>';
+      }
+
+      // ── Deduplicate snapshot entries ─────────────────────────
+      // Hermes saves the full conversation after every agent run, so a
+      // 5-message chat produces 5 JSONL lines — each a progressively
+      // longer snapshot.  Strip the historic turns that already appeared
+      // in an earlier snapshot so each card only shows the NEW turns.
+      //
+      // Assistant turns differ between entries (history has final text,
+      // trajectory has think+tool detail), so we anchor on USER turns
+      // only — those are byte-identical across snapshots.
+
+      function userTurnFingerprint(t) {
+        return (t.value || t.content || "").slice(0, 500);
+      }
+
+      function deduplicateEntries(entries) {
+        if (!entries || entries.length < 2) return entries;
+
+        var sorted = entries.slice().sort(function (a, b) {
+          return (a.timestamp || "") < (b.timestamp || "") ? -1 : 1;
+        });
+
+        // Pre-compute user-turn fingerprints from ORIGINAL data.
+        var allUserFPs = [];
+        for (var i = 0; i < sorted.length; i++) {
+          var convos = sorted[i].conversations || [];
+          var fps = [];
+          for (var k = 0; k < convos.length; k++) {
+            if (normalizeRole(convos[k].from || convos[k].role) === "user") {
+              fps.push(userTurnFingerprint(convos[k]));
+            }
+          }
+          allUserFPs.push(fps);
+        }
+
+        // Cross-entry dedup: strip turns already shown in earlier entries.
+        for (var i = 1; i < sorted.length; i++) {
+          var curr = sorted[i].conversations || [];
+          if (curr.length === 0) continue;
+
+          var currUserFPs = allUserFPs[i];
+          var currUserIdx = [];
+          for (var k = 0; k < curr.length; k++) {
+            if (normalizeRole(curr[k].from || curr[k].role) === "user") {
+              currUserIdx.push(k);
+            }
+          }
+          if (currUserFPs.length === 0) continue;
+
+          var bestStrip = 0;
+          for (var j = 0; j < i; j++) {
+            var prevUserFPs = allUserFPs[j];
+            var matched = 0;
+            var limit = Math.min(prevUserFPs.length, currUserFPs.length);
+            for (var m = 0; m < limit; m++) {
+              if (prevUserFPs[m] === currUserFPs[m]) matched++;
+              else break;
+            }
+            if (matched > bestStrip) bestStrip = matched;
+          }
+
+          if (bestStrip > 0) {
+            var cutIdx;
+            if (bestStrip < currUserFPs.length) {
+              cutIdx = currUserIdx[bestStrip];
+            } else {
+              cutIdx = currUserIdx[currUserFPs.length - 1];
+            }
+            sorted[i].conversations = curr.slice(cutIdx);
+          }
+        }
+
+        // Intra-entry dedup: strip baked-in history when the same user
+        // message appears twice within one trajectory.
+        for (var i = 0; i < sorted.length; i++) {
+          var c = sorted[i].conversations || [];
+          var lastPos = {};
+          for (var k = c.length - 1; k >= 0; k--) {
+            if (normalizeRole(c[k].from || c[k].role) === "user") {
+              var fp = userTurnFingerprint(c[k]);
+              if (fp in lastPos) {
+                sorted[i].conversations = c.slice(lastPos[fp]);
+                break;
+              }
+              lastPos[fp] = k;
+            }
+          }
+        }
+
+        return sorted;
+      }
+
+      // ── Flatten deduped entries into a single transcript ────
+
+      function flattenToTranscript(entries) {
+        var turns = [];
+        for (var i = 0; i < entries.length; i++) {
+          var convos = entries[i].conversations || [];
+          for (var j = 0; j < convos.length; j++) {
+            var role = normalizeRole(convos[j].from || convos[j].role);
+            if (role === "system") continue; // skip system prompts
+            turns.push(convos[j]);
+          }
+        }
+        return turns;
+      }
+
+      // ── Render transcript ───────────────────────────────────
+
+      function renderTranscript(turns) {
+        if (!turns || !turns.length) {
+          content.innerHTML = '<div class="status-msg">no logs yet</div>';
+          return;
+        }
+
+        window.__flatTurns = turns;
+
+        var DL_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        var html = '<div class="copy-all-row">';
+        html += '<a class="copy-all-btn" href="/web-tools/logs/download" download>' + DL_ICON + ' download zip</a>';
+        html += '<button class="copy-all-btn" id="copy-all-btn" onclick="copyAll()">' + COPY_ICON + ' copy all</button>';
+        html += '</div>';
+
+        html += '<div class="transcript">';
+        for (var i = 0; i < turns.length; i++) {
+          var t = turns[i];
+          var role = normalizeRole(t.from || t.role);
+          var val = t.value || t.content || "";
+          var rendered = renderContent(val, role);
+
+          var isToolCall = role === "assistant" && rendered.indexOf('tool-call') !== -1 &&
+                           rendered.replace(/<div class="tool-call">[\s\S]*?<\/div>/g, "")
+                                   .replace(/<div class="think-block">[\s\S]*?<\/div>/g, "").trim() === "";
+          var isError = role === "tool" && hasError(val);
+          var turnClass = "turn turn-" + role +
+                          (isToolCall ? " turn-assistant-toolcall" : "") +
+                          (isError ? " turn-error" : "");
+
+          html += '<div class="' + turnClass + '">';
+          var roleLabel = isToolCall ? "tool call" : role === "tool" ? "tool response" : role;
+          html += '<div class="turn-header">';
+          html += '<div class="turn-role ' + esc(role) + '">' + esc(roleLabel);
+          if (t.timestamp) html += ' <span class="turn-ts">' + esc(formatTime(t.timestamp)) + '</span>';
+          html += '</div>';
+          html += '<button class="copy-btn copy-turn" data-turn="' + i + '" onclick="copyTurn(' + i + ',event)" title="Copy">' + COPY_ICON + '</button>';
+          html += '</div>';
+
+          var contentClass = 'turn-content';
+          html += '<div class="' + contentClass + '">';
+          html += rendered;
+          html += '</div></div>';
+        }
+        html += '</div>';
+        html += '<div class="footer">shared by the assistant owner</div>';
+        content.innerHTML = html;
+
+        // Collapse tool turns that overflow.
+        var toolTurns = content.querySelectorAll('.turn-tool, .turn-assistant-toolcall');
+        for (var k = 0; k < toolTurns.length; k++) {
+          var contentEl = toolTurns[k].querySelector('.turn-content');
+          if (!contentEl) continue;
+          contentEl.classList.add('collapsed');
+          if (contentEl.scrollHeight > contentEl.clientHeight) {
+            contentEl.classList.add('overflowing');
+          } else {
+            contentEl.classList.remove('collapsed');
+          }
+        }
+      }
+
+      // ── Fetch ───────────────────────────────────────────────
+
+      fetch("/web-tools/logs/api")
+        .then(function (r) {
+          if (r.status === 403) {
+            content.innerHTML = '<div class="status-msg">log sharing is not enabled</div>';
+            return null;
+          }
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(function (data) {
+          if (!data) return;
+          var raw = data.entries || [];
+          window.__rawTrajectoryEntries = raw;
+          var deduped = deduplicateEntries(raw);
+          var turns = flattenToTranscript(deduped);
+          renderTranscript(turns);
+        })
+        .catch(function (err) {
+          content.innerHTML = '<div class="status-msg error">failed to load logs</div>';
+        });
+    })();
+  </script>
+</body>
+</html>

@@ -1,21 +1,18 @@
 {
   "name": "convos-assistants",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "start": "cd openclaw && pnpm start",
     "keys": "cd openclaw && sh scripts/keys.sh",
     "apply": "cd openclaw && sh scripts/apply-config.sh",
     "install-deps": "cd openclaw && sh scripts/install-deps.sh",
-    "pool-server": "cd openclaw && node src/pool-server.js",
-    "ngrok": "ngrok http 8080 --url=366bd81e603c.ngrok.app",
-    "build": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
-    "docker:run": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
-    "build:run": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local . && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
+    "pool-server": "node convos-platform/pool-server/dist/index.js",
+    "docker:build:openclaw": "cd .. && docker build -f runtime/openclaw/Dockerfile -t convos-runtime:local .",
+    "docker:run:openclaw": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env -e OPENCLAW_STATE_DIR=/app convos-runtime:local",
     "start:hermes": "cd hermes && pnpm start",
-    "build:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local .",
+    "docker:build:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local .",
     "docker:run:hermes": "cd .. && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
-    "build:run:hermes": "cd .. && docker build -f runtime/hermes/Dockerfile -t convos-runtime-hermes:local . && docker run --rm -p 8080:8080 --env-file runtime/.env convos-runtime-hermes:local",
     "evals": "sh evals/eval.sh"
   }
 }

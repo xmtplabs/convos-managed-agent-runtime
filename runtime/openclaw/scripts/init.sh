@@ -3,8 +3,8 @@
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 _ENV_FILE="$ROOT/.env"
 [ ! -f "$_ENV_FILE" ] && [ -f "$ROOT/../.env" ] && _ENV_FILE="$ROOT/../.env"
-_init_common="$ROOT/../shared/scripts/lib/init-common.sh"
-[ ! -f "$_init_common" ] && _init_common="/app/shared-scripts/lib/init-common.sh"
+_init_common="$ROOT/../lib/init-common.sh"
+[ ! -f "$_init_common" ] && _init_common="/app/lib/init-common.sh"
 . "$_init_common"
 
 # ── Paths ────────────────────────────────────────────────────────────────
@@ -13,11 +13,14 @@ if [ -f "$ROOT/openclaw.json" ]; then
 else
   RUNTIME_DIR="$ROOT/openclaw"
 fi
+# Alias GATEWAY_TOKEN → OPENCLAW_GATEWAY_TOKEN for the openclaw binary
+[ -n "$GATEWAY_TOKEN" ] && export OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$GATEWAY_TOKEN}"
+
 STATE_DIR="${OPENCLAW_STATE_DIR:-$ROOT/.openclaw-dev}"
 WORKSPACE_DIR="$STATE_DIR/workspace"
-SKILLS_DIR="$WORKSPACE_DIR/skills"
-SKILLS_ROOT="$SKILLS_DIR"
+SKILLS_ROOT="$STATE_DIR/skills"
+WORKSPACE_SKILLS="$STATE_DIR/workspace/skills"
 EXTENSIONS_DIR="$STATE_DIR/extensions"
 CONFIG="$STATE_DIR/openclaw.json"
 
-export RUNTIME_DIR STATE_DIR WORKSPACE_DIR SKILLS_DIR SKILLS_ROOT EXTENSIONS_DIR CONFIG
+export RUNTIME_DIR STATE_DIR WORKSPACE_DIR SKILLS_ROOT WORKSPACE_SKILLS EXTENSIONS_DIR CONFIG

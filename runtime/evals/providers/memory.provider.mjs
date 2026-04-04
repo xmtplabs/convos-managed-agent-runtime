@@ -24,7 +24,7 @@ let testIndex = 0;
 function log(msg) { _log('eval:memory', msg); }
 
 const queryUrl = runtime.queryUrl || null;
-const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN || '';
+const gatewayToken = process.env.GATEWAY_TOKEN || '';
 const extraArgs = runtime.memory.extraArgs ?? [];
 
 function resetMemory() {

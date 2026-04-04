@@ -14,7 +14,7 @@ Used by both production and evals:
 Both paths use the same AIAgent setup:
   - hermes-convos toolset (core tools + convos_react, convos_send_attachment)
   - platform="convos"
-  - ephemeral_system_prompt from CONVOS_PLATFORM.md
+  - ephemeral_system_prompt from INJECTED_CONTEXT.md
 
 The adapter (convos_adapter.py) handles marker parsing and response routing.
 """
@@ -29,6 +29,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+from .config import RuntimeConfig
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -94,15 +96,17 @@ def _get_ai_agent_class():
 
 def _load_convos_platform() -> str:
     """Load the Convos platform prompt from workspace or HERMES_HOME."""
+    from .paths import HERMES_ROOT
+
     hermes_home = os.environ.get("HERMES_HOME", "")
     candidates = [
-        *([] if not hermes_home else [Path(hermes_home) / "CONVOS_PLATFORM.md"]),
-        Path(__file__).resolve().parent.parent.parent / "workspace" / "CONVOS_PLATFORM.md",
+        *([] if not hermes_home else [Path(RuntimeConfig.workspace_path(hermes_home, "INJECTED_CONTEXT.md"))]),
+        HERMES_ROOT / "workspace" / "INJECTED_CONTEXT.md",
     ]
     for path in candidates:
         if path.exists():
             return path.read_text().strip()
-    logger.warning("CONVOS_PLATFORM.md not found — agent will lack platform context")
+    logger.warning("INJECTED_CONTEXT.md not found — agent will lack platform context")
     return ""
 
 
@@ -145,7 +149,7 @@ class AgentRunner:
 
     @staticmethod
     def _load_config_yaml(hermes_home: str) -> dict:
-        """Load config.yaml from HERMES_HOME (same approach as gateway/run.py)."""
+        """Load config.yaml from HERMES_HOME root."""
         try:
             import yaml
             cfg_path = Path(hermes_home or os.path.expanduser("~/.hermes")) / "config.yaml"
@@ -164,6 +168,7 @@ class AgentRunner:
         if self._hermes_home:
             os.environ["HERMES_HOME"] = self._hermes_home
             os.environ.setdefault("SKILLS_ROOT", str(Path(self._hermes_home) / "skills"))
+            os.environ.setdefault("WORKSPACE_SKILLS", str(Path(self._hermes_home) / "workspace" / "skills"))
 
         # Session DB — gives the agent persistent session storage and
         # powers the session_search tool for cross-session recall.
@@ -239,6 +244,7 @@ class AgentRunner:
         sender_id: str,
         timestamp: float,
         message_id: str,
+        group_members: str | None = None,
     ) -> str:
         """Format an inbound message with current time and full message ID.
 
@@ -251,7 +257,10 @@ class AgentRunner:
         # Produce "Thu, Mar 20, 2026, 10:30 AM EDT" — matches OpenClaw's Intl output.
         now_str = now.strftime("%a, %b %-d, %Y, %-I:%M %p %Z")
         name = sender_name or sender_id[:12]
-        return f"[Current time: {now_str}]\n[{message_id} {msg_ts}] {name}: {content}"
+        header = f"[Current time: {now_str}]"
+        if group_members:
+            header += f"\n[Group members: {group_members}]"
+        return f"{header}\n[{message_id} {msg_ts}] {name}: {content}"
 
     async def handle_message(
         self,
@@ -275,6 +284,7 @@ class AgentRunner:
             sender_id=sender_id,
             timestamp=timestamp,
             message_id=message_id,
+            group_members=group_members,
         )
 
         # Snapshot history before the (potentially long) agent call so
@@ -345,10 +355,6 @@ class AgentRunner:
             )
         self._last_reasoning_texts = reasoning_texts
 
-        # Normalize SILENT: the agent chose not to reply. Strip the marker
-        # so it never appears in conversation history as assistant text.
-        is_silent = bool(response and "SILENT" in response.strip().splitlines())
-
         # Append to shared history after the call completes.
         # Hermes handles context window management internally via
         # ContextCompressor and session splitting.
@@ -357,13 +363,13 @@ class AgentRunner:
         # "Operation interrupted" diagnostic is not a real reply.
         async with self._history_lock:
             self._conversation_history.append({"role": "user", "content": envelope})
-            if response and not is_silent and not was_interrupted:
+            if response and not was_interrupted:
                 self._conversation_history.append({
                     "role": "assistant",
                     "content": response,
                 })
 
-        if was_interrupted or is_silent or not response or not response.strip():
+        if was_interrupted or not response or not response.strip():
             return None
 
         return response
@@ -379,6 +385,30 @@ class AgentRunner:
             user_message=user_message,
             conversation_history=history,
         )
+
+    async def record_message(
+        self,
+        *,
+        content: str,
+        sender_name: str,
+        sender_id: str,
+        timestamp: float,
+        message_id: str,
+    ) -> None:
+        """Record an inbound message in conversation history without triggering an agent turn.
+
+        Used for reactions and other events that the agent should see as context
+        but should not reply to — matching OpenClaw's behavior.
+        """
+        envelope = self._format_envelope(
+            content=content,
+            sender_name=sender_name,
+            sender_id=sender_id,
+            timestamp=timestamp,
+            message_id=message_id,
+        )
+        async with self._history_lock:
+            self._conversation_history.append({"role": "user", "content": envelope})
 
     def run_single_query(self, query: str) -> str:
         """Run a single query with no conversation history. Returns response text."""
