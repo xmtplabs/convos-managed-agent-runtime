@@ -856,6 +856,23 @@ app.post("/admin/lite/logout", (req, res) => {
   res.redirect(302, "/admin/lite");
 });
 
+app.get("/admin/lite/manifest.json", (_req, res) => {
+  const env = config.poolEnvironment || "local";
+  const envCap = env.charAt(0).toUpperCase() + env.slice(1);
+  res.json({
+    name: `Pool ${envCap}`,
+    short_name: `Pool ${envCap}`,
+    start_url: "/admin/lite",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#ffffff",
+    icons: [
+      { src: "/admin/assets/pwa-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/admin/assets/pwa-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    ],
+  });
+});
+
 app.get("/admin/api-docs", (req, res) => {
   if (!isAuthenticated(req)) { res.redirect(302, "/admin"); return; }
   res.type("html").send(apiDocsPage({
