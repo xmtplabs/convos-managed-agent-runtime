@@ -45,3 +45,5 @@ if [ -z "$EVAL_OPENROUTER_API_KEY" ]; then
   exit 1
 fi
 export EVAL_OPENROUTER_API_KEY
+# Promptfoo's --grader flag reads OPENROUTER_API_KEY for openrouter: providers
+export OPENROUTER_API_KEY="$EVAL_OPENROUTER_API_KEY"
