@@ -35,6 +35,10 @@ tests:
           FAIL if the agent immediately generates a full skill without
           asking about location (critical for a hiking skill).
 
+          FAIL if the agent's response mentions searching, browsing,
+          validating images, or writing files — Step 1 should be a
+          plain-text reply only.
+
           PASS if the agent asks at most one quick question to fill in
           critical missing context (like location), OR if it makes a
           reasonable assumption and proceeds to build.
