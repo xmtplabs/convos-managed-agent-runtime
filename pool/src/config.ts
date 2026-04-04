@@ -43,7 +43,9 @@ export const config = {
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
   railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
     const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
-    return env ? `ghcr.io/xmtplabs/convos-runtime:${env}` : "";
+    if (!env) return "";
+    const base = env === "production" ? "convos-runtime-hermes" : "convos-runtime";
+    return `ghcr.io/xmtplabs/${base}:${env}`;
   })(),
 
   // OpenRouter (from services)
