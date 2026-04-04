@@ -386,8 +386,9 @@ export function liteLoginPage(error) {
 export function litePage({
   poolEnvironment,
   runtimeImage = "",
+  adminUrls = [],
 }) {
-  const config = JSON.stringify({ poolEnvironment, runtimeImage });
+  const config = JSON.stringify({ poolEnvironment, runtimeImage, adminUrls });
   return liteHtmlTemplate.replace(
     "<!--__POOL_CONFIG__-->",
     `<script>window.__POOL_CONFIG__=${config}</script>`,
