@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../config";
-import { isAuthenticated } from "../admin";
+import { isAuthenticated, isLiteAuthenticated } from "../admin";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   // 1. Bearer token (API callers)
@@ -16,6 +16,20 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     next();
     return;
   }
+
+  res.status(401).json({ error: "Invalid or missing API key" });
+}
+
+/** Like requireAuth but also accepts lite dashboard sessions. */
+export function requireLiteAuth(req: Request, res: Response, next: NextFunction) {
+  // Full auth (bearer or admin cookie) always works
+  const header = req.headers.authorization || "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (match?.[1] && match[1] === config.poolApiKey) { next(); return; }
+  if (isAuthenticated(req)) { next(); return; }
+
+  // Lite session cookie
+  if (isLiteAuthenticated(req)) { next(); return; }
 
   res.status(401).json({ error: "Invalid or missing API key" });
 }

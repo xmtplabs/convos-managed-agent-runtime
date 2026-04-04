@@ -12,12 +12,6 @@ providers:
     config:
       skipGreeting: true
 
-defaultTest:
-  options:
-    provider:
-      id: "openrouter:@preset/assistants-eval-judge"
-      config:
-        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
   # --- Step 1: user describes need, agent asks ONE quick question max ---
@@ -53,6 +47,8 @@ tests:
         value: "file://../lib/assertions.mjs:skillJsonWritten"
       - type: javascript
         value: "file://../lib/assertions.mjs:skillActivated"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileNameChanged"
       - type: llm-rubric
         value: >
           The output is a chat transcript. The user provided details about
