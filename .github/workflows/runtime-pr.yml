@@ -33,12 +33,30 @@ jobs:
       openclaw_stamped: ${{ steps.check.outputs.openclaw }}
       hermes_stamped: ${{ steps.check.outputs.hermes }}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
       - uses: docker/login-action@v4
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Resolve stamp SHA
+        id: resolve
+        run: |
+          # For merge commits (promotion branches), the image was published
+          # under the dev-side parent SHA, not the merge commit SHA.
+          PARENTS=$(git rev-list --parents -n1 HEAD | wc -w)
+          if [ "$PARENTS" -gt 2 ]; then
+            # Merge commit — second parent is the dev branch tip
+            DEV_SHA=$(git rev-parse HEAD^2)
+            echo "sha=sha-$(echo "$DEV_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+            echo "Merge commit detected — using dev-side parent: ${DEV_SHA:0:7}"
+          else
+            echo "sha=sha-$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Check for published images
         id: check
         run: |
-          SHA="sha-$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
+          SHA="${{ steps.resolve.outputs.sha }}"
           AUTH="$HOME/.docker/config.json"
 
           for runtime in openclaw hermes; do
@@ -60,7 +78,7 @@ jobs:
       - name: Annotate skipped evals
         if: steps.check.outputs.openclaw == 'true' || steps.check.outputs.hermes == 'true'
         run: |
-          SHA="sha-$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)"
+          SHA="${{ steps.resolve.outputs.sha }}"
           echo "## ⏭️ Eval stamp found" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Image \`$SHA\` already passed evals on \`dev\`. Skipping redundant eval runs." >> "$GITHUB_STEP_SUMMARY"
@@ -126,9 +144,8 @@ jobs:
           echo "run_hermes=$HAS_HERMES" >> "$GITHUB_OUTPUT"
           echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | openclaw=$HAS_OPENCLAW hermes=$HAS_HERMES shared=$HAS_SHARED"
 
-      # ── Selective eval triggering (dev branch only) ──────────────────
+      # ── Selective eval triggering ───────────────────────────────────
       # Only matched suites run. Unmatched files → run all (safe fallback).
-      # Non-dev branches always run all suites (promotion gates).
       - uses: dorny/paths-filter@v3
         id: eval-paths
         with:
@@ -209,17 +226,8 @@ jobs:
       - name: Build eval suite matrix
         id: suites
         run: |
-          BASE="${{ github.event.pull_request.base.ref }}"
-
           # Single source of truth for eval suite config
           ALL=$(jq -c . .github/eval-matrix.json)
-
-          # Non-dev branches → run all
-          if [ "$BASE" != "dev" ]; then
-            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
-            echo "Eval suites: all (base=$BASE)"
-            exit 0
-          fi
 
           # Build list from dorny outputs — only matched suites run
           MATCHED=""
@@ -292,6 +300,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
       - uses: docker/login-action@v4
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
 
@@ -303,16 +314,28 @@ jobs:
             scaling) echo "tag=scaling" ;; dev) echo "tag=dev" ;; staging) echo "tag=staging" ;; main) echo "tag=production" ;; *) echo "tag=" ;;
           esac >> "$GITHUB_OUTPUT"
 
+      - name: Resolve source SHA
+        id: resolve
+        run: |
+          PARENTS=$(git rev-list --parents -n1 HEAD | wc -w)
+          if [ "$PARENTS" -gt 2 ]; then
+            DEV_SHA=$(git rev-parse HEAD^2)
+            echo "sha=$(echo "$DEV_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+            echo "Merge commit — using dev-side parent: ${DEV_SHA:0:7}"
+          else
+            echo "sha=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Promote OpenClaw
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
-          SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          SHA="${{ steps.resolve.outputs.sha }}"
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
           if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
             skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-            echo "Promoted OpenClaw → :$TAG"
+            echo "Promoted OpenClaw sha-$SHA → :$TAG"
           else
             echo "::warning::OpenClaw image sha-$SHA not found — skipping"
           fi
@@ -321,12 +344,12 @@ jobs:
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
-          SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          SHA="${{ steps.resolve.outputs.sha }}"
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
           if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
             skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-            echo "Promoted Hermes → :$TAG"
+            echo "Promoted Hermes sha-$SHA → :$TAG"
           else
             echo "::warning::Hermes image sha-$SHA not found — skipping"
           fi
