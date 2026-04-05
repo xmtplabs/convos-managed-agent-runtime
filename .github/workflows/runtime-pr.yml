@@ -27,7 +27,7 @@ jobs:
   # evals pass, so its presence IS the green stamp.
   check-stamp:
     name: Check eval stamp
-    if: github.event.action != 'closed' && github.event.pull_request.base.ref != 'dev'
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     outputs:
       openclaw_stamped: ${{ steps.check.outputs.openclaw }}
@@ -235,8 +235,7 @@ jobs:
     if: >-
       always() &&
       needs.prepare.result == 'success' &&
-      needs.prepare.outputs.run_openclaw == 'true' &&
-      needs.check-stamp.outputs.openclaw_stamped != 'true'
+      needs.prepare.outputs.run_openclaw == 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
@@ -251,6 +250,7 @@ jobs:
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
       eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
+      skip_evals: ${{ needs.check-stamp.outputs.openclaw_stamped == 'true' }}
 
   hermes:
     name: Hermes
@@ -258,8 +258,7 @@ jobs:
     if: >-
       always() &&
       needs.prepare.result == 'success' &&
-      needs.prepare.outputs.run_hermes == 'true' &&
-      needs.check-stamp.outputs.hermes_stamped != 'true'
+      needs.prepare.outputs.run_hermes == 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
@@ -272,6 +271,7 @@ jobs:
       docker_run_extra: "-e RUNTIME_TYPE=hermes"
       docker_cmd: "node convos-platform/pool-server/dist/index.js"
       eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
+      skip_evals: ${{ needs.check-stamp.outputs.hermes_stamped == 'true' }}
 
   # ── Promote on merge ─────────────────────────────────────────────────
   promote:
