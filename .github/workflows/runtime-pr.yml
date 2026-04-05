@@ -144,37 +144,12 @@ jobs:
           echo "run_hermes=$HAS_HERMES" >> "$GITHUB_OUTPUT"
           echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | openclaw=$HAS_OPENCLAW hermes=$HAS_HERMES shared=$HAS_SHARED"
 
-      # ── Selective eval triggering ───────────────────────────────────
-      # Only matched suites run. Unmatched files → run all (safe fallback).
-      # Triggers defined in .github/eval-triggers.yml for easy maintenance.
-      - uses: dorny/paths-filter@v3
-        id: eval-paths
-        with:
-          filters: .github/eval-triggers.yml
       - name: Build eval suite matrix
         id: suites
         run: |
-          # Single source of truth for eval suite config
           ALL=$(jq -c . .github/eval-matrix.json)
-
-          # Build list from dorny outputs — only matched suites run
-          MATCHED=""
-          for suite in soul knows skills memory convos onboarding skill-builder lifecycle services silence verbosity cron models delegation webhooks; do
-            if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
-              MATCHED="$MATCHED $suite"
-            fi
-          done
-
-          if [ -z "$MATCHED" ]; then
-            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
-            echo "Eval suites: all (no mapped suite matched — safe fallback)"
-            exit 0
-          fi
-
-          # Filter the full matrix to only matched suites
-          MATRIX=$(echo "$ALL" | jq -c "[.[] | select(.suite as \$s | \"$MATCHED\" | split(\" \") | map(select(. != \"\")) | index(\$s) != null)]")
-          echo "eval_matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-          echo "Eval suites: $MATCHED"
+          echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
+          echo "Eval suites: all"
 
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
