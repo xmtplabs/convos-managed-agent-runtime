@@ -64,22 +64,6 @@
       }
     }
   },
-  "skills": {
-    "entries": {
-      "services": {
-        "enabled": true
-      },
-
-      "settings": {
-        "enabled": true
-      }
-    }
-  },
-  "messages": {
-    "queue": {
-      "mode": "interrupt"
-    }
-  },
   "channels": {
     "convos": {
       "debug": true,
