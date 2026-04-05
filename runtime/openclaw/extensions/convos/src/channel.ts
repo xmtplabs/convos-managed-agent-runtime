@@ -28,6 +28,13 @@ import { ConvosInstance, type InboundMessage } from "./sdk-client.js";
 import { clearConvosCredentials } from "./credentials.js";
 import { stats } from "./stats.js";
 
+/**
+ * Notifications (email/SMS webhooks) that arrived while an agent run was active.
+ * Dispatched after the current run completes to avoid interrupting it.
+ */
+const pendingNotifications: string[] = [];
+let runActive = false;
+
 let _cachedMessagingHints: string[] | null = null;
 
 function loadConvosMessagingHints(): string[] {
@@ -849,30 +856,38 @@ async function handleInboundMessage(
     }
   };
 
-  await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-    ctx: ctxPayload,
-    cfg,
-    dispatcherOptions: {
-      deliver: async (payload: ReplyPayload) => {
-        pendingBlocks.push(payload);
+  runActive = true;
+  try {
+    await runtime.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+      ctx: ctxPayload,
+      cfg,
+      dispatcherOptions: {
+        deliver: async (payload: ReplyPayload) => {
+          pendingBlocks.push(payload);
+        },
+        onError: async (err, info) => {
+          errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
+        },
       },
-      onError: async (err, info) => {
-        errorLog(`[${account.accountId}] Convos ${info.kind} reply failed: ${String(err)}`);
+      replyOptions: {
+        onAssistantMessageStart: async () => {
+          await flushPending(currentTurnHasTools);
+          currentTurnHasTools = false;
+        },
+        onToolStart: () => {
+          currentTurnHasTools = true;
+        },
       },
-    },
-    replyOptions: {
-      onAssistantMessageStart: async () => {
-        await flushPending(currentTurnHasTools);
-        currentTurnHasTools = false;
-      },
-      onToolStart: () => {
-        currentTurnHasTools = true;
-      },
-    },
-  });
+    });
 
-  // Flush remaining buffer from the last turn.
-  await flushPending(currentTurnHasTools);
+    // Flush remaining buffer from the last turn.
+    await flushPending(currentTurnHasTools);
+  } finally {
+    runActive = false;
+  }
+
+  // Drain any notifications that arrived during the run.
+  await drainPendingNotifications();
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
@@ -1181,10 +1196,21 @@ export async function dispatchNotification(text: string): Promise<void> {
     throw new Error("No active conversation");
   }
 
-  const runtime = getConvosRuntime();
-  if (!runtime) {
-    throw new Error("No runtime available");
+  if (runActive) {
+    console.log("[convos] Queuing notification (run active)");
+    pendingNotifications.push(text);
+    return;
   }
+
+  await dispatchNotificationNow(text);
+}
+
+async function dispatchNotificationNow(text: string): Promise<void> {
+  const inst = getConvosInstance();
+  if (!inst) return;
+
+  const runtime = getConvosRuntime();
+  if (!runtime) return;
 
   const cfg = runtime.config.loadConfig() as CoreConfig;
   const account = resolveConvosAccount({ cfg });
@@ -1201,6 +1227,14 @@ export async function dispatchNotification(text: string): Promise<void> {
 
   console.log("[convos] Dispatching notification message");
   await handleInboundMessage(account, syntheticMsg, runtime);
+}
+
+async function drainPendingNotifications(): Promise<void> {
+  while (pendingNotifications.length > 0) {
+    const text = pendingNotifications.shift()!;
+    console.log(`[convos] Draining queued notification (${pendingNotifications.length} remaining)`);
+    await dispatchNotificationNow(text);
+  }
 }
 
 async function dispatchWorkspaceRefresh(
