@@ -68,6 +68,11 @@ on:
         description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]. Defaults to .github/eval-matrix.json"
         required: false
         type: string
+      skip_evals:
+        description: "Skip evals (image already stamped). Build and publish still run."
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -102,6 +107,7 @@ jobs:
   resolve-matrix:
     name: Resolve eval matrix
     needs: build
+    if: ${{ !inputs.skip_evals }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.resolve.outputs.matrix }}
@@ -121,6 +127,7 @@ jobs:
   eval:
     name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
     needs: [build, resolve-matrix]
+    if: ${{ !inputs.skip_evals }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -207,7 +214,7 @@ jobs:
   report:
     name: "Report ${{ inputs.runtime }}"
     needs: eval
-    if: always()
+    if: always() && !inputs.skip_evals
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v8
@@ -282,8 +289,8 @@ jobs:
 
   publish:
     name: "Publish ${{ inputs.runtime }}"
-    needs: eval
-    if: always() && needs.eval.result == 'success' && inputs.publish_tags != ''
+    needs: [build, eval]
+    if: always() && (needs.eval.result == 'success' || needs.eval.result == 'skipped') && needs.build.result == 'success' && inputs.publish_tags != ''
     runs-on: ubuntu-latest
     steps:
       - uses: docker/login-action@v4
