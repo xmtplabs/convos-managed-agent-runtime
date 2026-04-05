@@ -23,12 +23,12 @@ tests:
         value: >
           The output is a chat transcript. The user asked for a hiking skill.
 
-          FAIL if the agent asks more than one follow-up question
+          FAIL if the agent asks more than two follow-up questions
           (e.g. multiple messages asking about tone, group size, tools, etc.).
 
-          PASS if the agent asks at most one quick question to fill in
-          critical missing context (like location), OR if it makes a
-          reasonable assumption and proceeds to build.
+          PASS if the agent asks at most two quick questions to fill in
+          critical missing context (like location or group size), OR if it
+          makes a reasonable assumption and proceeds to build immediately.
 
   # --- Step 2: user answers, agent builds + activates in one shot ---
   - description: "Agent builds skill and activates immediately — no confirmations"

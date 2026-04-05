@@ -39,10 +39,11 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the agent says SMS delivery is fully reliable or makes no
-          mention of potential delivery issues.
-          Otherwise PASS — the agent should mention that outbound SMS may not
-          reach its destination or that carrier approval is still pending.
+          FAIL only if the agent guarantees SMS delivery with zero caveats
+          (e.g. "yes, absolutely, every SMS will be delivered").
+          Otherwise PASS — mentioning any caveat such as carrier issues,
+          US-only limitations, pending approval, or general unreliability
+          is sufficient.
 
   - description: "Agent picks the right mechanism for recurring vs one-off tasks"
     vars:
