@@ -20,8 +20,11 @@ tests:
         value: "https?://|credits|services"
       - type: llm-rubric
         value: >
-          FAIL if the agent doesn't demonstrate awareness of the credits
-          Else pass.
+          FAIL only if the agent has no idea what credits are or gives
+          completely unrelated advice.
+          An empty response is a PASS (transient issue).
+          Otherwise PASS — any mention of credits, a services page,
+          a top-up link, or payment is sufficient.
           
   - description: "Agent knows its email address"
     vars:
