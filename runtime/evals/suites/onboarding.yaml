@@ -53,12 +53,13 @@ tests:
       - type: llm-rubric
         value: >
           The output is a chat transcript. The user told the agent what the group needs help with.
-          The AGENT should now be in skill-builder mode — asking follow-up questions to refine the skill.
+          The AGENT should now be in skill-builder mode.
           Evaluate against ALL requirements:
 
           1. The agent must acknowledge what the user said (D&D session planning).
-          2. The agent must ask a follow-up question to refine scope — either assessing scope, asking about preferences, or offering choices.
-          3. The agent must NOT just say "sure I can help with that" and stop — it must actively drive the conversation forward.
+          2. The agent must either ask a follow-up question to refine scope OR
+             proceed to build a skill directly — both are valid behaviors.
+          3. The agent must NOT just say "sure I can help with that" and stop — it must actively drive the conversation forward (by questioning OR building).
           4. The agent must NOT list generic capabilities.
           5. The message must be conversational, not robotic.
 

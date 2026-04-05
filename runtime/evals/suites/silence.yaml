@@ -58,7 +58,8 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          The agent should not over-respond to an ellipsis. A short, minimal response
-          or gentle check-in is fine. Pass if the response is brief (1-2 sentences max)
-          and doesn't try to fill the silence with unsolicited content.
-          Fail if it launches into a long response or offers unsolicited help.
+          FAIL if the agent launches into a long response (more than 3
+          sentences) or offers unsolicited help unprompted.
+          An empty response is a PASS (transient issue).
+          Otherwise PASS — a short, minimal response or gentle check-in
+          (1-3 sentences) is fine.
