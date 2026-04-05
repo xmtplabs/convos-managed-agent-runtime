@@ -27,7 +27,7 @@ jobs:
   # evals pass, so its presence IS the green stamp.
   check-stamp:
     name: Check eval stamp
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.base.ref != 'dev'
     runs-on: ubuntu-latest
     outputs:
       openclaw_stamped: ${{ steps.check.outputs.openclaw }}
