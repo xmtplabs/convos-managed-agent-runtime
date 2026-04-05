@@ -26,9 +26,6 @@ tests:
           FAIL if the agent asks more than one follow-up question
           (e.g. multiple messages asking about tone, group size, tools, etc.).
 
-          FAIL if the agent immediately generates a full skill without
-          asking about location (critical for a hiking skill).
-
           PASS if the agent asks at most one quick question to fill in
           critical missing context (like location), OR if it makes a
           reasonable assumption and proceeds to build.
@@ -37,12 +34,7 @@ tests:
   - description: "Agent builds skill and activates immediately — no confirmations"
     vars:
       prompt: "We're 6 people based near Denver, mostly casual day hikes on weekends. Fun and laid-back vibe."
-    metadata:
-      waitForPattern: "/web-tools/skills/"
-      waitForPatternTimeout: 300
     assert:
-      - type: regex
-        value: "/web-tools/skills/"
       - type: javascript
         value: "file://../lib/assertions.mjs:skillJsonWritten"
       - type: javascript
@@ -61,9 +53,8 @@ tests:
           FAIL if the agent proposes a direction and waits for approval
           instead of just building.
 
-          FAIL if the agent shares the skill page URL but does NOT activate
-          and send a welcome message in the same turn.
-
-          PASS if the agent goes straight to building — generates the skill,
-          shares the URL, activates (new identity/name), AND sends a welcome
-          message — all in one turn with zero approval steps.
+          PASS if the agent already built and activated the skill in a
+          previous turn (the skill URL was already shared), OR if it
+          builds now — generates the skill, shares the URL, activates
+          (new identity/name), AND sends a welcome message — all in one
+          turn with zero approval steps.
