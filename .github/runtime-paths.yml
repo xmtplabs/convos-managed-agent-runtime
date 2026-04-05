@@ -1,9 +1,13 @@
 # Paths that trigger runtime build + eval pipelines.
-# Any match triggers BOTH openclaw and hermes.
-# Checked by dorny/paths-filter in runtime-pr.yml.
+# "shared" changes trigger both runtimes.
+# Runtime-specific changes only trigger their own pipeline.
 
-runtime:
+shared:
   - 'runtime/convos-platform/**'
   - 'runtime/lib/**'
+
+openclaw:
   - 'runtime/openclaw/**'
+
+hermes:
   - 'runtime/hermes/**'

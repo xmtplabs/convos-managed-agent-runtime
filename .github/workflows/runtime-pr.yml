@@ -120,9 +120,9 @@ jobs:
       - name: Set runtime flags
         id: runtime-flags
         run: |
-          HAS_RUNTIME=${{ steps.changes.outputs.runtime }}
-          echo "run_openclaw=$HAS_RUNTIME" >> "$GITHUB_OUTPUT"
-          echo "run_hermes=$HAS_RUNTIME" >> "$GITHUB_OUTPUT"
+          SHARED=${{ steps.changes.outputs.shared }}
+          echo "run_openclaw=$( [ "$SHARED" = "true" ] || [ "${{ steps.changes.outputs.openclaw }}" = "true" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "run_hermes=$( [ "$SHARED" = "true" ] || [ "${{ steps.changes.outputs.hermes }}" = "true" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
 
       - name: Build eval suite matrix
         id: suites
