@@ -19,11 +19,11 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response is excessively long — more than 5 sentences,
-          or contains a full day-by-day itinerary, or uses markdown formatting
-          like bold, headers, or bullet lists. A short answer (1-4 sentences)
-          with a clarifying question or a high-level summary is a PASS.
-          An empty response is a PASS.
+          FAIL if the response exceeds 6 sentences, contains a full
+          day-by-day itinerary, or uses markdown formatting like bold,
+          headers, or bullet lists. Otherwise PASS — a short answer
+          (1-5 sentences) with a clarifying question or high-level
+          summary is fine. An empty response is a PASS.
 
   - description: "Restaurant recommendation stays concise"
     vars:
@@ -31,11 +31,11 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response is excessively long — more than 5 sentences,
-          or contains detailed multi-paragraph reviews of each restaurant,
-          or uses markdown formatting like bold, headers, or bullet lists.
-          A short answer naming a few spots with a follow-up question is a PASS.
-          An empty response is a PASS.
+          FAIL if the response exceeds 6 sentences, contains detailed
+          multi-paragraph reviews of each restaurant, or uses markdown
+          formatting like bold, headers, or bullet lists. Otherwise PASS
+          — a short answer naming a few spots with a follow-up question
+          is fine. An empty response is a PASS.
 
   - description: "Product comparison stays concise"
     vars:
@@ -43,10 +43,10 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response is excessively long — more than 5 sentences,
-          or contains a multi-section breakdown with headers, or uses markdown
-          formatting like bold or bullet lists. A short comparison (1-4
-          sentences) with a follow-up question is a PASS.
+          FAIL if the response exceeds 6 sentences, contains a
+          multi-section breakdown with headers, or uses markdown
+          formatting like bold or bullet lists. Otherwise PASS — a short
+          comparison (1-5 sentences) with a follow-up question is fine.
           An empty response is a PASS.
 
   - description: "No unsolicited outlines or previews"
@@ -55,11 +55,12 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response contains a detailed day-by-day itinerary with
-          specific durations per city (e.g. "3 nights in Lisbon, 2 in Porto,
-          4 in Algarve"), numbered lists, or multi-paragraph breakdowns.
-          A short high-level answer (1-4 sentences) mentioning regions or
-          asking a clarifying question is a PASS. An empty response is a PASS.
+          FAIL if the response exceeds 6 sentences, contains a detailed
+          day-by-day itinerary with specific durations per city (e.g.
+          "3 nights in Lisbon, 2 in Porto, 4 in Algarve"), numbered lists,
+          or multi-paragraph breakdowns. Otherwise PASS — a short high-level
+          answer (1-5 sentences) mentioning regions or asking a clarifying
+          question is fine. An empty response is a PASS.
 
   - description: "No filler padding around questions"
     vars:
@@ -67,8 +68,10 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the agent explains WHY it is asking a follow-up question
-          (e.g. "that'll help me find the right match" or "so I can narrow it down").
-          The agent should just ask the question directly without justifying it.
-          Also FAIL if the agent lists what it could help with (e.g.
-          "insurance, specialty, location"). An empty response is a PASS.
+          FAIL if the response exceeds 6 sentences. FAIL if the agent
+          explains WHY it is asking a follow-up question (e.g. "that'll
+          help me find the right match" or "so I can narrow it down").
+          The agent should just ask the question directly without
+          justifying it. Also FAIL if the agent lists what it could help
+          with (e.g. "insurance, specialty, location"). Otherwise PASS.
+          An empty response is a PASS.

@@ -36,28 +36,31 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2
+          fetch-depth: 20
       - uses: docker/login-action@v4
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
-      - name: Resolve stamp SHA
-        id: resolve
-        run: |
-          # For merge commits (promotion branches), the image was published
-          # under the dev-side parent SHA, not the merge commit SHA.
-          PARENTS=$(git rev-list --parents -n1 HEAD | wc -w)
-          if [ "$PARENTS" -gt 2 ]; then
-            # Merge commit — second parent is the dev branch tip
-            DEV_SHA=$(git rev-parse HEAD^2)
-            echo "sha=sha-$(echo "$DEV_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
-            echo "Merge commit detected — using dev-side parent: ${DEV_SHA:0:7}"
-          else
-            echo "sha=sha-$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
-          fi
       - name: Check for published images
         id: check
         run: |
-          SHA="${{ steps.resolve.outputs.sha }}"
           AUTH="$HOME/.docker/config.json"
+
+          # Collect candidate SHAs: for promotion PRs (merge commits), walk
+          # the dev-side parent chain — GitHub merge commits on dev don't have
+          # published images, only the original PR head commits do.
+          CANDIDATES=()
+          COMMIT="${{ github.event.pull_request.head.sha }}"
+          for i in $(seq 1 10); do
+            SHORT=$(echo "$COMMIT" | cut -c1-7)
+            CANDIDATES+=("sha-$SHORT")
+            echo "Candidate $i: sha-$SHORT ($COMMIT)"
+            # If this commit is a merge, follow the second parent (dev side)
+            PARENT_COUNT=$(git rev-list --parents -n1 "$COMMIT" 2>/dev/null | wc -w)
+            if [ "$PARENT_COUNT" -gt 2 ]; then
+              COMMIT=$(git rev-parse "$COMMIT^2" 2>/dev/null) || break
+            else
+              break
+            fi
+          done
 
           for runtime in openclaw hermes; do
             if [ "$runtime" = "openclaw" ]; then
@@ -66,22 +69,27 @@ jobs:
               IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
             fi
 
-            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:$SHA" > /dev/null 2>&1; then
-              echo "$runtime=true" >> "$GITHUB_OUTPUT"
-              echo "✓ $runtime image $SHA exists — evals already passed"
-            else
+            FOUND=false
+            for SHA in "${CANDIDATES[@]}"; do
+              if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:$SHA" > /dev/null 2>&1; then
+                echo "$runtime=true" >> "$GITHUB_OUTPUT"
+                echo "✓ $runtime image $SHA exists — evals already passed"
+                FOUND=true
+                break
+              fi
+            done
+            if [ "$FOUND" = "false" ]; then
               echo "$runtime=false" >> "$GITHUB_OUTPUT"
-              echo "✗ $runtime image $SHA not found — will run evals"
+              echo "✗ $runtime image not found in candidates: ${CANDIDATES[*]}"
             fi
           done
 
       - name: Annotate skipped evals
         if: steps.check.outputs.openclaw == 'true' || steps.check.outputs.hermes == 'true'
         run: |
-          SHA="${{ steps.resolve.outputs.sha }}"
           echo "## ⏭️ Eval stamp found" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Image \`$SHA\` already passed evals on \`dev\`. Skipping redundant eval runs." >> "$GITHUB_STEP_SUMMARY"
+          echo "Image already passed evals on \`dev\`. Skipping redundant eval runs." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           [ "${{ steps.check.outputs.openclaw }}" = "true" ] && echo "- **OpenClaw**: stamped ✓" >> "$GITHUB_STEP_SUMMARY"
           [ "${{ steps.check.outputs.hermes }}" = "true" ] && echo "- **Hermes**: stamped ✓" >> "$GITHUB_STEP_SUMMARY"
@@ -152,15 +160,10 @@ jobs:
           filters: |
             soul:
               - 'runtime/convos-platform/SOUL.md'
-              - 'runtime/convos-platform/context/ERROR-HANDLING.md'
-              - 'runtime/convos-platform/context/WORKSPACE-SAFETY.md'
-              - 'runtime/convos-platform/context/TIME-AWARENESS.md'
             knows:
-              - 'runtime/convos-platform/context/IDENTITY.md'
-              - 'runtime/convos-platform/context/RUNTIME.md'
+              - 'runtime/convos-platform/context/*'
             skills:
               - 'runtime/convos-platform/skills/**'
-              - 'runtime/convos-platform/context/CUSTOMIZATION.md'
             memory:
               - 'runtime/convos-platform/context/MEMORY.md'
               - 'runtime/convos-platform/context/*/MEMORY.md'
@@ -168,27 +171,16 @@ jobs:
               - 'runtime/hermes/src/**/memory*'
             convos:
               - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
-              - 'runtime/convos-platform/web-tools/convos/**'
-              - 'runtime/convos-platform/skills/profile-update/**'
-              - 'runtime/convos-platform/outbound-policy.json'
-              - 'runtime/convos-platform/context/CONVOS-CLI.md'
-              - 'runtime/convos-platform/context/INBOUND-FORMATS.md'
-              - 'runtime/convos-platform/context/*/MESSAGING.md'
-              - 'runtime/convos-platform/context/*/PROFILE-UPDATES.md'
+              - 'runtime/hermes/**'
+              - 'runtime/convos-platform/*'
+              - 'runtime/openclaw/**'
             onboarding:
               - 'runtime/convos-platform/onboarding/**'
-              - 'runtime/convos-platform/context/IDENTITY.md'
-              - 'runtime/convos-platform/context/*/IDENTITY.md'
               - 'runtime/convos-platform/skills/skill-builder/**'
               - 'runtime/openclaw/extensions/convos/src/channel.ts'
               - 'runtime/hermes/src/server/server.py'
             skill-builder:
               - 'runtime/convos-platform/skills/skill-builder/**'
-              - 'runtime/evals/suites/skill-builder.yaml'
-              - 'runtime/evals/lib/assertions.mjs'
-              - 'runtime/evals/providers/convos.provider.mjs'
-              - 'runtime/openclaw/extensions/convos/src/channel.ts'
             lifecycle:
               - 'runtime/openclaw/scripts/**'
               - 'runtime/hermes/scripts/**'
@@ -198,27 +190,23 @@ jobs:
             webhooks:
               - 'runtime/convos-platform/skills/services/**'
               - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
             silence:
               - 'runtime/convos-platform/outbound-policy.json'
               - 'runtime/convos-platform/context/TOOL-DISCIPLINE.md'
               - 'runtime/convos-platform/context/*/TOOL-DISCIPLINE.md'
-              - 'runtime/hermes/src/**'
             verbosity:
-              - 'runtime/convos-platform/SOUL.md'
               - 'runtime/convos-platform/context/MESSAGING.md'
-              - 'runtime/convos-platform/context/BREVITY-EXAMPLES.md'
               - 'runtime/convos-platform/context/*/MESSAGING.md'
+              - 'runtime/convos-platform/context/BREVITY-EXAMPLES.md'
               - 'runtime/convos-platform/INJECTED_CONTEXT.md'
-              - 'runtime/evals/suites/verbosity.yaml'
             cron:
               - 'runtime/convos-platform/context/CRON.md'
               - 'runtime/convos-platform/context/*/CRON.md'
-              - 'runtime/convos-platform/web-tools/skills/**'
               - 'runtime/lib/crons.sh'
             models:
               - 'runtime/openclaw/openclaw.json'
               - 'runtime/hermes/workspace/config.yaml'
+              - 'runtime/convos-platform/context/MODELS.md'
               - 'runtime/convos-platform/context/*/MODELS.md'
             delegation:
               - 'runtime/convos-platform/context/DELEGATION.md'
@@ -302,7 +290,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 2
+          fetch-depth: 20
       - uses: docker/login-action@v4
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
 
@@ -317,14 +305,20 @@ jobs:
       - name: Resolve source SHA
         id: resolve
         run: |
-          PARENTS=$(git rev-list --parents -n1 HEAD | wc -w)
-          if [ "$PARENTS" -gt 2 ]; then
-            DEV_SHA=$(git rev-parse HEAD^2)
-            echo "sha=$(echo "$DEV_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
-            echo "Merge commit — using dev-side parent: ${DEV_SHA:0:7}"
-          else
-            echo "sha=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
-          fi
+          # Walk merge commits to find the original PR head with a published image
+          COMMIT="${{ github.event.pull_request.head.sha }}"
+          for i in $(seq 1 10); do
+            SHORT=$(echo "$COMMIT" | cut -c1-7)
+            echo "Candidate $i: sha-$SHORT ($COMMIT)"
+            PARENT_COUNT=$(git rev-list --parents -n1 "$COMMIT" 2>/dev/null | wc -w)
+            if [ "$PARENT_COUNT" -gt 2 ]; then
+              COMMIT=$(git rev-parse "$COMMIT^2" 2>/dev/null) || break
+            else
+              break
+            fi
+          done
+          echo "sha=$(echo "$COMMIT" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "Resolved source SHA: $(echo "$COMMIT" | cut -c1-7)"
 
       - name: Promote OpenClaw
         if: steps.env.outputs.tag != ''
