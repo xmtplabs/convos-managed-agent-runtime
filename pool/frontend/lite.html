@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="theme-color" content="#ffffff" />
@@ -27,7 +27,7 @@
       --color-success: #16A34A;
       --color-error: #DC2626;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--color-muted);
@@ -117,6 +117,13 @@
     .status-dot.red { background: var(--color-error); }
     .status-label { font-size: 12px; color: var(--color-fg2); flex: 1; }
     .status-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* Harness label */
+    .harness-label {
+      font-size: 12px; font-weight: 600; color: var(--color-fg2);
+      background: var(--color-muted); border-radius: 8px;
+      padding: 4px 10px; white-space: nowrap;
+    }
 
     /* Replenish */
     .replenish-row { display: flex; align-items: center; gap: 12px; }
@@ -271,7 +278,7 @@
 
     <!-- Replenish card -->
     <div class="card">
-      <div class="card-header">Replenish</div>
+      <div class="card-header">Replenish <span class="harness-label" id="harness-label"></span></div>
       <div class="card-body">
         <div class="replenish-row">
           <div class="qty-stepper">
@@ -381,6 +388,16 @@
       qtyInput.value = Math.max(1, Math.min(5, v));
     });
 
+    // --- Harness (auto-detect, display only) ---
+    var selectedHarness = (C.poolEnvironment === 'production') ? 'hermes' : 'openclaw';
+    (function () {
+      var curImage = C.runtimeImage || '';
+      if (curImage.includes('convos-runtime-hermes')) selectedHarness = 'hermes';
+      else if (curImage.includes('convos-runtime')) selectedHarness = 'openclaw';
+      var names = { openclaw: 'OpenClaw', hermes: 'Hermes' };
+      document.getElementById('harness-label').textContent = names[selectedHarness] || selectedHarness;
+    })();
+
     // --- Replenish ---
     document.getElementById('add-btn').addEventListener('click', function () {
       var btn = this;
@@ -394,7 +411,11 @@
         log.innerHTML += '<div class="prov-entry" id="prov-' + i + '"><span class="dot pending"></span><span>Instance ' + i + ' — provisioning...</span></div>';
       }
 
-      var image = encodeURIComponent(C.runtimeImage || '');
+      // Build image from selected harness + tag from current config
+      var harnessImages = C.harnessImages || {};
+      var baseImage = harnessImages[selectedHarness] || C.runtimeImage || '';
+      var tag = (C.runtimeImage || '').split(':').pop() || 'production';
+      var image = encodeURIComponent(baseImage.includes(':') ? baseImage : baseImage + ':' + tag);
       var es = new EventSource('/api/pool/replenish/stream?count=' + n + '&concurrency=1&image=' + image);
       es.onmessage = function (ev) {
         try {
