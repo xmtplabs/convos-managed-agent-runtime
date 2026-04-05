@@ -152,15 +152,10 @@ jobs:
           filters: |
             soul:
               - 'runtime/convos-platform/SOUL.md'
-              - 'runtime/convos-platform/context/ERROR-HANDLING.md'
-              - 'runtime/convos-platform/context/WORKSPACE-SAFETY.md'
-              - 'runtime/convos-platform/context/TIME-AWARENESS.md'
             knows:
-              - 'runtime/convos-platform/context/IDENTITY.md'
-              - 'runtime/convos-platform/context/RUNTIME.md'
+              - 'runtime/convos-platform/context/*'
             skills:
               - 'runtime/convos-platform/skills/**'
-              - 'runtime/convos-platform/context/CUSTOMIZATION.md'
             memory:
               - 'runtime/convos-platform/context/MEMORY.md'
               - 'runtime/convos-platform/context/*/MEMORY.md'
@@ -168,27 +163,16 @@ jobs:
               - 'runtime/hermes/src/**/memory*'
             convos:
               - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
-              - 'runtime/convos-platform/web-tools/convos/**'
-              - 'runtime/convos-platform/skills/profile-update/**'
-              - 'runtime/convos-platform/outbound-policy.json'
-              - 'runtime/convos-platform/context/CONVOS-CLI.md'
-              - 'runtime/convos-platform/context/INBOUND-FORMATS.md'
-              - 'runtime/convos-platform/context/*/MESSAGING.md'
-              - 'runtime/convos-platform/context/*/PROFILE-UPDATES.md'
+              - 'runtime/hermes/**'
+              - 'runtime/convos-platform/*'
+              - 'runtime/openclaw/**'
             onboarding:
               - 'runtime/convos-platform/onboarding/**'
-              - 'runtime/convos-platform/context/IDENTITY.md'
-              - 'runtime/convos-platform/context/*/IDENTITY.md'
               - 'runtime/convos-platform/skills/skill-builder/**'
               - 'runtime/openclaw/extensions/convos/src/channel.ts'
               - 'runtime/hermes/src/server/server.py'
             skill-builder:
               - 'runtime/convos-platform/skills/skill-builder/**'
-              - 'runtime/evals/suites/skill-builder.yaml'
-              - 'runtime/evals/lib/assertions.mjs'
-              - 'runtime/evals/providers/convos.provider.mjs'
-              - 'runtime/openclaw/extensions/convos/src/channel.ts'
             lifecycle:
               - 'runtime/openclaw/scripts/**'
               - 'runtime/hermes/scripts/**'
@@ -198,27 +182,23 @@ jobs:
             webhooks:
               - 'runtime/convos-platform/skills/services/**'
               - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
             silence:
               - 'runtime/convos-platform/outbound-policy.json'
               - 'runtime/convos-platform/context/TOOL-DISCIPLINE.md'
               - 'runtime/convos-platform/context/*/TOOL-DISCIPLINE.md'
-              - 'runtime/hermes/src/**'
             verbosity:
-              - 'runtime/convos-platform/SOUL.md'
               - 'runtime/convos-platform/context/MESSAGING.md'
-              - 'runtime/convos-platform/context/BREVITY-EXAMPLES.md'
               - 'runtime/convos-platform/context/*/MESSAGING.md'
+              - 'runtime/convos-platform/context/BREVITY-EXAMPLES.md'
               - 'runtime/convos-platform/INJECTED_CONTEXT.md'
-              - 'runtime/evals/suites/verbosity.yaml'
             cron:
               - 'runtime/convos-platform/context/CRON.md'
               - 'runtime/convos-platform/context/*/CRON.md'
-              - 'runtime/convos-platform/web-tools/skills/**'
               - 'runtime/lib/crons.sh'
             models:
               - 'runtime/openclaw/openclaw.json'
               - 'runtime/hermes/workspace/config.yaml'
+              - 'runtime/convos-platform/context/MODELS.md'
               - 'runtime/convos-platform/context/*/MODELS.md'
             delegation:
               - 'runtime/convos-platform/context/DELEGATION.md'
