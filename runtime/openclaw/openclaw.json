@@ -64,11 +64,6 @@
       }
     }
   },
-  "messages": {
-    "queue": {
-      "mode": "interrupt"
-    }
-  },
   "channels": {
     "convos": {
       "debug": true,
