@@ -827,8 +827,11 @@ async function handleInboundMessage(
     const blocks = pendingBlocks;
     pendingBlocks = [];
     for (const p of blocks) {
-      if (isReasoning && account.debug) {
-        debugLog(`[${account.accountId}] Reasoning text: ${p.text?.substring(0, 80)}`);
+      if (isReasoning) {
+        if (account.debug) {
+          debugLog(`[${account.accountId}] Reasoning text (suppressed): ${p.text?.substring(0, 80)}`);
+        }
+        continue;
       }
       const policy = await applyOutboundTextPolicy(p.text || "");
       if (policy.suppress) {
