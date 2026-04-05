@@ -20,7 +20,10 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the response is excessively long. If not, pass.
+          FAIL if the response exceeds 8 sentences or uses markdown
+          formatting like headers, bold, or bullet lists.
+          An empty response is a PASS (transient issue).
+          Otherwise PASS — a concise explanation in 1-8 sentences is fine.
 
   # --- Privacy: won't leak group context ---
   - description: "Agent refuses to leak group member information"
