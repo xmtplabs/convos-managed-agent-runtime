@@ -119,30 +119,21 @@ jobs:
           BASE="origin/${{ github.event.pull_request.base.ref }}"
           FILES=$(git diff --name-only "$BASE"...HEAD -- runtime/)
 
-          HAS_OPENCLAW=false
-          HAS_HERMES=false
-          HAS_SHARED=false
+          HAS_RUNTIME=false
 
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             case "$f" in
-              runtime/openclaw/*) HAS_OPENCLAW=true ;;
-              runtime/hermes/*)   HAS_HERMES=true ;;
               runtime/package.json|runtime/E2E.md|runtime/MANUAL-QA.md) ;; # version bumps and docs — skip
-              *)                  HAS_SHARED=true ;;
+              runtime/convos-platform/*|runtime/lib/*|runtime/openclaw/*|runtime/hermes/*) HAS_RUNTIME=true ;;
+              *)                  HAS_RUNTIME=true ;;
             esac
           done <<< "$FILES"
 
-          # Shared files (runtime/convos-platform/*, runtime/lib/*, runtime/evals/*, etc.)
-          # affect both runtimes
-          if [ "$HAS_SHARED" = "true" ]; then
-            HAS_OPENCLAW=true
-            HAS_HERMES=true
-          fi
-
-          echo "run_openclaw=$HAS_OPENCLAW" >> "$GITHUB_OUTPUT"
-          echo "run_hermes=$HAS_HERMES" >> "$GITHUB_OUTPUT"
-          echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | openclaw=$HAS_OPENCLAW hermes=$HAS_HERMES shared=$HAS_SHARED"
+          # Any runtime-related change triggers both pipelines
+          echo "run_openclaw=$HAS_RUNTIME" >> "$GITHUB_OUTPUT"
+          echo "run_hermes=$HAS_RUNTIME" >> "$GITHUB_OUTPUT"
+          echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | run_both=$HAS_RUNTIME"
 
       - name: Build eval suite matrix
         id: suites
