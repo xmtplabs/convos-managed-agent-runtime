@@ -64,6 +64,11 @@
       }
     }
   },
+  "messages": {
+    "queue": {
+      "mode": "steer"
+    }
+  },
   "channels": {
     "convos": {
       "debug": true,
