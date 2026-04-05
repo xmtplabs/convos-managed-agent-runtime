@@ -1,0 +1,13 @@
+# Paths that trigger runtime build + eval pipelines.
+# "shared" changes trigger both runtimes.
+# Runtime-specific changes only trigger their own pipeline.
+
+shared:
+  - 'runtime/convos-platform/**'
+  - 'runtime/lib/**'
+
+openclaw:
+  - 'runtime/openclaw/**'
+
+hermes:
+  - 'runtime/hermes/**'
