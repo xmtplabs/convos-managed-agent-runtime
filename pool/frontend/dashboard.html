@@ -130,6 +130,12 @@
                 <option value="hermes">Hermes</option>
                 <option value="__custom__">other...</option>
               </select>
+              <script>
+                if (window.__POOL_CONFIG__ && window.__POOL_CONFIG__.poolEnvironment === 'production') {
+                  var hs = document.getElementById('runtime-harness');
+                  for (var i = 0; i < hs.options.length; i++) { if (hs.options[i].value === 'hermes') { hs.selectedIndex = i; break; } }
+                }
+              </script>
               <select class="replenish-select" id="runtime-env">
                 <option value="production">production</option>
                 <option value="staging">staging</option>
