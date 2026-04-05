@@ -44,23 +44,15 @@ jobs:
         run: |
           AUTH="$HOME/.docker/config.json"
 
-          # Collect candidate SHAs: for promotion PRs (merge commits), walk
-          # the dev-side parent chain — GitHub merge commits on dev don't have
-          # published images, only the original PR head commits do.
+          # Collect candidate SHAs: list all commits reachable from HEAD.
+          # For promotion PRs, this includes the merge commits AND the original
+          # PR head commits that actually have published images.
           CANDIDATES=()
-          COMMIT="${{ github.event.pull_request.head.sha }}"
-          for i in $(seq 1 10); do
+          while IFS= read -r COMMIT; do
             SHORT=$(echo "$COMMIT" | cut -c1-7)
             CANDIDATES+=("sha-$SHORT")
-            echo "Candidate $i: sha-$SHORT ($COMMIT)"
-            # If this commit is a merge, follow the second parent (dev side)
-            PARENT_COUNT=$(git rev-list --parents -n1 "$COMMIT" 2>/dev/null | wc -w)
-            if [ "$PARENT_COUNT" -gt 2 ]; then
-              COMMIT=$(git rev-parse "$COMMIT^2" 2>/dev/null) || break
-            else
-              break
-            fi
-          done
+          done < <(git log --format=%H -n 20 HEAD)
+          echo "Candidates: ${CANDIDATES[*]}"
 
           for runtime in openclaw hermes; do
             if [ "$runtime" = "openclaw" ]; then
@@ -302,48 +294,34 @@ jobs:
             scaling) echo "tag=scaling" ;; dev) echo "tag=dev" ;; staging) echo "tag=staging" ;; main) echo "tag=production" ;; *) echo "tag=" ;;
           esac >> "$GITHUB_OUTPUT"
 
-      - name: Resolve source SHA
-        id: resolve
-        run: |
-          # Walk merge commits to find the original PR head with a published image
-          COMMIT="${{ github.event.pull_request.head.sha }}"
-          for i in $(seq 1 10); do
-            SHORT=$(echo "$COMMIT" | cut -c1-7)
-            echo "Candidate $i: sha-$SHORT ($COMMIT)"
-            PARENT_COUNT=$(git rev-list --parents -n1 "$COMMIT" 2>/dev/null | wc -w)
-            if [ "$PARENT_COUNT" -gt 2 ]; then
-              COMMIT=$(git rev-parse "$COMMIT^2" 2>/dev/null) || break
-            else
-              break
-            fi
-          done
-          echo "sha=$(echo "$COMMIT" | cut -c1-7)" >> "$GITHUB_OUTPUT"
-          echo "Resolved source SHA: $(echo "$COMMIT" | cut -c1-7)"
-
       - name: Promote OpenClaw
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
-          SHA="${{ steps.resolve.outputs.sha }}"
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
-          if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
-            skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-            echo "Promoted OpenClaw sha-$SHA → :$TAG"
-          else
-            echo "::warning::OpenClaw image sha-$SHA not found — skipping"
-          fi
+          while IFS= read -r COMMIT; do
+            SHA=$(echo "$COMMIT" | cut -c1-7)
+            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
+              echo "Promoted OpenClaw sha-$SHA → :$TAG"
+              exit 0
+            fi
+          done < <(git log --format=%H -n 20 HEAD)
+          echo "::warning::OpenClaw image not found in recent commits — skipping"
 
       - name: Promote Hermes
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
-          SHA="${{ steps.resolve.outputs.sha }}"
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
-          if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
-            skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-            echo "Promoted Hermes sha-$SHA → :$TAG"
-          else
-            echo "::warning::Hermes image sha-$SHA not found — skipping"
-          fi
+          while IFS= read -r COMMIT; do
+            SHA=$(echo "$COMMIT" | cut -c1-7)
+            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
+              echo "Promoted Hermes sha-$SHA → :$TAG"
+              exit 0
+            fi
+          done < <(git log --format=%H -n 20 HEAD)
+          echo "::warning::Hermes image not found in recent commits — skipping"
