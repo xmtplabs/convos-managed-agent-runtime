@@ -2,7 +2,7 @@
 title: "TOOLS — SUPERPOWERS"
 summary: "What this agent can do; Convos skills and OpenClaw implementation"
 read_when:
-  - Bootstrapping a workspace manually
+  - Bootstrapping a workspace manually.
 ---
 
 # TOOLS
