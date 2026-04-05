@@ -1,0 +1,9 @@
+# Paths that trigger runtime build + eval pipelines.
+# Any match triggers BOTH openclaw and hermes.
+# Checked by dorny/paths-filter in runtime-pr.yml.
+
+runtime:
+  - 'runtime/convos-platform/**'
+  - 'runtime/lib/**'
+  - 'runtime/openclaw/**'
+  - 'runtime/hermes/**'

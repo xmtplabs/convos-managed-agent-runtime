@@ -98,8 +98,8 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       pending: ${{ steps.meta.outputs.pending }}
       publish_tags: ${{ steps.meta.outputs.publish_tags }}
-      run_openclaw: ${{ steps.changes.outputs.run_openclaw }}
-      run_hermes: ${{ steps.changes.outputs.run_hermes }}
+      run_openclaw: ${{ steps.runtime-flags.outputs.run_openclaw }}
+      run_hermes: ${{ steps.runtime-flags.outputs.run_hermes }}
       eval_matrix: ${{ steps.suites.outputs.eval_matrix }}
     steps:
       - uses: actions/checkout@v5
@@ -113,27 +113,16 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "publish_tags=sha-$SHA pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
-      - name: Detect changed runtimes
+      - uses: dorny/paths-filter@v3
         id: changes
+        with:
+          filters: .github/runtime-paths.yml
+      - name: Set runtime flags
+        id: runtime-flags
         run: |
-          BASE="origin/${{ github.event.pull_request.base.ref }}"
-          FILES=$(git diff --name-only "$BASE"...HEAD -- runtime/)
-
-          HAS_RUNTIME=false
-
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            case "$f" in
-              runtime/package.json|runtime/E2E.md|runtime/MANUAL-QA.md) ;; # version bumps and docs — skip
-              runtime/convos-platform/*|runtime/lib/*|runtime/openclaw/*|runtime/hermes/*) HAS_RUNTIME=true ;;
-              *)                  HAS_RUNTIME=true ;;
-            esac
-          done <<< "$FILES"
-
-          # Any runtime-related change triggers both pipelines
+          HAS_RUNTIME=${{ steps.changes.outputs.runtime }}
           echo "run_openclaw=$HAS_RUNTIME" >> "$GITHUB_OUTPUT"
           echo "run_hermes=$HAS_RUNTIME" >> "$GITHUB_OUTPUT"
-          echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | run_both=$HAS_RUNTIME"
 
       - name: Build eval suite matrix
         id: suites
