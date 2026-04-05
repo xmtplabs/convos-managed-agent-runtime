@@ -83,10 +83,10 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Image already passed evals on \`dev\`. Skipping redundant eval runs." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          [ "${{ steps.check.outputs.openclaw }}" = "true" ] && echo "- **OpenClaw**: stamped ✓" >> "$GITHUB_STEP_SUMMARY"
-          [ "${{ steps.check.outputs.hermes }}" = "true" ] && echo "- **Hermes**: stamped ✓" >> "$GITHUB_STEP_SUMMARY"
-          [ "${{ steps.check.outputs.openclaw }}" = "false" ] && echo "- **OpenClaw**: not found — will eval" >> "$GITHUB_STEP_SUMMARY"
-          [ "${{ steps.check.outputs.hermes }}" = "false" ] && echo "- **Hermes**: not found — will eval" >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ steps.check.outputs.openclaw }}" = "true" ] && echo "- **OpenClaw**: stamped ✓" >> "$GITHUB_STEP_SUMMARY" || true
+          [ "${{ steps.check.outputs.hermes }}" = "true" ] && echo "- **Hermes**: stamped ✓" >> "$GITHUB_STEP_SUMMARY" || true
+          [ "${{ steps.check.outputs.openclaw }}" = "false" ] && echo "- **OpenClaw**: not found — will eval" >> "$GITHUB_STEP_SUMMARY" || true
+          [ "${{ steps.check.outputs.hermes }}" = "false" ] && echo "- **Hermes**: not found — will eval" >> "$GITHUB_STEP_SUMMARY" || true
 
   # ── Prepare ──────────────────────────────────────────────────────────
   prepare:
