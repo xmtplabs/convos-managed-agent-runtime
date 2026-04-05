@@ -1,0 +1,53 @@
+soul:
+  - 'runtime/convos-platform/SOUL.md'
+knows:
+  - 'runtime/convos-platform/context/*'
+skills:
+  - 'runtime/convos-platform/skills/**'
+memory:
+  - 'runtime/convos-platform/context/MEMORY.md'
+  - 'runtime/convos-platform/context/*/MEMORY.md'
+  - 'runtime/openclaw/extensions/convos/src/**/memory*'
+  - 'runtime/hermes/src/**/memory*'
+convos:
+  - 'runtime/openclaw/extensions/convos/**'
+  - 'runtime/hermes/**'
+  - 'runtime/convos-platform/*'
+  - 'runtime/openclaw/**'
+onboarding:
+  - 'runtime/convos-platform/onboarding/**'
+  - 'runtime/convos-platform/skills/skill-builder/**'
+  - 'runtime/openclaw/extensions/convos/src/channel.ts'
+  - 'runtime/hermes/src/server/server.py'
+skill-builder:
+  - 'runtime/convos-platform/skills/skill-builder/**'
+lifecycle:
+  - 'runtime/openclaw/scripts/**'
+  - 'runtime/hermes/scripts/**'
+  - 'runtime/lib/**'
+services:
+  - 'runtime/convos-platform/skills/services/**'
+webhooks:
+  - 'runtime/convos-platform/skills/services/**'
+  - 'runtime/openclaw/extensions/convos/**'
+silence:
+  - 'runtime/convos-platform/outbound-policy.json'
+  - 'runtime/convos-platform/context/TOOL-DISCIPLINE.md'
+  - 'runtime/convos-platform/context/*/TOOL-DISCIPLINE.md'
+verbosity:
+  - 'runtime/convos-platform/context/MESSAGING.md'
+  - 'runtime/convos-platform/context/*/MESSAGING.md'
+  - 'runtime/convos-platform/context/BREVITY-EXAMPLES.md'
+  - 'runtime/convos-platform/INJECTED_CONTEXT.md'
+cron:
+  - 'runtime/convos-platform/context/CRON.md'
+  - 'runtime/convos-platform/context/*/CRON.md'
+  - 'runtime/lib/crons.sh'
+models:
+  - 'runtime/openclaw/openclaw.json'
+  - 'runtime/hermes/workspace/config.yaml'
+  - 'runtime/convos-platform/context/MODELS.md'
+  - 'runtime/convos-platform/context/*/MODELS.md'
+delegation:
+  - 'runtime/convos-platform/context/DELEGATION.md'
+  - 'runtime/convos-platform/context/*/DELEGATION.md'
