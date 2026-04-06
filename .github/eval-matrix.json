@@ -13,5 +13,6 @@
   {"suite":"memory","timeout":600,"only":"","fresh":false},
   {"suite":"silence","timeout":600,"only":"","fresh":false},
   {"suite":"verbosity","timeout":600,"only":"","fresh":false},
+  {"suite":"response-discipline","timeout":600,"only":"","fresh":false},
   {"suite":"webhooks","timeout":600,"only":"","fresh":false}
 ]
