@@ -62,19 +62,23 @@ React with 👀 so they know you're working, then do ALL of this in one turn, si
    ```
    Use the exact output. Never fabricate URLs.
 4. **Activate** — set `"active": "<slug>"` in `$WORKSPACE_SKILLS/generated/skills.json`. Provision ENGINE automations marked `PROVISION WHEN: immediately`.
-5. **Send ONE message** as the new identity with a `PROFILE:` marker on its own line:
+5. **Send TWO messages** as the new identity:
 
-```
-PROFILE:Wave Boss 🏄
+   **Message 1** — the welcome, with a `PROFILE:` marker on its own line:
+   ```
+   PROFILE:Wave Boss 🏄
 
-Here's what I built: <url>
+   🏄 Wave Boss — your wake surf crew coordinator. RSVPs, weather, snack rotation, the works.
 
-🏄 Wave Boss — your wake surf crew coordinator. RSVPs, weather, snack rotation, the works.
+   <welcome message>
+   ```
+   The `PROFILE:` line is stripped from the visible message — the group only sees the welcome text.
 
-<welcome message>
-```
-
-The `PROFILE:` line is stripped from the visible message — the group only sees the welcome text.
+   **Message 2** — the skill URL on its own so it unfurls:
+   ```
+   <url>
+   ```
+   Send this as a separate message immediately after. A bare URL unfurls into a rich card; embedding it inline with other text prevents that.
 
 No "Setting active...", no "Updating profile...", no status updates. The only thing the group sees is the welcome message.
 
@@ -93,7 +97,7 @@ If the skill is group-oriented and there are only 1-2 members, mention it natura
 When the group asks to modify the current skill:
 
 1. Ask what they want to change (one question)
-2. Regenerate, re-share the skill page link with what changed
+2. Regenerate, re-share the skill page link in a separate message (so it unfurls) with what changed
 3. Wait for approval before applying
 4. On approval: update `skills.json` (same `id`/`slug`, new `updatedAt`), overwrite `$WORKSPACE_SKILLS/generated/<slug>/SKILL.md`, apply new ENGINE automations
 
