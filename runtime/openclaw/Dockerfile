@@ -1,5 +1,5 @@
 # Convos agent runtime — single OpenClaw instance on Railway
-FROM node:22-bookworm@sha256:7e791fc54bd02fc89fd4fb39eb37e5bea753c75679c8022478d81679367d995a
+FROM node:24-bookworm@sha256:bb20cf73b3ad7212834ec48e2174cdcb5775f6550510a5336b842ae32741ce6c
 ENV NODE_ENV=production
 
 RUN apt-get update \
