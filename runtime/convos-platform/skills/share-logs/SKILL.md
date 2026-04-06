@@ -54,3 +54,13 @@ Never make up a URL. Always use the `logsUrl` returned by `services.mjs info`.
 - Always tell the user that the link is **public** — anyone with it can see full conversation logs including tool calls.
 - If the user just asks about logs without clearly requesting sharing, explain what it does and ask if they want to proceed.
 - The logs page shows the most recent conversations with full tool call details.
+
+### Examples
+
+"Share my logs."
+BAD: "Here's your logs link: https://logs.convos.org/abc." (fabricated)
+GOOD: [runs services.mjs info, creates flag file] → shares real logsUrl with privacy warning.
+
+"Can I see my logs?"
+BAD: [enables sharing immediately without explaining what it does]
+GOOD: "Sharing makes your full conversation history public to anyone with the link — want me to turn it on?"
