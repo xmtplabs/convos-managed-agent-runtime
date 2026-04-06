@@ -32,12 +32,28 @@ if [ -n "${EVAL_RESULTS_DIR:-}" ]; then
   JSON_FLAG="--output $EVAL_RESULTS_DIR/${SUITE_NAME}.json"
 fi
 
+# Install promptfoo with pinned @asamuzakjp/css-color to avoid ESM top-level await crash
+PFOO_DIR="${EVAL_DIR}/.promptfoo-install"
+if [ ! -x "$PFOO_DIR/node_modules/.bin/promptfoo" ]; then
+  mkdir -p "$PFOO_DIR"
+  cat > "$PFOO_DIR/package.json" <<'PJSON'
+{"private":true,"overrides":{"@asamuzakjp/css-color":"4.1.2"},"dependencies":{"promptfoo":"0.121.3"}}
+PJSON
+  (cd "$PFOO_DIR" && npm install --no-audit --no-fund 2>&1 | tail -3)
+fi
+
 set +e
-npx promptfoo@0.121.3 eval -c "$EVAL_DIR/suites/$SUITE" --grader "openrouter:@preset/assistants-ci" --table-cell-max-length 1000 $JSON_FLAG "$@" 2>&1 | tee "$TMPOUT"
+"$PFOO_DIR/node_modules/.bin/promptfoo" eval -c "$EVAL_DIR/suites/$SUITE" --grader "openrouter:@preset/assistants-ci" --table-cell-max-length 1000 $JSON_FLAG "$@" 2>&1 | tee "$TMPOUT"
 # tee always exits 0; derive the real exit code from the results line
 EXIT_CODE=0
 if grep -qE '✗ [0-9]+ failed|[0-9]+ error' "$TMPOUT"; then
   EXIT_CODE=1
+fi
+# If promptfoo crashed before producing results, fail hard
+if ! grep -qE '✓ [0-9]+ passed' "$TMPOUT"; then
+  echo "ERROR: promptfoo did not produce results — likely crashed."
+  rm -f "$TMPOUT"
+  exit 1
 fi
 set -e
 

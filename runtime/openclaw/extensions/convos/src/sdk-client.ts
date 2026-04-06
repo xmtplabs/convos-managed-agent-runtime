@@ -16,6 +16,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { parseMarkers } from "./parse-markers.js";
 import { ProfileImageRenewal } from "./profile-image-renewal.js";
 import type { CreateConversationResult } from "./types.js";
 
@@ -531,19 +532,17 @@ export class ConvosInstance {
       return { success: false, messageId: undefined };
     }
 
-    // Strip PROFILE: and PROFILEIMAGE: markers from any line in the message.
-    // The agent may embed them anywhere (first line, middle, end, or standalone).
-    let profileName: string | undefined;
-    let profileImage: string | undefined;
-    const lines = text.split("\n");
-    const kept: string[] = [];
-    for (const line of lines) {
-      const pm = line.match(/\.?PROFILE:(.+)$/);
-      if (pm && !/PROFILEIMAGE:/.test(line)) { profileName = pm[1].trim(); continue; }
-      const im = line.match(/\.?PROFILEIMAGE:(https?:\/\/\S+)\s*$/);
-      if (im) { profileImage = im[1]; continue; }
-      kept.push(line);
+    // Parse all markers (REACT, REPLY, PROFILE, PROFILEIMAGE, METADATA, MEDIA).
+    const parsed = parseMarkers(text);
+
+    // Execute reactions (fire-and-forget, same as Hermes).
+    for (const r of parsed.reactions) {
+      try { this.react(r.messageId, r.emoji, r.action); } catch { /* best-effort */ }
     }
+
+    // Profile updates — name and image sent separately so a bad image can't block the name.
+    const profileName = parsed.profileName;
+    let profileImage = parsed.profileImage;
     // Auto-generate profile image from the emoji in the name (twemoji CDN).
     if (profileName && !profileImage) {
       const emojiMatch = profileName.match(/\p{Extended_Pictographic}/u);
@@ -554,14 +553,27 @@ export class ConvosInstance {
         profileImage = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${codepoints}.png`;
       }
     }
-    // Send name and image as separate commands so a bad image can't block the name.
     if (profileName) {
       await this.updateProfile(profileName);
     }
     if (profileImage) {
       await this.updateProfile(undefined, profileImage);
     }
-    text = kept.join("\n").trim();
+
+    // Metadata updates.
+    if (Object.keys(parsed.profileMetadata).length > 0) {
+      await this.updateProfile(undefined, undefined, parsed.profileMetadata);
+    }
+
+    // Send media attachments.
+    for (const mediaPath of parsed.media) {
+      try { await this.sendAttachment(mediaPath); } catch { /* best-effort */ }
+    }
+
+    // REPLY: marker overrides the replyTo argument.
+    const effectiveReplyTo = parsed.replyTo ?? replyTo;
+
+    text = parsed.text;
     if (!text) {
       return { success: true, messageId: undefined };
     }
@@ -569,7 +581,7 @@ export class ConvosInstance {
     await this.renewProfileImageOnActivity();
 
     const cmd: Record<string, unknown> = { type: "send", text };
-    if (replyTo) cmd.replyTo = replyTo;
+    if (effectiveReplyTo) cmd.replyTo = effectiveReplyTo;
     return this.sendAndWait(cmd);
   }
 

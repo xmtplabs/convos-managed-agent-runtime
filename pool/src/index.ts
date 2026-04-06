@@ -187,6 +187,18 @@ async function upgradeInstanceRuntime(
 
   const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
 
+  // Ensure GATEWAY_TOKEN is set as a per-service Railway variable.
+  // Older instances may only have the shared OPENCLAW_GATEWAY_TOKEN, which causes
+  // auth mismatches (the pool DB stores a unique per-instance token).
+  try {
+    const gatewayToken = await db.getGatewayToken(instanceId);
+    if (gatewayToken) {
+      await upsertVariables(infra.providerServiceId, { GATEWAY_TOKEN: gatewayToken }, { skipDeploys: true }, opts);
+    }
+  } catch (err) {
+    console.warn(`[upgrade] GATEWAY_TOKEN backfill failed for ${instanceId} (non-fatal):`, (err as Error).message);
+  }
+
   // Backfill missing service keys before deploying so the new container has them
   const backfilled: string[] = [];
   try {
