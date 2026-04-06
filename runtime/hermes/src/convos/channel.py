@@ -800,17 +800,11 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"React failed: {err}")
 
-        if parsed.profile_name:
+        if parsed.profile_name or parsed.profile_image:
             try:
-                await self._update_profile(name=parsed.profile_name)
+                await self._update_profile(name=parsed.profile_name, image=parsed.profile_image)
             except Exception as err:
-                logger.error(f"Profile name update failed: {err}")
-
-        if parsed.profile_image:
-            try:
-                await self._update_profile(image=parsed.profile_image)
-            except Exception as err:
-                logger.error(f"Profile image update failed: {err}")
+                logger.error(f"Profile update failed: {err}")
 
         if parsed.profile_metadata:
             try:
