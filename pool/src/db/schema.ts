@@ -103,6 +103,13 @@ export const agentSkills = pgTable("agent_skills", {
   index("idx_skills_category").on(table.category),
 ]);
 
+// ── pool_settings ────────────────────────────────────────────────────────────
+export const poolSettings = pgTable("pool_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+});
+
 // ── Inferred types ─────────────────────────────────────────────────────────────
 export type PaymentRow = InferSelectModel<typeof payments>;
 export type NewPayment = InferInsertModel<typeof payments>;

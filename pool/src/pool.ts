@@ -87,12 +87,13 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 export { provision } from "./provision";
 
 /**
- * Auto-replenish the pool after a claim if idle + starting drops below POOL_TARGET_IDLE.
+ * Auto-replenish the pool after a claim if idle + starting drops below the target_idle setting.
  * Creates one instance with the same runtime image as the instance that was just claimed.
  * Fire-and-forget — errors are logged but never propagated.
  */
 export async function autoReplenish(claimedInstanceId: string) {
-  const target = config.poolTargetIdle;
+  const raw = await db.getSetting("target_idle");
+  const target = parseInt(raw || "0", 10);
   if (target <= 0) return;
 
   try {

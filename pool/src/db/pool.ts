@@ -1,6 +1,6 @@
 import { eq, and, sql, notInArray, inArray, getTableColumns } from "drizzle-orm";
 import { db } from "./connection";
-import { instances, instanceInfra, instanceServices } from "./schema";
+import { instances, instanceInfra, instanceServices, poolSettings } from "./schema";
 import type { InstanceRow, InstanceStatus } from "./schema";
 import { config } from "../config";
 
@@ -359,4 +359,32 @@ export async function deleteOrphaned(activeInstanceIds: string[]) {
   );
   const count = result.rowCount || 0;
   if (count > 0) console.log(`[db] Cleaned ${count} orphaned instance row(s)`);
+}
+
+// ── pool_settings ────────────────────────────────────────────────────────────
+
+/** Read a single setting by key. Returns null if not set. */
+export async function getSetting(key: string): Promise<string | null> {
+  const rows = await db.select({ value: poolSettings.value })
+    .from(poolSettings)
+    .where(eq(poolSettings.key, key));
+  return rows[0]?.value ?? null;
+}
+
+/** Upsert a single setting. */
+export async function setSetting(key: string, value: string): Promise<void> {
+  await db.insert(poolSettings).values({ key, value })
+    .onConflictDoUpdate({
+      target: poolSettings.key,
+      set: { value, updatedAt: sql`NOW()` },
+    });
+}
+
+/** Read all settings as a key-value record. */
+export async function getAllSettings(): Promise<Record<string, string>> {
+  const rows = await db.select({ key: poolSettings.key, value: poolSettings.value })
+    .from(poolSettings);
+  const result: Record<string, string> = {};
+  for (const row of rows) result[row.key] = row.value;
+  return result;
 }

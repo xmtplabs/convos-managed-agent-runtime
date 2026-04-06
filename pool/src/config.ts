@@ -17,7 +17,6 @@ export const config = {
 
   // Pool behavior
   stuckTimeoutMs: parseInt(getEnv("POOL_STUCK_TIMEOUT_MS", String(15 * 60 * 1000)), 10),
-  poolTargetIdle: parseInt(getEnv("POOL_TARGET_IDLE", "0"), 10),
 
   // Pool environment context
   poolEnvironment:
