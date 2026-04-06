@@ -1,6 +1,6 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (12 suites).
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (15 suites).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
@@ -8,14 +8,18 @@
 | **skills** | `skills.yaml` | Parallel (5x) | Services — email, SMS, browse, search |
 | **soul** | `soul.yaml` | Parallel (5x) | Personality & values — brevity, privacy, empathy, identity |
 | **provision** | `provision.yaml` | Parallel (5x) | Provisioning protocol — check-first, ask-consent, SMS disclosure |
+| **services** | `services.yaml` | Parallel (5x) | Services page and integration management |
 | **convos** | `convos.yaml` | Sequential (1x) | Convos capabilities — profile updates, vision, group awareness |
 | **onboarding** | `onboarding.yaml` | Sequential (1x) | Onboarding — greeting + skill-builder discovery flow |
+| **skill-builder** | `skill-builder.yaml` | Sequential (1x) | Skill builder — optimistic build: describe → build + activate |
 | **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — restart resilience, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
+| **response-discipline** | `response-discipline.yaml` | Sequential (1x) | Response discipline — silent on acknowledgments, off-topic; responds to direct engagement |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
 | **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
 | **delegation** | `delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
 | **cron** | `cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
+| **reasoning** | `reasoning.yaml` | Sequential (1x) | Reasoning suppression — thinking/reasoning text never leaks to user |
 | **webhooks** | `webhooks.yaml` | Sequential (1x) | Webhook notifications — email and SMS delivered via /convos/notify |
 
 ## Running
@@ -75,7 +79,11 @@ evals/
 │   ├── models.yaml
 │   ├── delegation.yaml
 │   ├── cron.yaml
-│   └── webhooks.yaml
+│   ├── webhooks.yaml
+│   ├── skill-builder.yaml
+│   ├── response-discipline.yaml
+│   ├── reasoning.yaml
+│   └── services.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
 │   ├── convos.provider.mjs
@@ -117,4 +125,4 @@ All suites run as parallel matrix jobs in PR and dispatch workflows:
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
 
-All 12 suites auto-discover from `suites/*.yaml` — no matrix config needed.
+All 15 suites auto-discover from `suites/*.yaml` — no matrix config needed.

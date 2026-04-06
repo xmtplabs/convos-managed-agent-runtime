@@ -43,7 +43,9 @@ export const config = {
   railwayTeamId: getEnv("RAILWAY_TEAM_ID"),
   railwayRuntimeImage: getEnv("RAILWAY_RUNTIME_IMAGE") || (() => {
     const env = getEnv("POOL_ENVIRONMENT") || getEnv("RAILWAY_ENVIRONMENT_NAME", "");
-    return env ? `ghcr.io/xmtplabs/convos-runtime:${env}` : "";
+    if (!env) return "";
+    const base = env === "production" ? "convos-runtime-hermes" : "convos-runtime";
+    return `ghcr.io/xmtplabs/${base}:${env}`;
   })(),
 
   // OpenRouter (from services)
@@ -80,6 +82,11 @@ export const config = {
   defaultAgentName: getEnv("DEFAULT_AGENT_NAME", "Assistant"),
   xmtpEnv: getEnv("XMTP_ENV", "dev"),
   convosApiKey: getEnv("CONVOS_API_KEY"),
+
+  // Lite dashboard
+  litePassword: getEnv("LITE_PASSWORD"),
+  convosInviteApiUrl: getEnv("CONVOS_INVITE_API_URL"),
+  convosInviteApiToken: getEnv("CONVOS_INVITE_API_TOKEN"),
 
   // Telemetry
   posthogApiKey: getEnv("POSTHOG_API_KEY"),

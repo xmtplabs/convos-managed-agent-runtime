@@ -76,8 +76,8 @@ if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
   brand_ok "workspace" "merged (convos-platform + runtime)"
 
-  # Core skills → STATE_DIR/skills/ (managed level in OpenClaw's precedence)
-  # User-created skills stay in workspace/skills/ (highest priority)
+  # Core skills → SKILLS_ROOT ($STATE_DIR/skills/) — managed, overwritten on deploy
+  # User-created skills → WORKSPACE_SKILLS ($STATE_DIR/workspace/skills/)
   _skill_count=0
   if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
     mkdir -p "$STATE_DIR/skills"

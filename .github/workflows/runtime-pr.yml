@@ -20,6 +20,74 @@ permissions:
   packages: write
 
 jobs:
+  # ── Check eval stamp ────────────────────────────────────────────────
+  # On promotion branches (staging, main) the same SHA was already built
+  # and eval'd on dev.  If the published image exists in GHCR, skip the
+  # entire build→eval pipeline — the image only gets published after all
+  # evals pass, so its presence IS the green stamp.
+  check-stamp:
+    name: Check eval stamp
+    if: github.event.action != 'closed' && github.event.pull_request.base.ref != 'dev'
+    runs-on: ubuntu-latest
+    outputs:
+      openclaw_stamped: ${{ steps.check.outputs.openclaw }}
+      hermes_stamped: ${{ steps.check.outputs.hermes }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 20
+      - uses: docker/login-action@v4
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Check for published images
+        id: check
+        run: |
+          AUTH="$HOME/.docker/config.json"
+
+          # Collect candidate SHAs: list all commits reachable from HEAD.
+          # For promotion PRs, this includes the merge commits AND the original
+          # PR head commits that actually have published images.
+          CANDIDATES=()
+          while IFS= read -r COMMIT; do
+            SHORT=$(echo "$COMMIT" | cut -c1-7)
+            CANDIDATES+=("sha-$SHORT")
+          done < <(git log --format=%H -n 20 HEAD)
+          echo "Candidates: ${CANDIDATES[*]}"
+
+          for runtime in openclaw hermes; do
+            if [ "$runtime" = "openclaw" ]; then
+              IMAGE="ghcr.io/xmtplabs/convos-runtime"
+            else
+              IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
+            fi
+
+            FOUND=false
+            for SHA in "${CANDIDATES[@]}"; do
+              if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:$SHA" > /dev/null 2>&1; then
+                echo "$runtime=true" >> "$GITHUB_OUTPUT"
+                echo "✓ $runtime image $SHA exists — evals already passed"
+                FOUND=true
+                break
+              fi
+            done
+            if [ "$FOUND" = "false" ]; then
+              echo "$runtime=false" >> "$GITHUB_OUTPUT"
+              echo "✗ $runtime image not found in candidates: ${CANDIDATES[*]}"
+            fi
+          done
+
+      - name: Annotate skipped evals
+        if: steps.check.outputs.openclaw == 'true' || steps.check.outputs.hermes == 'true'
+        run: |
+          echo "## ⏭️ Eval stamp found" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image already passed evals on \`dev\`. Skipping redundant eval runs." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          [ "${{ steps.check.outputs.openclaw }}" = "true" ] && echo "- **OpenClaw**: stamped ✓" >> "$GITHUB_STEP_SUMMARY" || true
+          [ "${{ steps.check.outputs.hermes }}" = "true" ] && echo "- **Hermes**: stamped ✓" >> "$GITHUB_STEP_SUMMARY" || true
+          [ "${{ steps.check.outputs.openclaw }}" = "false" ] && echo "- **OpenClaw**: not found — will eval" >> "$GITHUB_STEP_SUMMARY" || true
+          [ "${{ steps.check.outputs.hermes }}" = "false" ] && echo "- **Hermes**: not found — will eval" >> "$GITHUB_STEP_SUMMARY" || true
+
   # ── Prepare ──────────────────────────────────────────────────────────
   prepare:
     name: Prepare
@@ -30,8 +98,8 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       pending: ${{ steps.meta.outputs.pending }}
       publish_tags: ${{ steps.meta.outputs.publish_tags }}
-      run_openclaw: ${{ steps.changes.outputs.run_openclaw }}
-      run_hermes: ${{ steps.changes.outputs.run_hermes }}
+      run_openclaw: ${{ steps.runtime-flags.outputs.run_openclaw }}
+      run_hermes: ${{ steps.runtime-flags.outputs.run_hermes }}
       eval_matrix: ${{ steps.suites.outputs.eval_matrix }}
     steps:
       - uses: actions/checkout@v5
@@ -45,149 +113,32 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "pending=pending-$SHA" >> "$GITHUB_OUTPUT"
           echo "publish_tags=sha-$SHA pr-${{ github.event.number }}" >> "$GITHUB_OUTPUT"
-      - name: Detect changed runtimes
-        id: changes
-        run: |
-          BASE="origin/${{ github.event.pull_request.base.ref }}"
-          FILES=$(git diff --name-only "$BASE"...HEAD -- runtime/)
-
-          HAS_OPENCLAW=false
-          HAS_HERMES=false
-          HAS_SHARED=false
-
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            case "$f" in
-              runtime/openclaw/*) HAS_OPENCLAW=true ;;
-              runtime/hermes/*)   HAS_HERMES=true ;;
-              runtime/package.json|runtime/*.md) ;; # version bumps and docs — skip
-              *)                  HAS_SHARED=true ;;
-            esac
-          done <<< "$FILES"
-
-          # Shared files (runtime/convos-platform/*, runtime/lib/*, runtime/evals/*, etc.)
-          # affect both runtimes
-          if [ "$HAS_SHARED" = "true" ]; then
-            HAS_OPENCLAW=true
-            HAS_HERMES=true
-          fi
-
-          echo "run_openclaw=$HAS_OPENCLAW" >> "$GITHUB_OUTPUT"
-          echo "run_hermes=$HAS_HERMES" >> "$GITHUB_OUTPUT"
-          echo "Changed files: $(echo "$FILES" | wc -l | tr -d ' ') | openclaw=$HAS_OPENCLAW hermes=$HAS_HERMES shared=$HAS_SHARED"
-
-      # ── Selective eval triggering (dev branch only) ──────────────────
-      # Only matched suites run. Unmatched files → run all (safe fallback).
-      # Non-dev branches always run all suites (promotion gates).
       - uses: dorny/paths-filter@v3
-        id: eval-paths
+        id: changes
         with:
-          filters: |
-            soul:
-              - 'runtime/convos-platform/SOUL.md'
-              - 'runtime/convos-platform/context/ERROR-HANDLING.md'
-              - 'runtime/convos-platform/context/WORKSPACE-SAFETY.md'
-              - 'runtime/convos-platform/context/TIME-AWARENESS.md'
-            knows:
-              - 'runtime/convos-platform/context/IDENTITY.md'
-              - 'runtime/convos-platform/context/RUNTIME.md'
-            skills:
-              - 'runtime/convos-platform/skills/**'
-              - 'runtime/convos-platform/context/CUSTOMIZATION.md'
-            memory:
-              - 'runtime/convos-platform/context/MEMORY.md'
-              - 'runtime/convos-platform/context/*/MEMORY.md'
-              - 'runtime/openclaw/extensions/convos/src/**/memory*'
-              - 'runtime/hermes/src/**/memory*'
-            convos:
-              - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
-              - 'runtime/convos-platform/web-tools/convos/**'
-              - 'runtime/convos-platform/skills/profile-update/**'
-              - 'runtime/convos-platform/outbound-policy.json'
-              - 'runtime/convos-platform/context/CONVOS-CLI.md'
-              - 'runtime/convos-platform/context/INBOUND-FORMATS.md'
-              - 'runtime/convos-platform/context/*/MESSAGING.md'
-              - 'runtime/convos-platform/context/*/PROFILE-UPDATES.md'
-            onboarding:
-              - 'runtime/convos-platform/onboarding/**'
-              - 'runtime/convos-platform/context/IDENTITY.md'
-              - 'runtime/convos-platform/context/*/IDENTITY.md'
-              - 'runtime/convos-platform/skills/skill-builder/**'
-              - 'runtime/openclaw/extensions/convos/src/channel.ts'
-              - 'runtime/hermes/src/server/server.py'
-            skill-builder:
-              - 'runtime/convos-platform/skills/skill-builder/**'
-              - 'runtime/evals/suites/skill-builder.yaml'
-              - 'runtime/evals/lib/assertions.mjs'
-              - 'runtime/evals/providers/convos.provider.mjs'
-              - 'runtime/openclaw/extensions/convos/src/channel.ts'
-            lifecycle:
-              - 'runtime/openclaw/scripts/**'
-              - 'runtime/hermes/scripts/**'
-              - 'runtime/lib/**'
-            services:
-              - 'runtime/convos-platform/skills/services/**'
-            webhooks:
-              - 'runtime/convos-platform/skills/services/**'
-              - 'runtime/openclaw/extensions/convos/**'
-              - 'runtime/hermes/src/**'
-            silence:
-              - 'runtime/convos-platform/outbound-policy.json'
-              - 'runtime/convos-platform/context/TOOL-DISCIPLINE.md'
-              - 'runtime/convos-platform/context/*/TOOL-DISCIPLINE.md'
-              - 'runtime/hermes/src/**'
-            cron:
-              - 'runtime/convos-platform/context/CRON.md'
-              - 'runtime/convos-platform/context/*/CRON.md'
-              - 'runtime/convos-platform/web-tools/skills/**'
-              - 'runtime/lib/crons.sh'
-            models:
-              - 'runtime/openclaw/openclaw.json'
-              - 'runtime/hermes/workspace/config.yaml'
-              - 'runtime/convos-platform/context/*/MODELS.md'
-            delegation:
-              - 'runtime/convos-platform/context/DELEGATION.md'
-              - 'runtime/convos-platform/context/*/DELEGATION.md'
+          filters: .github/runtime-paths.yml
+      - name: Set runtime flags
+        id: runtime-flags
+        run: |
+          SHARED=${{ steps.changes.outputs.shared }}
+          echo "run_openclaw=$( [ "$SHARED" = "true" ] || [ "${{ steps.changes.outputs.openclaw }}" = "true" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          echo "run_hermes=$( [ "$SHARED" = "true" ] || [ "${{ steps.changes.outputs.hermes }}" = "true" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+
       - name: Build eval suite matrix
         id: suites
         run: |
-          BASE="${{ github.event.pull_request.base.ref }}"
-
-          # All suites with their config (fresh=true only for provision)
-          ALL='[{"suite":"knows","timeout":900,"only":"","fresh":false},{"suite":"skills","timeout":900,"only":"","fresh":false},{"suite":"soul","timeout":900,"only":"","fresh":false},{"suite":"onboarding","timeout":900,"only":"","fresh":false},{"suite":"skill-builder","timeout":1200,"only":"","fresh":false,"maxFailures":2},{"suite":"lifecycle","timeout":900,"only":"","fresh":false},{"suite":"convos","timeout":900,"only":"","fresh":false},{"suite":"models","timeout":900,"only":"","fresh":false},{"suite":"delegation","timeout":900,"only":"","fresh":false},{"suite":"cron","timeout":900,"only":"","fresh":false},{"suite":"services","timeout":900,"only":"","fresh":false},{"suite":"memory","timeout":900,"only":"","fresh":false},{"suite":"silence","timeout":900,"only":"","fresh":false},{"suite":"webhooks","timeout":900,"only":"","fresh":false},{"suite":"provision","timeout":900,"only":"","fresh":true}]'
-
-          # Non-dev branches → run all
-          if [ "$BASE" != "dev" ]; then
-            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
-            echo "Eval suites: all (base=$BASE)"
-            exit 0
-          fi
-
-          # Build list from dorny outputs — only matched suites run
-          MATCHED=""
-          for suite in soul knows skills memory convos onboarding skill-builder lifecycle services silence cron models delegation webhooks; do
-            if echo '${{ steps.eval-paths.outputs.changes }}' | grep -q "\"$suite\""; then
-              MATCHED="$MATCHED $suite"
-            fi
-          done
-
-          if [ -z "$MATCHED" ]; then
-            echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
-            echo "Eval suites: all (no mapped suite matched — safe fallback)"
-            exit 0
-          fi
-
-          # Filter the full matrix to only matched suites
-          MATRIX=$(echo "$ALL" | jq -c "[.[] | select(.suite as \$s | \"$MATCHED\" | split(\" \") | map(select(. != \"\")) | index(\$s) != null)]")
-          echo "eval_matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-          echo "Eval suites: $MATCHED"
+          ALL=$(jq -c . .github/eval-matrix.json)
+          echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
+          echo "Eval suites: all"
 
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
     name: OpenClaw
-    needs: prepare
-    if: needs.prepare.outputs.run_openclaw == 'true'
+    needs: [prepare, check-stamp]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.prepare.outputs.run_openclaw == 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
@@ -202,11 +153,15 @@ jobs:
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
       eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
+      skip_evals: ${{ needs.check-stamp.outputs.openclaw_stamped == 'true' }}
 
   hermes:
     name: Hermes
-    needs: prepare
-    if: needs.prepare.outputs.run_hermes == 'true'
+    needs: [prepare, check-stamp]
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.prepare.outputs.run_hermes == 'true'
     uses: ./.github/workflows/runtime-pipeline.yml
     secrets: inherit
     with:
@@ -219,6 +174,7 @@ jobs:
       docker_run_extra: "-e RUNTIME_TYPE=hermes"
       docker_cmd: "node convos-platform/pool-server/dist/index.js"
       eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
+      skip_evals: ${{ needs.check-stamp.outputs.hermes_stamped == 'true' }}
 
   # ── Promote on merge ─────────────────────────────────────────────────
   promote:
@@ -227,6 +183,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 20
       - uses: docker/login-action@v4
         with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
 
@@ -242,26 +201,30 @@ jobs:
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
-          SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
-          if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
-            skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-            echo "Promoted OpenClaw → :$TAG"
-          else
-            echo "::warning::OpenClaw image sha-$SHA not found — skipping"
-          fi
+          while IFS= read -r COMMIT; do
+            SHA=$(echo "$COMMIT" | cut -c1-7)
+            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
+              echo "Promoted OpenClaw sha-$SHA → :$TAG"
+              exit 0
+            fi
+          done < <(git log --format=%H -n 20 HEAD)
+          echo "::warning::OpenClaw image not found in recent commits — skipping"
 
       - name: Promote Hermes
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
-          SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
-          if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
-            skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-            echo "Promoted Hermes → :$TAG"
-          else
-            echo "::warning::Hermes image sha-$SHA not found — skipping"
-          fi
+          while IFS= read -r COMMIT; do
+            SHA=$(echo "$COMMIT" | cut -c1-7)
+            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
+              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
+              echo "Promoted Hermes sha-$SHA → :$TAG"
+              exit 0
+            fi
+          done < <(git log --format=%H -n 20 HEAD)
+          echo "::warning::Hermes image not found in recent commits — skipping"

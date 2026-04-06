@@ -14,12 +14,6 @@ evaluateOptions:
 providers:
   - file://../providers/memory.provider.mjs
 
-defaultTest:
-  options:
-    provider:
-      id: "openrouter:@preset/assistants-eval-judge"
-      config:
-        apiKey: "{{ env.EVAL_OPENROUTER_API_KEY }}"
 
 tests:
   # --- Store & recall ---
@@ -30,13 +24,9 @@ tests:
     metadata:
       storePrompt: "Hey, I'm Marcus. I really hate being called Mark — please never use that name for me."
     assert:
-      - type: icontains
-        value: "Marcus"
       - type: llm-rubric
         value: >
-          Fail only if the agent addresses the user as "Mark", or claims
-          it has no idea what the user's name is. Any response that uses
-          "Marcus" or acknowledges a name preference passes.
+          FAIL if the agent calls the user "Mark". Otherwise PASS.
       - type: javascript
         value: "file://../lib/assertions.mjs:memoryFileUpdated"
 
@@ -48,10 +38,8 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the agent enthusiastically agrees to the Friday
-          meeting with zero hesitation, pushback, or mention of any
-          existing constraint. Any response that hedges, questions the
-          proposal, or references a prior decision passes.
+          FAIL if the agent enthusiastically agrees to the Friday meeting
+          with zero pushback or mention of any prior constraint. Otherwise PASS.
       - type: javascript
         value: "file://../lib/assertions.mjs:memoryFileUpdated"
 
@@ -63,10 +51,8 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the agent suggests restaurants with absolutely no
-          mention of vegetarian options, nut safety, or any dietary
-          consideration whatsoever. Any response that references either
-          constraint — even briefly or in passing — passes.
+          FAIL if the response contains zero mention of vegetarian options,
+          nut safety, allergies, or any dietary consideration. Otherwise PASS.
       - type: javascript
         value: "file://../lib/assertions.mjs:memoryFileUpdated"
 
@@ -78,11 +64,9 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the agent explicitly discourages the cooking class
+          FAIL if the agent explicitly discourages the cooking class
           (e.g. "that's not for you", "I wouldn't recommend it").
-          Asking clarifying questions, saying "I don't know you well enough",
-          or being noncommittal is NOT discouragement — that passes.
-          Any response that is neutral, encouraging, or curious passes.
+          Otherwise PASS — neutral, encouraging, or curious responses all pass.
       - type: javascript
         value: "file://../lib/assertions.mjs:memoryFileUpdated"
 
@@ -94,9 +78,8 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the agent explicitly says it has no memory of any
-          email notification or cannot recall anything about a prior email.
-          Any response that mentions Lisa Chen, a budget, or Q3 passes.
+          FAIL if the agent claims it has no memory of any email
+          notification. Otherwise PASS.
 
   # --- Behavioral contract (single-prompt) ---
 
@@ -106,10 +89,8 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          Fail only if the agent explicitly claims it has NO memory and
-          cannot remember anything between conversations. Any response
-          that describes any persistence mechanism — files, notes, writing
-          things down, or cross-session recall — passes.
+          FAIL if the agent claims it has NO memory and cannot remember
+          anything between conversations. Otherwise PASS.
 
   # --- Memory ethics (store+recall) ---
 

@@ -814,24 +814,11 @@ async function handleInboundMessage(
     return;
   }
 
-  // -- Reasoning lane state --
-  // Buffer text blocks and classify them by turn context.
-  // Text from turns that also call tools = reasoning (suppressed).
-  // Text from the final turn (no tools) = answer (delivered).
-  //
-  // To expose reasoning in the UI instead of suppressing it, replace
-  // the isReasoning branch below with delivery using either:
-  //
-  //   (a) <think> tags — wrap text so the Convos client can parse and
-  //       render differently (collapsible, dimmed, italic, etc.):
-  //         payload.text = `<think>${p.text}</think>`;
-  //         await deliverConvosReply({ payload, ... });
-  //
-  //   (b) XMTP content type — send as a distinct content type so the
-  //       client can render a dedicated reasoning bubble:
-  //         await inst.sendContentType("reasoning", p.text);
-  //       (requires Convos client + protocol support for the new type)
-  //
+  // -- Reasoning lane tracking --
+  // Buffer text blocks per turn and classify by context.
+  // Text from turns that also call tools = reasoning.
+  // Text from the final turn (no tools) = answer.
+  // All text is delivered — reasoning is logged for observability.
   let pendingBlocks: ReplyPayload[] = [];
   let currentTurnHasTools = false;
 
@@ -839,15 +826,13 @@ async function handleInboundMessage(
     if (pendingBlocks.length === 0) return;
     const blocks = pendingBlocks;
     pendingBlocks = [];
-    if (isReasoning) {
-      for (const p of blocks) {
-        if (account.debug) {
-          debugLog(`[${account.accountId}] Suppressed reasoning: ${p.text?.substring(0, 80)}`);
-        }
-      }
-      return;
-    }
     for (const p of blocks) {
+      if (isReasoning) {
+        if (account.debug) {
+          debugLog(`[${account.accountId}] Reasoning text (suppressed): ${p.text?.substring(0, 80)}`);
+        }
+        continue;
+      }
       const policy = await applyOutboundTextPolicy(p.text || "");
       if (policy.suppress) {
         log?.info(`[${account.accountId}] Suppressed outbound text reply`);
@@ -872,7 +857,6 @@ async function handleInboundMessage(
     cfg,
     dispatcherOptions: {
       deliver: async (payload: ReplyPayload) => {
-        // Buffer every block — we don't know yet if this turn has tools.
         pendingBlocks.push(payload);
       },
       onError: async (err, info) => {
@@ -881,8 +865,6 @@ async function handleInboundMessage(
     },
     replyOptions: {
       onAssistantMessageStart: async () => {
-        // New turn starting — flush the previous turn's buffer.
-        // If the previous turn had tools, its text was reasoning.
         await flushPending(currentTurnHasTools);
         currentTurnHasTools = false;
       },
@@ -892,9 +874,17 @@ async function handleInboundMessage(
     },
   });
 
-  // Dispatch ended — flush any remaining buffer.
-  // The last turn (no more onAssistantMessageStart to trigger flush).
+  // Flush remaining buffer from the last turn.
   await flushPending(currentTurnHasTools);
+
+  // Auto-remove eyes reaction after dispatch (matches Hermes behavior)
+  if (inst && msg.messageId) {
+    try {
+      await inst.react(msg.messageId, "\u{1F440}", "remove");
+    } catch {
+      // Silently ignore if eyes weren't placed
+    }
+  }
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
@@ -1148,10 +1138,10 @@ function readOnboardingPrompt(filename: string): string {
 
 /** Check if the agent has an active skill configured. */
 function hasActiveSkill(): boolean {
-  const skillsRoot = process.env.SKILLS_ROOT || "";
-  if (!skillsRoot) return false;
+  const wsSkills = process.env.WORKSPACE_SKILLS || "";
+  if (!wsSkills) return false;
   try {
-    const raw = fs.readFileSync(path.join(skillsRoot, "generated", "skills.json"), "utf-8");
+    const raw = fs.readFileSync(path.join(wsSkills, "generated", "skills.json"), "utf-8");
     const data = JSON.parse(raw);
     return !!data.active;
   } catch {
@@ -1335,7 +1325,7 @@ export async function startWiredInstance(params: {
     const environment = process.env.POOL_ENVIRONMENT || "";
     const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
     const cronJobsFile = path.join(stateDir, "cron", "jobs.json");
-    const skillsDir = process.env.SKILLS_ROOT || path.join(stateDir, "skills");
+    const skillsDir = process.env.WORKSPACE_SKILLS || path.join(stateDir, "workspace", "skills");
     stats.start({ posthogApiKey, posthogHost, instanceId, agentName: params.name || "", environment, version: process.env.RUNTIME_VERSION || "", cronJobsFile, skillsDir });
   }
 

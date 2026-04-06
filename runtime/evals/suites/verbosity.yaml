@@ -1,0 +1,77 @@
+# runtime/evals/verbosity.yaml
+# Verbosity eval — does the agent respect the 3-sentence hard limit?
+# Tests open-ended, complex prompts that tempt the model to over-explain.
+# Prompts explicitly forbid tools/delegation so we test direct output only.
+
+description: "Eval: Verbosity"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/prompt.provider.mjs
+
+
+tests:
+  - description: "Travel plan stays concise"
+    vars:
+      prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Help me plan a trip to Japan, May 7-18th. Mix of everything."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response exceeds 6 sentences, contains a full
+          day-by-day itinerary, or uses markdown formatting like bold,
+          headers, or bullet lists. Otherwise PASS — a short answer
+          (1-5 sentences) with a clarifying question or high-level
+          summary is fine. An empty response is a PASS.
+
+  - description: "Restaurant recommendation stays concise"
+    vars:
+      prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Best restaurants in Buenos Aires, going next week."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response exceeds 6 sentences, contains detailed
+          multi-paragraph reviews of each restaurant, or uses markdown
+          formatting like bold, headers, or bullet lists. Otherwise PASS
+          — a short answer naming a few spots with a follow-up question
+          is fine. An empty response is a PASS.
+
+  - description: "Product comparison stays concise"
+    vars:
+      prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Compare iPhone 16 Pro vs Samsung S25 Ultra."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response exceeds 6 sentences, contains a
+          multi-section breakdown with headers, or uses markdown
+          formatting like bold or bullet lists. Otherwise PASS — a short
+          comparison (1-5 sentences) with a follow-up question is fine.
+          An empty response is a PASS.
+
+  - description: "No unsolicited outlines or previews"
+    vars:
+      prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. I want to visit Portugal for 10 days in June. Culture, food, beaches."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response exceeds 6 sentences, contains a detailed
+          day-by-day itinerary with specific durations per city (e.g.
+          "3 nights in Lisbon, 2 in Porto, 4 in Algarve"), numbered lists,
+          or multi-paragraph breakdowns. Otherwise PASS — a short high-level
+          answer (1-5 sentences) mentioning regions or asking a clarifying
+          question is fine. An empty response is a PASS.
+
+  - description: "No filler padding around questions"
+    vars:
+      prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Help me find a good dentist nearby."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response exceeds 6 sentences. FAIL if the agent
+          explains WHY it is asking a follow-up question (e.g. "that'll
+          help me find the right match" or "so I can narrow it down").
+          The agent should just ask the question directly without
+          justifying it. Also FAIL if the agent lists what it could help
+          with (e.g. "insurance, specialty, location"). Otherwise PASS.
+          An empty response is a PASS.

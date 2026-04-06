@@ -9,7 +9,7 @@ brand_section "Workspace"
 brand_dim "" "sync skills, agents, and config"
 
 # ── State directory structure ────────────────────────────────────────────
-mkdir -p "$STATE_DIR/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron" "$STATE_DIR/workspace"
+mkdir -p "$STATE_DIR/skills" "$STATE_DIR/memories" "$STATE_DIR/sessions" "$STATE_DIR/cron" "$STATE_DIR/workspace/skills"
 
 # ── Convos platform (SOUL.md, core skills) ───────────────────────────────
 _skill_count=0
@@ -19,8 +19,8 @@ if [ -n "$CONVOS_PLATFORM_DIR" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
     brand_ok "SOUL.md" "$STATE_DIR/SOUL.md"
   fi
 
-  # Core skills → STATE_DIR/skills/ (discovered via config.yaml external_dirs)
-  # User-created skills stay in workspace/skills/ (SKILLS_ROOT, highest priority)
+  # Core skills → SKILLS_ROOT ($STATE_DIR/skills/) — managed, overwritten on deploy
+  # User-created skills → WORKSPACE_SKILLS ($WORKSPACE_DIR/skills/)
   if [ -d "$CONVOS_PLATFORM_DIR/skills" ]; then
     for skill_dir in "$CONVOS_PLATFORM_DIR"/skills/*; do
       [ -d "$skill_dir" ] || continue

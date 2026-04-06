@@ -16,6 +16,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { parseMarkers } from "./parse-markers.js";
 import { ProfileImageRenewal } from "./profile-image-renewal.js";
 import type { CreateConversationResult } from "./types.js";
 
@@ -531,10 +532,56 @@ export class ConvosInstance {
       return { success: false, messageId: undefined };
     }
 
+    // Parse all markers (REACT, REPLY, PROFILE, PROFILEIMAGE, METADATA, MEDIA).
+    const parsed = parseMarkers(text);
+
+    // Execute reactions (fire-and-forget, same as Hermes).
+    for (const r of parsed.reactions) {
+      try { this.react(r.messageId, r.emoji, r.action); } catch { /* best-effort */ }
+    }
+
+    // Profile updates — name and image sent separately so a bad image can't block the name.
+    const profileName = parsed.profileName;
+    let profileImage = parsed.profileImage;
+    // Auto-generate profile image from the emoji in the name (twemoji CDN).
+    if (profileName && !profileImage) {
+      const emojiMatch = profileName.match(/\p{Extended_Pictographic}/u);
+      if (emojiMatch) {
+        const codepoints = [...emojiMatch[0]]
+          .map((c) => c.codePointAt(0)!.toString(16))
+          .join("-");
+        profileImage = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${codepoints}.png`;
+      }
+    }
+    if (profileName) {
+      await this.updateProfile(profileName);
+    }
+    if (profileImage) {
+      await this.updateProfile(undefined, profileImage);
+    }
+
+    // Metadata updates.
+    if (Object.keys(parsed.profileMetadata).length > 0) {
+      await this.updateProfile(undefined, undefined, parsed.profileMetadata);
+    }
+
+    // Send media attachments.
+    for (const mediaPath of parsed.media) {
+      try { await this.sendAttachment(mediaPath); } catch { /* best-effort */ }
+    }
+
+    // REPLY: marker overrides the replyTo argument.
+    const effectiveReplyTo = parsed.replyTo ?? replyTo;
+
+    text = parsed.text;
+    if (!text) {
+      return { success: true, messageId: undefined };
+    }
+
     await this.renewProfileImageOnActivity();
 
     const cmd: Record<string, unknown> = { type: "send", text };
-    if (replyTo) cmd.replyTo = replyTo;
+    if (effectiveReplyTo) cmd.replyTo = effectiveReplyTo;
     return this.sendAndWait(cmd);
   }
 

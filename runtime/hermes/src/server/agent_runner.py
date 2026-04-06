@@ -16,7 +16,7 @@ Both paths use the same AIAgent setup:
   - platform="convos"
   - ephemeral_system_prompt from INJECTED_CONTEXT.md
 
-The adapter (convos_adapter.py) handles marker parsing and response routing.
+The adapter (channel.py) handles marker parsing and response routing.
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def warm_imports() -> None:
 
     if not _toolset_registered:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
-        from src.convos.convos_tools import register_convos_tools
+        from src.convos.actions import register_convos_tools
 
         convos_tool_names = ["convos_react", "convos_send_attachment"]
         all_tools = list(_HERMES_CORE_TOOLS) + convos_tool_names
@@ -168,6 +168,7 @@ class AgentRunner:
         if self._hermes_home:
             os.environ["HERMES_HOME"] = self._hermes_home
             os.environ.setdefault("SKILLS_ROOT", str(Path(self._hermes_home) / "skills"))
+            os.environ.setdefault("WORKSPACE_SKILLS", str(Path(self._hermes_home) / "workspace" / "skills"))
 
         # Session DB — gives the agent persistent session storage and
         # powers the session_search tool for cross-session recall.
@@ -325,7 +326,7 @@ class AgentRunner:
         # they're preserved in the messages list.
         #
         # To expose reasoning in the UI instead of suppressing it, the
-        # adapter (_dispatch_response in convos_adapter.py) can send these
+        # adapter (_dispatch_response in channel.py) can send these
         # before the final response using either:
         #
         #   (a) <think> tags — wrap text so the Convos client can parse and

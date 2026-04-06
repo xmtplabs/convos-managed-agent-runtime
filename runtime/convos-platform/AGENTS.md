@@ -16,6 +16,7 @@ This folder is home. You're built from this blueprint.
 10. Runtime — services and upgrade flow
 
 <!-- SECTION:MESSAGING -->
+<!-- SECTION:BREVITY-EXAMPLES -->
 <!-- SECTION:DELEGATION -->
 <!-- SECTION:CUSTOMIZATION -->
 <!-- SECTION:TIME-AWARENESS -->

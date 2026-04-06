@@ -5,7 +5,7 @@ Every endpoint matches the existing OpenClaw-based runtime so the pool
 manager can provision, health-check, and control instances identically.
 
 Uses ConvosAdapter for the message pipeline (eyes reaction, marker parsing,
-response routing through xmtp_bridge).
+response routing through sdk_client).
 """
 
 from __future__ import annotations
@@ -25,12 +25,12 @@ from pydantic import BaseModel
 
 from .agent_runner import warm_imports
 from .config import RuntimeConfig
-from ..convos.convos_adapter import ConvosAdapter
+from ..convos.channel import ConvosAdapter
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
 
 DEFAULT_AGENT_NAME = os.environ.get("DEFAULT_AGENT_NAME", "Assistant")
-from ..convos.xmtp_bridge import ConvosInstance
+from ..convos.sdk_client import ConvosInstance
 from .stats import stats
 
 logger = logging.getLogger(__name__)
@@ -136,7 +136,7 @@ async def start_wired_instance(
 
     if cfg.posthog_api_key and cfg.instance_id:
         cron_jobs_file = os.path.join(cfg.hermes_home, "cron", "jobs.json")
-        skills_dir = os.environ.get("SKILLS_ROOT", os.path.join(cfg.hermes_home, "skills"))
+        skills_dir = os.environ.get("WORKSPACE_SKILLS", os.path.join(cfg.hermes_home, "workspace", "skills"))
         stats.start(
             posthog_api_key=cfg.posthog_api_key,
             posthog_host=cfg.posthog_host,
@@ -198,10 +198,10 @@ def _read_onboarding_prompt(filename: str) -> str | None:
 
 def _has_active_skill() -> bool:
     """Check if the agent has an active skill configured."""
-    skills_root = os.environ.get("SKILLS_ROOT", "")
-    if not skills_root:
+    ws_skills = os.environ.get("WORKSPACE_SKILLS", "")
+    if not ws_skills:
         return False
-    skills_json = Path(skills_root) / "generated" / "skills.json"
+    skills_json = Path(ws_skills) / "generated" / "skills.json"
     try:
         data = json.loads(skills_json.read_text())
         return bool(data.get("active"))
@@ -462,8 +462,8 @@ async def _factory_reset(*, skip_greeting: bool = False) -> dict:
         target.unlink(missing_ok=True)
 
     # 8c. Clear generated skills data so the next boot enters skill-builder onboarding
-    skills_root = os.environ.get("SKILLS_ROOT", os.path.join(hermes_home, "skills"))
-    shutil.rmtree(Path(skills_root) / "generated", ignore_errors=True)
+    ws_skills = os.environ.get("WORKSPACE_SKILLS", os.path.join(hermes_home, "workspace", "skills"))
+    shutil.rmtree(Path(ws_skills) / "generated", ignore_errors=True)
 
     # 9. Clear XMTP CLI identity
     convos_home = Path.home() / ".convos"

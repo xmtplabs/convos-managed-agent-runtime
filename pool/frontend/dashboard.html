@@ -33,13 +33,17 @@
       </div>
     </div>
     <div class="header-right">
-      <nav class="top-nav">
+      <button class="hamburger-btn" id="hamburger-btn" onclick="document.getElementById('mobile-menu').classList.toggle('open')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <nav class="top-nav" id="mobile-menu">
         <a href="/admin" class="nav-link active">Dashboard</a>
         <a href="/admin/upgrades" class="nav-link">Upgrades</a>
         <a href="/admin/api-docs" class="nav-link">API</a>
         <a href="/admin/skills" class="nav-link">Skills</a>
         <a id="railway-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Railway <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
         <a id="playroom-link" href="#" target="_blank" rel="noopener" class="nav-link" style="display:none">Playroom <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3H3v10h10v-3"/><path d="M9 2h5v5"/><path d="M14 2L7 9"/></svg></a>
+        <a href="/admin/lite" class="nav-link">Lite</a>
         <div class="nav-sep"></div>
         <form method="POST" action="/admin/logout" style="display:contents">
           <button class="logout-btn" type="submit">Logout</button>
@@ -49,49 +53,65 @@
   </div>
 
   <div class="content">
-    <div class="stats stats-5">
-      <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot green"></span> Ready</div>
-        <div class="stat-value" id="s-idle">-</div>
+    <div class="overview-card">
+      <div class="overview-section">
+        <div class="overview-section-title">Instances</div>
+        <div class="overview-row">
+          <div class="overview-item">
+            <span class="stat-dot green"></span>
+            <span class="overview-label">Ready</span>
+            <span class="overview-value" id="s-idle">-</span>
+          </div>
+          <div class="overview-item">
+            <span class="stat-dot orange"></span>
+            <span class="overview-label">Starting</span>
+            <span class="overview-value" id="s-starting">-</span>
+            <button class="stat-sync-btn" onclick="checkStarting(this)" title="Check starting instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
+          </div>
+          <div class="overview-item">
+            <span class="stat-dot blue"></span>
+            <span class="overview-label">Claimed</span>
+            <span class="overview-value" id="s-claimed">-</span>
+          </div>
+          <div class="overview-item">
+            <span class="stat-dot red"></span>
+            <span class="overview-label">Crashed</span>
+            <span class="overview-value" id="s-crashed">-</span>
+            <button class="stat-sync-btn" onclick="checkCrashed(this)" title="Recheck all crashed instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button>
+          </div>
+          <div class="overview-item overview-item-drain">
+            <span class="stat-dot drain"></span>
+            <span class="overview-label">Drain</span>
+            <span class="overview-value" id="s-drainable">-</span>
+            <button class="btn btn-danger btn-drain-sm" id="drain-btn">Drain All</button>
+          </div>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot orange"></span> Starting<button class="stat-sync-btn" onclick="checkStarting(this)" title="Check starting instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button></div>
-        <div class="stat-value" id="s-starting">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot blue"></span> Claimed</div>
-        <div class="stat-value" id="s-claimed">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label"><span class="stat-dot red"></span> Crashed<button class="stat-sync-btn" onclick="checkCrashed(this)" title="Recheck all crashed instances"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg></button></div>
-        <div class="stat-value" id="s-crashed">-</div>
-      </div>
-      <div class="stat-card stat-card-drain">
-        <div class="stat-label"><span class="stat-dot drain"></span> Drain</div>
-        <div class="stat-value" id="s-drainable">-</div>
-        <button class="btn btn-danger btn-drain-sm" id="drain-btn">Drain All</button>
-      </div>
-    </div>
-    <div class="stats-credits">
-      <div class="stat-card">
-        <div class="stat-label">Credits</div>
-        <div class="stat-value" id="s-credits">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">OR Keys</div>
-        <div class="stat-value" id="s-or-keys">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Inboxes</div>
-        <div class="stat-value" id="s-inboxes">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Phones</div>
-        <div class="stat-value" id="s-phones">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Templates</div>
-        <div class="stat-value" id="s-templates">-</div>
+      <div class="overview-divider"></div>
+      <div class="overview-section">
+        <div class="overview-section-title">Resources</div>
+        <div class="overview-row">
+          <div class="overview-item">
+            <span class="overview-label">Credits</span>
+            <span class="overview-value" id="s-credits">-</span>
+          </div>
+          <div class="overview-item">
+            <span class="overview-label">OR Keys</span>
+            <span class="overview-value" id="s-or-keys">-</span>
+          </div>
+          <div class="overview-item">
+            <span class="overview-label">Inboxes</span>
+            <span class="overview-value" id="s-inboxes">-</span>
+          </div>
+          <div class="overview-item">
+            <span class="overview-label">Phones</span>
+            <span class="overview-value" id="s-phones">-</span>
+          </div>
+          <div class="overview-item">
+            <span class="overview-label">Templates</span>
+            <span class="overview-value" id="s-templates">-</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -110,6 +130,12 @@
                 <option value="hermes">Hermes</option>
                 <option value="__custom__">other...</option>
               </select>
+              <script>
+                if (window.__POOL_CONFIG__ && window.__POOL_CONFIG__.poolEnvironment === 'production') {
+                  var hs = document.getElementById('runtime-harness');
+                  for (var i = 0; i < hs.options.length; i++) { if (hs.options[i].value === 'hermes') { hs.selectedIndex = i; break; } }
+                }
+              </script>
               <select class="replenish-select" id="runtime-env">
                 <option value="production">production</option>
                 <option value="staging">staging</option>
@@ -133,7 +159,11 @@
         </div>
         <div class="replenish-field">
           <label>Qty</label>
-          <input class="replenish-input" id="replenish-count" type="number" min="1" max="20" value="1" />
+          <div class="qty-stepper">
+            <button type="button" class="qty-btn" onclick="var i=document.getElementById('replenish-count');i.value=Math.max(1,+i.value-1)">-</button>
+            <input class="replenish-input" id="replenish-count" type="number" min="1" max="20" value="1" />
+            <button type="button" class="qty-btn" onclick="var i=document.getElementById('replenish-count');i.value=Math.min(20,+i.value+1)">+</button>
+          </div>
         </div>
         <div class="replenish-actions">
           <button class="btn btn-primary" id="replenish-btn">+ Add</button>
@@ -484,7 +514,7 @@
         var protectedBtn = isProtectedInstance ? '<button class="action-btn" data-protected-info="1" title="Protected instance">' + infoSvg + '</button>' : '';
         var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'crashed', 'Crashed', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isTainted) {
           renderRow(a, 'tainted', 'Tainted', recheckBtn + killBtn + protectedBtn);
         } else if (isPending) {
@@ -1285,7 +1315,7 @@
     function refreshPhones() {
       fetch('/dashboard/phones', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (d) {
         if (d.total != null) {
-          document.getElementById('s-phones').innerHTML = d.total + '<div style="font-size:0.5em;opacity:0.6;margin-top:2px">' + (d.available || 0) + ' free</div>';
+          document.getElementById('s-phones').innerHTML = d.total + ' <span style="font-size:0.6em;opacity:0.5;font-weight:500">' + (d.available || 0) + ' free</span>';
         } else {
           document.getElementById('s-phones').textContent = '-';
         }

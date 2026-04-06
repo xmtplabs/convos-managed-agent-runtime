@@ -32,7 +32,7 @@ from typing import Any
 
 import httpx
 
-from .xmtp_bridge import ConvosInstance, InboundMessage
+from .sdk_client import ConvosInstance, InboundMessage
 from ..server.agent_runner import AgentRunner
 from ..server.config import RuntimeConfig
 from ..server.profile_image_renewal import ProfileImageRenewalStore
@@ -322,10 +322,10 @@ class ConvosAdapter:
     Convos XMTP platform adapter.
 
     Follows the Hermes gateway adapter pattern:
-    - Receives inbound messages from xmtp_bridge
+    - Receives inbound messages from sdk_client
     - Runs them through the Hermes AIAgent
     - Parses markers from the response
-    - Routes actions through xmtp_bridge
+    - Routes actions through sdk_client
     """
 
     def __init__(self, config: RuntimeConfig):
@@ -388,7 +388,7 @@ class ConvosAdapter:
         )
 
         # Wire convos tools to the bridge so they execute mid-processing
-        from .convos_tools import set_bridge
+        from .actions import set_bridge
         set_bridge(
             react=self._instance.react,
             send_attachment=self._instance.send_attachment,
@@ -623,8 +623,11 @@ class ConvosAdapter:
             was_interrupted = ai_agent.is_interrupted
             ai_agent.clear_interrupt()
 
-            if response and not was_interrupted:
-                await self._dispatch_response(response)
+            if not was_interrupted:
+                for text in getattr(ai_agent, "_last_reasoning_texts", []):
+                    await self._dispatch_response(text)
+                if response:
+                    await self._dispatch_response(response)
 
             # Auto-remove eyes reaction after dispatch
             if msg.message_id:
@@ -783,7 +786,7 @@ class ConvosAdapter:
 
 
     async def _dispatch_response(self, raw_response: str) -> None:
-        """Parse markers and route actions through xmtp_bridge."""
+        """Parse markers and route actions through sdk_client."""
         inst = self._instance
         if not inst:
             return

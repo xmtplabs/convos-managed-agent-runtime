@@ -89,7 +89,7 @@ runtime/
 
 ### Adding new capabilities
 
-- **New shared skill** — add a directory under `runtime/convos-platform/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for script paths in SKILL.md.
+- **New shared skill** — add a directory under `runtime/convos-platform/skills/` with a `SKILL.md`. Both runtimes pick it up automatically. Use `$SKILLS_ROOT` for managed script paths and `$WORKSPACE_SKILLS` for user-generated skill data in SKILL.md.
 - **New shared instruction** — edit `AGENTS-base.md` for behavior that applies to both runtimes.
 - **Runtime-specific instruction** — edit the runtime's `workspace/agents-extra.md`.
 - **New dependency for a skill** — add it to both `hermes/package.json` and `openclaw/package.json`.

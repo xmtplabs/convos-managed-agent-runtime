@@ -50,6 +50,21 @@ export function profileNameEquals(output, context) {
   });
 }
 
+export function profileNameChanged(output, context) {
+  return withProfiles(context, (profiles) => {
+    const defaults = ['assistant', 'bot', ''];
+    const changed = profiles.some((p) => p.name && !defaults.includes(p.name.toLowerCase().trim()));
+    const names = profiles.map((p) => p.name).filter(Boolean);
+    return {
+      pass: changed,
+      score: changed ? 1 : 0,
+      reason: changed
+        ? `Profile name updated to: ${names.join(', ')}`
+        : `Profile name was not changed from default: ${names.join(', ') || '(empty)'}`,
+    };
+  });
+}
+
 export function profileImageSet(output, context) {
   return withProfiles(context, (profiles) => {
     const has = profiles.some((p) => p.image && p.image !== 'null');
@@ -349,7 +364,7 @@ export function agentUsedReplyTo(output, context) {
 
 // ---------------------------------------------------------------------------
 // Skill-builder assertions — verify skill creation and activation via the
-// /web-tools/skills/api endpoint (reads $SKILLS_ROOT/generated/skills.json).
+// /web-tools/skills/api endpoint (reads $WORKSPACE_SKILLS/generated/skills.json).
 // ---------------------------------------------------------------------------
 
 function curlSkillsApi() {
