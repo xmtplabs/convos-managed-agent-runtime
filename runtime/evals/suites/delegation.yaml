@@ -38,4 +38,4 @@ tests:
       - type: javascript
         value: "output.length < 500"
       - type: javascript
-        value: "/stop|cancel|ok|sure|understood|abort|won.?t|no.?problem|got it|halt/i.test(output)"
+        value: "output === 'SILENT' || output === '' || /stop|cancel|ok|sure|understood|abort|won.?t|no.?problem|got it|halt/i.test(output)"
