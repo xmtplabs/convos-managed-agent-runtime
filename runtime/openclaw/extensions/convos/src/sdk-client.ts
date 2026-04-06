@@ -489,6 +489,11 @@ export class ConvosInstance {
     }
   }
 
+  /** Return the agent's own display name from the member cache. */
+  getOwnName(): string | undefined {
+    return this.memberNames.get(this.inboxId);
+  }
+
   /** Return comma-separated display names of all cached members, marking the agent's own entry with "(you)". */
   getGroupMembers(): string | undefined {
     if (this.memberNames.size === 0) return undefined;
@@ -627,6 +632,7 @@ export class ConvosInstance {
     if (image !== undefined) cmd.image = image;
     if (metadata !== undefined) cmd.metadata = metadata;
     this.writeCommand(cmd);
+    if (name !== undefined && this.inboxId) this.memberNames.set(this.inboxId, name);
     if (image !== undefined) {
       this.profileImageRenewal.recordAppliedImage(image);
     }

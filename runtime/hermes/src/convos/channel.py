@@ -613,6 +613,7 @@ class ConvosAdapter:
                     conversation_id=msg.conversation_id,
                     message_id=msg.message_id,
                     group_members=inst.get_group_members(),
+                    agent_name=inst.get_own_name(),
                 )
             except Exception as err:
                 logger.error(f"Agent error: {err}")

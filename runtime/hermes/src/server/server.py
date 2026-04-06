@@ -759,6 +759,7 @@ def _patch_cron_for_convos() -> None:
                 conversation_id=adapter.instance.conversation_id,
                 message_id=f"cron-{job_id}-{int(time.time() * 1000)}",
                 group_members=adapter.instance.get_group_members(),
+                agent_name=adapter.instance.get_own_name(),
             )
             if response:
                 await adapter._dispatch_response(response)
@@ -1119,6 +1120,7 @@ async def convos_notify(body: NotifyRequest):
             conversation_id=adapter.instance.conversation_id,
             message_id=f"system-notify-{int(time.time() * 1000)}",
             group_members=adapter.instance.get_group_members(),
+            agent_name=adapter.instance.get_own_name(),
         )
         if response:
             await adapter._dispatch_response(response)

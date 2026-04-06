@@ -686,6 +686,7 @@ async function handleInboundMessage(
     AccountId: route.accountId,
     ChatType: "group",
     ConversationLabel: inst?.label ?? "chat",
+    AgentName: inst?.getOwnName() ?? undefined,
     SenderName: msg.senderName || undefined,
     SenderId: msg.senderId,
     Provider: "convos",

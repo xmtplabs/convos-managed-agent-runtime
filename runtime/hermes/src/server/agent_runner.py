@@ -245,6 +245,7 @@ class AgentRunner:
         timestamp: float,
         message_id: str,
         group_members: str | None = None,
+        agent_name: str | None = None,
     ) -> str:
         """Format an inbound message with current time and full message ID.
 
@@ -258,6 +259,8 @@ class AgentRunner:
         now_str = now.strftime("%a, %b %-d, %Y, %-I:%M %p %Z")
         name = sender_name or sender_id[:12]
         header = f"[Current time: {now_str}]"
+        if agent_name:
+            header += f"\n[AgentName: {agent_name}]"
         if group_members:
             header += f"\n[Group members: {group_members}]"
         return f"{header}\n[{message_id} {msg_ts}] {name}: {content}"
@@ -272,6 +275,7 @@ class AgentRunner:
         conversation_id: str,
         message_id: str,
         group_members: str | None = None,
+        agent_name: str | None = None,
     ) -> str | None:
         """
         Process an inbound message through the Hermes agent.
@@ -285,6 +289,7 @@ class AgentRunner:
             timestamp=timestamp,
             message_id=message_id,
             group_members=group_members,
+            agent_name=agent_name,
         )
 
         # Snapshot history before the (potentially long) agent call so
