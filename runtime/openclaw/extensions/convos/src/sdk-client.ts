@@ -632,6 +632,7 @@ export class ConvosInstance {
     if (image !== undefined) cmd.image = image;
     if (metadata !== undefined) cmd.metadata = metadata;
     this.writeCommand(cmd);
+    if (name !== undefined) this.memberNames.set(this.inboxId, name);
     if (image !== undefined) {
       this.profileImageRenewal.recordAppliedImage(image);
     }
