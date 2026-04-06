@@ -102,14 +102,8 @@ def _is_context_overflow(text: str) -> bool:
 
 def _build_credit_message() -> str:
     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
-    ngrok = os.environ.get("NGROK_URL", "")
     port = os.environ.get("POOL_SERVER_PORT") or os.environ.get("PORT") or "18789"
-    if domain:
-        base = f"https://{domain}"
-    elif ngrok:
-        base = ngrok.rstrip("/")
-    else:
-        base = f"http://127.0.0.1:{port}"
+    base = f"https://{domain}" if domain else f"http://127.0.0.1:{port}"
     return _CREDIT_MSG_TEMPLATE.replace("{{servicesUrl}}", f"{base}/web-tools/services")
 
 
