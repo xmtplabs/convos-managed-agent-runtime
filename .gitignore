@@ -22,6 +22,9 @@ xmtp-*.db3-wal
 # Assembled AGENTS.md (built at boot from AGENTS-base.md + agents-extra.md)
 runtime/hermes/AGENTS.md
 
+# Promptfoo local install (eval scripts)
+runtime/evals/.promptfoo-install/
+
 # Build artifacts
 dist/
 

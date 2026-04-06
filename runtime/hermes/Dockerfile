@@ -4,14 +4,14 @@ FROM python:3.11-bookworm@sha256:12e6e9b778363eaa84d39ec79d7ee55cc2a5fc6934e1cc8
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# System deps + Node.js 22 (for convos CLI)
+# System deps + Node.js 24 (for convos CLI)
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     ca-certificates curl git jq ripgrep \
     chromium fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 \
     libcups2 libdrm2 libgbm1 libnspr4 libnss3 libxcomposite1 libxdamage1 \
     libxfixes3 libxkbcommon0 libxrandr2 xdg-utils \
-  && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+  && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
   && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
 
