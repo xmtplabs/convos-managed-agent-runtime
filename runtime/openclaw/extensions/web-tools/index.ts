@@ -128,13 +128,8 @@ async function getServicesData(): Promise<Record<string, unknown>> {
 
 function buildServicesUrl(): string {
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
-  const ngrok = process.env.NGROK_URL;
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
-  const base = domain
-    ? `https://${domain}`
-    : ngrok
-      ? ngrok.replace(/\/$/, "")
-      : `http://127.0.0.1:${port}`;
+  const base = domain ? `https://${domain}` : `http://127.0.0.1:${port}`;
   return `${base}/web-tools/services`;
 }
 
