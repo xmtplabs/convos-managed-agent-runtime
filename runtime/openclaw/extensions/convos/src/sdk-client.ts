@@ -553,11 +553,8 @@ export class ConvosInstance {
         profileImage = `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/${codepoints}.png`;
       }
     }
-    if (profileName) {
-      await this.updateProfile(profileName);
-    }
-    if (profileImage) {
-      await this.updateProfile(undefined, profileImage);
+    if (profileName || profileImage) {
+      await this.updateProfile(profileName, profileImage);
     }
 
     // Metadata updates.
