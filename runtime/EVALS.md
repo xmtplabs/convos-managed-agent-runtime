@@ -1,6 +1,6 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (14 suites).
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (15 suites).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
@@ -18,6 +18,7 @@
 | **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
 | **delegation** | `delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
 | **cron** | `cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
+| **reasoning** | `reasoning.yaml` | Sequential (1x) | Reasoning suppression — thinking/reasoning text never leaks to user |
 | **webhooks** | `webhooks.yaml` | Sequential (1x) | Webhook notifications — email and SMS delivered via /convos/notify |
 
 ## Running
@@ -79,6 +80,7 @@ evals/
 │   ├── cron.yaml
 │   ├── webhooks.yaml
 │   ├── skill-builder.yaml
+│   ├── reasoning.yaml
 │   └── services.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
@@ -121,4 +123,4 @@ All suites run as parallel matrix jobs in PR and dispatch workflows:
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
 
-All 14 suites auto-discover from `suites/*.yaml` — no matrix config needed.
+All 15 suites auto-discover from `suites/*.yaml` — no matrix config needed.
