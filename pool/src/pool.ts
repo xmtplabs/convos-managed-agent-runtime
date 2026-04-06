@@ -112,6 +112,14 @@ export async function autoReplenish(claimedInstanceId: string) {
 
     let created = 0;
     for (let i = 0; i < deficit; i++) {
+      // Re-check before each create to avoid overshoot from concurrent replenishes
+      if (i > 0) {
+        const fresh = await db.getCounts();
+        if (fresh.idle + fresh.starting >= target) {
+          console.log(`[pool] Auto-replenish: now ${fresh.idle + fresh.starting} idle+starting >= ${target} target, stopping early`);
+          break;
+        }
+      }
       try {
         const inst = await createInstance(undefined, runtimeImage || undefined);
         created++;
