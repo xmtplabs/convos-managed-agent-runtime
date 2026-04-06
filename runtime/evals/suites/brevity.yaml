@@ -1,9 +1,9 @@
-# runtime/evals/verbosity.yaml
-# Verbosity eval — does the agent respect the 3-sentence hard limit?
+# runtime/evals/brevity.yaml
+# Brevity eval — does the agent respect the 3-sentence hard limit?
 # Tests open-ended, complex prompts that tempt the model to over-explain.
 # Prompts explicitly forbid tools/delegation so we test direct output only.
 
-description: "Eval: Verbosity"
+description: "Eval: Brevity"
 
 evaluateOptions:
   maxConcurrency: 1
