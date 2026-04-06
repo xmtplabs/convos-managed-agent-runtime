@@ -1,6 +1,6 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (14 suites).
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (15 suites).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
@@ -14,6 +14,7 @@
 | **skill-builder** | `skill-builder.yaml` | Sequential (1x) | Skill builder — optimistic build: describe → build + activate |
 | **lifecycle** | `lifecycle.yaml` | Sequential (1x) | XMTP lifecycle — restart resilience, self-destruct |
 | **silence** | `silence.yaml` | Sequential (1x) | Silence — agent stays quiet when it should (heartbeat, explicit) |
+| **response-discipline** | `response-discipline.yaml` | Sequential (1x) | Response discipline — silent on acknowledgments, off-topic; responds to direct engagement |
 | **memory** | `memory.yaml` | Sequential (1x) | Persistent memory across sessions |
 | **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
 | **delegation** | `delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
@@ -79,6 +80,7 @@ evals/
 │   ├── cron.yaml
 │   ├── webhooks.yaml
 │   ├── skill-builder.yaml
+│   ├── response-discipline.yaml
 │   └── services.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
@@ -121,4 +123,4 @@ All suites run as parallel matrix jobs in PR and dispatch workflows:
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
 
-All 14 suites auto-discover from `suites/*.yaml` — no matrix config needed.
+All 15 suites auto-discover from `suites/*.yaml` — no matrix config needed.
