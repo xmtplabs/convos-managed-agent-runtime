@@ -39,7 +39,7 @@ if [ ! -x "$PFOO_DIR/node_modules/.bin/promptfoo" ]; then
   cat > "$PFOO_DIR/package.json" <<'PJSON'
 {"private":true,"overrides":{"@asamuzakjp/css-color":"4.1.2"},"dependencies":{"promptfoo":"0.121.3"}}
 PJSON
-  (cd "$PFOO_DIR" && npm install --no-audit --no-fund --ignore-scripts 2>&1 | tail -1)
+  (cd "$PFOO_DIR" && npm install --no-audit --no-fund 2>&1 | tail -3)
 fi
 
 set +e
