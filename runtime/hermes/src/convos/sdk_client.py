@@ -378,6 +378,9 @@ class ConvosInstance:
         if inbox_id and name:
             self._member_names[inbox_id] = name
 
+    def get_own_name(self) -> str | None:
+        return self._member_names.get(self.inbox_id)
+
     def get_group_members(self) -> str | None:
         if not self._member_names:
             return None
