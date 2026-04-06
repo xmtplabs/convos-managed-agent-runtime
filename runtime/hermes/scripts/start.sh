@@ -30,7 +30,7 @@ for _traj_file in trajectory_samples.jsonl failed_trajectories.jsonl; do
   fi
 done
 
-# --- ngrok tunnel (when NGROK_URL is set) ---
+# --- ngrok tunnel (when RAILWAY_PUBLIC_DOMAIN is set locally) ---
 . "$LIB_DIR/ngrok.sh"
 
 exec python3 -m src.main
