@@ -953,7 +953,7 @@
 
     // --- Target idle setting ---
     (function loadTargetIdle() {
-      fetch('/api/pool/settings').then(function (r) { return r.json(); }).then(function (s) {
+      fetch('/api/pool/settings', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (s) {
         document.getElementById('target-idle').value = s.target_idle || '0';
       }).catch(function () {});
     })();
@@ -964,7 +964,7 @@
       btn.disabled = true; btn.textContent = 'Saving...';
       fetch('/api/pool/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({ target_idle: val }),
       }).then(function (r) { return r.json(); }).then(function (s) {
         document.getElementById('target-idle').value = s.target_idle || '0';
