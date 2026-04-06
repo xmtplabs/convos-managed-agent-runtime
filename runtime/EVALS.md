@@ -19,6 +19,7 @@
 | **models** | `models.yaml` | Sequential (1x) | Model awareness — identify, list, and switch models |
 | **delegation** | `delegation.yaml` | Sequential (1x) | Non-blocking — agent delegates heavy tasks and stays responsive |
 | **cron** | `cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
+| **reasoning** | `reasoning.yaml` | Sequential (1x) | Reasoning suppression — thinking/reasoning text never leaks to user |
 | **webhooks** | `webhooks.yaml` | Sequential (1x) | Webhook notifications — email and SMS delivered via /convos/notify |
 
 ## Running
@@ -81,6 +82,7 @@ evals/
 │   ├── webhooks.yaml
 │   ├── skill-builder.yaml
 │   ├── response-discipline.yaml
+│   ├── reasoning.yaml
 │   └── services.yaml
 ├── providers/
 │   ├── prompt.provider.mjs

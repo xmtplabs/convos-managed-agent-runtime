@@ -509,7 +509,7 @@
         var protectedBtn = isProtectedInstance ? '<button class="action-btn" data-protected-info="1" title="Protected instance">' + infoSvg + '</button>' : '';
         var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'crashed', 'Crashed', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isTainted) {
           renderRow(a, 'tainted', 'Tainted', recheckBtn + killBtn + protectedBtn);
         } else if (isPending) {
