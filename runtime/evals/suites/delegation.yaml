@@ -1,6 +1,7 @@
 # runtime/evals/delegation.yaml
 # Async delegation eval — does the agent delegate heavy tasks and stay responsive?
 #
+#
 # Sends a complex task that should trigger sessions_spawn delegation, then
 # immediately sends a simple query in a fresh session to verify the agent
 # isn't blocked.
@@ -24,3 +25,17 @@ tests:
     assert:
       - type: regex
         value: "\\b\\d{1,2}:\\d{2}\\s*([APap][Mm])?\\b"
+
+  - description: "Agent stops delegated task when user says stop"
+    vars:
+      prompt: "stop"
+    metadata:
+      heavyPrompt: "Research and write a detailed comparison of the top 10 programming languages by popularity, job market demand, salary ranges, and learning curve"
+      ackTimeout: 30
+      sameSession: true
+      stopDelay: 3
+    assert:
+      - type: javascript
+        value: "output.length < 500"
+      - type: javascript
+        value: "/stop|cancel|ok|sure|understood|abort|won.?t|no.?problem|got it|halt/i.test(output)"
