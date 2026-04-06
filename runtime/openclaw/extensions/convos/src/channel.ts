@@ -876,6 +876,15 @@ async function handleInboundMessage(
 
   // Flush remaining buffer from the last turn.
   await flushPending(currentTurnHasTools);
+
+  // Auto-remove eyes reaction after dispatch (matches Hermes behavior)
+  if (inst && msg.messageId) {
+    try {
+      await inst.react(msg.messageId, "\u{1F440}", "remove");
+    } catch {
+      // Silently ignore if eyes weren't placed
+    }
+  }
 }
 
 function detectConversationExpirationUpdate(msg: InboundMessage):
