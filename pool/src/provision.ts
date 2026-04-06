@@ -3,6 +3,7 @@ import { authFetch } from "./authFetch";
 import { metricCount, metricHistogram } from "./metrics";
 import { logger, classifyError } from "./logger";
 import { parseRuntimeStatus } from "./runtimeStatus";
+import { autoReplenish } from "./pool";
 
 export type ProvisionProgressCallback = (step: string, status: string, message?: string) => void;
 
@@ -117,6 +118,9 @@ export async function provision(opts: ProvisionOpts) {
       metricCount("instance.claim.complete", 1, { status: "pending_acceptance" });
       metricHistogram("instance.claim.duration_ms", Date.now() - claimStart);
 
+      // Fire-and-forget: replenish pool if below target
+      autoReplenish(instance.id).catch(() => {});
+
       return {
         inviteUrl: result.inviteUrl || joinUrl || null,
         conversationId: null,
@@ -153,6 +157,9 @@ export async function provision(opts: ProvisionOpts) {
 
     metricCount("instance.claim.complete");
     metricHistogram("instance.claim.duration_ms", durationMs);
+
+    // Fire-and-forget: replenish pool if below target
+    autoReplenish(instance.id).catch(() => {});
 
     return {
       inviteUrl: result.inviteUrl || null,

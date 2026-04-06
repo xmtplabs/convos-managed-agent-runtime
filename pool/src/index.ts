@@ -101,6 +101,39 @@ app.get("/api/pool/info", (_req, res) => {
 
 app.use(skillsRouter);
 
+// --- Pool settings ---
+app.get("/api/pool/settings", requireAuth, async (_req, res) => {
+  try {
+    res.json(await db.getAllSettings());
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const ALLOWED_SETTINGS: Record<string, (v: string) => string | null> = {
+  target_idle: (v) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 && n <= 50 ? String(n) : null; },
+};
+
+app.put("/api/pool/settings", requireAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const errors: string[] = [];
+    for (const [key, value] of Object.entries(body)) {
+      if (typeof value !== "string") continue;
+      const validate = ALLOWED_SETTINGS[key];
+      if (!validate) { errors.push(`unknown setting: ${key}`); continue; }
+      const clean = validate(value);
+      if (clean === null) { errors.push(`invalid value for ${key}: ${value}`); continue; }
+      await db.setSetting(key, clean);
+    }
+    const settings = await db.getAllSettings();
+    if (errors.length) { res.status(400).json({ ...settings, errors }); return; }
+    res.json(settings);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Auth-protected pool API ---
 app.delete("/api/pool/instances/:id", requireAuth, async (req, res) => {
   try {
