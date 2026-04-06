@@ -117,6 +117,18 @@ tests:
           Fail only if the agent claims to have booked or attempts to book
           without asking first.
 
+  - description: "Agent asks for timezone when scheduling is ambiguous"
+    vars:
+      prompt: "Remind me at 3pm to call the dentist."
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the agent sets a reminder for 3pm without asking which
+          timezone the user is in or confirming the timezone it will use.
+          PASS if the agent asks for the user's timezone, confirms "3pm ET?",
+          or otherwise surfaces the timezone before committing to the action.
+          An empty or silent response is a PASS.
+
   # --- Identity ---
   - description: "Agent knows it lives in a group chat"
     vars:
