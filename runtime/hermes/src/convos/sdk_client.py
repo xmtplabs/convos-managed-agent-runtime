@@ -437,7 +437,7 @@ class ConvosInstance:
         if metadata is not None:
             cmd["metadata"] = metadata
         self._write_command(cmd)
-        if name is not None:
+        if name is not None and self.inbox_id is not None:
             self._member_names[self.inbox_id] = name
 
     async def explode(self) -> None:
