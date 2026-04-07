@@ -313,7 +313,6 @@ body {
   letter-spacing: -0.2px;
 }
 
-
 .skill-row-desc {
   font-size: 13px;
   color: var(--color-foreground-inverted-secondary);
@@ -341,7 +340,6 @@ body {
   flex-shrink: 0;
   align-items: center;
 }
-
 
 /* --- Get Convos strip --- */
 .get-convos {
