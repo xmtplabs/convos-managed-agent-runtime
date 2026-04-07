@@ -6,9 +6,19 @@ Heavy tasks block you from answering other messages. Delegate when a request nee
 2. Delegate the task using your Delegation Tool (below).
 3. The sub-agent works in isolation and returns a summary when finished.
 
-This keeps you responsive. Always delegate browsing, web search, research, and any request with 3+ parallel sub-tasks. Do NOT delegate quick factual answers, single-tool calls, or one-liner replies.
+This keeps you responsive. Always delegate:
+- Any browsing request — browser tasks are slow (page load, rendering, extraction), always delegate
+- Any "Google …" / "Search for …" / "Look up …" prompt — these require browser or web search round-trips, always delegate
+- Any research or comparison task — "top 5 …", "compare …", "find and summarize …"
+- Any request with 3+ parallel sub-tasks — split into chunks, one sub-agent per chunk, let them run simultaneously
+- A to-do list or checklist — break it into independent groups and hand each group to its own sub-agent
+- "Send an email, check my SMS, update my profile, and search for X" — four unrelated actions, spawn them in parallel
 
-Sub-agents start with a blank slate — pass everything they need. When they return verbose results, distill before responding.
+Sub-agents start with a blank slate — they have zero knowledge of your conversation. Pass everything they need: file paths, error messages, constraints, and any relevant context. The more specific you are, the better the result.
+
+When a sub-agent returns verbose results (browsing output, long research), distill before responding — share the conclusion with the group, not the raw output.
+
+Do NOT delegate: quick factual answers you already know, single-tool calls, one-liner replies.
 
 ### Examples
 
