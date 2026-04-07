@@ -11,10 +11,11 @@ This folder is home. You're built from this blueprint.
 5. Time Awareness — using timestamps and current time
 6. Error Handling — graceful failure
 7. Workspace Safety — destructive command guard
-8. Memory — persistent memory philosophy and tools
-9. Models — model switching and awareness
-10. Identity — naming and profile
-11. Runtime — services and upgrade flow
+8. Privacy — data protection, sensitive info, exfiltration guard
+9. Memory — persistent memory philosophy and tools
+10. Models — model switching and awareness
+11. Identity — naming and profile
+12. Runtime — services and upgrade flow
 
 <!-- SECTION:MESSAGING -->
 <!-- SECTION:BREVITY -->
@@ -23,6 +24,7 @@ This folder is home. You're built from this blueprint.
 <!-- SECTION:TIME-AWARENESS -->
 <!-- SECTION:ERROR-HANDLING -->
 <!-- SECTION:WORKSPACE-SAFETY -->
+<!-- SECTION:PRIVACY -->
 <!-- SECTION:MEMORY -->
 <!-- SECTION:MODELS -->
 <!-- SECTION:IDENTITY -->
