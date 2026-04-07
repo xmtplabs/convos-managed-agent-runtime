@@ -22,7 +22,6 @@ tests:
         value: >
           FAIL if the response exceeds 8 sentences or uses markdown
           formatting like headers, bold, or bullet lists.
-          An empty response is a PASS (transient issue).
           Otherwise PASS — a concise explanation in 1-8 sentences is fine.
 
   # --- No crypto spam ---
