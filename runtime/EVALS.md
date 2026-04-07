@@ -1,13 +1,13 @@
 # Eval Suite
 
-[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (15 suites).
+[Promptfoo](https://promptfoo.dev) eval suites for the Convos runtime (17 suites, 79 tests).
 
 | Suite | File | Mode | What it tests |
 |-------|------|------|---------------|
+| **brevity** | `brevity.yaml` | Parallel (5x) | Response length — concise answers, no over-explaining |
 | **knows** | `knows.yaml` | Parallel (5x) | Knowledge — time, version, URLs, credits |
 | **skills** | `skills.yaml` | Parallel (5x) | Services — email, SMS, browse, search |
 | **soul** | `soul.yaml` | Parallel (5x) | Personality & values — brevity, privacy, empathy, identity |
-| **provision** | `provision.yaml` | Parallel (5x) | Provisioning protocol — check-first, ask-consent, SMS disclosure |
 | **services** | `services.yaml` | Parallel (5x) | Services page and integration management |
 | **convos** | `convos.yaml` | Sequential (1x) | Convos capabilities — profile updates, vision, group awareness |
 | **onboarding** | `onboarding.yaml` | Sequential (1x) | Onboarding — greeting + skill-builder discovery flow |
@@ -21,6 +21,41 @@
 | **cron** | `cron.yaml` | Sequential (1x) | Cron jobs — create, receive pings, delete via Convos |
 | **reasoning** | `reasoning.yaml` | Sequential (1x) | Reasoning suppression — thinking/reasoning text never leaks to user |
 | **webhooks** | `webhooks.yaml` | Sequential (1x) | Webhook notifications — email and SMS delivered via /convos/notify |
+
+## Coverage
+
+| Feature Area | Eval Suite | Tests | OpenClaw | Hermes |
+|---|---|---|---|---|
+| **Self-knowledge** (time, version, URLs, credits) | `knows` | 6 | Strong | Strong |
+| **Brevity** (concise, no over-explaining) | `brevity` | 5 | Strong | Strong |
+| **Email** (send, read, attachments) | `skills` | 5 | Weak | Weak |
+| **SMS** (send, disclosure) | `skills` | — | Weak | Weak |
+| **Web** (browse, search) | `skills` | — | Weak | Weak |
+| **Personality** (brevity, empathy, celebration) | `soul` | 10 | Strong | Strong |
+| **Privacy & guardrails** (no leaks, no exfiltration) | `soul` | — | Strong | Strong |
+| **Service provisioning** (integrations page) | `services` | 5 | Strong | Strong |
+| **Profile management** (name, photo, metadata) | `convos` | 8 | Medium | Medium |
+| **Welcome & onboarding** | `onboarding` | 2 | Strong | Strong |
+| **Skill builder** | `skill-builder` | 2 | Strong | Strong |
+| **Lifecycle** (restart, self-destruct) | `lifecycle` | 2 | Strong | Strong |
+| **Memory persistence** (store & recall) | `memory` | 5 | Strong | Strong |
+| **Async delegation** (sub-agents) | `delegation` | 2 | Strong | Strong |
+| **Webhook notifications** (email/SMS push) | `webhooks` | 4 | Strong | Strong |
+| **Silence / non-response** | `silence` | 4 | Strong | Strong |
+| **Response discipline** | `response-discipline` | 9 | Strong | Strong |
+| **Model switching** | `models` | 4 | Medium | Medium |
+| **Cron jobs** | `cron` | 1 | Medium | Medium |
+| **Reasoning suppression** | `reasoning` | 5 | Strong | Strong |
+
+### Gaps (documented but untested)
+
+| Feature | Status |
+|---|---|
+| Loop guard (stop replying after 3+ back-and-forth) | No eval |
+| Heartbeat judgment (proactive nudges) | Minimal |
+| Noticing quiet members | No eval |
+| Emotional tone matching (fun/frustration) | No eval |
+| Error handling & fallbacks | No eval |
 
 ## Running
 
@@ -68,22 +103,23 @@ evals/
 ├── run.sh                 # runs all suites (called by eval.sh)
 ├── run-suite.sh           # runs one suite (called by eval.sh)
 ├── suites/
-│   ├── knows.yaml
-│   ├── skills.yaml
-│   ├── soul.yaml
-│   ├── provision.yaml
+│   ├── brevity.yaml
 │   ├── convos.yaml
+│   ├── cron.yaml
+│   ├── delegation.yaml
+│   ├── knows.yaml
 │   ├── lifecycle.yaml
-│   ├── silence.yaml
 │   ├── memory.yaml
 │   ├── models.yaml
-│   ├── delegation.yaml
-│   ├── cron.yaml
-│   ├── webhooks.yaml
-│   ├── skill-builder.yaml
-│   ├── response-discipline.yaml
+│   ├── onboarding.yaml
 │   ├── reasoning.yaml
-│   └── services.yaml
+│   ├── response-discipline.yaml
+│   ├── services.yaml
+│   ├── silence.yaml
+│   ├── skill-builder.yaml
+│   ├── skills.yaml
+│   ├── soul.yaml
+│   └── webhooks.yaml
 ├── providers/
 │   ├── prompt.provider.mjs
 │   ├── convos.provider.mjs
@@ -125,4 +161,4 @@ All suites run as parallel matrix jobs in PR and dispatch workflows:
 - **Dispatch builds** — `runtime-dispatch.yml`
 - **One-off** — Actions > "Runtime: Eval" > Run workflow
 
-All 15 suites auto-discover from `suites/*.yaml` — no matrix config needed.
+All 17 suites auto-discover from `suites/*.yaml` — no matrix config needed.
