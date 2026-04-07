@@ -71,10 +71,9 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response exceeds 6 sentences. FAIL if the agent
-          explains WHY it is asking a follow-up question (e.g. "that'll
-          help me find the right match" or "so I can narrow it down").
-          The agent should just ask the question directly without
-          justifying it. Also FAIL if the agent lists what it could help
-          with (e.g. "insurance, specialty, location"). Otherwise PASS.
-          An empty response is a FAIL.
+          FAIL if the response exceeds 6 sentences or uses markdown
+          formatting like bold, headers, or bullet lists. A short
+          follow-up question with a brief qualifier is fine. FAIL only
+          if the agent produces a wall of text, lists multiple things
+          it could help with, or gives a multi-paragraph answer.
+          Otherwise PASS. An empty response is a FAIL.
