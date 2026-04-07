@@ -39,7 +39,7 @@ export function ShareButton({ slug, size = "sm" }: { slug: string; size?: "sm" |
       </button>
       {showToast && (
         <div className="copy-toast">
-          Text this link to your assistant in Convos
+          Paste this link in the chat with your Assistant
         </div>
       )}
     </>

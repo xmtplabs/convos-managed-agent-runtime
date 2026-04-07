@@ -62,7 +62,7 @@ React with 👀 so they know you're working, then do ALL of this in one turn, si
    ```
    Use the exact output. Never fabricate URLs.
 4. **Activate** — set `"active": "<slug>"` in `$WORKSPACE_SKILLS/generated/skills.json`. Provision ENGINE automations marked `PROVISION WHEN: immediately`.
-5. **Send TWO messages** as the new identity:
+5. **Send TWO separate messages** as the new identity. This is mandatory — NEVER combine them into one message:
 
    **Message 1** — the welcome, with a `PROFILE:` marker on its own line:
    ```
@@ -73,12 +73,13 @@ React with 👀 so they know you're working, then do ALL of this in one turn, si
    <welcome message>
    ```
    The `PROFILE:` line is stripped from the visible message — the group only sees the welcome text.
+   **DO NOT include the URL in this message.**
 
-   **Message 2** — the skill URL on its own so it unfurls:
+   **Message 2** — the skill URL ALONE, nothing else:
    ```
    <url>
    ```
-   Send this as a separate message immediately after. A bare URL unfurls into a rich card; embedding it inline with other text prevents that.
+   This MUST be its own message — not appended to Message 1, not wrapped in text. A bare URL in its own message unfurls into a rich card. Embedding it inline with other text or in the same message as the welcome BREAKS unfurling. Send it as a completely separate message immediately after Message 1.
 
 No "Setting active...", no "Updating profile...", no status updates. The only thing the group sees is the welcome message.
 
@@ -97,7 +98,7 @@ If the skill is group-oriented and there are only 1-2 members, mention it natura
 When the group asks to modify the current skill:
 
 1. Ask what they want to change (one question)
-2. Regenerate, re-share the skill page link in a separate message (so it unfurls) with what changed
+2. Regenerate, re-share the skill page link as its OWN message — just the bare URL, nothing else (so it unfurls into a card). Describe what changed in a separate message.
 3. Wait for approval before applying
 4. On approval: update `skills.json` (same `id`/`slug`, new `updatedAt`), overwrite `$WORKSPACE_SKILLS/generated/<slug>/SKILL.md`, apply new ENGINE automations
 
