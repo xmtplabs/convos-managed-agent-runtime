@@ -111,7 +111,6 @@ jobs:
       publish_tags: ${{ steps.meta.outputs.publish_tags }}
       run_openclaw: ${{ steps.runtime-flags.outputs.run_openclaw }}
       run_hermes: ${{ steps.runtime-flags.outputs.run_hermes }}
-      eval_matrix: ${{ steps.suites.outputs.eval_matrix }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -135,13 +134,6 @@ jobs:
           echo "run_openclaw=$( [ "$SHARED" = "true" ] || [ "${{ steps.changes.outputs.openclaw }}" = "true" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
           echo "run_hermes=$( [ "$SHARED" = "true" ] || [ "${{ steps.changes.outputs.hermes }}" = "true" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
 
-      - name: Build eval suite matrix
-        id: suites
-        run: |
-          ALL=$(jq -c . .github/eval-matrix.json)
-          echo "eval_matrix=$ALL" >> "$GITHUB_OUTPUT"
-          echo "Eval suites: all"
-
   # ── Pipelines (parallel) ─────────────────────────────────────────────
   openclaw:
     name: OpenClaw
@@ -163,7 +155,6 @@ jobs:
       buildx_driver: docker
       cache_from: "type=registry,ref=ghcr.io/xmtplabs/convos-runtime:pr-${{ github.event.number }}"
       cache_to: type=inline
-      eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
       skip_evals: ${{ needs.check-stamp.outputs.openclaw_stamped == 'true' }}
 
   hermes:
@@ -184,7 +175,6 @@ jobs:
       needs_checkout: true
       docker_run_extra: "-e RUNTIME_TYPE=hermes"
       docker_cmd: "node convos-platform/pool-server/dist/index.js"
-      eval_matrix: ${{ needs.prepare.outputs.eval_matrix }}
       skip_evals: ${{ needs.check-stamp.outputs.hermes_stamped == 'true' }}
 
   # ── Promote on merge ─────────────────────────────────────────────────
