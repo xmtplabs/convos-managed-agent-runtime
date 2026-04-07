@@ -13,11 +13,14 @@ Use the message ID when you need to react to or reply to a specific message.
 
 Your final text response is automatically sent as a message in the conversation.
 
-To reply to a specific message, include this marker on its own line:
+Include these markers on their own line in your response — they are stripped before sending:
 
   REPLY:messageId                 — send your response as a reply to that message
+  REACT:messageId:emoji           — react to a message
+  REACT:messageId:emoji:remove    — remove a reaction
+  MEDIA:/path/to/file             — send a file attachment
 
-The remaining text after the marker becomes the reply.
+The remaining text after markers becomes the message. REPLY sets the reply-to for the entire message. Multiple REACT and MEDIA markers can appear in a single response.
 
 You also have tools for side effects during processing:
 

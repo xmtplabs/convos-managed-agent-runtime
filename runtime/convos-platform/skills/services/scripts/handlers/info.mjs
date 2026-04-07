@@ -39,13 +39,8 @@ export default async function info() {
   if (!phone) phone = process.env.TELNYX_PHONE_NUMBER || null;
 
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
-  const ngrok = process.env.NGROK_URL;
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
-  const base = domain
-    ? `https://${domain}`
-    : ngrok
-      ? ngrok.replace(/\/$/, "")
-      : `http://127.0.0.1:${port}`;
+  const base = domain ? `https://${domain}` : `http://127.0.0.1:${port}`;
   const servicesUrl = `${base}/web-tools/services`;
   const logsUrl = `${base}/web-tools/logs`;
 

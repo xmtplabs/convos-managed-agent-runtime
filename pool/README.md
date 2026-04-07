@@ -46,6 +46,10 @@ Webhook rules are auto-registered on startup. Instances in `claiming` status are
 
 New instances are created via the admin dashboard or `POST /api/pool/replenish`. Manual recheck via dashboard buttons still works as a fallback.
 
+### Auto-replenish
+
+When the **Target idle** setting is > 0 (configurable in the dashboard replenish card), the pool automatically creates replacement instances after each claim if the idle + starting count drops below the target. Replenishment is fire-and-forget — it never blocks or affects the claim response. The setting is stored in the `pool_settings` table and defaults to 0 (disabled).
+
 ## Commands
 
 From project root:
@@ -105,7 +109,7 @@ pnpm start
 
 ## Database
 
-All state is stored in a single Postgres database with three tables. See [`docs/schema.md`](../docs/schema.md) for the full schema.
+All state is stored in a single Postgres database. See [`docs/schema.md`](../docs/schema.md) for the full schema.
 
 ### Changing the schema
 
@@ -136,6 +140,8 @@ Never edit the generated SQL files in `pool/drizzle/`. Never bump `drizzle-kit` 
 **`instance_infra`** — Railway service details (service IDs, deploy status, volumes, images)
 
 **`instance_services`** — provisioned tools (OpenRouter keys, AgentMail inboxes, Telnyx numbers)
+
+**`pool_settings`** — key-value store for pool behavior settings (e.g. `target_idle`). Editable from the admin dashboard.
 
 Claiming is atomic via `SELECT ... FOR UPDATE SKIP LOCKED` — no double-claims possible.
 

@@ -1,29 +1,13 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-
+import { getSkills } from "@/lib/api";
 import { ConvosLogo } from "@/components/convos-logo";
 import { ShareButton } from "@/components/share-button";
 import { SkillBrowser } from "@/components/skill-browser";
 import type { AgentSkill } from "@/lib/types";
 
-export default function Home() {
-  const [skills, setSkills] = useState<AgentSkill[]>([]);
-
-  useEffect(() => {
-    async function loadSkills() {
-      try {
-        const res = await fetch(`${basePath}/api/skills`);
-        if (!res.ok) return;
-        const data: AgentSkill[] = await res.json();
-        setSkills(data);
-      } catch {}
-    }
-    loadSkills();
-  }, []);
+export default async function Home() {
+  const skills = await getSkills();
 
   const featured = skills.filter((s) => s.featured);
   const totalCount = skills.length;
@@ -39,15 +23,15 @@ export default function Home() {
               <ConvosLogo />
             </div>
             <span className="brand-name">
-              Convos <span className="brand-name-labs">Playroom</span>
+              Convos <span className="brand-name-labs">Assistants Preview</span>
             </span>
           </div>
 
           <h1 className="page-title">Teach your assistant anything</h1>
           <p className="page-subtitle">
             {totalCount > 0
-              ? `${totalCount} skills your assistant can learn. Browse, share, or write your own.`
-              : "Skills your assistant can learn. Browse, share, or write your own."}
+              ? `Copy any skill link and text it to your Assistant to use it. Browse ${totalCount} skills, or write your own.`
+              : "Copy any skill link and text it to your Assistant to use it. Browse skills, or write your own."}
           </p>
         </div>
       </div>
@@ -112,4 +96,3 @@ function FeaturedCard({ skill }: { skill: AgentSkill }) {
     </Link>
   );
 }
-

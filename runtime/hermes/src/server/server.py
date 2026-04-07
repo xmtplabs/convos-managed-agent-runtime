@@ -5,7 +5,7 @@ Every endpoint matches the existing OpenClaw-based runtime so the pool
 manager can provision, health-check, and control instances identically.
 
 Uses ConvosAdapter for the message pipeline (eyes reaction, marker parsing,
-response routing through xmtp_bridge).
+response routing through sdk_client).
 """
 
 from __future__ import annotations
@@ -25,12 +25,12 @@ from pydantic import BaseModel
 
 from .agent_runner import warm_imports
 from .config import RuntimeConfig
-from ..convos.convos_adapter import ConvosAdapter
+from ..convos.channel import ConvosAdapter
 from .credentials import clear_credentials, load_credentials, save_credentials
 from .identity import ensure_workspace, write_instructions
 
 DEFAULT_AGENT_NAME = os.environ.get("DEFAULT_AGENT_NAME", "Assistant")
-from ..convos.xmtp_bridge import ConvosInstance
+from ..convos.sdk_client import ConvosInstance
 from .stats import stats
 
 logger = logging.getLogger(__name__)
@@ -759,6 +759,7 @@ def _patch_cron_for_convos() -> None:
                 conversation_id=adapter.instance.conversation_id,
                 message_id=f"cron-{job_id}-{int(time.time() * 1000)}",
                 group_members=adapter.instance.get_group_members(),
+                agent_name=adapter.instance.get_own_name(),
             )
             if response:
                 await adapter._dispatch_response(response)
@@ -1119,6 +1120,7 @@ async def convos_notify(body: NotifyRequest):
             conversation_id=adapter.instance.conversation_id,
             message_id=f"system-notify-{int(time.time() * 1000)}",
             group_members=adapter.instance.get_group_members(),
+            agent_name=adapter.instance.get_own_name(),
         )
         if response:
             await adapter._dispatch_response(response)

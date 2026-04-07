@@ -95,14 +95,8 @@ async def services_api():
 
     # Build services URL from public domain
     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
-    ngrok = os.environ.get("NGROK_URL", "")
     port = os.environ.get("PORT", "8080")
-    if domain:
-        base = f"https://{domain}"
-    elif ngrok:
-        base = ngrok.rstrip("/")
-    else:
-        base = f"http://127.0.0.1:{port}"
+    base = f"https://{domain}" if domain else f"http://127.0.0.1:{port}"
     result["servicesUrl"] = f"{base}/web-tools/services"
 
     # Show shortened pool URL so the user can tell if they're hitting localhost or Railway

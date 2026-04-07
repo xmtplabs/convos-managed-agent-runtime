@@ -1,0 +1,113 @@
+# runtime/evals/reasoning.yaml
+# Reasoning suppression eval — verify that model thinking/reasoning text
+# from tool-calling turns never leaks to the user.
+#
+# OpenClaw suppresses via buffer-flush (text from tool-calling turns is dropped).
+# Hermes stores reasoning in _last_reasoning_texts (should not surface).
+# Both architectures should produce the same result: clean answers only.
+
+description: "Eval: Reasoning suppression"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/prompt.provider.mjs
+
+
+tests:
+  - description: "Tool-call reasoning does not leak on web search"
+    vars:
+      prompt: "Search the web for the current price of Bitcoin and tell me the price."
+    assert:
+      - type: not-icontains
+        value: "<think"
+      - type: not-icontains
+        value: "</think>"
+      - type: not-icontains
+        value: "<reasoning"
+      - type: not-icontains
+        value: "</reasoning>"
+      - type: llm-rubric
+        value: >
+          FAIL if the response contains visible model reasoning or
+          chain-of-thought artifacts — phrases like "Let me think",
+          "I need to search", "I'll use the tool", "Step 1:", "First,
+          I should", planning text that precedes an answer, or any
+          XML-like tags wrapping internal thought. The response should
+          be a direct answer about Bitcoin's price with no exposed
+          internal monologue. An empty response is a PASS (transient).
+          Otherwise PASS.
+
+  - description: "Tool-call reasoning does not leak on time check"
+    vars:
+      prompt: "What time is it right now?"
+    assert:
+      - type: not-icontains
+        value: "<think"
+      - type: not-icontains
+        value: "</think>"
+      - type: llm-rubric
+        value: >
+          FAIL if the response contains visible model reasoning or
+          chain-of-thought text — e.g. "Let me check", "I will call",
+          "Using the time tool", or similar internal planning language
+          before or after the answer. The response should just state
+          the time. An empty response is a PASS (transient).
+          Otherwise PASS.
+
+  - description: "Multi-tool reasoning stays suppressed"
+    vars:
+      prompt: "What is the weather in Buenos Aires and what time is it there?"
+    assert:
+      - type: not-icontains
+        value: "<think"
+      - type: not-icontains
+        value: "</think>"
+      - type: not-icontains
+        value: "<reasoning"
+      - type: llm-rubric
+        value: >
+          FAIL if the response contains visible chain-of-thought or
+          reasoning artifacts — internal planning text like "First I'll
+          check the weather, then the time", "Let me search for",
+          "I need to use two tools", or any XML tags wrapping thought.
+          The response should directly answer both questions without
+          exposing the process. An empty response is a PASS (transient).
+          Otherwise PASS.
+
+  - description: "Browse-triggered reasoning does not leak"
+    vars:
+      prompt: "Browse https://example.com and tell me what the page says."
+    assert:
+      - type: not-icontains
+        value: "<think"
+      - type: not-icontains
+        value: "</think>"
+      - type: llm-rubric
+        value: >
+          FAIL if the response contains visible model reasoning or
+          internal narration — e.g. "I'll browse the URL", "Let me
+          fetch", "Opening the page", "Step 1: navigate to". The
+          response should describe the page content directly without
+          exposing internal planning. An empty response is a PASS
+          (transient). Otherwise PASS.
+
+  - description: "No thinking tags in email draft"
+    vars:
+      prompt: "Do not use any tools, do not delegate, do not search. Just reply directly. Draft a short email to my team about tomorrow's standup being moved to 3pm."
+    assert:
+      - type: not-icontains
+        value: "<think"
+      - type: not-icontains
+        value: "</think>"
+      - type: not-icontains
+        value: "<reasoning"
+      - type: not-icontains
+        value: "</reasoning>"
+      - type: llm-rubric
+        value: >
+          FAIL if the response contains any XML-like thinking or
+          reasoning tags, or visible chain-of-thought before the email
+          draft. The response should just be the email draft text.
+          An empty response is a PASS (transient). Otherwise PASS.
