@@ -25,7 +25,7 @@ tests:
           in Tokyo, 3 in Kyoto") is fine as long as it stays within
           the sentence limit. FAIL only if it becomes a full
           day-by-day itinerary with activities per day. Otherwise PASS.
-          An empty response is a PASS.
+          An empty response is a FAIL.
 
   - description: "Restaurant recommendation stays concise"
     vars:
@@ -37,7 +37,7 @@ tests:
           multi-paragraph reviews of each restaurant, or uses markdown
           formatting like bold, headers, or bullet lists. Otherwise PASS
           — a short answer naming a few spots with a follow-up question
-          is fine. An empty response is a PASS.
+          is fine. An empty response is a FAIL.
 
   - description: "Product comparison stays concise"
     vars:
@@ -49,7 +49,7 @@ tests:
           multi-section breakdown with headers, or uses markdown
           formatting like bold or bullet lists. Otherwise PASS — a short
           comparison (1-5 sentences) with a follow-up question is fine.
-          An empty response is a PASS.
+          An empty response is a FAIL.
 
   - description: "No unsolicited outlines or previews"
     vars:
@@ -63,7 +63,7 @@ tests:
           (e.g. "4 days in Lisbon, 3 in Algarve") is fine as long as
           it stays within the sentence limit. FAIL only if it becomes a
           full day-by-day itinerary with activities per day. Otherwise
-          PASS. An empty response is a PASS.
+          PASS. An empty response is a FAIL.
 
   - description: "No filler padding around questions"
     vars:
@@ -77,4 +77,4 @@ tests:
           The agent should just ask the question directly without
           justifying it. Also FAIL if the agent lists what it could help
           with (e.g. "insurance, specialty, location"). Otherwise PASS.
-          An empty response is a PASS.
+          An empty response is a FAIL.
