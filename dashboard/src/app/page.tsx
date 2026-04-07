@@ -30,8 +30,8 @@ export default async function Home() {
           <h1 className="page-title">Teach your assistant anything</h1>
           <p className="page-subtitle">
             {totalCount > 0
-              ? `Copy any skill link and text it to your Assistant to use it. Browse ${totalCount} skills, or write your own.`
-              : "Copy any skill link and text it to your Assistant to use it. Browse skills, or write your own."}
+              ? `Copy any skill link and paste it into the chat with your Assistant. Browse ${totalCount} skills, or write your own.`
+              : "Copy any skill link and paste it into the chat with your Assistant. Browse skills, or write your own."}
           </p>
         </div>
       </div>
