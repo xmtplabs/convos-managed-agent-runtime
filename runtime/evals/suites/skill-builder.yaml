@@ -41,6 +41,8 @@ tests:
         value: "file://../lib/assertions.mjs:skillActivated"
       - type: javascript
         value: "file://../lib/assertions.mjs:profileNameChanged"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:profileImageSet"
       - type: llm-rubric
         value: >
           The output is a chat transcript. The user provided details about
