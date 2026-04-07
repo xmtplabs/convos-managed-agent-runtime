@@ -1,0 +1,105 @@
+# runtime/evals/response-discipline.yaml
+# Response discipline eval — does the agent stay silent when it should?
+# Tests the filter: respond only when directly engaged or within role.
+# Uses convos provider so tests run sequentially in a single conversation,
+# building up realistic context (question → answer → acknowledgment → silence).
+#
+# All prompts are trivially answerable from knowledge — no tool triggers.
+# We're testing WHEN the agent talks, not what it says.
+
+description: "Eval: Response discipline"
+
+evaluateOptions:
+  maxConcurrency: 1
+
+providers:
+  - file://../providers/convos.provider.mjs
+
+
+tests:
+  # --- Acknowledgments should trigger silence ---
+
+  - description: "Setup: ask a simple question"
+    vars:
+      prompt: "Do not use any tools. What's the capital of France?"
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response is empty. Otherwise PASS.
+
+  - description: "Agent stays silent after 'thanks'"
+    vars:
+      prompt: "Thanks!"
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"
+
+  - description: "Setup: ask another simple question"
+    vars:
+      prompt: "Do not use any tools. What year did the Titanic sink?"
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response is empty. Otherwise PASS.
+
+  - description: "Agent stays silent after 'got it'"
+    vars:
+      prompt: "Got it, cool"
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"
+
+  # --- Off-topic chatter should trigger silence ---
+
+  - description: "Agent stays silent on rhetorical musing"
+    vars:
+      prompt: "Man, what a day"
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"
+
+  - description: "Agent stays silent on statement with no question"
+    vars:
+      prompt: "Just finished watching that new show, it was pretty good"
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"
+
+  # --- Direct engagement should trigger response ---
+
+  - description: "Agent responds to a direct question"
+    vars:
+      prompt: "Do not use any tools. What are three things I should know before visiting Japan?"
+    assert:
+      - type: llm-rubric
+        value: >
+          FAIL if the response is empty or the agent stays silent.
+          Otherwise PASS.
+
+  # --- Conversation closure should trigger silence ---
+
+  - description: "Agent stays silent after natural closure"
+    vars:
+      prompt: "Awesome, that's everything I needed"
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"
+
+  - description: "Agent stays silent on thumbs up"
+    vars:
+      prompt: "👍"
+    metadata:
+      silence: true
+    assert:
+      - type: equals
+        value: "SILENCE_OK"

@@ -16,7 +16,16 @@ trap 'kill -9 0; wait 2>/dev/null; exit 130' INT TERM
 EVAL_OUTPUT="${EVAL_OUTPUT:-}"
 EVAL_JSON_OUTPUT="${EVAL_JSON_OUTPUT:-}"
 
-base_cmd="npx promptfoo@0.121.3 eval --grader openrouter:@preset/assistants-ci --table-cell-max-length 1000"
+# Install promptfoo with pinned @asamuzakjp/css-color to avoid ESM top-level await crash
+PFOO_DIR="${EVAL_DIR}/.promptfoo-install"
+if [ ! -x "$PFOO_DIR/node_modules/.bin/promptfoo" ]; then
+  mkdir -p "$PFOO_DIR"
+  cat > "$PFOO_DIR/package.json" <<'PJSON'
+{"private":true,"overrides":{"@asamuzakjp/css-color":"4.1.2"},"dependencies":{"promptfoo":"0.121.3"}}
+PJSON
+  (cd "$PFOO_DIR" && npm install --no-audit --no-fund 2>&1 | tail -3)
+fi
+base_cmd="$PFOO_DIR/node_modules/.bin/promptfoo eval --grader openrouter:@preset/assistants-ci --table-cell-max-length 1000"
 [ -n "$EVAL_OUTPUT" ] && base_cmd="$base_cmd --output $EVAL_OUTPUT"
 [ -n "$EVAL_JSON_OUTPUT" ] && base_cmd="$base_cmd --output $EVAL_JSON_OUTPUT"
 

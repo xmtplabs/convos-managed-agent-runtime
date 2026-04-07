@@ -101,6 +101,39 @@ app.get("/api/pool/info", (_req, res) => {
 
 app.use(skillsRouter);
 
+// --- Pool settings ---
+app.get("/api/pool/settings", requireAuth, async (_req, res) => {
+  try {
+    res.json(await db.getAllSettings());
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const ALLOWED_SETTINGS: Record<string, (v: string) => string | null> = {
+  target_idle: (v) => { const n = parseInt(v, 10); return Number.isFinite(n) && n >= 0 && n <= 50 ? String(n) : null; },
+};
+
+app.put("/api/pool/settings", requireAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const errors: string[] = [];
+    for (const [key, value] of Object.entries(body)) {
+      if (typeof value !== "string") continue;
+      const validate = ALLOWED_SETTINGS[key];
+      if (!validate) { errors.push(`unknown setting: ${key}`); continue; }
+      const clean = validate(value);
+      if (clean === null) { errors.push(`invalid value for ${key}: ${value}`); continue; }
+      await db.setSetting(key, clean);
+    }
+    const settings = await db.getAllSettings();
+    if (errors.length) { res.status(400).json({ ...settings, errors }); return; }
+    res.json(settings);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Auth-protected pool API ---
 app.delete("/api/pool/instances/:id", requireAuth, async (req, res) => {
   try {
@@ -186,6 +219,18 @@ async function upgradeInstanceRuntime(
   }
 
   const opts = { projectId: infra.providerProjectId || undefined, environmentId: infra.providerEnvId };
+
+  // Ensure GATEWAY_TOKEN is set as a per-service Railway variable.
+  // Older instances may only have the shared OPENCLAW_GATEWAY_TOKEN, which causes
+  // auth mismatches (the pool DB stores a unique per-instance token).
+  try {
+    const gatewayToken = await db.getGatewayToken(instanceId);
+    if (gatewayToken) {
+      await upsertVariables(infra.providerServiceId, { GATEWAY_TOKEN: gatewayToken }, { skipDeploys: true }, opts);
+    }
+  } catch (err) {
+    console.warn(`[upgrade] GATEWAY_TOKEN backfill failed for ${instanceId} (non-fatal):`, (err as Error).message);
+  }
 
   // Backfill missing service keys before deploying so the new container has them
   const backfilled: string[] = [];

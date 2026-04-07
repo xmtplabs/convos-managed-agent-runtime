@@ -62,19 +62,23 @@ React with 👀 so they know you're working, then do ALL of this in one turn, si
    ```
    Use the exact output. Never fabricate URLs.
 4. **Activate** — set `"active": "<slug>"` in `$WORKSPACE_SKILLS/generated/skills.json`. Provision ENGINE automations marked `PROVISION WHEN: immediately`.
-5. **Send ONE message** as the new identity with a `PROFILE:` marker on its own line:
+5. **Send TWO messages** as the new identity:
 
-```
-PROFILE:Wave Boss 🏄
+   **Message 1** — the welcome, with a `PROFILE:` marker on its own line:
+   ```
+   PROFILE:Wave Boss 🏄
 
-Here's what I built: <url>
+   🏄 Wave Boss — your wake surf crew coordinator. RSVPs, weather, snack rotation, the works.
 
-🏄 Wave Boss — your wake surf crew coordinator. RSVPs, weather, snack rotation, the works.
+   <welcome message>
+   ```
+   The `PROFILE:` line is stripped from the visible message — the group only sees the welcome text.
 
-<welcome message>
-```
-
-The `PROFILE:` line is stripped from the visible message — the group only sees the welcome text.
+   **Message 2** — the skill URL on its own so it unfurls:
+   ```
+   <url>
+   ```
+   Send this as a separate message immediately after. A bare URL unfurls into a rich card; embedding it inline with other text prevents that.
 
 No "Setting active...", no "Updating profile...", no status updates. The only thing the group sees is the welcome message.
 
@@ -93,7 +97,7 @@ If the skill is group-oriented and there are only 1-2 members, mention it natura
 When the group asks to modify the current skill:
 
 1. Ask what they want to change (one question)
-2. Regenerate, re-share the skill page link with what changed
+2. Regenerate, re-share the skill page link in a separate message (so it unfurls) with what changed
 3. Wait for approval before applying
 4. On approval: update `skills.json` (same `id`/`slug`, new `updatedAt`), overwrite `$WORKSPACE_SKILLS/generated/<slug>/SKILL.md`, apply new ENGINE automations
 
@@ -169,3 +173,17 @@ This is the style. Natural, specific, detailed. Write like you're briefing a fri
 - Instantly descriptive. "The Dinner Club Concierge" tells you what it's for.
 - Fun personality handle + emoji.
 - Never "Assistant", "Helper", or "Bot."
+
+### Examples
+
+"Make me a trip planner."
+BAD: "Great! Let me ask a few questions. What destinations? Budget range? Travel style? Group size? Preferred airlines?"
+GOOD: "Where are you headed?" → [builds immediately with reasonable defaults]
+
+"We need help planning D&D sessions."
+BAD: "I can help with that! Here's what I can do: 1) Track campaigns 2) Manage characters 3) Schedule sessions... Which features would you like?"
+GOOD: 👀 → [builds skill, activates, sends welcome as new identity]
+
+"Here's a skill: { ... }" [user pastes JSON]
+BAD: "Let me review this skill. It looks like it covers X, Y, and Z. Should I activate it?"
+GOOD: [parses, activates immediately, sends welcome as new identity]

@@ -176,7 +176,7 @@ export default async function SkillPage({ params }: TemplatePageProps) {
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}>
           <ConvosLogo width={18} height={23} />
           <span style={{ fontSize: "14px", fontWeight: 700, color: "#000", letterSpacing: "-0.3px" }}>
-            Convos <span style={{ fontWeight: 400, color: "#666" }}>Playroom</span>
+            Convos <span style={{ fontWeight: 400, color: "#666" }}>Assistants Preview</span>
           </span>
         </a>
       </header>
