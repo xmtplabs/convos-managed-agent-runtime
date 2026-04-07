@@ -10,6 +10,7 @@
 - Bootstrap trim: AGENTS.md now fits within the 20k bootstrap character limit
 - Skill builder: URL is sent as a separate message so link unfurls work reliably
 - CI: image promotion now correctly finds published images on merge branches
+- Promoted dev to staging (2026-04-07)
 
 ## 0.3.0
 
