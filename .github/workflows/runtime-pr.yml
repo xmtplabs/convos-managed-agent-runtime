@@ -44,14 +44,19 @@ jobs:
         run: |
           AUTH="$HOME/.docker/config.json"
 
-          # Collect candidate SHAs: list all commits reachable from HEAD.
-          # For promotion PRs, this includes the merge commits AND the original
-          # PR head commits that actually have published images.
-          CANDIDATES=()
-          while IFS= read -r COMMIT; do
-            SHORT=$(echo "$COMMIT" | cut -c1-7)
-            CANDIDATES+=("sha-$SHORT")
-          done < <(git log --format=%H -n 20 HEAD)
+          # Collect candidate SHAs: list commits AND their parents.
+          # Merge commits on promotion branches rewrite the SHA, so the
+          # original PR head commit (where the image was published) only
+          # appears as a parent of the merge commit, not in the linear log.
+          SEEN=()
+          while IFS= read -r LINE; do
+            for SHA in $LINE; do
+              SHORT=$(echo "$SHA" | cut -c1-7)
+              SEEN+=("sha-$SHORT")
+            done
+          done < <(git log --format='%H %P' -n 20 HEAD)
+          # deduplicate
+          CANDIDATES=($(printf '%s\n' "${SEEN[@]}" | sort -u))
           echo "Candidates: ${CANDIDATES[*]}"
 
           for runtime in openclaw hermes; do
@@ -197,20 +202,34 @@ jobs:
             scaling) echo "tag=scaling" ;; dev) echo "tag=dev" ;; staging) echo "tag=staging" ;; main) echo "tag=production" ;; *) echo "tag=" ;;
           esac >> "$GITHUB_OUTPUT"
 
+      - name: Collect candidate SHAs
+        id: candidates
+        run: |
+          # Include parent SHAs so we find the original PR head commits
+          # that sit behind merge commits on promotion branches.
+          SEEN=()
+          while IFS= read -r LINE; do
+            for SHA in $LINE; do
+              SEEN+=("$(echo "$SHA" | cut -c1-7)")
+            done
+          done < <(git log --format='%H %P' -n 20 HEAD)
+          UNIQUE=$(printf '%s\n' "${SEEN[@]}" | sort -u | tr '\n' ' ')
+          echo "shas=$UNIQUE" >> "$GITHUB_OUTPUT"
+          echo "Candidates: $UNIQUE"
+
       - name: Promote OpenClaw
         if: steps.env.outputs.tag != ''
         run: |
           IMAGE="ghcr.io/xmtplabs/convos-runtime"
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
-          while IFS= read -r COMMIT; do
-            SHA=$(echo "$COMMIT" | cut -c1-7)
-            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
-              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-              echo "Promoted OpenClaw sha-$SHA → :$TAG"
+          for SHORT in ${{ steps.candidates.outputs.shas }}; do
+            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHORT" > /dev/null 2>&1; then
+              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHORT" "docker://$IMAGE:$TAG"
+              echo "Promoted OpenClaw sha-$SHORT → :$TAG"
               exit 0
             fi
-          done < <(git log --format=%H -n 20 HEAD)
+          done
           echo "::warning::OpenClaw image not found in recent commits — skipping"
 
       - name: Promote Hermes
@@ -219,12 +238,11 @@ jobs:
           IMAGE="ghcr.io/xmtplabs/convos-runtime-hermes"
           TAG="${{ steps.env.outputs.tag }}"
           AUTH="$HOME/.docker/config.json"
-          while IFS= read -r COMMIT; do
-            SHA=$(echo "$COMMIT" | cut -c1-7)
-            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" > /dev/null 2>&1; then
-              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHA" "docker://$IMAGE:$TAG"
-              echo "Promoted Hermes sha-$SHA → :$TAG"
+          for SHORT in ${{ steps.candidates.outputs.shas }}; do
+            if skopeo inspect --authfile "$AUTH" "docker://$IMAGE:sha-$SHORT" > /dev/null 2>&1; then
+              skopeo copy --all --authfile "$AUTH" "docker://$IMAGE:sha-$SHORT" "docker://$IMAGE:$TAG"
+              echo "Promoted Hermes sha-$SHORT → :$TAG"
               exit 0
             fi
-          done < <(git log --format=%H -n 20 HEAD)
+          done
           echo "::warning::Hermes image not found in recent commits — skipping"
