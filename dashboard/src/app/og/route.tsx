@@ -85,7 +85,7 @@ export async function GET() {
               marginBottom: "32px",
             }}
           >
-            Copy any skill link and text it to your Assistant to use it.
+            Copy any skill and paste it into the chat with your assistant.
           </span>
 
           {/* CTA pill */}
