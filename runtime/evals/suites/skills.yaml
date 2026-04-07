@@ -22,7 +22,6 @@ tests:
         value: >
           FAIL only if the agent flatly says it has no services page and
           makes no attempt to find or reference one.
-          An empty response is a PASS (transient issue).
           Otherwise PASS — mentioning a services page URL, attempting to
           look one up, or referencing localhost/127.0.0.1 URLs is fine
           (evals run inside Docker).
