@@ -4,12 +4,32 @@ import "./globals.css";
 
 export const dynamic = "force-dynamic";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistants";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistants",
-  ),
-  title: "Convos Assistants",
-  description: "AI assistants for your group chats",
+  metadataBase: new URL(siteUrl),
+  title: "Convos Assistants Preview",
+  description: "Copy any skill link and text it to your Assistant to use it.",
+  openGraph: {
+    title: "Convos Assistants Preview",
+    description: "Copy any skill link and text it to your Assistant to use it.",
+    type: "website",
+    siteName: "Convos Assistants",
+    images: [
+      {
+        url: `${siteUrl}/og`,
+        width: 1200,
+        height: 630,
+        alt: "Convos Assistants Preview",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Convos Assistants Preview",
+    description: "Copy any skill link and text it to your Assistant to use it.",
+    images: [`${siteUrl}/og`],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
