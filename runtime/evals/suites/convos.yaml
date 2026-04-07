@@ -64,7 +64,6 @@ tests:
           The USER asked who is in the conversation.
           FAIL only if the AGENT refused or said it doesn't know who is in
           the conversation.
-          An empty response is a PASS (transient issue).
           Otherwise PASS — mentioning or listing any participants, members,
           identities, addresses, or people in the group is sufficient.
 

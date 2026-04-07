@@ -42,7 +42,6 @@ tests:
           delivered to the agent: one email and one SMS.
           FAIL only if the AGENT shows no awareness of any notifications
           at all.
-          An empty response is a PASS (transient issue).
           PASS if the AGENT references at least one of: an email
           notification or an SMS/text message notification. Mentioning
           both is ideal but partial matches are acceptable.
@@ -56,7 +55,6 @@ tests:
           The output is a chat transcript. The USER asked about an email.
           FAIL only if the AGENT explicitly says it has no information
           about any email and makes no attempt to recall.
-          An empty response is a PASS (transient issue).
           PASS if the AGENT references any detail from the email — sender
           (QA Bot), subject (Webhook eval test), body content, or even
           a partial recollection of the notification.

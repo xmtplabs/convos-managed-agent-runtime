@@ -22,7 +22,6 @@ tests:
         value: >
           FAIL only if the agent has no idea what credits are or gives
           completely unrelated advice.
-          An empty response is a PASS (transient issue).
           Otherwise PASS — any mention of credits, a services page,
           a top-up link, or payment is sufficient.
           

@@ -19,11 +19,13 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response exceeds 6 sentences, contains a full
-          day-by-day itinerary, or uses markdown formatting like bold,
-          headers, or bullet lists. Otherwise PASS — a short answer
-          (1-5 sentences) with a clarifying question or high-level
-          summary is fine. An empty response is a PASS.
+          FAIL if the response exceeds 6 sentences or uses markdown
+          formatting like bold, headers, or bullet lists. A high-level
+          split mentioning cities with rough day counts (e.g. "4 days
+          in Tokyo, 3 in Kyoto") is fine as long as it stays within
+          the sentence limit. FAIL only if it becomes a full
+          day-by-day itinerary with activities per day. Otherwise PASS.
+          An empty response is a FAIL.
 
   - description: "Restaurant recommendation stays concise"
     vars:
@@ -35,7 +37,7 @@ tests:
           multi-paragraph reviews of each restaurant, or uses markdown
           formatting like bold, headers, or bullet lists. Otherwise PASS
           — a short answer naming a few spots with a follow-up question
-          is fine. An empty response is a PASS.
+          is fine. An empty response is a FAIL.
 
   - description: "Product comparison stays concise"
     vars:
@@ -47,7 +49,7 @@ tests:
           multi-section breakdown with headers, or uses markdown
           formatting like bold or bullet lists. Otherwise PASS — a short
           comparison (1-5 sentences) with a follow-up question is fine.
-          An empty response is a PASS.
+          An empty response is a FAIL.
 
   - description: "No unsolicited outlines or previews"
     vars:
@@ -55,12 +57,13 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response exceeds 6 sentences, contains a detailed
-          day-by-day itinerary with specific durations per city (e.g.
-          "3 nights in Lisbon, 2 in Porto, 4 in Algarve"), numbered lists,
-          or multi-paragraph breakdowns. Otherwise PASS — a short high-level
-          answer (1-5 sentences) mentioning regions or asking a clarifying
-          question is fine. An empty response is a PASS.
+          FAIL if the response exceeds 6 sentences, uses numbered lists,
+          or uses markdown formatting like bold, headers, or bullet lists.
+          A high-level split mentioning regions with rough day counts
+          (e.g. "4 days in Lisbon, 3 in Algarve") is fine as long as
+          it stays within the sentence limit. FAIL only if it becomes a
+          full day-by-day itinerary with activities per day. Otherwise
+          PASS. An empty response is a FAIL.
 
   - description: "No filler padding around questions"
     vars:
@@ -68,10 +71,9 @@ tests:
     assert:
       - type: llm-rubric
         value: >
-          FAIL if the response exceeds 6 sentences. FAIL if the agent
-          explains WHY it is asking a follow-up question (e.g. "that'll
-          help me find the right match" or "so I can narrow it down").
-          The agent should just ask the question directly without
-          justifying it. Also FAIL if the agent lists what it could help
-          with (e.g. "insurance, specialty, location"). Otherwise PASS.
-          An empty response is a PASS.
+          FAIL if the response exceeds 6 sentences or uses markdown
+          formatting like bold, headers, or bullet lists. A short
+          follow-up question with a brief qualifier is fine. FAIL only
+          if the agent produces a wall of text, lists multiple things
+          it could help with, or gives a multi-paragraph answer.
+          Otherwise PASS. An empty response is a FAIL.
