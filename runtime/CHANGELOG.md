@@ -7,6 +7,9 @@
 - Skills landing page: refreshed layout for browsing and discovering skills
 - Reasoning cleanup: agents no longer leak internal reasoning text into replies
 - Marker parity: OpenClaw and Hermes now use identical messaging markers 
+- Bootstrap trim: AGENTS.md now fits within the 20k bootstrap character limit
+- Skill builder: URL is sent as a separate message so link unfurls work reliably
+- CI: image promotion now correctly finds published images on merge branches
 
 ## 0.3.0
 
