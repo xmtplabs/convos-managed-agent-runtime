@@ -807,6 +807,17 @@ class ConvosAdapter:
             except Exception as err:
                 logger.error(f"Profile name update failed: {err}")
 
+            # Auto-generate profile image from emoji in name (twemoji CDN),
+            # matching OpenClaw behaviour from PR #904.
+            if not parsed.profile_image:
+                import unicodedata
+                for ch in parsed.profile_name:
+                    cat = unicodedata.category(ch)
+                    if cat == "So" or ord(ch) >= 0x1F000:
+                        codepoints = "-".join(f"{ord(c):x}" for c in ch)
+                        parsed.profile_image = f"https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/72x72/{codepoints}.png"
+                        break
+
         if parsed.profile_image:
             try:
                 await self._update_profile(image=parsed.profile_image)
