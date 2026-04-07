@@ -32,7 +32,7 @@ from typing import Any
 
 import httpx
 
-from .xmtp_bridge import ConvosInstance, InboundMessage
+from .sdk_client import ConvosInstance, InboundMessage
 from ..server.agent_runner import AgentRunner
 from ..server.config import RuntimeConfig
 from ..server.profile_image_renewal import ProfileImageRenewalStore
@@ -322,10 +322,10 @@ class ConvosAdapter:
     Convos XMTP platform adapter.
 
     Follows the Hermes gateway adapter pattern:
-    - Receives inbound messages from xmtp_bridge
+    - Receives inbound messages from sdk_client
     - Runs them through the Hermes AIAgent
     - Parses markers from the response
-    - Routes actions through xmtp_bridge
+    - Routes actions through sdk_client
     """
 
     def __init__(self, config: RuntimeConfig):
@@ -388,7 +388,7 @@ class ConvosAdapter:
         )
 
         # Wire convos tools to the bridge so they execute mid-processing
-        from .convos_tools import set_bridge
+        from .actions import set_bridge
         set_bridge(
             react=self._instance.react,
             send_attachment=self._instance.send_attachment,
@@ -613,6 +613,7 @@ class ConvosAdapter:
                     conversation_id=msg.conversation_id,
                     message_id=msg.message_id,
                     group_members=inst.get_group_members(),
+                    agent_name=inst.get_own_name(),
                 )
             except Exception as err:
                 logger.error(f"Agent error: {err}")
@@ -786,7 +787,7 @@ class ConvosAdapter:
 
 
     async def _dispatch_response(self, raw_response: str) -> None:
-        """Parse markers and route actions through xmtp_bridge."""
+        """Parse markers and route actions through sdk_client."""
         inst = self._instance
         if not inst:
             return

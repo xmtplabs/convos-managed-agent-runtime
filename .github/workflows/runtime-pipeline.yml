@@ -65,7 +65,7 @@ on:
         type: string
         default: "type=gha,mode=max"
       eval_matrix:
-        description: "JSON array of matrix entries [{suite, timeout, only, fresh}, ...]. Defaults to .github/eval-matrix.json"
+        description: "JSON array of matrix entries [{suite, timeout, only}, ...]. Defaults to .github/eval-matrix.json"
         required: false
         type: string
       skip_evals:
@@ -154,11 +154,10 @@ jobs:
             -e GATEWAY_TOKEN="${{ secrets.GATEWAY_TOKEN }}" \
             -e XMTP_ENV="${{ secrets.XMTP_ENV }}" \
             -e CONVOS_API_KEY="${{ secrets.CONVOS_API_KEY }}" \
-            ${{ !matrix.fresh && format('-e POOL_URL="{0}"', secrets.POOL_URL) || '' }} \
-            ${{ !matrix.fresh && format('-e INSTANCE_ID="{0}"', secrets.INSTANCE_ID) || '' }} \
-            ${{ !matrix.fresh && format('-e AGENTMAIL_API_KEY="{0}"', secrets.AGENTMAIL_API_KEY) || '' }} \
-            ${{ !matrix.fresh && format('-e AGENTMAIL_INBOX_ID="{0}"', secrets.AGENTMAIL_INBOX_ID) || '' }} \
-            ${{ matrix.suite == 'webhooks' && format('-e NGROK_URL="{0}" -e NGROK_AUTHTOKEN="{1}"', secrets.NGROK_URL, secrets.NGROK_AUTHTOKEN) || '' }} \
+            -e POOL_URL="${{ secrets.POOL_URL }}" \
+            -e INSTANCE_ID="${{ secrets.INSTANCE_ID }}" \
+            -e RAILWAY_PUBLIC_DOMAIN="${{ secrets.RAILWAY_PUBLIC_DOMAIN }}" \
+            -e NGROK_AUTHTOKEN="${{ secrets.NGROK_AUTHTOKEN }}" \
             ${{ inputs.needs_checkout && format('-v {0}/runtime/evals:/app/evals', github.workspace) || '' }} \
             ${{ inputs.docker_run_extra }} \
             ${{ inputs.image }}:${{ inputs.pending_tag }} \

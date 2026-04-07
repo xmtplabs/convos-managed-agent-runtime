@@ -77,11 +77,11 @@ export function SkillBrowser({ skills }: SkillBrowserProps) {
 
           <div className="skill-group-list">
             {group.skills.map((skill) => (
-              <div key={skill.slug} className="skill-row">
+              <Link key={skill.slug} href={`/${skill.slug}`} className="skill-row">
                 <div className="skill-row-info">
-                  <Link href={`/${skill.slug}`} className="skill-row-name">
+                  <span className="skill-row-name">
                     {skill.agentName}
-                  </Link>
+                  </span>
                   <div className="skill-row-desc">{skill.description}</div>
                   {skill.tools.length > 0 && (
                     <div className="skill-row-tools">
@@ -92,12 +92,9 @@ export function SkillBrowser({ skills }: SkillBrowserProps) {
                   )}
                 </div>
                 <div className="skill-row-actions">
-                  <Link href={`/${skill.slug}`} className="skill-details-btn">
-                    Details
-                  </Link>
                   <ShareButton slug={skill.slug} />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

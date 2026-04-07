@@ -86,6 +86,62 @@ export async function createInstance(onProgress?: ProgressCallback, runtimeImage
 
 export { provision } from "./provision";
 
+/**
+ * Auto-replenish the pool after a claim if idle + starting drops below the target_idle setting.
+ * Creates one instance with the same runtime image as the instance that was just claimed.
+ * Fire-and-forget — errors are logged but never propagated.
+ */
+export async function autoReplenish(claimedInstanceId: string) {
+  const raw = await db.getSetting("target_idle");
+  const target = parseInt(raw || "0", 10);
+  if (target <= 0) return;
+
+  try {
+    const counts = await db.getCounts();
+    const available = counts.idle + counts.starting;
+    if (available >= target) {
+      console.log(`[pool] Auto-replenish: ${available} idle+starting >= ${target} target, skipping`);
+      return;
+    }
+
+    const runtimeImage = await db.getRuntimeImage(claimedInstanceId);
+    const deficit = target - available;
+    metricCount("pool.auto_replenish.triggered", 1, { deficit: String(deficit) });
+    logger.info("auto_replenish.triggered", { claimedInstanceId, available, target, deficit, runtimeImage });
+    console.log(`[pool] Auto-replenish: ${available} idle+starting < ${target} target, creating ${deficit} instance(s) (image=${runtimeImage || "default"})`);
+
+    let created = 0;
+    for (let i = 0; i < deficit; i++) {
+      // Re-check before each create to avoid overshoot from concurrent replenishes
+      if (i > 0) {
+        const fresh = await db.getCounts();
+        if (fresh.idle + fresh.starting >= target) {
+          console.log(`[pool] Auto-replenish: now ${fresh.idle + fresh.starting} idle+starting >= ${target} target, stopping early`);
+          break;
+        }
+      }
+      try {
+        const inst = await createInstance(undefined, runtimeImage || undefined);
+        created++;
+        console.log(`[pool] Auto-replenish: created ${inst.id}`);
+      } catch (err) {
+        const { error_class, error_message } = classifyError(err);
+        metricCount("pool.auto_replenish.create_fail", 1, { error_class });
+        logger.error("auto_replenish.create_fail", { claimedInstanceId, error_class, error_message: error_message.slice(0, 1500) });
+        console.error(`[pool] Auto-replenish: failed to create instance:`, err);
+      }
+    }
+
+    metricCount("pool.auto_replenish.complete", 1, { created: String(created), deficit: String(deficit) });
+    logger.info("auto_replenish.complete", { claimedInstanceId, created, deficit });
+  } catch (err) {
+    const { error_class, error_message } = classifyError(err);
+    metricCount("pool.auto_replenish.error", 1, { error_class });
+    logger.error("auto_replenish.error", { claimedInstanceId, error_class, error_message: error_message.slice(0, 1500) });
+    console.error(`[pool] Auto-replenish check failed:`, err);
+  }
+}
+
 export type HealthCheckResult = { ready: boolean; version?: string; runtime?: string };
 export type HealthCheckOutcome =
   | { ok: true; data: HealthCheckResult }
