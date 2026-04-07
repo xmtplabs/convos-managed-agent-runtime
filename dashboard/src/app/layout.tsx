@@ -9,10 +9,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://convos.org/assistan
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "Convos Assistants Preview",
-  description: "Copy any skill link and paste it into the chat with your assistant.",
+  description: "Copy any skill link and paste it into the chat with your Assistant.",
   openGraph: {
     title: "Convos Assistants Preview",
-    description: "Copy any skill link and paste it into the chat with your assistant.",
+    description: "Copy any skill link and paste it into the chat with your Assistant.",
     type: "website",
     siteName: "Convos Assistants",
     images: [
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Convos Assistants Preview",
-    description: "Copy any skill link and paste it into the chat with your assistant.",
+    description: "Copy any skill link and paste it into the chat with your Assistant.",
     images: [`${siteUrl}/og`],
   },
 };
