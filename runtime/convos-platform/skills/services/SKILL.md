@@ -134,6 +134,20 @@ Check delivery status:
 node "$SKILLS_ROOT/services/scripts/services.mjs" sms status <message-id>
 ```
 
+### Examples
+
+"Send Alex an email with the meeting notes."
+BAD: [sends immediately without checking if email is provisioned]
+GOOD: [runs services.mjs info] → provisions if needed → drafts email → sends.
+
+"Text +4420..."
+BAD: [attempts to send]
+GOOD: "SMS only works with US numbers (+1) — I can't text that number."
+
+"What's my email?"
+BAD: "Your email is agent@mail.convos.org." (guessed)
+GOOD: [runs services.mjs info] → shares the real address.
+
 ## Credits
 
 Check your current balance:

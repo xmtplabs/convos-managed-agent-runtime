@@ -82,18 +82,33 @@ export default class AsyncProvider {
       }
     }
 
+    const sameSession = !!meta.sameSession;
+    const stopDelayMs = (meta.stopDelay || 3) * 1000;
+
     function sendFollowUp() {
-      const followUpSession = `eval-async-followup-${Date.now()}-${testIndex}`;
-      log(`Sending follow-up (session: ${followUpSession}): "${prompt}"`);
+      const followUpSession = sameSession
+        ? heavySession
+        : `eval-async-followup-${Date.now()}-${testIndex}`;
+      log(`Sending follow-up (session: ${followUpSession}${sameSession ? ', same-session' : ''}): "${prompt}"`);
       return queryAgent(prompt, followUpSession, { timeout: followUpTimeoutMs });
     }
 
     if (runtime.queryUrl) {
-      // Hermes: fire heavy task non-blocking, probe health, send follow-up concurrently
-      const heavyPromise = queryAgentAsync(heavyPrompt, heavySession, { timeout: ackTimeoutMs });
-      await probeHealth();
-      followUp = sendFollowUp();
-      heavy = await heavyPromise;
+      if (sameSession) {
+        // Stop test: fire heavy task non-blocking, wait for agent to start, then interrupt
+        const heavyPromise = queryAgentAsync(heavyPrompt, heavySession, { timeout: ackTimeoutMs });
+        log(`Waiting ${stopDelayMs}ms before sending stop...`);
+        await new Promise((r) => setTimeout(r, stopDelayMs));
+        await probeHealth();
+        followUp = sendFollowUp();
+        heavy = await heavyPromise;
+      } else {
+        // Hermes: fire heavy task non-blocking, probe health, send follow-up concurrently
+        const heavyPromise = queryAgentAsync(heavyPrompt, heavySession, { timeout: ackTimeoutMs });
+        await probeHealth();
+        followUp = sendFollowUp();
+        heavy = await heavyPromise;
+      }
     } else {
       // OpenClaw: sequential — heavy completes before follow-up to avoid
       // concurrent workspace-state.json writes in the gateway.

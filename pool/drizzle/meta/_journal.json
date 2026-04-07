@@ -43,6 +43,13 @@
       "when": 1775137003417,
       "tag": "0005_famous_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775506738386,
+      "tag": "0006_powerful_george_stacy",
+      "breakpoints": true
     }
   ]
 }

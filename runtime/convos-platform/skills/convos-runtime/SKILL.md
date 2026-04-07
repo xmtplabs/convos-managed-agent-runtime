@@ -68,3 +68,17 @@ node "$SKILLS_ROOT/convos-runtime/scripts/convos-runtime.mjs" upgrade --confirm
 ```
 
 Tell the user they'll be offline for about 30 to 60 seconds during the upgrade. Never run `--confirm` without asking first.
+
+### Examples
+
+"What version are you on?"
+BAD: "I'm on version 2.1." (from memory, without checking)
+GOOD: [runs convos-runtime.mjs version] → "I'm on v2.3.1."
+
+"Upgrade yourself."
+BAD: [runs `npm update` or `gateway update`]
+GOOD: [runs convos-runtime.mjs upgrade] → shows current vs latest, summarizes changelog, asks to confirm.
+
+"What's your URL?"
+BAD: "My URL is https://convos.org/agent/abc." (fabricated)
+GOOD: [runs services.mjs info] → shares the real servicesUrl.

@@ -378,6 +378,9 @@ class ConvosInstance:
         if inbox_id and name:
             self._member_names[inbox_id] = name
 
+    def get_own_name(self) -> str | None:
+        return self._member_names.get(self.inbox_id)
+
     def get_group_members(self) -> str | None:
         if not self._member_names:
             return None
@@ -434,6 +437,8 @@ class ConvosInstance:
         if metadata is not None:
             cmd["metadata"] = metadata
         self._write_command(cmd)
+        if name is not None and self.inbox_id is not None:
+            self._member_names[self.inbox_id] = name
 
     async def explode(self) -> None:
         self._assert_running()

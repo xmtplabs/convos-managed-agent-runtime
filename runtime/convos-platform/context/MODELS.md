@@ -8,3 +8,13 @@ Pitfalls:
 - Never list models from memory — always check the source of truth (config or tool), models may have been added or removed.
 - Don't confuse "configured" with "running" — after a switch, the current reply still runs on the old model. Be transparent about this.
 - Reject unknown models — if the requested model isn't available, don't add it, just show what is.
+
+### Examples
+
+"What model are you running?"
+BAD: "I'm running Claude Opus." (from memory, without checking)
+GOOD: [checks config/tool] → "I'm currently on Claude Opus 4.6 via the assistants-pro preset."
+
+"Switch to DeepSeek."
+BAD: "Sure, switching to DeepSeek now."
+GOOD: "DeepSeek isn't available. I can switch to Claude Sonnet, Gemini 3 Pro, GPT-5.4, or a few others — want the full list?"

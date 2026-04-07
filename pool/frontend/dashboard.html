@@ -168,6 +168,11 @@
         <div class="replenish-actions">
           <button class="btn btn-primary" id="replenish-btn">+ Add</button>
         </div>
+        <div class="replenish-field replenish-field-target">
+          <label>Target idle</label>
+          <input class="replenish-input" id="target-idle" type="number" min="0" max="50" value="0" />
+          <button class="btn btn-sm" id="target-idle-save">Save</button>
+        </div>
       </div>
     </div>
 
@@ -509,7 +514,7 @@
         var protectedBtn = isProtectedInstance ? '<button class="action-btn" data-protected-info="1" title="Protected instance">' + infoSvg + '</button>' : '';
         var killBtn = isProtectedInstance ? '' : '<button class="action-btn kill" data-kill="' + a.id + '" title="Kill instance">' + killSvg + '</button>';
         if (isCrashed) {
-          renderRow(a, 'crashed', 'Crashed', recheckBtn + killBtn + protectedBtn);
+          renderRow(a, 'crashed', 'Crashed', runtimeBtn + recheckBtn + killBtn + protectedBtn);
         } else if (isTainted) {
           renderRow(a, 'tainted', 'Tainted', recheckBtn + killBtn + protectedBtn);
         } else if (isPending) {
@@ -974,6 +979,31 @@
         refreshInstances();
         pollDeployStatus();
       };
+    });
+
+    // --- Target idle setting ---
+    (function loadTargetIdle() {
+      fetch('/api/pool/settings', { headers: authHeaders }).then(function (r) { return r.json(); }).then(function (s) {
+        document.getElementById('target-idle').value = s.target_idle || '0';
+      }).catch(function () {});
+    })();
+
+    document.getElementById('target-idle-save').addEventListener('click', function () {
+      var btn = this;
+      var val = document.getElementById('target-idle').value || '0';
+      btn.disabled = true; btn.textContent = 'Saving...';
+      fetch('/api/pool/settings', {
+        method: 'PUT',
+        headers: authHeaders,
+        body: JSON.stringify({ target_idle: val }),
+      }).then(function (r) { return r.json(); }).then(function (s) {
+        document.getElementById('target-idle').value = s.target_idle || '0';
+        btn.textContent = 'Saved';
+        setTimeout(function () { btn.textContent = 'Save'; btn.disabled = false; }, 1200);
+      }).catch(function () {
+        btn.textContent = 'Error';
+        setTimeout(function () { btn.textContent = 'Save'; btn.disabled = false; }, 1500);
+      });
     });
 
     // --- Drain log helpers ---

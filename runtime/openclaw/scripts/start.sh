@@ -96,8 +96,6 @@ unset _gw_busy _relay_busy _cdp_busy
 # Service URL
 if [ -n "$RAILWAY_PUBLIC_DOMAIN" ]; then
   brand_ok "URL" "https://$RAILWAY_PUBLIC_DOMAIN"
-elif [ -n "$NGROK_URL" ]; then
-  brand_ok "URL" "$NGROK_URL (ngrok)"
 else
   brand_dim "URL" "localhost"
 fi
@@ -159,7 +157,7 @@ CRON_DIR="$STATE_DIR/cron" . "$LIB_DIR/crons.sh"
 
 # --- Webhooks handle email/SMS — no cronjob needed ---
 
-# --- ngrok tunnel (when NGROK_URL is set) ---
+# --- ngrok tunnel (when RAILWAY_PUBLIC_DOMAIN is set locally) ---
 . "$LIB_DIR/ngrok.sh"
 
 brand_done "Gateway ready"

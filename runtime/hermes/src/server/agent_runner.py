@@ -16,7 +16,7 @@ Both paths use the same AIAgent setup:
   - platform="convos"
   - ephemeral_system_prompt from INJECTED_CONTEXT.md
 
-The adapter (convos_adapter.py) handles marker parsing and response routing.
+The adapter (channel.py) handles marker parsing and response routing.
 """
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def warm_imports() -> None:
 
     if not _toolset_registered:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
-        from src.convos.convos_tools import register_convos_tools
+        from src.convos.actions import register_convos_tools
 
         convos_tool_names = ["convos_react", "convos_send_attachment"]
         all_tools = list(_HERMES_CORE_TOOLS) + convos_tool_names
@@ -245,6 +245,7 @@ class AgentRunner:
         timestamp: float,
         message_id: str,
         group_members: str | None = None,
+        agent_name: str | None = None,
     ) -> str:
         """Format an inbound message with current time and full message ID.
 
@@ -258,6 +259,8 @@ class AgentRunner:
         now_str = now.strftime("%a, %b %-d, %Y, %-I:%M %p %Z")
         name = sender_name or sender_id[:12]
         header = f"[Current time: {now_str}]"
+        if agent_name:
+            header += f"\n[AgentName: {agent_name}]"
         if group_members:
             header += f"\n[Group members: {group_members}]"
         return f"{header}\n[{message_id} {msg_ts}] {name}: {content}"
@@ -272,6 +275,7 @@ class AgentRunner:
         conversation_id: str,
         message_id: str,
         group_members: str | None = None,
+        agent_name: str | None = None,
     ) -> str | None:
         """
         Process an inbound message through the Hermes agent.
@@ -285,6 +289,7 @@ class AgentRunner:
             timestamp=timestamp,
             message_id=message_id,
             group_members=group_members,
+            agent_name=agent_name,
         )
 
         # Snapshot history before the (potentially long) agent call so
@@ -326,7 +331,7 @@ class AgentRunner:
         # they're preserved in the messages list.
         #
         # To expose reasoning in the UI instead of suppressing it, the
-        # adapter (_dispatch_response in convos_adapter.py) can send these
+        # adapter (_dispatch_response in channel.py) can send these
         # before the final response using either:
         #
         #   (a) <think> tags — wrap text so the Convos client can parse and
