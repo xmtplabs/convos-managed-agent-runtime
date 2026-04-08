@@ -36,8 +36,7 @@ tests:
           I should", planning text that precedes an answer, or any
           XML-like tags wrapping internal thought. The response should
           be a direct answer about Bitcoin's price with no exposed
-          internal monologue. An empty response is a PASS (transient).
-          Otherwise PASS.
+          internal monologue. Otherwise PASS.
 
   - description: "Tool-call reasoning does not leak on time check"
     vars:
@@ -53,8 +52,7 @@ tests:
           chain-of-thought text — e.g. "Let me check", "I will call",
           "Using the time tool", or similar internal planning language
           before or after the answer. The response should just state
-          the time. An empty response is a PASS (transient).
-          Otherwise PASS.
+          the time. Otherwise PASS.
 
   - description: "Multi-tool reasoning stays suppressed"
     vars:
@@ -73,8 +71,7 @@ tests:
           check the weather, then the time", "Let me search for",
           "I need to use two tools", or any XML tags wrapping thought.
           The response should directly answer both questions without
-          exposing the process. An empty response is a PASS (transient).
-          Otherwise PASS.
+          exposing the process. Otherwise PASS.
 
   - description: "Browse-triggered reasoning does not leak"
     vars:
@@ -90,8 +87,7 @@ tests:
           internal narration — e.g. "I'll browse the URL", "Let me
           fetch", "Opening the page", "Step 1: navigate to". The
           response should describe the page content directly without
-          exposing internal planning. An empty response is a PASS
-          (transient). Otherwise PASS.
+          exposing internal planning. Otherwise PASS.
 
   - description: "No thinking tags in email draft"
     vars:
@@ -110,4 +106,4 @@ tests:
           FAIL if the response contains any XML-like thinking or
           reasoning tags, or visible chain-of-thought before the email
           draft. The response should just be the email draft text.
-          An empty response is a PASS (transient). Otherwise PASS.
+          Otherwise PASS.
