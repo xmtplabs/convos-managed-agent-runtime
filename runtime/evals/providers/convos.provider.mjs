@@ -116,13 +116,22 @@ export default class ConvosProvider {
         sleep(2_000);
       }
 
+      // Collect cron-delivered messages, filtering out system messages (member
+      // profiles, metadata updates) using the same content-type check the
+      // harness uses in isAgentReply / agentCount.
       const finalMsgs = h.fetchMessages();
+      const isText = (m) => {
+        if (!m.contentType) return true;
+        const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
+        return typeId === 'text' || typeId === 'reply';
+      };
       const newAgentTexts = finalMsgs
-        .filter(m => m.senderInboxId !== h.userInboxId)
+        .filter(m => m.senderInboxId !== h.userInboxId && isText(m))
         .slice(setupCount)
         .map(m => m.content || m.text || '')
         .filter(Boolean);
-      log(`Cron delivered ${newAgentTexts.length} messages in ${waitSec}s: ${newAgentTexts.map(t => `"${t.slice(0, 80)}"`).join(', ') || '(none)'}`);
+      log(`Cron delivered ${newAgentTexts.length} messages in ${waitSec}s:`);
+      newAgentTexts.forEach((t, i) => log(`  [${i + 1}] ${t.slice(0, 120)}`));
 
       // Cleanup: remove the eval cron job via the adapter so pings stop
       runtime.cleanEvalState();
