@@ -10,6 +10,7 @@
 - Bootstrap trim: AGENTS.md now fits within the 20k bootstrap character limit
 - Skill builder: URL is sent as a separate message so link unfurls work reliably
 - CI: image promotion now correctly finds published images on merge branches
+- Privacy guardrails: agents now block sensitive data exfiltration and refuse to relay private info
 
 ## 0.3.0
 
