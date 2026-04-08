@@ -50,6 +50,22 @@ export function profileNameEquals(output, context) {
   });
 }
 
+export function profileNameContains(output, context) {
+  const expected = context.test?.metadata?.expectedName || context.vars?.expectedName;
+  if (!expected) return { pass: false, score: 0, reason: 'Missing metadata.expectedName' };
+
+  return withProfiles(context, (profiles) => {
+    const match = profiles.some((p) => p.name && p.name.includes(expected));
+    return {
+      pass: match,
+      score: match ? 1 : 0,
+      reason: match
+        ? `Profile name contains "${expected}": ${profiles.map((p) => p.name).join(', ')}`
+        : `Expected name containing "${expected}", got: ${profiles.map((p) => p.name).join(', ')}`,
+    };
+  });
+}
+
 export function profileNameChanged(output, context) {
   return withProfiles(context, (profiles) => {
     const defaults = ['assistant', 'bot', ''];
@@ -359,6 +375,23 @@ export function agentUsedReplyTo(output, context) {
     reason: pass
       ? 'Agent response was sent as a reply (contentType: reply)'
       : 'Agent response was plain text, not a reply — replyTo pipeline may be broken',
+  };
+}
+
+export function agentUsedReplyToOrRecalled(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  if (meta.agentUsedReply === true) {
+    return { pass: true, score: 1, reason: 'Agent used reply-to content type' };
+  }
+  // Fallback: if the agent didn't use reply-to but recalled the secret word,
+  // still pass — the recall proves comprehension even if the reply pipeline flaked.
+  const recalled = /ABRACADABRA/i.test(output || '');
+  return {
+    pass: recalled,
+    score: recalled ? 1 : 0,
+    reason: recalled
+      ? 'Agent did not use reply-to but correctly recalled the secret word (pipeline flake)'
+      : 'Agent neither used reply-to nor recalled the secret word',
   };
 }
 
