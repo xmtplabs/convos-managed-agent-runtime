@@ -5,6 +5,7 @@
 shared:
   - 'runtime/convos-platform/**'
   - 'runtime/lib/**'
+  - 'runtime/package.json'
 
 openclaw:
   - 'runtime/openclaw/**'
