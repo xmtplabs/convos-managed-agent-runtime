@@ -64,10 +64,6 @@ on:
         required: false
         type: string
         default: "type=gha,mode=max"
-      eval_matrix:
-        description: "JSON array of matrix entries [{suite, timeout, only}, ...]. Defaults to .github/eval-matrix.json"
-        required: false
-        type: string
       skip_evals:
         description: "Skip evals (image already stamped). Build and publish still run."
         required: false
@@ -113,16 +109,12 @@ jobs:
       matrix: ${{ steps.resolve.outputs.matrix }}
     steps:
       - uses: actions/checkout@v5
-        with: { sparse-checkout: '.github/eval-matrix.json', sparse-checkout-cone-mode: false }
+        with: { sparse-checkout: 'runtime/evals/suites', sparse-checkout-cone-mode: false }
       - id: resolve
-        env:
-          EVAL_MATRIX_INPUT: ${{ inputs.eval_matrix }}
         run: |
-          if [ -n "$EVAL_MATRIX_INPUT" ]; then
-            echo "matrix=$EVAL_MATRIX_INPUT" >> "$GITHUB_OUTPUT"
-          else
-            echo "matrix=$(jq -c . .github/eval-matrix.json)" >> "$GITHUB_OUTPUT"
-          fi
+          MATRIX=$(ls runtime/evals/suites/*.yaml | sed 's|.*/||;s|\.yaml$||' | jq -Rnc '[inputs | {suite: ., timeout: 600, only: ""}]')
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "Auto-discovered suites: $MATRIX"
 
   eval:
     name: "${{ inputs.runtime }}: ${{ matrix.suite }}"
