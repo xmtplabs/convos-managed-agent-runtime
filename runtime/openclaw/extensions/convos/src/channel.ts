@@ -577,7 +577,25 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       );
 
       setConvosInstance(inst);
-      await inst.start();
+      try {
+        await inst.start();
+      } catch (err) {
+        // If the instance detected a fatal (non-retryable) error and stopped
+        // itself, block forever instead of throwing — throwing would trigger
+        // the framework's auto-restart loop for an error that will never resolve.
+        if (!inst.isRunning()) {
+          log?.error(
+            `[${account.accountId}] Convos provider failed with a non-retryable error, halting: ${String(err)}`,
+          );
+          // Block until the gateway shuts down — do not let the framework retry.
+          await new Promise<void>((resolve) => {
+            if (abortSignal?.aborted) { resolve(); return; }
+            abortSignal?.addEventListener("abort", () => resolve(), { once: true });
+          });
+          return;
+        }
+        throw err;
+      }
 
       log?.info(
         `[${account.accountId}] Convos provider started (conversation: ${inst.conversationId.slice(0, 12)}...)`,
