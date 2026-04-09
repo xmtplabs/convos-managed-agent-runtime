@@ -335,6 +335,18 @@ export function cronJobDeleted(output, context) {
   };
 }
 
+export function agentSentAttachment(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const pass = meta.attachmentReceived === true;
+  return {
+    pass,
+    score: pass ? 1 : 0,
+    reason: pass
+      ? 'Agent sent an attachment (remoteStaticAttachment content type detected)'
+      : 'FAIL: no attachment from agent — MEDIA marker may not be working',
+  };
+}
+
 export function agentRespondedToReaction(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const pass = meta.reactionTriggered === true;

@@ -8,7 +8,7 @@
  *   PROFILE:New Name
  *   PROFILEIMAGE:https://url
  *   METADATA:key=value
- *   MEDIA:/path/to/file  (can appear inline)
+ *   MEDIA:/path/to/file  (can appear inline; also accepts ./relative paths)
  */
 
 export interface ParsedReaction {
@@ -79,8 +79,8 @@ export function parseMarkers(raw: string): ParsedMarkers {
       continue;
     }
 
-    // MEDIA:/path — can be inline, extract and keep rest of line
-    const mediaMatch = line.match(/MEDIA:(\/\S+)/);
+    // MEDIA:/path or MEDIA:./path — can be inline, extract and keep rest of line
+    const mediaMatch = line.match(/MEDIA:(\.{0,2}\/\S+)/);
     if (mediaMatch) {
       result.media.push(mediaMatch[1]);
       line = line.slice(0, mediaMatch.index) + line.slice(mediaMatch.index! + mediaMatch[0].length);

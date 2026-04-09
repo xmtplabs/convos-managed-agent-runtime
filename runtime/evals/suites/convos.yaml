@@ -84,6 +84,16 @@ tests:
       - type: icontains
         value: "CONFIRMED"
 
+  - description: "Agent sends generated image via MEDIA marker"
+    vars:
+      prompt: "Create a simple 100x100 red square image using ImageMagick (convert -size 100x100 xc:red ./red-square.png) and send it to me."
+    metadata:
+      waitForAttachment: true
+      waitForAttachmentTimeout: 60
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentSentAttachment"
+
   - description: "Agent uses replyTo when referencing an earlier message"
     vars:
       prompt: "What was the secret word I mentioned earlier? Reply to that message."
