@@ -116,6 +116,25 @@ describe("parseMarkers", () => {
     assert.equal(result.text, "Files attached");
   });
 
+  it("parses MEDIA:./relative standalone line", () => {
+    const result = parseMarkers("MEDIA:./zoom1.jpg\nHere you go");
+    assert.deepStrictEqual(result.media, ["./zoom1.jpg"]);
+    assert.equal(result.text, "Here you go");
+  });
+
+  it("parses MEDIA:../relative path", () => {
+    const result = parseMarkers("MEDIA:../output/chart.png\nChart attached");
+    assert.deepStrictEqual(result.media, ["../output/chart.png"]);
+    assert.equal(result.text, "Chart attached");
+  });
+
+  it("handles mixed absolute and relative MEDIA paths", () => {
+    const result = parseMarkers("MEDIA:/tmp/a.png\nMEDIA:./b.png\nDone");
+    assert.equal(result.media.length, 2);
+    assert.deepStrictEqual(result.media, ["/tmp/a.png", "./b.png"]);
+    assert.equal(result.text, "Done");
+  });
+
   // ---- Combined ----
 
   it("handles all markers in one response", () => {
