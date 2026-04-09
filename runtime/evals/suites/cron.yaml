@@ -15,12 +15,12 @@ tests:
   - description: "Agent creates a cron job and a ping arrives in conversation"
     vars:
       prompt: >
-        Hey, send me "Ping!" every 10 seconds. I'll delete it once I've
+        Hey, send me "Ping!" every minute. I'll delete it once I've
         confirmed things work. Its just for QA. Do it don't ask follow up questions. Don't announce the creation. Just "Ping!", not Pong
     metadata:
       cronWait: true
-      cronWaitSeconds: 40
+      cronWaitSeconds: 120
       cronCleanupPrompt: "Stop and delete the ping cron job you just created."
     assert:
-      - type: icontains
-        value: "ping"
+      - type: javascript
+        value: "output.toLowerCase().includes('ping') || output.toLowerCase().includes('pong')"

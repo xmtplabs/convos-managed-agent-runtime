@@ -43,6 +43,7 @@
       "workspace": "~/.openclaw/workspace",
       "heartbeat": { "every": "0m" },
       "skipBootstrap": true,
+      "bootstrapMaxChars": 30000,
       "sandbox": { "mode": "off" },
       "blockStreamingDefault": "on",
       "userTimezone": "America/New_York",
