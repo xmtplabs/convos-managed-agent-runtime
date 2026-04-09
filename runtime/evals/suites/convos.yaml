@@ -86,10 +86,7 @@ tests:
 
   - description: "Agent sends generated file via MEDIA marker"
     vars:
-      prompt: >
-        Create a text file at ./hello.txt containing the word 'hello'.
-        To deliver it to me as an attachment, include the marker
-        `MEDIA:./hello.txt` on its own line in your response.
+      prompt: "Create a text file named ./hello.txt containing the word 'hello' and send it to me as an attachment."
     metadata:
       waitForAttachment: true
       waitForAttachmentTimeout: 60
