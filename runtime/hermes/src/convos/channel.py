@@ -47,6 +47,7 @@ GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
 COMPANION_SETTLE_S = 1.5
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".heic", ".heif", ".avif"}
 AUDIO_EXTENSIONS = {".m4a", ".mp3", ".ogg", ".opus", ".wav", ".aac", ".flac", ".webm"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mpeg"}
 ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
 CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
 PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
@@ -115,6 +116,60 @@ async def _transcribe_audio_via_openrouter(file_path: str, mime: str) -> str | N
         return text.strip() or None
     except Exception as err:
         logger.error(f"transcribeAudio: {err}")
+        return None
+
+
+_VIDEO_MIME_MAP: dict[str, str] = {
+    ".mp4": "video/mp4", ".mov": "video/quicktime",
+    ".webm": "video/webm", ".mpeg": "video/mpeg",
+}
+
+
+async def _describe_video_via_openrouter(file_path: str, mime: str) -> str | None:
+    """Describe a video by sending it to OpenRouter as a video_url content block."""
+    import base64
+
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        logger.error("describeVideo: OPENROUTER_API_KEY not set")
+        return None
+
+    data = Path(file_path).read_bytes()
+    b64 = base64.b64encode(data).decode("ascii")
+    data_url = f"data:{mime};base64,{b64}"
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": "google/gemini-2.0-flash-001",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Describe this video concisely. If there is speech, include the transcript. Reply with ONLY the description, nothing else.",
+                                },
+                                {
+                                    "type": "video_url",
+                                    "video_url": {"url": data_url},
+                                },
+                            ],
+                        }
+                    ],
+                },
+            )
+        if resp.status_code != 200:
+            logger.error(f"describeVideo: OpenRouter returned {resp.status_code}: {resp.text[:200]}")
+            return None
+        body = resp.json()
+        text = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return text.strip() or None
+    except Exception as err:
+        logger.error(f"describeVideo: {err}")
         return None
 
 
@@ -336,6 +391,10 @@ def _is_audio_filename(filename: str) -> bool:
     return Path(filename).suffix.lower() in AUDIO_EXTENSIONS
 
 
+def _is_video_filename(filename: str) -> bool:
+    return Path(filename).suffix.lower() in VIDEO_EXTENSIONS
+
+
 def _prune_stale_convos_images(media_dir: Path) -> None:
     """Remove convos-img-* temp files older than 1 hour. Throttled to at most once per 5 minutes."""
     global _last_prune_at
@@ -513,6 +572,19 @@ class ConvosAdapter:
                     await self._handle_message(synthetic)
                     return
                 # Transcription failed — fall through to normal attachment path
+
+            # --- Video attachment handling ---
+            if filename and _is_video_filename(filename):
+                description = await self._describe_video_attachment(msg, filename)
+                if description:
+                    synthetic = replace(
+                        msg,
+                        content_type="text",
+                        content=f"[Video] {description}",
+                    )
+                    await self._handle_message(synthetic)
+                    return
+                # Description failed — fall through to normal attachment path
 
             # Start download in the background — do NOT await before holding.
             # The hold entry must be visible immediately so a companion text
@@ -766,6 +838,45 @@ class ConvosAdapter:
         except Exception as err:
             logger.error(f"Failed to process audio attachment: {err}")
             audio_path.unlink(missing_ok=True)
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
+
+    async def _describe_video_attachment(self, msg: InboundMessage, filename: str) -> str | None:
+        """Download a video attachment, describe via OpenRouter, and return the description."""
+        inst = self._instance
+        if not inst:
+            return None
+
+        ext = Path(filename).suffix.lower() or ".mp4"
+        media_dir = Path(self._config.media_dir)
+        media_dir.mkdir(parents=True, exist_ok=True)
+        video_path = media_dir / f"convos-video-{msg.message_id[:16]}{ext}"
+
+        try:
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "add")
+            except Exception:
+                pass
+            await inst.download_attachment(msg.message_id, str(video_path))
+            logger.info(f"Video attachment downloaded: {video_path}")
+            mime = _VIDEO_MIME_MAP.get(ext, "video/mp4")
+            description = await _describe_video_via_openrouter(str(video_path), mime)
+            video_path.unlink(missing_ok=True)
+            if description:
+                logger.info(f"Video description: {description[:100]}")
+                return description
+            logger.error("Video description returned empty")
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
+        except Exception as err:
+            logger.error(f"Failed to process video attachment: {err}")
+            video_path.unlink(missing_ok=True)
             try:
                 await inst.react(msg.message_id, "\U0001f440", "remove")
             except Exception:

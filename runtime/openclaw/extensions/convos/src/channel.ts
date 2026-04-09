@@ -178,6 +178,8 @@ const extToMime: Record<string, string> = {
   ".ogg": "audio/ogg", ".opus": "audio/opus",
   ".wav": "audio/wav", ".aac": "audio/aac",
   ".flac": "audio/flac", ".webm": "audio/webm",
+  ".mp4": "video/mp4", ".mov": "video/quicktime",
+  ".mpeg": "video/mpeg",
 };
 
 /**
@@ -246,6 +248,69 @@ async function transcribeAudioViaOpenRouter(
     return data.choices?.[0]?.message?.content?.trim() || undefined;
   } catch (err) {
     log?.error(`transcribeAudio: ${String(err)}`);
+    return undefined;
+  }
+}
+
+/**
+ * Describe a video by sending it to OpenRouter as a video_url content block
+ * with a base64 data URL. The chat model (e.g. Gemini) handles video natively.
+ */
+async function describeVideoViaOpenRouter(
+  filePath: string,
+  mime: string,
+  log?: { info: (m: string) => void; error: (m: string) => void },
+): Promise<string | undefined> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    log?.error("describeVideo: OPENROUTER_API_KEY not set");
+    return undefined;
+  }
+
+  const buffer = fs.readFileSync(filePath);
+  const base64Data = buffer.toString("base64");
+  const dataUrl = `data:${mime};base64,${base64Data}`;
+
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.0-flash-001",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Describe this video concisely. If there is speech, include the transcript. Reply with ONLY the description, nothing else.",
+              },
+              {
+                type: "video_url",
+                video_url: { url: dataUrl },
+              },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      log?.error(`describeVideo: OpenRouter returned ${res.status}: ${errText.slice(0, 200)}`);
+      return undefined;
+    }
+
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return data.choices?.[0]?.message?.content?.trim() || undefined;
+  } catch (err) {
+    log?.error(`describeVideo: ${String(err)}`);
     return undefined;
   }
 }
@@ -733,9 +798,6 @@ async function handleInboundMessage(
   }
 
   // --- Audio/voice memo handling ---
-  // Detect audio attachments, download, transcribe via OpenRouter, and inject
-  // the transcript as the message body so the agent sees text instead of a
-  // binary attachment reference.
   if (!mediaPath && (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment")) {
     const audioMatch = msg.content.match(/:\s+(\S+\.(m4a|mp3|ogg|opus|wav|aac|flac|webm))\s/i);
     if (audioMatch && inst) {
@@ -743,7 +805,6 @@ async function handleInboundMessage(
       const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
       const audioPath = path.join(resolveMediaDir(), `convos-audio-${safeId}${ext}`);
       try {
-        // Show eyes while transcribing so the user knows we're working on it
         await inst.react(msg.messageId, "\u{1F440}", "add").catch(() => {});
         await inst.downloadAttachment(msg.messageId, audioPath);
         if (account.debug) {
@@ -751,13 +812,11 @@ async function handleInboundMessage(
         }
         const mime = extToMime[ext] ?? "audio/mp4";
         const transcript = await transcribeAudioViaOpenRouter(audioPath, mime, log ? { info: debugLog, error: errorLog } : undefined);
-        // Clean up the downloaded file
         fs.promises.unlink(audioPath).catch(() => {});
         if (transcript) {
           if (account.debug) {
             debugLog(`[${account.accountId}] Audio transcript: ${transcript.slice(0, 100)}`);
           }
-          // Replace raw body with transcript and re-dispatch as a text message
           const syntheticMsg: InboundMessage = {
             ...msg,
             contentType: "text",
@@ -769,6 +828,42 @@ async function handleInboundMessage(
         await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
       } catch (err) {
         errorLog(`[${account.accountId}] Failed to process audio attachment: ${String(err)}`);
+        await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
+      }
+    }
+  }
+
+  // --- Video attachment handling ---
+  if (!mediaPath && (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment")) {
+    const videoMatch = msg.content.match(/:\s+(\S+\.(mp4|mov|mpeg))\s/i);
+    if (videoMatch && inst) {
+      const ext = `.${videoMatch[2].toLowerCase()}`;
+      const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
+      const videoPath = path.join(resolveMediaDir(), `convos-video-${safeId}${ext}`);
+      try {
+        await inst.react(msg.messageId, "\u{1F440}", "add").catch(() => {});
+        await inst.downloadAttachment(msg.messageId, videoPath);
+        if (account.debug) {
+          debugLog(`[${account.accountId}] Video attachment downloaded: ${videoPath}`);
+        }
+        const mime = extToMime[ext] ?? "video/mp4";
+        const description = await describeVideoViaOpenRouter(videoPath, mime, log ? { info: debugLog, error: errorLog } : undefined);
+        fs.promises.unlink(videoPath).catch(() => {});
+        if (description) {
+          if (account.debug) {
+            debugLog(`[${account.accountId}] Video description: ${description.slice(0, 100)}`);
+          }
+          const syntheticMsg: InboundMessage = {
+            ...msg,
+            contentType: "text",
+            content: `[Video] ${description}`,
+          };
+          return handleInboundMessage(account, syntheticMsg, runtime, log);
+        }
+        errorLog(`[${account.accountId}] Video description returned empty — falling through`);
+        await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
+      } catch (err) {
+        errorLog(`[${account.accountId}] Failed to process video attachment: ${String(err)}`);
         await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
       }
     }
