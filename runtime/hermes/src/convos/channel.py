@@ -743,6 +743,11 @@ class ConvosAdapter:
         audio_path = media_dir / f"convos-audio-{msg.message_id[:16]}{ext}"
 
         try:
+            # Show eyes while transcribing so the user knows we're working on it
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "add")
+            except Exception:
+                pass
             await inst.download_attachment(msg.message_id, str(audio_path))
             logger.info(f"Audio attachment downloaded: {audio_path}")
             mime = _AUDIO_MIME_MAP.get(ext, "audio/mp4")
@@ -753,10 +758,18 @@ class ConvosAdapter:
                 logger.info(f"Audio transcript: {transcript[:100]}")
                 return transcript
             logger.error("Audio transcription returned empty")
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
             return None
         except Exception as err:
             logger.error(f"Failed to process audio attachment: {err}")
             audio_path.unlink(missing_ok=True)
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
             return None
 
     async def _download_image_attachment(self, msg: InboundMessage) -> None:

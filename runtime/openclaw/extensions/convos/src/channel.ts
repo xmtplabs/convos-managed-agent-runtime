@@ -743,6 +743,8 @@ async function handleInboundMessage(
       const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
       const audioPath = path.join(resolveMediaDir(), `convos-audio-${safeId}${ext}`);
       try {
+        // Show eyes while transcribing so the user knows we're working on it
+        await inst.react(msg.messageId, "\u{1F440}", "add").catch(() => {});
         await inst.downloadAttachment(msg.messageId, audioPath);
         if (account.debug) {
           debugLog(`[${account.accountId}] Audio attachment downloaded: ${audioPath}`);
@@ -764,8 +766,10 @@ async function handleInboundMessage(
           return handleInboundMessage(account, syntheticMsg, runtime, log);
         }
         errorLog(`[${account.accountId}] Audio transcription returned empty — falling through`);
+        await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
       } catch (err) {
         errorLog(`[${account.accountId}] Failed to process audio attachment: ${String(err)}`);
+        await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
       }
     }
   }
