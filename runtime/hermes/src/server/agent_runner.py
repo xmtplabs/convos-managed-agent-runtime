@@ -216,24 +216,6 @@ class AgentRunner:
             fallback_model=fallback,
             reasoning_config=reasoning_config,
         )
-
-        # Fix upstream bug (NousResearch/hermes-agent#4377): Hermes checks
-        # bool(getattr(client, "is_closed", False)) but openai SDK's is_closed
-        # is a method, not a property — the bound method object is always truthy,
-        # causing every API call to recreate the shared client unnecessarily.
-        def _is_openai_client_closed_fixed(client):
-            from unittest.mock import Mock
-            if isinstance(client, Mock):
-                return False
-            is_closed = getattr(client, "is_closed", False)
-            if callable(is_closed):
-                is_closed = is_closed()
-            if bool(is_closed):
-                return True
-            http_client = getattr(client, "_client", None)
-            return bool(getattr(http_client, "is_closed", False))
-
-        self._agent._is_openai_client_closed = _is_openai_client_closed_fixed
         return self._agent
 
     def _format_envelope(
