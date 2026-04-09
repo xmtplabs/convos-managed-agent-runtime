@@ -28,6 +28,15 @@ RESTART_BASE_DELAY_S = 2.0
 RESTART_RESET_AFTER_S = 60.0
 SEND_TIMEOUT_S = 30.0
 
+# Stderr patterns that indicate a fatal, non-retryable error.
+import re
+
+FATAL_STDERR_PATTERNS = [
+    re.compile(r"No identity found for conversation", re.IGNORECASE),
+    re.compile(r"identity not found", re.IGNORECASE),
+    re.compile(r"conversation not found", re.IGNORECASE),
+]
+
 
 @dataclass
 class InboundMessage:
@@ -115,6 +124,7 @@ class ConvosInstance:
         self._running = False
         self._restart_count = 0
         self._last_start_time = 0.0
+        self._last_stderr_lines: list[str] = []
         self._member_names: dict[str, str] = {}
         self.attestation_env: dict[str, str] = {}
 
@@ -502,11 +512,16 @@ class ConvosInstance:
     async def _read_stderr(self) -> None:
         assert self._process and self._process.stderr
         stderr = self._process.stderr
+        self._last_stderr_lines = []
         while True:
             line = await stderr.readline()
             if not line:
                 break
-            logger.warning(f"[convos:stderr] {line.decode().strip()}")
+            decoded = line.decode().strip()
+            logger.warning(f"[convos:stderr] {decoded}")
+            self._last_stderr_lines.append(decoded)
+            if len(self._last_stderr_lines) > 20:
+                self._last_stderr_lines.pop(0)
 
     async def _monitor_exit(self) -> None:
         assert self._process
@@ -532,6 +547,18 @@ class ConvosInstance:
 
         # Auto-restart if still supposed to be running
         if self._running:
+            # Check if stderr contains a fatal error that won't resolve on retry
+            stderr_snapshot = "\n".join(self._last_stderr_lines)
+            fatal_match = next(
+                (p for p in FATAL_STDERR_PATTERNS if p.search(stderr_snapshot)), None
+            )
+            if fatal_match:
+                logger.error(
+                    f"Fatal error detected ({fatal_match.pattern}), not restarting"
+                )
+                self._running = False
+                return
+
             if time.monotonic() - self._last_start_time > RESTART_RESET_AFTER_S:
                 self._restart_count = 0
 

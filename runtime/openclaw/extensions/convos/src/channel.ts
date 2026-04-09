@@ -577,7 +577,25 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
       );
 
       setConvosInstance(inst);
-      await inst.start();
+      try {
+        await inst.start();
+      } catch (err) {
+        // If the instance detected a fatal (non-retryable) error and stopped
+        // itself, block forever instead of throwing — throwing would trigger
+        // the framework's auto-restart loop for an error that will never resolve.
+        if (!inst.isRunning()) {
+          log?.error(
+            `[${account.accountId}] Convos provider failed with a non-retryable error, halting: ${String(err)}`,
+          );
+          // Block until the gateway shuts down — do not let the framework retry.
+          await new Promise<void>((resolve) => {
+            if (abortSignal?.aborted) { resolve(); return; }
+            abortSignal?.addEventListener("abort", () => resolve(), { once: true });
+          });
+          return;
+        }
+        throw err;
+      }
 
       log?.info(
         `[${account.accountId}] Convos provider started (conversation: ${inst.conversationId.slice(0, 12)}...)`,
@@ -1045,12 +1063,21 @@ async function handleInboundMessage(
         }
         continue;
       }
+      // Media payloads (from openclaw's MEDIA: marker extraction) live on
+      // payload.mediaUrls / payload.mediaUrl alongside any text. Deliver them
+      // even when the outbound text policy suppresses the (possibly empty)
+      // text that remains after marker stripping.
+      const mediaUrls = p.mediaUrls?.length
+        ? p.mediaUrls
+        : p.mediaUrl
+          ? [p.mediaUrl]
+          : [];
       const policy = await applyOutboundTextPolicy(p.text || "");
-      if (policy.suppress) {
+      if (policy.suppress && mediaUrls.length === 0) {
         log?.info(`[${account.accountId}] Suppressed outbound text reply`);
         continue;
       }
-      const delivered = { ...p, text: policy.text };
+      const delivered = { ...p, text: policy.suppress ? "" : policy.text };
       await deliverConvosReply({
         payload: delivered,
         accountId: account.accountId,
@@ -1302,6 +1329,22 @@ async function deliverConvosReply(params: {
 
   // Resolve replyTo from reply tags: [[reply_to:<id>]] or [[reply_to_current]]
   const replyTo = payload.replyToId ?? (payload.replyToCurrent ? triggerMessageId : undefined);
+
+  // Send media attachments extracted by openclaw's MEDIA: marker parser.
+  // Paths have already been normalized against the workspace by
+  // openclaw's normalizeReplyMediaPaths, so they are safe to pass through.
+  const mediaUrls = payload.mediaUrls?.length
+    ? payload.mediaUrls
+    : payload.mediaUrl
+      ? [payload.mediaUrl]
+      : [];
+  for (const mediaUrl of mediaUrls) {
+    try {
+      await inst.sendAttachment(mediaUrl);
+    } catch (err) {
+      log?.error(`[${accountId}] sendAttachment failed for ${mediaUrl}: ${String(err)}`);
+    }
+  }
 
   const raw = runtime.channel.text.convertMarkdownTables(payload.text ?? "", tableMode);
   const text = stripMarkdown(raw);

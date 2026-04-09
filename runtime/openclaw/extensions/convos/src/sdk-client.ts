@@ -147,6 +147,16 @@ const RESTART_BASE_DELAY_MS = 2000;
 /** After this many ms of sustained uptime, reset the restart counter. */
 const RESTART_RESET_AFTER_MS = 60_000;
 
+/**
+ * Stderr patterns that indicate a fatal, non-retryable error.
+ * When matched, the process will NOT be auto-restarted.
+ */
+const FATAL_STDERR_PATTERNS = [
+  /No identity found for conversation/i,
+  /identity not found/i,
+  /conversation not found/i,
+];
+
 // ---- ConvosInstance ----
 
 export class ConvosInstance {
@@ -174,6 +184,9 @@ export class ConvosInstance {
   private restartCount = 0;
   private lastStartTime = 0;
   private options: ConvosInstanceOptions;
+
+  /** Recent stderr lines — used to detect fatal errors that should not be retried. */
+  private lastStderrLines: string[] = [];
 
   /** Cached member display names: inboxId → name */
   private memberNames = new Map<string, string>();
@@ -720,10 +733,14 @@ export class ConvosInstance {
       }
 
       // Always log stderr for diagnostics (crash messages, XMTP errors)
+      this.lastStderrLines = [];
       if (child.stderr) {
         const rl = createInterface({ input: child.stderr });
         rl.on("line", (line) => {
           console.error(`[convos:stderr] ${line}`);
+          this.lastStderrLines.push(line);
+          // Keep only the last 20 lines to avoid unbounded growth
+          if (this.lastStderrLines.length > 20) this.lastStderrLines.shift();
         });
       }
 
@@ -749,6 +766,17 @@ export class ConvosInstance {
 
         // Auto-restart if still supposed to be running
         if (this.running) {
+          // Check if stderr contains a fatal error that won't resolve on retry
+          const stderrSnapshot = this.lastStderrLines.join("\n");
+          const fatalMatch = FATAL_STDERR_PATTERNS.find((p) => p.test(stderrSnapshot));
+          if (fatalMatch) {
+            console.error(
+              `[convos] Fatal error detected (${fatalMatch.source}), not restarting`,
+            );
+            this.running = false;
+            return;
+          }
+
           // Reset counter if we had sustained uptime
           if (Date.now() - this.lastStartTime > RESTART_RESET_AFTER_MS) {
             this.restartCount = 0;

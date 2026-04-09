@@ -259,8 +259,8 @@ def parse_response(raw: str) -> ParsedResponse:
             result.profile_metadata[m.group(1)] = m.group(2).strip()
             continue
 
-        # MEDIA:/path — can be inline, extract and keep rest of line
-        media_match = re.search(r'MEDIA:(/\S+)', line)
+        # MEDIA:/path or MEDIA:./path — can be inline, extract and keep rest of line
+        media_match = re.search(r'MEDIA:(\.{0,2}/\S+)', line)
         if media_match:
             result.media.append(media_match.group(1))
             line = line[:media_match.start()] + line[media_match.end():]

@@ -84,6 +84,16 @@ tests:
       - type: icontains
         value: "CONFIRMED"
 
+  - description: "Agent sends generated file via MEDIA marker"
+    vars:
+      prompt: "Create a text file named ./hello.txt containing the word 'hello' and send it to me as an attachment."
+    metadata:
+      waitForAttachment: true
+      waitForAttachmentTimeout: 60
+    assert:
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentSentAttachment"
+
   - description: "Agent uses replyTo when referencing an earlier message"
     vars:
       prompt: "What was the secret word I mentioned earlier? Reply to that message."
