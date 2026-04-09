@@ -46,6 +46,7 @@ XMTP_MESSAGE_LIMIT = 4000
 GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
 COMPANION_SETTLE_S = 1.5
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".heic", ".heif", ".avif"}
+AUDIO_EXTENSIONS = {".m4a", ".mp3", ".ogg", ".opus", ".wav", ".aac", ".flac", ".webm"}
 ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
 CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
 PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
@@ -55,6 +56,67 @@ GROUP_EXPIRATION_CLEARED_RE = re.compile(r"\bcleared conversation expiration(?:;
 EXPLOSION_IMMEDIATE_SKEW_S = 3.0
 _expiration_timer: asyncio.TimerHandle | None = None
 _expiration_at_s: float | None = None
+
+_AUDIO_MIME_MAP: dict[str, str] = {
+    ".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".ogg": "audio/ogg",
+    ".opus": "audio/opus", ".wav": "audio/wav", ".aac": "audio/aac",
+    ".flac": "audio/flac", ".webm": "audio/webm",
+}
+
+_AUDIO_FORMAT_MAP: dict[str, str] = {
+    "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/ogg": "ogg",
+    "audio/opus": "ogg", "audio/wav": "wav", "audio/aac": "aac",
+    "audio/flac": "flac", "audio/webm": "webm",
+}
+
+
+async def _transcribe_audio_via_openrouter(file_path: str, mime: str) -> str | None:
+    """Transcribe audio by sending it to OpenRouter as an input_audio content block."""
+    import base64
+
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        logger.error("transcribeAudio: OPENROUTER_API_KEY not set")
+        return None
+
+    data = Path(file_path).read_bytes()
+    b64 = base64.b64encode(data).decode("ascii")
+    fmt = _AUDIO_FORMAT_MAP.get(mime, "wav")
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": "google/gemini-2.0-flash-001",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Transcribe this audio. Reply with ONLY the transcript, nothing else. The audio is likely in English or Spanish.",
+                                },
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {"data": b64, "format": fmt},
+                                },
+                            ],
+                        }
+                    ],
+                },
+            )
+        if resp.status_code != 200:
+            logger.error(f"transcribeAudio: OpenRouter returned {resp.status_code}: {resp.text[:200]}")
+            return None
+        body = resp.json()
+        text = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return text.strip() or None
+    except Exception as err:
+        logger.error(f"transcribeAudio: {err}")
+        return None
+
 
 async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
@@ -270,6 +332,10 @@ def _is_image_filename(filename: str) -> bool:
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 
 
+def _is_audio_filename(filename: str) -> bool:
+    return Path(filename).suffix.lower() in AUDIO_EXTENSIONS
+
+
 def _prune_stale_convos_images(media_dir: Path) -> None:
     """Remove convos-img-* temp files older than 1 hour. Throttled to at most once per 5 minutes."""
     global _last_prune_at
@@ -432,6 +498,22 @@ class ConvosAdapter:
         hold_key = attachment_hold_key(msg)
 
         if is_attachment_message(msg):
+            # --- Audio/voice memo handling ---
+            # Detect audio attachments, download, transcribe via OpenRouter,
+            # and re-dispatch as a text message with [Audio] prefix.
+            filename = _extract_attachment_filename(msg.content)
+            if filename and _is_audio_filename(filename):
+                transcript = await self._transcribe_audio_attachment(msg, filename)
+                if transcript:
+                    synthetic = replace(
+                        msg,
+                        content_type="text",
+                        content=f"[Audio] {transcript}",
+                    )
+                    await self._handle_message(synthetic)
+                    return
+                # Transcription failed — fall through to normal attachment path
+
             # Start download in the background — do NOT await before holding.
             # The hold entry must be visible immediately so a companion text
             # message that arrives while the download is in progress can merge.
@@ -648,6 +730,47 @@ class ConvosAdapter:
             self._agent_running = False
 
     # ---- Attachment download + hold/merge ----
+
+    async def _transcribe_audio_attachment(self, msg: InboundMessage, filename: str) -> str | None:
+        """Download an audio attachment, transcribe via OpenRouter, and return the transcript."""
+        inst = self._instance
+        if not inst:
+            return None
+
+        ext = Path(filename).suffix.lower() or ".m4a"
+        media_dir = Path(self._config.media_dir)
+        media_dir.mkdir(parents=True, exist_ok=True)
+        audio_path = media_dir / f"convos-audio-{msg.message_id[:16]}{ext}"
+
+        try:
+            # Show eyes while transcribing so the user knows we're working on it
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "add")
+            except Exception:
+                pass
+            await inst.download_attachment(msg.message_id, str(audio_path))
+            logger.info(f"Audio attachment downloaded: {audio_path}")
+            mime = _AUDIO_MIME_MAP.get(ext, "audio/mp4")
+            transcript = await _transcribe_audio_via_openrouter(str(audio_path), mime)
+            # Clean up
+            audio_path.unlink(missing_ok=True)
+            if transcript:
+                logger.info(f"Audio transcript: {transcript[:100]}")
+                return transcript
+            logger.error("Audio transcription returned empty")
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
+        except Exception as err:
+            logger.error(f"Failed to process audio attachment: {err}")
+            audio_path.unlink(missing_ok=True)
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
 
     async def _download_image_attachment(self, msg: InboundMessage) -> None:
         """If the attachment is an image, download it and stash the local path on the message."""

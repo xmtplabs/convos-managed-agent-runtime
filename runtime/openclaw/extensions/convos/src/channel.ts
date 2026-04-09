@@ -174,7 +174,81 @@ const extToMime: Record<string, string> = {
   ".heif": "image/heif", ".bmp": "image/bmp",
   ".tif": "image/tiff", ".tiff": "image/tiff",
   ".avif": "image/avif", ".svg": "image/svg+xml",
+  ".m4a": "audio/mp4", ".mp3": "audio/mpeg",
+  ".ogg": "audio/ogg", ".opus": "audio/opus",
+  ".wav": "audio/wav", ".aac": "audio/aac",
+  ".flac": "audio/flac", ".webm": "audio/webm",
 };
+
+/**
+ * Transcribe an audio file by sending it to OpenRouter as an input_audio
+ * content block. The chat model (e.g. Gemini) handles the audio natively.
+ */
+async function transcribeAudioViaOpenRouter(
+  filePath: string,
+  mime: string,
+  log?: { info: (m: string) => void; error: (m: string) => void },
+): Promise<string | undefined> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    log?.error("transcribeAudio: OPENROUTER_API_KEY not set");
+    return undefined;
+  }
+
+  const buffer = fs.readFileSync(filePath);
+  const base64Data = buffer.toString("base64");
+
+  // Map MIME to OpenRouter input_audio format
+  const formatMap: Record<string, string> = {
+    "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/ogg": "ogg",
+    "audio/opus": "ogg", "audio/wav": "wav", "audio/aac": "aac",
+    "audio/flac": "flac", "audio/webm": "webm",
+  };
+  const format = formatMap[mime] ?? "wav";
+
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.0-flash-001",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Transcribe this audio. Reply with ONLY the transcript, nothing else. The audio is likely in English or Spanish.",
+              },
+              {
+                type: "input_audio",
+                input_audio: { data: base64Data, format },
+              },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      log?.error(`transcribeAudio: OpenRouter returned ${res.status}: ${errText.slice(0, 200)}`);
+      return undefined;
+    }
+
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return data.choices?.[0]?.message?.content?.trim() || undefined;
+  } catch (err) {
+    log?.error(`transcribeAudio: ${String(err)}`);
+    return undefined;
+  }
+}
 
 /**
  * Pending image attachment downloads waiting for a companion text message.
@@ -655,6 +729,48 @@ async function handleInboundMessage(
     } catch (err) {
       errorLog(`[${account.accountId}] Failed to process image attachment: ${String(err)}`);
       mediaPath = undefined;
+    }
+  }
+
+  // --- Audio/voice memo handling ---
+  // Detect audio attachments, download, transcribe via OpenRouter, and inject
+  // the transcript as the message body so the agent sees text instead of a
+  // binary attachment reference.
+  if (!mediaPath && (msg.contentType === "remoteStaticAttachment" || msg.contentType === "attachment")) {
+    const audioMatch = msg.content.match(/:\s+(\S+\.(m4a|mp3|ogg|opus|wav|aac|flac|webm))\s/i);
+    if (audioMatch && inst) {
+      const ext = `.${audioMatch[2].toLowerCase()}`;
+      const safeId = msg.messageId.replace(/[^a-zA-Z0-9-]/g, "");
+      const audioPath = path.join(resolveMediaDir(), `convos-audio-${safeId}${ext}`);
+      try {
+        // Show eyes while transcribing so the user knows we're working on it
+        await inst.react(msg.messageId, "\u{1F440}", "add").catch(() => {});
+        await inst.downloadAttachment(msg.messageId, audioPath);
+        if (account.debug) {
+          debugLog(`[${account.accountId}] Audio attachment downloaded: ${audioPath}`);
+        }
+        const mime = extToMime[ext] ?? "audio/mp4";
+        const transcript = await transcribeAudioViaOpenRouter(audioPath, mime, log ? { info: debugLog, error: errorLog } : undefined);
+        // Clean up the downloaded file
+        fs.promises.unlink(audioPath).catch(() => {});
+        if (transcript) {
+          if (account.debug) {
+            debugLog(`[${account.accountId}] Audio transcript: ${transcript.slice(0, 100)}`);
+          }
+          // Replace raw body with transcript and re-dispatch as a text message
+          const syntheticMsg: InboundMessage = {
+            ...msg,
+            contentType: "text",
+            content: `[Audio] ${transcript}`,
+          };
+          return handleInboundMessage(account, syntheticMsg, runtime, log);
+        }
+        errorLog(`[${account.accountId}] Audio transcription returned empty — falling through`);
+        await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
+      } catch (err) {
+        errorLog(`[${account.accountId}] Failed to process audio attachment: ${String(err)}`);
+        await inst.react(msg.messageId, "\u{1F440}", "remove").catch(() => {});
+      }
     }
   }
 
