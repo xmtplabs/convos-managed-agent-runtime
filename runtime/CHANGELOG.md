@@ -1,3 +1,7 @@
+## 0.3.3
+
+- Video understanding: agents can now watch and describe video messages — video is sent to Gemini 2.0 Flash natively via OpenRouter, including speech transcription
+
 ## 0.3.1
 
 - Auto-replenish: pool automatically spins up new instances when stock runs low 
