@@ -155,6 +155,7 @@ export default class ConvosProvider {
     // Attachment test: send a prompt, wait for agent to reply AND send an
     // attachment (remoteStaticAttachment content type). The normal waitForAgent
     // only counts text/reply — we also poll for attachment messages.
+    // Also reads the raw trajectory to verify MEDIA marker path format.
     if (meta.waitForAttachment) {
       const existing = h.fetchMessages();
       const baseline = h.agentCount(existing);
@@ -164,7 +165,6 @@ export default class ConvosProvider {
       h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
 
       const timeoutMs = (meta.waitForAttachmentTimeout || 60) * 1000;
-      const deadline = Date.now() + timeoutMs;
       let attachmentReceived = false;
       let msgs;
 
@@ -186,9 +186,40 @@ export default class ConvosProvider {
         } catch {}
       }
 
+      // Read the agent's raw response from the trajectory logs to check
+      // MEDIA marker path format (relative vs absolute).
+      let lastAssistantResponse = '';
+      try {
+        const logsOut = execFileSync('curl', [
+          '-sf',
+          '-H', `Authorization: Bearer ${h.gatewayToken}`,
+          `http://localhost:${h.gatewayPort}/web-tools/logs/api`,
+        ], { encoding: 'utf-8', timeout: 10_000 });
+        const logsData = JSON.parse(logsOut);
+        const entries = logsData.entries || [];
+        // Find the most recent session's last assistant message
+        for (const entry of entries) {
+          const convos = entry.conversations || [];
+          for (let i = convos.length - 1; i >= 0; i--) {
+            if (convos[i].from === 'assistant' && /MEDIA:/.test(convos[i].value || '')) {
+              lastAssistantResponse = convos[i].value;
+              break;
+            }
+          }
+          if (lastAssistantResponse) break;
+        }
+        if (lastAssistantResponse) {
+          log(`Raw assistant response (MEDIA marker found): ${lastAssistantResponse.slice(0, 200)}`);
+        } else {
+          log('No MEDIA marker found in trajectory logs');
+        }
+      } catch (err) {
+        log(`Could not read trajectory logs: ${err.message}`);
+      }
+
       const output = h.transcript(msgs, msgsBefore);
       log(`${attachmentReceived ? 'OK' : 'FAIL'} — attachment ${attachmentReceived ? 'received' : 'not received'} (${elapsed(t)})`);
-      return { output, metadata: { conversationId: h.conversationId, attachmentReceived } };
+      return { output, metadata: { conversationId: h.conversationId, attachmentReceived, lastAssistantResponse } };
     }
 
     // Reaction test: send a prompt, wait for agent reply, react to the agent's

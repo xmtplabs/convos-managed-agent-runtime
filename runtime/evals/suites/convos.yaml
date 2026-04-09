@@ -84,7 +84,7 @@ tests:
       - type: icontains
         value: "CONFIRMED"
 
-  - description: "Agent sends generated image via MEDIA marker"
+  - description: "Agent sends generated image via MEDIA marker using relative path"
     vars:
       prompt: "Create a simple 100x100 red square image using ImageMagick (convert -size 100x100 xc:red ./red-square.png) and send it to me."
     metadata:
@@ -93,6 +93,8 @@ tests:
     assert:
       - type: javascript
         value: "file://../lib/assertions.mjs:agentSentAttachment"
+      - type: javascript
+        value: "file://../lib/assertions.mjs:agentUsedRelativeMediaPath"
 
   - description: "Agent uses replyTo when referencing an earlier message"
     vars:

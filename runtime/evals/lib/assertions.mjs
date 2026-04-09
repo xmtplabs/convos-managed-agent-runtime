@@ -347,6 +347,40 @@ export function agentSentAttachment(output, context) {
   };
 }
 
+export function agentUsedRelativeMediaPath(output, context) {
+  const meta = context.providerResponse?.metadata || {};
+  const raw = meta.lastAssistantResponse || '';
+
+  if (!raw) {
+    return { pass: false, score: 0, reason: 'FAIL: no raw assistant response in metadata — trajectory logs may be unavailable' };
+  }
+
+  // Extract all MEDIA paths from the raw response
+  const mediaPaths = [];
+  for (const match of raw.matchAll(/MEDIA:(\.{0,2}\/\S+)/g)) {
+    mediaPaths.push(match[1]);
+  }
+
+  if (mediaPaths.length === 0) {
+    return { pass: false, score: 0, reason: `FAIL: no MEDIA markers found in raw response: "${raw.slice(0, 200)}"` };
+  }
+
+  const absolute = mediaPaths.filter(p => !p.startsWith('./') && !p.startsWith('../'));
+  if (absolute.length > 0) {
+    return {
+      pass: false,
+      score: 0,
+      reason: `FAIL: agent used absolute MEDIA path(s): ${absolute.join(', ')} — should use relative paths (./filename)`,
+    };
+  }
+
+  return {
+    pass: true,
+    score: 1,
+    reason: `Agent used relative MEDIA path(s): ${mediaPaths.join(', ')}`,
+  };
+}
+
 export function agentRespondedToReaction(output, context) {
   const meta = context.providerResponse?.metadata || {};
   const pass = meta.reactionTriggered === true;
