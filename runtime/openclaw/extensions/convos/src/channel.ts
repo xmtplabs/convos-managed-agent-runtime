@@ -342,7 +342,7 @@ export const convosPlugin: ChannelPlugin<ResolvedConvosAccount> = {
   },
   reload: { configPrefixes: ["channels.convos"] },
   configSchema: convosChannelConfigSchema,
-  onboarding: convosOnboardingAdapter,
+  setupWizard: convosOnboardingAdapter,
   actions: convosMessageActions,
   agentPrompt: {
     messageToolHints: () => loadConvosMessagingHints(),
