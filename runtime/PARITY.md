@@ -1,6 +1,6 @@
 # Runtime Parity
 
-Cross-runtime audit of OpenClaw (Node.js) and Hermes (Python). Last updated April 7 2026.
+Cross-runtime audit of OpenClaw (Node.js) and Hermes (Python). Last updated April 9 2026.
 
 Approach: file-by-file comparison across channel logic, stats, agent runner, server, and boot scripts. Each feature verified against `dev` HEAD.
 
@@ -26,6 +26,8 @@ Approach: file-by-file comparison across channel logic, stats, agent runner, ser
 | **Tool surface** | `send`, `react`, `sendAttachment` | `convos_react`, `convos_send_attachment` | Intentional design difference. Hermes has no explicit `send` — final text dispatched automatically. |
 | **Marker docs** | MESSAGING.md | MESSAGING.md | Both document `REPLY:`, `REACT:`, `MEDIA:` markers. |
 | **Temp image cleanup** | `channel.ts:147-167` | `channel.py:273-290` | Both prune `convos-img-*` files older than 1hr, throttled to every 5min. |
+| **Voice memo transcription** | `channel.ts` | `channel.py` | Both detect audio attachments (.m4a, .ogg, .mp3, etc.), download, send to Gemini 2.0 Flash via OpenRouter `input_audio` content blocks, and re-dispatch as `[Audio] transcript`. Eyes shown during transcription. No local whisper or extra API keys. |
+| **Video understanding** | `channel.ts` | `channel.py` | Both detect video attachments (.mp4, .mov, .webm, .mpeg), download, send to Gemini 2.0 Flash via OpenRouter `video_url` content blocks (base64 data URL), and re-dispatch as `[Video] description`. Eyes shown during processing. Model describes visuals and transcribes speech. |
 | **Reasoning suppression** | `channel.ts:818-879` buffer-flush | `agent_runner.py:322-356` post-hoc extraction | Different mechanisms, same user-facing behavior (reasoning hidden). Eval suite validates parity. |
 
 ## Inconsistencies
