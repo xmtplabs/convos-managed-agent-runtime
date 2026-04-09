@@ -29,6 +29,7 @@ Approach: file-by-file comparison across channel logic, stats, agent runner, ser
 | **Voice memo transcription** | `channel.ts` | `channel.py` | Both detect audio attachments (.m4a, .ogg, .mp3, etc.), download, send to Gemini 2.0 Flash via OpenRouter `input_audio` content blocks, and re-dispatch as `[Audio] transcript`. Eyes shown during transcription. No local whisper or extra API keys. |
 | **Video understanding** | `channel.ts` | `channel.py` | Both detect video attachments (.mp4, .mov, .webm, .mpeg), download, send to Gemini 2.0 Flash via OpenRouter `video_url` content blocks (base64 data URL), and re-dispatch as `[Video] description`. Eyes shown during processing. Model describes visuals and transcribes speech. |
 | **Reasoning suppression** | `channel.ts:818-879` buffer-flush | `agent_runner.py:322-356` post-hoc extraction | Different mechanisms, same user-facing behavior (reasoning hidden). Eval suite validates parity. |
+| **Fatal error self-healing** | `sdk-client.ts` + `channel.ts` | `sdk_client.py` | Both capture stderr, match against `FATAL_STDERR_PATTERNS` (e.g. "No identity found for conversation"), and skip retry loop on non-retryable errors. OpenClaw channel layer also blocks instead of throwing to prevent framework auto-restart. |
 
 ## Inconsistencies
 

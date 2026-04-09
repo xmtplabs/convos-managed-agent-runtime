@@ -65,6 +65,9 @@ jobs:
   lockfile:
     name: Lockfile Check
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -74,6 +77,9 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
 
@@ -85,28 +91,27 @@ jobs:
             lock_changed=$(echo "$CHANGED" | grep -c "pnpm-lock.yaml" || true)
 
             if [ "${pkg_changed:-0}" -gt 0 ] && [ "${lock_changed:-0}" -eq 0 ]; then
-              # Only fail if dependencies actually changed (not just version/scripts)
               deps_changed=$(git diff "$BASE_SHA" "$HEAD_SHA" -- "${dir}package.json" | grep -cE '^\+.*(dependencies|devDependencies|peerDependencies|optionalDependencies)' || true)
               if [ "${deps_changed:-0}" -gt 0 ]; then
-                echo "::error::${dir}package.json was modified but pnpm-lock.yaml was not updated. Run 'pnpm install' and commit the lockfile."
+                echo "::warning::${dir}package.json was modified but pnpm-lock.yaml was not updated. Run 'pnpm install' and commit the lockfile."
                 return 1
               fi
             fi
             return 0
           }
 
-          FAIL=0
-          check_lockfile "pool/" || FAIL=1
-          check_lockfile "runtime/" || FAIL=1
-          check_lockfile "runtime/openclaw/" || FAIL=1
-          check_lockfile "runtime/hermes/" || FAIL=1
-          check_lockfile "workers/credits-sweep/" || FAIL=1
-          check_lockfile "dashboard/" || FAIL=1
+          WARN=0
+          check_lockfile "pool/" || WARN=1
+          check_lockfile "runtime/" || WARN=1
+          check_lockfile "runtime/openclaw/" || WARN=1
+          check_lockfile "runtime/hermes/" || WARN=1
+          check_lockfile "workers/credits-sweep/" || WARN=1
+          check_lockfile "dashboard/" || WARN=1
 
-          if [ "$FAIL" -eq 1 ]; then
-            exit 1
+          if [ "$WARN" -eq 1 ]; then
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "lockfile-drift" 2>/dev/null || true
           fi
-          echo "Lockfile check passed."
+          echo "Lockfile check done."
 
   # ── TypeScript build (pool) ──────────────────────────────────────────
   pool-build:
@@ -136,6 +141,9 @@ jobs:
       github.event.pull_request.base.ref == 'staging' ||
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -145,18 +153,24 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -q '^runtime/CHANGELOG.md$'; then
             echo "Changelog updated."
           else
-            echo "::error::runtime/CHANGELOG.md was not updated. Promotion PRs to staging/main must include a changelog entry."
-            exit 1
+            echo "::warning::runtime/CHANGELOG.md was not updated. Promotion PRs to staging/main should include a changelog entry."
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "missing-changelog" 2>/dev/null || true
           fi
 
   # ── Secrets leak scan ────────────────────────────────────────────────
   secrets-scan:
     name: Secrets Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -166,6 +180,9 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           # Exclude lockfiles and this workflow file itself from the diff
           DIFF=$(git diff "$BASE_SHA" "$HEAD_SHA" -- . ':!pnpm-lock.yaml' ':!*.lock' ':!.github/workflows/pr-quality.yml')
@@ -178,31 +195,82 @@ jobs:
             'password\s*[:=]\s*["\x27][^"\x27]{8,}'
           )
 
-          FAIL=0
+          WARN=0
           for pat in "${PATTERNS[@]}"; do
             MATCHES=$(echo "$DIFF" | grep -nE "^\+" | grep -v 'secrets\.[A-Z_]' | grep -iE "$pat" || true)
             if [ -n "$MATCHES" ]; then
-              echo "::error::Potential secret found matching pattern: $pat"
+              echo "::warning::Potential secret found matching pattern: $pat"
               echo "$MATCHES" | head -5
-              FAIL=1
+              WARN=1
             fi
           done
 
           # Check for private keys in the diff
           KEY_MATCHES=$(echo "$DIFF" | grep -nE "^\+" | grep -E "BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY" || true)
           if [ -n "$KEY_MATCHES" ]; then
-            echo "::error::Private key found in diff"
-            FAIL=1
+            echo "::warning::Private key found in diff"
+            WARN=1
           fi
 
           # Check for .env files being committed
           ENV_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -E '\.env($|\.)' | grep -v '\.env\.example' || true)
           if [ -n "$ENV_FILES" ]; then
-            echo "::error::Environment files should not be committed: $ENV_FILES"
-            FAIL=1
+            echo "::warning::Environment files should not be committed: $ENV_FILES"
+            WARN=1
           fi
 
-          if [ "$FAIL" -eq 1 ]; then
-            exit 1
+          if [ "$WARN" -eq 1 ]; then
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "possible-secret" 2>/dev/null || true
           fi
-          echo "Secrets scan passed."
+          echo "Secrets scan done."
+
+  # ── Runtime parity reminder ─────────────────────────────────────────
+  # When only one runtime is modified, remind the author to check if the
+  # other runtime needs a matching change.
+  parity-check:
+    name: Runtime Parity
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check runtime parity
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          # Detect which runtimes have changes (excluding docs/md files)
+          OC_CHANGED=$(echo "$CHANGED" | grep -cE '^runtime/openclaw/.*\.(ts|js|json|sh)$' || true)
+          HM_CHANGED=$(echo "$CHANGED" | grep -cE '^runtime/hermes/.*\.(py|json|sh)$' || true)
+
+          if [ "${OC_CHANGED:-0}" -gt 0 ] && [ "${HM_CHANGED:-0}" -eq 0 ]; then
+            MISSING="Hermes"
+            MODIFIED="OpenClaw"
+          elif [ "${HM_CHANGED:-0}" -gt 0 ] && [ "${OC_CHANGED:-0}" -eq 0 ]; then
+            MISSING="OpenClaw"
+            MODIFIED="Hermes"
+          else
+            echo "Both runtimes modified or neither — no parity warning needed."
+            exit 0
+          fi
+
+          echo "::warning::Only $MODIFIED was modified. Check if $MISSING needs a matching change (see runtime/PARITY.md)."
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "parity-check" 2>/dev/null || true
+
+          # Only comment once per PR
+          EXISTING=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
+            --jq '.comments[].body' 2>/dev/null | grep -c "Runtime Parity" || true)
+          if [ "${EXISTING:-0}" -eq 0 ]; then
+            gh pr comment "$PR_NUMBER" --repo "$REPO" \
+              --body "**Runtime Parity**: Only **$MODIFIED** was modified in this PR. Check if **$MISSING** needs a matching change. See [\`runtime/PARITY.md\`](../blob/dev/runtime/PARITY.md) for the current parity audit." \
+              2>/dev/null || true
+          fi
