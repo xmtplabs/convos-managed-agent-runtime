@@ -133,7 +133,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with: { name: "${{ inputs.runtime }}-image", path: /tmp }
       - name: Load image
-        run: zstd -d /tmp/runtime-image.tar.zst -o /tmp/runtime-image.tar && docker load < /tmp/runtime-image.tar
+        run: zstd -dc /tmp/runtime-image.tar.zst | docker load
 
       - name: Start container
         run: |
