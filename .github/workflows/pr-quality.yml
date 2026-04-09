@@ -206,3 +206,53 @@ jobs:
             exit 1
           fi
           echo "Secrets scan passed."
+
+  # ── Runtime parity reminder ─────────────────────────────────────────
+  # When only one runtime is modified, remind the author to check if the
+  # other runtime needs a matching change.
+  parity-check:
+    name: Runtime Parity
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check runtime parity
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          # Detect which runtimes have changes (excluding docs/md files)
+          OC_CHANGED=$(echo "$CHANGED" | grep -cE '^runtime/openclaw/.*\.(ts|js|json|sh)$' || true)
+          HM_CHANGED=$(echo "$CHANGED" | grep -cE '^runtime/hermes/.*\.(py|json|sh)$' || true)
+
+          if [ "${OC_CHANGED:-0}" -gt 0 ] && [ "${HM_CHANGED:-0}" -eq 0 ]; then
+            MISSING="Hermes"
+            MODIFIED="OpenClaw"
+          elif [ "${HM_CHANGED:-0}" -gt 0 ] && [ "${OC_CHANGED:-0}" -eq 0 ]; then
+            MISSING="OpenClaw"
+            MODIFIED="Hermes"
+          else
+            echo "Both runtimes modified or neither — no parity warning needed."
+            exit 0
+          fi
+
+          echo "::warning::Only $MODIFIED was modified. Check if $MISSING needs a matching change (see runtime/PARITY.md)."
+
+          # Only comment once per PR
+          EXISTING=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json comments \
+            --jq '.comments[].body' 2>/dev/null | grep -c "Runtime Parity" || true)
+          if [ "${EXISTING:-0}" -eq 0 ]; then
+            gh pr comment "$PR_NUMBER" --repo "$REPO" \
+              --body "**Runtime Parity**: Only **$MODIFIED** was modified in this PR. Check if **$MISSING** needs a matching change. See [\`runtime/PARITY.md\`](../blob/dev/runtime/PARITY.md) for the current parity audit." \
+              2>/dev/null || true
+          fi
