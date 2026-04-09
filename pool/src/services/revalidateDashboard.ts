@@ -2,23 +2,27 @@ import { config } from "../config";
 
 /**
  * Notify the dashboard (Next.js) to invalidate its cached fetches for the
- * given tags. Fire-and-forget: errors are logged but never thrown. If the
- * dashboard env vars aren't configured (e.g. local dev), this is a no-op.
+ * given tags. Fire-and-forget: errors are logged but never thrown. No-op
+ * if DASHBOARD_REVALIDATE_URL or POOL_API_KEY aren't configured.
+ *
+ * Auth reuses POOL_API_KEY — the same shared secret the dashboard already
+ * uses to authenticate dashboard→pool calls from /api/claim. One secret,
+ * symmetric in both directions.
  *
  * Called from skill mutation handlers so unpublish/delete take effect
  * immediately instead of waiting for the 60s fetch revalidate TTL.
  */
 export async function revalidateDashboard(tags: string[]): Promise<void> {
   const url = config.dashboardRevalidateUrl;
-  const secret = config.dashboardRevalidateSecret;
-  if (!url || !secret || tags.length === 0) return;
+  const apiKey = config.poolApiKey;
+  if (!url || !apiKey || tags.length === 0) return;
 
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-revalidate-secret": secret,
+        authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({ tags }),
       // Don't block mutations on a slow dashboard.

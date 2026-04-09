@@ -7,15 +7,16 @@ import { NextRequest, NextResponse } from "next/server";
 // published/featured state changes. Drops the tagged Next.js Data Cache
 // entries so the next render fetches fresh data from the pool.
 //
-// Auth: shared secret in `x-revalidate-secret` header (must match
-// REVALIDATE_SECRET env). Fire-and-forget from the pool — failures here
-// degrade to the 60s fetch TTL fallback, not silent staleness.
+// Auth: Bearer token matching POOL_API_KEY — the same shared secret the
+// dashboard already uses to authenticate dashboard→pool calls from
+// /api/claim. Reused here so there's one secret, not two.
 //
 // Body: { "tags": string[] }  e.g. ["skills", "skill:the-pickup-game-finder"]
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-revalidate-secret");
-  const expected = process.env.REVALIDATE_SECRET;
-  if (!expected || secret !== expected) {
+  const expected = process.env.POOL_API_KEY;
+  const header = req.headers.get("authorization") || "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!expected || !match || match[1] !== expected) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
