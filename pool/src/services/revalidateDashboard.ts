@@ -3,7 +3,13 @@ import { config } from "../config";
 /**
  * Notify the dashboard (Next.js) to invalidate its cached fetches for the
  * given tags. Fire-and-forget: errors are logged but never thrown. No-op
- * if DASHBOARD_REVALIDATE_URL or POOL_API_KEY aren't configured.
+ * if TEMPLATE_SITE_URL or POOL_API_KEY aren't configured.
+ *
+ * Target URL is derived from TEMPLATE_SITE_URL — the same env var the pool
+ * already uses for its root redirect — so no new config is required. If
+ * the dashboard is served with a basePath (e.g. convos.org/assistants),
+ * TEMPLATE_SITE_URL must include that path, and /api/revalidate resolves
+ * correctly since Next.js prefixes API routes with the basePath.
  *
  * Auth reuses POOL_API_KEY — the same shared secret the dashboard already
  * uses to authenticate dashboard→pool calls from /api/claim. One secret,
@@ -13,9 +19,10 @@ import { config } from "../config";
  * immediately instead of waiting for the 60s fetch revalidate TTL.
  */
 export async function revalidateDashboard(tags: string[]): Promise<void> {
-  const url = config.dashboardRevalidateUrl;
+  const siteUrl = config.templateSiteUrl;
   const apiKey = config.poolApiKey;
-  if (!url || !apiKey || tags.length === 0) return;
+  if (!siteUrl || !apiKey || tags.length === 0) return;
+  const url = `${siteUrl.replace(/\/$/, "")}/api/revalidate`;
 
   try {
     const res = await fetch(url, {
