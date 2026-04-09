@@ -84,9 +84,9 @@ tests:
       - type: icontains
         value: "CONFIRMED"
 
-  - description: "Agent sends generated image via MEDIA marker"
+  - description: "Agent sends generated file via MEDIA marker"
     vars:
-      prompt: "Create a simple 100x100 red square image using ImageMagick (convert -size 100x100 xc:red ./red-square.png) and send it to me."
+      prompt: "Create a text file named ./hello.txt containing the word 'hello' and send it to me as an attachment."
     metadata:
       waitForAttachment: true
       waitForAttachmentTimeout: 60
