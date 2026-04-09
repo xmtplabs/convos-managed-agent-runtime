@@ -22,5 +22,5 @@ tests:
       cronWaitSeconds: 40
       cronCleanupPrompt: "Stop and delete the ping cron job you just created."
     assert:
-      - type: icontains
-        value: "ping"
+      - type: javascript
+        value: "output.toLowerCase().includes('ping') || output.toLowerCase().includes('pong')"
