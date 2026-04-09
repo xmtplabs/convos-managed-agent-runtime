@@ -31,6 +31,12 @@ export const config = {
   templateSiteUrl: getEnv("TEMPLATE_SITE_URL", "https://convos.org/assistants"),
   templateSiteOrigins: getEnv("TEMPLATE_SITE_ORIGINS", "http://localhost:3000"),
 
+  // Dashboard (Next.js) on-demand revalidation — POSTed after skill mutations
+  // so the public skill pages take effect immediately instead of waiting for
+  // the fetch revalidate TTL. Leave unset to disable (no-op).
+  dashboardRevalidateUrl: getEnv("DASHBOARD_REVALIDATE_URL"),
+  dashboardRevalidateSecret: getEnv("DASHBOARD_REVALIDATE_SECRET"),
+
   // Admin dashboard
   poolAdminUrls: getEnv("POOL_ADMIN_URLS", "vibe=https://convos-agents-vibe.up.railway.app,dev=https://convos-agents-dev.up.railway.app,staging=https://convos-agents-staging.up.railway.app,production=https://convos-agents-production.up.railway.app"),
 
