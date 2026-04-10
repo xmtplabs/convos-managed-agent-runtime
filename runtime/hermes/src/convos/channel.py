@@ -1328,17 +1328,13 @@ class ConvosAdapter:
         raw_text = strip_markdown(parsed.text)
         policy = await apply_outbound_policy(raw_text)
         text = policy.text
-        if parsed.media or text:
+        if parsed.media or parsed.links or text:
             try:
                 await self._renew_profile_image_on_activity()
             except Exception as err:
                 logger.error(f"Profile image renewal on outbound activity failed: {err}")
 
-        if policy.suppress:
-            logger.info("Outbound policy suppressed text reply")
-            return
-
-        if text:
+        if not policy.suppress and text:
             chunks = chunk_text(text)
             for chunk in chunks:
                 try:
@@ -1346,8 +1342,12 @@ class ConvosAdapter:
                     stats.increment("messages_out")
                 except Exception as err:
                     logger.error(f"Send message failed: {err}")
+        elif policy.suppress:
+            logger.info("Outbound policy suppressed text reply")
 
         # Send LINK: URLs as separate messages after the main text.
+        # Delivered regardless of text suppression — like MEDIA, links are
+        # explicit side effects, not part of the suppressible text body.
         for link in parsed.links:
             try:
                 await inst.send_message(link)
