@@ -75,7 +75,7 @@ def warm_imports() -> None:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
         from src.convos.actions import register_convos_tools
 
-        convos_tool_names = ["convos_react", "convos_send_attachment", "convos_background_task", "convos_check_background_task", "report_progress"]
+        convos_tool_names = ["convos_react", "convos_send_attachment", "convos_background_task", "convos_check_background_task", "convos_report_progress"]
         all_tools = list(_HERMES_CORE_TOOLS) + convos_tool_names
         create_custom_toolset(
             name="hermes-convos",

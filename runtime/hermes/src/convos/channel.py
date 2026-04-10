@@ -624,7 +624,7 @@ class ConvosAdapter:
         prompt = (
             f"## Goal\n\n{goal}\n\n## Context\n\n{context}\n\n"
             f"## Instructions\n\n"
-            f"Call `report_progress` after each major step (after a search, "
+            f"Call `convos_report_progress` after each major step (after a search, "
             f"after fetching a page, after analyzing data) with a brief status."
         )
         loop = asyncio.get_event_loop()

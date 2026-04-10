@@ -210,7 +210,7 @@ def _handle_background_task(args: dict, **kwargs) -> str:
 # ---- report_progress (background agent only) ----
 
 REPORT_PROGRESS_SCHEMA = {
-    "name": "report_progress",
+    "name": "convos_report_progress",
     "description": (
         "Report progress on the current task. Call this after each major step "
         "(e.g. after a search, after fetching a page, after analyzing data) "
@@ -316,9 +316,9 @@ def register_convos_tools() -> None:
         check_fn=lambda: _check_background_task is not None,
     )
     registry.register(
-        name="report_progress",
+        name="convos_report_progress",
         toolset="hermes-convos",
         schema=REPORT_PROGRESS_SCHEMA,
         handler=_handle_report_progress,
     )
-    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_background_task, convos_check_background_task, report_progress)")
+    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_background_task, convos_check_background_task, convos_report_progress)")
