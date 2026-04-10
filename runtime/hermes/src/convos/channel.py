@@ -641,6 +641,8 @@ class ConvosAdapter:
             logger.warning("Background task %s timed out", task_id)
         except asyncio.CancelledError:
             logger.info("Background task %s cancelled", task_id)
+            self._background_tasks.pop(task_id, None)
+            self._background_task_meta.pop(task_id, None)
             return
         except Exception as err:
             result = f"Background task failed: {err}"
@@ -665,8 +667,14 @@ class ConvosAdapter:
 
         # Inject results as a system notification — triggers a fresh agent turn
         # with full conversation context (same pathway as /convos/notify and cron).
+        # Set _agent_running to prevent _process_message from starting a
+        # concurrent turn during handle_message (mirrors _run_agent_turn).
         try:
             await adapter._greeting_done.wait()
+            if not adapter._instance:
+                logger.warning("Background task %s: instance gone, skipping notify", task_id)
+                return
+            adapter._agent_running = True
             notification = (
                 f"[Background task {task_id} completed]\n"
                 f"Goal: {goal}\n\n"
@@ -688,6 +696,7 @@ class ConvosAdapter:
         except Exception as err:
             logger.error("Background task %s: failed to notify: %s", task_id, err)
         finally:
+            adapter._agent_running = False
             self._background_tasks.pop(task_id, None)
             self._background_task_meta.pop(task_id, None)
 
