@@ -24,9 +24,7 @@ router = APIRouter()
 from .paths import PLATFORM_ROOT
 
 _SHARED_ROOT = PLATFORM_ROOT / "convos-platform" / "web-tools"
-_SERVICES_DIR = _SHARED_ROOT / "services"
 _CONVOS_DIR = _SHARED_ROOT / "convos"
-_SKILLS_STATIC = _SHARED_ROOT / "skills"
 
 
 def _gateway_token() -> str:
@@ -68,18 +66,23 @@ def _pool_url() -> str:
     return os.environ.get("POOL_URL", "")
 
 
-# ── Services page ────────────────────────────────────────────
+# ── Mini-app at /web-tools/ ──────────────────────────────────
 
 
+@router.get("/web-tools")
+@router.get("/web-tools/")
 @router.get("/web-tools/services")
 @router.get("/web-tools/services/")
-async def services_page():
-    return _serve_html_with_token(_SERVICES_DIR / "services.html")
+@router.get("/web-tools/tasks")
+@router.get("/web-tools/context")
+@router.get("/web-tools/notes")
+async def app_page():
+    return _serve_html_with_token(_SHARED_ROOT / "index.html")
 
 
-@router.get("/web-tools/services/services.css")
-async def services_css():
-    return _serve_static(_SERVICES_DIR / "services.css", "text/css")
+@router.get("/web-tools/app.css")
+async def app_css():
+    return _serve_static(_SHARED_ROOT / "app.css", "text/css")
 
 
 @router.get("/web-tools/services/api")
@@ -208,6 +211,108 @@ async def services_redeem_coupon(request: Request):
         )
 
 
+# ── Context API (reads from runtime workspace) ─────────────
+
+
+def _read_workspace_files() -> list[dict]:
+    """Read .md files from the runtime workspace ($HERMES_HOME/workspace/)
+    and top-level files like SOUL.md from $HERMES_HOME/."""
+    home = _hermes_home()
+    files: list[dict] = []
+
+    # Top-level .md files (e.g. SOUL.md)
+    try:
+        for f in sorted(home.iterdir()):
+            if f.suffix == ".md" and f.is_file():
+                try:
+                    files.append({"name": f.stem, "content": f.read_text()})
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # Workspace .md files (AGENTS.md, TOOLS.md, USER.md, etc.)
+    ws_dir = home / "workspace"
+    try:
+        for f in sorted(ws_dir.iterdir()):
+            if f.suffix == ".md" and f.is_file():
+                try:
+                    files.append({"name": f.stem, "content": f.read_text()})
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    return files
+
+
+@router.get("/web-tools/services/context-api")
+async def context_api():
+    files = _read_workspace_files()
+    return Response(
+        content=json.dumps({"sections": files}),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+# ── Tasks / cron API ───────────────────────────────────────
+
+
+def _read_cron_jobs() -> list[dict]:
+    home = _hermes_home()
+    jobs_path = home / "cron" / "jobs.json"
+    try:
+        data = json.loads(jobs_path.read_text())
+        jobs = data.get("jobs", [])
+        return jobs if isinstance(jobs, list) else []
+    except Exception:
+        return []
+
+
+@router.get("/web-tools/services/tasks-api")
+async def tasks_api():
+    jobs = _read_cron_jobs()
+    return Response(
+        content=json.dumps({"jobs": jobs}),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+# ── Logs sharing status & toggle ───────────────────────────
+
+
+@router.get("/web-tools/services/logs-status")
+async def logs_status():
+    enabled = _sharing_enabled()
+    return Response(
+        content=json.dumps({"enabled": enabled}),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.post("/web-tools/services/logs-toggle")
+async def logs_toggle(request: Request):
+    body = await request.json()
+    enable = bool(body.get("enabled", False))
+    marker = _hermes_home() / ".share-trajectories"
+    try:
+        if enable:
+            marker.write_text("")
+        else:
+            if marker.exists():
+                marker.unlink()
+    except Exception:
+        pass
+    enabled = marker.exists()
+    return Response(
+        content=json.dumps({"enabled": enabled}),
+        media_type="application/json",
+    )
+
+
 # ── Convos landing page ─────────────────────────────────────
 
 
@@ -252,29 +357,87 @@ def _skills_data_path() -> Path:
     return Path(ws_skills) / "generated" / "skills.json"
 
 
+def _parse_skill_frontmatter(content: str) -> dict:
+    """Parse simple YAML frontmatter from SKILL.md."""
+    import re as _re
+    m = _re.match(r"^---\n(.*?)\n---", content, _re.DOTALL)
+    if not m:
+        return {}
+    result: dict = {}
+    current_key = ""
+    for line in m.group(1).split("\n"):
+        kv = _re.match(r"^(\w[\w-]*):\s*(.*)", line)
+        if kv:
+            current_key = kv.group(1)
+            val = kv.group(2).strip()
+            result[current_key] = "" if val == "|" else val
+        elif current_key and line.startswith("  "):
+            prev = result.get(current_key, "")
+            result[current_key] = (prev + "\n" + line.strip()).strip()
+    return result
+
+
+def _read_skills_from_dirs() -> dict:
+    """Read skills from $ROOT_SKILLS or $HERMES_HOME/skills/ directories."""
+    import re as _re
+    root_skills = os.environ.get("ROOT_SKILLS", "")
+    if not root_skills:
+        root_skills = str(_hermes_home() / "skills")
+    root = Path(root_skills)
+    skills: list[dict] = []
+    try:
+        for d in sorted(root.iterdir()):
+            if not d.is_dir():
+                continue
+            skill_md = d / "SKILL.md"
+            if not skill_md.is_file():
+                continue
+            try:
+                raw = skill_md.read_text()
+                fm = _parse_skill_frontmatter(raw)
+                body = _re.sub(r"^---.*?---\n*", "", raw, flags=_re.DOTALL)
+                skills.append({
+                    "slug": d.name,
+                    "agentName": fm.get("name", d.name),
+                    "description": fm.get("description", ""),
+                    "emoji": fm.get("emoji", ""),
+                    "category": fm.get("category", ""),
+                    "prompt": body,
+                    "tools": [t.strip() for t in fm.get("tools", "").split(",") if t.strip()],
+                })
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return {"active": None, "skills": skills}
+
+
 def _read_skill_by_slug(slug: str) -> dict | None:
     """Read skills.json and return a single skill by slug."""
-    try:
-        data = json.loads(_skills_data_path().read_text())
-        skills = data.get("skills", [])
-        if not isinstance(skills, list):
-            return None
-        return next((s for s in skills if s.get("slug") == slug), None)
-    except Exception:
+    data = _read_skills_data()
+    skills = data.get("skills", [])
+    if not isinstance(skills, list):
         return None
+    return next((s for s in skills if s.get("slug") == slug), None)
 
 
 def _read_skills_data() -> dict:
-    """Read the full skills.json."""
+    """Read the full skills.json, falling back to skill directories."""
     try:
-        return json.loads(_skills_data_path().read_text())
+        data = json.loads(_skills_data_path().read_text())
+        if isinstance(data.get("skills"), list) and data["skills"]:
+            return data
     except Exception:
-        return {"active": None, "skills": []}
+        pass
+    # Fallback: read SKILL.md from each skill directory
+    from_dirs = _read_skills_from_dirs()
+    return from_dirs if from_dirs["skills"] else {"active": None, "skills": []}
 
 
-@router.get("/web-tools/skills/skills.css")
-async def skills_css():
-    return _serve_static(_SKILLS_STATIC / "skills.css", "text/css")
+@router.get("/web-tools/skills")
+@router.get("/web-tools/skills/")
+async def skills_page():
+    return _serve_html_with_token(_SHARED_ROOT / "index.html")
 
 
 @router.get("/web-tools/skills/api")
@@ -308,9 +471,6 @@ async def skills_api(slug: str):
 # ── Trajectories / logs ──────────────────────────────────────
 
 
-_TRAJECTORIES_DIR = _SHARED_ROOT / "logs"
-
-
 def _hermes_home() -> Path:
     return Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
 
@@ -342,16 +502,7 @@ def _read_trajectory_jsonl(file_path: Path, max_entries: int = 200) -> list[dict
 @router.get("/web-tools/logs")
 @router.get("/web-tools/logs/")
 async def trajectories_page():
-    return _serve_static(
-        _TRAJECTORIES_DIR / "logs.html",
-        "text/html; charset=utf-8",
-        cache_control="no-store",
-    )
-
-
-@router.get("/web-tools/logs/logs.css")
-async def trajectories_css():
-    return _serve_static(_TRAJECTORIES_DIR / "logs.css", "text/css")
+    return _serve_html_with_token(_SHARED_ROOT / "index.html")
 
 
 @router.get("/web-tools/logs/api")
@@ -399,19 +550,3 @@ async def trajectories_download():
     )
 
 
-# ── Skills pages ────────────────────────────────────────────
-
-
-@router.get("/web-tools/skills")
-@router.get("/web-tools/skills/")
-async def skills_index():
-    """Serve the skills index page."""
-    return _serve_static(_SKILLS_STATIC / "index.html", "text/html; charset=utf-8",
-                         cache_control="no-store")
-
-
-@router.get("/web-tools/skills/{slug}")
-async def skills_page(slug: str):
-    """Serve the skill page HTML shell for any slug."""
-    return _serve_static(_SKILLS_STATIC / "skill.html", "text/html; charset=utf-8",
-                         cache_control="no-store")

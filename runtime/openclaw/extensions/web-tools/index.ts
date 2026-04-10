@@ -140,17 +140,67 @@ function getSkillsDataPath(): string {
   return path.join(wsSkills, "generated");
 }
 
-/** Read the full skills.json data. */
+/** Parse YAML frontmatter from a SKILL.md file (simple key: value parser). */
+function parseSkillFrontmatter(content: string): Record<string, string> {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return {};
+  const result: Record<string, string> = {};
+  let currentKey = "";
+  for (const line of match[1].split("\n")) {
+    const kv = line.match(/^(\w[\w-]*):\s*(.*)/);
+    if (kv) {
+      currentKey = kv[1];
+      const val = kv[2].trim();
+      // Handle YAML multiline indicator (|)
+      result[currentKey] = val === "|" ? "" : val;
+    } else if (currentKey && line.startsWith("  ")) {
+      // Continuation of multiline value
+      result[currentKey] = (result[currentKey] ? result[currentKey] + "\n" : "") + line.trim();
+    }
+  }
+  return result;
+}
+
+/** Read skills from $ROOT_SKILLS or $OPENCLAW_STATE_DIR/skills/ directories (each has SKILL.md). */
+function readSkillsFromDirs(): { active: string | null; skills: Record<string, unknown>[] } {
+  const rootSkills = process.env.ROOT_SKILLS
+    || path.join(process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"), "skills");
+  const skills: Record<string, unknown>[] = [];
+  try {
+    const dirs = fs.readdirSync(rootSkills, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const dir of dirs) {
+      const skillMdPath = path.join(rootSkills, dir.name, "SKILL.md");
+      try {
+        const raw = fs.readFileSync(skillMdPath, "utf-8");
+        const fm = parseSkillFrontmatter(raw);
+        skills.push({
+          slug: dir.name,
+          agentName: fm.name || dir.name,
+          description: fm.description || "",
+          emoji: fm.emoji || "",
+          category: fm.category || "",
+          prompt: raw.replace(/^---[\s\S]*?---\n*/, ""),
+          tools: fm.tools ? fm.tools.split(",").map((t: string) => t.trim()) : [],
+        });
+      } catch {}
+    }
+  } catch {}
+  return { active: null, skills };
+}
+
+/** Read the full skills.json data, falling back to skill directories. */
 function readSkillsData(): { active: string | null; skills: Record<string, unknown>[] } | null {
   const jsonPath = path.join(getSkillsDataPath(), "skills.json");
   try {
     const raw = fs.readFileSync(jsonPath, "utf-8");
     const data = JSON.parse(raw);
-    if (!Array.isArray(data.skills)) return null;
-    return data;
-  } catch {
-    return null;
-  }
+    if (Array.isArray(data.skills) && data.skills.length > 0) return data;
+  } catch {}
+  // Fallback: read SKILL.md from each skill directory
+  const fromDirs = readSkillsFromDirs();
+  return fromDirs.skills.length > 0 ? fromDirs : null;
 }
 
 /** Read skills.json and return a single skill by slug. */
@@ -167,8 +217,25 @@ export default function register(api: OpenClawPluginApi) {
     : fs.existsSync(stateWebTools) ? stateWebTools
     : __dirname;
   const agentsDir = path.resolve(sharedRoot, "convos");
-  const servicesDir = path.resolve(sharedRoot, "services");
-  const skillsDir = path.resolve(sharedRoot, "skills");
+
+  // --- Mini-app at /web-tools/ ---
+
+  const appHandler = async (req: any, res: any) => {
+    if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+    servePageWithToken(path.join(sharedRoot, "index.html"), res);
+  };
+
+  api.registerHttpRoute({ path: "/web-tools", auth: "plugin", handler: appHandler });
+  api.registerHttpRoute({ path: "/web-tools/", auth: "plugin", handler: appHandler });
+
+  api.registerHttpRoute({
+    path: "/web-tools/app.css",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+      serveFile(res, path.join(sharedRoot, "app.css"), "text/css", "max-age=3600");
+    },
+  });
 
   api.registerHttpRoute({
     path: "/web-tools/convos",
@@ -257,33 +324,13 @@ export default function register(api: OpenClawPluginApi) {
     },
   });
 
-  // --- Services page ---
+  // --- Services page (backward compat → same mini-app) ---
 
-  api.registerHttpRoute({
-    path: "/web-tools/services",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      servePageWithToken(path.join(servicesDir, "services.html"), res);
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/services/",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      servePageWithToken(path.join(servicesDir, "services.html"), res);
-    },
-  });
+  api.registerHttpRoute({ path: "/web-tools/services", auth: "plugin", handler: appHandler });
+  api.registerHttpRoute({ path: "/web-tools/services/", auth: "plugin", handler: appHandler });
+  api.registerHttpRoute({ path: "/web-tools/tasks", auth: "plugin", handler: appHandler });
+  api.registerHttpRoute({ path: "/web-tools/context", auth: "plugin", handler: appHandler });
+  api.registerHttpRoute({ path: "/web-tools/notes", auth: "plugin", handler: appHandler });
 
   api.registerHttpRoute({
     path: "/web-tools/services/api",
@@ -305,20 +352,6 @@ export default function register(api: OpenClawPluginApi) {
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "Failed to load services data" }));
       }
-    },
-  });
-
-  // Serve extracted CSS for services page
-  api.registerHttpRoute({
-    path: "/web-tools/services/services.css",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(res, path.join(servicesDir, "services.css"), "text/css", "max-age=3600");
     },
   });
 
@@ -418,10 +451,111 @@ export default function register(api: OpenClawPluginApi) {
     },
   });
 
-  // --- Trajectories / logs ---
+  // --- Context API (reads from runtime workspace) ---
 
-  const trajDir = path.resolve(sharedRoot, "logs");
+  /** Read .md files from the runtime workspace directory ($OPENCLAW_STATE_DIR/workspace/). */
+  function readWorkspaceFiles(): { name: string; content: string }[] {
+    const wsDir = path.join(
+      process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw"),
+      "workspace",
+    );
+    const files: { name: string; content: string }[] = [];
+    try {
+      const entries = fs.readdirSync(wsDir).filter(f => f.endsWith(".md")).sort();
+      for (const entry of entries) {
+        try {
+          const content = fs.readFileSync(path.join(wsDir, entry), "utf-8");
+          files.push({ name: entry.replace(/\.md$/, ""), content });
+        } catch {}
+      }
+    } catch {}
+    return files;
+  }
+
+  api.registerHttpRoute({
+    path: "/web-tools/services/context-api",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+      const files = readWorkspaceFiles();
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Cache-Control", "no-store");
+      res.end(JSON.stringify({ sections: files }));
+    },
+  });
+
+  // --- Tasks / cron API ---
+
+  function readCronJobs(): Record<string, unknown>[] {
+    const cronDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
+    const jobsPath = path.join(cronDir, "cron", "jobs.json");
+    try {
+      const data = JSON.parse(fs.readFileSync(jobsPath, "utf-8"));
+      return Array.isArray(data.jobs) ? data.jobs : [];
+    } catch {
+      return [];
+    }
+  }
+
+  api.registerHttpRoute({
+    path: "/web-tools/services/tasks-api",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+      const jobs = readCronJobs();
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Cache-Control", "no-store");
+      res.end(JSON.stringify({ jobs }));
+    },
+  });
+
+  // --- Logs sharing status & toggle ---
+
   const stateDir = process.env.OPENCLAW_STATE_DIR || path.join(process.env.HOME || "", ".openclaw");
+  const shareMarker = path.join(stateDir, ".share-trajectories");
+
+  api.registerHttpRoute({
+    path: "/web-tools/services/logs-status",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
+      const enabled = fs.existsSync(shareMarker);
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Cache-Control", "no-store");
+      res.end(JSON.stringify({ enabled }));
+    },
+  });
+
+  api.registerHttpRoute({
+    path: "/web-tools/services/logs-toggle",
+    auth: "plugin",
+    handler: async (req, res) => {
+      if (req.method !== "POST") { res.statusCode = 405; res.end(); return; }
+      let body = "";
+      await new Promise<void>((resolve) => {
+        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("end", resolve);
+      });
+      const parsed = JSON.parse(body || "{}");
+      const enable = !!parsed.enabled;
+      try {
+        if (enable) {
+          fs.writeFileSync(shareMarker, "", "utf-8");
+        } else {
+          if (fs.existsSync(shareMarker)) fs.unlinkSync(shareMarker);
+        }
+      } catch {}
+      const enabled = fs.existsSync(shareMarker);
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ enabled }));
+    },
+  });
+
+  // --- Trajectories / logs ---
 
   function isSharingEnabled(): boolean {
     return fs.existsSync(path.join(stateDir, ".share-trajectories"));
@@ -531,12 +665,6 @@ export default function register(api: OpenClawPluginApi) {
       const pathParts = url.pathname.replace(/\/+$/, "").split("/");
       const lastPart = pathParts[pathParts.length - 1];
 
-      // CSS
-      if (lastPart === "logs.css") {
-        serveFile(res, path.join(trajDir, "logs.css"), "text/css", "max-age=3600");
-        return;
-      }
-
       // Download raw JSONL as zip
       if (lastPart === "download") {
         if (!isSharingEnabled()) {
@@ -601,8 +729,8 @@ export default function register(api: OpenClawPluginApi) {
         return;
       }
 
-      // Page
-      serveFile(res, path.join(trajDir, "logs.html"), "text/html; charset=utf-8");
+      // Page — serve mini-app (JS will auto-select logs tab)
+      servePageWithToken(path.join(sharedRoot, "index.html"), res);
     },
   });
 
@@ -623,12 +751,6 @@ export default function register(api: OpenClawPluginApi) {
       const url = new URL(req.url || "", "http://localhost");
       const pathParts = url.pathname.replace(/\/+$/, "").split("/");
       const lastPart = pathParts[pathParts.length - 1];
-
-      // Static asset: skills.css
-      if (lastPart === "skills.css") {
-        serveFile(res, path.join(skillsDir, "skills.css"), "text/css", "max-age=3600");
-        return;
-      }
 
       // API: /web-tools/skills/api — list all skills
       if (lastPart === "api" && pathParts[pathParts.length - 2] === "skills") {
@@ -662,14 +784,8 @@ export default function register(api: OpenClawPluginApi) {
         return;
       }
 
-      // Index page: /web-tools/skills (no slug or just trailing slash)
-      if (lastPart === "skills") {
-        serveFile(res, path.join(skillsDir, "index.html"), "text/html; charset=utf-8");
-        return;
-      }
-
-      // Skill detail page: /web-tools/skills/<slug>
-      serveFile(res, path.join(skillsDir, "skill.html"), "text/html; charset=utf-8");
+      // All other skills paths — serve mini-app (JS will auto-select skills tab)
+      servePageWithToken(path.join(sharedRoot, "index.html"), res);
     },
   });
 }
