@@ -654,7 +654,14 @@ class ConvosAdapter:
                 break
             await asyncio.sleep(0.5)
         else:
-            logger.warning("Background task %s: timed out waiting for idle agent", task_id)
+            logger.warning(
+                "Background task %s: timed out waiting for idle agent, "
+                "dropping notification to avoid concurrent turns",
+                task_id,
+            )
+            self._background_tasks.pop(task_id, None)
+            self._background_task_meta.pop(task_id, None)
+            return
 
         # Inject results as a system notification — triggers a fresh agent turn
         # with full conversation context (same pathway as /convos/notify and cron).
