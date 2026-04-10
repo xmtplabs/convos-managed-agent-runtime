@@ -20,12 +20,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import threading
 import uuid
+from pathlib import Path
 from typing import Any, Callable
 
 from tools.registry import registry
 
 logger = logging.getLogger(__name__)
+
+# Thread-local storage for the active progress file path. Each background
+# agent runs in its own thread via run_in_executor, so this isolates
+# concurrent tasks cleanly.
+_progress_local = threading.local()
 
 _react: Callable[..., Any] | None = None
 _send_attachment: Callable[..., Any] | None = None
@@ -200,6 +207,50 @@ def _handle_background_task(args: dict, **kwargs) -> str:
         return json.dumps({"error": str(err)})
 
 
+# ---- report_progress (background agent only) ----
+
+REPORT_PROGRESS_SCHEMA = {
+    "name": "report_progress",
+    "description": (
+        "Report progress on the current task. Call this after each major step "
+        "(e.g. after a search, after fetching a page, after analyzing data) "
+        "so your progress can be monitored."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "description": "Brief description of what you just did or are about to do.",
+            },
+        },
+        "required": ["status"],
+    },
+}
+
+
+def set_progress_file(path: str | None) -> None:
+    """Set the active progress file for the current thread."""
+    _progress_local.path = path
+
+
+def _handle_report_progress(args: dict, **kwargs) -> str:
+    path = getattr(_progress_local, "path", None)
+    if not path:
+        # Main agent called this — no-op
+        return json.dumps({"ok": True, "note": "No active background task in this context."})
+    status = args.get("status", "").strip()
+    if not status:
+        return json.dumps({"error": "status is required"})
+    try:
+        with open(path, "a") as f:
+            f.write(f"{status}\n")
+        return json.dumps({"ok": True})
+    except Exception as err:
+        logger.error(f"report_progress failed: {err}")
+        return json.dumps({"error": str(err)})
+
+
 # ---- convos_check_background_task ----
 
 CHECK_BACKGROUND_TASK_SCHEMA = {
@@ -264,4 +315,10 @@ def register_convos_tools() -> None:
         handler=_handle_check_background_task,
         check_fn=lambda: _check_background_task is not None,
     )
-    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_background_task, convos_check_background_task)")
+    registry.register(
+        name="report_progress",
+        toolset="hermes-convos",
+        schema=REPORT_PROGRESS_SCHEMA,
+        handler=_handle_report_progress,
+    )
+    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_background_task, convos_check_background_task, report_progress)")

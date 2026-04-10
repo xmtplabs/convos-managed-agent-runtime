@@ -591,9 +591,16 @@ class ConvosAdapter:
                 "Wait for one to finish before starting another."
             )
 
+        # Progress file — the background agent's report_progress tool writes
+        # here mid-run so the main agent can check on progress in real time.
+        progress_dir = Path(self._config.hermes_home) / "background-tasks"
+        progress_dir.mkdir(parents=True, exist_ok=True)
+        progress_file = str(progress_dir / f"{task_id}.log")
+
         self._background_task_meta[task_id] = {
             "goal": goal,
             "start_time": _time.time(),
+            "progress_file": progress_file,
         }
 
         task = asyncio.create_task(
@@ -611,13 +618,21 @@ class ConvosAdapter:
             logger.error("Background task %s: no active agent/instance", task_id)
             return
 
-        prompt = f"## Goal\n\n{goal}\n\n## Context\n\n{context}"
+        meta = self._background_task_meta.get(task_id, {})
+        progress_file = meta.get("progress_file", "")
+
+        prompt = (
+            f"## Goal\n\n{goal}\n\n## Context\n\n{context}\n\n"
+            f"## Instructions\n\n"
+            f"Call `report_progress` after each major step (after a search, "
+            f"after fetching a page, after analyzing data) with a brief status."
+        )
         loop = asyncio.get_event_loop()
 
         try:
             result = await asyncio.wait_for(
                 loop.run_in_executor(
-                    None, self._run_background_agent_sync, prompt,
+                    None, self._run_background_agent_sync, prompt, progress_file,
                 ),
                 timeout=BACKGROUND_TASK_TIMEOUT_S,
             )
@@ -669,14 +684,22 @@ class ConvosAdapter:
             self._background_tasks.pop(task_id, None)
             self._background_task_meta.pop(task_id, None)
 
-    def _run_background_agent_sync(self, prompt: str) -> str:
+    def _run_background_agent_sync(self, prompt: str, progress_file: str) -> str:
         """Run a fresh AIAgent synchronously for background work.
 
         Creates an isolated agent instance with the same model and provider
         config but no conversation history — the background worker starts
         with a blank slate, just like delegate_task sub-agents.
+
+        Sets a thread-local progress file so the report_progress tool handler
+        can write to it mid-run (tool handlers execute synchronously during
+        the agent loop, so writes happen in real time).
         """
         from ..server.agent_runner import _get_ai_agent_class, AgentRunner
+        from .actions import set_progress_file
+
+        # Activate progress file for this thread so report_progress writes here.
+        set_progress_file(progress_file)
 
         cfg = AgentRunner._load_config_yaml(self._config.hermes_home)
         pr = cfg.get("provider_routing", {}) or {}
@@ -698,11 +721,14 @@ class ConvosAdapter:
             provider_data_collection=pr.get("data_collection"),
             fallback_model=fallback,
         )
-        result = bg_agent.run_conversation(
-            user_message=prompt,
-            conversation_history=[],
-        )
-        return result.get("final_response", "") or "(no output)"
+        try:
+            result = bg_agent.run_conversation(
+                user_message=prompt,
+                conversation_history=[],
+            )
+            return result.get("final_response", "") or "(no output)"
+        finally:
+            set_progress_file(None)
 
     def _check_background_task(self, task_id: str | None) -> dict:
         """Return status of one or all background tasks (called from bridge, sync-safe)."""
@@ -717,12 +743,28 @@ class ConvosAdapter:
             if not meta:
                 return {"task_id": task_id, "status": "not_found"}
             elapsed = _time.time() - meta["start_time"]
-            return {
+            progress = ""
+            pf = meta.get("progress_file", "")
+            if pf:
+                try:
+                    p = Path(pf)
+                    if p.exists():
+                        progress = p.read_text().strip()
+                        # Keep last 5 lines to avoid huge payloads
+                        lines = progress.splitlines()
+                        if len(lines) > 5:
+                            progress = "\n".join(lines[-5:])
+                except Exception:
+                    pass
+            result = {
                 "task_id": task_id,
                 "status": "running",
                 "goal": meta["goal"],
                 "elapsed_seconds": round(elapsed),
             }
+            if progress:
+                result["progress"] = progress
+            return result
 
         # All tasks
         tasks = []
