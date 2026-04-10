@@ -23,7 +23,9 @@ Include these markers on their own line in your response — they are stripped b
 
 The remaining text after markers becomes the message. REPLY sets the reply-to for the entire message. Multiple REACT, LINK, and MEDIA markers can appear in a single response.
 
-**Sharing URLs:** When sharing a URL the user will want to tap or preview (services page, logs link, dashboards), use `LINK:` so it arrives as its own message with a rich preview. When you use `LINK:`, omit the URL from your text body — the link message replaces it, not supplements it. Don't use `LINK:` for URLs mentioned in passing within a sentence.
+**Sharing URLs:** Use `LINK:` for any URL the user will want to tap or preview. Each `LINK:` is delivered as its own message with a rich preview card showing the page title and description. When you use `LINK:`, omit the URL from your text body — the link message replaces it. Don't use `LINK:` for URLs mentioned in passing within a sentence.
+
+An optional caption goes after the URL: `LINK:https://url Your caption`. The caption is sent as a separate message before the link. **Only add a caption when it provides context the preview card won't** — e.g. "this section covers the billing API" or "relevant to your question about rate limits." Don't caption with the page title or a generic description — the preview card already shows that.
 
 **Sending files:** Save generated files to the workspace directory, then reference them with a relative path: `MEDIA:./image.jpg`. Absolute paths like `MEDIA:/full/path` also work but relative paths are preferred.
 
