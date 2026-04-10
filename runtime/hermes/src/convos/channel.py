@@ -572,12 +572,11 @@ class ConvosAdapter:
 
     # ---- Background tasks ----
 
-    async def _spawn_background_task(self, task_id: str, goal: str, context: str) -> str:
+    async def _spawn_background_task(self, task_id: str, goal: str, context: str) -> None:
         """Queue a background task. Called from the bridge (worker thread via _run_async).
 
         Validates concurrency limits, then creates an asyncio task that runs
         a fresh AIAgent in a thread pool and notifies on completion.
-        Returns the progress file path.
         """
         from .actions import MAX_BACKGROUND_TASKS
 
@@ -592,28 +591,19 @@ class ConvosAdapter:
                 "Wait for one to finish before starting another."
             )
 
-        # Progress file — background agent streams output here so the main
-        # agent can check on progress mid-run if the user asks.
-        progress_dir = Path(self._config.hermes_home) / "background-tasks"
-        progress_dir.mkdir(parents=True, exist_ok=True)
-        progress_file = progress_dir / f"{task_id}.log"
-        progress_file.write_text(f"[{task_id}] Starting: {goal}\n")
-
         self._background_task_meta[task_id] = {
             "goal": goal,
             "start_time": _time.time(),
-            "progress_file": str(progress_file),
         }
 
         task = asyncio.create_task(
-            self._run_background_task(task_id, goal, context, str(progress_file)),
+            self._run_background_task(task_id, goal, context),
             name=f"background-{task_id}",
         )
         self._background_tasks[task_id] = task
         logger.info("Spawned background task %s: %s", task_id, goal[:80])
-        return str(progress_file)
 
-    async def _run_background_task(self, task_id: str, goal: str, context: str, progress_file: str) -> None:
+    async def _run_background_task(self, task_id: str, goal: str, context: str) -> None:
         """Execute a background task and inject results via the notify pathway."""
         adapter = self
         agent = adapter._agent
@@ -627,7 +617,7 @@ class ConvosAdapter:
         try:
             result = await asyncio.wait_for(
                 loop.run_in_executor(
-                    None, self._run_background_agent_sync, prompt, progress_file,
+                    None, self._run_background_agent_sync, prompt,
                 ),
                 timeout=BACKGROUND_TASK_TIMEOUT_S,
             )
@@ -679,15 +669,12 @@ class ConvosAdapter:
             self._background_tasks.pop(task_id, None)
             self._background_task_meta.pop(task_id, None)
 
-    def _run_background_agent_sync(self, prompt: str, progress_file: str) -> str:
+    def _run_background_agent_sync(self, prompt: str) -> str:
         """Run a fresh AIAgent synchronously for background work.
 
         Creates an isolated agent instance with the same model and provider
         config but no conversation history — the background worker starts
         with a blank slate, just like delegate_task sub-agents.
-
-        Intermediate reasoning (assistant text from tool-calling turns) is
-        streamed to progress_file so the main agent can check on progress.
         """
         from ..server.agent_runner import _get_ai_agent_class, AgentRunner
 
@@ -715,26 +702,6 @@ class ConvosAdapter:
             user_message=prompt,
             conversation_history=[],
         )
-
-        # Write intermediate reasoning to the progress file so the main
-        # agent can read it if the user asks "how's it going?"
-        try:
-            pf = Path(progress_file)
-            lines: list[str] = []
-            for msg in result.get("messages", []):
-                if msg.get("role") != "assistant":
-                    continue
-                text = (msg.get("content") or "").strip()
-                if text and msg.get("tool_calls"):
-                    lines.append(text)
-            final = result.get("final_response", "") or "(no output)"
-            with pf.open("a") as f:
-                for line in lines:
-                    f.write(f"[progress] {line}\n")
-                f.write(f"[done] {final[:500]}\n")
-        except Exception as err:
-            logger.warning("Failed to write progress file: %s", err)
-
         return result.get("final_response", "") or "(no output)"
 
     def _check_background_task(self, task_id: str | None) -> dict:
@@ -750,23 +717,11 @@ class ConvosAdapter:
             if not meta:
                 return {"task_id": task_id, "status": "not_found"}
             elapsed = _time.time() - meta["start_time"]
-            progress = ""
-            try:
-                pf = Path(meta["progress_file"])
-                if pf.exists():
-                    progress = pf.read_text().strip()
-                    # Keep last 5 lines to avoid huge payloads
-                    lines = progress.splitlines()
-                    if len(lines) > 5:
-                        progress = "\n".join(lines[-5:])
-            except Exception:
-                pass
             return {
                 "task_id": task_id,
                 "status": "running",
                 "goal": meta["goal"],
                 "elapsed_seconds": round(elapsed),
-                "progress": progress or "(no progress yet)",
             }
 
         # All tasks

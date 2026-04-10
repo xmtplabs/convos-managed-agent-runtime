@@ -183,11 +183,10 @@ def _handle_background_task(args: dict, **kwargs) -> str:
         return json.dumps({"error": "goal is required"})
     task_id = f"bg-{uuid.uuid4().hex[:8]}"
     try:
-        progress_file = _run_async(_spawn_background_task(task_id, goal, context))
+        _run_async(_spawn_background_task(task_id, goal, context))
         return json.dumps({
             "queued": True,
             "task_id": task_id,
-            "progress_file": progress_file,
             "instructions": (
                 "The task is running in the background. You will be notified "
                 "automatically when it completes. "
