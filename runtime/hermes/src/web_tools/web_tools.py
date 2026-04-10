@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Anchor-based resolution — no parent-counting.  See paths.py.
-from .paths import PLATFORM_ROOT
+from ..server.paths import PLATFORM_ROOT
 
 _SHARED_ROOT = PLATFORM_ROOT / "convos-platform" / "web-tools"
 _CONVOS_DIR = _SHARED_ROOT / "convos"
