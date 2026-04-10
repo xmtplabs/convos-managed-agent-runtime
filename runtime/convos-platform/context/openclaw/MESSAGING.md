@@ -18,11 +18,13 @@ Include these markers on their own line in your response — they are stripped b
   REPLY:messageId                 — send your response as a reply to that message
   REACT:messageId:emoji           — react to a message
   REACT:messageId:emoji:remove    — remove a reaction
-  MEDIA:/path/to/file             — send a file attachment
+  MEDIA:./filename.ext            — send a file attachment (relative to workspace)
 
 The remaining text after markers becomes the message. REPLY sets the reply-to for the entire message. Multiple REACT and MEDIA markers can appear in a single response.
 
-You also have tools for side effects during processing:
+**Sending files:** Save generated files to the workspace directory, then reference them with a relative path: `MEDIA:./image.jpg`. Do not use absolute paths — they are blocked by the platform.
 
-- convos_react: React to a message mid-processing (e.g. eyes emoji to acknowledge). Pass `message_id` and `emoji`. Set `remove: true` to remove a reaction.
-- convos_send_attachment: Send a file mid-processing. Pass `file` (local path).
+You also have the `message` tool for side effects during processing:
+
+- `message` with `action: "react"` — react to a message mid-processing (e.g. eyes emoji to acknowledge). Pass `messageId` and `emoji`.
+- `message` with `action: "sendAttachment"` — send a file mid-processing. Pass `file` (local path).

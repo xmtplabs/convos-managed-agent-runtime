@@ -13,7 +13,7 @@
     "@xmtp/convos-cli": "0.7.0",
     "dotenv": "16.6.1",
     "ethers": "6.16.0",
-    "openclaw": "2026.3.23",
+    "openclaw": "2026.4.9",
     "pg": "8.20.0"
   }
 }

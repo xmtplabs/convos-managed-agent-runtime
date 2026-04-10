@@ -3,7 +3,7 @@
 set -e
 . "$(dirname "$0")/init.sh"
 
-HERMES_TAG="v2026.3.30"
+HERMES_TAG="v2026.4.8"
 
 brand_section "Dependencies"
 brand_dim "" "install extensions and check toolchain"

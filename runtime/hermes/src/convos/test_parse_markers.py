@@ -92,6 +92,22 @@ class TestParseResponse(unittest.TestCase):
         self.assertEqual(len(r.media), 2)
         self.assertEqual(r.text, "Files attached")
 
+    def test_media_relative_dot_slash(self):
+        r = parse_response("MEDIA:./zoom1.jpg\nHere you go")
+        self.assertEqual(r.media, ["./zoom1.jpg"])
+        self.assertEqual(r.text, "Here you go")
+
+    def test_media_relative_dot_dot_slash(self):
+        r = parse_response("MEDIA:../output/chart.png\nChart attached")
+        self.assertEqual(r.media, ["../output/chart.png"])
+        self.assertEqual(r.text, "Chart attached")
+
+    def test_media_mixed_absolute_and_relative(self):
+        r = parse_response("MEDIA:/tmp/a.png\nMEDIA:./b.png\nDone")
+        self.assertEqual(len(r.media), 2)
+        self.assertEqual(r.media, ["/tmp/a.png", "./b.png"])
+        self.assertEqual(r.text, "Done")
+
     # ---- Combined ----
 
     def test_all_markers(self):
