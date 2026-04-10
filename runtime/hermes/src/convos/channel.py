@@ -212,13 +212,18 @@ class ParsedMarker:
 
 
 @dataclass
+class ParsedLink:
+    url: str
+    caption: str | None = None
+
+@dataclass
 class ParsedResponse:
     """Result of parsing markers from agent response text."""
     text: str  # cleaned text (markers stripped)
     reply_to: str | None = None  # message ID to reply to
     reactions: list[ParsedMarker] = field(default_factory=list)
     media: list[str] = field(default_factory=list)
-    links: list[str] = field(default_factory=list)
+    links: list[ParsedLink] = field(default_factory=list)
     profile_name: str | None = None
     profile_image: str | None = None
     profile_metadata: dict[str, str] = field(default_factory=dict)
@@ -268,10 +273,10 @@ def parse_response(raw: str) -> ParsedResponse:
             result.profile_metadata[m.group(1)] = m.group(2).strip()
             continue
 
-        # LINK:https://url — send URL as a separate message
-        m = re.match(r'^LINK:(https?://\S+)$', stripped)
+        # LINK:https://url [optional caption] — send URL as a separate message
+        m = re.match(r'^LINK:(https?://\S+)(?:\s+(.+))?$', stripped)
         if m:
-            result.links.append(m.group(1))
+            result.links.append(ParsedLink(url=m.group(1), caption=m.group(2).strip() if m.group(2) else None))
             continue
 
         # MEDIA:/path or MEDIA:./path — can be inline, extract and keep rest of line
@@ -1349,8 +1354,9 @@ class ConvosAdapter:
         # Delivered regardless of text suppression — like MEDIA, links are
         # explicit side effects, not part of the suppressible text body.
         for link in parsed.links:
+            link_text = f"{link.caption}\n{link.url}" if link.caption else link.url
             try:
-                await inst.send_message(link)
+                await inst.send_message(link_text)
                 stats.increment("messages_out")
             except Exception as err:
                 logger.error(f"Send link failed: {err}")

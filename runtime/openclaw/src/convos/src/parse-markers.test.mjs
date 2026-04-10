@@ -100,20 +100,29 @@ describe("parseMarkers", () => {
 
   it("parses LINK:https://url standalone line", () => {
     const result = parseMarkers("LINK:https://example.com/dashboard\nCheck it out");
-    assert.deepStrictEqual(result.links, ["https://example.com/dashboard"]);
+    assert.deepStrictEqual(result.links, [{ url: "https://example.com/dashboard" }]);
     assert.equal(result.text, "Check it out");
   });
 
   it("parses LINK:http://url (non-TLS)", () => {
     const result = parseMarkers("LINK:http://localhost:3000/logs\nHere are your logs");
-    assert.deepStrictEqual(result.links, ["http://localhost:3000/logs"]);
+    assert.deepStrictEqual(result.links, [{ url: "http://localhost:3000/logs" }]);
     assert.equal(result.text, "Here are your logs");
   });
 
-  it("handles multiple LINK markers", () => {
-    const result = parseMarkers("LINK:https://a.com\nLINK:https://b.com\nTwo links");
+  it("parses LINK with caption", () => {
+    const result = parseMarkers("LINK:https://simonwillison.net Simon Willison — practical LLM takes\nCheck these out");
+    assert.deepStrictEqual(result.links, [{ url: "https://simonwillison.net", caption: "Simon Willison — practical LLM takes" }]);
+    assert.equal(result.text, "Check these out");
+  });
+
+  it("handles multiple LINK markers with and without captions", () => {
+    const result = parseMarkers("LINK:https://a.com Blog A\nLINK:https://b.com\nTwo links");
     assert.equal(result.links.length, 2);
-    assert.deepStrictEqual(result.links, ["https://a.com", "https://b.com"]);
+    assert.deepStrictEqual(result.links, [
+      { url: "https://a.com", caption: "Blog A" },
+      { url: "https://b.com" },
+    ]);
     assert.equal(result.text, "Two links");
   });
 
@@ -186,7 +195,7 @@ describe("parseMarkers", () => {
     assert.equal(result.replyTo, "msg2");
     assert.equal(result.profileName, "Test Bot 🤖");
     assert.deepStrictEqual(result.profileMetadata, { status: "active" });
-    assert.deepStrictEqual(result.links, ["https://example.com/report"]);
+    assert.deepStrictEqual(result.links, [{ url: "https://example.com/report" }]);
     assert.deepStrictEqual(result.media, ["/tmp/report.pdf"]);
     assert.equal(result.text, "Here is your report!");
   });

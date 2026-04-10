@@ -8,7 +8,7 @@
  *   PROFILE:New Name
  *   PROFILEIMAGE:https://url
  *   METADATA:key=value
- *   LINK:https://url  (sent as a separate message after the main text)
+ *   LINK:https://url [optional caption]  (sent as a separate message after the main text)
  *   MEDIA:/path/to/file  (can appear inline; also accepts ./relative paths)
  */
 
@@ -18,12 +18,17 @@ export interface ParsedReaction {
   action: "add" | "remove";
 }
 
+export interface ParsedLink {
+  url: string;
+  caption?: string;
+}
+
 export interface ParsedMarkers {
   text: string;
   reactions: ParsedReaction[];
   replyTo?: string;
   media: string[];
-  links: string[];
+  links: ParsedLink[];
   profileName?: string;
   profileImage?: string;
   profileMetadata: Record<string, string>;
@@ -82,10 +87,12 @@ export function parseMarkers(raw: string): ParsedMarkers {
       continue;
     }
 
-    // LINK:https://url — send URL as a separate message
-    const linkMatch = stripped.match(/^LINK:(https?:\/\/\S+)$/);
+    // LINK:https://url [optional caption] — send URL as a separate message
+    const linkMatch = stripped.match(/^LINK:(https?:\/\/\S+)(?:\s+(.+))?$/);
     if (linkMatch) {
-      result.links.push(linkMatch[1]);
+      const link: ParsedLink = { url: linkMatch[1] };
+      if (linkMatch[2]) link.caption = linkMatch[2].trim();
+      result.links.push(link);
       continue;
     }
 

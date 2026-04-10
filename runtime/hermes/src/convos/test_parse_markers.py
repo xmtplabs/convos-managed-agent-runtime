@@ -5,7 +5,7 @@ Run: python -m pytest runtime/hermes/src/convos/test_parse_markers.py -v
 """
 
 import unittest
-from convos_adapter import parse_response
+from convos_adapter import parse_response, ParsedLink
 
 
 class TestParseResponse(unittest.TestCase):
@@ -79,18 +79,26 @@ class TestParseResponse(unittest.TestCase):
 
     def test_link_https(self):
         r = parse_response("LINK:https://example.com/dashboard\nCheck it out")
-        self.assertEqual(r.links, ["https://example.com/dashboard"])
+        self.assertEqual(r.links, [ParsedLink(url="https://example.com/dashboard")])
         self.assertEqual(r.text, "Check it out")
 
     def test_link_http(self):
         r = parse_response("LINK:http://localhost:3000/logs\nHere are your logs")
-        self.assertEqual(r.links, ["http://localhost:3000/logs"])
+        self.assertEqual(r.links, [ParsedLink(url="http://localhost:3000/logs")])
         self.assertEqual(r.text, "Here are your logs")
 
-    def test_multiple_links(self):
-        r = parse_response("LINK:https://a.com\nLINK:https://b.com\nTwo links")
+    def test_link_with_caption(self):
+        r = parse_response("LINK:https://simonwillison.net Simon Willison — practical LLM takes\nCheck these out")
+        self.assertEqual(r.links, [ParsedLink(url="https://simonwillison.net", caption="Simon Willison — practical LLM takes")])
+        self.assertEqual(r.text, "Check these out")
+
+    def test_multiple_links_with_and_without_captions(self):
+        r = parse_response("LINK:https://a.com Blog A\nLINK:https://b.com\nTwo links")
         self.assertEqual(len(r.links), 2)
-        self.assertEqual(r.links, ["https://a.com", "https://b.com"])
+        self.assertEqual(r.links, [
+            ParsedLink(url="https://a.com", caption="Blog A"),
+            ParsedLink(url="https://b.com"),
+        ])
         self.assertEqual(r.text, "Two links")
 
     def test_link_without_protocol_ignored(self):
@@ -153,7 +161,7 @@ class TestParseResponse(unittest.TestCase):
         self.assertEqual(r.reply_to, "msg2")
         self.assertEqual(r.profile_name, "Test Bot 🤖")
         self.assertEqual(r.profile_metadata, {"status": "active"})
-        self.assertEqual(r.links, ["https://example.com/report"])
+        self.assertEqual(r.links, [ParsedLink(url="https://example.com/report")])
         self.assertEqual(r.media, ["/tmp/report.pdf"])
         self.assertEqual(r.text, "Here is your report!")
 

@@ -18,7 +18,7 @@ Include these markers on their own line in your response — they are stripped b
   REPLY:messageId                 — send your response as a reply to that message
   REACT:messageId:emoji           — react to a message
   REACT:messageId:emoji:remove    — remove a reaction
-  LINK:https://url                — send a URL as its own separate message
+  LINK:https://url [caption]       — send a URL as its own separate message
   MEDIA:./filename.ext            — send a file attachment (relative to workspace)
 
 The remaining text after markers becomes the message. REPLY sets the reply-to for the entire message. Multiple REACT, LINK, and MEDIA markers can appear in a single response.

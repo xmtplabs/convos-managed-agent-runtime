@@ -608,7 +608,8 @@ export class ConvosInstance {
 
     // Send LINK: URLs as separate messages after the main text.
     for (const link of parsed.links) {
-      try { await this.sendAndWait({ type: "send", text: link }); } catch { /* best-effort */ }
+      const linkText = link.caption ? `${link.caption}\n${link.url}` : link.url;
+      try { await this.sendAndWait({ type: "send", text: linkText }); } catch { /* best-effort */ }
     }
 
     return result;
