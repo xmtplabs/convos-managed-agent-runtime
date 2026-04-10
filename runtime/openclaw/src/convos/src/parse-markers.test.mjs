@@ -1,5 +1,5 @@
 // Unit tests for parseMarkers() — mirrors Hermes parse_response() parity.
-// Run: node --experimental-strip-types --test runtime/openclaw/extensions/convos/src/parse-markers.test.mjs
+// Run: node --experimental-strip-types --test runtime/openclaw/src/convos/src/parse-markers.test.mjs
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";

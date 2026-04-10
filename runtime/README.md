@@ -25,8 +25,8 @@ Two agent runtimes as peers — **OpenClaw** (Node.js) and **Hermes** (Python) �
 The `pnpm start` script runs four steps in sequence:
 
 1. **keys.sh** — Displays all env var status. Generates `GATEWAY_TOKEN` if not set. Provisions OpenRouter keys (via services API or management key) and AgentMail inboxes if needed. Retries 3x on services failure. Fails fast if `OPENROUTER_API_KEY` is missing after provisioning.
-2. **apply-config.sh** — Syncs workspace and extensions from the image to the state dir. Merges `runtime/convos-platform/` with runtime-specific workspace, then assembles `AGENTS.md` from `<!-- SECTION:NAME -->` markers resolved against `convos-platform/context/` files. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
-3. **install-deps.sh** — Runs `pnpm install` in each extension directory (convos, web-tools). Links shared deps.
+2. **apply-config.sh** — Syncs workspace and src (→ extensions) from the image to the state dir. Merges `runtime/convos-platform/` with runtime-specific workspace, then assembles `AGENTS.md` from `<!-- SECTION:NAME -->` markers resolved against `convos-platform/context/` files. Workspace sync keeps local edits and local-only files, copies new image files forward, and tracks the last image baseline in `$OPENCLAW_STATE_DIR/.workspace-base`. It also patches `openclaw.json` with port, workspace path, plugin paths, and browser config.
+3. **install-deps.sh** — Runs `pnpm install` in each src plugin directory (convos, web-tools). Links shared deps.
 4. **start.sh** — Seeds cron jobs (`crons.sh`) and runs `openclaw gateway run` with a restart loop (max 5 rapid crashes in 30s window).
 
 ## Directory structure
@@ -48,7 +48,7 @@ runtime/
 │   ├── Dockerfile          # node:22-bookworm + chromium + pnpm
 │   ├── package.json        # openclaw deps + runtime scripts
 │   ├── openclaw.json       # config template (${ENV_VAR} placeholders)
-│   ├── extensions/
+│   ├── src/
 │   │   └── convos/         # XMTP messaging channel
 │   ├── workspace/
 │   │   ├── agents-extra.md # openclaw-specific agent instructions

@@ -33,7 +33,7 @@ ENV NODE_PATH=/app/node_modules
 # RUNTIME_DIR=$ROOT/openclaw in init.sh — apply-config syncs from here to STATE_DIR (/app)
 COPY runtime/openclaw/openclaw.json /app/openclaw/openclaw.json
 COPY runtime/openclaw/workspace /app/openclaw/workspace
-COPY runtime/openclaw/extensions /app/openclaw/extensions
+COPY runtime/openclaw/src /app/openclaw/src
 COPY runtime/convos-platform /app/convos-platform
 COPY runtime/lib /app/lib
 COPY runtime/openclaw/scripts ./scripts
