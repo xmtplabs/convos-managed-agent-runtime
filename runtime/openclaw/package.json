@@ -2,7 +2,7 @@
   "name": "convos-agents",
   "private": true,
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/start.sh",
