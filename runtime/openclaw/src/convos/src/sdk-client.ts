@@ -370,6 +370,12 @@ export class ConvosInstance {
           const instance = new ConvosInstance({ conversationId, identityId, env, options });
           return { instance, status: "joined", conversationId, identityId };
         }
+        // Already joined but conversation is still pending (not a hex ID).
+        // Throw a recognizable error so callers can fail fast instead of retrying.
+        throw Object.assign(
+          new Error(`Already joined conversation but status is pending (identity: ${identityMatch?.[1] ?? "unknown"})`),
+          { code: "ALREADY_JOINED_PENDING" },
+        );
       }
       throw err;
     }
@@ -607,11 +613,13 @@ export class ConvosInstance {
     }
 
     // Send LINK: URLs as separate messages after the main text.
-    // Caption and URL are sent as two messages so the URL gets its own preview card.
+    // URL is sent first so it gets its own preview card; caption follows if present.
     for (const link of parsed.links) {
       try {
+        const cmd: Record<string, unknown> = { type: "send", text: link.url };
+        if (link.replyTo) cmd.replyTo = link.replyTo;
+        await this.sendAndWait(cmd);
         if (link.caption) await this.sendAndWait({ type: "send", text: link.caption });
-        await this.sendAndWait({ type: "send", text: link.url });
       } catch { /* best-effort */ }
     }
 

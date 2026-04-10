@@ -215,6 +215,7 @@ class ParsedMarker:
 class ParsedLink:
     url: str
     caption: str | None = None
+    reply_to: str | None = None
 
 @dataclass
 class ParsedResponse:
@@ -291,6 +292,12 @@ def parse_response(raw: str) -> ParsedResponse:
         text_lines.append(line)
 
     result.text = "\n".join(text_lines).strip()
+
+    # REPLY applies to all outbound messages, including links.
+    if result.reply_to and result.links:
+        for link in result.links:
+            link.reply_to = result.reply_to
+
     return result
 
 
@@ -1353,14 +1360,14 @@ class ConvosAdapter:
         # Send LINK: URLs as separate messages after the main text.
         # Delivered regardless of text suppression — like MEDIA, links are
         # explicit side effects, not part of the suppressible text body.
-        # Caption and URL are sent as two messages so the URL gets its own preview card.
+        # URL is sent first so it gets its own preview card; caption follows if present.
         for link in parsed.links:
             try:
+                await inst.send_message(link.url, reply_to=link.reply_to)
+                stats.increment("messages_out")
                 if link.caption:
                     await inst.send_message(link.caption)
                     stats.increment("messages_out")
-                await inst.send_message(link.url)
-                stats.increment("messages_out")
             except Exception as err:
                 logger.error(f"Send link failed: {err}")
 

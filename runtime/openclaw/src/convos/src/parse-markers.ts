@@ -8,7 +8,7 @@
  *   PROFILE:New Name
  *   PROFILEIMAGE:https://url
  *   METADATA:key=value
- *   LINK:https://url [optional caption]  (sent as a separate message after the main text)
+ *   LINK:https://url [optional caption]  (URL sent as a separate message; caption follows if present)
  *   MEDIA:/path/to/file  (can appear inline; also accepts ./relative paths)
  */
 
@@ -21,6 +21,7 @@ export interface ParsedReaction {
 export interface ParsedLink {
   url: string;
   caption?: string;
+  replyTo?: string;
 }
 
 export interface ParsedMarkers {
@@ -109,5 +110,11 @@ export function parseMarkers(raw: string): ParsedMarkers {
   }
 
   result.text = kept.join("\n").trim();
+
+  // REPLY applies to all outbound messages, including links.
+  if (result.replyTo && result.links.length > 0) {
+    for (const link of result.links) link.replyTo = result.replyTo;
+  }
+
   return result;
 }

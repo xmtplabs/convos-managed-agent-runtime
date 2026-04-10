@@ -195,7 +195,7 @@ describe("parseMarkers", () => {
     assert.equal(result.replyTo, "msg2");
     assert.equal(result.profileName, "Test Bot 🤖");
     assert.deepStrictEqual(result.profileMetadata, { status: "active" });
-    assert.deepStrictEqual(result.links, [{ url: "https://example.com/report" }]);
+    assert.deepStrictEqual(result.links, [{ url: "https://example.com/report", replyTo: "msg2" }]);
     assert.deepStrictEqual(result.media, ["/tmp/report.pdf"]);
     assert.equal(result.text, "Here is your report!");
   });
