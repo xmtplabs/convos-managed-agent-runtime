@@ -12,7 +12,7 @@ Used by both production and evals:
     Same AIAgent config, same toolsets, same skills — no wrapper scripts.
 
 Both paths use the same AIAgent setup:
-  - hermes-convos toolset (core tools + convos_react, convos_send_attachment, convos_background_task)
+  - hermes-convos toolset (core tools + convos_react, convos_send_attachment, convos_background_task, convos_check_background_task)
   - platform="convos"
   - ephemeral_system_prompt from INJECTED_CONTEXT.md
 
@@ -75,7 +75,7 @@ def warm_imports() -> None:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
         from src.convos.actions import register_convos_tools
 
-        convos_tool_names = ["convos_react", "convos_send_attachment", "convos_background_task"]
+        convos_tool_names = ["convos_react", "convos_send_attachment", "convos_background_task", "convos_check_background_task"]
         all_tools = list(_HERMES_CORE_TOOLS) + convos_tool_names
         create_custom_toolset(
             name="hermes-convos",

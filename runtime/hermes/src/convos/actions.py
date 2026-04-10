@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 _react: Callable[..., Any] | None = None
 _send_attachment: Callable[..., Any] | None = None
 _spawn_background_task: Callable[..., Any] | None = None
+_check_background_task: Callable[..., Any] | None = None
 _main_loop: asyncio.AbstractEventLoop | None = None
 
 
@@ -38,12 +39,14 @@ def set_bridge(
     react: Callable[..., Any],
     send_attachment: Callable[..., Any] | None = None,
     spawn_background_task: Callable[..., Any] | None = None,
+    check_background_task: Callable[..., Any] | None = None,
 ) -> None:
     """Wire bridge callbacks. Called by ConvosAdapter.start() on the main thread."""
-    global _react, _send_attachment, _spawn_background_task, _main_loop
+    global _react, _send_attachment, _spawn_background_task, _check_background_task, _main_loop
     _react = react
     _send_attachment = send_attachment
     _spawn_background_task = spawn_background_task
+    _check_background_task = check_background_task
     _main_loop = asyncio.get_event_loop()
 
 
@@ -180,14 +183,53 @@ def _handle_background_task(args: dict, **kwargs) -> str:
         return json.dumps({"error": "goal is required"})
     task_id = f"bg-{uuid.uuid4().hex[:8]}"
     try:
-        _run_async(_spawn_background_task(task_id, goal, context))
+        progress_file = _run_async(_spawn_background_task(task_id, goal, context))
         return json.dumps({
             "queued": True,
             "task_id": task_id,
-            "note": "Task is running in the background. End your turn now with an acknowledgment to the user. You will receive a system notification with results when the task completes.",
+            "progress_file": progress_file,
+            "instructions": (
+                "The task is running in the background. You will be notified "
+                "automatically when it completes. "
+                "Do not duplicate this task's work. "
+                "Briefly tell the user what you launched and end your response. "
+                "If the user asks about progress, use convos_check_background_task."
+            ),
         })
     except Exception as err:
         logger.error(f"convos_background_task failed: {err}")
+        return json.dumps({"error": str(err)})
+
+
+# ---- convos_check_background_task ----
+
+CHECK_BACKGROUND_TASK_SCHEMA = {
+    "name": "convos_check_background_task",
+    "description": (
+        "Check the status and progress of background tasks. "
+        "Call with a task_id to check a specific task, or omit to list all running tasks."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "task_id": {
+                "type": "string",
+                "description": "The task ID to check (e.g. 'bg-abc12345'). Omit to list all.",
+            },
+        },
+    },
+}
+
+
+def _handle_check_background_task(args: dict, **kwargs) -> str:
+    if not _check_background_task:
+        return json.dumps({"error": "Background tasks not available"})
+    task_id = args.get("task_id", "").strip() or None
+    try:
+        result = _check_background_task(task_id)
+        return json.dumps(result)
+    except Exception as err:
+        logger.error(f"convos_check_background_task failed: {err}")
         return json.dumps({"error": str(err)})
 
 
@@ -216,4 +258,11 @@ def register_convos_tools() -> None:
         handler=_handle_background_task,
         check_fn=lambda: _spawn_background_task is not None,
     )
-    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_background_task)")
+    registry.register(
+        name="convos_check_background_task",
+        toolset="hermes-convos",
+        schema=CHECK_BACKGROUND_TASK_SCHEMA,
+        handler=_handle_check_background_task,
+        check_fn=lambda: _check_background_task is not None,
+    )
+    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_background_task, convos_check_background_task)")
