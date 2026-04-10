@@ -607,9 +607,12 @@ export class ConvosInstance {
     }
 
     // Send LINK: URLs as separate messages after the main text.
+    // Caption and URL are sent as two messages so the URL gets its own preview card.
     for (const link of parsed.links) {
-      const linkText = link.caption ? `${link.caption}\n${link.url}` : link.url;
-      try { await this.sendAndWait({ type: "send", text: linkText }); } catch { /* best-effort */ }
+      try {
+        if (link.caption) await this.sendAndWait({ type: "send", text: link.caption });
+        await this.sendAndWait({ type: "send", text: link.url });
+      } catch { /* best-effort */ }
     }
 
     return result;

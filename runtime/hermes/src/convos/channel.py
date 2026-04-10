@@ -1353,10 +1353,13 @@ class ConvosAdapter:
         # Send LINK: URLs as separate messages after the main text.
         # Delivered regardless of text suppression — like MEDIA, links are
         # explicit side effects, not part of the suppressible text body.
+        # Caption and URL are sent as two messages so the URL gets its own preview card.
         for link in parsed.links:
-            link_text = f"{link.caption}\n{link.url}" if link.caption else link.url
             try:
-                await inst.send_message(link_text)
+                if link.caption:
+                    await inst.send_message(link.caption)
+                    stats.increment("messages_out")
+                await inst.send_message(link.url)
                 stats.increment("messages_out")
             except Exception as err:
                 logger.error(f"Send link failed: {err}")
