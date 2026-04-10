@@ -8,6 +8,7 @@
  *   PROFILE:New Name
  *   PROFILEIMAGE:https://url
  *   METADATA:key=value
+ *   LINK:https://url [optional caption]  (URL sent as a separate message; caption follows if present)
  *   MEDIA:/path/to/file  (can appear inline; also accepts ./relative paths)
  */
 
@@ -17,11 +18,18 @@ export interface ParsedReaction {
   action: "add" | "remove";
 }
 
+export interface ParsedLink {
+  url: string;
+  caption?: string;
+  replyTo?: string;
+}
+
 export interface ParsedMarkers {
   text: string;
   reactions: ParsedReaction[];
   replyTo?: string;
   media: string[];
+  links: ParsedLink[];
   profileName?: string;
   profileImage?: string;
   profileMetadata: Record<string, string>;
@@ -32,6 +40,7 @@ export function parseMarkers(raw: string): ParsedMarkers {
     text: "",
     reactions: [],
     media: [],
+    links: [],
     profileMetadata: {},
   };
   const lines = raw.split("\n");
@@ -79,6 +88,15 @@ export function parseMarkers(raw: string): ParsedMarkers {
       continue;
     }
 
+    // LINK:https://url [optional caption] — send URL as a separate message
+    const linkMatch = stripped.match(/^LINK:(https?:\/\/\S+)(?:\s+(.+))?$/);
+    if (linkMatch) {
+      const link: ParsedLink = { url: linkMatch[1] };
+      if (linkMatch[2]) link.caption = linkMatch[2].trim();
+      result.links.push(link);
+      continue;
+    }
+
     // MEDIA:/path or MEDIA:./path — can be inline, extract and keep rest of line
     const mediaMatch = line.match(/MEDIA:(\.{0,2}\/\S+)/);
     if (mediaMatch) {
@@ -92,5 +110,11 @@ export function parseMarkers(raw: string): ParsedMarkers {
   }
 
   result.text = kept.join("\n").trim();
+
+  // REPLY applies to all outbound messages, including links.
+  if (result.replyTo && result.links.length > 0) {
+    for (const link of result.links) link.replyTo = result.replyTo;
+  }
+
   return result;
 }
