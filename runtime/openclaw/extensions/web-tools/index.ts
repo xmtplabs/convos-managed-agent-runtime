@@ -461,7 +461,8 @@ export default function register(api: OpenClawPluginApi) {
     );
     const files: { name: string; content: string }[] = [];
     try {
-      const entries = fs.readdirSync(wsDir).filter(f => f.endsWith(".md")).sort();
+      const NATIVE_FILES = new Set(["AGENTS.md", "INJECTED_CONTEXT.md", "SOUL.md"]);
+      const entries = fs.readdirSync(wsDir).filter(f => f.endsWith(".md") && !NATIVE_FILES.has(f)).sort();
       for (const entry of entries) {
         try {
           const content = fs.readFileSync(path.join(wsDir, entry), "utf-8");

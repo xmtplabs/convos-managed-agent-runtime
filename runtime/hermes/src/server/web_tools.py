@@ -214,28 +214,18 @@ async def services_redeem_coupon(request: Request):
 # ── Context API (reads from runtime workspace) ─────────────
 
 
+_NATIVE_FILES = {"AGENTS.md", "INJECTED_CONTEXT.md", "SOUL.md"}
+
+
 def _read_workspace_files() -> list[dict]:
-    """Read .md files from the runtime workspace ($HERMES_HOME/workspace/)
-    and top-level files like SOUL.md from $HERMES_HOME/."""
+    """Read .md files from $HERMES_HOME/workspace/, excluding native files."""
     home = _hermes_home()
     files: list[dict] = []
 
-    # Top-level .md files (e.g. SOUL.md)
-    try:
-        for f in sorted(home.iterdir()):
-            if f.suffix == ".md" and f.is_file():
-                try:
-                    files.append({"name": f.stem, "content": f.read_text()})
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-    # Workspace .md files (AGENTS.md, TOOLS.md, USER.md, etc.)
     ws_dir = home / "workspace"
     try:
         for f in sorted(ws_dir.iterdir()):
-            if f.suffix == ".md" and f.is_file():
+            if f.suffix == ".md" and f.is_file() and f.name not in _NATIVE_FILES:
                 try:
                     files.append({"name": f.stem, "content": f.read_text()})
                 except Exception:
