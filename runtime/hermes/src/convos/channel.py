@@ -30,6 +30,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+import time as _time
+
 import httpx
 
 from .sdk_client import ConvosInstance, InboundMessage
@@ -41,6 +43,11 @@ from ..server.outbound_policy import apply_outbound_policy
 from ..server.stats import stats
 
 logger = logging.getLogger(__name__)
+
+# Wall-clock safety net for background tasks (10 minutes).
+# The primary bound is max_iterations on the AIAgent; this only catches
+# truly hung tasks that stop making progress without exiting.
+BACKGROUND_TASK_TIMEOUT_S = 600
 
 XMTP_MESSAGE_LIMIT = 4000
 GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
@@ -468,6 +475,8 @@ class ConvosAdapter:
         self._pending_message: InboundMessage | None = None
         self._skipped_content: list[str] = []  # messages superseded while queued
         self._sent_message_ids: set[str] = set()  # tracks agent-sent IDs for "own" reaction detection
+        # Background tasks: fire-and-forget async work that notifies on completion.
+        self._background_tasks: dict[str, asyncio.Task] = {}
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -517,6 +526,7 @@ class ConvosAdapter:
         set_bridge(
             react=self._instance.react,
             send_attachment=self._instance.send_attachment,
+            spawn_background_task=self._spawn_background_task,
         )
 
         self._profile_image_renewal = ProfileImageRenewalStore(
@@ -542,6 +552,12 @@ class ConvosAdapter:
                 download_task.cancel()
         self._pending_attachments.clear()
 
+        # Cancel running background tasks
+        for task_id, task in self._background_tasks.items():
+            task.cancel()
+            logger.info("Cancelled background task %s on stop", task_id)
+        self._background_tasks.clear()
+
         _clear_expiration_timer()
 
         if self._instance:
@@ -549,6 +565,131 @@ class ConvosAdapter:
             self._instance = None
         self._profile_image_renewal = None
         self._agent = None
+
+    # ---- Background tasks ----
+
+    async def _spawn_background_task(self, task_id: str, goal: str, context: str) -> None:
+        """Queue a background task. Called from the bridge (worker thread via _run_async).
+
+        Validates concurrency limits, then creates an asyncio task that runs
+        a fresh AIAgent in a thread pool and notifies on completion.
+        """
+        from .actions import MAX_BACKGROUND_TASKS
+
+        # Prune completed tasks before checking limits
+        self._background_tasks = {
+            tid: t for tid, t in self._background_tasks.items() if not t.done()
+        }
+        if len(self._background_tasks) >= MAX_BACKGROUND_TASKS:
+            raise RuntimeError(
+                f"Too many background tasks ({len(self._background_tasks)}/{MAX_BACKGROUND_TASKS}). "
+                "Wait for one to finish before starting another."
+            )
+
+        task = asyncio.create_task(
+            self._run_background_task(task_id, goal, context),
+            name=f"background-{task_id}",
+        )
+        self._background_tasks[task_id] = task
+        logger.info("Spawned background task %s: %s", task_id, goal[:80])
+
+    async def _run_background_task(self, task_id: str, goal: str, context: str) -> None:
+        """Execute a background task and inject results via the notify pathway."""
+        adapter = self
+        agent = adapter._agent
+        if not agent or not adapter._instance:
+            logger.error("Background task %s: no active agent/instance", task_id)
+            return
+
+        prompt = f"## Goal\n\n{goal}\n\n## Context\n\n{context}"
+        loop = asyncio.get_event_loop()
+
+        try:
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, self._run_background_agent_sync, prompt),
+                timeout=BACKGROUND_TASK_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            result = f"Background task timed out after {BACKGROUND_TASK_TIMEOUT_S}s."
+            logger.warning("Background task %s timed out", task_id)
+        except asyncio.CancelledError:
+            logger.info("Background task %s cancelled", task_id)
+            return
+        except Exception as err:
+            result = f"Background task failed: {err}"
+            logger.error("Background task %s failed: %s", task_id, err)
+
+        # Wait for the main agent to be idle before injecting results.
+        # If we inject while _agent_running is True, we'd have two concurrent
+        # run_conversation() calls on the same AIAgent — avoid that.
+        for _ in range(120):  # up to 60s
+            if not adapter._agent_running:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            logger.warning("Background task %s: timed out waiting for idle agent", task_id)
+
+        # Inject results as a system notification — triggers a fresh agent turn
+        # with full conversation context (same pathway as /convos/notify and cron).
+        try:
+            await adapter._greeting_done.wait()
+            notification = (
+                f"[Background task {task_id} completed]\n"
+                f"Goal: {goal}\n\n"
+                f"Results:\n{result}"
+            )
+            response = await agent.handle_message(
+                content=notification,
+                sender_name="System",
+                sender_id="system",
+                timestamp=_time.time(),
+                conversation_id=adapter._instance.conversation_id,
+                message_id=f"{task_id}-{int(_time.time() * 1000)}",
+                group_members=adapter._instance.get_group_members(),
+                agent_name=adapter._instance.get_own_name(),
+            )
+            if response:
+                await adapter._dispatch_response(response)
+            logger.info("Background task %s: notified with results", task_id)
+        except Exception as err:
+            logger.error("Background task %s: failed to notify: %s", task_id, err)
+        finally:
+            self._background_tasks.pop(task_id, None)
+
+    def _run_background_agent_sync(self, prompt: str) -> str:
+        """Run a fresh AIAgent synchronously for background work.
+
+        Creates an isolated agent instance with the same model and provider
+        config but no conversation history — the background worker starts
+        with a blank slate, just like delegate_task sub-agents.
+        """
+        from ..server.agent_runner import _get_ai_agent_class, AgentRunner
+
+        cfg = AgentRunner._load_config_yaml(self._config.hermes_home)
+        pr = cfg.get("provider_routing", {}) or {}
+        fallback = cfg.get("fallback_providers") or cfg.get("fallback_model") or None
+
+        AIAgent = _get_ai_agent_class()
+        bg_agent = AIAgent(
+            model=self._config.model,
+            max_iterations=self._config.max_iterations,
+            enabled_toolsets=["hermes-convos"],
+            platform="convos",
+            quiet_mode=True,
+            save_trajectories=False,
+            providers_allowed=pr.get("only"),
+            providers_ignored=pr.get("ignore"),
+            providers_order=pr.get("order"),
+            provider_sort=pr.get("sort"),
+            provider_require_parameters=pr.get("require_parameters", False),
+            provider_data_collection=pr.get("data_collection"),
+            fallback_model=fallback,
+        )
+        result = bg_agent.run_conversation(
+            user_message=prompt,
+            conversation_history=[],
+        )
+        return result.get("final_response", "") or "(no output)"
 
     # ---- Message pipeline ----
 

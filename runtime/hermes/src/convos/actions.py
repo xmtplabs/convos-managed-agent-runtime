@@ -4,6 +4,9 @@ Custom Hermes tools for Convos — registered in the agent's tool loop.
 convos_react executes mid-processing so the agent can add eyes (thinking
 indicator) before doing tool work, and react to messages at any time.
 convos_send_attachment sends files during processing.
+convos_background_task kicks off a long-running task in the background —
+the tool returns immediately so the agent's turn ends, and results are
+injected as a system notification when the work completes.
 
 The agent's final text response is dispatched by the adapter — there is no
 convos_send tool. This avoids the empty-response retry problem since Hermes
@@ -17,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import uuid
 from typing import Any, Callable
 
 from tools.registry import registry
@@ -25,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 _react: Callable[..., Any] | None = None
 _send_attachment: Callable[..., Any] | None = None
+_spawn_background_task: Callable[..., Any] | None = None
 _main_loop: asyncio.AbstractEventLoop | None = None
 
 
@@ -32,11 +37,13 @@ def set_bridge(
     *,
     react: Callable[..., Any],
     send_attachment: Callable[..., Any] | None = None,
+    spawn_background_task: Callable[..., Any] | None = None,
 ) -> None:
     """Wire bridge callbacks. Called by ConvosAdapter.start() on the main thread."""
-    global _react, _send_attachment, _main_loop
+    global _react, _send_attachment, _spawn_background_task, _main_loop
     _react = react
     _send_attachment = send_attachment
+    _spawn_background_task = spawn_background_task
     _main_loop = asyncio.get_event_loop()
 
 
@@ -127,6 +134,63 @@ def _handle_send_attachment(args: dict, **kwargs) -> str:
         return json.dumps({"error": str(err)})
 
 
+# ---- convos_background_task ----
+
+BACKGROUND_TASK_SCHEMA = {
+    "name": "convos_background_task",
+    "description": (
+        "Kick off a long-running task in the background. "
+        "Returns immediately so your turn ends and the user can keep chatting. "
+        "You will be notified with results when the task completes. "
+        "Use this for web browsing, research, or any multi-step work that "
+        "would block the conversation."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "goal": {
+                "type": "string",
+                "description": (
+                    "Clear description of what the background worker should accomplish. "
+                    "The worker starts with a blank slate — include ALL necessary context."
+                ),
+            },
+            "context": {
+                "type": "string",
+                "description": (
+                    "Supporting context the worker needs: URLs, constraints, "
+                    "file paths, prior findings. Be specific — the worker "
+                    "cannot see your conversation history."
+                ),
+            },
+        },
+        "required": ["goal", "context"],
+    },
+}
+
+MAX_BACKGROUND_TASKS = 3
+
+
+def _handle_background_task(args: dict, **kwargs) -> str:
+    if not _spawn_background_task:
+        return json.dumps({"error": "Background tasks not available"})
+    goal = args.get("goal", "").strip()
+    context = args.get("context", "").strip()
+    if not goal:
+        return json.dumps({"error": "goal is required"})
+    task_id = f"bg-{uuid.uuid4().hex[:8]}"
+    try:
+        _run_async(_spawn_background_task(task_id, goal, context))
+        return json.dumps({
+            "queued": True,
+            "task_id": task_id,
+            "note": "Task is running in the background. End your turn now with an acknowledgment to the user. You will receive a system notification with results when the task completes.",
+        })
+    except Exception as err:
+        logger.error(f"convos_background_task failed: {err}")
+        return json.dumps({"error": str(err)})
+
+
 # ---- Registration ----
 
 def register_convos_tools() -> None:
@@ -145,4 +209,11 @@ def register_convos_tools() -> None:
         handler=_handle_send_attachment,
         check_fn=lambda: _send_attachment is not None,
     )
-    logger.info("Registered convos tools (convos_react, convos_send_attachment)")
+    registry.register(
+        name="convos_background_task",
+        toolset="hermes-convos",
+        schema=BACKGROUND_TASK_SCHEMA,
+        handler=_handle_background_task,
+        check_fn=lambda: _spawn_background_task is not None,
+    )
+    logger.info("Registered convos tools (convos_react, convos_send_attachment, convos_background_task)")
