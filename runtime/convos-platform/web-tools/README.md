@@ -6,8 +6,8 @@ Public-facing web pages served by both runtimes — landing page, services dashb
 
 | Runtime | Entry point |
 |---------|-------------|
-| OpenClaw | `openclaw/extensions/web-tools/index.ts` (OpenClaw plugin) |
-| Hermes | `hermes/src/web_tools.py` (FastAPI router) |
+| OpenClaw | `openclaw/src/web-tools/index.ts` (OpenClaw plugin) |
+| Hermes | `hermes/src/web_tools/web_tools.py` (FastAPI router) |
 
 Both implementations serve the same routes from the shared HTML/CSS in this directory.
 
