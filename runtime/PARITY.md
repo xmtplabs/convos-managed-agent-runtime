@@ -37,7 +37,7 @@ Approach: file-by-file comparison across channel logic, stats, agent runner, ser
 ### 1. Delivery queue cleanup — OpenClaw only (intentional)
 
 - **OpenClaw**: Clears stale `delivery-queue/*.json` on startup (`channel.ts:383-403`) to prevent duplicate sends after SIGKILL.
-- **Hermes**: No delivery queue. Uses in-memory state — different architecture, no disk persistence.
+- **Hermes**: No outbound delivery queue — sends happen inline within each turn, so there's nothing to persist or replay on the outbound path. (Inbound conversation history *is* persisted to disk via `state.db` — see the Conversation history persistence row above.)
 
 Intentional. No action needed.
 
