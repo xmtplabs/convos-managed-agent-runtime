@@ -8,6 +8,7 @@
  *   PROFILE:New Name
  *   PROFILEIMAGE:https://url
  *   METADATA:key=value
+ *   LINK:https://url  (sent as a separate message after the main text)
  *   MEDIA:/path/to/file  (can appear inline; also accepts ./relative paths)
  */
 
@@ -22,6 +23,7 @@ export interface ParsedMarkers {
   reactions: ParsedReaction[];
   replyTo?: string;
   media: string[];
+  links: string[];
   profileName?: string;
   profileImage?: string;
   profileMetadata: Record<string, string>;
@@ -32,6 +34,7 @@ export function parseMarkers(raw: string): ParsedMarkers {
     text: "",
     reactions: [],
     media: [],
+    links: [],
     profileMetadata: {},
   };
   const lines = raw.split("\n");
@@ -76,6 +79,13 @@ export function parseMarkers(raw: string): ParsedMarkers {
     const metaMatch = stripped.match(/^METADATA:(\w+)=(.+)$/);
     if (metaMatch) {
       result.profileMetadata[metaMatch[1]] = metaMatch[2].trim();
+      continue;
+    }
+
+    // LINK:https://url — send URL as a separate message
+    const linkMatch = stripped.match(/^LINK:(https?:\/\/\S+)$/);
+    if (linkMatch) {
+      result.links.push(linkMatch[1]);
       continue;
     }
 

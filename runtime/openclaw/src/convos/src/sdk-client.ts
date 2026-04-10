@@ -592,15 +592,26 @@ export class ConvosInstance {
     const effectiveReplyTo = parsed.replyTo ?? replyTo;
 
     text = parsed.text;
-    if (!text) {
+    if (!text && parsed.links.length === 0) {
       return { success: true, messageId: undefined };
     }
 
     await this.renewProfileImageOnActivity();
 
-    const cmd: Record<string, unknown> = { type: "send", text };
-    if (effectiveReplyTo) cmd.replyTo = effectiveReplyTo;
-    return this.sendAndWait(cmd);
+    // Send main text first.
+    let result: { success: boolean; messageId?: string } = { success: true, messageId: undefined };
+    if (text) {
+      const cmd: Record<string, unknown> = { type: "send", text };
+      if (effectiveReplyTo) cmd.replyTo = effectiveReplyTo;
+      result = await this.sendAndWait(cmd);
+    }
+
+    // Send LINK: URLs as separate messages after the main text.
+    for (const link of parsed.links) {
+      try { await this.sendAndWait({ type: "send", text: link }); } catch { /* best-effort */ }
+    }
+
+    return result;
   }
 
   async sendAttachment(file: string): Promise<{ success: boolean; messageId?: string }> {

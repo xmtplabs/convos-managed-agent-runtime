@@ -8,6 +8,7 @@ Marker syntax (agent includes these in its response text):
   REACT:messageId:emoji           — react to a message
   REACT:messageId:emoji:remove    — remove a reaction
   REPLY:messageId                 — send the response as a reply to that message
+  LINK:https://url                — send URL as a separate message
   MEDIA:/path/to/file             — send a file attachment
   PROFILE:New Name                — update the agent's profile name
   PROFILEIMAGE:https://url        — update the agent's profile image
@@ -217,6 +218,7 @@ class ParsedResponse:
     reply_to: str | None = None  # message ID to reply to
     reactions: list[ParsedMarker] = field(default_factory=list)
     media: list[str] = field(default_factory=list)
+    links: list[str] = field(default_factory=list)
     profile_name: str | None = None
     profile_image: str | None = None
     profile_metadata: dict[str, str] = field(default_factory=dict)
@@ -264,6 +266,12 @@ def parse_response(raw: str) -> ParsedResponse:
         m = re.match(r'^METADATA:(\w+)=(.+)$', stripped)
         if m:
             result.profile_metadata[m.group(1)] = m.group(2).strip()
+            continue
+
+        # LINK:https://url — send URL as a separate message
+        m = re.match(r'^LINK:(https?://\S+)$', stripped)
+        if m:
+            result.links.append(m.group(1))
             continue
 
         # MEDIA:/path or MEDIA:./path — can be inline, extract and keep rest of line
@@ -1338,6 +1346,14 @@ class ConvosAdapter:
                     stats.increment("messages_out")
                 except Exception as err:
                     logger.error(f"Send message failed: {err}")
+
+        # Send LINK: URLs as separate messages after the main text.
+        for link in parsed.links:
+            try:
+                await inst.send_message(link)
+                stats.increment("messages_out")
+            except Exception as err:
+                logger.error(f"Send link failed: {err}")
 
 
 

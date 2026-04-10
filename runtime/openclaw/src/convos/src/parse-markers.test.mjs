@@ -96,6 +96,39 @@ describe("parseMarkers", () => {
     assert.deepStrictEqual(result.profileMetadata, { url: "https://x.com?a=1" });
   });
 
+  // ---- LINK ----
+
+  it("parses LINK:https://url standalone line", () => {
+    const result = parseMarkers("LINK:https://example.com/dashboard\nCheck it out");
+    assert.deepStrictEqual(result.links, ["https://example.com/dashboard"]);
+    assert.equal(result.text, "Check it out");
+  });
+
+  it("parses LINK:http://url (non-TLS)", () => {
+    const result = parseMarkers("LINK:http://localhost:3000/logs\nHere are your logs");
+    assert.deepStrictEqual(result.links, ["http://localhost:3000/logs"]);
+    assert.equal(result.text, "Here are your logs");
+  });
+
+  it("handles multiple LINK markers", () => {
+    const result = parseMarkers("LINK:https://a.com\nLINK:https://b.com\nTwo links");
+    assert.equal(result.links.length, 2);
+    assert.deepStrictEqual(result.links, ["https://a.com", "https://b.com"]);
+    assert.equal(result.text, "Two links");
+  });
+
+  it("does not parse LINK without protocol", () => {
+    const result = parseMarkers("LINK:example.com\nText");
+    assert.equal(result.links.length, 0);
+    assert.equal(result.text, "LINK:example.com\nText");
+  });
+
+  it("does not parse LINK inline (must be standalone)", () => {
+    const result = parseMarkers("Check this LINK:https://example.com please");
+    assert.equal(result.links.length, 0);
+    assert.equal(result.text, "Check this LINK:https://example.com please");
+  });
+
   // ---- MEDIA ----
 
   it("parses MEDIA:/path standalone line", () => {
@@ -143,6 +176,7 @@ describe("parseMarkers", () => {
       "REPLY:msg2",
       "PROFILE:Test Bot 🤖",
       "METADATA:status=active",
+      "LINK:https://example.com/report",
       "MEDIA:/tmp/report.pdf",
       "Here is your report!",
     ].join("\n");
@@ -152,6 +186,7 @@ describe("parseMarkers", () => {
     assert.equal(result.replyTo, "msg2");
     assert.equal(result.profileName, "Test Bot 🤖");
     assert.deepStrictEqual(result.profileMetadata, { status: "active" });
+    assert.deepStrictEqual(result.links, ["https://example.com/report"]);
     assert.deepStrictEqual(result.media, ["/tmp/report.pdf"]);
     assert.equal(result.text, "Here is your report!");
   });
