@@ -1,3 +1,17 @@
+## 0.3.4
+
+- Privacy guardrails: agents refuse to share private info about other users — dedicated eval enforces boundaries
+- LINK marker: URLs sent as separate messages so they unfurl properly in Convos
+- Background tasks (Hermes): `convos_background_task` lets agents do async work without blocking replies
+- Conversation history fix (Hermes): history now loaded from session DB instead of in-memory, so agents remember across restarts
+- Media delivery fix (OpenClaw): attachments dropped by the channel are now delivered via MEDIA marker fallback
+- Fatal error handling: retry loop stops immediately on unrecoverable convos CLI errors instead of looping
+- NO_REPLY suppression: treated as a SILENT-equivalent so agents can explicitly decline to respond
+- Profile image generation (Hermes): twemoji profile images auto-generated from PROFILE: emoji marker
+- Directory alignment: both runtimes now share the same directory structure for parity
+- Devcontainer: standardized on Node 24 with dev container support
+- Web tools: consolidated mini-app into a single tabbed interface with unified styling across landing, services, and skills views
+
 ## 0.3.3
 
 - Video understanding: agents can now watch and describe video messages — video is sent to Gemini 2.0 Flash natively via OpenRouter, including speech transcription
