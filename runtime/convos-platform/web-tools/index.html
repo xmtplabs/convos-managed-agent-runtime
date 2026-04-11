@@ -26,15 +26,15 @@
             <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
             <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
           </svg>
-          <span>assistant services</span>
+          <span>info</span>
         </div>
 
         <div class="service-list" id="service-list">
           <!-- Instance -->
-          <div class="service-item" id="svc-instance" style="display:none">
+          <div class="service-item" id="svc-instance">
             <div class="service-body">
               <div class="service-label">instance</div>
-              <div class="service-value" id="instance-value"></div>
+              <div class="service-value" id="instance-value"><div class="loading-shimmer"></div></div>
             </div>
             <button class="icon-btn" id="copy-instance" style="display:none" title="Copy">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -42,10 +42,10 @@
           </div>
 
           <!-- Runtime version -->
-          <div class="service-item" id="svc-runtime" style="display:none">
+          <div class="service-item" id="svc-runtime">
             <div class="service-body">
               <div class="service-label">runtime</div>
-              <div class="service-value" id="runtime-value"></div>
+              <div class="service-value" id="runtime-value"><div class="loading-shimmer"></div></div>
             </div>
           </div>
 
@@ -167,7 +167,7 @@
             <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
             <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
           </svg>
-          <span>context</span>
+          <span>notes</span>
         </div>
         <div id="context-content">
           <div class="loading-shimmer"></div>
@@ -212,7 +212,7 @@
     <nav class="bottom-nav" id="bottom-nav">
       <button class="nav-item active" data-tab="services">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        <span class="nav-label">Services</span>
+        <span class="nav-label">Info</span>
       </button>
       <button class="nav-item" data-tab="skills">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -220,7 +220,7 @@
       </button>
       <button class="nav-item" data-tab="context">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        <span class="nav-label">Context</span>
+        <span class="nav-label">Notes</span>
       </button>
       <button class="nav-item" data-tab="tasks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -480,7 +480,8 @@
               if (s.conversationId) showJoinActive(window.__xmtpEnv);
               else showJoinInput();
             })
-            .catch(function () { showJoinInput(); });
+            .catch(function () { showJoinInput(); })
+            .finally(function () { lockCardHeight(); });
         })
         .catch(function () {
           errorEl.textContent = "failed to connect";
@@ -553,8 +554,20 @@
       var skillDetailContent = document.getElementById("skill-detail-content");
       var skillBackBtn = document.getElementById("skill-back-btn");
 
+      var skillsTabHeader = document.querySelector("#panel-skills > .tab-header");
+      var cardEl = document.querySelector(".card");
+
+      function lockCardHeight() {
+        requestAnimationFrame(function () {
+          var h = document.getElementById("panel-services").offsetHeight;
+          if (h) cardEl.style.minHeight = h + "px";
+        });
+      }
       skillBackBtn.addEventListener("click", function () {
         skillDetail.classList.remove("visible");
+        cardEl.classList.remove("skill-open");
+        skillsContent.style.display = "";
+        skillsTabHeader.style.display = "";
       });
 
       function loadSkills() {
@@ -579,11 +592,19 @@
           });
       }
 
+      var ROOT_SKILLS = ["convos-runtime", "profile-update", "services", "share-logs", "skill-builder"];
       function renderSkillsList(data) {
+        var filtered = data.skills.filter(function (s) {
+          return ROOT_SKILLS.indexOf(s.slug) === -1;
+        });
+        if (!filtered.length) {
+          skillsContent.innerHTML = '<div class="empty-state">no skills yet</div>';
+          return;
+        }
         var html = '<div class="skill-list">';
-        data.skills.forEach(function (s) {
+        filtered.forEach(function (s) {
           html += '<div class="skill-item" data-slug="' + esc(s.slug) + '">' +
-            '<div class="skill-item-emoji">' + (s.emoji ? esc(s.emoji) : '<span class="skill-dot"></span>') + '</div>' +
+            '<div class="skill-item-emoji"><span class="skill-dot"></span></div>' +
             '<div class="skill-item-body">' +
               '<div class="skill-item-name">' + esc(s.agentName || "") + '</div>' +
               '<div class="skill-item-desc">' + esc(s.description || "") + '</div>' +
@@ -605,6 +626,9 @@
 
       function openSkillDetail(slug) {
         skillDetailContent.innerHTML = '<div class="empty-state">loading...</div>';
+        skillsContent.style.display = "none";
+        skillsTabHeader.style.display = "none";
+        cardEl.classList.add("skill-open");
         skillDetail.classList.add("visible");
         fetch("/web-tools/skills/api/" + encodeURIComponent(slug), { headers: authHeaders() })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
@@ -670,7 +694,7 @@
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
           .then(function (_) {
             if (!_.ok || !_.data.sections || !_.data.sections.length) {
-              contextContent.innerHTML = '<div class="empty-state">no context loaded</div>';
+              contextContent.innerHTML = '<div class="empty-state">no notes yet</div>';
               return;
             }
             renderContext(_.data);
@@ -683,8 +707,15 @@
       var CHEVRON_SVG = '<svg class="context-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
 
       function renderContext(data) {
+        var filtered = data.sections.filter(function (s) {
+          return s.name.toLowerCase() !== "tools.md" && s.name.toLowerCase() !== "tools";
+        });
+        if (!filtered.length) {
+          contextContent.innerHTML = '<div class="empty-state">no notes yet</div>';
+          return;
+        }
         var html = '<div class="context-list">';
-        data.sections.forEach(function (s) {
+        filtered.forEach(function (s) {
           var badges = "";
           if (s.runtime) {
             badges = ' <span class="context-runtime-badge">' + esc(s.runtime) + '</span>';
