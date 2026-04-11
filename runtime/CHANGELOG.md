@@ -10,6 +10,7 @@
 - Profile image generation (Hermes): twemoji profile images auto-generated from PROFILE: emoji marker
 - Directory alignment: both runtimes now share the same directory structure for parity
 - Devcontainer: standardized on Node 24 with dev container support
+- Web tools: consolidated mini-app into a single tabbed interface with unified styling across landing, services, and skills views
 
 ## 0.3.3
 
