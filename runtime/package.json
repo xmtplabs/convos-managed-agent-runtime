@@ -1,6 +1,6 @@
 {
   "name": "convos-assistants",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "scripts": {
     "start": "cd openclaw && pnpm start",
