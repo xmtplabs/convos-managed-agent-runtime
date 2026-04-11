@@ -61,8 +61,8 @@
 
 ```sh
 # Terminal 1: start the runtime
-pnpm start              # openclaw
-pnpm start:hermes       # hermes
+cd openclaw && pnpm start       # openclaw
+cd hermes && pnpm start         # hermes
 
 # Terminal 2: run evals (from runtime/)
 pnpm evals openclaw             # all suites

@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#f5f5f5">
+  <title>assistant</title>
+  <link rel="icon" href="https://convos.org/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="https://convos.org/_assets/v11/2d0a749d1fcbda24619bc36e9887bd0e710e515b.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/web-tools/app.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ====== CARD ====== -->
+    <div class="card">
+
+
+      <!-- ── Services (home) ── -->
+      <div class="tab-panel active" id="panel-services">
+        <div class="tab-header">
+          <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+          </svg>
+          <span>assistant services</span>
+        </div>
+
+        <div class="service-list" id="service-list">
+          <!-- Instance -->
+          <div class="service-item" id="svc-instance" style="display:none">
+            <div class="service-body">
+              <div class="service-label">instance</div>
+              <div class="service-value" id="instance-value"></div>
+            </div>
+            <button class="icon-btn" id="copy-instance" style="display:none" title="Copy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+
+          <!-- Runtime version -->
+          <div class="service-item" id="svc-runtime" style="display:none">
+            <div class="service-body">
+              <div class="service-label">runtime</div>
+              <div class="service-value" id="runtime-value"></div>
+            </div>
+          </div>
+
+          <!-- Join conversation -->
+          <div class="service-item" id="svc-join">
+            <div class="service-body" style="flex:1">
+              <div class="service-label">convos</div>
+              <div id="convos-shimmer" class="service-value"><div class="loading-shimmer"></div></div>
+              <div id="join-row" style="display:none;gap:6px;align-items:center;margin-top:4px">
+                <input type="text" id="join-url-input" class="coupon-input" placeholder="paste invite URL" style="flex:1;margin:0;font-size:12px">
+                <button class="pay-btn" id="join-btn" style="white-space:nowrap;font-size:12px;padding:6px 12px">join</button>
+              </div>
+              <div id="join-status" style="display:none;font-size:11px;margin-top:4px;color:var(--secondary)"></div>
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="service-item" id="svc-email">
+            <div class="service-body">
+              <div class="service-label">email</div>
+              <div class="service-value" id="email-value"><div class="loading-shimmer"></div></div>
+            </div>
+            <button class="icon-btn" id="copy-email" style="display:none" title="Copy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+
+          <!-- Phone -->
+          <div class="service-item" id="svc-phone">
+            <div class="service-body">
+              <div class="service-label">phone</div>
+              <div class="service-value" id="phone-value"><div class="loading-shimmer"></div></div>
+            </div>
+            <button class="icon-btn" id="copy-phone" style="display:none" title="Copy">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+
+          <!-- Processing power -->
+          <div class="service-item" id="svc-credits">
+            <div class="service-body">
+              <div class="service-label">processing power</div>
+              <div class="service-value" id="credits-value"><div class="loading-shimmer"></div></div>
+              <div class="credits-bar" id="credits-bar" style="display:none">
+                <div class="credits-bar-fill" id="credits-bar-fill"></div>
+              </div>
+              <div class="credits-detail" id="credits-detail" style="display:none">
+                <span id="credits-used"></span>
+                <span id="credits-limit"></span>
+              </div>
+            </div>
+            <button class="icon-btn" id="manage-btn" style="display:none" title="Add processing power">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="error-msg" id="error" role="alert"></div>
+
+        <!-- Manage overlay (processing power) -->
+        <div class="manage-overlay" id="manage-overlay">
+          <div class="manage-header">
+            <button class="back-btn" id="back-btn" title="Back">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="manage-title">add processing power</span>
+          </div>
+          <div class="manage-balance">
+            <div class="manage-balance-label">current power</div>
+            <div class="manage-balance-value" id="manage-balance-value">$0.00</div>
+          </div>
+          <div id="manage-content">
+            <div class="coupon-row">
+              <input type="text" id="coupon-input" class="coupon-input" placeholder="enter coupon code">
+              <button class="pay-btn" id="coupon-btn">redeem</button>
+            </div>
+            <div class="coupon-status" id="coupon-status"></div>
+          </div>
+          <div class="success-overlay" id="success-overlay">
+            <div class="success-icon">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="success-text" id="success-text"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Skills ── -->
+      <div class="tab-panel" id="panel-skills">
+        <div class="tab-header">
+          <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+          </svg>
+          <span>skills</span>
+        </div>
+        <div id="skills-content">
+          <div class="loading-shimmer"></div>
+          <div class="loading-shimmer"></div>
+          <div class="loading-shimmer"></div>
+        </div>
+
+        <!-- Skill detail overlay -->
+        <div class="skill-detail-overlay" id="skill-detail">
+          <div class="manage-header">
+            <button class="back-btn" id="skill-back-btn" title="Back">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="manage-title">skill</span>
+          </div>
+          <div id="skill-detail-content"></div>
+        </div>
+      </div>
+
+      <!-- ── Context ── -->
+      <div class="tab-panel" id="panel-context">
+        <div class="tab-header">
+          <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+          </svg>
+          <span>context</span>
+        </div>
+        <div id="context-content">
+          <div class="loading-shimmer"></div>
+          <div class="loading-shimmer"></div>
+          <div class="loading-shimmer"></div>
+        </div>
+      </div>
+
+      <!-- ── Tasks ── -->
+      <div class="tab-panel" id="panel-tasks">
+        <div class="tab-header">
+          <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+          </svg>
+          <span>tasks</span>
+        </div>
+        <div id="tasks-content">
+          <div class="loading-shimmer"></div>
+          <div class="loading-shimmer"></div>
+        </div>
+      </div>
+
+      <!-- ── Logs ── -->
+      <!-- ── Notes ── -->
+      <div class="tab-panel" id="panel-notes">
+        <div class="tab-header">
+          <svg class="brand-balloon" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
+            <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
+          </svg>
+          <span>notes</span>
+        </div>
+        <div id="notes-content">
+          <div class="empty-state">no notes yet</div>
+        </div>
+      </div>
+
+    </div><!-- /card -->
+
+    <!-- ====== BOTTOM NAV ====== -->
+    <nav class="bottom-nav" id="bottom-nav">
+      <button class="nav-item active" data-tab="services">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span class="nav-label">Services</span>
+      </button>
+      <button class="nav-item" data-tab="skills">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span class="nav-label">Skills</span>
+      </button>
+      <button class="nav-item" data-tab="context">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="nav-label">Context</span>
+      </button>
+      <button class="nav-item" data-tab="tasks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="nav-label">Tasks</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script>
+    (function () {
+      // ── Auth ────────────────────────────────────────────────────
+      var poolToken = window.__POOL_TOKEN || "";
+      function authHeaders(extra) {
+        var h = extra || {};
+        if (poolToken) h["Authorization"] = "Bearer " + poolToken;
+        return h;
+      }
+
+      // ── Helpers ─────────────────────────────────────────────────
+      function esc(s) {
+        var d = document.createElement("div");
+        d.appendChild(document.createTextNode(s || ""));
+        return d.innerHTML;
+      }
+
+      var COPY_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+      var CHECK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 6L9 17l-5-5"/></svg>';
+
+      function copyToClipboard(text, btn) {
+        navigator.clipboard.writeText(text).then(function () {
+          btn.classList.add("copied");
+          var old = btn.innerHTML;
+          btn.innerHTML = CHECK_SVG;
+          setTimeout(function () {
+            btn.classList.remove("copied");
+            btn.innerHTML = old;
+          }, 1500);
+        }).catch(function () {});
+      }
+
+      function showValue(el, text) {
+        if (text) {
+          el.textContent = text;
+          el.className = "service-value";
+        } else {
+          el.textContent = "not assigned";
+          el.className = "service-value service-value--null";
+        }
+      }
+
+      // ── Tab navigation ──────────────────────────────────────────
+      var navItems = document.querySelectorAll(".nav-item");
+      var panels = document.querySelectorAll(".tab-panel");
+      var loaded = { services: false, skills: false, context: false, tasks: false, notes: true };
+
+      function switchTab(tab) {
+        for (var i = 0; i < navItems.length; i++) {
+          navItems[i].classList.toggle("active", navItems[i].getAttribute("data-tab") === tab);
+        }
+        for (var i = 0; i < panels.length; i++) {
+          panels[i].classList.toggle("active", panels[i].id === "panel-" + tab);
+        }
+        // Lazy-load tab data
+        if (!loaded[tab]) {
+          loaded[tab] = true;
+          if (tab === "skills") loadSkills();
+          if (tab === "context") loadContext();
+          if (tab === "tasks") loadTasks();
+        }
+      }
+
+      for (var i = 0; i < navItems.length; i++) {
+        navItems[i].addEventListener("click", function () {
+          switchTab(this.getAttribute("data-tab"));
+        });
+      }
+
+      // Auto-select tab from URL path (e.g. /web-tools/skills → skills tab)
+      var pathSegments = window.location.pathname.replace(/\/+$/, "").split("/");
+      var urlTab = pathSegments.pop();
+      var validTabs = ["services", "skills", "context", "tasks", "notes"];
+      // /web-tools/skills/<slug> → switch to skills tab and open that skill
+      var parentSegment = pathSegments[pathSegments.length - 1];
+      var deepSkillSlug = null;
+      if (parentSegment === "skills" && urlTab && validTabs.indexOf(urlTab) === -1) {
+        deepSkillSlug = decodeURIComponent(urlTab);
+        urlTab = "skills";
+      }
+      if (urlTab && validTabs.indexOf(urlTab) !== -1) {
+        switchTab(urlTab);
+      }
+
+      // Deep skill link — full-screen mode, no nav
+      if (deepSkillSlug) {
+        document.body.classList.add("deep-skill");
+        document.getElementById("bottom-nav").style.display = "none";
+        // Make skill detail flow normally so card grows to fit content
+        document.getElementById("skill-detail").style.position = "relative";
+        document.getElementById("skills-content").style.display = "none";
+      }
+
+      // ══════════════════════════════════════════════════════════
+      //  SERVICES TAB
+      // ══════════════════════════════════════════════════════════
+
+      var emailValue     = document.getElementById("email-value");
+      var phoneValue     = document.getElementById("phone-value");
+      var copyEmail      = document.getElementById("copy-email");
+      var copyPhone      = document.getElementById("copy-phone");
+      var svcInstance    = document.getElementById("svc-instance");
+      var instanceValue  = document.getElementById("instance-value");
+      var copyInstance   = document.getElementById("copy-instance");
+      var svcRuntime     = document.getElementById("svc-runtime");
+      var runtimeValue   = document.getElementById("runtime-value");
+      var creditsValue   = document.getElementById("credits-value");
+      var creditsBar     = document.getElementById("credits-bar");
+      var creditsBarFill = document.getElementById("credits-bar-fill");
+      var creditsDetail  = document.getElementById("credits-detail");
+      var creditsUsed    = document.getElementById("credits-used");
+      var creditsLimit   = document.getElementById("credits-limit");
+      var errorEl        = document.getElementById("error");
+      var manageBtn      = document.getElementById("manage-btn");
+      var manageOverlay  = document.getElementById("manage-overlay");
+      var backBtn        = document.getElementById("back-btn");
+      var manageBalanceValue = document.getElementById("manage-balance-value");
+      var manageContent  = document.getElementById("manage-content");
+      var successOverlay = document.getElementById("success-overlay");
+      var successText    = document.getElementById("success-text");
+      var couponInput    = document.getElementById("coupon-input");
+      var couponBtn      = document.getElementById("coupon-btn");
+      var couponStatus   = document.getElementById("coupon-status");
+
+      function renderCredits(credits) {
+        if (credits && credits.limit !== undefined) {
+          var used = (typeof credits.usage === "number") ? credits.usage : 0;
+          var limit = credits.limit;
+          var remaining = (typeof credits.remaining === "number") ? credits.remaining : (limit - used);
+          var pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+          creditsValue.textContent = "$" + remaining.toFixed(2) + " remaining";
+          creditsValue.className = "service-value";
+          creditsBar.style.display = "block";
+          creditsBarFill.style.width = pct.toFixed(1) + "%";
+          creditsDetail.style.display = "flex";
+          creditsUsed.textContent = "$" + used.toFixed(2) + " used";
+          creditsLimit.textContent = "$" + limit.toFixed(2) + " limit";
+          manageBtn.style.display = "block";
+          manageBalanceValue.textContent = "$" + remaining.toFixed(2);
+        } else if (credits && credits.error) {
+          creditsValue.textContent = credits.error;
+          creditsValue.className = "service-value service-value--null";
+        } else {
+          creditsValue.textContent = "no power";
+          creditsValue.className = "service-value service-value--null";
+        }
+      }
+
+      // Manage overlay
+      manageBtn.addEventListener("click", function () { manageOverlay.classList.add("visible"); });
+      backBtn.addEventListener("click", function () {
+        manageOverlay.classList.remove("visible");
+        couponInput.value = "";
+        couponStatus.textContent = "";
+        couponStatus.className = "coupon-status";
+        manageContent.style.display = "";
+        successOverlay.classList.remove("visible");
+      });
+
+      couponBtn.addEventListener("click", function () {
+        var code = couponInput.value.trim();
+        if (!code) return;
+        couponBtn.disabled = true;
+        couponBtn.textContent = "...";
+        couponStatus.textContent = "";
+        couponStatus.className = "coupon-status";
+        fetch("/web-tools/api/redeem-coupon", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ code: code }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            couponBtn.disabled = false;
+            couponBtn.textContent = "redeem";
+            if (!_.ok) {
+              couponStatus.textContent = _.data.error || "invalid code";
+              couponStatus.className = "coupon-status status-error";
+              return;
+            }
+            manageContent.style.display = "none";
+            successText.textContent = "power added!";
+            successOverlay.classList.add("visible");
+            fetch("/web-tools/api/services", { headers: authHeaders() })
+              .then(function (r) { return r.json(); })
+              .then(function (d) {
+                renderCredits(d.credits);
+                setTimeout(function () { manageOverlay.classList.remove("visible"); }, 800);
+              })
+              .catch(function () {
+                setTimeout(function () { manageOverlay.classList.remove("visible"); }, 1500);
+              });
+          })
+          .catch(function () {
+            couponBtn.disabled = false;
+            couponBtn.textContent = "redeem";
+            couponStatus.textContent = "Could not reach server";
+            couponStatus.className = "coupon-status status-error";
+          });
+      });
+
+      // Load services data
+      fetch("/web-tools/api/services", { headers: authHeaders() })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (_) {
+          if (!_.ok) {
+            errorEl.textContent = _.data.error || "Failed to load services";
+            errorEl.style.display = "block";
+            showValue(emailValue, null);
+            showValue(phoneValue, null);
+            return;
+          }
+          var d = _.data;
+          if (d.instanceId) {
+            svcInstance.style.display = "flex";
+            instanceValue.textContent = d.instanceId;
+            instanceValue.className = "service-value";
+            copyInstance.style.display = "block";
+            copyInstance.onclick = function () { copyToClipboard(d.instanceId, copyInstance); };
+          }
+          showValue(emailValue, d.email);
+          if (d.email) {
+            copyEmail.style.display = "block";
+            copyEmail.onclick = function () { copyToClipboard(d.email, copyEmail); };
+          }
+          var formattedPhone = d.phone;
+          if (d.phone && /^\+1\d{10}$/.test(d.phone)) {
+            formattedPhone = "+1 (" + d.phone.slice(2,5) + ") " + d.phone.slice(5,8) + "-" + d.phone.slice(8);
+          }
+          showValue(phoneValue, formattedPhone);
+          if (d.phone) {
+            copyPhone.style.display = "block";
+            copyPhone.onclick = function () { copyToClipboard(d.phone, copyPhone); };
+          }
+          if (d.runtimeVersion || d.runtimeType) {
+            svcRuntime.style.display = "flex";
+            var rtText = d.runtimeType || "";
+            if (d.runtimeVersion) rtText += (rtText ? " " : "") + "v" + d.runtimeVersion;
+            runtimeValue.textContent = rtText;
+            runtimeValue.className = "service-value";
+          }
+          if (d.xmtpEnv) window.__xmtpEnv = d.xmtpEnv;
+          renderCredits(d.credits);
+          // Check convos status after services load so xmtpEnv is available
+          fetch("/convos/status", { headers: authHeaders() })
+            .then(function (r) { return r.json(); })
+            .then(function (s) {
+              if (s.conversationId) showJoinActive(window.__xmtpEnv);
+              else showJoinInput();
+            })
+            .catch(function () { showJoinInput(); });
+        })
+        .catch(function () {
+          errorEl.textContent = "failed to connect";
+          errorEl.style.display = "block";
+          showValue(emailValue, null);
+          showValue(phoneValue, null);
+        });
+
+      // Conversation join / status
+      var joinRow = document.getElementById("join-row");
+      var joinUrlInput = document.getElementById("join-url-input");
+      var joinBtn = document.getElementById("join-btn");
+      var joinStatus = document.getElementById("join-status");
+
+      var convosShimmer = document.getElementById("convos-shimmer");
+
+      function showJoinActive(env) {
+        convosShimmer.style.display = "none";
+        joinRow.style.display = "none";
+        joinStatus.style.display = "block";
+        joinStatus.style.color = "var(--color-success, #38a169)";
+        joinStatus.textContent = env || "connected";
+      }
+
+      function showJoinInput() {
+        convosShimmer.style.display = "none";
+        joinRow.style.display = "flex";
+      }
+
+      joinBtn.addEventListener("click", function () {
+        var url = joinUrlInput.value.trim();
+        if (!url) return;
+        joinBtn.disabled = true;
+        joinBtn.textContent = "joining...";
+        joinStatus.style.display = "none";
+        fetch("/convos/join", {
+          method: "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ inviteUrl: url }),
+        })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            joinBtn.disabled = false;
+            joinBtn.textContent = "join";
+            if (_.ok && _.data.conversationId) {
+              showJoinActive(window.__xmtpEnv);
+            } else if (_.ok && _.data.status === "pending_acceptance") {
+              joinStatus.textContent = "waiting for acceptance...";
+            } else {
+              joinStatus.style.color = "var(--error, #e53e3e)";
+              joinStatus.textContent = _.data.detail || _.data.error || "join failed";
+            }
+          })
+          .catch(function () {
+            joinBtn.disabled = false;
+            joinBtn.textContent = "join";
+            joinStatus.style.color = "var(--error, #e53e3e)";
+            joinStatus.textContent = "failed to connect";
+          });
+      });
+
+      loaded.services = true;
+
+      // ══════════════════════════════════════════════════════════
+      //  SKILLS TAB
+      // ══════════════════════════════════════════════════════════
+
+      var skillsContent = document.getElementById("skills-content");
+      var skillDetail = document.getElementById("skill-detail");
+      var skillDetailContent = document.getElementById("skill-detail-content");
+      var skillBackBtn = document.getElementById("skill-back-btn");
+
+      skillBackBtn.addEventListener("click", function () {
+        skillDetail.classList.remove("visible");
+      });
+
+      function loadSkills() {
+        fetch("/web-tools/skills/api", { headers: authHeaders() })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.skills || !_.data.skills.length) {
+              skillsContent.innerHTML = '<div class="empty-state">no skills yet</div>';
+              return;
+            }
+            renderSkillsList(_.data);
+            if (deepSkillSlug) {
+              openSkillDetail(deepSkillSlug);
+              // Full-screen: hide manage header, skills tab header
+              document.querySelector("#skill-detail .manage-header").style.display = "none";
+              document.querySelector("#panel-skills > .tab-header").style.display = "none";
+              deepSkillSlug = null;
+            }
+          })
+          .catch(function () {
+            skillsContent.innerHTML = '<div class="empty-state">failed to load skills</div>';
+          });
+      }
+
+      function renderSkillsList(data) {
+        var html = '<div class="skill-list">';
+        data.skills.forEach(function (s) {
+          html += '<div class="skill-item" data-slug="' + esc(s.slug) + '">' +
+            '<div class="skill-item-emoji">' + (s.emoji ? esc(s.emoji) : '<span class="skill-dot"></span>') + '</div>' +
+            '<div class="skill-item-body">' +
+              '<div class="skill-item-name">' + esc(s.agentName || "") + '</div>' +
+              '<div class="skill-item-desc">' + esc(s.description || "") + '</div>' +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div>';
+        skillsContent.innerHTML = html;
+
+        // Bind click handlers
+        var items = skillsContent.querySelectorAll(".skill-item");
+        for (var i = 0; i < items.length; i++) {
+          items[i].addEventListener("click", function () {
+            var slug = this.getAttribute("data-slug");
+            openSkillDetail(slug);
+          });
+        }
+      }
+
+      function openSkillDetail(slug) {
+        skillDetailContent.innerHTML = '<div class="empty-state">loading...</div>';
+        skillDetail.classList.add("visible");
+        fetch("/web-tools/skills/api/" + encodeURIComponent(slug), { headers: authHeaders() })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data) {
+              skillDetailContent.innerHTML = '<div class="empty-state">skill not found</div>';
+              return;
+            }
+            renderSkillDetail(_.data);
+          })
+          .catch(function () {
+            skillDetailContent.innerHTML = '<div class="empty-state">failed to load</div>';
+          });
+      }
+
+      function renderSkillDetail(skill) {
+        var toolsHtml = "";
+        if (skill.tools && skill.tools.length) {
+          toolsHtml = '<div class="skill-section">' +
+            '<div class="section-label">tools</div>' +
+            '<div class="tools-list">' +
+            skill.tools.map(function (t) { return '<span class="tool-tag">' + esc(t) + '</span>'; }).join("") +
+            '</div></div>';
+        }
+        skillDetailContent.innerHTML =
+          '<div class="skill-header">' +
+            '<div class="skill-emoji-lg">' + esc(skill.emoji || "") + '</div>' +
+            '<div class="skill-name-lg">' + esc(skill.agentName || "") + '</div>' +
+            '<div class="skill-category">' + esc(skill.category || "") + '</div>' +
+          '</div>' +
+          '<div class="skill-description">' + esc(skill.description || "") + '</div>' +
+          toolsHtml +
+          '<div class="skill-section">' +
+            '<div class="section-label-row">' +
+              '<div class="section-label">system prompt</div>' +
+              '<button class="icon-btn copy-prompt-btn" title="Copy prompt">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
+              '</button>' +
+            '</div>' +
+            '<div class="prompt-content">' + esc(skill.prompt || "") + '</div>' +
+          '</div>';
+
+        var copyBtn = skillDetailContent.querySelector(".copy-prompt-btn");
+        var promptText = skill.prompt || "";
+        copyBtn.addEventListener("click", function () {
+          navigator.clipboard.writeText(promptText).then(function () {
+            copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+            setTimeout(function () {
+              copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+            }, 1500);
+          });
+        });
+      }
+
+      // ══════════════════════════════════════════════════════════
+      //  CONTEXT TAB
+      // ══════════════════════════════════════════════════════════
+
+      var contextContent = document.getElementById("context-content");
+
+      function loadContext() {
+        fetch("/web-tools/api/context", { headers: authHeaders() })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.sections || !_.data.sections.length) {
+              contextContent.innerHTML = '<div class="empty-state">no context loaded</div>';
+              return;
+            }
+            renderContext(_.data);
+          })
+          .catch(function () {
+            contextContent.innerHTML = '<div class="empty-state">failed to load context</div>';
+          });
+      }
+
+      var CHEVRON_SVG = '<svg class="context-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+
+      function renderContext(data) {
+        var html = '<div class="context-list">';
+        data.sections.forEach(function (s) {
+          var badges = "";
+          if (s.runtime) {
+            badges = ' <span class="context-runtime-badge">' + esc(s.runtime) + '</span>';
+          }
+          html += '<div class="context-item">' +
+            '<div class="context-item-header">' +
+              '<div class="context-item-name">' + esc(s.name) + badges + '</div>' +
+              CHEVRON_SVG +
+            '</div>' +
+            '<div class="context-item-body">' +
+              '<div class="context-content">' + esc(s.content) + '</div>' +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div>';
+        contextContent.innerHTML = html;
+
+        // Bind accordion toggles
+        var headers = contextContent.querySelectorAll(".context-item-header");
+        for (var i = 0; i < headers.length; i++) {
+          headers[i].addEventListener("click", function () {
+            this.parentNode.classList.toggle("open");
+          });
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════
+      //  TASKS TAB
+      // ══════════════════════════════════════════════════════════
+
+      var tasksContent = document.getElementById("tasks-content");
+
+      function loadTasks() {
+        fetch("/web-tools/api/tasks", { headers: authHeaders() })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (_) {
+            if (!_.ok || !_.data.jobs || !_.data.jobs.length) {
+              tasksContent.innerHTML = '<div class="empty-state">no scheduled tasks</div>';
+              return;
+            }
+            renderTasks(_.data.jobs);
+          })
+          .catch(function () {
+            tasksContent.innerHTML = '<div class="empty-state">failed to load tasks</div>';
+          });
+      }
+
+      function renderTasks(jobs) {
+        var html = '<div class="task-list">';
+        jobs.forEach(function (j) {
+          var state = j.state || (j.enabled === false ? "paused" : "scheduled");
+          var schedule = "";
+          if (j.schedule) {
+            schedule = j.schedule.display || j.schedule.expr || "";
+            if (j.schedule.tz) schedule += " (" + j.schedule.tz + ")";
+          }
+          if (j.schedule_display) schedule = j.schedule_display;
+
+          var prompt = j.prompt || "";
+          if (j.payload && j.payload.text) prompt = j.payload.text;
+
+          var meta = [];
+          if (j.last_status) meta.push("last: " + j.last_status);
+          if (j.last_run_at) {
+            try { meta.push(new Date(j.last_run_at).toLocaleDateString()); } catch (e) {}
+          }
+
+          html += '<div class="task-item">' +
+            '<div class="task-icon ' + esc(state) + '"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>' +
+            '<div class="task-body">' +
+              '<div class="task-name">' + esc(j.name || j.id || "unnamed") + '</div>' +
+              (prompt ? '<div class="task-prompt">' + esc(prompt) + '</div>' : '') +
+              '<div class="task-meta">' +
+                (schedule ? '<span class="task-schedule">' + esc(schedule) + '</span>' : '') +
+                (meta.length ? '<span>' + esc(meta.join(" · ")) + '</span>' : '') +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        });
+        html += '</div>';
+        tasksContent.innerHTML = html;
+      }
+
+    })();
+  </script>
+</body>
+</html>
