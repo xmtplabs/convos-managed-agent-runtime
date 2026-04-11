@@ -6,6 +6,7 @@
   },
   "scripts": {
     "start": "sh scripts/keys.sh && sh scripts/apply-config.sh && sh scripts/install-deps.sh && sh scripts/identity.sh && sh scripts/start.sh",
+    "start:new": "sh ../lib/new-identity.sh && pnpm start",
     "evals": "sh evals/eval.sh",
     "ngrok": "ngrok http 18789 --url=convos-local-runtime.ngrok.app"
   },

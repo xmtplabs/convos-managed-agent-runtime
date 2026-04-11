@@ -37,14 +37,14 @@ All commands use `pnpm`.
 | `pnpm db:studio` | Open Drizzle Studio |
 | `pnpm stripe:listen` | Forward Stripe webhooks locally |
 
-**Runtime** (run from `runtime/`):
+**Runtime:**
 
-| Command | What it does |
-|---|---|
-| `pnpm start` | Start OpenClaw runtime |
-| `pnpm start:hermes` | Start Hermes runtime |
-| `pnpm evals` | Run all OpenClaw evals |
-| `pnpm evals:hermes` | Run all Hermes evals |
+| Command | Run from | What it does |
+|---|---|---|
+| `pnpm start` | `runtime/openclaw/` | Start OpenClaw runtime |
+| `pnpm start` | `runtime/hermes/` | Start Hermes runtime |
+| `pnpm evals openclaw [suite]` | `runtime/` | Run OpenClaw evals |
+| `pnpm evals hermes [suite]` | `runtime/` | Run Hermes evals |
 
 </important>
 
@@ -122,7 +122,7 @@ Manual migration steps:
 
 <important if="you are modifying runtime boot scripts (runtime/openclaw/scripts/ or runtime/hermes/scripts/)">
 
-**Do not rename, reorder, or remove boot scripts.** Both runtimes follow the same fixed pipeline: `init.sh` → `apply-config.sh` → `install-deps.sh` → `identity.sh` → `start.sh`. The names and execution order are load-bearing — Dockerfiles, entrypoints, CI workflows, and `pnpm start` all depend on them. Edit script internals when needed, but never change the script names or the sequence.
+**Do not rename, reorder, or remove boot scripts.** Both runtimes follow the same fixed pipeline: `init.sh` → `apply-config.sh` → `install-deps.sh` → `identity.sh` → `start.sh`. The names and execution order are load-bearing — Dockerfiles, entrypoints, CI workflows, and each runtime's `pnpm start` all depend on them. Edit script internals when needed, but never change the script names or the sequence.
 
 </important>
 
