@@ -1,7 +1,7 @@
 """Web tools — serves the services page and landing page.
 
 Mirrors the OpenClaw web-tools extension so both runtimes serve
-the same UI at /web-tools/services and /web-tools/convos.
+the same UI at /web-tools/.
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ async def app_css():
     return _serve_static(_SHARED_ROOT / "app.css", "text/css")
 
 
-@router.get("/web-tools/services/api")
+@router.get("/web-tools/api/services")
 async def services_api():
     """Return identity, credits, and runtime info — same contract as OpenClaw."""
     pool_url = _pool_url()
@@ -99,7 +99,7 @@ async def services_api():
     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
     port = os.environ.get("PORT", "8080")
     base = f"https://{domain}" if domain else f"http://127.0.0.1:{port}"
-    result["servicesUrl"] = f"{base}/web-tools/services"
+    result["servicesUrl"] = f"{base}/web-tools"
 
     # Show shortened pool URL so the user can tell if they're hitting localhost or Railway
     if pool_url:
@@ -164,7 +164,7 @@ async def services_api():
     return result
 
 
-@router.post("/web-tools/services/topup")
+@router.post("/web-tools/api/topup")
 async def services_topup():
     pool_url = _pool_url()
     auth = _pool_auth()
@@ -186,7 +186,7 @@ async def services_topup():
         )
 
 
-@router.post("/web-tools/services/redeem-coupon")
+@router.post("/web-tools/api/redeem-coupon")
 async def services_redeem_coupon(request: Request):
     pool_url = _pool_url()
     auth = _pool_auth()
@@ -235,7 +235,7 @@ def _read_workspace_files() -> list[dict]:
     return files
 
 
-@router.get("/web-tools/services/context-api")
+@router.get("/web-tools/api/context")
 async def context_api():
     files = _read_workspace_files()
     return Response(
@@ -259,7 +259,7 @@ def _read_cron_jobs() -> list[dict]:
         return []
 
 
-@router.get("/web-tools/services/tasks-api")
+@router.get("/web-tools/api/tasks")
 async def tasks_api():
     jobs = _read_cron_jobs()
     return Response(
@@ -272,7 +272,7 @@ async def tasks_api():
 # ── Logs sharing status & toggle ───────────────────────────
 
 
-@router.get("/web-tools/services/logs-status")
+@router.get("/web-tools/api/logs-status")
 async def logs_status():
     enabled = _sharing_enabled()
     return Response(
@@ -282,7 +282,7 @@ async def logs_status():
     )
 
 
-@router.post("/web-tools/services/logs-toggle")
+@router.post("/web-tools/api/logs-toggle")
 async def logs_toggle(request: Request):
     body = await request.json()
     enable = bool(body.get("enabled", False))
@@ -379,16 +379,26 @@ def _read_skill_by_slug(slug: str) -> dict | None:
 
 
 def _read_skills_data() -> dict:
-    """Read the full skills.json, falling back to skill directories."""
+    """Read skills from root dirs + generated skills.json, merged."""
+    all_skills: list[dict] = []
+    active = None
+
+    # 1. Root skills from SKILL.md directories (always included)
+    from_dirs = _read_skills_from_dirs()
+    all_skills.extend(from_dirs["skills"])
+
+    # 2. Generated skills from skills.json (merged on top)
     try:
         data = json.loads(_skills_data_path().read_text())
-        if isinstance(data.get("skills"), list) and data["skills"]:
-            return data
+        if isinstance(data.get("skills"), list):
+            root_slugs = {s["slug"] for s in all_skills}
+            all_skills.extend(s for s in data["skills"] if s.get("slug") not in root_slugs)
+        if data.get("active"):
+            active = data["active"]
     except Exception:
         pass
-    # Fallback: read SKILL.md from each skill directory
-    from_dirs = _read_skills_from_dirs()
-    return from_dirs if from_dirs["skills"] else {"active": None, "skills": []}
+
+    return {"active": active, "skills": all_skills}
 
 
 @router.get("/web-tools/skills")

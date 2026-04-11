@@ -126,7 +126,7 @@ function buildServicesUrl(): string {
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
   const base = domain ? `https://${domain}` : `http://127.0.0.1:${port}`;
-  return `${base}/web-tools/services`;
+  return `${base}/web-tools`;
 }
 
 /** Resolve the skills data directory ($WORKSPACE_SKILLS/generated/). */
@@ -186,17 +186,30 @@ function readSkillsFromDirs(): { active: string | null; skills: Record<string, u
   return { active: null, skills };
 }
 
-/** Read the full skills.json data, falling back to skill directories. */
+/** Read the full skills.json data, merged with root skill directories. */
 function readSkillsData(): { active: string | null; skills: Record<string, unknown>[] } | null {
+  const allSkills: Record<string, unknown>[] = [];
+  let active: string | null = null;
+
+  // 1. Root skills from SKILL.md directories (always included)
+  const fromDirs = readSkillsFromDirs();
+  allSkills.push(...fromDirs.skills);
+
+  // 2. Generated skills from skills.json (merged on top)
   const jsonPath = path.join(getSkillsDataPath(), "skills.json");
   try {
     const raw = fs.readFileSync(jsonPath, "utf-8");
     const data = JSON.parse(raw);
-    if (Array.isArray(data.skills) && data.skills.length > 0) return data;
+    if (Array.isArray(data.skills)) {
+      const rootSlugs = new Set(allSkills.map(s => s.slug));
+      for (const s of data.skills) {
+        if (!rootSlugs.has(s.slug)) allSkills.push(s);
+      }
+    }
+    if (data.active) active = data.active;
   } catch {}
-  // Fallback: read SKILL.md from each skill directory
-  const fromDirs = readSkillsFromDirs();
-  return fromDirs.skills.length > 0 ? fromDirs : null;
+
+  return allSkills.length > 0 ? { active, skills: allSkills } : null;
 }
 
 /** Read skills.json and return a single skill by slug. */
@@ -242,7 +255,7 @@ export default function register(api: OpenClawPluginApi) {
   api.registerHttpRoute({ path: "/web-tools/notes", auth: "plugin", handler: appHandler });
 
   api.registerHttpRoute({
-    path: "/web-tools/services/api",
+    path: "/web-tools/api/services",
     auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") {
@@ -266,7 +279,7 @@ export default function register(api: OpenClawPluginApi) {
 
   // Credits top-up proxy — forwards request to pool manager
   api.registerHttpRoute({
-    path: "/web-tools/services/topup",
+    path: "/web-tools/api/topup",
     auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "POST") {
@@ -310,7 +323,7 @@ export default function register(api: OpenClawPluginApi) {
 
   // Coupon redemption proxy — forwards request to pool manager
   api.registerHttpRoute({
-    path: "/web-tools/services/redeem-coupon",
+    path: "/web-tools/api/redeem-coupon",
     auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "POST") {
@@ -383,7 +396,7 @@ export default function register(api: OpenClawPluginApi) {
   }
 
   api.registerHttpRoute({
-    path: "/web-tools/services/context-api",
+    path: "/web-tools/api/context",
     auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
@@ -409,7 +422,7 @@ export default function register(api: OpenClawPluginApi) {
   }
 
   api.registerHttpRoute({
-    path: "/web-tools/services/tasks-api",
+    path: "/web-tools/api/tasks",
     auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
@@ -427,7 +440,7 @@ export default function register(api: OpenClawPluginApi) {
   const shareMarker = path.join(stateDir, ".share-trajectories");
 
   api.registerHttpRoute({
-    path: "/web-tools/services/logs-status",
+    path: "/web-tools/api/logs-status",
     auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
@@ -440,7 +453,7 @@ export default function register(api: OpenClawPluginApi) {
   });
 
   api.registerHttpRoute({
-    path: "/web-tools/services/logs-toggle",
+    path: "/web-tools/api/logs-toggle",
     auth: "plugin",
     handler: async (req, res) => {
       if (req.method !== "POST") { res.statusCode = 405; res.end(); return; }

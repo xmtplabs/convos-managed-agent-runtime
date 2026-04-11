@@ -316,7 +316,11 @@
 
       // Deep skill link — full-screen mode, no nav
       if (deepSkillSlug) {
+        document.body.classList.add("deep-skill");
         document.getElementById("bottom-nav").style.display = "none";
+        // Make skill detail flow normally so card grows to fit content
+        document.getElementById("skill-detail").style.position = "relative";
+        document.getElementById("skills-content").style.display = "none";
       }
 
       // ══════════════════════════════════════════════════════════
@@ -392,7 +396,7 @@
         couponBtn.textContent = "...";
         couponStatus.textContent = "";
         couponStatus.className = "coupon-status";
-        fetch("/web-tools/services/redeem-coupon", {
+        fetch("/web-tools/api/redeem-coupon", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ code: code }),
@@ -409,7 +413,7 @@
             manageContent.style.display = "none";
             successText.textContent = "power added!";
             successOverlay.classList.add("visible");
-            fetch("/web-tools/services/api", { headers: authHeaders() })
+            fetch("/web-tools/api/services", { headers: authHeaders() })
               .then(function (r) { return r.json(); })
               .then(function (d) {
                 renderCredits(d.credits);
@@ -428,7 +432,7 @@
       });
 
       // Load services data
-      fetch("/web-tools/services/api", { headers: authHeaders() })
+      fetch("/web-tools/api/services", { headers: authHeaders() })
         .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
         .then(function (_) {
           if (!_.ok) {
@@ -511,9 +515,7 @@
         if (!url) return;
         joinBtn.disabled = true;
         joinBtn.textContent = "joining...";
-        joinStatus.style.display = "block";
-        joinStatus.textContent = "connecting...";
-        joinStatus.style.color = "var(--secondary)";
+        joinStatus.style.display = "none";
         fetch("/convos/join", {
           method: "POST",
           headers: authHeaders({ "Content-Type": "application/json" }),
@@ -639,9 +641,25 @@
           '<div class="skill-description">' + esc(skill.description || "") + '</div>' +
           toolsHtml +
           '<div class="skill-section">' +
-            '<div class="section-label">system prompt</div>' +
+            '<div class="section-label-row">' +
+              '<div class="section-label">system prompt</div>' +
+              '<button class="icon-btn copy-prompt-btn" title="Copy prompt">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
+              '</button>' +
+            '</div>' +
             '<div class="prompt-content">' + esc(skill.prompt || "") + '</div>' +
           '</div>';
+
+        var copyBtn = skillDetailContent.querySelector(".copy-prompt-btn");
+        var promptText = skill.prompt || "";
+        copyBtn.addEventListener("click", function () {
+          navigator.clipboard.writeText(promptText).then(function () {
+            copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+            setTimeout(function () {
+              copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+            }, 1500);
+          });
+        });
       }
 
       // ══════════════════════════════════════════════════════════
@@ -651,7 +669,7 @@
       var contextContent = document.getElementById("context-content");
 
       function loadContext() {
-        fetch("/web-tools/services/context-api", { headers: authHeaders() })
+        fetch("/web-tools/api/context", { headers: authHeaders() })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
           .then(function (_) {
             if (!_.ok || !_.data.sections || !_.data.sections.length) {
@@ -703,7 +721,7 @@
       var tasksContent = document.getElementById("tasks-content");
 
       function loadTasks() {
-        fetch("/web-tools/services/tasks-api", { headers: authHeaders() })
+        fetch("/web-tools/api/tasks", { headers: authHeaders() })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
           .then(function (_) {
             if (!_.ok || !_.data.jobs || !_.data.jobs.length) {

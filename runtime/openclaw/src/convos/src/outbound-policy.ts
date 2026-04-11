@@ -72,7 +72,7 @@ function buildCreditMessage(): string {
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
   const base = domain ? `https://${domain}` : `http://127.0.0.1:${port}`;
-  return CREDIT_MSG_TEMPLATE.replace("{{servicesUrl}}", `${base}/web-tools/services`);
+  return CREDIT_MSG_TEMPLATE.replace("{{servicesUrl}}", `${base}/web-tools`);
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
