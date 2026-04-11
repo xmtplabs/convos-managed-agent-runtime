@@ -45,10 +45,6 @@ function servePageWithToken(htmlPath: string, res: ServerResponse) {
 }
 
 /** Serve the landing page with the gateway token injected as a JS variable. */
-function serveLandingPage(agentsDir: string, res: ServerResponse) {
-  servePageWithToken(path.join(agentsDir, "landing.html"), res);
-}
-
 /** Build service identity + credits data from pool proxy (or env fallback). */
 async function getServicesData(): Promise<Record<string, unknown>> {
   const servicesUrl = buildServicesUrl();
@@ -79,7 +75,7 @@ async function getServicesData(): Promise<Record<string, unknown>> {
 
   // Show shortened pool URL so the user can tell if they're hitting localhost or Railway
   const poolHost = poolUrl ? new URL(poolUrl).host : null;
-  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId, poolHost };
+  const result: Record<string, unknown> = { email, phone, servicesUrl, instanceId, runtimeType: "openclaw", xmtpEnv: process.env.XMTP_ENV || "" };
 
   // Fetch runtime version/image from pool
   if (instanceId && gatewayToken && poolUrl) {
@@ -216,7 +212,7 @@ export default function register(api: OpenClawPluginApi) {
   const sharedRoot = fs.existsSync("/app/web-tools") ? "/app/web-tools"
     : fs.existsSync(stateWebTools) ? stateWebTools
     : __dirname;
-  const agentsDir = path.resolve(sharedRoot, "convos");
+  const logsDir = path.resolve(sharedRoot, "logs");
 
   // --- Mini-app at /web-tools/ ---
 
@@ -234,93 +230,6 @@ export default function register(api: OpenClawPluginApi) {
     handler: async (req, res) => {
       if (req.method !== "GET") { res.statusCode = 405; res.end(); return; }
       serveFile(res, path.join(sharedRoot, "app.css"), "text/css", "max-age=3600");
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/convos",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveLandingPage(agentsDir, res);
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/convos/",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveLandingPage(agentsDir, res);
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/convos/manifest.json",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(
-        res,
-        path.join(agentsDir, "landing-manifest.json"),
-        "application/manifest+json",
-      );
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/convos/sw.js",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(
-        res,
-        path.join(agentsDir, "sw.js"),
-        "application/javascript",
-        "max-age=0",
-      );
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/convos/landing.css",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(res, path.join(agentsDir, "landing.css"), "text/css", "max-age=3600");
-    },
-  });
-
-  api.registerHttpRoute({
-    path: "/web-tools/convos/icon.svg",
-    auth: "plugin",
-    handler: async (req, res) => {
-      if (req.method !== "GET") {
-        res.statusCode = 405;
-        res.end();
-        return;
-      }
-      serveFile(res, path.join(agentsDir, "icon.svg"), "image/svg+xml");
     },
   });
 
@@ -730,8 +639,14 @@ export default function register(api: OpenClawPluginApi) {
         return;
       }
 
-      // Page — serve mini-app (JS will auto-select logs tab)
-      servePageWithToken(path.join(sharedRoot, "index.html"), res);
+      // Static assets
+      if (lastPart === "logs.css") {
+        serveFile(res, path.join(logsDir, "logs.css"), "text/css", "max-age=3600");
+        return;
+      }
+
+      // Page — serve standalone logs page
+      servePageWithToken(path.join(logsDir, "logs.html"), res);
     },
   });
 

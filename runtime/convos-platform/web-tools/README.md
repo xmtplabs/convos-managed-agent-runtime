@@ -8,7 +8,6 @@ Single-page mini-app served by both runtimes at `/web-tools/`. Tabs: Services, S
 web-tools/
   index.html    — mini-app (all tabs)
   app.css       — styles
-  convos/       — separate convos landing page (PWA)
 ```
 
 ## Routes

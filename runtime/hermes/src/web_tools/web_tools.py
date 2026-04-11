@@ -24,7 +24,6 @@ router = APIRouter()
 from ..server.paths import PLATFORM_ROOT
 
 _SHARED_ROOT = PLATFORM_ROOT / "convos-platform" / "web-tools"
-_CONVOS_DIR = _SHARED_ROOT / "convos"
 
 
 def _gateway_token() -> str:
@@ -94,7 +93,7 @@ async def services_api():
 
     email = None
     phone = None
-    result: dict = {"email": None, "phone": None, "servicesUrl": None, "instanceId": instance_id}
+    result: dict = {"email": None, "phone": None, "servicesUrl": None, "instanceId": instance_id, "runtimeType": "hermes", "xmtpEnv": os.environ.get("XMTP_ENV", "")}
 
     # Build services URL from public domain
     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
@@ -303,38 +302,6 @@ async def logs_toggle(request: Request):
     )
 
 
-# ── Convos landing page ─────────────────────────────────────
-
-
-@router.get("/web-tools/convos")
-@router.get("/web-tools/convos/")
-async def convos_landing():
-    return _serve_html_with_token(_CONVOS_DIR / "landing.html")
-
-
-@router.get("/web-tools/convos/manifest.json")
-async def convos_manifest():
-    return _serve_static(_CONVOS_DIR / "landing-manifest.json",
-                         "application/manifest+json")
-
-
-@router.get("/web-tools/convos/sw.js")
-async def convos_sw():
-    return _serve_static(_CONVOS_DIR / "sw.js",
-                         "application/javascript", "max-age=0")
-
-
-@router.get("/web-tools/convos/landing.css")
-async def convos_landing_css():
-    return _serve_static(_CONVOS_DIR / "landing.css", "text/css",
-                         "max-age=3600")
-
-
-@router.get("/web-tools/convos/icon.svg")
-async def convos_icon():
-    return _serve_static(_CONVOS_DIR / "icon.svg", "image/svg+xml")
-
-
 # ── Skills pages ────────────────────────────────────────────
 
 
@@ -458,6 +425,12 @@ async def skills_api(slug: str):
     )
 
 
+# Catch-all for /web-tools/skills/<slug> — must be after /skills/api routes
+@router.get("/web-tools/skills/{slug}")
+async def skills_slug_page(slug: str):
+    return _serve_html_with_token(_SHARED_ROOT / "index.html")
+
+
 # ── Trajectories / logs ──────────────────────────────────────
 
 
@@ -489,10 +462,18 @@ def _read_trajectory_jsonl(file_path: Path, max_entries: int = 200) -> list[dict
     return entries[:max_entries]
 
 
+_LOGS_DIR = _SHARED_ROOT / "logs"
+
+
 @router.get("/web-tools/logs")
 @router.get("/web-tools/logs/")
 async def trajectories_page():
-    return _serve_html_with_token(_SHARED_ROOT / "index.html")
+    return _serve_html_with_token(_LOGS_DIR / "logs.html")
+
+
+@router.get("/web-tools/logs/logs.css")
+async def trajectories_css():
+    return _serve_static(_LOGS_DIR / "logs.css", "text/css", "max-age=3600")
 
 
 @router.get("/web-tools/logs/api")
