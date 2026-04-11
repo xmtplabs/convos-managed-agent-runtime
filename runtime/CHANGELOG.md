@@ -1,11 +1,3 @@
-## 0.4.10
-
-- Web tools UI polish: rename Services → Info, Context → Files; shimmer placeholders for all fields on load
-- Skills: hide root skills, always show green dot, full-height skill detail overlay on mobile
-- Files tab: filter out tools.md, show fallback when empty
-- Disable double-tap zoom on mobile
-- Consistent card height across all tabs
-
 ## 0.3.4
 
 - Privacy guardrails: agents refuse to share private info about other users — dedicated eval enforces boundaries
