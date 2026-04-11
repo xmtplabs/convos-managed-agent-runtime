@@ -1,6 +1,6 @@
 {
   "name": "convos-assistants",
-  "version": "0.3.4",
+  "version": "0.4.10",
   "private": true,
   "scripts": {
     "pool-server": "node convos-platform/pool-server/dist/index.js",
