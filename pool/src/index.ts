@@ -1059,6 +1059,35 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   res.end();
 });
 
+// --- Lite claim: paste a joinUrl to claim an idle instance into that convo ---
+app.post("/api/pool/claim/lite", requireLiteAuth, async (req, res) => {
+  const { joinUrl } = req.body || {};
+  if (!joinUrl || typeof joinUrl !== "string") {
+    res.status(400).json({ error: "joinUrl is required" }); return;
+  }
+  if (config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
+    res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
+  }
+  if (config.poolEnvironment !== "production" && /popup\.convos\.org/i.test(joinUrl)) {
+    res.status(400).json({ error: `popup.convos.org links cannot be used in the ${config.poolEnvironment} environment` }); return;
+  }
+  try {
+    const result = await pool.provision({
+      agentName: "Assistant",
+      instructions: "You are a helpful AI assistant.",
+      joinUrl,
+      source: "lite",
+    });
+    if (!result) {
+      res.status(503).json({ error: "No idle instances available" }); return;
+    }
+    res.json({ ok: true, instanceId: result.instanceId, name: result.agentName });
+  } catch (err: any) {
+    console.error("[lite-claim] failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- SSE streaming endpoint for provisioning with real-time progress ---
 app.get("/api/pool/replenish/stream", requireLiteAuth, async (req, res) => {
   const count = Math.min(parseInt(req.query.count as string) || 1, 20);

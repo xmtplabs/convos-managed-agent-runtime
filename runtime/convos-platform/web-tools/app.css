@@ -12,7 +12,7 @@
 }
 
 /* ── Reset & Layout ─────────────────────────────────────────── */
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -347,18 +347,26 @@ body {
 }
 
 /* ── Skill detail overlay ───────────────────────────────────── */
+.card.skill-open {
+  min-height: calc(100dvh - 6rem);
+  min-height: calc(100vh - 6rem);
+}
+@supports (min-height: 100dvh) {
+  .card.skill-open { min-height: calc(100dvh - 6rem); }
+}
 .skill-detail-overlay {
   position: absolute;
   inset: 0;
   background: var(--color-surface);
   z-index: 10;
-  padding: 0.5rem;
+  padding: 1.25rem;
   display: none;
   flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 .skill-detail-overlay.visible { display: flex; }
+#skill-detail-content { flex: 1; display: flex; flex-direction: column; }
 .skill-header { text-align: left; margin-bottom: 1rem; }
 .skill-emoji-lg { font-size: 2.5rem; line-height: 1; margin-bottom: 0.5rem; }
 .skill-name-lg { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem; }
@@ -379,6 +387,8 @@ body {
   border-bottom: 1px solid var(--color-edge);
 }
 .skill-section { margin-bottom: 1rem; }
+.skill-section:last-child { flex: 1; display: flex; flex-direction: column; margin-bottom: 0; }
+.skill-section:last-child .prompt-content { flex: 1; max-height: none; }
 .section-label-row {
   display: flex;
   align-items: center;
@@ -414,6 +424,7 @@ body {
   color: var(--color-fg-secondary);
   white-space: pre-wrap;
   word-break: break-word;
+  min-height: 6rem;
   max-height: 20rem;
   overflow-y: auto;
 }
@@ -462,6 +473,7 @@ body {
   color: var(--color-fg-secondary);
   white-space: pre-wrap;
   word-break: break-word;
+  min-height: 6rem;
   max-height: 16rem;
   overflow-y: auto;
 }
