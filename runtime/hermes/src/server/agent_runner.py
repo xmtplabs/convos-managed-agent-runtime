@@ -4,15 +4,16 @@ Agent runner — wraps the Hermes AIAgent for conversational message handling.
 Used by both production and evals:
 
   Production: src.main → FastAPI server → AgentRunner.handle_message()
-    Full XMTP pipeline with envelope formatting, conversation history,
-    and async message handling.
+    Full XMTP pipeline with envelope formatting, async message handling,
+    and disk-backed conversation history (resumed from state.db on restart
+    via $HERMES_HOME/convos_session.json).
 
   Evals: bin/hermes → python -m src.server.agent_runner -q "query"
     Single-turn queries via AgentRunner.run_single_query().
     Same AIAgent config, same toolsets, same skills — no wrapper scripts.
 
 Both paths use the same AIAgent setup:
-  - hermes-convos toolset (core tools + convos_react, convos_send_attachment)
+  - hermes-convos toolset (core tools + convos_react, convos_send_attachment, convos_background_task, convos_check_background_task)
   - platform="convos"
   - ephemeral_system_prompt from INJECTED_CONTEXT.md
 
@@ -22,9 +23,11 @@ The adapter (channel.py) handles marker parsing and response routing.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
+import tempfile
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,7 +78,7 @@ def warm_imports() -> None:
         from toolsets import create_custom_toolset, _HERMES_CORE_TOOLS
         from src.convos.actions import register_convos_tools
 
-        convos_tool_names = ["convos_react", "convos_send_attachment"]
+        convos_tool_names = ["convos_react", "convos_send_attachment", "convos_background_task", "convos_check_background_task", "convos_report_progress"]
         all_tools = list(_HERMES_CORE_TOOLS) + convos_tool_names
         create_custom_toolset(
             name="hermes-convos",
@@ -131,10 +134,19 @@ class AgentRunner:
         self._hermes_home = hermes_home
         self._conversation_id = conversation_id
 
-        self._conversation_history: list[dict[str, Any]] = []
+        # Conversation history is NOT held in-memory.  The upstream Hermes
+        # AIAgent already persists every message (including tool calls and
+        # tool results) to ``state.db`` via its session DB on every turn.
+        # We read it back via ``get_messages_as_conversation`` at the start
+        # of each turn, which means:
+        #   - tool-call history is visible across turns (no more re-sending
+        #     attachments because the model can't see its own hands)
+        #   - the conversation survives process restarts
+        #   - todo state hydration works
+        # See ``$HERMES_HOME/convos_session.json`` for the conversation_id
+        # → session_id pointer that lets us resume after a restart.
         self._agent: Any = None
         self._session_db: Any = None
-        self._history_lock = asyncio.Lock()  # protects history append only, not agent calls
         self._agent_init_lock = threading.Lock()  # protects lazy AIAgent creation
 
     def _ensure_agent(self) -> Any:
@@ -159,6 +171,76 @@ class AgentRunner:
         except Exception:
             pass
         return {}
+
+    # ── Resumable session pointer ──────────────────────────────────────
+    # The upstream AIAgent persists messages to ``state.db`` keyed by an
+    # auto-generated ``session_id``.  Without an external mapping, every
+    # process restart mints a fresh session_id and the prior history is
+    # orphaned in the DB (still there, never read).  We persist a tiny
+    # ``conversation_id → session_id`` pointer alongside ``state.db`` so
+    # the runtime can resume the right session after a restart.  The
+    # pointer is also rewritten after every turn because compression can
+    # roll the session_id forward mid-process (run_agent.py:6090).
+
+    @staticmethod
+    def _session_pointer_path(hermes_home: str) -> Path:
+        return Path(hermes_home or os.path.expanduser("~/.hermes")) / "convos_session.json"
+
+    @classmethod
+    def _read_session_pointer(cls, hermes_home: str, conversation_id: str) -> str | None:
+        """Return the persisted session_id for ``conversation_id``, or None."""
+        if not conversation_id:
+            return None
+        try:
+            path = cls._session_pointer_path(hermes_home)
+            if not path.exists():
+                return None
+            data = json.loads(path.read_text())
+        except Exception as err:
+            logger.warning("Failed to read convos session pointer: %s", err)
+            return None
+        if data.get("conversation_id") != conversation_id:
+            # Pointer belongs to a different conversation — ignore it.
+            # The runtime hosts one conversation per process, so a mismatch
+            # means the volume was reused; starting fresh is correct.
+            return None
+        sid = data.get("session_id")
+        return sid if isinstance(sid, str) and sid else None
+
+    @classmethod
+    def _write_session_pointer(cls, hermes_home: str, conversation_id: str, session_id: str) -> None:
+        """Atomically persist ``conversation_id → session_id``.
+
+        Tolerates failures (logs and returns) — losing the pointer just
+        means the next restart starts a fresh session, not data corruption.
+        """
+        if not conversation_id or not session_id:
+            return
+        try:
+            path = cls._session_pointer_path(hermes_home)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {"conversation_id": conversation_id, "session_id": session_id}
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                dir=path.parent,
+                prefix=".convos_session.",
+                suffix=".tmp",
+                delete=False,
+            ) as tmp:
+                json.dump(payload, tmp)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+                tmp_path = tmp.name
+            os.replace(tmp_path, path)
+        except Exception as err:
+            logger.warning("Failed to write convos session pointer: %s", err)
+
+    @classmethod
+    def _clear_session_pointer(cls, hermes_home: str) -> None:
+        try:
+            cls._session_pointer_path(hermes_home).unlink(missing_ok=True)
+        except Exception as err:
+            logger.warning("Failed to clear convos session pointer: %s", err)
 
     def _create_agent(self) -> Any:
         """Create the AIAgent instance. Caller must hold _agent_init_lock."""
@@ -197,6 +279,17 @@ class AgentRunner:
         except Exception:
             pass
 
+        # Resume the prior session if a pointer exists for this conversation.
+        # ``create_session`` in the upstream library uses INSERT OR IGNORE so
+        # passing an existing session_id is a safe no-op for the DB row.
+        resumed_session_id = self._read_session_pointer(self._hermes_home, self._conversation_id)
+        if resumed_session_id:
+            logger.info(
+                "Resuming convos session %s for conversation %s",
+                resumed_session_id,
+                (self._conversation_id or "")[:12],
+            )
+
         AIAgent = _get_ai_agent_class()
         self._agent = AIAgent(
             model=self._model,
@@ -206,6 +299,7 @@ class AgentRunner:
             ephemeral_system_prompt=CONVOS_EPHEMERAL_PROMPT,
             quiet_mode=os.path.isfile("/.dockerenv"),
             session_db=self._session_db,
+            session_id=resumed_session_id,  # None → library auto-generates
             save_trajectories=True,
             providers_allowed=pr.get("only"),
             providers_ignored=pr.get("ignore"),
@@ -217,23 +311,12 @@ class AgentRunner:
             reasoning_config=reasoning_config,
         )
 
-        # Fix upstream bug (NousResearch/hermes-agent#4377): Hermes checks
-        # bool(getattr(client, "is_closed", False)) but openai SDK's is_closed
-        # is a method, not a property — the bound method object is always truthy,
-        # causing every API call to recreate the shared client unnecessarily.
-        def _is_openai_client_closed_fixed(client):
-            from unittest.mock import Mock
-            if isinstance(client, Mock):
-                return False
-            is_closed = getattr(client, "is_closed", False)
-            if callable(is_closed):
-                is_closed = is_closed()
-            if bool(is_closed):
-                return True
-            http_client = getattr(client, "_client", None)
-            return bool(getattr(http_client, "is_closed", False))
+        # Persist the pointer immediately so a crash before the first reply
+        # still records the mapping.  Captures auto-generated IDs too.
+        self._write_session_pointer(
+            self._hermes_home, self._conversation_id, self._agent.session_id
+        )
 
-        self._agent._is_openai_client_closed = _is_openai_client_closed_fixed
         return self._agent
 
     def _format_envelope(
@@ -292,18 +375,20 @@ class AgentRunner:
             agent_name=agent_name,
         )
 
-        # Snapshot history before the (potentially long) agent call so
-        # concurrent messages don't block each other — same pattern as OpenClaw.
-        async with self._history_lock:
-            history_snapshot = list(self._conversation_history)
-
+        # All agent-state work for this turn (creation if needed, history
+        # load, run_conversation, pointer write) is delegated to
+        # _run_agent_sync inside the executor.  This keeps handle_message
+        # itself free of any direct self._agent access — the only place in
+        # agent_runner.py that calls _ensure_agent is _run_agent_sync.
+        # (channel.py has its own _ensure_agent calls for interrupt control;
+        # all calls share the same double-checked lock so duplicate-creation
+        # is impossible regardless of which thread invokes them.)
         loop = asyncio.get_event_loop()
         try:
             result = await loop.run_in_executor(
                 None,
                 self._run_agent_sync,
                 envelope,
-                history_snapshot,
             )
         except Exception as err:
             logger.error(f"Agent error: {err}")
@@ -360,78 +445,92 @@ class AgentRunner:
             )
         self._last_reasoning_texts = reasoning_texts
 
-        # Append to shared history after the call completes.
-        # Hermes handles context window management internally via
-        # ContextCompressor and session splitting.
-        # Always record the user message so the agent sees what was said.
-        # Skip the assistant response for interrupted turns — the partial
-        # "Operation interrupted" diagnostic is not a real reply.
-        async with self._history_lock:
-            self._conversation_history.append({"role": "user", "content": envelope})
-            if response and not was_interrupted:
-                self._conversation_history.append({
-                    "role": "assistant",
-                    "content": response,
-                })
-
         if was_interrupted or not response or not response.strip():
             return None
 
         return response
 
-    def _run_agent_sync(self, user_message: str, history: list[dict]) -> dict:
+    def _run_agent_sync(self, user_message: str) -> dict:
         """Synchronous wrapper — runs in thread pool.
 
-        Takes a history snapshot so concurrent calls don't block each other.
-        History append happens back in the async caller.
+        Owns the full agent lifecycle for one turn:
+          1. Materialize (or reuse) the AIAgent.
+          2. Load the rich message trajectory from state.db for the agent's
+             current session_id.  The upstream library has been writing
+             every prior message (including tool calls and tool results)
+             via _persist_session, so reading it back gives the model
+             visibility into its own tool history.
+          3. Run the conversation turn.
+          4. Persist the (possibly compression-rolled) session_id to the
+             on-disk pointer so the next process resumes the right session.
+
+        Centralizing this in one place keeps _run_agent_sync the single
+        owner of agent-state writes within agent_runner.py.  (channel.py
+        also calls _ensure_agent directly for interrupt control — that's
+        a pre-existing call site protected by the same double-checked lock.)
         """
         agent = self._ensure_agent()
-        return agent.run_conversation(
-            user_message=user_message,
-            conversation_history=history,
-        )
 
-    async def record_message(
-        self,
-        *,
-        content: str,
-        sender_name: str,
-        sender_id: str,
-        timestamp: float,
-        message_id: str,
-    ) -> None:
-        """Record an inbound message in conversation history without triggering an agent turn.
+        # Load history for the current session.  Falls back to empty if the
+        # session DB is unavailable (degraded but functional) or the read
+        # fails for any reason.
+        history: list[dict] = []
+        if self._session_db is not None:
+            try:
+                history = self._session_db.get_messages_as_conversation(agent.session_id)
+            except Exception as err:
+                logger.warning(
+                    "Failed to load history for session %s: %s — starting empty",
+                    agent.session_id, err,
+                )
 
-        Used for reactions and other events that the agent should see as context
-        but should not reply to — matching OpenClaw's behavior.
-        """
-        envelope = self._format_envelope(
-            content=content,
-            sender_name=sender_name,
-            sender_id=sender_id,
-            timestamp=timestamp,
-            message_id=message_id,
-        )
-        async with self._history_lock:
-            self._conversation_history.append({"role": "user", "content": envelope})
+        try:
+            return agent.run_conversation(
+                user_message=user_message,
+                conversation_history=history,
+            )
+        finally:
+            # ContextCompressor may have rolled the session_id forward
+            # mid-turn by mutating agent.session_id in place
+            # (run_agent.py:6090).  Persist the latest ID even on failure
+            # paths so the next process resumes the post-compression session.
+            self._write_session_pointer(
+                self._hermes_home, self._conversation_id, agent.session_id
+            )
 
     def run_single_query(self, query: str) -> str:
-        """Run a single query with no conversation history. Returns response text."""
-        result = self._run_agent_sync(query, [])
+        """Run a single query.  Returns response text.
+
+        Note: this still loads any prior history for the current session
+        from state.db, same as handle_message.  Eval callers that need a
+        clean slate should call ``reset_history()`` first.
+        """
+        result = self._run_agent_sync(query)
         text = (result.get("final_response", "") if isinstance(result, dict) else str(result))
         return text.strip()
 
     def reset_history(self) -> None:
-        """Clear conversation history and invalidate the cached system prompt.
+        """Start a fresh session for the next message.
 
-        The system prompt contains a frozen memory snapshot captured at first
-        turn.  Between eval phases (store → recall) the memory files on disk
-        change, so we must force a rebuild so the next turn picks up the new
-        snapshot.
+        Used between eval phases (store → recall) where the memory files on
+        disk change and the agent must rebuild its system prompt to pick up
+        the new snapshot.
+
+        Ends the current session in the DB, drops the on-disk pointer, and
+        clears the cached AIAgent.  The next call to ``_ensure_agent`` will
+        construct a new agent with a fresh session_id and rebuild the system
+        prompt from disk.
         """
-        self._conversation_history.clear()
-        if self._agent is not None:
-            self._agent._invalidate_system_prompt()
+        with self._agent_init_lock:
+            if self._agent is not None and self._session_db is not None:
+                try:
+                    self._session_db.end_session(self._agent.session_id, "user_reset")
+                except Exception as err:
+                    logger.warning(
+                        "Failed to end session %s: %s", self._agent.session_id, err
+                    )
+            self._clear_session_pointer(self._hermes_home)
+            self._agent = None  # next _ensure_agent() mints a fresh one
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Run: python -m pytest runtime/hermes/src/convos/test_parse_markers.py -v
 """
 
 import unittest
-from convos_adapter import parse_response
+from convos_adapter import parse_response, ParsedLink
 
 
 class TestParseResponse(unittest.TestCase):
@@ -75,6 +75,42 @@ class TestParseResponse(unittest.TestCase):
         r = parse_response("METADATA:url=https://x.com?a=1")
         self.assertEqual(r.profile_metadata, {"url": "https://x.com?a=1"})
 
+    # ---- LINK ----
+
+    def test_link_https(self):
+        r = parse_response("LINK:https://example.com/dashboard\nCheck it out")
+        self.assertEqual(r.links, [ParsedLink(url="https://example.com/dashboard")])
+        self.assertEqual(r.text, "Check it out")
+
+    def test_link_http(self):
+        r = parse_response("LINK:http://localhost:3000/logs\nHere are your logs")
+        self.assertEqual(r.links, [ParsedLink(url="http://localhost:3000/logs")])
+        self.assertEqual(r.text, "Here are your logs")
+
+    def test_link_with_caption(self):
+        r = parse_response("LINK:https://simonwillison.net Simon Willison — practical LLM takes\nCheck these out")
+        self.assertEqual(r.links, [ParsedLink(url="https://simonwillison.net", caption="Simon Willison — practical LLM takes")])
+        self.assertEqual(r.text, "Check these out")
+
+    def test_multiple_links_with_and_without_captions(self):
+        r = parse_response("LINK:https://a.com Blog A\nLINK:https://b.com\nTwo links")
+        self.assertEqual(len(r.links), 2)
+        self.assertEqual(r.links, [
+            ParsedLink(url="https://a.com", caption="Blog A"),
+            ParsedLink(url="https://b.com"),
+        ])
+        self.assertEqual(r.text, "Two links")
+
+    def test_link_without_protocol_ignored(self):
+        r = parse_response("LINK:example.com\nText")
+        self.assertEqual(r.links, [])
+        self.assertEqual(r.text, "LINK:example.com\nText")
+
+    def test_link_inline_ignored(self):
+        r = parse_response("Check this LINK:https://example.com please")
+        self.assertEqual(r.links, [])
+        self.assertIn("LINK:https://example.com", r.text)
+
     # ---- MEDIA ----
 
     def test_media_standalone(self):
@@ -92,6 +128,22 @@ class TestParseResponse(unittest.TestCase):
         self.assertEqual(len(r.media), 2)
         self.assertEqual(r.text, "Files attached")
 
+    def test_media_relative_dot_slash(self):
+        r = parse_response("MEDIA:./zoom1.jpg\nHere you go")
+        self.assertEqual(r.media, ["./zoom1.jpg"])
+        self.assertEqual(r.text, "Here you go")
+
+    def test_media_relative_dot_dot_slash(self):
+        r = parse_response("MEDIA:../output/chart.png\nChart attached")
+        self.assertEqual(r.media, ["../output/chart.png"])
+        self.assertEqual(r.text, "Chart attached")
+
+    def test_media_mixed_absolute_and_relative(self):
+        r = parse_response("MEDIA:/tmp/a.png\nMEDIA:./b.png\nDone")
+        self.assertEqual(len(r.media), 2)
+        self.assertEqual(r.media, ["/tmp/a.png", "./b.png"])
+        self.assertEqual(r.text, "Done")
+
     # ---- Combined ----
 
     def test_all_markers(self):
@@ -100,6 +152,7 @@ class TestParseResponse(unittest.TestCase):
             "REPLY:msg2",
             "PROFILE:Test Bot 🤖",
             "METADATA:status=active",
+            "LINK:https://example.com/report",
             "MEDIA:/tmp/report.pdf",
             "Here is your report!",
         ])
@@ -108,6 +161,7 @@ class TestParseResponse(unittest.TestCase):
         self.assertEqual(r.reply_to, "msg2")
         self.assertEqual(r.profile_name, "Test Bot 🤖")
         self.assertEqual(r.profile_metadata, {"status": "active"})
+        self.assertEqual(r.links, [ParsedLink(url="https://example.com/report")])
         self.assertEqual(r.media, ["/tmp/report.pdf"])
         self.assertEqual(r.text, "Here is your report!")
 

@@ -41,7 +41,7 @@ export default async function info() {
   const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
   const port = process.env.POOL_SERVER_PORT || process.env.PORT || "18789";
   const base = domain ? `https://${domain}` : `http://127.0.0.1:${port}`;
-  const servicesUrl = `${base}/web-tools/services`;
+  const servicesUrl = `${base}/web-tools`;
   const logsUrl = `${base}/web-tools/logs`;
 
   console.log(JSON.stringify({ email, phone, servicesUrl, logsUrl }, null, 2));

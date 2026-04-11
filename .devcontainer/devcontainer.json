@@ -1,0 +1,33 @@
+{
+  "name": "Convos Agents",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24-bookworm",
+
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "typescript.tsdk": "pool/node_modules/typescript/lib",
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+
+  "postCreateCommand": "npm install -g pnpm@8.7.5 && rm -rf pool/node_modules dashboard/node_modules runtime/openclaw/node_modules runtime/hermes/node_modules && cd pool && pnpm install --frozen-lockfile && cd ../dashboard && pnpm install --frozen-lockfile && cd ../runtime/openclaw && pnpm install --frozen-lockfile && cd ../hermes && pnpm install --frozen-lockfile && pip install -r requirements.txt",
+
+  "remoteUser": "node"
+}

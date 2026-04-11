@@ -22,6 +22,6 @@
     "payment required"
   ],
   "contextOverflowPrefix": "Context overflow:",
-  "suppressTokens": ["HEARTBEAT_OK", "SILENT"],
+  "suppressTokens": ["HEARTBEAT_OK", "SILENT", "NO_REPLY"],
   "creditMessageTemplate": "Hey! I'm out of credits. You can top up here: {{servicesUrl}}"
 }

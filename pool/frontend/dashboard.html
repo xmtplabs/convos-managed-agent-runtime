@@ -205,13 +205,21 @@
       </div>
       <div class="launch-card-body">
         <div class="launch-fields">
-          <div class="launch-field">
+          <div class="launch-field full">
             <label>Invite URL <span class="opt">(optional — paste to join existing convo)</span></label>
             <input id="launch-url" />
           </div>
           <div class="launch-field">
             <label>Name <span class="opt">(optional)</span></label>
             <input id="launch-name" placeholder="Assistant" />
+          </div>
+          <div class="launch-field">
+            <label>Runtime <span class="opt">(optional)</span></label>
+            <select id="launch-runtime">
+              <option value="">Any</option>
+              <option value="openclaw">OpenClaw</option>
+              <option value="hermes">Hermes</option>
+            </select>
           </div>
           <div class="launch-field full">
             <label>Instructions <span class="opt">(optional)</span></label>
@@ -1177,6 +1185,7 @@
     var launchBtn = document.getElementById('launch-btn');
     var launchUrl = document.getElementById('launch-url');
     var launchName = document.getElementById('launch-name');
+    var launchRuntime = document.getElementById('launch-runtime');
     var launchInstructions = document.getElementById('launch-instructions');
     var launchMsg = document.getElementById('launch-msg');
     var claimLog = document.getElementById('claim-log');
@@ -1230,6 +1239,7 @@
     launchBtn.addEventListener('click', function () {
       var url = launchUrl.value.trim();
       var name = launchName.value.trim();
+      var runtime = launchRuntime.value;
       var instructions = launchInstructions.value.trim();
 
       launchBtn.disabled = true;
@@ -1243,6 +1253,7 @@
       params.set('source', 'admin');
       if (url) params.set('joinUrl', url);
       if (name) params.set('agentName', name);
+      if (runtime) params.set('runtime', runtime);
       if (instructions) params.set('instructions', instructions);
 
       var es = new EventSource('/api/pool/claim/stream?' + params.toString());

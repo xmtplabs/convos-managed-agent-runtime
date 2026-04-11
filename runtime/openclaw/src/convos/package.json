@@ -23,7 +23,7 @@
     },
     "install": {
       "npmSpec": "@openclaw/convos",
-      "localPath": "extensions/convos",
+      "localPath": "src/convos",
       "defaultChoice": "local"
     }
   }

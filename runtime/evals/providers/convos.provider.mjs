@@ -116,13 +116,22 @@ export default class ConvosProvider {
         sleep(2_000);
       }
 
+      // Collect cron-delivered messages, filtering out system messages (member
+      // profiles, metadata updates) using the same content-type check the
+      // harness uses in isAgentReply / agentCount.
       const finalMsgs = h.fetchMessages();
+      const isText = (m) => {
+        if (!m.contentType) return true;
+        const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType.typeId;
+        return typeId === 'text' || typeId === 'reply';
+      };
       const newAgentTexts = finalMsgs
-        .filter(m => m.senderInboxId !== h.userInboxId)
+        .filter(m => m.senderInboxId !== h.userInboxId && isText(m))
         .slice(setupCount)
         .map(m => m.content || m.text || '')
         .filter(Boolean);
-      log(`Cron delivered ${newAgentTexts.length} messages in ${waitSec}s: ${newAgentTexts.map(t => `"${t.slice(0, 80)}"`).join(', ') || '(none)'}`);
+      log(`Cron delivered ${newAgentTexts.length} messages in ${waitSec}s:`);
+      newAgentTexts.forEach((t, i) => log(`  [${i + 1}] ${t.slice(0, 120)}`));
 
       // Cleanup: remove the eval cron job via the adapter so pings stop
       runtime.cleanEvalState();
@@ -141,6 +150,44 @@ export default class ConvosProvider {
       }
       const output = h.transcript(msgs);
       return { output, metadata: { conversationId: h.conversationId } };
+    }
+
+    // Attachment test: send a prompt, wait for agent to reply AND send an
+    // attachment (remoteStaticAttachment content type). The normal waitForAgent
+    // only counts text/reply — we also poll for attachment messages.
+    if (meta.waitForAttachment) {
+      const existing = h.fetchMessages();
+      const baseline = h.agentCount(existing);
+      const msgsBefore = existing.length;
+
+      log(`Sending: "${prompt}"`);
+      h.convos(['conversation', 'send-text', h.conversationId, prompt, '--env', process.env.XMTP_ENV || 'dev'], { timeout: 30_000 });
+
+      const timeoutMs = (meta.waitForAttachmentTimeout || 60) * 1000;
+      let attachmentReceived = false;
+      let msgs;
+
+      // Wait for the agent's text reply first
+      msgs = h.waitForAgent(baseline, timeoutMs);
+
+      // Then poll briefly for the attachment message
+      const attachDeadline = Date.now() + 15_000;
+      while (Date.now() < attachDeadline) {
+        sleep(2_000);
+        try {
+          msgs = h.fetchMessages();
+          const newMsgs = msgs.slice(msgsBefore).filter(m => m.senderInboxId !== h.userInboxId);
+          attachmentReceived = newMsgs.some(m => {
+            const typeId = typeof m.contentType === 'string' ? m.contentType : m.contentType?.typeId;
+            return typeId === 'remoteStaticAttachment' || typeId === 'attachment';
+          });
+          if (attachmentReceived) break;
+        } catch {}
+      }
+
+      const output = h.transcript(msgs, msgsBefore);
+      log(`${attachmentReceived ? 'OK' : 'FAIL'} — attachment ${attachmentReceived ? 'received' : 'not received'} (${elapsed(t)})`);
+      return { output, metadata: { conversationId: h.conversationId, attachmentReceived } };
     }
 
     // Reaction test: send a prompt, wait for agent reply, react to the agent's

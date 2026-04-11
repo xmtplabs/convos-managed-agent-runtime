@@ -4,6 +4,7 @@ import * as skills from "../db/skills";
 import { isAuthenticated } from "../admin";
 import { config } from "../config";
 import { generateSkill } from "../services/skillGen";
+import { revalidateDashboard } from "../services/revalidateDashboard";
 
 export const skillsRouter = Router();
 
@@ -126,6 +127,10 @@ skillsRouter.post("/api/skills", requireAuth, async (req, res) => {
       published: published === true,
       featured: featured === true,
     });
+    if (skill.published) {
+      // New published skill: drop the list cache so it appears on the home page.
+      await revalidateDashboard(["skills", `skill:${skill.slug}`]);
+    }
     res.status(201).json(skill);
   } catch (err: any) {
     console.error("[skills] create failed:", err);
@@ -186,6 +191,16 @@ skillsRouter.put("/api/skills/:id", requireAuth, async (req, res) => {
     }
 
     const updated = await skills.updateSkill(id, updates);
+
+    // Invalidate the dashboard cache if the mutation could affect public state:
+    // any content edit to a currently-or-previously published skill, or a
+    // published/featured flag transition. Cheapest correct rule is "invalidate
+    // if the skill was published before OR is published now".
+    if (existing.published || updated?.published) {
+      const slug = updated?.slug ?? existing.slug;
+      await revalidateDashboard(["skills", `skill:${slug}`]);
+    }
+
     res.json(updated);
   } catch (err: any) {
     console.error("[skills] update failed:", err);
@@ -200,6 +215,9 @@ skillsRouter.delete("/api/skills/:id", requireAuth, async (req, res) => {
     const existing = await skills.findById(id);
     if (!existing) { res.status(404).json({ error: "Skill not found" }); return; }
     await skills.deleteSkill(id);
+    if (existing.published) {
+      await revalidateDashboard(["skills", `skill:${existing.slug}`]);
+    }
     res.json({ ok: true });
   } catch (err: any) {
     console.error("[skills] delete failed:", err);

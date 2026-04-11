@@ -118,6 +118,31 @@
     .status-label { font-size: 12px; color: var(--color-fg2); flex: 1; }
     .status-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+    /* Quick claim */
+    .claim-input-row { display: flex; gap: 8px; }
+    .claim-input {
+      flex: 1; height: 44px; padding: 0 14px; border: 1.5px solid var(--color-edge);
+      border-radius: 10px; font-size: 14px; font-family: inherit;
+      background: var(--color-surface); color: var(--color-fg);
+      outline: none; transition: border-color 0.15s;
+    }
+    .claim-input:focus { border-color: var(--color-brand); }
+    .claim-input::placeholder { color: var(--color-fg3); }
+    .claim-btn {
+      height: 44px; padding: 0 20px; border: none; border-radius: 10px;
+      background: #111; color: #FFF; font-size: 14px;
+      font-weight: 600; font-family: inherit; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; white-space: nowrap;
+    }
+    .claim-btn:active { opacity: 0.8; }
+    .claim-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .claim-result {
+      margin-top: 10px; font-size: 13px; padding: 8px 12px;
+      border-radius: 8px; display: none;
+    }
+    .claim-result.ok { display: block; background: #DCFCE7; color: #166534; }
+    .claim-result.fail { display: block; background: #FEE2E2; color: #991B1B; }
+
     /* Harness label */
     .harness-label {
       font-size: 12px; font-weight: 600; color: var(--color-fg2);
@@ -276,6 +301,18 @@
       </div>
     </div>
 
+    <!-- Quick Claim card -->
+    <div class="card">
+      <div class="card-header">Quick Claim</div>
+      <div class="card-body">
+        <div class="claim-input-row">
+          <input class="claim-input" id="claim-url" type="text" placeholder="Paste invite or join URL" autocomplete="off" />
+          <button class="claim-btn" id="claim-btn">Join</button>
+        </div>
+        <div class="claim-result" id="claim-result"></div>
+      </div>
+    </div>
+
     <!-- Replenish card -->
     <div class="card">
       <div class="card-header">Replenish <span class="harness-label" id="harness-label"></span></div>
@@ -374,6 +411,54 @@
       } catch (e) { console.warn('check-starting failed:', e); }
       btn.classList.remove('syncing');
     });
+
+    // --- Quick Claim ---
+    (function () {
+      var input = document.getElementById('claim-url');
+      var btn = document.getElementById('claim-btn');
+      var result = document.getElementById('claim-result');
+
+      // Auto-paste from clipboard on focus (if it looks like a join URL)
+      input.addEventListener('focus', async function () {
+        if (input.value) return;
+        try {
+          var text = await navigator.clipboard.readText();
+          if (text && /convos\.org/i.test(text)) {
+            input.value = text.trim();
+          }
+        } catch (e) { /* clipboard permission denied — that's fine */ }
+      });
+
+      btn.addEventListener('click', claim);
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') claim();
+      });
+
+      async function claim() {
+        var url = input.value.trim();
+        if (!url) { input.focus(); return; }
+        btn.disabled = true; btn.textContent = 'Joining...';
+        result.className = 'claim-result';
+        try {
+          var res = await fetch('/api/pool/claim/lite', {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ joinUrl: url }),
+          });
+          var data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Claim failed');
+          result.textContent = 'Claimed ' + (data.name || data.instanceId);
+          result.className = 'claim-result ok';
+          input.value = '';
+          refreshCounts();
+        } catch (e) {
+          result.textContent = e.message;
+          result.className = 'claim-result fail';
+        } finally {
+          btn.disabled = false; btn.textContent = 'Join';
+        }
+      }
+    })();
 
     // --- Qty stepper ---
     var qtyInput = document.getElementById('qty');

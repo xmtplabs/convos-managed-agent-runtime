@@ -9,7 +9,7 @@ set -euo pipefail
 #
 # Prerequisites:
 #   - convos-cli installed (npx @xmtp/convos-cli or global)
-#   - A Hermes agent running via `pnpm start:hermes` in another terminal,
+#   - A Hermes agent running via `cd hermes && pnpm start` in another terminal,
 #     already serving in a conversation
 #   - The invite link for that conversation
 #

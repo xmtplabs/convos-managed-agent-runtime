@@ -798,10 +798,10 @@ def _patch_cron_for_convos() -> None:
 
     original_deliver = cron_mod._deliver_result
 
-    def _patched_deliver(job: dict, content: str) -> None:
+    def _patched_deliver(job: dict, content: str, adapters=None, loop=None) -> str | None:
         if _is_convos_targeted(job):
-            return  # Already delivered through _dispatch_response in run_job
-        original_deliver(job, content)
+            return None  # Already delivered through _dispatch_response in run_job
+        return original_deliver(job, content, adapters=adapters, loop=loop)
 
     cron_mod._deliver_result = _patched_deliver
     logger.info("Patched cron delivery for convos platform")
@@ -923,7 +923,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Convos Hermes Runtime", lifespan=lifespan)
 
-from .web_tools import router as web_tools_router
+from ..web_tools import web_tools_router
 app.include_router(web_tools_router)
 
 

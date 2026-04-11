@@ -1,8 +1,8 @@
-import {
-  type ChannelOnboardingAdapter,
-  type ChannelOnboardingDmPolicy,
-  type OpenClawConfig,
-} from "openclaw/plugin-sdk";
+import type {
+  ChannelSetupWizardAdapter,
+  ChannelSetupDmPolicy,
+  OpenClawConfig,
+} from "openclaw/plugin-sdk/setup";
 import type { DmPolicy } from "./config-types.js";
 import { resolveConvosAccount, listConvosAccountIds, type CoreConfig } from "./accounts.js";
 import { ConvosInstance } from "./sdk-client.js";
@@ -53,7 +53,7 @@ function setConvosDmPolicy(cfg: OpenClawConfig, dmPolicy: DmPolicy): OpenClawCon
   };
 }
 
-const dmPolicy: ChannelOnboardingDmPolicy = {
+const dmPolicy: ChannelSetupDmPolicy = {
   label: "Convos",
   channel,
   policyKey: "channels.convos.dmPolicy",
@@ -62,7 +62,7 @@ const dmPolicy: ChannelOnboardingDmPolicy = {
   setPolicy: (cfg, policy) => setConvosDmPolicy(cfg, policy),
 };
 
-export const convosOnboardingAdapter: ChannelOnboardingAdapter = {
+export const convosOnboardingAdapter: ChannelSetupWizardAdapter = {
   channel,
 
   getStatus: async ({ cfg }) => {

@@ -1,5 +1,14 @@
 # Pool Manager Changelog
 
+## 0.10.0
+- Runtime selection: `/api/pool/claim` and `/api/pool/claim/stream` accept `runtime` param to pick hermes or openclaw — dashboard has a dropdown too
+- Newest-first claiming: idle instances claimed newest-first instead of oldest-first
+- Auto-replenish: pool spins up replacement instances when idle stock drops below `target_idle` setting
+- Auto-replenish overshoot fix: re-checks counts before each create to prevent concurrent replenishes from overshooting
+- GATEWAY_TOKEN backfill: upgrade path now backfills missing gateway tokens for older instances
+- Skill cache fix: dashboard skill mutations now properly invalidate the cache via tag-based revalidation
+- Crashed instance UX: upgrade button now visible on crashed instances
+
 ## 0.9.0
 - Telnyx webhook auth: Ed25519 signature verification — rejects forged SMS events
 - Email/SMS unprovision endpoints: agents can release their inbox or phone number

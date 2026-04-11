@@ -84,8 +84,9 @@ export async function getCounts(): Promise<Record<InstanceStatus, number>> {
 
 /** Atomically claim one idle instance using FOR UPDATE SKIP LOCKED.
  *  When inviteUrl is provided, aborts if another instance is already
- *  claiming/claimed for that URL (dedup within the same transaction). */
-export async function claimIdle(inviteUrl?: string | null): Promise<InstanceView | null> {
+ *  claiming/claimed for that URL (dedup within the same transaction).
+ *  When runtimeType is provided, only claims instances of that type. */
+export async function claimIdle(inviteUrl?: string | null, runtimeType?: string | null): Promise<InstanceView | null> {
   return db.transaction(async (tx) => {
     // Dedup: if an instance is already handling this inviteUrl, don't claim another
     if (inviteUrl) {
@@ -103,6 +104,10 @@ export async function claimIdle(inviteUrl?: string | null): Promise<InstanceView
       ? sql`AND id NOT IN (${sql.join(protected_.map((id) => sql`${id}`), sql`, `)})`
       : sql``;
 
+    const runtimeClause = runtimeType
+      ? sql`AND id IN (SELECT instance_id FROM instance_infra WHERE runtime_type = ${runtimeType})`
+      : sql``;
+
     const result = await tx.execute(sql`
       UPDATE instances SET status = 'claiming',
         invite_url = COALESCE(${inviteUrl ?? null}, invite_url)
@@ -110,7 +115,8 @@ export async function claimIdle(inviteUrl?: string | null): Promise<InstanceView
         SELECT id FROM instances
         WHERE status = 'idle'
         ${excludeClause}
-        ORDER BY created_at
+        ${runtimeClause}
+        ORDER BY created_at DESC
         LIMIT 1
         FOR UPDATE SKIP LOCKED
       )

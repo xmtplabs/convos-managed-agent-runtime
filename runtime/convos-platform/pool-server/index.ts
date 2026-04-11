@@ -342,7 +342,7 @@ const server = http.createServer(async (req, res) => {
   // GET /pool/health — no auth (used by Railway health checks and CI)
   if (req.method === "GET" && req.url === "/pool/health") {
     if (!gatewayReady) {
-      json(res, 200, { ready: false });
+      json(res, 503, { ready: false });
       return;
     }
     if (!convosReady) {
@@ -356,7 +356,7 @@ const server = http.createServer(async (req, res) => {
         if (cRes.ok) convosReady = true;
       } catch {}
     }
-    json(res, 200, { ready: convosReady, version: RUNTIME_VERSION, runtime: config.name });
+    json(res, convosReady ? 200 : 503, { ready: convosReady, version: RUNTIME_VERSION, runtime: config.name });
     return;
   }
 
