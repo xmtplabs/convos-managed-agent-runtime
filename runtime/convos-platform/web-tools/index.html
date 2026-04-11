@@ -167,7 +167,7 @@
             <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
             <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
           </svg>
-          <span>notes</span>
+          <span>files</span>
         </div>
         <div id="context-content">
           <div class="loading-shimmer"></div>
@@ -199,10 +199,10 @@
             <path d="M27.7736 13.8868C27.7736 21.5563 21.5563 27.7736 13.8868 27.7736C6.21733 27.7736 0 21.5563 0 13.8868C0 6.21733 6.21733 0 13.8868 0C21.5563 0 27.7736 6.21733 27.7736 13.8868Z" fill="#FC4F37"/>
             <path d="M13.8868 27.7736L18.0699 35.0189H9.70373L13.8868 27.7736Z" fill="#FC4F37"/>
           </svg>
-          <span>notes</span>
+          <span>files</span>
         </div>
         <div id="notes-content">
-          <div class="empty-state">no notes yet</div>
+          <div class="empty-state">no files yet</div>
         </div>
       </div>
 
@@ -220,7 +220,7 @@
       </button>
       <button class="nav-item" data-tab="context">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        <span class="nav-label">Notes</span>
+        <span class="nav-label">Files</span>
       </button>
       <button class="nav-item" data-tab="tasks">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -694,7 +694,7 @@
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
           .then(function (_) {
             if (!_.ok || !_.data.sections || !_.data.sections.length) {
-              contextContent.innerHTML = '<div class="empty-state">no notes yet</div>';
+              contextContent.innerHTML = '<div class="empty-state">no files yet</div>';
               return;
             }
             renderContext(_.data);
@@ -711,7 +711,7 @@
           return s.name.toLowerCase() !== "tools.md" && s.name.toLowerCase() !== "tools";
         });
         if (!filtered.length) {
-          contextContent.innerHTML = '<div class="empty-state">no notes yet</div>';
+          contextContent.innerHTML = '<div class="empty-state">no files yet</div>';
           return;
         }
         var html = '<div class="context-list">';
