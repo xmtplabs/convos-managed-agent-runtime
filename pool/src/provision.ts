@@ -14,6 +14,7 @@ interface ProvisionOpts {
   profileImage?: string;
   metadata?: Record<string, string>;
   source?: string;
+  runtime?: string;
   onProgress?: ProvisionProgressCallback;
 }
 
@@ -40,7 +41,7 @@ async function resetAndVerifyRuntime(instanceUrl: string | null, gatewayToken: s
 }
 
 export async function provision(opts: ProvisionOpts) {
-  const { agentName, instructions, joinUrl, profileImage, metadata, source, onProgress } = opts;
+  const { agentName, instructions, joinUrl, profileImage, metadata, source, runtime, onProgress } = opts;
   const claimStart = Date.now();
   const report = (step: string, status: string, message?: string) => {
     if (onProgress) onProgress(step, status, message);
@@ -51,7 +52,7 @@ export async function provision(opts: ProvisionOpts) {
   // Fast-path dedup: skip the claim transaction if an instance is already handling this joinUrl.
   // The real atomic guard is inside claimIdle(), but this avoids the heavier transaction.
   if (joinUrl && await db.hasActiveInviteUrl(joinUrl)) {
-    logger.info("claim.dedup", { joinUrl, agentName, source });
+    logger.info("claim.dedup", { joinUrl, agentName, source, runtime });
     report("claim", "ok", "Already provisioning for this conversation");
     return null;
   }
@@ -59,17 +60,17 @@ export async function provision(opts: ProvisionOpts) {
   report("claim", "active", "Finding available instance…");
   let instance;
   try {
-    instance = await db.claimIdle(joinUrl);
+    instance = await db.claimIdle(joinUrl, runtime);
   } catch (err) {
     const { error_class, error_message } = classifyError(err);
     metricCount("instance.claim.fail", 1, { reason: "db_error", error_class, stage: "claim" });
-    logger.error("claim.fail", { stage: "claim", error_class, error_message: error_message.slice(0, 1500), agentName, hasJoinUrl: !!joinUrl, source });
+    logger.error("claim.fail", { stage: "claim", error_class, error_message: error_message.slice(0, 1500), agentName, hasJoinUrl: !!joinUrl, source, runtime });
     report("claim", "fail", "Database error while claiming");
     throw err;
   }
   if (!instance) {
     metricCount("instance.claim.fail", 1, { reason: "no_idle" });
-    logger.warn("claim.no_idle", { agentName, hasJoinUrl: !!joinUrl, source });
+    logger.warn("claim.no_idle", { agentName, hasJoinUrl: !!joinUrl, source, runtime });
     report("claim", "fail", "No idle instances available");
     return null;
   }
@@ -78,7 +79,7 @@ export async function provision(opts: ProvisionOpts) {
 
   try {
     console.log(`[provision] Claiming ${instance.id} for "${agentName}"${joinUrl ? " (join)" : ""}`);
-    logger.info("claim.start", { instanceId: instance.id, agentName, hasJoinUrl: !!joinUrl, source });
+    logger.info("claim.start", { instanceId: instance.id, agentName, hasJoinUrl: !!joinUrl, source, runtime });
 
     report("provision", "active", joinUrl ? "Joining conversation…" : "Configuring agent…");
 
