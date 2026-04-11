@@ -554,7 +554,6 @@ body {
 }
 
 /* ── Deep skill link (full-screen single skill) ────────────── */
-.deep-skill { padding: 0.25rem; align-items: flex-start; }
+.deep-skill { padding: 0.25rem; }
 .deep-skill .card { border-radius: 12px; }
-.deep-skill .tab-panel { padding: 0.5rem; }
-.deep-skill .skill-detail-overlay { padding: 0.25rem; }
+.deep-skill .tab-panel { padding: 0.75rem; }

@@ -580,17 +580,14 @@
       }
 
       function renderSkillsList(data) {
-        var active = data.active || "";
         var html = '<div class="skill-list">';
         data.skills.forEach(function (s) {
-          var isActive = s.slug === active;
           html += '<div class="skill-item" data-slug="' + esc(s.slug) + '">' +
             '<div class="skill-item-emoji">' + (s.emoji ? esc(s.emoji) : '<span class="skill-dot"></span>') + '</div>' +
             '<div class="skill-item-body">' +
               '<div class="skill-item-name">' + esc(s.agentName || "") + '</div>' +
               '<div class="skill-item-desc">' + esc(s.description || "") + '</div>' +
             '</div>' +
-            (isActive ? '<div class="skill-item-active">active</div>' : '') +
           '</div>';
         });
         html += '</div>';

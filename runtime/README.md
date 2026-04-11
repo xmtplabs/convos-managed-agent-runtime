@@ -33,16 +33,16 @@ Both runtimes follow the same fixed pipeline:
 
 ## Scripts
 
-All run from `runtime/`.
-
-| Script | Description |
-|--------|-------------|
-| `pnpm start` | Start OpenClaw (full boot pipeline) |
-| `pnpm start:hermes` | Start Hermes (local dev) |
-| `pnpm build` / `pnpm build:hermes` | Build Docker image locally |
-| `pnpm build:run` / `pnpm build:run:hermes` | Build and run with `.env` |
-| `pnpm evals openclaw [suite]` | Run evals against OpenClaw |
-| `pnpm evals hermes [suite]` | Run evals against Hermes |
+| Script | Run from | Description |
+|--------|----------|-------------|
+| `pnpm start` | `runtime/openclaw/` | Start OpenClaw (full boot pipeline) |
+| `pnpm start` | `runtime/hermes/` | Start Hermes (local dev) |
+| `pnpm docker:build:openclaw` | `runtime/` | Build OpenClaw Docker image locally |
+| `pnpm docker:run:openclaw` | `runtime/` | Run OpenClaw Docker image with `.env` |
+| `pnpm docker:build:hermes` | `runtime/` | Build Hermes Docker image locally |
+| `pnpm docker:run:hermes` | `runtime/` | Run Hermes Docker image with `.env` |
+| `pnpm evals openclaw [suite]` | `runtime/` | Run evals against OpenClaw |
+| `pnpm evals hermes [suite]` | `runtime/` | Run evals against Hermes |
 
 ## Local development
 
@@ -52,7 +52,7 @@ cd runtime/openclaw && pnpm install && pnpm start
 # → http://localhost:18789
 
 # Hermes
-cd runtime && pnpm start:hermes
+cd runtime/hermes && pnpm install && pnpm start
 ```
 
 Set your keys in `runtime/.env` (shared by both runtimes). See `.env.example` for the full list.
