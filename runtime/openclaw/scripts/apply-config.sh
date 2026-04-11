@@ -73,6 +73,10 @@ _MERGED_SRC=""
 if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   _MERGED_SRC=$(mktemp -d)
   [ -f "$CONVOS_PLATFORM_DIR/SOUL.md" ] && cp "$CONVOS_PLATFORM_DIR/SOUL.md" "$_MERGED_SRC/"
+  # TOOLS.md lives in convos-platform context but must also be in workspace
+  _TOOLS_SRC="$CONVOS_PLATFORM_DIR/context/openclaw/TOOLS.md"
+  [ -f "$_TOOLS_SRC" ] && cp "$_TOOLS_SRC" "$_MERGED_SRC/"
+  unset _TOOLS_SRC
   [ -d "$RUNTIME_DIR/workspace" ] && cp -R "$RUNTIME_DIR/workspace/." "$_MERGED_SRC/"
   brand_ok "workspace" "merged (convos-platform + runtime)"
 
