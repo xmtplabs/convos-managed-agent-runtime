@@ -38,11 +38,8 @@ rm -f "${HERMES_HOME:-$OPENCLAW_STATE_DIR}/.share-trajectories"
 ## Response templates
 
 **When enabling:**
-> Your logs are now shared. Anyone with this link can view your conversation history:
->
-> {logsUrl from services.mjs info}
->
-> Say "stop sharing my logs" to disable access.
+> Your logs are now shared. Anyone with this link can view your conversation history — say "stop sharing my logs" to disable access.
+> LINK:{logsUrl from services.mjs info}
 
 Never make up a URL. Always use the `logsUrl` returned by `services.mjs info`.
 
@@ -59,7 +56,7 @@ Never make up a URL. Always use the `logsUrl` returned by `services.mjs info`.
 
 "Share my logs."
 BAD: "Here's your logs link: https://logs.convos.org/abc." (fabricated)
-GOOD: [runs services.mjs info, creates flag file] → shares real logsUrl with privacy warning.
+GOOD: [runs services.mjs info, creates flag file] → shares real logsUrl via LINK: marker with privacy warning.
 
 "Can I see my logs?"
 BAD: [enables sharing immediately without explaining what it does]

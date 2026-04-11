@@ -8,6 +8,7 @@ Marker syntax (agent includes these in its response text):
   REACT:messageId:emoji           — react to a message
   REACT:messageId:emoji:remove    — remove a reaction
   REPLY:messageId                 — send the response as a reply to that message
+  LINK:https://url                — send URL as a separate message
   MEDIA:/path/to/file             — send a file attachment
   PROFILE:New Name                — update the agent's profile name
   PROFILEIMAGE:https://url        — update the agent's profile image
@@ -211,12 +212,19 @@ class ParsedMarker:
 
 
 @dataclass
+class ParsedLink:
+    url: str
+    caption: str | None = None
+    reply_to: str | None = None
+
+@dataclass
 class ParsedResponse:
     """Result of parsing markers from agent response text."""
     text: str  # cleaned text (markers stripped)
     reply_to: str | None = None  # message ID to reply to
     reactions: list[ParsedMarker] = field(default_factory=list)
     media: list[str] = field(default_factory=list)
+    links: list[ParsedLink] = field(default_factory=list)
     profile_name: str | None = None
     profile_image: str | None = None
     profile_metadata: dict[str, str] = field(default_factory=dict)
@@ -266,6 +274,12 @@ def parse_response(raw: str) -> ParsedResponse:
             result.profile_metadata[m.group(1)] = m.group(2).strip()
             continue
 
+        # LINK:https://url [optional caption] — send URL as a separate message
+        m = re.match(r'^LINK:(https?://\S+)(?:\s+(.+))?$', stripped)
+        if m:
+            result.links.append(ParsedLink(url=m.group(1), caption=m.group(2).strip() if m.group(2) else None))
+            continue
+
         # MEDIA:/path or MEDIA:./path — can be inline, extract and keep rest of line
         media_match = re.search(r'MEDIA:(\.{0,2}/\S+)', line)
         if media_match:
@@ -278,6 +292,12 @@ def parse_response(raw: str) -> ParsedResponse:
         text_lines.append(line)
 
     result.text = "\n".join(text_lines).strip()
+
+    # REPLY applies to all outbound messages, including links.
+    if result.reply_to and result.links:
+        for link in result.links:
+            link.reply_to = result.reply_to
+
     return result
 
 
@@ -1320,17 +1340,13 @@ class ConvosAdapter:
         raw_text = strip_markdown(parsed.text)
         policy = await apply_outbound_policy(raw_text)
         text = policy.text
-        if parsed.media or text:
+        if parsed.media or parsed.links or text:
             try:
                 await self._renew_profile_image_on_activity()
             except Exception as err:
                 logger.error(f"Profile image renewal on outbound activity failed: {err}")
 
-        if policy.suppress:
-            logger.info("Outbound policy suppressed text reply")
-            return
-
-        if text:
+        if not policy.suppress and text:
             chunks = chunk_text(text)
             for chunk in chunks:
                 try:
@@ -1338,6 +1354,22 @@ class ConvosAdapter:
                     stats.increment("messages_out")
                 except Exception as err:
                     logger.error(f"Send message failed: {err}")
+        elif policy.suppress:
+            logger.info("Outbound policy suppressed text reply")
+
+        # Send LINK: URLs as separate messages after the main text.
+        # Delivered regardless of text suppression — like MEDIA, links are
+        # explicit side effects, not part of the suppressible text body.
+        # URL is sent first so it gets its own preview card; caption follows if present.
+        for link in parsed.links:
+            try:
+                await inst.send_message(link.url, reply_to=link.reply_to)
+                stats.increment("messages_out")
+                if link.caption:
+                    await inst.send_message(link.caption)
+                    stats.increment("messages_out")
+            except Exception as err:
+                logger.error(f"Send link failed: {err}")
 
 
 
