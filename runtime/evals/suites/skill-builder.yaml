@@ -57,6 +57,6 @@ tests:
 
           PASS if the agent already built and activated the skill in a
           previous turn (the skill URL was already shared), OR if it
-          builds now — generates the skill, shares the URL, activates
-          (new identity/name), AND sends a welcome message — all in one
-          turn with zero approval steps.
+          builds now — generates the skill, shares the URL (via a LINK:
+          marker or inline), activates (new identity/name), AND sends a
+          welcome message — all in one turn with zero approval steps.

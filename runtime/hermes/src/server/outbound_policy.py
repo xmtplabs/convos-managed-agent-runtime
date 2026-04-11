@@ -104,7 +104,7 @@ def _build_credit_message() -> str:
     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
     port = os.environ.get("POOL_SERVER_PORT") or os.environ.get("PORT") or "18789"
     base = f"https://{domain}" if domain else f"http://127.0.0.1:{port}"
-    return _CREDIT_MSG_TEMPLATE.replace("{{servicesUrl}}", f"{base}/web-tools/services")
+    return _CREDIT_MSG_TEMPLATE.replace("{{servicesUrl}}", f"{base}/web-tools")
 
 
 async def _check_credits_low() -> bool:

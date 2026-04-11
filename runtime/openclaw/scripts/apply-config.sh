@@ -1,5 +1,5 @@
 #!/bin/sh
-# 1. Sync workspace (includes skills), extensions. 2. Copy config template to state dir (OpenClaw substitutes ${VAR} at load from env).
+# 1. Sync workspace (includes skills), src (→ extensions). 2. Copy config template to state dir (OpenClaw substitutes ${VAR} at load from env).
 set -e
 
 . "$(dirname "$0")/init.sh"
@@ -7,7 +7,7 @@ set -e
 brand_section "Workspace"
 brand_dim "" "sync skills, agents, and config"
 
-# ── Sync workspace and extensions to state dir ───────────────────────────
+# ── Sync workspace and src (→ extensions) to state dir ───────────────────
 copy_tree_snapshot() {
   src_dir="$1"
   dst_dir="$2"
@@ -99,24 +99,28 @@ if [ -n "${CONVOS_PLATFORM_DIR:-}" ] && [ -d "$CONVOS_PLATFORM_DIR" ]; then
   fi
 fi
 
-for subdir in workspace extensions; do
-  [ -d "$RUNTIME_DIR/$subdir" ] || { [ "$subdir" = "workspace" ] && [ -n "$_MERGED_SRC" ]; } || continue
-  mkdir -p "$STATE_DIR/$subdir"
-
-  if [ "$subdir" = "workspace" ]; then
-    if [ -n "$_MERGED_SRC" ]; then
-      sync_workspace_dir "$_MERGED_SRC"
-    else
-      sync_workspace_dir
-    fi
-  elif command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete --exclude=node_modules "$RUNTIME_DIR/$subdir/" "$STATE_DIR/$subdir/"
+# Sync workspace
+if [ -d "$RUNTIME_DIR/workspace" ] || [ -n "$_MERGED_SRC" ]; then
+  mkdir -p "$STATE_DIR/workspace"
+  if [ -n "$_MERGED_SRC" ]; then
+    sync_workspace_dir "$_MERGED_SRC"
   else
-    rm -rf "${STATE_DIR:?}/$subdir"/*
-    cp -r "$RUNTIME_DIR/$subdir/"* "$STATE_DIR/$subdir/" 2>/dev/null || true
+    sync_workspace_dir
   fi
-  brand_ok "$subdir" "$STATE_DIR/$subdir"
-done
+  brand_ok "workspace" "$STATE_DIR/workspace"
+fi
+
+# Sync src/ → extensions/ (OpenClaw plugin loader reads from extensions/)
+if [ -d "$RUNTIME_DIR/src" ]; then
+  mkdir -p "$STATE_DIR/extensions"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete --exclude=node_modules "$RUNTIME_DIR/src/" "$STATE_DIR/extensions/"
+  else
+    rm -rf "${STATE_DIR:?}/extensions"/*
+    cp -r "$RUNTIME_DIR/src/"* "$STATE_DIR/extensions/" 2>/dev/null || true
+  fi
+  brand_ok "src → extensions" "$STATE_DIR/extensions"
+fi
 
 [ -n "${_MERGED_SRC:-}" ] && rm -rf "$_MERGED_SRC" && unset _MERGED_SRC
 

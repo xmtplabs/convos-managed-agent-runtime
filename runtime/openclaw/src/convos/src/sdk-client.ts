@@ -147,6 +147,16 @@ const RESTART_BASE_DELAY_MS = 2000;
 /** After this many ms of sustained uptime, reset the restart counter. */
 const RESTART_RESET_AFTER_MS = 60_000;
 
+/**
+ * Stderr patterns that indicate a fatal, non-retryable error.
+ * When matched, the process will NOT be auto-restarted.
+ */
+const FATAL_STDERR_PATTERNS = [
+  /No identity found for conversation/i,
+  /identity not found/i,
+  /conversation not found/i,
+];
+
 // ---- ConvosInstance ----
 
 export class ConvosInstance {
@@ -174,6 +184,9 @@ export class ConvosInstance {
   private restartCount = 0;
   private lastStartTime = 0;
   private options: ConvosInstanceOptions;
+
+  /** Recent stderr lines — used to detect fatal errors that should not be retried. */
+  private lastStderrLines: string[] = [];
 
   /** Cached member display names: inboxId → name */
   private memberNames = new Map<string, string>();
@@ -357,6 +370,12 @@ export class ConvosInstance {
           const instance = new ConvosInstance({ conversationId, identityId, env, options });
           return { instance, status: "joined", conversationId, identityId };
         }
+        // Already joined but conversation is still pending (not a hex ID).
+        // Throw a recognizable error so callers can fail fast instead of retrying.
+        throw Object.assign(
+          new Error(`Already joined conversation but status is pending (identity: ${identityMatch?.[1] ?? "unknown"})`),
+          { code: "ALREADY_JOINED_PENDING" },
+        );
       }
       throw err;
     }
@@ -579,15 +598,32 @@ export class ConvosInstance {
     const effectiveReplyTo = parsed.replyTo ?? replyTo;
 
     text = parsed.text;
-    if (!text) {
+    if (!text && parsed.links.length === 0) {
       return { success: true, messageId: undefined };
     }
 
     await this.renewProfileImageOnActivity();
 
-    const cmd: Record<string, unknown> = { type: "send", text };
-    if (effectiveReplyTo) cmd.replyTo = effectiveReplyTo;
-    return this.sendAndWait(cmd);
+    // Send main text first.
+    let result: { success: boolean; messageId?: string } = { success: true, messageId: undefined };
+    if (text) {
+      const cmd: Record<string, unknown> = { type: "send", text };
+      if (effectiveReplyTo) cmd.replyTo = effectiveReplyTo;
+      result = await this.sendAndWait(cmd);
+    }
+
+    // Send LINK: URLs as separate messages after the main text.
+    // URL is sent first so it gets its own preview card; caption follows if present.
+    for (const link of parsed.links) {
+      try {
+        const cmd: Record<string, unknown> = { type: "send", text: link.url };
+        if (link.replyTo) cmd.replyTo = link.replyTo;
+        await this.sendAndWait(cmd);
+        if (link.caption) await this.sendAndWait({ type: "send", text: link.caption });
+      } catch { /* best-effort */ }
+    }
+
+    return result;
   }
 
   async sendAttachment(file: string): Promise<{ success: boolean; messageId?: string }> {
@@ -720,10 +756,14 @@ export class ConvosInstance {
       }
 
       // Always log stderr for diagnostics (crash messages, XMTP errors)
+      this.lastStderrLines = [];
       if (child.stderr) {
         const rl = createInterface({ input: child.stderr });
         rl.on("line", (line) => {
           console.error(`[convos:stderr] ${line}`);
+          this.lastStderrLines.push(line);
+          // Keep only the last 20 lines to avoid unbounded growth
+          if (this.lastStderrLines.length > 20) this.lastStderrLines.shift();
         });
       }
 
@@ -749,6 +789,17 @@ export class ConvosInstance {
 
         // Auto-restart if still supposed to be running
         if (this.running) {
+          // Check if stderr contains a fatal error that won't resolve on retry
+          const stderrSnapshot = this.lastStderrLines.join("\n");
+          const fatalMatch = FATAL_STDERR_PATTERNS.find((p) => p.test(stderrSnapshot));
+          if (fatalMatch) {
+            console.error(
+              `[convos] Fatal error detected (${fatalMatch.source}), not restarting`,
+            );
+            this.running = false;
+            return;
+          }
+
           // Reset counter if we had sustained uptime
           if (Date.now() - this.lastStartTime > RESTART_RESET_AFTER_MS) {
             this.restartCount = 0;

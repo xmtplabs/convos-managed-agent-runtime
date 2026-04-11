@@ -1,6 +1,6 @@
 # Runtime Parity
 
-Cross-runtime audit of OpenClaw (Node.js) and Hermes (Python). Last updated April 7 2026.
+Cross-runtime audit of OpenClaw (Node.js) and Hermes (Python). Last updated April 10 2026.
 
 Approach: file-by-file comparison across channel logic, stats, agent runner, server, and boot scripts. Each feature verified against `dev` HEAD.
 
@@ -26,14 +26,18 @@ Approach: file-by-file comparison across channel logic, stats, agent runner, ser
 | **Tool surface** | `send`, `react`, `sendAttachment` | `convos_react`, `convos_send_attachment` | Intentional design difference. Hermes has no explicit `send` — final text dispatched automatically. |
 | **Marker docs** | MESSAGING.md | MESSAGING.md | Both document `REPLY:`, `REACT:`, `MEDIA:` markers. |
 | **Temp image cleanup** | `channel.ts:147-167` | `channel.py:273-290` | Both prune `convos-img-*` files older than 1hr, throttled to every 5min. |
+| **Voice memo transcription** | `channel.ts` | `channel.py` | Both detect audio attachments (.m4a, .ogg, .mp3, etc.), download, send to Gemini 2.0 Flash via OpenRouter `input_audio` content blocks, and re-dispatch as `[Audio] transcript`. Eyes shown during transcription. No local whisper or extra API keys. |
+| **Video understanding** | `channel.ts` | `channel.py` | Both detect video attachments (.mp4, .mov, .webm, .mpeg), download, send to Gemini 2.0 Flash via OpenRouter `video_url` content blocks (base64 data URL), and re-dispatch as `[Video] description`. Eyes shown during processing. Model describes visuals and transcribes speech. |
 | **Reasoning suppression** | `channel.ts:818-879` buffer-flush | `agent_runner.py:322-356` post-hoc extraction | Different mechanisms, same user-facing behavior (reasoning hidden). Eval suite validates parity. |
+| **Fatal error self-healing** | `sdk-client.ts` + `channel.ts` | `sdk_client.py` | Both capture stderr, match against `FATAL_STDERR_PATTERNS` (e.g. "No identity found for conversation"), and skip retry loop on non-retryable errors. OpenClaw channel layer also blocks instead of throwing to prevent framework auto-restart. |
+| **Conversation history persistence** | Framework-managed session store via `runtime.channel.session.recordInboundSession` (`channel.ts:939`) | Upstream Hermes `SessionDB` SQLite at `$HERMES_HOME/state.db`, with a `conversation_id → session_id` pointer in `$HERMES_HOME/convos_session.json` so the runtime resumes the right session after a process restart (`agent_runner.py`) | Both persist the full message trajectory (including tool calls and tool results) to disk, and both survive process restarts. Different storage layers (framework session store vs upstream Hermes `SessionDB`), same outcome. |
 
 ## Inconsistencies
 
 ### 1. Delivery queue cleanup — OpenClaw only (intentional)
 
 - **OpenClaw**: Clears stale `delivery-queue/*.json` on startup (`channel.ts:383-403`) to prevent duplicate sends after SIGKILL.
-- **Hermes**: No delivery queue. Uses in-memory state — different architecture, no disk persistence.
+- **Hermes**: No outbound delivery queue — sends happen inline within each turn, so there's nothing to persist or replay on the outbound path. (Inbound conversation history *is* persisted to disk via `state.db` — see the Conversation history persistence row above.)
 
 Intentional. No action needed.
 

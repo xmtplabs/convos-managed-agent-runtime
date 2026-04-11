@@ -948,7 +948,7 @@ app.get("/api/pool/status", requireAuth, async (_req, res) => {
 });
 
 app.post("/api/pool/claim", requireAuth, async (req, res) => {
-  const { agentName, instructions, joinUrl, profileImage, metadata, source } = req.body || {};
+  const { agentName, instructions, joinUrl, profileImage, metadata, source, runtime } = req.body || {};
   if (instructions && typeof instructions !== "string") {
     res.status(400).json({ error: "instructions must be a string if provided" }); return;
   }
@@ -963,6 +963,9 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
   }
   if (metadata && (typeof metadata !== "object" || Array.isArray(metadata))) {
     res.status(400).json({ error: "metadata must be an object if provided" }); return;
+  }
+  if (runtime && !["hermes", "openclaw"].includes(runtime)) {
+    res.status(400).json({ error: "runtime must be 'hermes' or 'openclaw' if provided" }); return;
   }
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
@@ -979,6 +982,7 @@ app.post("/api/pool/claim", requireAuth, async (req, res) => {
       profileImage: (typeof profileImage === "string" && profileImage) || undefined,
       metadata: metadata || undefined,
       source: (typeof source === "string" && source) || "api",
+      runtime: (typeof runtime === "string" && runtime) || undefined,
     });
     if (!result) {
       res.status(503).json({ error: "No idle instances available. Try again in a few minutes." }); return;
@@ -997,6 +1001,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
   const joinUrl = (req.query.joinUrl as string) || undefined;
   const profileImage = (req.query.profileImage as string) || undefined;
   const source = (req.query.source as string) || "api";
+  const runtime = (req.query.runtime as string) || undefined;
 
   let metadata: Record<string, string> | undefined;
   if (req.query.metadata) {
@@ -1008,6 +1013,9 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
     } catch { /* ignore */ }
   }
 
+  if (runtime && !["hermes", "openclaw"].includes(runtime)) {
+    res.status(400).json({ error: "runtime must be 'hermes' or 'openclaw' if provided" }); return;
+  }
   if (joinUrl && config.poolEnvironment === "production" && /dev\.convos\.org/i.test(joinUrl)) {
     res.status(400).json({ error: "dev.convos.org links cannot be used in the production environment" }); return;
   }
@@ -1033,6 +1041,7 @@ app.get("/api/pool/claim/stream", requireAuth, async (req, res) => {
       profileImage,
       metadata,
       source,
+      runtime,
       onProgress(step, status, message) {
         send({ type: "step", step, status, message: message || "" });
       },

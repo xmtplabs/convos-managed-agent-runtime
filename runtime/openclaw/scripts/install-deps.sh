@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install extension deps.
+# Install src (extensions) deps.
 # All deps are declared in root package.json (single source of truth).
 # CLIs resolve via PATH (node-path.sh).
 # Skill scripts use REST APIs directly via fetch — no JS library imports needed.
@@ -8,10 +8,10 @@ set -e
 export OPENCLAW_STATE_DIR="$STATE_DIR"
 
 brand_section "Dependencies"
-brand_dim "" "install extensions and check toolchain"
+brand_dim "" "install src plugins and check toolchain"
 
-# Extensions
-brand_subsection "extensions"
+# Src plugins (synced to extensions/ at boot)
+brand_subsection "src"
 for ext in "$EXTENSIONS_DIR"/*; do
   [ -d "$ext" ] && [ -f "$ext/package.json" ] || continue
   name=$(basename "$ext")

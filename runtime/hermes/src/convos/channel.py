@@ -8,6 +8,7 @@ Marker syntax (agent includes these in its response text):
   REACT:messageId:emoji           — react to a message
   REACT:messageId:emoji:remove    — remove a reaction
   REPLY:messageId                 — send the response as a reply to that message
+  LINK:https://url                — send URL as a separate message
   MEDIA:/path/to/file             — send a file attachment
   PROFILE:New Name                — update the agent's profile name
   PROFILEIMAGE:https://url        — update the agent's profile image
@@ -30,6 +31,8 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+import time as _time
+
 import httpx
 
 from .sdk_client import ConvosInstance, InboundMessage
@@ -42,10 +45,17 @@ from ..server.stats import stats
 
 logger = logging.getLogger(__name__)
 
+# Wall-clock safety net for background tasks (10 minutes).
+# The primary bound is max_iterations on the AIAgent; this only catches
+# truly hung tasks that stop making progress without exiting.
+BACKGROUND_TASK_TIMEOUT_S = 600
+
 XMTP_MESSAGE_LIMIT = 4000
 GROUP_UPDATE_SEPARATOR_RE = re.compile(r"\s*;\s*")
 COMPANION_SETTLE_S = 1.5
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".heic", ".heif", ".avif"}
+AUDIO_EXTENSIONS = {".m4a", ".mp3", ".ogg", ".opus", ".wav", ".aac", ".flac", ".webm"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".mpeg"}
 ATTACHMENT_FILENAME_RE = re.compile(r"\[(?:remote )?attachment:\s*(\S+)")
 CONVOS_IMG_MAX_AGE_S = 60 * 60  # 1 hour
 PRUNE_THROTTLE_S = 5 * 60  # at most once per 5 minutes
@@ -55,6 +65,121 @@ GROUP_EXPIRATION_CLEARED_RE = re.compile(r"\bcleared conversation expiration(?:;
 EXPLOSION_IMMEDIATE_SKEW_S = 3.0
 _expiration_timer: asyncio.TimerHandle | None = None
 _expiration_at_s: float | None = None
+
+_AUDIO_MIME_MAP: dict[str, str] = {
+    ".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".ogg": "audio/ogg",
+    ".opus": "audio/opus", ".wav": "audio/wav", ".aac": "audio/aac",
+    ".flac": "audio/flac", ".webm": "audio/webm",
+}
+
+_AUDIO_FORMAT_MAP: dict[str, str] = {
+    "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/ogg": "ogg",
+    "audio/opus": "ogg", "audio/wav": "wav", "audio/aac": "aac",
+    "audio/flac": "flac", "audio/webm": "webm",
+}
+
+
+async def _transcribe_audio_via_openrouter(file_path: str, mime: str) -> str | None:
+    """Transcribe audio by sending it to OpenRouter as an input_audio content block."""
+    import base64
+
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        logger.error("transcribeAudio: OPENROUTER_API_KEY not set")
+        return None
+
+    data = Path(file_path).read_bytes()
+    b64 = base64.b64encode(data).decode("ascii")
+    fmt = _AUDIO_FORMAT_MAP.get(mime, "wav")
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": "google/gemini-2.0-flash-001",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Transcribe this audio. Reply with ONLY the transcript, nothing else. The audio is likely in English or Spanish.",
+                                },
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {"data": b64, "format": fmt},
+                                },
+                            ],
+                        }
+                    ],
+                },
+            )
+        if resp.status_code != 200:
+            logger.error(f"transcribeAudio: OpenRouter returned {resp.status_code}: {resp.text[:200]}")
+            return None
+        body = resp.json()
+        text = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return text.strip() or None
+    except Exception as err:
+        logger.error(f"transcribeAudio: {err}")
+        return None
+
+
+_VIDEO_MIME_MAP: dict[str, str] = {
+    ".mp4": "video/mp4", ".mov": "video/quicktime",
+    ".webm": "video/webm", ".mpeg": "video/mpeg",
+}
+
+
+async def _describe_video_via_openrouter(file_path: str, mime: str) -> str | None:
+    """Describe a video by sending it to OpenRouter as a video_url content block."""
+    import base64
+
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        logger.error("describeVideo: OPENROUTER_API_KEY not set")
+        return None
+
+    data = Path(file_path).read_bytes()
+    b64 = base64.b64encode(data).decode("ascii")
+    data_url = f"data:{mime};base64,{b64}"
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": "google/gemini-2.0-flash-001",
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Describe this video concisely. If there is speech, include the transcript. Reply with ONLY the description, nothing else.",
+                                },
+                                {
+                                    "type": "video_url",
+                                    "video_url": {"url": data_url},
+                                },
+                            ],
+                        }
+                    ],
+                },
+            )
+        if resp.status_code != 200:
+            logger.error(f"describeVideo: OpenRouter returned {resp.status_code}: {resp.text[:200]}")
+            return None
+        body = resp.json()
+        text = body.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return text.strip() or None
+    except Exception as err:
+        logger.error(f"describeVideo: {err}")
+        return None
+
 
 async def _notify_pool_self_destruct() -> None:
     """Tell the pool manager to destroy this instance."""
@@ -87,12 +212,19 @@ class ParsedMarker:
 
 
 @dataclass
+class ParsedLink:
+    url: str
+    caption: str | None = None
+    reply_to: str | None = None
+
+@dataclass
 class ParsedResponse:
     """Result of parsing markers from agent response text."""
     text: str  # cleaned text (markers stripped)
     reply_to: str | None = None  # message ID to reply to
     reactions: list[ParsedMarker] = field(default_factory=list)
     media: list[str] = field(default_factory=list)
+    links: list[ParsedLink] = field(default_factory=list)
     profile_name: str | None = None
     profile_image: str | None = None
     profile_metadata: dict[str, str] = field(default_factory=dict)
@@ -142,8 +274,14 @@ def parse_response(raw: str) -> ParsedResponse:
             result.profile_metadata[m.group(1)] = m.group(2).strip()
             continue
 
-        # MEDIA:/path — can be inline, extract and keep rest of line
-        media_match = re.search(r'MEDIA:(/\S+)', line)
+        # LINK:https://url [optional caption] — send URL as a separate message
+        m = re.match(r'^LINK:(https?://\S+)(?:\s+(.+))?$', stripped)
+        if m:
+            result.links.append(ParsedLink(url=m.group(1), caption=m.group(2).strip() if m.group(2) else None))
+            continue
+
+        # MEDIA:/path or MEDIA:./path — can be inline, extract and keep rest of line
+        media_match = re.search(r'MEDIA:(\.{0,2}/\S+)', line)
         if media_match:
             result.media.append(media_match.group(1))
             line = line[:media_match.start()] + line[media_match.end():]
@@ -154,6 +292,12 @@ def parse_response(raw: str) -> ParsedResponse:
         text_lines.append(line)
 
     result.text = "\n".join(text_lines).strip()
+
+    # REPLY applies to all outbound messages, including links.
+    if result.reply_to and result.links:
+        for link in result.links:
+            link.reply_to = result.reply_to
+
     return result
 
 
@@ -270,6 +414,14 @@ def _is_image_filename(filename: str) -> bool:
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 
 
+def _is_audio_filename(filename: str) -> bool:
+    return Path(filename).suffix.lower() in AUDIO_EXTENSIONS
+
+
+def _is_video_filename(filename: str) -> bool:
+    return Path(filename).suffix.lower() in VIDEO_EXTENSIONS
+
+
 def _prune_stale_convos_images(media_dir: Path) -> None:
     """Remove convos-img-* temp files older than 1 hour. Throttled to at most once per 5 minutes."""
     global _last_prune_at
@@ -343,6 +495,10 @@ class ConvosAdapter:
         self._pending_message: InboundMessage | None = None
         self._skipped_content: list[str] = []  # messages superseded while queued
         self._sent_message_ids: set[str] = set()  # tracks agent-sent IDs for "own" reaction detection
+        # Background tasks: fire-and-forget async work that notifies on completion.
+        # Maps task_id → (asyncio.Task, metadata dict with goal, start_time, progress_file).
+        self._background_tasks: dict[str, asyncio.Task] = {}
+        self._background_task_meta: dict[str, dict] = {}
 
     @property
     def instance(self) -> ConvosInstance | None:
@@ -392,6 +548,8 @@ class ConvosAdapter:
         set_bridge(
             react=self._instance.react,
             send_attachment=self._instance.send_attachment,
+            spawn_background_task=self._spawn_background_task,
+            check_background_task=self._check_background_task,
         )
 
         self._profile_image_renewal = ProfileImageRenewalStore(
@@ -417,6 +575,13 @@ class ConvosAdapter:
                 download_task.cancel()
         self._pending_attachments.clear()
 
+        # Cancel running background tasks
+        for task_id, task in self._background_tasks.items():
+            task.cancel()
+            logger.info("Cancelled background task %s on stop", task_id)
+        self._background_tasks.clear()
+        self._background_task_meta.clear()
+
         _clear_expiration_timer()
 
         if self._instance:
@@ -425,6 +590,230 @@ class ConvosAdapter:
         self._profile_image_renewal = None
         self._agent = None
 
+    # ---- Background tasks ----
+
+    async def _spawn_background_task(self, task_id: str, goal: str, context: str) -> None:
+        """Queue a background task. Called from the bridge (worker thread via _run_async).
+
+        Validates concurrency limits, then creates an asyncio task that runs
+        a fresh AIAgent in a thread pool and notifies on completion.
+        """
+        from .actions import MAX_BACKGROUND_TASKS
+
+        # Prune completed tasks before checking limits
+        done_ids = [tid for tid, t in self._background_tasks.items() if t.done()]
+        for tid in done_ids:
+            self._background_tasks.pop(tid, None)
+            self._background_task_meta.pop(tid, None)
+        if len(self._background_tasks) >= MAX_BACKGROUND_TASKS:
+            raise RuntimeError(
+                f"Too many background tasks ({len(self._background_tasks)}/{MAX_BACKGROUND_TASKS}). "
+                "Wait for one to finish before starting another."
+            )
+
+        # Progress file — the background agent's report_progress tool writes
+        # here mid-run so the main agent can check on progress in real time.
+        progress_dir = Path(self._config.hermes_home) / "background-tasks"
+        progress_dir.mkdir(parents=True, exist_ok=True)
+        progress_file = str(progress_dir / f"{task_id}.log")
+
+        self._background_task_meta[task_id] = {
+            "goal": goal,
+            "start_time": _time.time(),
+            "progress_file": progress_file,
+        }
+
+        task = asyncio.create_task(
+            self._run_background_task(task_id, goal, context),
+            name=f"background-{task_id}",
+        )
+        self._background_tasks[task_id] = task
+        logger.info("Spawned background task %s: %s", task_id, goal[:80])
+
+    async def _run_background_task(self, task_id: str, goal: str, context: str) -> None:
+        """Execute a background task and inject results via the notify pathway."""
+        adapter = self
+        agent = adapter._agent
+        if not agent or not adapter._instance:
+            logger.error("Background task %s: no active agent/instance", task_id)
+            return
+
+        meta = self._background_task_meta.get(task_id, {})
+        progress_file = meta.get("progress_file", "")
+
+        prompt = (
+            f"## Goal\n\n{goal}\n\n## Context\n\n{context}\n\n"
+            f"## Instructions\n\n"
+            f"Call `convos_report_progress` after each major step (after a search, "
+            f"after fetching a page, after analyzing data) with a brief status."
+        )
+        loop = asyncio.get_event_loop()
+
+        try:
+            result = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None, self._run_background_agent_sync, prompt, progress_file,
+                ),
+                timeout=BACKGROUND_TASK_TIMEOUT_S,
+            )
+        except asyncio.TimeoutError:
+            result = f"Background task timed out after {BACKGROUND_TASK_TIMEOUT_S}s."
+            logger.warning("Background task %s timed out", task_id)
+        except asyncio.CancelledError:
+            logger.info("Background task %s cancelled", task_id)
+            self._background_tasks.pop(task_id, None)
+            self._background_task_meta.pop(task_id, None)
+            return
+        except Exception as err:
+            result = f"Background task failed: {err}"
+            logger.error("Background task %s failed: %s", task_id, err)
+
+        # Wait for the main agent to be idle before injecting results.
+        # If we inject while _agent_running is True, we'd have two concurrent
+        # run_conversation() calls on the same AIAgent — avoid that.
+        for _ in range(120):  # up to 60s
+            if not adapter._agent_running:
+                break
+            await asyncio.sleep(0.5)
+        else:
+            logger.warning(
+                "Background task %s: timed out waiting for idle agent, "
+                "dropping notification to avoid concurrent turns",
+                task_id,
+            )
+            self._background_tasks.pop(task_id, None)
+            self._background_task_meta.pop(task_id, None)
+            return
+
+        # Inject results as a system notification — triggers a fresh agent turn
+        # with full conversation context (same pathway as /convos/notify and cron).
+        # Set _agent_running to prevent _process_message from starting a
+        # concurrent turn during handle_message (mirrors _run_agent_turn).
+        try:
+            await adapter._greeting_done.wait()
+            if not adapter._instance:
+                logger.warning("Background task %s: instance gone, skipping notify", task_id)
+                return
+            adapter._agent_running = True
+            notification = (
+                f"[Background task {task_id} completed]\n"
+                f"Goal: {goal}\n\n"
+                f"Results:\n{result}"
+            )
+            response = await agent.handle_message(
+                content=notification,
+                sender_name="System",
+                sender_id="system",
+                timestamp=_time.time(),
+                conversation_id=adapter._instance.conversation_id,
+                message_id=f"{task_id}-{int(_time.time() * 1000)}",
+                group_members=adapter._instance.get_group_members(),
+                agent_name=adapter._instance.get_own_name(),
+            )
+            if response:
+                await adapter._dispatch_response(response)
+            logger.info("Background task %s: notified with results", task_id)
+        except Exception as err:
+            logger.error("Background task %s: failed to notify: %s", task_id, err)
+        finally:
+            adapter._agent_running = False
+            self._background_tasks.pop(task_id, None)
+            self._background_task_meta.pop(task_id, None)
+
+    def _run_background_agent_sync(self, prompt: str, progress_file: str) -> str:
+        """Run a fresh AIAgent synchronously for background work.
+
+        Creates an isolated agent instance with the same model and provider
+        config but no conversation history — the background worker starts
+        with a blank slate, just like delegate_task sub-agents.
+
+        Sets a thread-local progress file so the report_progress tool handler
+        can write to it mid-run (tool handlers execute synchronously during
+        the agent loop, so writes happen in real time).
+        """
+        from ..server.agent_runner import _get_ai_agent_class, AgentRunner
+        from .actions import set_progress_file
+
+        # Activate progress file for this thread so report_progress writes here.
+        set_progress_file(progress_file)
+
+        cfg = AgentRunner._load_config_yaml(self._config.hermes_home)
+        pr = cfg.get("provider_routing", {}) or {}
+        fallback = cfg.get("fallback_providers") or cfg.get("fallback_model") or None
+
+        AIAgent = _get_ai_agent_class()
+        bg_agent = AIAgent(
+            model=self._config.model,
+            max_iterations=self._config.max_iterations,
+            enabled_toolsets=["hermes-convos"],
+            platform="convos",
+            quiet_mode=True,
+            save_trajectories=False,
+            providers_allowed=pr.get("only"),
+            providers_ignored=pr.get("ignore"),
+            providers_order=pr.get("order"),
+            provider_sort=pr.get("sort"),
+            provider_require_parameters=pr.get("require_parameters", False),
+            provider_data_collection=pr.get("data_collection"),
+            fallback_model=fallback,
+        )
+        try:
+            result = bg_agent.run_conversation(
+                user_message=prompt,
+                conversation_history=[],
+            )
+            return result.get("final_response", "") or "(no output)"
+        finally:
+            set_progress_file(None)
+
+    def _check_background_task(self, task_id: str | None) -> dict:
+        """Return status of one or all background tasks (called from bridge, sync-safe)."""
+        # Prune finished tasks from the tracking dict
+        done_ids = [tid for tid, t in self._background_tasks.items() if t.done()]
+        for tid in done_ids:
+            self._background_tasks.pop(tid, None)
+            self._background_task_meta.pop(tid, None)
+
+        if task_id:
+            meta = self._background_task_meta.get(task_id)
+            if not meta:
+                return {"task_id": task_id, "status": "not_found"}
+            elapsed = _time.time() - meta["start_time"]
+            progress = ""
+            pf = meta.get("progress_file", "")
+            if pf:
+                try:
+                    p = Path(pf)
+                    if p.exists():
+                        progress = p.read_text().strip()
+                        # Keep last 5 lines to avoid huge payloads
+                        lines = progress.splitlines()
+                        if len(lines) > 5:
+                            progress = "\n".join(lines[-5:])
+                except Exception:
+                    pass
+            result = {
+                "task_id": task_id,
+                "status": "running",
+                "goal": meta["goal"],
+                "elapsed_seconds": round(elapsed),
+            }
+            if progress:
+                result["progress"] = progress
+            return result
+
+        # All tasks
+        tasks = []
+        for tid, meta in self._background_task_meta.items():
+            elapsed = _time.time() - meta["start_time"]
+            tasks.append({
+                "task_id": tid,
+                "status": "running",
+                "goal": meta["goal"],
+                "elapsed_seconds": round(elapsed),
+            })
+        return {"tasks": tasks} if tasks else {"tasks": [], "note": "No background tasks running."}
+
     # ---- Message pipeline ----
 
     async def _handle_message(self, msg: InboundMessage) -> None:
@@ -432,6 +821,35 @@ class ConvosAdapter:
         hold_key = attachment_hold_key(msg)
 
         if is_attachment_message(msg):
+            # --- Audio/voice memo handling ---
+            # Detect audio attachments, download, transcribe via OpenRouter,
+            # and re-dispatch as a text message with [Audio] prefix.
+            filename = _extract_attachment_filename(msg.content)
+            if filename and _is_audio_filename(filename):
+                transcript = await self._transcribe_audio_attachment(msg, filename)
+                if transcript:
+                    synthetic = replace(
+                        msg,
+                        content_type="text",
+                        content=f"[Audio] {transcript}",
+                    )
+                    await self._handle_message(synthetic)
+                    return
+                # Transcription failed — fall through to normal attachment path
+
+            # --- Video attachment handling ---
+            if filename and _is_video_filename(filename):
+                description = await self._describe_video_attachment(msg, filename)
+                if description:
+                    synthetic = replace(
+                        msg,
+                        content_type="text",
+                        content=f"[Video] {description}",
+                    )
+                    await self._handle_message(synthetic)
+                    return
+                # Description failed — fall through to normal attachment path
+
             # Start download in the background — do NOT await before holding.
             # The hold entry must be visible immediately so a companion text
             # message that arrives while the download is in progress can merge.
@@ -649,6 +1067,86 @@ class ConvosAdapter:
 
     # ---- Attachment download + hold/merge ----
 
+    async def _transcribe_audio_attachment(self, msg: InboundMessage, filename: str) -> str | None:
+        """Download an audio attachment, transcribe via OpenRouter, and return the transcript."""
+        inst = self._instance
+        if not inst:
+            return None
+
+        ext = Path(filename).suffix.lower() or ".m4a"
+        media_dir = Path(self._config.media_dir)
+        media_dir.mkdir(parents=True, exist_ok=True)
+        audio_path = media_dir / f"convos-audio-{msg.message_id[:16]}{ext}"
+
+        try:
+            # Show eyes while transcribing so the user knows we're working on it
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "add")
+            except Exception:
+                pass
+            await inst.download_attachment(msg.message_id, str(audio_path))
+            logger.info(f"Audio attachment downloaded: {audio_path}")
+            mime = _AUDIO_MIME_MAP.get(ext, "audio/mp4")
+            transcript = await _transcribe_audio_via_openrouter(str(audio_path), mime)
+            # Clean up
+            audio_path.unlink(missing_ok=True)
+            if transcript:
+                logger.info(f"Audio transcript: {transcript[:100]}")
+                return transcript
+            logger.error("Audio transcription returned empty")
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
+        except Exception as err:
+            logger.error(f"Failed to process audio attachment: {err}")
+            audio_path.unlink(missing_ok=True)
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
+
+    async def _describe_video_attachment(self, msg: InboundMessage, filename: str) -> str | None:
+        """Download a video attachment, describe via OpenRouter, and return the description."""
+        inst = self._instance
+        if not inst:
+            return None
+
+        ext = Path(filename).suffix.lower() or ".mp4"
+        media_dir = Path(self._config.media_dir)
+        media_dir.mkdir(parents=True, exist_ok=True)
+        video_path = media_dir / f"convos-video-{msg.message_id[:16]}{ext}"
+
+        try:
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "add")
+            except Exception:
+                pass
+            await inst.download_attachment(msg.message_id, str(video_path))
+            logger.info(f"Video attachment downloaded: {video_path}")
+            mime = _VIDEO_MIME_MAP.get(ext, "video/mp4")
+            description = await _describe_video_via_openrouter(str(video_path), mime)
+            video_path.unlink(missing_ok=True)
+            if description:
+                logger.info(f"Video description: {description[:100]}")
+                return description
+            logger.error("Video description returned empty")
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
+        except Exception as err:
+            logger.error(f"Failed to process video attachment: {err}")
+            video_path.unlink(missing_ok=True)
+            try:
+                await inst.react(msg.message_id, "\U0001f440", "remove")
+            except Exception:
+                pass
+            return None
+
     async def _download_image_attachment(self, msg: InboundMessage) -> None:
         """If the attachment is an image, download it and stash the local path on the message."""
         filename = _extract_attachment_filename(msg.content)
@@ -842,17 +1340,13 @@ class ConvosAdapter:
         raw_text = strip_markdown(parsed.text)
         policy = await apply_outbound_policy(raw_text)
         text = policy.text
-        if parsed.media or text:
+        if parsed.media or parsed.links or text:
             try:
                 await self._renew_profile_image_on_activity()
             except Exception as err:
                 logger.error(f"Profile image renewal on outbound activity failed: {err}")
 
-        if policy.suppress:
-            logger.info("Outbound policy suppressed text reply")
-            return
-
-        if text:
+        if not policy.suppress and text:
             chunks = chunk_text(text)
             for chunk in chunks:
                 try:
@@ -860,6 +1354,22 @@ class ConvosAdapter:
                     stats.increment("messages_out")
                 except Exception as err:
                     logger.error(f"Send message failed: {err}")
+        elif policy.suppress:
+            logger.info("Outbound policy suppressed text reply")
+
+        # Send LINK: URLs as separate messages after the main text.
+        # Delivered regardless of text suppression — like MEDIA, links are
+        # explicit side effects, not part of the suppressible text body.
+        # URL is sent first so it gets its own preview card; caption follows if present.
+        for link in parsed.links:
+            try:
+                await inst.send_message(link.url, reply_to=link.reply_to)
+                stats.increment("messages_out")
+                if link.caption:
+                    await inst.send_message(link.caption)
+                    stats.increment("messages_out")
+            except Exception as err:
+                logger.error(f"Send link failed: {err}")
 
 
 
